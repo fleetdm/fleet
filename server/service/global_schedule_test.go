@@ -83,7 +83,7 @@ func TestGlobalScheduleAuth(t *testing.T) {
 			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query"})
+			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query", Interval: 10})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ModifyGlobalScheduledQueries(ctx, 1, fleet.ScheduledQueryPayload{})

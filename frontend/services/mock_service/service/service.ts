@@ -79,7 +79,7 @@ const matchPathToResponse = (method: string, requestPath: string) => {
 export const sendRequest = async (
   method = "GET",
   requestPath: string,
-  data?: Record<string, unknown>
+  data?: unknown
 ): Promise<any> => {
   console.log("Mock service request URL: ", requestPath);
   console.log("Mock service request body: ", data);

@@ -15,6 +15,8 @@ import packsAPI from "services/entities/packs";
 import PackForm from "components/forms/packs/PackForm";
 // @ts-ignore
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 
 interface IPackComposerPageProps {
   router: InjectedRouter;
@@ -22,11 +24,12 @@ interface IPackComposerPageProps {
 
 const baseClass = "pack-composer";
 
-const PackComposerPage = ({ router }: IPackComposerPageProps) => {
+const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [selectedTargetsCount, setSelectedTargetsCount] = useState<number>(0);
+  const [isUpdatingPack, setIsUpdatingPack] = useState<boolean>(false);
 
   const onFetchTargets = (
     query: IQuery,
@@ -39,6 +42,8 @@ const PackComposerPage = ({ router }: IPackComposerPageProps) => {
 
   const handleSubmit = async (formData: IEditPackFormData) => {
     const { create } = packsAPI;
+
+    setIsUpdatingPack(true);
 
     try {
       const {
@@ -60,20 +65,27 @@ const PackComposerPage = ({ router }: IPackComposerPageProps) => {
       } else {
         renderFlash("error", "Unable to create pack.");
       }
+    } finally {
+      setIsUpdatingPack(false);
     }
   };
 
   return (
-    <div className="has-sidebar">
-      <PackForm
-        className={`${baseClass}__pack-form body-wrap`}
-        handleSubmit={handleSubmit}
-        onFetchTargets={onFetchTargets}
-        selectedTargetsCount={selectedTargetsCount}
-        isPremiumTier={isPremiumTier}
-      />
-      <PackInfoSidePanel />
-    </div>
+    <>
+      <MainContent className={baseClass}>
+        <PackForm
+          className={`${baseClass}__pack-form`}
+          handleSubmit={handleSubmit}
+          onFetchTargets={onFetchTargets}
+          selectedTargetsCount={selectedTargetsCount}
+          isPremiumTier={isPremiumTier}
+          isUpdatingPack={isUpdatingPack}
+        />
+      </MainContent>
+      <SidePanelContent>
+        <PackInfoSidePanel />
+      </SidePanelContent>
+    </>
   );
 };
 

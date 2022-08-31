@@ -102,7 +102,7 @@ spec:
 
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 	teamsByName := map[string]*fleet.Team{
 		"team1": {
@@ -144,10 +144,11 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.yml")
-	require.NoError(t, err)
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
 
-	tmpFile.WriteString(`
+	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
 kind: team
@@ -168,11 +169,43 @@ spec:
 `)
 
 	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
-
-	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+	ds.ApplyEnrollSecretsFuncInvoked = false
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+`)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
+	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    agent_options:
+      config:
+        something: other
+    name: team1
+    secrets:
+      - secret: BBB
+`)
+
+	newAgentOpts = json.RawMessage(`{"config":{"something":"other"}}`)
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
 
 func writeTmpYml(t *testing.T, contents string) string {
@@ -211,29 +244,29 @@ func TestApplyAppConfig(t *testing.T) {
 apiVersion: v1
 kind: config
 spec:
-  host_settings:
+  features:
     enable_host_users: false
     enable_software_inventory: false
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
-	assert.False(t, savedAppConfig.HostSettings.EnableHostUsers)
-	assert.False(t, savedAppConfig.HostSettings.EnableSoftwareInventory)
+	assert.False(t, savedAppConfig.Features.EnableHostUsers)
+	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
 
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
 spec:
-  host_settings:
+  features:
     enable_host_users: true
     enable_software_inventory: true
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
-	assert.True(t, savedAppConfig.HostSettings.EnableHostUsers)
-	assert.True(t, savedAppConfig.HostSettings.EnableSoftwareInventory)
+	assert.True(t, savedAppConfig.Features.EnableHostUsers)
+	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 }
 
 func TestApplyAppConfigUnknownFields(t *testing.T) {
@@ -264,7 +297,7 @@ func TestApplyAppConfigUnknownFields(t *testing.T) {
 apiVersion: v1
 kind: config
 spec:
-  host_settings:
+  features:
     enabled_software_inventory: false # typo, correct config is enable_software_inventory
 `)
 
@@ -272,6 +305,59 @@ spec:
 		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
+}
+
+func TestApplyAppConfigDeprecatedFields(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_host_users: false
+    enable_software_inventory: false
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.False(t, savedAppConfig.Features.EnableHostUsers)
+	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
+
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.True(t, savedAppConfig.Features.EnableHostUsers)
+	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 }
 
 func TestApplyPolicies(t *testing.T) {
@@ -420,6 +506,26 @@ spec:
 	require.Len(t, appliedPacks, 1)
 	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
 	require.Len(t, appliedPacks[0].Queries, 2)
+
+	interval := writeTmpYml(t, `---
+apiVersion: v1
+kind: pack
+spec:
+  name: test_bad_interval
+  queries:
+    - query: good_interval
+      name: good_interval
+      interval: 7200
+    - query: bad_interval
+      name: bad_interval
+      interval: 604801
+`)
+
+	expectedErrMsg := "applying packs: POST /api/latest/fleet/spec/packs received status 400 Bad request: pack payload verification: pack scheduled query interval must be an integer greater than 1 and less than 604800"
+
+	_, err := runAppNoChecks([]string{"apply", "-f", interval})
+	assert.Error(t, err)
+	require.Equal(t, expectedErrMsg, err.Error())
 }
 
 func TestApplyQueries(t *testing.T) {

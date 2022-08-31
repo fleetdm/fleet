@@ -21,7 +21,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  host_settings:
+  features:
     additional_queries: null
   org_info:
     org_logo_url: ""
@@ -47,6 +47,7 @@ spec:
   sso_settings:
     enable_sso: false
     enable_sso_idp_login: false
+    enable_jit_provisioning: false
     entity_id: ""
     idp_image_url: ""
     idp_name: ""

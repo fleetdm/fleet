@@ -62,7 +62,7 @@ func TestJira(t *testing.T) {
 			BasicAuthPassword: "fail",
 		})
 		require.NoError(t, err)
-		_, err = client.CreateIssue(context.Background(), &jira.Issue{})
+		_, err = client.CreateJiraIssue(context.Background(), &jira.Issue{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Status code: 500")
 		require.Equal(t, 6, countCalls)
@@ -79,7 +79,7 @@ func TestJira(t *testing.T) {
 		require.NoError(t, err)
 
 		start := time.Now()
-		_, err = client.CreateIssue(context.Background(), &jira.Issue{})
+		_, err = client.CreateJiraIssue(context.Background(), &jira.Issue{})
 		require.NoError(t, err)
 		require.Equal(t, 2, countCalls) // original + retry
 		require.GreaterOrEqual(t, time.Since(start), time.Second)
@@ -95,7 +95,7 @@ func TestJira(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		_, err = client.CreateIssue(context.Background(), &jira.Issue{})
+		_, err = client.CreateJiraIssue(context.Background(), &jira.Issue{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Status code: 429")
 		require.Equal(t, 1, countCalls) // original only, no retry
@@ -110,7 +110,7 @@ func TestJira(t *testing.T) {
 			BasicAuthPassword: "ok",
 		})
 		require.NoError(t, err)
-		iss, err := client.CreateIssue(context.Background(), &jira.Issue{
+		iss, err := client.CreateJiraIssue(context.Background(), &jira.Issue{
 			Fields: &jira.IssueFields{
 				Summary:     "test",
 				Description: "test",

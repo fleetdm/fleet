@@ -28,6 +28,7 @@ func TestQueries(t *testing.T) {
 		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
 		{"DuplicateNew", testQueriesDuplicateNew},
 		{"ListFiltersObservers", testQueriesListFiltersObservers},
+		{"ObserverCanRunQuery", testObserverCanRunQuery},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -430,4 +431,35 @@ func testQueriesListFiltersObservers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	assert.Equal(t, query3.ID, queries[0].ID)
+}
+
+func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
+	_, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "canRunTrue",
+		Query:          "select 1;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "canRunFalse",
+		Query:          "select 1;",
+		ObserverCanRun: false,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewQuery(context.Background(), &fleet.Query{
+		Name:  "canRunOmitted",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+
+	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	require.NoError(t, err)
+
+	for _, q := range queries {
+		canRun, err := ds.ObserverCanRunQuery(context.Background(), q.ID)
+		require.NoError(t, err)
+		require.Equal(t, q.ObserverCanRun, canRun)
+	}
 }

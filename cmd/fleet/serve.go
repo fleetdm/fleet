@@ -26,9 +26,11 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -70,7 +72,7 @@ type initializer interface {
 	Initialize() error
 }
 
-func createServeCmd(configManager config.Manager) *cobra.Command {
+func createServeCmd(configManager configpkg.Manager) *cobra.Command {
 	// Whether to enable the debug endpoints
 	debug := false
 	// Whether to enable developer options
@@ -100,7 +102,7 @@ the way that the Fleet server works.
 
 			if devLicense {
 				// This license key is valid for development only
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjU2NjMzNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY0MTIzMjI3OX0.WriTJfRA-R-ffN_sJwYSkllLGzgDxs1xTUCJX7W02BA5FTGfIYq9CCvcTXAgR5GeMuLEOBs21tY-jpSc6GNe6Q"
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzUxMjQxNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY1NjY5NDA4N30.dvfterOvfTGdrsyeWYH9_lPnyovxggM5B7tkSl1q1qgFYk_GgOIxbaqIZ6gJlL0cQuBF9nt5NgV0AUT9RmZUaA"
 			} else if devExpiredLicense {
 				// An expired license key
 				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -176,6 +178,7 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
+			var installerStore fleet.InstallerStore
 			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
@@ -198,12 +201,20 @@ the way that the Fleet server works.
 			}
 
 			if config.S3.Bucket != "" {
-				carveStore, err = s3.New(config.S3, ds)
+				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
 				}
 			} else {
 				carveStore = ds
+			}
+
+			if config.Packaging.S3.Bucket != "" {
+				var err error
+				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
+				if err != nil {
+					initFatal(err, "initializing S3 installer store")
+				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -262,6 +273,38 @@ the way that the Fleet server works.
 				}
 			}
 
+			if config.Packaging.GlobalEnrollSecret != "" {
+				secrets, err := ds.GetEnrollSecrets(cmd.Context(), nil)
+				if err != nil {
+					initFatal(err, "loading enroll secrets")
+				}
+
+				var globalEnrollSecret string
+				for _, secret := range secrets {
+					if secret.TeamID == nil {
+						globalEnrollSecret = secret.Secret
+						break
+					}
+				}
+
+				if globalEnrollSecret != "" {
+					if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
+						fmt.Printf("################################################################################\n" +
+							"# WARNING:\n" +
+							"#  You have provided a global enroll secret config, but there's\n" +
+							"#  already one set up for your application.\n" +
+							"#\n" +
+							"#  This is generally an error and the provided value will be\n" +
+							"#  ignored, if you really need to configure an enroll secret please\n" +
+							"#  remove the global enroll secret from the database manually.\n" +
+							"################################################################################\n")
+						os.Exit(1)
+					}
+				} else {
+					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+				}
+			}
+
 			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
 				Password:                  config.Redis.Password,
@@ -291,6 +334,13 @@ the way that the Fleet server works.
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
 			ds = cached_mysql.New(ds)
+			var dsOpts []mysqlredis.Option
+			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
+				dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
+			}
+			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
+			ds = redisWrapperDS
+
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
@@ -302,19 +352,7 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := &async.Task{
-				Datastore:          ds,
-				Pool:               redisPool,
-				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
-				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
-				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
-				InsertBatch:        config.Osquery.AsyncHostInsertBatch,
-				DeleteBatch:        config.Osquery.AsyncHostDeleteBatch,
-				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
-				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
-				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
-				CollectorInterval:  config.Osquery.AsyncHostCollectInterval,
-			}
+			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
 
 			if config.Sentry.Dsn != "" {
 				v := version.Version()
@@ -342,10 +380,11 @@ the way that the Fleet server works.
 				}
 			}
 
-			// TODO: gather all the different contexts and use just one
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP)
+			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			ctx = ctxerr.NewContext(ctx, eh)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -357,19 +396,29 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
+			instanceID, err := server.GenerateRandomText(64)
+			if err != nil {
+				initFatal(errors.New("Error generating random instance identifier"), "")
+			}
+			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
+			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, instanceID); err != nil {
+				initFatal(err, "failed to register schedules")
+			}
 
 			// Flush seen hosts every second
-			go func() {
-				for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-					if err := svc.FlushSeenHosts(context.Background()); err != nil {
-						level.Info(logger).Log(
-							"err", err,
-							"msg", "failed to update host seen times",
-						)
+			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
+			if !hostsAsyncCfg.Enabled {
+				go func() {
+					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
+						if err := task.FlushHostsLastSeen(context.Background(), clock.C.Now()); err != nil {
+							level.Info(logger).Log(
+								"err", err,
+								"msg", "failed to update host seen times",
+							)
+						}
 					}
-				}
-			}()
+				}()
+			}
 
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
@@ -396,7 +445,10 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = service.PrometheusMetricsHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				frontendHandler = service.PrometheusMetricsHandler(
+					"get_frontend",
+					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
+				)
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
@@ -419,14 +471,16 @@ the way that the Fleet server works.
 			{
 				// a list of dependencies which could affect the status of the app if unavailable.
 				deps := map[string]interface{}{
-					"datastore":          ds,
-					"query_result_store": resultStore,
+					"mysql": ds,
+					"redis": resultStore,
 				}
 
 				// convert all dependencies to health.Checker if they implement the healthz methods.
 				for name, dep := range deps {
 					if hc, ok := dep.(health.Checker); ok {
 						healthCheckers[name] = hc
+					} else {
+						initFatal(errors.New(name+" should be a health.Checker"), "initializing health checks")
 					}
 				}
 
@@ -434,8 +488,6 @@ the way that the Fleet server works.
 
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
-
-			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
@@ -514,8 +566,6 @@ the way that the Fleet server works.
 				writeTimeout = liveQueryRestPeriod
 			}
 
-			httpSrvCtx := ctxerr.NewContext(ctx, eh)
-
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
 			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
@@ -533,7 +583,7 @@ the way that the Fleet server works.
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 				BaseContext: func(l net.Listener) context.Context {
-					return httpSrvCtx
+					return ctx
 				},
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
@@ -558,7 +608,6 @@ the way that the Fleet server works.
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
-					cancelBackground()
 					cancelFunc()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
@@ -604,62 +653,45 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 }
 
 const (
-	lockKeyLeader                  = "leader"
 	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
 	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
 	lockKeyWorker                  = "worker"
 )
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
-	ac, err := ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if !ac.ServerSettings.EnableAnalytics {
-		return nil
-	}
-
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
-	if err != nil {
-		return err
-	}
-	if !shouldSend {
-		return nil
-	}
-
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
-		return err
-	}
-	return ds.RecordStatisticsSent(ctx)
-}
-
+// runCrons runs cron jobs not yet ported to use the schedule package (startSchedules)
 func runCrons(
+	ctx context.Context,
 	ds fleet.Datastore,
 	task *async.Task,
 	logger kitlog.Logger,
-	config config.FleetConfig,
+	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
-) context.CancelFunc {
-	ctx, cancelBackground := context.WithCancel(context.Background())
-
-	ourIdentifier, err := server.GenerateRandomText(64)
-	if err != nil {
-		initFatal(errors.New("Error generating random instance identifier"), "")
-	}
-
+	ourIdentifier string,
+) {
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
+	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, &config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
+}
 
-	return cancelBackground
+func startSchedules(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config config.FleetConfig,
+	license *fleet.LicenseInfo,
+	enrollHostLimiter fleet.EnrollHostLimiter,
+	instanceID string,
+) error {
+	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
+	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+
+	return nil
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
@@ -672,7 +704,7 @@ func getTLSConfig(profile string) *tls.Config {
 	}
 
 	switch profile {
-	case config.TLSProfileModern:
+	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
 			tls.X25519,
@@ -689,7 +721,7 @@ func getTLSConfig(profile string) *tls.Config {
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		)
-	case config.TLSProfileIntermediate:
+	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
 			tls.X25519,

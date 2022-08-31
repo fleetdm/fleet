@@ -20,5 +20,12 @@ describe("Dashboard", () => {
       });
       cy.getAttached(".operating-systems").should("exist");
     });
+    it("displays operating systems card if Windows platform is selected", () => {
+      cy.getAttached(".homepage__platform_dropdown").click();
+      cy.getAttached(".Select-menu-outer").within(() => {
+        cy.findAllByText("Windows").click();
+      });
+      cy.getAttached(".operating-systems").should("exist");
+    });
   });
 });

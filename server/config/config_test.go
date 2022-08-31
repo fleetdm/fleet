@@ -48,6 +48,12 @@ func TestConfigRoundtrip(t *testing.T) {
 					// we have to explicitly set value for this key as it will only
 					// accept intermediate or modern
 					key_v.SetString(TLSProfileModern)
+				case "EnableAsyncHostProcessing":
+					// supports a bool or per-task config
+					key_v.SetString("true")
+				case "AsyncHostCollectInterval", "AsyncHostCollectLockTimeout":
+					// supports a duration or per-task config
+					key_v.SetString("30s")
 				default:
 					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
 				}
@@ -74,6 +80,259 @@ func TestConfigRoundtrip(t *testing.T) {
 
 	// Ensure the read config is the same as the original
 	assert.Equal(t, *original, man.LoadConfig())
+}
+
+func TestConfigOsqueryAsync(t *testing.T) {
+	cases := []struct {
+		desc         string
+		yaml         string
+		envVars      []string
+		panics       bool
+		wantLabelCfg AsyncProcessingConfig
+	}{
+		{
+			desc: "default",
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 false,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml set enabled true",
+			yaml: `
+osquery:
+  enable_async_host_processing: true`,
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml set enabled yes",
+			yaml: `
+osquery:
+  enable_async_host_processing: yes`,
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml set enabled on",
+			yaml: `
+osquery:
+  enable_async_host_processing: on`,
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml set enabled invalid",
+			yaml: `
+osquery:
+  enable_async_host_processing: nope`,
+			panics: true,
+		},
+		{
+			desc: "yaml set enabled per-task",
+			yaml: `
+osquery:
+  enable_async_host_processing: label_membership=true&policy_membership=false`,
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml set invalid per-task",
+			yaml: `
+osquery:
+  enable_async_host_processing: label_membership=nope&policy_membership=false`,
+			panics: true,
+		},
+		{
+			desc:    "envvar set enabled",
+			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=true"},
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc:    "envvar set enabled on",
+			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=on"}, // on/off, yes/no is only valid in yaml
+			panics:  true,
+		},
+		{
+			desc:    "envvar set enabled per task",
+			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=policy_membership=false&label_membership=true"},
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         30 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml collect interval lock timeout",
+			yaml: `
+osquery:
+  enable_async_host_processing: true
+  async_host_collect_interval: 10s
+  async_host_collect_lock_timeout: 20s`,
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         10 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      20 * time.Second,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml collect interval lock timeout per task",
+			yaml: `
+osquery:
+  enable_async_host_processing: true
+  async_host_collect_interval: label_membership=10s
+  async_host_collect_lock_timeout: policy_membership=20s`,
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         10 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      1 * time.Minute,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             2000,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+		{
+			desc: "yaml env var override",
+			yaml: `
+osquery:
+  enable_async_host_processing: false
+  async_host_collect_interval: label_membership=10s
+  async_host_collect_lock_timeout: policy_membership=20s
+  async_host_insert_batch: 10`,
+			envVars: []string{
+				"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=policy_membership=false&label_membership=true",
+				"FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL=policy_membership=30s&label_membership=50s",
+				"FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT=40s",
+			},
+			wantLabelCfg: AsyncProcessingConfig{
+				Enabled:                 true,
+				CollectInterval:         50 * time.Second,
+				CollectMaxJitterPercent: 10,
+				CollectLockTimeout:      40 * time.Second,
+				CollectLogStatsInterval: 1 * time.Minute,
+				InsertBatch:             10,
+				DeleteBatch:             2000,
+				UpdateBatch:             1000,
+				RedisPopCount:           1000,
+				RedisScanKeysCount:      1000,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			// Leaving this flag unset means that no attempt will be made to load
+			// the config file
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			// load the yaml config
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			// TODO: tried to test command-line flags too by using cmd.SetArgs to
+			// test-case values, but that didn't seem to work, not sure how it can
+			// be done in our particular setup.
+
+			// set the environment variables
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			if c.panics {
+				require.Panics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+			} else {
+				require.NotPanics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
+				require.Equal(t, c.wantLabelCfg, got)
+			}
+		})
+	}
 }
 
 func TestToTLSConfig(t *testing.T) {

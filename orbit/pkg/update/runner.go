@@ -34,10 +34,10 @@ type Runner struct {
 // started with Execute.
 func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 	if opt.CheckInterval <= 0 {
-		return nil, errors.New("Runner must be configured with interval greater than 0")
+		return nil, errors.New("runner must be configured with interval greater than 0")
 	}
 	if len(opt.Targets) == 0 {
-		return nil, errors.New("Runner must have nonempty subscriptions")
+		return nil, errors.New("runner must have nonempty subscriptions")
 	}
 
 	// Initialize the hashes of the local files for all tracked targets.
@@ -48,18 +48,22 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 	for _, target := range opt.Targets {
 		meta, err := updater.Lookup(target)
 		if err != nil {
-			return nil, fmt.Errorf("initialize update cache: %w", err)
+			return nil, fmt.Errorf("target %s lookup: %w", target, err)
 		}
 		localTarget, err := updater.localTarget(target)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get local path for %s: %w", target, err)
+			return nil, fmt.Errorf("get local path for %s: %w", target, err)
 		}
-		_, localHash, err := fileHashes(meta, localTarget.Path)
-		if err != nil {
+		switch _, localHash, err := fileHashes(meta, localTarget.Path); {
+		case err == nil:
+			localHashes[target] = localHash
+			log.Info().Msgf("hash(%s)=%x", target, localHash)
+		case errors.Is(err, os.ErrNotExist):
+			// This is expected to happen if the target is not yet downloaded,
+			// or if the user manually changed the target channel.
+		default:
 			return nil, fmt.Errorf("%s file hash: %w", target, err)
 		}
-		localHashes[target] = localHash
-		log.Info().Msgf("hash(%s)=%x", target, localHash)
 	}
 
 	return &Runner{
@@ -84,10 +88,8 @@ func (r *Runner) Execute() error {
 		select {
 		case <-r.cancel:
 			return nil
-
 		case <-ticker.C:
-			// On each tick, check for updates
-			didUpdate, err := r.updateAction()
+			didUpdate, err := r.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("update failed")
 			}
@@ -99,14 +101,19 @@ func (r *Runner) Execute() error {
 	}
 }
 
-func (r *Runner) updateAction() (bool, error) {
-	var didUpdate bool
+// UpdateAction checks for updates on all targets.
+// Returns true if one of the targets has been updated.
+//
+// NOTE: If it returns (true, non-nil error) then it means some target/s
+// were successfully upgraded and some failed to upgrade.
+func (r *Runner) UpdateAction() (bool, error) {
 	if err := r.updater.UpdateMetadata(); err != nil {
 		// Consider this a non-fatal error since it will be common to be offline
 		// or otherwise unable to retrieve the metadata.
-		return didUpdate, fmt.Errorf("update metadata: %w", err)
+		return false, fmt.Errorf("update metadata: %w", err)
 	}
 
+	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)
 		if err != nil {

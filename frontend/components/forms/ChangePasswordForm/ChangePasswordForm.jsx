@@ -41,7 +41,7 @@ class ChangePasswordForm extends Component {
           label="New password"
           type="password"
           hint={[
-            "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+            "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
           ]}
         />
         <InputField
@@ -49,15 +49,11 @@ class ChangePasswordForm extends Component {
           label="New password confirmation"
           type="password"
         />
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>
+        <div className="modal-cta-wrap">
+          <Button type="submit" variant="brand">
             Change password
           </Button>
-          <Button
-            onClick={onCancel}
-            variant="inverse"
-            className={`${baseClass}__btn`}
-          >
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>

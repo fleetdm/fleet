@@ -15,6 +15,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
@@ -40,7 +41,7 @@ interface IFormData {
 
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
-  onCancel: () => void;
+  onClose: () => void;
   onScheduleSubmit: (
     formData: IFormData,
     editQuery: IEditScheduledQuery | undefined
@@ -49,6 +50,7 @@ interface IScheduleEditorModalProps {
   teamId?: number;
   togglePreviewDataModal: () => void;
   showPreviewDataModal: boolean;
+  isUpdatingScheduledQuery: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -85,13 +87,14 @@ const generateLoggingDestination = (loggingConfig: string): string => {
 };
 
 const ScheduleEditorModal = ({
-  onCancel,
+  onClose,
   onScheduleSubmit,
   allQueries,
   editQuery,
   teamId,
   togglePreviewDataModal,
   showPreviewDataModal,
+  isUpdatingScheduledQuery,
 }: IScheduleEditorModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -220,19 +223,6 @@ const ScheduleEditorModal = ({
     );
   };
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onFormSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, [onFormSubmit]);
-
   if (showPreviewDataModal) {
     return <PreviewDataModal onCancel={togglePreviewDataModal} />;
   }
@@ -240,7 +230,8 @@ const ScheduleEditorModal = ({
   return (
     <Modal
       title={editQuery?.query_name || "Schedule editor"}
-      onExit={onCancel}
+      onExit={onClose}
+      onEnter={onFormSubmit}
       className={baseClass}
     >
       <form className={`${baseClass}__form`}>
@@ -271,7 +262,7 @@ const ScheduleEditorModal = ({
             {loggingConfig === "unknown"
               ? ""
               : `This means that when this query is run on your hosts, the data will
-            be sent to ${generateLoggingDestination(loggingConfig)}.`}
+              be sent to ${generateLoggingDestination(loggingConfig)}.`}
           </p>
           <p>
             Check out the Fleet documentation on&nbsp;
@@ -343,16 +334,18 @@ const ScheduleEditorModal = ({
             </Button>
           </div>
           <div className="modal-cta-wrap">
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
             <Button
               type="button"
               variant="brand"
               onClick={onFormSubmit}
               disabled={!selectedQuery && !editQuery}
+              className="schedule-loading"
+              isLoading={isUpdatingScheduledQuery}
             >
               Schedule
+            </Button>
+            <Button onClick={onClose} variant="inverse">
+              Cancel
             </Button>
           </div>
         </div>

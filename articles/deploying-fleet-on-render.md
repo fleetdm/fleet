@@ -1,7 +1,5 @@
 # Deploying Fleet on Render
 
-![deploying fleet on render](https://miro.medium.com/1*Ai8I3fIS8p0afb8dBWqS-A.jpeg)
-
 [Render](https://render.com/) is a cloud hosting service that makes it dead simple to get things up and running fast, without the typical headache of larger enterprise hosting providers. Hosting Fleet on Render is a cost effective and scalable cloud environment with a lower barrier to entry, making it a great place to get some experience with [Fleet](https://fleetdm.com/) and [osquery](https://osquery.io/).
 
 ---
@@ -21,8 +19,8 @@ First let’s get these dependencies up and running on Render.
 
 Fleet uses MySQL as the datastore to organize host enrollment and other metadata around serving Fleet. Start by forking [https://github.com/edwardsb/render-mysql](https://github.com/edwardsb/render-mysql), then create a new private service within Render. When prompted for the repository — enter your fork’s URL here.
 
-![Private Service component in Render](https://miro.medium.com/max/866/0*Adu28Jm9-ImazTHV)
-Private Service component in Render
+![Private Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-2-216x163@2x.png)
+*Private Service component in Render*
 
 This private service will run MySQL, our database, so let’s give it a fitting name, something like “fleet-mysql”.
 
@@ -59,8 +57,8 @@ Start by forking or use [https://github.com/edwardsb/fleet-on-render](https://gi
 
 Back in Render, create a new web service and give it a unique name, since this will be resolvable on the internet, it actually has to be unique on Render’s platform.
 
-![Web Service component in Render](https://miro.medium.com/max/866/1*fQqcEymjiL29TaR7hqjsvw.png)
-Web Service component in Render
+![Web Service component in Render](../website/assets/images/articles/deploying-fleet-on-render-2-216x163@2x.png)
+*Web Service component in Render*
 
 Next we will supply the environment variables Fleet needs to connect to the database and redis. We are also going to disable TLS on the Fleet server, since Render is going to handle SSL termination for us.
 
@@ -75,7 +73,7 @@ Give it the following environment variables:
 
 Additionally we’ll configure the following so Render knows how to build our app and make sure its healthy:
 
-![Additional component details](https://miro.medium.com/max/1400/1*wqTxWtAElPOQv4ORP4WkMw.png)
+![Additional component details](../website/assets/images/articles/deploying-fleet-on-render-3-512x213@2x.png)
 
 - Health Check Path: `/healthz`
 - Docker Build Context Directory: `.`
@@ -90,8 +88,8 @@ ts=2021–09–15T02:09:07.06528012Z transport=http address=0.0.0.0:8080 msg=lis
 
 Fleet is up and running, head to your public URL.
 
-![Fleet deployed on Render](https://miro.medium.com/max/1176/0*HoUPvU4GlitzQa4v)
-Fleet deployed on Render
+![Fleet deployed on Render](../website/assets/images/articles/deploying-fleet-on-render-4-216x163@2x.png)
+*Fleet deployed on Render*
 
 ---
 
@@ -144,9 +142,9 @@ fleetctl apply -f standard-query-library.yaml
 That’s it! We have successfully deployed and configured a Fleet instance! Render makes this process super easy, and you can even enable auto-scaling and let the app grow with your needs.
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
-<meta name="publishedOn" value="2021-09-21">
+<meta name="publishedOn" value="2021-11-21">
 <meta name="articleTitle" value="Deploying Fleet on Render">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*Ai8I3fIS8p0afb8dBWqS-A.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">

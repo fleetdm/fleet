@@ -1,7 +1,5 @@
-//go:build darwin
-// +build darwin
-
-// TODO(lucas): Once we support Linux, amend the above build tags.
+//go:build darwin || linux
+// +build darwin linux
 
 package main
 

@@ -9,9 +9,9 @@ import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
+import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
-import renderLastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
+import LastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
 import EmptySoftware from "../../../software/components/EmptySoftware";
 
@@ -25,7 +25,7 @@ interface ISoftwareCardProps {
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 const baseClass = "home-software";
 
 const Software = ({
@@ -45,7 +45,7 @@ const Software = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
     },
   });
 
@@ -58,7 +58,7 @@ const Software = ({
       "software",
       {
         pageIndex,
-        pageSize: PAGE_SIZE,
+        pageSize: DEFAULT_PAGE_SIZE,
         sortDirection: DEFAULT_SORT_DIRECTION,
         sortHeader: DEFAULT_SORT_HEADER,
         teamId: currentTeamId,
@@ -68,7 +68,7 @@ const Software = ({
     () =>
       softwareAPI.load({
         page: pageIndex,
-        perPage: PAGE_SIZE,
+        perPage: DEFAULT_PAGE_SIZE,
         orderKey: DEFAULT_SORT_HEADER,
         orderDir: DEFAULT_SORT_DIRECTION,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
@@ -85,9 +85,15 @@ const Software = ({
         if (isSoftwareEnabled && data.software?.length !== 0) {
           setTitleDetail &&
             setTitleDetail(
-              renderLastUpdatedText(data.counts_updated_at, "software")
+              <LastUpdatedText
+                lastUpdatedAt={data.counts_updated_at}
+                whatToRetrieve={"software"}
+              />
             );
         }
+      },
+      onError: () => {
+        setShowSoftwareUI(true);
       },
     }
   );
@@ -165,34 +171,38 @@ const Software = ({
                   isAllPagesSelected={false}
                   disableCount
                   disableActionButton
-                  pageSize={PAGE_SIZE}
+                  pageSize={DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                 />
               )}
             </TabPanel>
             <TabPanel>
-              <TableContainer
-                columns={tableHeaders}
-                data={software?.software || []}
-                isLoading={isSoftwareFetching}
-                defaultSortHeader={DEFAULT_SORT_HEADER}
-                defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                hideActionButton
-                resultsTitle={"software"}
-                emptyComponent={() =>
-                  EmptySoftware(
-                    (!isSoftwareEnabled && "disabled") ||
-                      (isCollectingInventory && "collecting") ||
-                      "default"
-                  )
-                }
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                disableCount
-                disableActionButton
-                pageSize={PAGE_SIZE}
-                onQueryChange={onQueryChange}
-              />
+              {!isSoftwareFetching && errorSoftware ? (
+                <TableDataError />
+              ) : (
+                <TableContainer
+                  columns={tableHeaders}
+                  data={software?.software || []}
+                  isLoading={isSoftwareFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"software"}
+                  emptyComponent={() =>
+                    EmptySoftware(
+                      (!isSoftwareEnabled && "disabled") ||
+                        (isCollectingInventory && "collecting") ||
+                        "default"
+                    )
+                  }
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  disableCount
+                  disableActionButton
+                  pageSize={DEFAULT_PAGE_SIZE}
+                  onQueryChange={onQueryChange}
+                />
+              )}
             </TabPanel>
           </Tabs>
         </TabsWrapper>

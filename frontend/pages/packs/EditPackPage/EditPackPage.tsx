@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
+import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
@@ -21,8 +22,10 @@ import PATHS from "router/paths";
 import deepDifference from "utilities/deep_difference";
 
 import EditPackForm from "components/forms/packs/EditPackForm";
+import MainContent from "components/MainContent";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IEditPacksPageProps {
   router: InjectedRouter; // v3
@@ -99,6 +102,7 @@ const EditPacksPage = ({
   const [selectedPackQueryIds, setSelectedPackQueryIds] = useState<
     number[] | never[]
   >([]);
+  const [isUpdatingPack, setIsUpdatingPack] = useState<boolean>(false);
 
   const packTargets = storedPack
     ? [
@@ -151,6 +155,7 @@ const EditPacksPage = ({
   };
 
   const handlePackFormSubmit = (formData: IFormData) => {
+    setIsUpdatingPack(true);
     const updatedPack = deepDifference(formData, storedPack);
     packsAPI
       .update(packId, updatedPack)
@@ -170,6 +175,9 @@ const EditPacksPage = ({
         } else {
           renderFlash("error", `Could not update pack. Please try again.`);
         }
+      })
+      .finally(() => {
+        setIsUpdatingPack(false);
       });
   };
 
@@ -177,6 +185,7 @@ const EditPacksPage = ({
     formData: IPackQueryFormData,
     editQuery: IScheduledQuery | undefined
   ) => {
+    setIsUpdatingPack(true);
     const request = editQuery
       ? scheduledQueriesAPI.update(editQuery, formData)
       : scheduledQueriesAPI.create(formData);
@@ -190,11 +199,13 @@ const EditPacksPage = ({
       .finally(() => {
         togglePackQueryEditorModal();
         refetchStoredPackQueries();
+        setIsUpdatingPack(false);
       });
     return false;
   };
 
   const onRemovePackQuerySubmit = () => {
+    setIsUpdatingPack(true);
     const queryOrQueries =
       selectedPackQueryIds.length === 1 ? "query" : "queries";
 
@@ -218,45 +229,55 @@ const EditPacksPage = ({
       .finally(() => {
         toggleRemovePackQueryModal();
         refetchStoredPackQueries();
+        setIsUpdatingPack(false);
       });
   };
 
   return (
-    <div className={`${baseClass}__content`}>
-      {storedPack && storedPackQueries && (
-        <EditPackForm
-          className={`${baseClass}__pack-form body-wrap`}
-          handleSubmit={handlePackFormSubmit}
-          onCancelEditPack={onCancelEditPack}
-          onFetchTargets={onFetchTargets}
-          formData={{ ...storedPack, targets: packTargets }}
-          targetsCount={targetsCount}
-          isPremiumTier={isPremiumTier}
-          onAddPackQuery={togglePackQueryEditorModal}
-          onEditPackQuery={onEditPackQueryClick}
-          onRemovePackQueries={onRemovePackQueriesClick}
-          scheduledQueries={storedPackQueries}
-          isLoadingPackQueries={isStoredPackQueriesLoading}
-        />
-      )}
-      {showPackQueryEditorModal && fleetQueries && (
-        <PackQueryEditorModal
-          onCancel={togglePackQueryEditorModal}
-          onPackQueryFormSubmit={onPackQueryEditorSubmit}
-          allQueries={fleetQueries}
-          editQuery={selectedPackQuery}
-          packId={packId}
-        />
-      )}
-      {showRemovePackQueryModal && fleetQueries && (
-        <RemovePackQueryModal
-          onCancel={toggleRemovePackQueryModal}
-          onSubmit={onRemovePackQuerySubmit}
-          selectedQuery={selectedPackQuery}
-          selectedQueryIds={selectedPackQueryIds}
-        />
-      )}
-    </div>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
+        <Link to={PATHS.MANAGE_PACKS} className={`${baseClass}__back-link`}>
+          <img src={BackChevron} alt="back chevron" id="back-chevron" />
+          <span>Back to packs</span>
+        </Link>
+        {storedPack && storedPackQueries && (
+          <EditPackForm
+            className={`${baseClass}__pack-form`}
+            handleSubmit={handlePackFormSubmit}
+            onCancelEditPack={onCancelEditPack}
+            onFetchTargets={onFetchTargets}
+            formData={{ ...storedPack, targets: packTargets }}
+            targetsCount={targetsCount}
+            isPremiumTier={isPremiumTier}
+            onAddPackQuery={togglePackQueryEditorModal}
+            onEditPackQuery={onEditPackQueryClick}
+            onRemovePackQueries={onRemovePackQueriesClick}
+            scheduledQueries={storedPackQueries}
+            isLoadingPackQueries={isStoredPackQueriesLoading}
+            isUpdatingPack={isUpdatingPack}
+          />
+        )}
+        {showPackQueryEditorModal && fleetQueries && (
+          <PackQueryEditorModal
+            onCancel={togglePackQueryEditorModal}
+            onPackQueryFormSubmit={onPackQueryEditorSubmit}
+            allQueries={fleetQueries}
+            editQuery={selectedPackQuery}
+            packId={packId}
+            isUpdatingPack={isUpdatingPack}
+          />
+        )}
+        {showRemovePackQueryModal && fleetQueries && (
+          <RemovePackQueryModal
+            onCancel={toggleRemovePackQueryModal}
+            onSubmit={onRemovePackQuerySubmit}
+            selectedQuery={selectedPackQuery}
+            selectedQueryIds={selectedPackQueryIds}
+            isUpdatingPack={isUpdatingPack}
+          />
+        )}
+      </div>
+    </MainContent>
   );
 };
 

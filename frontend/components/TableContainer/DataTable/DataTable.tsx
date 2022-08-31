@@ -15,7 +15,7 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop } from "lodash";
+import { kebabCase, noop, omit, pick } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import useDeepEffect from "hooks/useDeepEffect";
@@ -61,6 +61,11 @@ interface IDataTableProps {
   onResultsCountChange?: (value: number) => void;
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
+  setExportRows?: (rows: Row[]) => void;
+}
+
+interface IHeaderGroup extends HeaderGroup {
+  title?: string;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -97,6 +102,7 @@ const DataTable = ({
   onResultsCountChange,
   renderFooter,
   renderPagination,
+  setExportRows,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
@@ -167,11 +173,18 @@ const DataTable = ({
         }),
         []
       ),
+      autoResetFilters: false,
       // Expands the enumerated `sortTypes` for react-table
       // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
       // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
+          boolean: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.booleanAsc(a.values[id], b.values[id]),
+
           caseInsensitive: (
             a: { values: Record<string, unknown> },
             b: { values: Record<string, unknown> },
@@ -215,8 +228,13 @@ const DataTable = ({
         value,
       }));
       !!allFilters.length && setAllFilters(allFilters);
+      setExportRows && setExportRows(rows);
     }
   }, [tableFilters]);
+
+  useEffect(() => {
+    setExportRows && setExportRows(rows);
+  }, [tableState.filters, rows.length]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 
@@ -302,10 +320,17 @@ const DataTable = ({
     [disableMultiRowSelect, onSelectSingleRow, toggleAllRowsSelected]
   );
 
-  const renderColumnHeader = (column: HeaderGroup) => {
+  const renderColumnHeader = (column: IHeaderGroup) => {
+    // if there is a column filter, we want the `onClick` event listener attached
+    // just to the child title span so that clicking into the column filter input
+    // doesn't also sort the column
+    const spanProps = column.Filter
+      ? pick(column.getSortByToggleProps(), "onClick")
+      : {};
+
     return (
       <div className="column-header">
-        {column.render("Header")}
+        <span {...spanProps}>{column.render("Header")}</span>
         {column.Filter && column.render("Filter")}
       </div>
     );
@@ -473,14 +498,26 @@ const DataTable = ({
           <thead>
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map((column) => (
-                  <th
-                    className={column.id ? `${column.id}__header` : ""}
-                    {...column.getHeaderProps(column.getSortByToggleProps())}
-                  >
-                    {renderColumnHeader(column)}
-                  </th>
-                ))}
+                {headerGroup.headers.map((column) => {
+                  let thProps = column.getSortByToggleProps({
+                    title: undefined,
+                  });
+                  if (column.Filter) {
+                    // if there is a column filter, we want the `onClick` event listener attached
+                    // just to the child title span so that clicking into the column filter input
+                    // doesn't also sort the column
+                    thProps = omit(thProps, "onClick");
+                  }
+
+                  return (
+                    <th
+                      className={column.id ? `${column.id}__header` : ""}
+                      {...thProps}
+                    >
+                      {renderColumnHeader(column)}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
@@ -498,7 +535,9 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      disableMultiRowSelect && onSingleRowClick(row);
+                      onSingleRowClick &&
+                        disableMultiRowSelect &&
+                        onSingleRowClick(row);
                     },
                   })}
                 >

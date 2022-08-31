@@ -14,7 +14,7 @@ module.exports.custom = {
   *                                                                         *
   * The base URL to use during development.                                 *
   *                                                                         *
-  * • No trailing slash at the end                                          *
+  * • No trailing slash at the end                                          *
   * • `http://` or `https://` at the beginning.                             *
   *                                                                         *
   * > This is for use in custom logic that builds URLs.                     *
@@ -84,6 +84,52 @@ module.exports.custom = {
   // /\  Configure these to enable support for billing features.
   // ||  (Or if you don't need billing, feel free to remove them.)
   //--------------------------------------------------------------------------
+
+  /***************************************************************************
+  *                                                                          *
+  * Directly responsible individuals (DRIs) whose changes to areas of the    *
+  * code respository (outside of the core product code) are auto-approved,   *
+  * even during code freezes.                                                *
+  *                                                                          *
+  * See api/controllers/webhooks/receive-from-github.js for context.         *
+  *                                                                          *
+  ***************************************************************************/
+  githubRepoDRIByPath: {
+    'README.md': ['chris-mcgillicuddy'],// (github brandfront)
+    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas'],//« brandfront for fleetctl package on npm
+
+    'CODEOWNERS': ['zwass', 'mikermcneil'],
+
+    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+
+    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook/company': 'mikermcneil',
+    'handbook/people': 'charlottechance',
+    'handbook/engineering': 'zwass',
+    'handbook/product': 'noahtalerman',
+    'handbook/security': 'guillaumeross',
+    'handbook/sales': 'alexmitchelliii',
+    'handbook/digital-experience': 'mike-j-thomas',
+    'handbook/growth': 'timmy-k',
+    'handbook/customers': 'tgauda',
+    'handbook/community': ['timmy-k'],
+
+    'website': 'mikermcneil',// (default for website)
+    'website/views': 'eashaw',
+    'website/assets': 'eashaw',
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+
+    'docs': ['desmi-dizney', 'chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
+    'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
+    'docs/Using-Fleet/REST-API.md': 'ksatter',
+    'docs/Contributing/API-for-contributors.md': 'ksatter',
+    'docs/Deploying/FAQ.md': ['ksatter', 'tgauda'],
+    'docs/Contributing/FAQ.md': ['ksatter', 'tgauda'],
+    'docs/Using-Fleet/FAQ.md': ['ksatter', 'tgauda'],
+
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
+  },
+
 
   /***************************************************************************
   *                                                                          *

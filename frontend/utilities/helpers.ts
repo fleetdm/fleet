@@ -1,6 +1,12 @@
 import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
-import { format, formatDistanceToNow, isAfter } from "date-fns";
+import {
+  format,
+  formatDistanceToNow,
+  isAfter,
+  intervalToDuration,
+  formatDuration,
+} from "date-fns";
 import yaml from "js-yaml";
 
 import { IConfig } from "interfaces/config";
@@ -18,7 +24,6 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -83,21 +88,32 @@ const labelStubs = [
     statusLabelKey: "offline_count",
     type: "status",
   },
-  {
-    id: "mia",
-    count: 0,
-    description: "Hosts that have not been seen by Fleet in more than 30 days.",
-    display_text: "MIA",
-    slug: "mia",
-    statusLabelKey: "mia_count",
-    title_description: "(offline > 30 days)",
-    type: "status",
-  },
 ];
+
+const isLabel = (target: ISelectTargetsEntity) => {
+  return "label_type" in target;
+};
+const isHost = (target: ISelectTargetsEntity) => {
+  return "hostname" in target;
+};
 
 const filterTarget = (targetType: string) => {
   return (target: ISelectTargetsEntity) => {
-    return target.target_type === targetType ? [target.id] : [];
+    const id =
+      typeof target.id !== "number" ? parseInt(target.id, 10) : target.id;
+    if ("target_type" in target) {
+      return target.target_type === targetType && !isNaN(id) ? [id] : [];
+    }
+    switch (targetType) {
+      case "hosts":
+        return isHost(target) && !isNaN(id) ? [id] : [];
+      case "labels":
+        return isLabel(target) && !isNaN(id) ? [id] : [];
+      case "teams":
+        return !isHost(target) && !isLabel(target) && !isNaN(id) ? [id] : [];
+      default:
+        return [];
+    }
   };
 };
 
@@ -215,6 +231,15 @@ export const frontendFormattedConfig = (config: IConfig) => {
   };
 };
 
+export const formatFloatAsPercentage = (float: number): string => {
+  const formatter = Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: 2,
+    style: "percent",
+  });
+
+  return formatter.format(float);
+};
+
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
     return {
@@ -232,17 +257,15 @@ export const formatSelectedTargetsForApi = (
   selectedTargets: ISelectTargetsEntity[]
 ): ISelectedTargets => {
   const targets = selectedTargets || [];
-  const hosts = flatMap(targets, filterTarget("hosts"));
-  const labels = flatMap(targets, filterTarget("labels"));
-  const teams = flatMap(targets, filterTarget("teams"));
-
-  const sortIds = (ids: Array<number | string>) =>
-    ids.sort((a, b) => Number(a) - Number(b));
+  // TODO: can flatMap be removed?
+  const hostIds = flatMap(targets, filterTarget("hosts"));
+  const labelIds = flatMap(targets, filterTarget("labels"));
+  const teamIds = flatMap(targets, filterTarget("teams"));
 
   return {
-    hosts: sortIds(hosts),
-    labels: sortIds(labels),
-    teams: sortIds(teams),
+    hosts: hostIds.sort(),
+    labels: labelIds.sort(),
+    teams: teamIds.sort(),
   };
 };
 
@@ -524,16 +547,12 @@ export const generateTeam = (
   return `${teams.length + 1} teams`; // global role and one or more teams
 };
 
-export const greyCell = (roleOrTeamText: string): string => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team"];
+export const greyCell = (roleOrTeamText: string): boolean => {
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team", "Unknown"];
 
-  if (
-    GREYED_TEXT.includes(roleOrTeamText) ||
-    roleOrTeamText.includes(" teams")
-  ) {
-    return "grey-cell";
-  }
-  return "";
+  return (
+    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
+  );
 };
 
 const setupData = (formData: any) => {
@@ -563,21 +582,51 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostUptime = (uptimeInNanoseconds: number): string => {
-  const uptimeMilliseconds = inMilliseconds(uptimeInNanoseconds);
-  const restartDate = new Date();
-  restartDate.setMilliseconds(
-    restartDate.getMilliseconds() - uptimeMilliseconds
-  );
+export const humanHostLastRestart = (
+  detailUpdatedAt: string,
+  uptime: number
+): string => {
+  if (
+    !detailUpdatedAt ||
+    !uptime ||
+    detailUpdatedAt === "---" ||
+    detailUpdatedAt < "2016-07-28T00:00:00Z" ||
+    typeof uptime !== "number"
+  ) {
+    return "Unavailable";
+  }
+  try {
+    const currentDate = new Date();
+    const updatedDate = new Date(detailUpdatedAt);
+    const millisecondsLastUpdated =
+      currentDate.getTime() - updatedDate.getTime();
 
-  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+    // Sum of calculated milliseconds since last updated with uptime
+    const millisecondsLastRestart =
+      millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
+
+    const restartDate = new Date();
+    restartDate.setMilliseconds(
+      restartDate.getMilliseconds() - millisecondsLastRestart
+    );
+
+    return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+  } catch {
+    return "Unavailable";
+  }
 };
 
 export const humanHostLastSeen = (lastSeen: string): string => {
+  if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
+    return "Never";
+  }
   return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
+  if (!enrolled || enrolled < "2016-07-28T00:00:00Z") {
+    return "Never";
+  }
   return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
 };
 
@@ -585,15 +634,18 @@ export const humanHostMemory = (bytes: number): string => {
   return `${inGigaBytes(bytes)} GB`;
 };
 
-export const humanHostDetailUpdated = (detailUpdated: string): string => {
+export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   // Handles the case when a host has checked in to Fleet but
   // its details haven't been updated.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
-  if (detailUpdated < "2016-07-28T00:00:00Z") {
-    return "Never";
+  if (!detailUpdated || detailUpdated < "2016-07-28T00:00:00Z") {
+    return "unavailable";
   }
-
-  return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+  try {
+    return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+  } catch {
+    return "unavailable";
+  }
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -607,11 +659,15 @@ export const hostTeamName = (teamName: string | null): string => {
 export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
-  if (lastRun < "2016-07-28T00:00:00Z") {
+  if (!lastRun || lastRun < "2016-07-28T00:00:00Z") {
     return "Has not run";
   }
 
-  return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+  try {
+    return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+  } catch {
+    return "Unavailable";
+  }
 };
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
@@ -646,6 +702,15 @@ export const performanceIndicator = (
   return "Excessive";
 };
 
+export const secondsToDhms = (s: number): string => {
+  if (s === 604800) {
+    return "1 week";
+  }
+
+  const duration = intervalToDuration({ start: 0, end: s * 1000 });
+  return formatDuration(duration);
+};
+
 export const secondsToHms = (d: number): string => {
   const h = Math.floor(d / 3600);
   const m = Math.floor((d % 3600) / 60);
@@ -655,22 +720,6 @@ export const secondsToHms = (d: number): string => {
   const mDisplay = m > 0 ? m + (m === 1 ? " min " : " mins ") : "";
   const sDisplay = s > 0 ? s + (s === 1 ? " sec" : " secs") : "";
   return hDisplay + mDisplay + sDisplay;
-};
-
-export const secondsToDhms = (d: number): string => {
-  if (d === 604800) {
-    return "1 week";
-  }
-  const day = Math.floor(d / (3600 * 24));
-  const h = Math.floor((d % (3600 * 24)) / 3600);
-  const m = Math.floor((d % 3600) / 60);
-  const s = Math.floor(d % 60);
-
-  const dDisplay = day > 0 ? day + (day === 1 ? " day " : " days ") : "";
-  const hDisplay = h > 0 ? h + (h === 1 ? " hour " : " hours ") : "";
-  const mDisplay = m > 0 ? m + (m === 1 ? " minute " : " minutes ") : "";
-  const sDisplay = s > 0 ? s + (s === 1 ? " second" : " seconds") : "";
-  return dDisplay + hDisplay + mDisplay + sDisplay;
 };
 
 export const abbreviateTimeUnits = (str: string): string =>
@@ -722,7 +771,7 @@ export const getValidatedTeamId = (
   teamId: number,
   currentUser: IUser | null,
   isOnGlobalTeam: boolean
-): number => {
+) => {
   let currentUserTeams: ITeamSummary[] = [];
   if (isOnGlobalTeam) {
     currentUserTeams = teams;
@@ -734,7 +783,7 @@ export const getValidatedTeamId = (
   const validatedTeamId =
     !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
       ? teamId
-      : 0;
+      : undefined;
 
   return validatedTeamId;
 };
@@ -742,7 +791,10 @@ export const getValidatedTeamId = (
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
-): { [key: string]: any } => {
+): Record<
+  string,
+  number | string | boolean | Record<string, number | string | boolean>
+> => {
   return reduce(
     hostData,
     (result, value, key) => {
@@ -758,7 +810,7 @@ export const normalizeEmptyValues = (
 };
 
 export const wrapFleetHelper = (
-  helperFn: (value: any) => string, // number or string or never
+  helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
 ): string => {
   return value === "---" ? value : helperFn(value);
@@ -768,6 +820,7 @@ export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
   formatLabelResponse,
+  formatFloatAsPercentage,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatGlobalScheduledQueryForClient,
@@ -779,7 +832,6 @@ export default {
   generateRole,
   generateTeam,
   greyCell,
-  humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,

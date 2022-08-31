@@ -333,17 +333,27 @@ func mapBitfield(hostIDs []uint) []byte {
 	// NOTE(mna): note that this is efficient storage if the host IDs are mostly
 	// sequential and starting from 1, e.g. as in a newly created database. If
 	// there's substantial churn in hosts (e.g. some are coming on and off) or
-	// for some reason the auto_increment had to be bumped (e.g. it increments with
-	// failed inserts, even if there's an "on duplicate" clause), then it could get
-	// quite inefficient. If the id gets, say, to 10M then the bitfield will take
-	// over 1MB, even if there are only 100K hosts - at which point it would
-	// likely become more efficient to store a set of host IDs (without any
-	// redis-internal storage optimization, that would be 100K * 4 bytes =
-	// ~380KB). This large bitfield usage of memory would even be true if there
-	// was only one host selected in the query, should that host be one of the
-	// high IDs.  Something to keep in mind if at some point we have reports of
-	// unexpectedly large redis memory usage, as that storage is repeated for
-	// each live query.
+	// for some reason the auto_increment had to be bumped (e.g. it increments
+	// with failed inserts, even if there's an "on duplicate" clause), then it
+	// could get quite inefficient. If the id gets, say, to 10M then the bitfield
+	// will take over 1MB (10M bytes / 8 bits), regardless of the number of hosts
+	// - at which point it could start to be more interesting to store a set of
+	// host IDs (even though the members of a SET are stored as strings so the
+	// storage bytes depends on the length of the string representation).
+	//
+	// Running the following in Redis v6.2.6 (using i+100000 so that IDs reflect
+	// the high numbers and take the corresponding number of storage bytes):
+	//
+	//     > eval 'for i=1, 100000 do redis.call("sadd", KEYS[1], i+100000) end' 1 myset
+	//     > memory usage myset
+	//     (integer) 4248715
+	//
+	// So it would take a bit under 4MB to store ALL 100K host IDs, obviously
+	// less to store a subset of those. On the other hand, the large bitfield
+	// usage of memory would be true even if there was only one host selected in
+	// the query, should that host be one of the high IDs.  Something to keep in
+	// mind if at some point we have reports of unexpectedly large redis memory
+	// usage, as that storage is repeated for each live query.
 
 	// As the input IDs are in ascending order, we get two optimizations here:
 	// 1. We can calculate the length of the bitfield necessary by using the

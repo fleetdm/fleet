@@ -1,7 +1,11 @@
 import { IConfig } from "interfaces/config";
 
+export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
+
 export interface IAppConfigFormProps {
   appConfig: IConfig;
+  isPremiumTier?: boolean;
+  isUpdatingSettings?: boolean;
   handleSubmit: any;
 }
 
@@ -26,6 +30,7 @@ export interface IAppConfigFormErrors {
   destination_url?: string | null;
   host_expiry_window?: string | null;
   agent_options?: string | null;
+  transparency_url?: string | null;
 }
 
 export const authMethodOptions = [
@@ -66,15 +71,71 @@ export const usageStatsPreview = {
   anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
   fleetVersion: "x.x.x",
   licenseTier: "free",
-  numHostsEnrolled: 12345,
-  numUsers: 12,
-  numTeams: 3,
-  numPolicies: 5,
-  numLabels: 20,
+  organization: "Fleet",
+  numHostsEnrolled: 999,
+  numUsers: 999,
+  numTeams: 999,
+  numPolicies: 999,
+  numLabels: 999,
   softwareInventoryEnabled: true,
   vulnDetectionEnabled: true,
   systemUsersEnabled: true,
   hostStatusWebhookEnabled: true,
+  numWeeklyActiveUsers: 999,
+  hostsEnrolledByOperatingSystem: {
+    macos: [
+      {
+        version: "12.3.1",
+        numEnrolled: 999,
+      },
+    ],
+    windows: [
+      {
+        version: "10, version 21H2 (W)",
+        numEnrolled: 999,
+      },
+    ],
+    ubuntuLinux: [
+      {
+        version: "22.04 'Jammy Jellyfish' (LTS)",
+        numEnrolled: 999,
+      },
+    ],
+    centosLinux: [
+      {
+        version: "12.3.1",
+        numEnrolled: 999,
+      },
+    ],
+    debianLinux: [
+      {
+        version: "11 (Bullseye)",
+        numEnrolled: 999,
+      },
+    ],
+    redhatLinux: [
+      {
+        version: "9",
+        numEnrolled: 999,
+      },
+    ],
+    amazonLinux: [
+      {
+        version: "AMI",
+        numEnrolled: 999,
+      },
+    ],
+  },
+  storedErrors: [
+    {
+      count: 3,
+      loc: [
+        "github.com/fleetdm/fleet/v4/server/example.example:12",
+        "github.com/fleetdm/fleet/v4/server/example.example:130",
+      ],
+    },
+  ],
+  numHostsNotResponding: 9,
 };
 
 export default {

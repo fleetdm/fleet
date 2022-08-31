@@ -2,7 +2,6 @@ package filestore
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,9 +14,7 @@ import (
 func TestFileStorePathError(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "filestore-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "metadata.json"), constant.DefaultDirMode))
 

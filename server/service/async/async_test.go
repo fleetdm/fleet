@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCollectQueryExecutions(t *testing.T) {
+func TestCollect(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
 	oldMaxPolicy := maxRedisPolicyResultsPerHost
@@ -49,9 +49,37 @@ func TestCollectQueryExecutions(t *testing.T) {
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 	})
+
+	t.Run("Host Last Seen", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "host_last_seen", false, false, false)
+			testCollectHostsLastSeen(t, ds, pool)
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "host_last_seen", true, true, false)
+			testCollectHostsLastSeen(t, ds, pool)
+		})
+	})
+
+	t.Run("Scheduled Query Stats", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", false, false, false)
+			testCollectScheduledQueryStats(t, ds, pool)
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", true, true, false)
+			testCollectScheduledQueryStats(t, ds, pool)
+		})
+	})
 }
 
-func TestRecordQueryExecutions(t *testing.T) {
+func TestRecord(t *testing.T) {
 	ds := new(mock.Store)
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
 		return nil
@@ -67,6 +95,15 @@ func TestRecordQueryExecutions(t *testing.T) {
 	}
 	ds.AsyncBatchUpdatePolicyTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
 		return nil
+	}
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, hid uint, stats []fleet.PackStats) error {
+		return nil
+	}
+	ds.AsyncBatchSaveHostsScheduledQueryStatsFunc = func(ctx context.Context, batch map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
+		return 1, nil
+	}
+	ds.ScheduledQueryIDsByNameFunc = func(ctx context.Context, batchSize int, names ...[2]string) ([]uint, error) {
+		return make([]uint, len(names)), nil
 	}
 
 	t.Run("Label", func(t *testing.T) {
@@ -94,6 +131,34 @@ func TestRecordQueryExecutions(t *testing.T) {
 			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+		})
+	})
+
+	t.Run("Host Last Seen", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "host_last_seen", false, false, false)
+			t.Run("sync", func(t *testing.T) { testRecordHostLastSeenSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordHostLastSeenAsync(t, ds, pool) })
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "host_last_seen", true, true, false)
+			t.Run("sync", func(t *testing.T) { testRecordHostLastSeenSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordHostLastSeenAsync(t, ds, pool) })
+		})
+	})
+
+	t.Run("Scheduled Query Stats", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", false, false, false)
+			t.Run("sync", func(t *testing.T) { testRecordScheduledQueryStatsSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordScheduledQueryStatsAsync(t, ds, pool) })
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", true, true, false)
+			t.Run("sync", func(t *testing.T) { testRecordScheduledQueryStatsSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordScheduledQueryStatsAsync(t, ds, pool) })
 		})
 	})
 }

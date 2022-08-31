@@ -1,3 +1,0 @@
----
-- package: name=docker
-- systemd: name=docker.service enabled=true state=started

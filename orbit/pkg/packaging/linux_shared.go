@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -39,6 +40,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.LinuxTargets
 
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
+
 	// Override default channels with the provided values.
 	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
 	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
@@ -57,6 +64,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		// We set the package version to orbit's latest version.
 		opt.Version = updatesData.OrbitVersion
 	}
+
+	varLibSymlink := false
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			varLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
 
 	// Write files
 
@@ -130,6 +145,19 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		}).WithFileInfoDefaults())
 	}
 
+	if varLibSymlink {
+		contents = append(contents,
+			// Symlink needed to support old versions of orbit.
+			&files.Content{
+				Source:      "/opt/orbit",
+				Destination: "/var/lib/orbit",
+				Type:        "symlink",
+				FileInfo: &files.ContentFileInfo{
+					Mode: os.ModeSymlink,
+				},
+			})
+	}
+
 	contents, err = files.ExpandContentGlobs(contents, false)
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
@@ -156,6 +184,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
+	if opt.NativeTooling {
+		filename = filepath.Join("build", filename)
+	}
 
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {
@@ -200,7 +231,7 @@ CPUQuota=20%
 [Install]
 WantedBy=multi-user.target
 `),
-		constant.DefaultFileMode,
+		constant.DefaultSystemdUnitMode,
 	); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
@@ -213,6 +244,10 @@ ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
+{{ if .Desktop }}
+ORBIT_FLEET_DESKTOP=true
+ORBIT_DESKTOP_CHANNEL={{ .DesktopChannel }}
+{{ end }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
@@ -243,8 +278,7 @@ func writeEnvFile(opt Options, rootPath string) error {
 	return nil
 }
 
-var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
-#!/bin/sh
+var postInstallTemplate = template.Must(template.New("postinstall").Parse(`#!/bin/sh
 
 # Exit on error
 set -e
@@ -273,12 +307,18 @@ func writePostInstall(opt Options, path string) error {
 }
 
 func writePreRemove(opt Options, path string) error {
+	// We add `|| true` in case the service is not running
+	// or has been manually disabled already. Otherwise,
+	// uninstallation fails.
+	//
+	// "pkill fleet-desktop" is required because the application
+	// runs as user (separate from sudo command that launched it),
+	// so on some systems it's not killed properly.
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
-set -e
-
-systemctl stop orbit.service
-systemctl disable orbit.service
+systemctl stop orbit.service || true
+systemctl disable orbit.service || true
+pkill fleet-desktop || true
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}

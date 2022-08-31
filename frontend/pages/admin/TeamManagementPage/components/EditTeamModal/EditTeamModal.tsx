@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 
+import { ITeamFormData } from "services/entities/teams";
+
 import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -7,15 +9,12 @@ import Button from "components/buttons/Button";
 
 const baseClass = "edit-team-modal";
 
-export interface IEditTeamFormData {
-  name: string;
-}
-
 interface IEditTeamModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IEditTeamFormData) => void;
+  onSubmit: (formData: ITeamFormData) => void;
   defaultName: string;
   backendValidators: { [key: string]: string };
+  isUpdatingTeams: boolean;
 }
 
 const EditTeamModal = ({
@@ -23,6 +22,7 @@ const EditTeamModal = ({
   onSubmit,
   defaultName,
   backendValidators,
+  isUpdatingTeams,
 }: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -62,20 +62,17 @@ const EditTeamModal = ({
           value={name}
           error={errors.name}
         />
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
-            className={`${baseClass}__btn`}
             type="submit"
             variant="brand"
             disabled={name === ""}
+            className="save-loading"
+            isLoading={isUpdatingTeams}
           >
             Save
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>

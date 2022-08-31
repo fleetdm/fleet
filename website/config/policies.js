@@ -35,5 +35,10 @@ module.exports.policies = {
   'view-landing': true,
   'deliver-demo-signup': true,
   'articles/*': true,
+  'reports/*': true,
+  'view-sales-one-pager': true,
+  'try-fleet/view-register': true,
+  'try-fleet/view-sandbox-login': true,
+  'try-fleet/view-sandbox-teleporter-or-redirect-because-expired': true,
 
 };

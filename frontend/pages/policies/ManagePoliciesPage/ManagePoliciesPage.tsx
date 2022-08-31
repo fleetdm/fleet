@@ -1,32 +1,34 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { get, has, noop } from "lodash";
+import { noop } from "lodash";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
+
+import { IAutomationsConfig, IConfig } from "interfaces/config";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
-import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { IConfig } from "interfaces/config";
-import { ITeam, ILoadTeamResponse } from "interfaces/team";
+import { ITeamAutomationsConfig, ITeamConfig } from "interfaces/team";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
-import TableDataError from "components/TableDataError";
-import PoliciesListWrapper from "./components/PoliciesListWrapper";
+import TableDataError from "components/DataError";
+import MainContent from "components/MainContent";
+
+import PoliciesTable from "./components/PoliciesTable";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
-import RemovePoliciesModal from "./components/RemovePoliciesModal";
+import DeletePolicyModal from "./components/DeletePolicyModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -56,8 +58,6 @@ const ManagePolicyPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     currentTeam,
-    setAvailableTeams,
-    setCurrentUser,
     setCurrentTeam,
     setConfig,
   } = useContext(AppContext);
@@ -75,22 +75,18 @@ const ManagePolicyPage = ({
   } = useContext(PolicyContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
-
+  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState<boolean>(
+    false
+  );
+  const [isUpdatingPolicies, setIsUpdatingPolicies] = useState<boolean>(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
-  const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
+  const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
-  const [
-    failingPoliciesWebhook,
-    setFailingPoliciesWebhook,
-  ] = useState<IWebhookFailingPolicies>();
-  const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
-    number[]
-  >();
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -99,7 +95,7 @@ const ManagePolicyPage = ({
   const {
     data: globalPolicies,
     error: globalPoliciesError,
-    isLoading: isLoadingGlobalPolicies,
+    isFetching: isFetchingGlobalPolicies,
     isStale: isStaleGlobalPolicies,
     refetch: refetchGlobalPolicies,
   } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
@@ -110,14 +106,14 @@ const ManagePolicyPage = ({
     {
       enabled: !!availableTeams,
       select: (data) => data.policies,
-      staleTime: 3000,
+      staleTime: 5000,
     }
   );
 
   const {
     data: teamPolicies,
     error: teamPoliciesError,
-    isLoading: isLoadingTeamPolicies,
+    isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
     ["teamPolicies", teamId],
@@ -125,42 +121,43 @@ const ManagePolicyPage = ({
     {
       enabled: !!availableTeams && isPremiumTier && !!teamId,
       select: (data) => data.policies,
+      staleTime: 5000,
     }
   );
 
-  const canAddOrRemovePolicy =
+  const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
-  const { isLoading: isLoadingWebhooks, refetch: refetchWebhooks } = useQuery<
-    IConfig | ILoadTeamResponse,
-    Error,
-    IConfig | ITeam
-  >(
-    ["webhooks", teamId],
+  const {
+    data: config,
+    isFetching: isFetchingConfig,
+    refetch: refetchConfig,
+  } = useQuery<IConfig, Error>(
+    ["config"],
     () => {
-      return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
+      return configAPI.loadAll();
     },
     {
-      enabled: canAddOrRemovePolicy,
-      select: (data) => {
-        if (has(data, "team")) {
-          return get(data, "team");
-        }
-        return data;
-      },
+      enabled: canAddOrDeletePolicy,
       onSuccess: (data) => {
-        setFailingPoliciesWebhook(
-          data.webhook_settings?.failing_policies_webhook
-        );
-        setCurrentAutomatedPolicies(
-          data.webhook_settings?.failing_policies_webhook.policy_ids
-        );
-
-        if (has(data, "org_info")) {
-          setConfig(data as IConfig);
-        }
+        setConfig(data);
       },
+      staleTime: 5000,
+    }
+  );
+
+  const {
+    data: teamConfig,
+    isFetching: isFetchingTeamConfig,
+    refetch: refetchTeamConfig,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["teams", teamId],
+    () => teamsAPI.load(teamId),
+    {
+      enabled: !!teamId && canAddOrDeletePolicy,
+      select: (data) => data.team,
+      staleTime: 5000,
     }
   );
 
@@ -199,34 +196,21 @@ const ManagePolicyPage = ({
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
-  const toggleRemovePoliciesModal = () =>
-    setShowRemovePoliciesModal(!showRemovePoliciesModal);
+  const toggleDeletePolicyModal = () =>
+    setShowDeletePolicyModal(!showDeletePolicyModal);
 
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
 
-  const onCreateWebhookSubmit = async ({
-    destination_url,
-    policy_ids,
-    enable_failing_policies_webhook,
-  }: IWebhookFailingPolicies) => {
+  const handleUpdateAutomations = async (
+    requestBody: IAutomationsConfig | ITeamAutomationsConfig
+  ) => {
+    setIsUpdatingAutomations(true);
     try {
-      const api = teamId ? teamsAPI : configAPI;
-      const secondParam = teamId || undefined;
-      const data = {
-        webhook_settings: {
-          failing_policies_webhook: {
-            destination_url,
-            policy_ids,
-            enable_failing_policies_webhook,
-          },
-        },
-      };
-
-      const request = api.update(data, secondParam);
-      await request.then(() => {
-        renderFlash("success", "Successfully updated policy automations.");
-      });
+      await (teamId
+        ? teamsAPI.update(requestBody, teamId)
+        : configAPI.update(requestBody));
+      renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
         "error",
@@ -234,7 +218,9 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchWebhooks();
+      setIsUpdatingAutomations(false);
+      refetchConfig();
+      teamId && refetchTeamConfig();
     }
   };
 
@@ -245,13 +231,14 @@ const ManagePolicyPage = ({
     toggleAddPolicyModal();
   };
 
-  const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
-    toggleRemovePoliciesModal();
+  const onDeletePolicyClick = (selectedTableIds: number[]): void => {
+    toggleDeletePolicyModal();
     setSelectedPolicyIds(selectedTableIds);
   };
 
-  const onRemovePoliciesSubmit = async () => {
+  const onDeletePolicySubmit = async () => {
     const id = currentTeam?.id;
+    setIsUpdatingPolicies(true);
     try {
       const request = id
         ? teamPoliciesAPI.destroy(id, selectedPolicyIds)
@@ -260,7 +247,7 @@ const ManagePolicyPage = ({
       await request.then(() => {
         renderFlash(
           "success",
-          `Successfully removed ${
+          `Successfully deleted ${
             selectedPolicyIds?.length === 1 ? "policy" : "policies"
           }.`
         );
@@ -270,12 +257,13 @@ const ManagePolicyPage = ({
     } catch {
       renderFlash(
         "error",
-        `Unable to remove ${
+        `Unable to delete ${
           selectedPolicyIds?.length === 1 ? "policy" : "policies"
         }. Please try again.`
       );
     } finally {
-      toggleRemovePoliciesModal();
+      toggleDeletePolicyModal();
+      setIsUpdatingPolicies(false);
     }
   };
 
@@ -292,9 +280,9 @@ const ManagePolicyPage = ({
 
   const showInheritedPoliciesButton =
     !!teamId &&
-    !isLoadingTeamPolicies &&
+    !isFetchingTeamPolicies &&
     !teamPoliciesError &&
-    !isLoadingGlobalPolicies &&
+    !isFetchingGlobalPolicies &&
     !globalPoliciesError &&
     !!globalPolicies?.length;
 
@@ -331,11 +319,34 @@ const ManagePolicyPage = ({
   const showCtaButtons =
     (!!teamId && teamPolicies) || (!teamId && globalPolicies);
 
+  const automationsConfig = teamId ? teamConfig : config;
+
+  // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
+  let currentAutomatedPolicies: number[] = [];
+  if (automationsConfig) {
+    const {
+      webhook_settings: { failing_policies_webhook: webhook },
+      integrations,
+    } = automationsConfig;
+
+    let isIntegrationEnabled = false;
+    if (integrations) {
+      const { jira, zendesk } = integrations;
+      isIntegrationEnabled =
+        !!jira?.find((j) => j.enable_failing_policies) ||
+        !!zendesk?.find((z) => z.enable_failing_policies);
+    }
+
+    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
+      currentAutomatedPolicies = webhook?.policy_ids || [];
+    }
+  }
+
   return !availableTeams ? (
     <Spinner />
   ) : (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
@@ -362,8 +373,8 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations &&
-                !isLoadingWebhooks &&
-                !isLoadingGlobalPolicies && (
+                automationsConfig &&
+                !isFetchingGlobalPolicies && (
                   <Button
                     onClick={toggleManageAutomationsModal}
                     className={`${baseClass}__manage-automations button`}
@@ -372,7 +383,7 @@ const ManagePolicyPage = ({
                     <span>Manage automations</span>
                   </Button>
                 )}
-              {canAddOrRemovePolicy && (
+              {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
                     variant="brand"
@@ -403,15 +414,19 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isLoadingTeamPolicies && isLoadingWebhooks ? (
+            (isFetchingTeamPolicies ? (
               <Spinner />
             ) : (
-              <PoliciesListWrapper
+              <PoliciesTable
                 policiesList={teamPolicies || []}
-                isLoading={isLoadingTeamPolicies && isLoadingWebhooks}
+                isLoading={
+                  isFetchingTeamPolicies ||
+                  isFetchingTeamConfig ||
+                  isFetchingConfig
+                }
                 onAddPolicyClick={onAddPolicyClick}
-                onRemovePoliciesClick={onRemovePoliciesClick}
-                canAddOrRemovePolicy={canAddOrRemovePolicy}
+                onDeletePolicyClick={onDeletePolicyClick}
+                canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeam}
                 currentAutomatedPolicies={currentAutomatedPolicies}
               />
@@ -419,15 +434,15 @@ const ManagePolicyPage = ({
           {!teamId && globalPoliciesError && <TableDataError />}
           {!teamId &&
             !globalPoliciesError &&
-            (isLoadingGlobalPolicies ? (
+            (isFetchingGlobalPolicies ? (
               <Spinner />
             ) : (
-              <PoliciesListWrapper
+              <PoliciesTable
                 policiesList={globalPolicies || []}
-                isLoading={isLoadingGlobalPolicies && isLoadingWebhooks}
+                isLoading={isFetchingGlobalPolicies || isFetchingConfig}
                 onAddPolicyClick={onAddPolicyClick}
-                onRemovePoliciesClick={onRemovePoliciesClick}
-                canAddOrRemovePolicy={canAddOrRemovePolicy}
+                onDeletePolicyClick={onDeletePolicyClick}
+                canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeam}
                 currentAutomatedPolicies={currentAutomatedPolicies}
               />
@@ -456,40 +471,30 @@ const ManagePolicyPage = ({
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
             {!globalPoliciesError &&
-              (isLoadingGlobalPolicies ? (
+              (isFetchingGlobalPolicies ? (
                 <Spinner />
               ) : (
-                <PoliciesListWrapper
-                  isLoading={isLoadingGlobalPolicies && isLoadingWebhooks}
+                <PoliciesTable
+                  isLoading={isFetchingGlobalPolicies}
                   policiesList={globalPolicies || []}
-                  onRemovePoliciesClick={noop}
-                  resultsTitle="policies"
-                  canAddOrRemovePolicy={canAddOrRemovePolicy}
+                  onDeletePolicyClick={noop}
+                  canAddOrDeletePolicy={canAddOrDeletePolicy}
                   tableType="inheritedPolicies"
                   currentTeam={currentTeam}
-                  currentAutomatedPolicies={currentAutomatedPolicies}
                 />
               ))}
           </div>
         )}
-        {showManageAutomationsModal && (
+        {config && automationsConfig && showManageAutomationsModal && (
           <ManageAutomationsModal
-            onCancel={toggleManageAutomationsModal}
-            onCreateWebhookSubmit={onCreateWebhookSubmit}
-            togglePreviewPayloadModal={togglePreviewPayloadModal}
-            showPreviewPayloadModal={showPreviewPayloadModal}
+            automationsConfig={automationsConfig}
+            availableIntegrations={config.integrations}
             availablePolicies={availablePoliciesForAutomation}
-            currentAutomatedPolicies={currentAutomatedPolicies || []}
-            currentDestinationUrl={
-              (failingPoliciesWebhook &&
-                failingPoliciesWebhook.destination_url) ||
-              ""
-            }
-            enableFailingPoliciesWebhook={
-              (failingPoliciesWebhook &&
-                failingPoliciesWebhook.enable_failing_policies_webhook) ||
-              false
-            }
+            isUpdatingAutomations={isUpdatingAutomations}
+            showPreviewPayloadModal={showPreviewPayloadModal}
+            onExit={toggleManageAutomationsModal}
+            handleSubmit={handleUpdateAutomations}
+            togglePreviewPayloadModal={togglePreviewPayloadModal}
           />
         )}
         {showAddPolicyModal && (
@@ -500,14 +505,15 @@ const ManagePolicyPage = ({
             teamName={currentTeam?.name}
           />
         )}
-        {showRemovePoliciesModal && (
-          <RemovePoliciesModal
-            onCancel={toggleRemovePoliciesModal}
-            onSubmit={onRemovePoliciesSubmit}
+        {showDeletePolicyModal && (
+          <DeletePolicyModal
+            isUpdatingPolicies={isUpdatingPolicies}
+            onCancel={toggleDeletePolicyModal}
+            onSubmit={onDeletePolicySubmit}
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

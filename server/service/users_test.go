@@ -302,14 +302,15 @@ func TestUserAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			tt.user.SetPassword("p4ssw0rd.", 10, 10)
+			err := tt.user.SetPassword(test.GoodPassword, 10, 10)
+			require.NoError(t, err)
 
 			// To test a user reading/modifying itself.
 			u := *tt.user
 			self = &u
 
 			// A user can always read itself (read rego action).
-			_, err := svc.User(ctx, tt.user.ID)
+			_, err = svc.User(ctx, tt.user.ID)
 			require.NoError(t, err)
 
 			// A user can always write itself (write rego action).
@@ -317,7 +318,7 @@ func TestUserAuth(t *testing.T) {
 			require.NoError(t, err)
 
 			// A user can always change its own password (change_password rego action).
-			_, err = svc.ModifyUser(ctx, tt.user.ID, fleet.UserPayload{Password: ptr.String("p4ssw0rd."), NewPassword: ptr.String("p4ssw0rd.3")})
+			_, err = svc.ModifyUser(ctx, tt.user.ID, fleet.UserPayload{Password: ptr.String(test.GoodPassword), NewPassword: ptr.String(test.GoodPassword2)})
 			require.NoError(t, err)
 
 			changeRole := func(role string) string {
@@ -353,7 +354,7 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:     ptr.String("Some Name"),
 				Email:    ptr.String("some@email.com"),
-				Password: ptr.String("passw0rd."),
+				Password: ptr.String(test.GoodPassword),
 				Teams:    &teams,
 			})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
@@ -361,7 +362,7 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:       ptr.String("Some Name"),
 				Email:      ptr.String("some@email.com"),
-				Password:   ptr.String("passw0rd."),
+				Password:   ptr.String(test.GoodPassword),
 				GlobalRole: ptr.String(fleet.RoleAdmin),
 			})
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
@@ -403,10 +404,10 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.RequirePasswordReset(ctx, userTeamMaintainerID, false)
 			checkAuthErr(t, tt.shouldFailTeamPasswordReset, err)
 
-			_, err = svc.ModifyUser(ctx, userGlobalMaintainerID, fleet.UserPayload{NewPassword: ptr.String("passw0rd.2")})
+			_, err = svc.ModifyUser(ctx, userGlobalMaintainerID, fleet.UserPayload{NewPassword: ptr.String(test.GoodPassword2)})
 			checkAuthErr(t, tt.shouldFailGlobalChangePassword, err)
 
-			_, err = svc.ModifyUser(ctx, userTeamMaintainerID, fleet.UserPayload{NewPassword: ptr.String("passw0rd.2")})
+			_, err = svc.ModifyUser(ctx, userTeamMaintainerID, fleet.UserPayload{NewPassword: ptr.String(test.GoodPassword2)})
 			checkAuthErr(t, tt.shouldFailTeamChangePassword, err)
 
 			_, err = svc.ListUsers(ctx, fleet.UserListOptions{})
@@ -423,7 +424,8 @@ func TestModifyUserEmail(t *testing.T) {
 		ID:    3,
 		Email: "foo@bar.com",
 	}
-	user.SetPassword("password", 10, 10)
+	err := user.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
 	ms := new(mock.Store)
 	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
@@ -461,10 +463,10 @@ func TestModifyUserEmail(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
 		Email:    ptr.String("zip@zap.com"),
-		Password: ptr.String("password"),
+		Password: ptr.String(test.GoodPassword),
 		Position: ptr.String("minion"),
 	}
-	_, err := svc.ModifyUser(ctx, 3, payload)
+	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
 	assert.True(t, ms.SaveUserFuncInvoked)
@@ -475,12 +477,16 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 		ID:    3,
 		Email: "foo@bar.com",
 	}
-	user.SetPassword("password", 10, 10)
+	err := user.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
 	ms := new(mock.Store)
 	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
+	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return user, nil
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -504,9 +510,8 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
-		//	Password: ptr.String("password"),
 	}
-	_, err := svc.ModifyUser(ctx, 3, payload)
+	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
 	var iae *fleet.InvalidArgumentError
 	ok := errors.As(err, &iae)
@@ -521,12 +526,16 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 		ID:    3,
 		Email: "foo@bar.com",
 	}
-	user.SetPassword("password", 10, 10)
+	err := user.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
 	ms := new(mock.Store)
 	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
 	}
 	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
+	ms.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return user, nil
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -550,9 +559,9 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
-		//	Password: ptr.String("password"),
+		// Password: &test.TestGoodPassword,
 	}
-	_, err := svc.ModifyUser(ctx, 3, payload)
+	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
 	var iae *fleet.InvalidArgumentError
 	ok := errors.As(err, &iae)
@@ -567,7 +576,8 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 		ID:    3,
 		Email: "foo@bar.com",
 	}
-	user.SetPassword("password", 10, 10)
+	err := user.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
 	ms := new(mock.Store)
 	ms.PendingEmailChangeFunc = func(ctx context.Context, id uint, em, tk string) error {
 		return nil
@@ -601,9 +611,9 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
 		Email:    ptr.String("zip@zap.com"),
-		Password: ptr.String("password"),
+		Password: ptr.String(test.GoodPassword),
 	}
-	_, err := svc.ModifyUser(ctx, 3, payload)
+	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.Nil(t, err)
 	assert.True(t, ms.PendingEmailChangeFuncInvoked)
 	assert.True(t, ms.SaveUserFuncInvoked)
@@ -639,7 +649,7 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 		Email:      "admin@foo.com",
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
-	err := admin.SetPassword("p4ssw0rd.", 10, 10)
+	err := admin.SetPassword(test.GoodPassword, 10, 10)
 	require.NoError(t, err)
 	admin, err = ds.NewUser(context.Background(), admin)
 	require.NoError(t, err)
@@ -649,7 +659,7 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 	user, err := svc.CreateUser(ctx, fleet.UserPayload{
 		Name:       ptr.String("Some Observer"),
 		Email:      ptr.String("some-observer@email.com"),
-		Password:   ptr.String("passw0rd."),
+		Password:   ptr.String(test.GoodPassword),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	})
 	require.NoError(t, err)
@@ -671,29 +681,29 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 	}{
 		{ // all good
 			user:        users["admin1@example.com"],
-			oldPassword: "foobarbaz1234!",
-			newPassword: "12345cat!",
+			oldPassword: test.GoodPassword,
+			newPassword: test.GoodPassword2,
 		},
 		{ // prevent password reuse
 			user:        users["admin1@example.com"],
-			oldPassword: "12345cat!",
-			newPassword: "foobarbaz1234!",
-			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
+			oldPassword: test.GoodPassword2,
+			newPassword: test.GoodPassword,
+			wantErr:     fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password"),
 		},
 		{ // all good
 			user:        users["user1@example.com"],
-			oldPassword: "foobarbaz1234!",
-			newPassword: "newpassa1234!",
+			oldPassword: test.GoodPassword,
+			newPassword: test.GoodPassword2,
 		},
 		{ // bad old password
 			user:        users["user1@example.com"],
 			oldPassword: "wrong_password",
-			newPassword: "12345cat!",
+			newPassword: test.GoodPassword2,
 			anyErr:      true,
 		},
 		{ // missing old password
 			user:        users["user1@example.com"],
-			newPassword: "123cataaa!",
+			newPassword: test.GoodPassword2,
 			wantErr:     fleet.NewInvalidArgumentError("old_password", "Old password cannot be empty"),
 		},
 	}
@@ -790,7 +800,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			_, err = svc.RequirePasswordReset(ctx, user.ID, false)
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
-			_, err = svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			_, err = svc.PerformRequiredPasswordReset(ctx, test.GoodPassword2)
 			require.NotNil(t, err)
 
 			_, err = svc.RequirePasswordReset(ctx, user.ID, true)
@@ -799,17 +809,17 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			// should error when using same password
 			_, err = svc.PerformRequiredPasswordReset(ctx, tt.PlaintextPassword)
-			require.Equal(t, "validation failed: new_password cannot reuse old password", err.Error())
+			require.Equal(t, "validation failed: new_password Cannot reuse old password", err.Error())
 
 			// should succeed with good new password
-			u, err := svc.PerformRequiredPasswordReset(ctx, "new_pass")
+			u, err := svc.PerformRequiredPasswordReset(ctx, test.GoodPassword2)
 			require.Nil(t, err)
 			assert.False(t, u.AdminForcedPasswordReset)
 
 			ctx = context.Background()
 
 			// Now user should be able to login with new password
-			u, _, err = svc.Login(ctx, tt.Email, "new_pass")
+			u, _, err = svc.Login(ctx, tt.Email, test.GoodPassword2)
 			require.Nil(t, err)
 			assert.False(t, u.AdminForcedPasswordReset)
 		})
@@ -828,20 +838,20 @@ func TestResetPassword(t *testing.T) {
 	}{
 		{ // all good
 			token:       "abcd",
-			newPassword: "123cat!",
+			newPassword: test.GoodPassword2,
 		},
 		{ // prevent reuse
 			token:       "abcd",
-			newPassword: "123cat!",
-			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
+			newPassword: test.GoodPassword2,
+			wantErr:     fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password"),
 		},
 		{ // bad token
 			token:       "dcbaz",
-			newPassword: "123cat!",
+			newPassword: test.GoodPassword,
 			wantErr:     sql.ErrNoRows,
 		},
 		{ // missing token
-			newPassword: "123cat!",
+			newPassword: test.GoodPassword,
 			wantErr:     fleet.NewInvalidArgumentError("token", "Token cannot be empty field"),
 		},
 	}

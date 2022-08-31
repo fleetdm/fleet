@@ -1,1 +1,0 @@
-* Revert SSO-related URLs to use `/api/v1` instead of `/api/latest`.

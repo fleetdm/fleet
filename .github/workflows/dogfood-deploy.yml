@@ -1,0 +1,83 @@
+name: Deploy Dogfood Environment
+on:
+  workflow_dispatch:
+    inputs:
+      IMAGE_TAG:
+        description: 'The image tag wished to be deployed.'
+        required: true
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: fleet-test
+  AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
+  TF_ACTIONS_WORKING_DIR: infrastructure/dogfood/terraform/aws
+  TF_WORKSPACE: fleet
+  TF_VAR_fleet_backend_cpu: 512
+  TF_VAR_fleet_backend_mem: 4096
+  TF_VAR_redis_instance: cache.t3.micro
+  TF_VAR_fleet_min_capacity: 2
+  TF_VAR_fleet_max_capacity: 5
+  TF_VAR_fleet_image: ${{ github.event.inputs.IMAGE_TAG || 'fleetdm/fleet:main' }}
+  TF_VAR_logging_debug: true
+  TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
+  TF_VAR_cloudwatch_log_retention: 30
+  TF_VAR_rds_backup_retention_period: 30
+  TF_VAR_extra_security_group_cidrs: '["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]'
+
+permissions:
+  id-token: write
+  contents: read    # This is required for actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+
+
+defaults:
+  run:
+    working-directory: infrastructure/dogfood/terraform/aws
+
+jobs:
+  deploy:
+    name: Deploy Fleet Dogfood Environment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{env.AWS_IAM_ROLE}}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.4
+          terraform_wrapper: false
+      - name: Terraform Init
+        id: init
+        run: terraform init
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color
+        continue-on-error: true
+        # first we'll scale everything down and create the new task definitions
+      - name: Terraform Apply Scale Down
+        id: apply_scale_down
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_fleet_min_capacity: 0
+          TF_VAR_fleet_max_capacity: 0
+      - name: Run migration task
+        id: run_migrate
+        run: |
+          CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
+          FAMILY=$(terraform output -raw migrate_task_definition_family)
+          REVISION=$(terraform output -raw fleet-migration-task-revision)
+          SUBNET=$(terraform output -raw private_subnet)
+          SECURITY_GROUP=$(terraform output -raw backend_security_group_id)
+          echo $CLUSTER_NAME $FAMILY $REVISION $SUBNET $SECURITY_GROUP
+          aws ecs run-task --cluster "${CLUSTER_NAME}" --task-definition "${FAMILY}":"${REVISION}" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=["${SUBNET}"],securityGroups=["${SECURITY_GROUP}"]}"
+      - name: Terraform Apply Scale Up
+        id: apply_scale_up
+        run: terraform apply -auto-approve

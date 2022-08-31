@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
@@ -24,6 +25,9 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		if coder, ok := page.error().(kithttp.StatusCoder); ok {
+			w.WriteHeader(coder.StatusCode())
+		}
 		_, err := io.WriteString(w, page.html())
 		return err
 	}
@@ -200,9 +204,6 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid status %s", status)
 
 	}
-	if err != nil {
-		return hopt, err
-	}
 
 	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
 	if additionalInfoFiltersString != "" {
@@ -251,6 +252,26 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	osID := r.URL.Query().Get("os_id")
+	if osID != "" {
+		id, err := strconv.Atoi(osID)
+		if err != nil {
+			return hopt, err
+		}
+		sid := uint(id)
+		hopt.OSIDFilter = &sid
+	}
+
+	osName := r.URL.Query().Get("os_name")
+	if osName != "" {
+		hopt.OSNameFilter = &osName
+	}
+
+	osVersion := r.URL.Query().Get("os_version")
+	if osVersion != "" {
+		hopt.OSVersionFilter = &osVersion
+	}
+
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
@@ -267,6 +288,36 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, err
 		}
 		hopt.DeviceMapping = boolVal
+	}
+
+	mdmID := r.URL.Query().Get("mdm_id")
+	if mdmID != "" {
+		id, err := strconv.Atoi(mdmID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MDMIDFilter = &mid
+	}
+
+	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
+	switch fleet.MDMEnrollStatus(enrollmentStatus) {
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusUnenrolled:
+		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+	}
+
+	munkiIssueID := r.URL.Query().Get("munki_issue_id")
+	if munkiIssueID != "" {
+		id, err := strconv.Atoi(munkiIssueID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MunkiIssueIDFilter = &mid
 	}
 
 	return hopt, nil

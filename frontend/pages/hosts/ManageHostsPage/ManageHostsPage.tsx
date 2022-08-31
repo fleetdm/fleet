@@ -3,13 +3,12 @@ import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
-import ReactTooltip from "react-tooltip";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
-import labelsAPI from "services/entities/labels";
-import teamsAPI from "services/entities/teams";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -19,6 +18,11 @@ import hostsAPI, {
 import hostCountAPI, {
   IHostCountLoadOptions,
 } from "services/entities/host_count";
+import {
+  getOSVersions,
+  IGetOSVersionsQueryKey,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -32,6 +36,8 @@ import {
 import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
+import { IMDMSolution } from "interfaces/macadmins";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -39,6 +45,8 @@ import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_CREATE_LABEL_ERRORS,
+  HOSTS_SEARCH_BOX_PLACEHOLDER,
+  HOSTS_SEARCH_BOX_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -46,14 +54,14 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel";
-import LabelForm from "components/forms/LabelForm";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -68,11 +76,12 @@ import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
-  isAcceptableStatus,
-  getNextLocationPath,
-} from "./helpers";
+} from "./constants";
+import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 
+import LabelForm from "./components/LabelForm";
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -85,14 +94,14 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
+import LabelFilterSelect from "./components/LabelFilterSelect";
+import FilterPill from "./components/FilterPill";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -102,15 +111,8 @@ interface IManageHostsProps {
   location: any; // no type in react-router v3
 }
 
-interface ILabelsResponse {
-  labels: ILabel[];
-}
 interface IPolicyAPIResponse {
   policy: IPolicy;
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface ITableQueryProps {
@@ -145,6 +147,7 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
+    isSandboxMode,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -246,6 +249,10 @@ const ManageHostsPage = ({
   const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
     null
   );
+  const [
+    mdmSolutionDetails,
+    setMDMSolutionDetails,
+  ] = useState<IMDMSolution | null>(null);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [
     currentQueryOptions,
@@ -254,15 +261,28 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
   const isEditLabel = location.hash === EDIT_LABEL_HASH;
-  const routeTemplate = route && route.path ? route.path : "";
+  const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const softwareId = parseInt(queryParams?.software_id, 10);
+  const softwareId =
+    queryParams?.software_id !== undefined
+      ? parseInt(queryParams?.software_id, 10)
+      : undefined;
+  const mdmId =
+    queryParams?.mdm_id !== undefined
+      ? parseInt(queryParams?.mdm_id, 10)
+      : undefined;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const { os_id, os_name, os_version } = queryParams;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -275,10 +295,10 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
+  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
   const {
-    isLoading: isLabelsLoading,
+    isLoading: isLoadingLabels,
     data: labels,
     error: labelsError,
     refetch: refetchLabels,
@@ -321,23 +341,16 @@ const ManageHostsPage = ({
     }
   );
 
-  const addHostsTeam = currentTeam
-    ? { name: currentTeam.name, secrets: teamSecrets || null }
-    : {
-        name: "No team",
-        secrets: globalSecrets || null,
-      };
-
   const {
     data: teams,
     isLoading: isLoadingTeams,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
@@ -363,6 +376,19 @@ const ManageHostsPage = ({
       },
     }
   );
+
+  const { data: osVersions } = useQuery<
+    IOSVersionsResponse,
+    Error,
+    IOperatingSystemVersion[],
+    IGetOSVersionsQueryKey[]
+  >([{ scope: "os_versions" }], () => getOSVersions(), {
+    enabled:
+      !!queryParams?.os_id ||
+      (!!queryParams?.os_name && !!queryParams?.os_version),
+    keepPreviousData: true,
+    select: (data) => data.os_versions,
+  });
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -432,11 +458,15 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
-        options
-      );
+      const {
+        hosts: returnedHosts,
+        software,
+        mobile_device_management_solution,
+      } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
+      mobile_device_management_solution &&
+        setMDMSolutionDetails(mobile_device_management_solution);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -478,7 +508,7 @@ const ManageHostsPage = ({
     if (options.sortBy) {
       delete options.sortBy;
     }
-    retrieveHostCount(options);
+    retrieveHostCount(omit(options, "device_mapping"));
   };
 
   let teamSync = false;
@@ -517,8 +547,14 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      device_mapping: true,
     };
 
     if (isEqual(options, currentQueryOptions)) {
@@ -526,10 +562,16 @@ const ManageHostsPage = ({
     }
     if (teamSync) {
       retrieveHosts(options);
-      retrieveHostCount(options);
+      retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!filteredHostCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex + (hosts?.length || 0) >=
+      filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -584,7 +626,19 @@ const ManageHostsPage = ({
     return true;
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData({
+      ...tableQueryData,
+      pageIndex: 0,
+    } as ITableQueryProps);
+
+    setResetPageIndex(true);
+  };
+
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -599,6 +653,8 @@ const ManageHostsPage = ({
   };
 
   const handleClearPoliciesFilter = () => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -609,10 +665,58 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleClearOSFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["os_id", "os_name", "os_version"]),
+      })
+    );
+  };
+
   const handleClearSoftwareFilter = () => {
-    router.replace(PATHS.MANAGE_HOSTS);
-    setCurrentTeam(undefined);
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["software_id"]),
+      })
+    );
     setSoftwareDetails(null);
+  };
+
+  const handleClearMDMSolutionFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["mdm_id"]),
+      })
+    );
+    setMDMSolutionDetails(null);
+  };
+
+  const handleClearMDMEnrollmentFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["mdm_enrollment_status"]),
+      })
+    );
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -640,6 +744,8 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
+
+    handleResetPageIndex();
     router.replace(nextLocation);
     const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -651,12 +757,12 @@ const ManageHostsPage = ({
     const selected = isAll
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
+    handleResetPageIndex();
+
     handleLabelChange(selected as ILabel);
   };
 
-  const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-
+  const onAddLabelClick = () => {
     setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`);
   };
@@ -679,6 +785,11 @@ const ManageHostsPage = ({
   const onCancelLabel = () => {
     router.goBack();
   };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
@@ -739,10 +850,29 @@ const ManageHostsPage = ({
         newQueryParams.policy_response = policyResponse;
       }
 
-      if (softwareId && !policyId) {
+      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
         newQueryParams.software_id = softwareId;
       }
 
+      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
+        newQueryParams.mdm_id = mdmId;
+      }
+
+      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
+        newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
+      }
+
+      if (
+        (os_id || (os_name && os_version)) &&
+        !softwareId &&
+        !policyId &&
+        !mdmEnrollmentStatus &&
+        !mdmId
+      ) {
+        newQueryParams.os_id = os_id;
+        newQueryParams.os_name = os_name;
+        newQueryParams.os_version = os_version;
+      }
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -751,6 +881,8 @@ const ManageHostsPage = ({
           queryParams: newQueryParams,
         })
       );
+
+      return 0;
     },
     [
       availableTeams,
@@ -759,6 +891,11 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
       sortBy,
     ]
   );
@@ -778,6 +915,8 @@ const ManageHostsPage = ({
     if (enrollSecretString) {
       newSecrets.push({ secret: enrollSecretString });
     }
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -813,6 +952,8 @@ const ManageHostsPage = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -827,6 +968,8 @@ const ManageHostsPage = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -853,6 +996,8 @@ const ManageHostsPage = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -863,6 +1008,7 @@ const ManageHostsPage = ({
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
+    setIsUpdatingLabel(true);
 
     labelsAPI
       .update(selectedLabel, updateAttrs)
@@ -879,17 +1025,29 @@ const ManageHostsPage = ({
           setLabelValidator({
             name: "A label with this name already exists",
           });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
+          });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
-  };
-
-  const onLabelClick = (label: ILabel) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-      handleLabelChange(label);
-    };
   };
 
   const onOsqueryTableSelect = (tableName: string) => {
@@ -897,6 +1055,7 @@ const ManageHostsPage = ({
   };
 
   const onSaveAddLabel = (formData: ILabelFormData) => {
+    setIsUpdatingLabel(true);
     labelsAPI
       .create(formData)
       .then(() => {
@@ -913,10 +1072,36 @@ const ManageHostsPage = ({
           setLabelValidator({
             name: "A label with this name already exists",
           });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
+          });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
+  };
+
+  const onClearLabelFilter = () => {
+    const allHostsLabel = labels?.find((label) => label.name === "All Hosts");
+    if (allHostsLabel !== undefined) {
+      handleLabelChange(allHostsLabel);
+    }
   };
 
   const onDeleteLabel = async () => {
@@ -924,6 +1109,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
+    setIsUpdatingLabel(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -939,9 +1125,12 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
+      renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete label. Please try again.");
+    } finally {
+      setIsUpdatingLabel(false);
     }
   };
 
@@ -956,6 +1145,8 @@ const ManageHostsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHosts(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -996,6 +1187,11 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version,
       });
 
       toggleTransferHostModal();
@@ -1003,10 +1199,14 @@ const ManageHostsPage = ({
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
   const onDeleteHostSubmit = async () => {
+    setIsUpdatingHosts(true);
+
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -1041,6 +1241,11 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version,
       });
 
       refetchLabels();
@@ -1054,6 +1259,8 @@ const ManageHostsPage = ({
           selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
@@ -1070,70 +1277,188 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderLabelFilterPill = () => {
+    if (selectedLabel) {
+      const { description, display_text, label_type } = selectedLabel;
+      const pillLabel =
+        PLATFORM_LABEL_DISPLAY_NAMES[display_text] ?? display_text;
+
+      return (
+        <>
+          <FilterPill
+            label={pillLabel}
+            tooltipDescription={description}
+            onClear={onClearLabelFilter}
+          />
+          {label_type !== "builtin" && !isOnlyObserver && (
+            <>
+              <Button onClick={onEditLabelClick} variant={"text-icon"}>
+                <img src={PencilIcon} alt="Edit label" />
+              </Button>
+              <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
+                <img src={TrashIcon} alt="Delete label" />
+              </Button>
+            </>
+          )}
+        </>
+      );
+    }
+
+    return null;
+  };
+
+  const renderOSFilterBlock = () => {
+    if (!os_id && !(os_name && os_version)) return null;
+
+    let os: IOperatingSystemVersion | undefined;
+    if (os_id) {
+      os = osVersions?.find((v) => v.os_id === os_id);
+    } else if (os_name && os_version) {
+      const name: string = os_name;
+      const vers: string = os_version;
+
+      os = osVersions?.find(
+        ({ name_only, version }) =>
+          name_only.toLowerCase() === name.toLowerCase() &&
+          version.toLowerCase() === vers.toLowerCase()
+      );
+    }
+    if (!os) return null;
+
+    const { name, name_only, version } = os;
+    const label =
+      name_only || version
+        ? `${name_only || ""} ${version || ""}`
+        : `${name || ""}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        {`Hosts with ${name_only || name}`},<br />
+        {version && `${version} installed`}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearOSFilter}
+      />
+    );
+  };
+
   const renderPoliciesFilterBlock = () => (
-    <div className={`${baseClass}__policies-filter-block`}>
+    <>
       <PoliciesFilter
         policyResponse={policyResponse}
         onChange={handleChangePoliciesFilter}
       />
-      <div className={`${baseClass}__policies-filter-name-card`}>
-        <img src={PolicyIcon} alt="Policy" />
-        {policy?.name}
-        <Button
-          className={`${baseClass}__clear-policies-filter`}
-          onClick={handleClearPoliciesFilter}
-          variant={"small-text-icon"}
-          title={policy?.name}
-        >
-          <img src={CloseIcon} alt="Remove policy filter" />
-        </Button>
-      </div>
-    </div>
+      <FilterPill
+        icon={PolicyIcon}
+        label={policy?.name ?? ""}
+        onClear={handleClearPoliciesFilter}
+        className={`${baseClass}__policies-filter-pill`}
+      />
+    </>
   );
 
   const renderSoftwareFilterBlock = () => {
-    if (softwareDetails) {
-      const { name, version } = softwareDetails;
-      const buttonText = name && version ? `${name} ${version}` : "";
-      return (
-        <div className={`${baseClass}__software-filter-block`}>
-          <div>
-            <span
-              className="software-filter-tooltip"
-              data-tip
-              data-for="software-filter-tooltip"
-              data-tip-disable={!name || !version}
-            >
-              <div className={`${baseClass}__software-filter-name-card`}>
-                {buttonText}
-                <Button
-                  className={`${baseClass}__clear-policies-filter`}
-                  onClick={handleClearSoftwareFilter}
-                  variant={"small-text-icon"}
-                  title={buttonText}
-                >
-                  <img src={CloseIcon} alt="Remove policy filter" />
-                </Button>
-              </div>
-            </span>
-            <ReactTooltip
-              place="bottom"
-              type="dark"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="software-filter-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                {`Hosts with ${name}`},<br />
-                {`${version} installed`}
-              </span>
-            </ReactTooltip>
-          </div>
-        </div>
-      );
+    if (!softwareDetails) return null;
+
+    const { name, version } = softwareDetails;
+    const label = name && version ? `${name} ${version}` : "";
+    const TooltipDescription =
+      name && version ? (
+        <span className={`tooltip__tooltip-text`}>
+          {`Hosts with ${name}`},<br />
+          {`${version} installed`}
+        </span>
+      ) : undefined;
+
+    return (
+      <FilterPill
+        label={label}
+        onClear={handleClearSoftwareFilter}
+        tooltipDescription={TooltipDescription}
+      />
+    );
+  };
+
+  const renderMDMSolutionFilterBlock = () => {
+    if (!mdmSolutionDetails) return null;
+
+    const { name, server_url } = mdmSolutionDetails;
+    const label = name ? `${name} ${server_url}` : `${server_url}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Host enrolled
+        {name !== "Unknown" && ` to ${name}`}
+        <br /> at {server_url}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMDMSolutionFilter}
+      />
+    );
+  };
+
+  const renderMDMEnrollmentFilterBlock = () => {
+    if (!mdmEnrollmentStatus) return null;
+
+    let label: string;
+    switch (mdmEnrollmentStatus) {
+      case "automatic":
+        label = "MDM enrolled (automatic)";
+        break;
+      case "manual":
+        label = "MDM enrolled (manual)";
+        break;
+      default:
+        label = "Unenrolled";
     }
-    return null;
+
+    let TooltipDescription: JSX.Element;
+    switch (mdmEnrollmentStatus) {
+      case "automatic":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts automatically enrolled <br />
+            to an MDM solution the first time <br />
+            the host is used. Administrators <br />
+            might have a higher level of control <br />
+            over these hosts.
+          </span>
+        );
+        break;
+      case "manual":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts manually enrolled to an <br />
+            MDM solution by a user or <br />
+            administrator.
+          </span>
+        );
+        break;
+      default:
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts not enrolled to <br /> an MDM solution.
+          </span>
+        );
+    }
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMDMEnrollmentFilter}
+      />
+    );
   };
 
   const renderEditColumnsModal = () => {
@@ -1162,6 +1487,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1171,6 +1497,7 @@ const ManageHostsPage = ({
       selectedTeam={currentTeam?.id || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1190,12 +1517,29 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
+      isUpdatingLabel={isUpdatingLabel}
     />
   );
 
-  const renderAddHostsModal = () => (
-    <AddHostsModal onCancel={toggleAddHostsModal} selectedTeam={addHostsTeam} />
-  );
+  const renderAddHostsModal = () => {
+    const enrollSecret =
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+    return (
+      <AddHostsModal
+        currentTeam={currentTeam}
+        enrollSecret={enrollSecret}
+        isLoading={isLoadingTeams || isGlobalSecretsLoading}
+        isSandboxMode={!!isSandboxMode}
+        onCancel={toggleAddHostsModal}
+      />
+    );
+  };
 
   const renderTransferHostModal = () => {
     if (!teams) {
@@ -1208,6 +1552,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
+        isUpdatingHosts={isUpdatingHosts}
       />
     );
   };
@@ -1218,43 +1563,9 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      isUpdatingHosts={isUpdatingHosts}
     />
   );
-
-  const renderHeaderLabelBlock = () => {
-    if (selectedLabel) {
-      const {
-        description,
-        display_text: displayText,
-        label_type: labelType,
-      } = selectedLabel;
-
-      return (
-        <div className={`${baseClass}__label-block`}>
-          <div className="title">
-            <span>
-              {PLATFORM_LABEL_DISPLAY_NAMES[displayText] || displayText}
-            </span>
-            {labelType !== "builtin" && !isOnlyObserver && (
-              <>
-                <Button onClick={onEditLabelClick} variant={"text-icon"}>
-                  <img src={PencilIcon} alt="Edit label" />
-                </Button>
-                <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-                  <img src={TrashIcon} alt="Delete label" />
-                </Button>
-              </>
-            )}
-          </div>
-          <div className="description">
-            <span>{description}</span>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
 
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
@@ -1279,6 +1590,27 @@ const ManageHostsPage = ({
   ) => {
     evt.preventDefault();
 
+    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+    let currentHiddenColumns = [];
+    let visibleColumns;
+    if (hiddenColumnsStorage) {
+      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+    }
+
+    if (config && currentUser) {
+      const tableColumns = generateVisibleTableColumns(
+        currentHiddenColumns,
+        config,
+        currentUser,
+        currentTeam
+      );
+
+      const columnAccessors = tableColumns
+        .map((column) => (column.accessor ? column.accessor : ""))
+        .filter((element) => element);
+      visibleColumns = columnAccessors.join(",");
+    }
+
     let options = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -1287,6 +1619,12 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
+      visibleColumns,
     };
 
     options = {
@@ -1328,18 +1666,22 @@ const ManageHostsPage = ({
           isHostCountLoading ? "count-loading" : ""
         }`}
       >
-        <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        {/* Export all columns initially in 4.13 release but feature being pushed
-        back by product until we build client side filtering to export only selected columns
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportHostsResults}
-          variant="text-link"
-        >
-          <>
-            Export hosts <img alt="" src={DownloadIcon} />
-          </>
-        </Button> */}
+        {count !== undefined && (
+          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        )}
+        {count ? (
+          <Button
+            className={`${baseClass}__export-btn`}
+            onClick={onExportHostsResults}
+            variant="text-link"
+          >
+            <>
+              Export hosts <img alt="" src={DownloadIcon} />
+            </>
+          </Button>
+        ) : (
+          <></>
+        )}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);
@@ -1349,27 +1691,51 @@ const ManageHostsPage = ({
       selectedLabel &&
       selectedLabel.type !== "all" &&
       selectedLabel.type !== "status";
-    if (policyId || softwareId || showSelectedLabel) {
+    if (
+      policyId ||
+      softwareId ||
+      showSelectedLabel ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      os_id ||
+      (os_name && os_version)
+    ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {showSelectedLabel && renderHeaderLabelBlock()}
+          {showSelectedLabel && renderLabelFilterPill()}
           {!!policyId &&
             !softwareId &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
             !showSelectedLabel &&
             renderPoliciesFilterBlock()}
           {!!softwareId &&
             !policyId &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
             !showSelectedLabel &&
             renderSoftwareFilterBlock()}
+          {!!mdmId &&
+            !policyId &&
+            !softwareId &&
+            !mdmEnrollmentStatus &&
+            !showSelectedLabel &&
+            renderMDMSolutionFilterBlock()}
+          {!!mdmEnrollmentStatus &&
+            !policyId &&
+            !softwareId &&
+            !mdmId &&
+            !showSelectedLabel &&
+            renderMDMEnrollmentFilterBlock()}
+          {(!!os_id || (!!os_name && !!os_version)) &&
+            !policyId &&
+            !softwareId &&
+            !showSelectedLabel &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
+            renderOSFilterBlock()}
         </div>
       );
-    }
-    return null;
-  };
-
-  const renderSoftwareVulnerabilities = () => {
-    if (softwareId && softwareDetails) {
-      return <SoftwareVulnerabilities software={softwareDetails} />;
     }
     return null;
   };
@@ -1377,74 +1743,64 @@ const ManageHostsPage = ({
   const renderForm = () => {
     if (isAddLabel) {
       return (
-        <div className="body-wrap">
-          <LabelForm
-            onCancel={onCancelLabel}
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            handleSubmit={onSaveAddLabel}
-            baseError={labelsError?.message || ""}
-            backendValidators={labelValidator}
-          />
-        </div>
+        <LabelForm
+          onCancel={onCancelLabel}
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          handleSubmit={onSaveAddLabel}
+          baseError={labelsError?.message || ""}
+          backendValidators={labelValidator}
+          isUpdatingLabel={isUpdatingLabel}
+        />
       );
     }
 
     if (isEditLabel) {
       return (
-        <div className="body-wrap">
-          <LabelForm
-            selectedLabel={selectedLabel}
-            onCancel={onCancelLabel}
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            handleSubmit={onEditLabel}
-            baseError={labelsError?.message || ""}
-            backendValidators={labelValidator}
-            isEdit
-          />
-        </div>
+        <LabelForm
+          selectedLabel={selectedLabel}
+          onCancel={onCancelLabel}
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          handleSubmit={onEditLabel}
+          baseError={labelsError?.message || ""}
+          backendValidators={labelValidator}
+          isUpdatingLabel={isUpdatingLabel}
+          isEdit
+        />
       );
     }
 
     return false;
   };
 
-  const renderSidePanel = () => {
-    let SidePanel;
+  const renderCustomControls = () => {
+    // we filter out the status labels as we dont want to display them in the label
+    // filter select dropdown.
+    // TODO: seperate labels and status into different data sets.
+    const selectedDropdownLabel =
+      selectedLabel?.type !== "all" && selectedLabel?.type !== "status"
+        ? selectedLabel
+        : undefined;
 
-    if (isAddLabel) {
-      SidePanel = (
-        <QuerySidePanel
-          key="query-side-panel"
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          selectedOsqueryTable={selectedOsqueryTable}
+    return (
+      <div className={`${baseClass}__filter-dropdowns`}>
+        <Dropdown
+          value={getStatusSelected() || ALL_HOSTS_LABEL}
+          className={`${baseClass}__status_dropdown`}
+          options={HOST_SELECT_STATUSES}
+          searchable={false}
+          onChange={handleStatusDropdownChange}
         />
-      );
-    } else {
-      SidePanel = (
-        <HostSidePanel
-          key="hosts-side-panel"
-          labels={labels}
-          onAddLabelClick={onAddLabelClick}
-          onLabelClick={onLabelClick}
-          selectedFilter={getLabelSelected() || getStatusSelected()}
-          canAddNewLabel={canAddNewLabels as boolean}
-          isLabelsLoading={isLabelsLoading}
+        <LabelFilterSelect
+          className={`${baseClass}__label-filter-dropdown`}
+          labels={labels ?? []}
+          canAddNewLabels={canAddNewLabels}
+          selectedLabel={selectedDropdownLabel ?? null}
+          onChange={handleLabelChange}
+          onAddLabel={onAddLabelClick}
         />
-      );
-    }
-
-    return SidePanel;
+      </div>
+    );
   };
-
-  const renderStatusDropdown = () => (
-    <Dropdown
-      value={getStatusSelected() || ALL_HOSTS_LABEL}
-      className={`${baseClass}__status_dropdown`}
-      options={HOST_SELECT_STATUSES}
-      searchable={false}
-      onChange={handleStatusDropdownChange}
-    />
-  );
 
   const renderTable = () => {
     if (
@@ -1471,14 +1827,23 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { software_id, policy_id } = queryParams || {};
-      const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
+      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
+        queryParams || {};
+      const includesNameCardFilter = !!(
+        software_id ||
+        policy_id ||
+        mdm_id ||
+        mdm_enrollment_status ||
+        os_id ||
+        os_name ||
+        os_version
+      );
 
       return (
         <NoHosts
           toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
-          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
+          includesNameCardFilter={includesNameCardFilter}
         />
       );
     }
@@ -1494,14 +1859,16 @@ const ManageHostsPage = ({
       },
     ];
 
+    const tableColumns = generateVisibleTableColumns(
+      hiddenColumns,
+      config,
+      currentUser,
+      currentTeam
+    );
+
     return (
       <TableContainer
-        columns={generateVisibleTableColumns(
-          hiddenColumns,
-          config,
-          currentUser,
-          currentTeam
-        )}
+        columns={tableColumns}
         data={hosts}
         isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
@@ -1513,7 +1880,7 @@ const ManageHostsPage = ({
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
-        inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
+        inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
@@ -1523,15 +1890,15 @@ const ManageHostsPage = ({
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
-        searchToolTipText={
-          "Search hosts by hostname, UUID, machine serial or private IP address"
-        }
+        searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={EmptyHosts}
-        customControl={renderStatusDropdown}
+        customControl={renderCustomControls}
         onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        resetPageIndex={resetPageIndex}
+        disableNextPage={isLastPage}
       />
     );
   };
@@ -1560,14 +1927,14 @@ const ManageHostsPage = ({
             </span>
           </div>
           <div className={`dismiss-banner-button`}>
-            <button
-              className="button button--unstyled"
+            <Button
+              variant="unstyled"
               onClick={() =>
                 setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
               }
             >
               <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </button>
+            </Button>
           </div>
         </div>
       )
@@ -1579,52 +1946,65 @@ const ManageHostsPage = ({
   }
 
   return (
-    <div className="has-sidebar">
-      {renderForm()}
-      {!isAddLabel && !isEditLabel && (
-        <div className={`${baseClass} body-wrap`}>
-          <div className="header-wrap">
-            {renderHeader()}
-            <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && (
-                <Button
-                  onClick={() => setShowEnrollSecretModal(true)}
-                  className={`${baseClass}__enroll-hosts button`}
-                  variant="inverse"
-                >
-                  <span>Manage enroll secret</span>
-                </Button>
-              )}
-              {canEnrollHosts &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  selectedLabel?.count === 0
-                ) &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  filteredHostCount === 0
-                ) && (
-                  <Button
-                    onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts button button--brand`}
-                  >
-                    <span>Add hosts</span>
-                  </Button>
-                )}
-            </div>
-          </div>
-          {renderActiveFilterBlock()}
-          {renderNoEnrollSecretBanner() ||
-            (renderSoftwareVulnerabilities() && (
-              <div className={`${baseClass}__info-banners`}>
-                {renderNoEnrollSecretBanner()}
-                {renderSoftwareVulnerabilities()}
+    <>
+      <MainContent>
+        <>
+          {renderForm()}
+          {!isAddLabel && !isEditLabel && (
+            <div className={`${baseClass}`}>
+              <div className="header-wrap">
+                {renderHeader()}
+                <div className={`${baseClass} button-wrap`}>
+                  {!isSandboxMode &&
+                    canEnrollHosts &&
+                    !hasHostErrors &&
+                    !hasHostCountErrors && (
+                      <Button
+                        onClick={() => setShowEnrollSecretModal(true)}
+                        className={`${baseClass}__enroll-hosts button`}
+                        variant="inverse"
+                      >
+                        <span>Manage enroll secret</span>
+                      </Button>
+                    )}
+                  {canEnrollHosts &&
+                    !hasHostErrors &&
+                    !hasHostCountErrors &&
+                    !(
+                      getStatusSelected() === ALL_HOSTS_LABEL &&
+                      selectedLabel?.count === 0
+                    ) &&
+                    !(
+                      getStatusSelected() === ALL_HOSTS_LABEL &&
+                      filteredHostCount === 0
+                    ) && (
+                      <Button
+                        variant="brand"
+                        onClick={toggleAddHostsModal}
+                        className={`${baseClass}__add-hosts`}
+                      >
+                        <span>Add hosts</span>
+                      </Button>
+                    )}
+                </div>
               </div>
-            ))}
-          {renderTable()}
-        </div>
+              {renderActiveFilterBlock()}
+              {renderNoEnrollSecretBanner()}
+              {renderTable()}
+            </div>
+          )}
+        </>
+      </MainContent>
+      {isAddLabel && (
+        <SidePanelContent>
+          <QuerySidePanel
+            key="query-side-panel"
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            selectedOsqueryTable={selectedOsqueryTable}
+          />
+        </SidePanelContent>
       )}
-      {renderSidePanel()}
+
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
       {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
@@ -1633,7 +2013,7 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
-    </div>
+    </>
   );
 };
 

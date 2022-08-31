@@ -1,3 +1,9 @@
+import CONSTANTS from "../../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
+const enable_sso_idp_login = true;
+
 describe("SSO Sessions", () => {
   beforeEach(() => {
     Cypress.session.clearAllSavedSessions();
@@ -5,13 +11,13 @@ describe("SSO Sessions", () => {
   });
   it("non-SSO user can login with username/password", () => {
     cy.login();
-    cy.setupSSO((enable_idp_login = true));
+    cy.setupSSO({ enable_sso_idp_login });
     cy.logout();
     cy.visit("/");
     cy.getAttached(".login-form__forgot-link").should("exist");
     // Log in
     cy.getAttached("input").first().type("admin@example.com");
-    cy.getAttached("input").last().type("user123#");
+    cy.getAttached("input").last().type(GOOD_PASSWORD);
     cy.contains("button", "Login").click();
     // Verify dashboard
     cy.url().should("include", "/dashboard");
@@ -23,13 +29,23 @@ describe("SSO Sessions", () => {
   });
   it("can login via SSO", () => {
     cy.login();
-    cy.setupSSO((enable_idp_login = true));
+    cy.setupSSO({ enable_sso_idp_login });
     cy.logout();
     cy.visit("/");
     // Log in
     cy.contains("button", "Sign on with SimpleSAML");
     cy.loginSSO();
     cy.contains("Hosts");
+  });
+  it("can't login if doesn't have an account", () => {
+    cy.login();
+    cy.setupSSO({ enable_sso_idp_login });
+    cy.logout();
+    cy.visit("/");
+    // Log in
+    cy.contains("button", "Sign on with SimpleSAML");
+    cy.loginSSO({ username: "sso_user2" });
+    cy.visit("/login?status=account_invalid");
   });
   it("fails when IdP login disabled", () => {
     cy.login();
@@ -40,5 +56,9 @@ describe("SSO Sessions", () => {
     cy.loginSSO();
     // Log in should fail
     cy.contains("Password");
+  });
+  it("displays an error message when status is set", () => {
+    cy.visit("/login?status=account_disabled");
+    cy.getAttached(".flash-message");
   });
 });

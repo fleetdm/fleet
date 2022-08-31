@@ -39,16 +39,22 @@
 
   .fleet-checkbox {
     display: flex;
+    align-items: center;
   }
 
   .form-field {
-    margin-bottom: $pad-small;
+    &--checkbox {
+      margin-bottom: $pad-medium;
+    }
 
     &__label {
       position: relative;
       font-size: $x-small;
       font-weight: $bold;
-      margin-top: $pad-medium;
+    }
+
+    &--textarea {
+      margin-bottom: $pad-xsmall;
     }
   }
 
@@ -157,5 +163,12 @@
     div {
       display: inline;
     }
+  }
+
+  &__copy-message {
+    background-color: $ui-light-grey;
+    border: solid 1px #e2e4ea;
+    border-radius: 10px;
+    padding: 2px 6px;
   }
 }

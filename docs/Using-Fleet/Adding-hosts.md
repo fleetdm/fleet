@@ -3,13 +3,9 @@
 - [Signing installers](#signing-installers)
 - [Plain osquery](#plain-osquery)
 
-Fleet is powered by the open source osquery tool. To add a host to Fleet, you must install osquery on this host.
+The recommended way to add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
-The recommended way to install osquery and add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
-
-To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
-
-Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found [here](https://fleetdm.com/fleetctl-preview)
 
 ## Osquery installer
 
@@ -17,20 +13,20 @@ To create an osquery installer, you can use the `fleetctl package` command.
 
 `fleetctl package` can be used to create an osquery installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
 
-The following command creates an osquery installer, `.pkg` file, which adds macOS hosts to Fleet. This osquery installer is located in the folder where the `fleetctl package` command is run.
+The following command creates an osquery installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
-  >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance you'll need to specify a `--fleet-url` and `--enroll-secret`
+  >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance, you'll need to specify a `--fleet-url` and `--enroll-secret`
 
-When you install the generated osquery installer on a host, this host will be automatically enrolled in the specified Fleet instance.
+When you install the generated osquery installer on a host, this host will automatically enroll in the specified Fleet instance.
 
 ### Signing installers
 
   >**Note:** Currently, the fleetctl package command does not provide support for signing Windows osquery installers. Windows installers can be signed after building.
 
-The `fleetctl package` command provides suppport for signing and notarizing macOS osquery installers via the
+The `fleetctl package` command provides support for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
 Check out the example below:
 
@@ -40,8 +36,30 @@ Check out the example below:
 
 The above command should be run on a macOS device as notarizing and signing of macOS osquery installers can only be done on macOS devices.
 
-Also remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password respectively.
+Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively.
 
+### Including Fleet Desktop
+
+> Fleet Desktop requires a Fleet version of 4.12.0 and above. To check your Fleet version, select
+> the avatar on the right side of the top bar and select **My account**. Your Fleet version is
+> displayed below the **Get API token** button.
+
+Hosts without Fleet Desktop currently installed require a new installer to be generated and run on the target host.
+
+How to generate an installer that includes Fleet Desktop in the Fleet UI:
+1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
+2. Select the **Include Fleet Desktop** checkbox.
+3. Select the clipboard icon to copy the `fleetctl package` command. 
+4. In your terminal application, paste and run the copied command.
+
+Alternatively, you can generate an installer that includes Fleet Desktop in `fleetctl package` by appending the `--fleet-desktop` flag.
+
+> Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
+> and versions [here
+> on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
+
+Once installed on the target host, Fleet Desktop will be managed by Orbit. To learn more about Orbit updates, see [here](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
+To prevent this auto-update behavior, you can turn off auto-updates via the `--disable-updates` flag or you can set a specific channel using the `--desktop-channel` flag.
 
 ### Adding multiple hosts
 
@@ -54,30 +72,28 @@ You can distribute your osquery installer and add all your hosts to Fleet using 
 `Applies only to Fleet Premium`
 
 ```
-ℹ️  In Fleet 4.0, Teams were introduced.
+ℹ️  Fleet 4.0 introduced Teams.
 ```
 
-The teams feature in Fleet allows you to place hosts in exclusive groups. With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams.
+The Teams feature in Fleet allows you to place hosts in exclusive groups. With hosts segmented into Teams, you can apply unique queries and give users access to only the hosts in specific Teams.
 
 You can add a host to a team by generating and using a unique osquery installer for a team or by [manually transferring a host to a team in the Fleet UI](../Using-Fleet/Teams.md#transfer-hosts-to-a-team).
 
 To generate an osquery installer for a team:
 
-1. First, create a team in Fleet by selecting "Create team" in **Settings > Teams**.
-
+1. First, create a team in Fleet by selecting **Create team** in **Settings > Teams**.
 2. Then, navigate to **Hosts** and select your team.
-
-3. Next, select "Add hosts" and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
-
+3. Next, select **Add hosts** and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 
 ### Configuration options
 
-The following command-line flags allow you to further configure an osquery installer to communicate with a specific Fleet instance.
+The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
 |Flag | Options|
 |------|--------|
 |  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
+|--fleet-desktop |      Include Fleet Desktop. |
 |--enroll-secret |      Enroll secret for authenticating to Fleet server |
 |--fleet-url |          URL (`host:port`) of Fleet server |
 |--fleet-certificate |  Path to server certificate bundle |
@@ -87,8 +103,10 @@ The following command-line flags allow you to further configure an osquery insta
 | --service   |             Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`) |
 |--sign-identity |      Identity to use for macOS codesigning |
 | --notarize |             Whether to notarize macOS packages (default: `false`) |
+| --disable-updates |   Disable auto updates on the generated package (default: false) |
 |--osqueryd-channel |   Update channel of osqueryd to use (default: `stable`) |
 |--orbit-channel |      Update channel of Orbit to use (default: `stable`) |
+|--desktop-channel |    Update channel of desktop to use (default: `stable`) |
 |--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
 |--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
 | --debug     |             Enable debug logging (default: `false`) |
@@ -96,31 +114,36 @@ The following command-line flags allow you to further configure an osquery insta
 | --help, -h    |             show help (default: `false`) |
 
 
+Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+
 ## Plain osquery
 
 > If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Fleet is documented below in the "Native Osquery TLS Plugins" section.
 
-You can find various ways to install osquery on a variety of platforms at https://osquery.io/downloads. Once you have installed osquery, you need to do two things:
+You can find various ways to install osquery on various of platforms at https://osquery.io/downloads. Once you have installed osquery, you need to do two things: 
+
+- Set an environment variable with an enroll secret
+- Deploy the TLS certificate that osquery will use to communicate with Fleet
 
 ### Set an environment variable with an enroll secret
 
-The enroll secret is a value that osquery provides to authenticate with Fleet. There are a few ways you can set the enroll secret on the hosts which you control. You can either set the value as:
+The enroll secret is a value that osquery provides to authenticate with Fleet. There are a few ways you can set the enroll secret on the hosts which you control. You can either set the value as
 
-- an value of an environment variable (a common name is `OSQUERY_ENROLL_SECRET`)
+- a value of an environment variable (a common name is `OSQUERY_ENROLL_SECRET`)
 - the content of a local file (a common path is `/etc/osquery/enroll_secret`)
 
 The value of the environment variable or content of the file should be a secret shared between the osqueryd client and the Fleet server. This is osqueryd's passphrase which it uses to authenticate with Fleet, convincing Fleet that it is actually one of your hosts. The passphrase could be whatever you'd like, but it would be prudent to have the passphrase long, complex, mixed-case, etc. When you launch the Fleet server, you should specify this same value.
 
-If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify it's path with the `--enroll_secret_path` flag.
+If you use an environment variable for this, you can specify it with the `--enroll_secret_env` flag when you launch osqueryd. If you use a local file for this, you can specify its path with the `--enroll_secret_path` flag.
 
 To retrieve the enroll secret, use the "Add New Host" dialog in the Fleet UI or
 `fleetctl get enroll_secret`).
 
-If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism which takes advantage of this. Fleet can be fronted with a proxy that will perform the TLS client authentication.
+If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism that takes advantage of this. Fleet can be fronted with a proxy that will perform the TLS client authentication.
 
 ### Deploy the TLS certificate that osquery will use to communicate with Fleet
 
-When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click "Add New Host" and "Fetch Certificate". If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
+When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click **Add New Host** and **Fetch Certificate**. If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
 
 It is important that the CN of this certificate matches the hostname or IP that osqueryd clients will use to connect.
 
@@ -136,18 +159,18 @@ sudo osqueryd \
  --tls_server_certs=/etc/osquery/fleet.crt \
  --tls_hostname=fleet.example.com \
  --host_identifier=uuid \
- --enroll_tls_endpoint=/api/osquery/enroll \
+ --enroll_tls_endpoint=/api/v1/osquery/enroll \
  --config_plugin=tls \
- --config_tls_endpoint=/api/osquery/config \
+ --config_tls_endpoint=/api/v1/osquery/config \
  --config_refresh=10 \
  --disable_distributed=false \
  --distributed_plugin=tls \
  --distributed_interval=10 \
  --distributed_tls_max_attempts=3 \
- --distributed_tls_read_endpoint=/api/osquery/distributed/read \
- --distributed_tls_write_endpoint=/api/osquery/distributed/write \
+ --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/osquery/log \
+ --logger_tls_endpoint=/api/v1/osquery/log \
  --logger_tls_period=10
 ```
 
@@ -157,7 +180,7 @@ If your enroll secret is defined in a local file, specify the file's path with t
 
 ### Using a flag file to manage flags
 
-For your convenience, osqueryd supports putting all of your flags into a single file. We suggest deploying this file to `/etc/osquery/fleet.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
+For your convenience, osqueryd supports putting all your flags into a single file. We suggest deploying this file to `/etc/osquery/fleet.flags`. If you've deployed the appropriate osquery flags to that path, you could simply launch osquery via:
 
 ```
 osqueryd --flagfile=/etc/osquery/fleet.flags
@@ -165,7 +188,7 @@ osqueryd --flagfile=/etc/osquery/fleet.flags
 
 #### Flag file on Windows
 
-Ensure that paths to files in the flag file are absolute, and not quoted. For example in `C:\Program Files\osquery\osquery.flags`:
+Make sure that paths to files in the flag file are absolute and not quoted. For example in `C:\Program Files\osquery\osquery.flags`:
 
 ```
 --tls_server_certs=C:\Program Files\osquery\fleet.pem
@@ -196,7 +219,7 @@ Test the installers on each platform before initiating the migration.
 
 #### Migrate
 
-Using your standard deployment tooling (Chef, Puppet, etc.), install the generated package. At this
+Install the generated package using your standard deployment tooling (Chef, Puppet, etc.). At this
 time, [uninstall the existing
 osquery](https://blog.fleetdm.com/how-to-uninstall-osquery-f01cc49a37b9).
 
@@ -204,7 +227,7 @@ If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setti
 [osquery_host_identifier](../Deploying/Configuration.md#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
-expiration functionality configured in the application settings (UI or fleetctl).
+expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
@@ -225,14 +248,14 @@ On a system with osquery installed via the Fleet osquery installer (Orbit), obta
 codesign -dr - /opt/orbit/bin/orbit/macos/edge/orbit
 ```
 
-The output should be similar or identical to: 
+The output should be similar or identical to:
 
 ```
 Executable=/opt/orbit/bin/orbit/macos/edge/orbit
 designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
 ```
 
-> **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, the executable path may be different.
+> **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, the executable path may differ.
 > Fleetctl versions <= 4.13.2 would install orbit to `/var/lib/orbit` instead of `/opt/orbit`.
 
 Note down the **executable path** and the entire **identifier**.
@@ -242,10 +265,10 @@ Osqueryd will inherit the privileges from Orbit and does not need explicit permi
 #### Creating the profile
 Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
 
-1. Configure the identifier type to “path”
-2. Paste the full path to Orbit as the identifier. 
-3. Paste the full code signing identifier into the code requirement field.
-4. Allow “Access all files”. Access to Downloads, Documents etc is inherited from this.
+1. Configure the identifier type to “path.”
+2. Paste the full path to Orbit as the identifier.
+3. Paste the full code signing identifier into the Code requirement field. 
+4. Allow “Access all files.” Access to Downloads, Documents, etc., is inherited from this.
 
 If your MDM does not have built-in support for privacy preferences profiles, you can use
 [PPPC-Utility](https://github.com/jamf/PPPC-Utility) to create a profile with those values, then upload it to

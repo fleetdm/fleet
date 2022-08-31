@@ -7,6 +7,9 @@ module.exports = {
   description: 'Receive webhook requests and/or incoming auth redirects from GitHub.',
 
 
+  extendedDescription: 'Useful for automation, visibility of changes, and abuse monitoring.',
+
+
   inputs: {
     botSignature: { type: 'string', },
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
@@ -22,9 +25,25 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
 
-    let GitHub = require('machinepack-github');
 
-    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
+    // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
+    // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
+    // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
+    // users can edit and resave the PR description to trigger their PR to be unfrozen.
+    // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
+    sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // Is this in use?
+    // > For context on the history of this bit of code, which has gone been
+    // > implemented a couple of different ways, and gone back and forth, check out:
+    // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
       'fleet-release',
@@ -33,13 +52,11 @@ module.exports = {
       'mikermcneil',
       'lukeheath',
       'zwass',
-      'martavis',
       'rachelelysia',
       'gillespi314',
       'chiiph',
       'mna',
       'edwardsb',
-      'alphabrevity',
       'eashaw',
       'drewbakerfdm',
       'vercel[bot]',
@@ -47,18 +64,28 @@ module.exports = {
       'tgauda',
       'ksatter',
       'guillaumeross',
-      'dominuskelvin',
       'sharvilshah',
       'michalnicp',
-      'desmi-dizney',
       'charlottechance',
       'timmy-k',
       'zwinnerman-fleetdm',
       'hollidayn',
       'juan-fdz-hawa',
       'roperzh',
+      'zhumo',
+      'ghernandez345',
+      'chris-mcgillicuddy',
+      'rfairburn',
+      'artemist-work',
     ];
-    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
+
+    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
+
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
+
+    if (!sails.config.custom.mergeFreezeAccessToken) {
+      throw new Error('An access token for the MergeFreeze API (sails.config.custom.mergeFreezeAccessToken) is required to enable automated unfreezing/freezing of changes based on the files they change.  Please ask for help in #g-digital-experience, whether you are testing locally or using this as a live webhook.');
+    }
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -74,7 +101,6 @@ module.exports = {
     if (!sails.config.custom.githubAccessToken) {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
-    let credentials = { accessToken: sails.config.custom.githubAccessToken };
 
     let issueOrPr = (pr || issue || undefined);
 
@@ -124,13 +150,19 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // } else {
-      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       //   if (wasReopenedByBot) {
       //     newBotComment = '';// « checked below
       //   } else {
       //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
       //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-      //       await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+      //       await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //         {},
+      //         {
+      //           'User-Agent': 'Fleetie pie',
+      //           'Authorization': 'token '+sails.config.custom.githubAccessToken
+      //         }
+      //       );
       //     });//∞ß
       //     newBotComment =
       //     `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
@@ -141,10 +173,12 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // }
-
       // // Now that we know what to say, add our comment.
       // if (newBotComment) {
-      //   await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
+      //   await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
+      //     {'body': newBotComment},
+      //     {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+      //   );
       // }//ﬁ
 
     } else if (
@@ -198,76 +232,35 @@ module.exports = {
           'Authorization': `token ${sails.config.custom.githubAccessToken}`
         };
 
+        require('assert')(sender.login !== undefined);
+
         // Check whether auto-approval is warranted.
-        let isAutoApproved = await sails.helpers.flow.build(async()=>{
-
-          let isSenderDRIForAllChangedPaths = false;
-          let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
-          let DRI_BY_PATH = {
-            'README.md': 'mike-j-thomas',// (github brandfront)
-
-            'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
-            'handbook/company.md': 'mikermcneil',
-            'handbook/people.md': ['eashaw', 'mike-j-thomas'],
-            'handbook/engineering.md': 'zwass',
-            'handbook/product.md': 'noahtalerman',
-            'handbook/security.md': 'guillaumeross',
-            'handbook/brand.md': 'mike-j-thomas',
-            'handbook/growth.md': 'timmy-k',
-            'handbook/customers.md': 'tgauda',
-            'handbook/community.md': ['dominuskelvin', 'ksatter'],
-            'handbook/README.md': '*',// (any fleetie can update this page)
-
-            'website': 'mikermcneil',// (default for website)
-            'website/views': 'eashaw',
-            'website/assets': 'eashaw',
-            'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
-
-            'docs': 'zwass',// (default for docs)
-            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-            'docs/Using-Fleet/REST-API.md': 'lukeheath',
-            'docs/Contributing/API-for-contributors.md': 'lukeheath',
-            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
-            'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
-            'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
-
-            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
-          };
-
-          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
-            per_page: 100,//eslint-disable-line camelcase
-          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
-          sails.log.verbose(`Received notice that a new PR (#${prNumber}) was opened that changes the following paths:`, changedPaths);
-
-          isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
-            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-
-            require('assert')(sender.login !== undefined);
-            sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-
-            let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
-            if (selfMergers.includes(sender.login) || (isSenderMaintainer && selfMergers.includes('*'))) {
-              return true;
-            }//•
-            let numRemainingPathsToCheck = changedPath.split('/').length;
-            while (numRemainingPathsToCheck > 0) {
-              let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
-              sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
-              if (selfMergers.includes(sender.login) || (isSenderMaintainer && selfMergers.includes('*'))) {
-                return true;
-              }//•
-              numRemainingPathsToCheck--;
-            }//∞
-          });//∞
-
-          if (isSenderDRIForAllChangedPaths && changedPaths.length < 100) {
-            return true;
-          } else {
-            return false;
-          }
+        let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+          prNumber: prNumber,
+          githubUserToCheck: sender.login,
+          isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
+
+        let isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+
+        // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
+        // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
+        sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen || (
+          // TODO: Remove this timeboxed hack to consider the repo frozen
+          // for a while as a workaround for an issue where the MergeFreeze API
+          // reports that the repo is not frozen, when it actually is frozen.
+          Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
+        );
+
+        // Add the #handbook label to PRs that only make changes to the handbook.
+        if(isHandbookPR) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#handbook']
+          }, baseHeaders);
+        }
 
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
@@ -275,29 +268,59 @@ module.exports = {
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
-        }
 
-        // And also unfreeze and re-freeze to temporarily allow merging.
-        // [?] https://github.com/fleetdm/fleet/issues/5179
-        if (isAutoApproved) {
+          // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
+          // (or maybe never did contain) changes to freezeworthy files.
+          if (isMainBranchFrozen) {
 
-          let mergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
-          if (mergeFreezeReport.frozen) {
-            await sails.helpers.http.post('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { frozen: false, access_token: sails.config.custom.mergeFreezeAccessToken, user_name: 'fleet-release' });//eslint-disable-line camelcase
+            sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
 
-            // Then, in the background, 2 minutes later...
-            setTimeout(()=>{
-              sails.helpers.http.post('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { frozen: true, access_token: sails.config.custom.mergeFreezeAccessToken, user_name: 'fleet-release' })//eslint-disable-line camelcase
-              .exec((err)=>{
-                if (err) {
-                  sails.log.error('Background instruction failed: Unexpected error re-freezing repo (see https://github.com/fleetdm/fleet/issues/5179 for background):', err);
-                }
-                sails.log.info('Re-freeze completed successfully.');
-              });//_∏_
-            }, 2*60*1000);//_∏_
+            // [?] See May 6th, 2022 changelog, which includes this code sample:
+            // (https://www.mergefreeze.com/news)
+            // (but as of July 26, 2022, I didn't see it documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // > You may now freeze or unfreeze a single PR (while maintaining the overall freeze) via the Web API.
+            // ```
+            // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
+            // ```
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+              user_name: 'fleet-release',//eslint-disable-line camelcase
+              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+            });
+
           }//ﬁ
 
-        }//ﬁ
+        } else {
+          // If "main" is explicitly frozen, then freeze this PR because it now contains
+          // (or maybe always did contain) changes to freezeworthy files.
+          if (isMainBranchFrozen) {
+
+            sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+
+            // [?] See explanation above.
+            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+              user_name: 'fleet-release',//eslint-disable-line camelcase
+              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+            });
+          }//ﬁ
+
+          // Is this in use?
+          // > For context on the history of this bit of code, which has gone been
+          // > implemented a couple of different ways, and gone back and forth, check out:
+          // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // if (IS_FROZEN) {
+          //   // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          //   await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+          //     event: 'REQUEST_CHANGES',
+          //     body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
+          //   }, baseHeaders);
+          // }//ﬁ
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        }
 
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
@@ -320,18 +343,24 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
 
-      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-          await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+          await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+            {},
+            {
+              'User-Agent': 'Fleetie Pie',
+              'Authorization': 'token '+sails.config.custom.githubAccessToken
+            }
+          );
         });//∞ß
       }//ﬁ
     } else if (
       (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
       (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
-      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login) )
+      (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login.toLowerCase())||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
+      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()) )
     ) {
       //  ██╗███╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ███╗    ██╗   ██╗███████╗
       //  ██║████╗  ██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║    ██║   ██║██╔════╝

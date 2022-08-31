@@ -36,7 +36,6 @@ import (
 )
 
 func main() {
-
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -135,12 +134,7 @@ func main() {
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
 	}
-	app.Action = func(c *cli.Context) error {
-		if c.Bool("version") {
-			fmt.Println("orbit " + build.Version)
-			return nil
-		}
-
+	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
 		if c.String("root-dir") == "" {
 			rootDir := update.DefaultOptions.RootDirectory
@@ -153,6 +147,14 @@ func main() {
 				rootDir = "/var/lib/orbit"
 			}
 			c.Set("root-dir", rootDir)
+		}
+
+		return nil
+	}
+	app.Action = func(c *cli.Context) error {
+		if c.Bool("version") {
+			fmt.Println("orbit " + build.Version)
+			return nil
 		}
 
 		var logFile io.Writer
@@ -229,6 +231,8 @@ func main() {
 				opt.Targets["desktop"] = update.DesktopMacOSTarget
 			case "windows":
 				opt.Targets["desktop"] = update.DesktopWindowsTarget
+			case "linux":
+				opt.Targets["desktop"] = update.DesktopLinuxTarget
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}
@@ -246,21 +250,50 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			updater      *update.Updater
 			osquerydPath string
 			desktopPath  string
+			g            run.Group
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = update.New(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata. using saved metadata.")
+				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
+
+			targets := []string{"orbit", "osqueryd"}
+			if c.Bool("fleet-desktop") {
+				targets = append(targets, "desktop")
+			}
+			if c.Bool("dev-mode") {
+				targets = targets[1:] // exclude orbit itself on dev-mode.
+			}
+			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+				CheckInterval: c.Duration("update-interval"),
+				Targets:       targets,
+			})
+			if err != nil {
+				return err
+			}
+
+			// Perform early check for updates before starting any sub-system.
+			// This is to prevent bugs in other sub-systems to mess up with
+			// the download of available updates.
+			didUpdate, err := updateRunner.UpdateAction()
+			if err != nil {
+				log.Info().Err(err).Msg("early update check failed")
+			}
+			if didUpdate && !c.Bool("dev-mode") {
+				log.Info().Msg("exiting due to successful early update")
+				return nil
+			}
+			g.Add(updateRunner.Execute, updateRunner.Interrupt)
+
 			osquerydLocalTarget, err := updater.Get("osqueryd")
 			if err != nil {
 				return fmt.Errorf("get osqueryd target: %w", err)
@@ -279,7 +312,7 @@ func main() {
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
-			updater = update.NewDisabled(opt)
+			updater := update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
@@ -315,23 +348,6 @@ func main() {
 			return nil
 		}); err != nil {
 			return fmt.Errorf("cleanup old files: %w", err)
-		}
-
-		var g run.Group
-
-		if !c.Bool("disable-updates") {
-			targets := []string{"orbit", "osqueryd"}
-			if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-				targets = append(targets, "desktop")
-			}
-			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: c.Duration("update-interval"),
-				Targets:       targets,
-			})
-			if err != nil {
-				return err
-			}
-			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 		}
 
 		var options []osquery.Option
@@ -478,13 +494,10 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath(), table.WithExtension(orbitInfoExtension{
-			deviceAuthToken: deviceAuthToken,
-		}))
-		g.Add(ext.Execute, ext.Interrupt)
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
-		if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
+		if c.Bool("fleet-desktop") {
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -505,20 +518,29 @@ func main() {
 	}
 }
 
+func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
+	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
+		deviceAuthToken: deviceAuthToken,
+	}))
+	g.Add(ext.Execute, ext.Interrupt)
+}
+
 type desktopRunner struct {
 	desktopPath     string
 	fleetURL        string
 	deviceAuthToken string
+	fleetRootCA     string
 	insecure        bool
 	interruptCh     chan struct{} // closed when interrupt is triggered
 	executeDoneCh   chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string, insecure bool) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:     desktopPath,
 		fleetURL:        fleetURL,
 		deviceAuthToken: deviceAuthToken,
+		fleetRootCA:     fleetRootCA,
 		insecure:        insecure,
 		interruptCh:     make(chan struct{}),
 		executeDoneCh:   make(chan struct{}),
@@ -549,7 +571,9 @@ func (d *desktopRunner) execute() error {
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
+	}
+	if d.fleetRootCA != "" {
+		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
 	}
 	if d.insecure {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
@@ -557,7 +581,7 @@ func (d *desktopRunner) execute() error {
 
 	for {
 		// First retry logic to start fleet-desktop.
-		if done := retry(30*time.Second, d.interruptCh, func() bool {
+		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
@@ -572,7 +596,8 @@ func (d *desktopRunner) execute() error {
 		}
 
 		// Second retry logic to monitor fleet-desktop.
-		if done := retry(30*time.Second, d.interruptCh, func() bool {
+		// Call with waitFirst=true to give some time for the process to start.
+		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
 			switch _, err := getProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
@@ -589,14 +614,17 @@ func (d *desktopRunner) execute() error {
 	}
 }
 
-func retry(d time.Duration, done chan struct{}, fn func() bool) bool {
+func retry(d time.Duration, waitFirst bool, done chan struct{}, fn func() bool) bool {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 
 	for {
-		if retry := fn(); !retry {
-			return false
+		if !waitFirst {
+			if retry := fn(); !retry {
+				return false
+			}
 		}
+		waitFirst = false
 		select {
 		case <-done:
 			return true

@@ -79,8 +79,7 @@
         "created_at": "0001-01-01T00:00:00Z"
       }
     ],
-    "status": "mia",
-    "device_mapping": null,
+    "status": "offline",
     "display_text": "test_host"
   }
 }

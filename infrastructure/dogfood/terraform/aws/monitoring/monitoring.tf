@@ -211,6 +211,7 @@ resource "aws_cloudwatch_metric_alarm" "httpcode_elb_5xx_count" {
   statistic           = "Sum"
   threshold           = "25"
   alarm_description   = "This alarm indicates there are an abnormal amount of load balancer 5XX responses i.e it cannot talk with the Fleet backend target"
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   ok_actions          = [aws_sns_topic.cloudwatch_alarm_topic.arn]
   dimensions = {

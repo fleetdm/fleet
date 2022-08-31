@@ -20,6 +20,10 @@
     img {
       transform: scale(0.5);
     }
+
+    &:focus {
+      outline: none;
+    }
   }
 
   &__header {
@@ -34,10 +38,6 @@
 
     .form-field {
       margin-bottom: $pad-medium;
-    }
-
-    .Select {
-      margin: 0 0 $pad-small;
     }
   }
 

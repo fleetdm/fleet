@@ -1,0 +1,113 @@
+.policies-table {
+  border-collapse: collapse;
+
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
+  thead {
+    th {
+      &.passing_host_count__header,
+      &.failing_host_count__header,
+      &.webhook__header {
+        width: 20%;
+        @media (min-width: $medium-width) {
+          width: 15%;
+        }
+      }
+      &.passing_host_count__header,
+      &.failing_host_count__header {
+        .status-header-text {
+          margin-left: 10px;
+        }
+      }
+    }
+  }
+
+  &__empty-table {
+    text-align: center;
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+
+  &__action-button-container {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+.has-not-run {
+  width: 20px;
+}
+
+.no-policies {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: $pad-xxxlarge;
+
+  a {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    text-decoration: none;
+  }
+
+  h1 {
+    font-size: $large;
+    font-weight: $regular;
+    line-height: normal;
+    letter-spacing: normal;
+    color: $core-fleet-black;
+  }
+
+  h2 {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0 0 $pad-large;
+    line-height: 20px;
+    color: $core-fleet-black;
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+      margin-bottom: $pad-medium;
+    }
+
+    img {
+      width: 322px;
+    }
+
+    p {
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $x-small;
+      margin: 0;
+      margin-bottom: $pad-large;
+    }
+  }
+
+  &__inner-text {
+    width: 500px;
+    padding: $pad-xxlarge 0;
+  }
+
+  &__bullet-text {
+    width: 455px;
+    text-align: left;
+  }
+}
+
+.no-team-policy {
+  border: 1px solid #e2e4ea;
+  box-sizing: border-box;
+  border-radius: 8px;
+}

@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,7 +77,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 			fmt.Fprint(w, `{"error": "error", "node_invalid": true}`)
 		}))
 		defer srv.Close()
-		os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+		t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
 		// get the certificate of the TLS server
 		certPath := rawCertToPemFile(t, srv.Certificate().Raw)
@@ -94,7 +94,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 			fmt.Fprint(w, `{"error": "error", "node_invalid": true}`)
 		}))
 		defer srv.Close()
-		os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+		t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
 		// get the invalid certificate (for example.com)
 		dir := t.TempDir()
@@ -159,7 +159,7 @@ func TestDebugCheckAPIEndpoint(t *testing.T) {
 		srv.Close()
 	})
 
-	os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 	cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
 	require.NoError(t, err)
 	for i, c := range cases {
@@ -199,4 +199,22 @@ func TestDebugResolveHostname(t *testing.T) {
 
 	err = resolveHostname(context.Background(), timeout, noSuchHost)
 	require.Error(t, err)
+}
+
+func TestFilenameFunctions(t *testing.T) {
+	nowFn = func() time.Time {
+		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
+		return now
+	}
+	defer func() { nowFn = time.Now }()
+
+	t.Run("outfileName builds a file name using the name provided + current time ", func(t *testing.T) {
+		name := outfileName("test")
+		assert.Equal(t, "fleet-test-19690619214405Z", name)
+	})
+
+	t.Run("outfileNameWithExt builds a file name using the name and extension provided + current time ", func(t *testing.T) {
+		name := outfileNameWithExt("test", "go")
+		assert.Equal(t, "fleet-test-19690619214405Z.go", name)
+	})
 }

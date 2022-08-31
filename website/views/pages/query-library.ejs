@@ -33,7 +33,6 @@
                 <option value="macOS">macOS</option>
                 <option value="Windows">Windows</option>
                 <option value="Linux">Linux</option>
-                <option value="FreeBSD">FreeBSD</option>
               </select>
             </div>
           </div>
@@ -71,8 +70,6 @@
                   <button class="dropdown-item" type="button"
                     @click="clickSelectPlatform('Windows')">Windows</button>
                   <button class="dropdown-item" type="button" @click="clickSelectPlatform('Linux')">Linux</button>
-                  <button class="dropdown-item" type="button"
-                    @click="clickSelectPlatform('FreeBSD')">FreeBSD</button>
                 </div>
               </div>
             </div>
@@ -132,9 +129,6 @@
                       <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
                         src="/images/os-linux-black-16x16@2x.png" alt="Linux"
                         v-if="query.platforms.includes('Linux')" />
-                      <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
-                        src="/images/os-freebsd-black-16x16@2x.png" alt="FreeBSD"
-                        v-if="query.platforms.includes('FreeBSD')" />
                     </div>
                   </div>
                 </div>

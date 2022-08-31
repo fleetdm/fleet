@@ -11,6 +11,7 @@ interface IRemovePackQueryModalProps {
   onSubmit: () => void;
   selectedQuery?: IScheduledQuery;
   selectedQueryIds: number[];
+  isUpdatingPack: boolean;
 }
 
 const RemovePackQueryModal = ({
@@ -18,33 +19,32 @@ const RemovePackQueryModal = ({
   onSubmit,
   selectedQuery,
   selectedQueryIds,
+  isUpdatingPack,
 }: IRemovePackQueryModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   const queryOrQueries =
     selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
   return (
-    <Modal title={"Remove queries"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Remove queries"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <div className={baseClass}>
         Are you sure you want to remove the selected {queryOrQueries} from your
         pack?
         <div className="modal-cta-wrap">
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onSubmit}
+            className="remove-loading"
+            isLoading={isUpdatingPack}
+          >
+            Remove
+          </Button>
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
-          </Button>
-          <Button type="button" variant="alert" onClick={onSubmit}>
-            Remove
           </Button>
         </div>
       </div>

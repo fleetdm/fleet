@@ -54,8 +54,7 @@
       "total_issues_count":0,
       "failing_policies_count":0
     },
-    "status":"mia",
-    "device_mapping":null,
+    "status":"offline",
     "display_text":"test_host"
   }
 }
@@ -107,8 +106,7 @@
       "total_issues_count":0,
       "failing_policies_count":0
     },
-    "status":"mia",
-    "device_mapping":null,
+    "status":"offline",
     "display_text":"test_host2"
   }
 }

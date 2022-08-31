@@ -23,15 +23,6 @@
     font-weight: $bold;
   }
 
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-  }
-
-  &__btn {
-    margin-left: 12px;
-  }
-
   &__advanced-options-button {
     margin: $pad-medium 0;
     color: $core-vibrant-blue;
@@ -66,13 +57,5 @@
 
   .Select-value-label {
     font-size: $small;
-  }
-
-  .tooltip__tooltip-icon {
-    img {
-      width: 16px;
-      height: 16px;
-      vertical-align: top;
-    }
   }
 }

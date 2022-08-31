@@ -10,11 +10,11 @@ import { Link } from "react-router";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
@@ -39,10 +39,6 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 const MembersPage = ({
@@ -70,7 +66,8 @@ const MembersPage = ({
   const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
     false
   );
-  const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isUpdatingMembers, setIsUpdatingMembers] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState<string>("");
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
@@ -116,11 +113,11 @@ const MembersPage = ({
     data: teams,
     isLoading: isLoadingTeams,
     error: loadingTeamsError,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams", teamId],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
       onSuccess: (data) => {
         setCurrentTeam(data.find((team) => team.id === teamId));
       },
@@ -147,6 +144,7 @@ const MembersPage = ({
 
   const onRemoveMemberSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
+    setIsUpdatingMembers(true);
     teamsAPI
       .removeMembers(teamId, removedUsers)
       .then(() => {
@@ -163,6 +161,7 @@ const MembersPage = ({
         renderFlash("error", "Unable to remove members. Please try again.")
       )
       .finally(() => {
+        setIsUpdatingMembers(false);
         toggleRemoveMemberModal();
         refetchUsers();
       });
@@ -199,7 +198,7 @@ const MembersPage = ({
   );
 
   const onCreateMemberSubmit = (formData: IFormData) => {
-    setIsFormSubmitting(true);
+    setIsUpdatingMembers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       const requestData = {
@@ -240,7 +239,7 @@ const MembersPage = ({
           }
         })
         .finally(() => {
-          setIsFormSubmitting(false);
+          setIsUpdatingMembers(false);
         });
     } else {
       const requestData = {
@@ -271,7 +270,7 @@ const MembersPage = ({
           }
         })
         .finally(() => {
-          setIsFormSubmitting(false);
+          setIsUpdatingMembers(false);
         });
     }
   };
@@ -283,7 +282,7 @@ const MembersPage = ({
         formData
       );
 
-      setIsFormSubmitting(true);
+      setIsUpdatingMembers(true);
 
       const userName = userEditing?.name;
 
@@ -312,7 +311,6 @@ const MembersPage = ({
             } else {
               refetchUsers();
             }
-            setIsFormSubmitting(false);
             toggleEditMemberModal();
           })
           .catch((userErrors: { data: IApiError }) => {
@@ -326,6 +324,9 @@ const MembersPage = ({
                 `Could not edit ${userName || "member"}. Please try again.`
               );
             }
+          })
+          .finally(() => {
+            setIsUpdatingMembers(false);
           });
     },
     [toggleEditMemberModal, userEditing, refetchUsers]
@@ -453,6 +454,7 @@ const MembersPage = ({
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeam}
+          isUpdatingUsers={isUpdatingMembers}
         />
       )}
       {showCreateUserModal && (
@@ -469,13 +471,14 @@ const MembersPage = ({
           canUseSso={canUseSso}
           currentTeam={currentTeam}
           isModifiedByGlobalAdmin={isGlobalAdmin}
-          isFormSubmitting={isFormSubmitting}
+          isUpdatingUsers={isUpdatingMembers}
         />
       )}
       {showRemoveMemberModal && currentTeam && (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
           teamName={currentTeam.name}
+          isUpdatingMembers={isUpdatingMembers}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />

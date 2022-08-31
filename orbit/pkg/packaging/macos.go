@@ -2,6 +2,7 @@ package packaging
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -18,8 +20,13 @@ import (
 
 // See helful docs in http://bomutils.dyndns.org/tutorial.html
 
-// BuildPkg builds a macOS .pkg. So far this is tested only on macOS but in theory it works with bomutils on
-// Linux.
+// BuildPkg builds a macOS .pkg.
+//
+// Building packages works out of the box in macOS, but it's also supported on
+// Linux given that the necessary dependencies are installed and
+// Options.NativeTooling is `true`
+//
+// Note: this function is not safe for concurrent use
 func BuildPkg(opt Options) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
@@ -69,6 +76,13 @@ func BuildPkg(opt Options) (string, error) {
 		opt.Version = updatesData.OrbitVersion
 	}
 
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			opt.LegacyVarLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
+
 	// Write files
 
 	if err := writePackageInfo(opt, tmpDir); err != nil {
@@ -108,21 +122,53 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
+	isDarwin := runtime.GOOS == "darwin"
+	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	if len(opt.SignIdentity) != 0 {
+		if len(opt.MacOSDevIDCertificateContent) != 0 {
+			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
+		}
+
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
 		if err := signPkg(generatedPath, opt.SignIdentity); err != nil {
 			return "", fmt.Errorf("productsign: %w", err)
 		}
 	}
 
+	if isLinuxNative && len(opt.MacOSDevIDCertificateContent) > 0 {
+		if len(opt.SignIdentity) != 0 {
+			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
+		}
+
+		if err := rSign(generatedPath, opt.MacOSDevIDCertificateContent); err != nil {
+			return "", fmt.Errorf("rcodesign: %w", err)
+		}
+	}
+
 	if opt.Notarize {
-		if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
-			return "", err
+		switch {
+		case isDarwin:
+			if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
+				return "", err
+			}
+		case isLinuxNative:
+			if len(opt.AppStoreConnectAPIKeyID) == 0 || len(opt.AppStoreConnectAPIKeyIssuer) == 0 {
+				return "", errors.New("both an App Store Connect API key and issuer must be set for native notarization")
+			}
+
+			if err := rNotarizeStaple(generatedPath, opt.AppStoreConnectAPIKeyID, opt.AppStoreConnectAPIKeyIssuer, opt.AppStoreConnectAPIKeyContent); err != nil {
+				return "", err
+			}
+		default:
+			return "", errors.New("notarization is not supported in this platform")
 		}
 	}
 
 	filename := "fleet-osquery.pkg"
+	if opt.NativeTooling {
+		filename = filepath.Join("build", filename)
+	}
 	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("rename pkg: %w", err)
 	}
@@ -240,8 +286,11 @@ func xarBom(opt Options, rootPath string) error {
 
 	// Make bom
 	var cmdMkbom *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
+	var isDarwin = runtime.GOOS == "darwin"
+	var isLinuxNative = runtime.GOOS == "linux" && opt.NativeTooling
+
+	switch {
+	case isDarwin, isLinuxNative:
 		cmdMkbom = exec.Command("mkbom", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
 		cmdMkbom.Dir = rootPath
 	default:
@@ -253,8 +302,8 @@ func xarBom(opt Options, rootPath string) error {
 			"/root/root", "/root/flat/base.pkg/Bom",
 		)
 	}
-	cmdMkbom.Stdout = os.Stdout
-	cmdMkbom.Stderr = os.Stderr
+
+	cmdMkbom.Stdout, cmdMkbom.Stderr = os.Stdout, os.Stderr
 	if err := cmdMkbom.Run(); err != nil {
 		return fmt.Errorf("mkbom: %w", err)
 	}
@@ -278,8 +327,8 @@ func xarBom(opt Options, rootPath string) error {
 
 	// Make xar
 	var cmdXar *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
+	switch {
+	case isDarwin, isLinuxNative:
 		cmdXar = exec.Command("xar", append([]string{"--compression", "none", "-cf", filepath.Join("..", "orbit.pkg")}, files...)...)
 		cmdXar.Dir = filepath.Join(rootPath, "flat")
 	default:
@@ -289,9 +338,8 @@ func xarBom(opt Options, rootPath string) error {
 		)
 		cmdXar.Args = append(cmdXar.Args, append([]string{"--compression", "none", "-cf", "/root/orbit.pkg"}, files...)...)
 	}
-	cmdXar.Stdout = os.Stdout
-	cmdXar.Stderr = os.Stderr
 
+	cmdXar.Stdout, cmdXar.Stderr = os.Stdout, os.Stderr
 	if err := cmdXar.Run(); err != nil {
 		return fmt.Errorf("run xar: %w", err)
 	}

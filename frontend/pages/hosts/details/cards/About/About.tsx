@@ -3,9 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostUptime, humanHostEnrolled } from "utilities/helpers";
-
-const baseClass = "host-summary";
+import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -81,48 +79,42 @@ const About = ({
   };
 
   const renderDeviceUser = () => {
-    const numUsers = deviceMapping?.length;
-    if (numUsers) {
-      return (
-        <div className="info-grid__block">
-          <span className="info-grid__header">Used by</span>
-          <span className="info-grid__data">
-            {numUsers === 1 && deviceMapping ? (
-              deviceMapping[0].email || "---"
-            ) : (
-              <span className={`${baseClass}__device-mapping`}>
-                <span
-                  className="device-user"
-                  data-tip
-                  data-for="device-user-tooltip"
-                >
-                  {`${numUsers} users`}
-                </span>
-                <ReactTooltip
-                  place="top"
-                  type="dark"
-                  effect="solid"
-                  id="device-user-tooltip"
-                  backgroundColor="#3e4771"
-                >
-                  <div
-                    className={`${baseClass}__tooltip-text device-user-tooltip`}
-                  >
-                    {deviceMapping &&
-                      deviceMapping.map((user: any, i: number, arr: any) => (
-                        <span key={user.email}>{`${user.email}${
-                          i < arr.length - 1 ? ", " : ""
-                        }`}</span>
-                      ))}
-                  </div>
-                </ReactTooltip>
-              </span>
-            )}
-          </span>
-        </div>
-      );
+    if (!deviceMapping) {
+      return null;
     }
-    return null;
+
+    const numUsers = deviceMapping.length;
+    const tooltipText = deviceMapping.map((d) => (
+      <span key={Math.random().toString().slice(2)}>
+        {d.email}
+        <br />
+      </span>
+    ));
+
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Used by</span>
+        <span className="info-grid__data">
+          {numUsers > 1 ? (
+            <>
+              <span data-tip data-for="device_mapping" className="tooltip">
+                {`${numUsers} users`}
+              </span>
+              <ReactTooltip
+                effect="solid"
+                backgroundColor="#3e4771"
+                id="device_mapping"
+                data-html
+              >
+                <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
+              </ReactTooltip>
+            </>
+          ) : (
+            deviceMapping[0].email || "---"
+          )}
+        </span>
+      </div>
+    );
   };
 
   const renderGeolocation = () => {
@@ -143,6 +135,23 @@ const About = ({
     );
   };
 
+  const renderBattery = () => {
+    if (
+      aboutData.batteries === null ||
+      typeof aboutData.batteries !== "object"
+    ) {
+      return null;
+    }
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Battery condition</span>
+        <span className="info-grid__data">
+          {aboutData.batteries?.[0]?.health}
+        </span>
+      </div>
+    );
+  };
+
   if (deviceUser) {
     return (
       <div className="section about">
@@ -151,7 +160,10 @@ const About = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Last restarted</span>
             <span className="info-grid__data">
-              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+              {humanHostLastRestart(
+                aboutData.detail_updated_at,
+                aboutData.uptime
+              )}
             </span>
           </div>
           <div className="info-grid__block">
@@ -166,6 +178,7 @@ const About = ({
           </div>
           {renderSerialAndIPs()}
           {renderDeviceUser()}
+          {renderBattery()}
         </div>
       </div>
     );
@@ -184,7 +197,10 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+            {humanHostLastRestart(
+              aboutData.detail_updated_at,
+              aboutData.uptime
+            )}
           </span>
         </div>
         <div className="info-grid__block">
@@ -196,6 +212,7 @@ const About = ({
         {renderMdmData()}
         {renderDeviceUser()}
         {renderGeolocation()}
+        {renderBattery()}
       </div>
     </div>
   );

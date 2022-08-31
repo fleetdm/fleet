@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
@@ -16,80 +19,78 @@ import (
 const collectorLockKey = "locks:async_collector:{%s}"
 
 type Task struct {
-	Datastore fleet.Datastore
-	Pool      fleet.RedisPool
-	// AsyncEnabled indicates if async processing is enabled in the
-	// configuration. Note that Pool can be nil if this is false.
-	AsyncEnabled bool
+	datastore   fleet.Datastore
+	pool        fleet.RedisPool
+	clock       clock.Clock
+	taskConfigs map[config.AsyncTaskName]config.AsyncProcessingConfig
+	seenHostSet seenHostSet
+}
 
-	LockTimeout        time.Duration
-	LogStatsInterval   time.Duration
-	InsertBatch        int
-	DeleteBatch        int
-	UpdateBatch        int
-	RedisPopCount      int
-	RedisScanKeysCount int
-	CollectorInterval  time.Duration
+// NewTask configures and returns a Task.
+func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf config.OsqueryConfig) *Task {
+	taskCfgs := make(map[config.AsyncTaskName]config.AsyncProcessingConfig)
+	taskCfgs[config.AsyncTaskLabelMembership] = conf.AsyncConfigForTask(config.AsyncTaskLabelMembership)
+	taskCfgs[config.AsyncTaskPolicyMembership] = conf.AsyncConfigForTask(config.AsyncTaskPolicyMembership)
+	taskCfgs[config.AsyncTaskHostLastSeen] = conf.AsyncConfigForTask(config.AsyncTaskHostLastSeen)
+	taskCfgs[config.AsyncTaskScheduledQueryStats] = conf.AsyncConfigForTask(config.AsyncTaskScheduledQueryStats)
+	return &Task{
+		datastore:   ds,
+		pool:        pool,
+		clock:       clck,
+		taskConfigs: taskCfgs,
+	}
 }
 
 // Collect runs the various collectors as distinct background goroutines if
 // async processing is enabled.  Each collector will stop processing when ctx
 // is done.
-func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog.Logger) {
-	if !t.AsyncEnabled {
-		level.Debug(logger).Log("task", "async disabled, not starting collectors")
-		return
-	}
-	level.Debug(logger).Log("task", "async enabled, starting collectors", "interval", t.CollectorInterval, "jitter", jitterPct)
-
+func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	collectorErrHandler := func(name string, err error) {
 		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
 		sentry.CaptureException(err)
+		ctxerr.Handle(ctx, err)
 	}
 
-	labelColl := &collector{
-		name:         "collect_labels",
-		pool:         t.Pool,
-		ds:           t.Datastore,
-		execInterval: t.CollectorInterval,
-		jitterPct:    jitterPct,
-		lockTimeout:  t.LockTimeout,
-		handler:      t.collectLabelQueryExecutions,
-		errHandler:   collectorErrHandler,
+	handlers := map[config.AsyncTaskName]collectorHandlerFunc{
+		config.AsyncTaskLabelMembership:     t.collectLabelQueryExecutions,
+		config.AsyncTaskPolicyMembership:    t.collectPolicyQueryExecutions,
+		config.AsyncTaskHostLastSeen:        t.collectHostsLastSeen,
+		config.AsyncTaskScheduledQueryStats: t.collectScheduledQueryStats,
 	}
+	for task, cfg := range t.taskConfigs {
+		if !cfg.Enabled {
+			level.Debug(logger).Log("task", "async disabled, not starting collector", "name", task)
+			continue
+		}
 
-	policyColl := &collector{
-		name:         "collect_policies",
-		pool:         t.Pool,
-		ds:           t.Datastore,
-		execInterval: t.CollectorInterval,
-		jitterPct:    jitterPct,
-		lockTimeout:  t.LockTimeout,
-		handler:      t.collectPolicyQueryExecutions,
-		errHandler:   collectorErrHandler,
-	}
-
-	colls := []*collector{labelColl, policyColl}
-	for _, coll := range colls {
+		cfg := cfg // shadow as local var to avoid capturing the iteration var
+		coll := &collector{
+			name:         "collect_" + string(task),
+			pool:         t.pool,
+			ds:           t.datastore,
+			execInterval: cfg.CollectInterval,
+			jitterPct:    cfg.CollectMaxJitterPercent,
+			lockTimeout:  cfg.CollectLockTimeout,
+			handler:      handlers[task],
+			errHandler:   collectorErrHandler,
+		}
 		go coll.Start(ctx)
-	}
+		level.Debug(logger).Log("task", "async enabled, starting collectors", "name", task, "interval", cfg.CollectInterval, "jitter", cfg.CollectMaxJitterPercent)
 
-	// log stats at regular intervals
-	if t.LogStatsInterval > 0 {
-		go func() {
-			tick := time.Tick(t.LogStatsInterval)
-			for {
-				select {
-				case <-tick:
-					for _, coll := range colls {
+		if cfg.CollectLogStatsInterval > 0 {
+			go func() {
+				tick := time.Tick(cfg.CollectLogStatsInterval)
+				for {
+					select {
+					case <-tick:
 						stats := coll.ReadStats()
 						level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", coll.name)
+					case <-ctx.Done():
+						return
 					}
-				case <-ctx.Done():
-					return
 				}
-			}
-		}()
+			}()
+		}
 	}
 }
 

@@ -26,6 +26,7 @@ type Service struct {
 	ds             fleet.Datastore
 	task           *async.Task
 	carveStore     fleet.CarveStore
+	installerStore fleet.InstallerStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
@@ -38,9 +39,8 @@ type Service struct {
 	mailService     fleet.MailService
 	ssoSessionStore sso.SessionStore
 
-	seenHostSet *seenHostSet
-
-	failingPolicySet fleet.FailingPolicySet
+	failingPolicySet  fleet.FailingPolicySet
+	enrollHostLimiter fleet.EnrollHostLimiter
 
 	authz *authz.Authorizer
 
@@ -48,10 +48,16 @@ type Service struct {
 	jitterH  map[time.Duration]*jitterHashTable
 
 	geoIP fleet.GeoIP
+
+	*fleet.EnterpriseOverrides
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
 	return s.geoIP.Lookup(ctx, ip)
+}
+
+func (s *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
+	s.EnterpriseOverrides = &overrides
 }
 
 // NewService creates a new service from the config struct
@@ -68,9 +74,11 @@ func NewService(
 	sso sso.SessionStore,
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
+	installerStore fleet.InstallerStore,
 	license fleet.LicenseInfo,
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
+	enrollHostLimiter fleet.EnrollHostLimiter,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -78,24 +86,25 @@ func NewService(
 	}
 
 	svc := &Service{
-		ds:               ds,
-		task:             task,
-		carveStore:       carveStore,
-		resultStore:      resultStore,
-		liveQueryStore:   lq,
-		logger:           logger,
-		config:           config,
-		clock:            c,
-		osqueryLogWriter: osqueryLogger,
-		mailService:      mailService,
-		ssoSessionStore:  sso,
-		seenHostSet:      newSeenHostSet(),
-		license:          license,
-		failingPolicySet: failingPolicySet,
-		authz:            authorizer,
-		jitterH:          make(map[time.Duration]*jitterHashTable),
-		jitterMu:         new(sync.Mutex),
-		geoIP:            geoIP,
+		ds:                ds,
+		task:              task,
+		carveStore:        carveStore,
+		installerStore:    installerStore,
+		resultStore:       resultStore,
+		liveQueryStore:    lq,
+		logger:            logger,
+		config:            config,
+		clock:             c,
+		osqueryLogWriter:  osqueryLogger,
+		mailService:       mailService,
+		ssoSessionStore:   sso,
+		license:           license,
+		failingPolicySet:  failingPolicySet,
+		authz:             authorizer,
+		jitterH:           make(map[time.Duration]*jitterHashTable),
+		jitterMu:          new(sync.Mutex),
+		geoIP:             geoIP,
+		enrollHostLimiter: enrollHostLimiter,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -113,37 +122,4 @@ type validationMiddleware struct {
 // getAssetURL simply returns the base url used for retrieving image assets from fleetdm.com.
 func getAssetURL() template.URL {
 	return template.URL("https://fleetdm.com/images/permanent")
-}
-
-// seenHostSet implements synchronized storage for the set of seen hosts.
-type seenHostSet struct {
-	mutex   sync.Mutex
-	hostIDs map[uint]bool
-}
-
-func newSeenHostSet() *seenHostSet {
-	return &seenHostSet{
-		mutex:   sync.Mutex{},
-		hostIDs: make(map[uint]bool),
-	}
-}
-
-// addHostID adds the host identified by ID to the set
-func (m *seenHostSet) addHostID(id uint) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.hostIDs[id] = true
-}
-
-// getAndClearHostIDs gets the list of unique host IDs from the set and empties
-// the set.
-func (m *seenHostSet) getAndClearHostIDs() []uint {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	var ids []uint
-	for id := range m.hostIDs {
-		ids = append(ids, id)
-	}
-	m.hostIDs = make(map[uint]bool)
-	return ids
 }

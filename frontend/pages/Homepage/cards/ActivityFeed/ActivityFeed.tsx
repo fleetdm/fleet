@@ -10,14 +10,12 @@ import { addGravatarUrlToResource } from "utilities/helpers";
 
 import { IActivity, ActivityType } from "interfaces/activity";
 
+import DataError from "components/DataError";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-
-import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
-import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "activity-feed";
 
@@ -32,7 +30,7 @@ interface IActivityDisplay extends IActivity {
 const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
-const DEFAULT_PER_PAGE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -52,6 +50,9 @@ const TAGGED_TEMPLATES = {
     return typeof count === "undefined" || typeof count !== "number"
       ? "edited a query using fleetctl"
       : `edited ${count === 1 ? "a query" : "queries"} using fleetctl`;
+  },
+  userAddedBySSOTempalte: () => {
+    return `was added to Fleet by SSO`;
   },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
@@ -90,7 +91,7 @@ const ActivityFeed = ({
       perPage: number;
     }>
   >(
-    [{ scope: "activities", pageIndex, perPage: DEFAULT_PER_PAGE }],
+    [{ scope: "activities", pageIndex, perPage: DEFAULT_PAGE_SIZE }],
     ({ queryKey: [{ pageIndex: page, perPage }] }) => {
       return activitiesAPI.loadNext(page, perPage);
     },
@@ -100,9 +101,12 @@ const ActivityFeed = ({
       select: (data) => data.activities,
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
-        if (results.length < DEFAULT_PER_PAGE) {
+        if (results.length < DEFAULT_PAGE_SIZE) {
           setShowMore(false);
         }
+      },
+      onError: () => {
+        setShowActivityFeedTitle(true);
       },
     }
   );
@@ -130,6 +134,9 @@ const ActivityFeed = ({
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
       }
+      case ActivityType.UserAddedBySSO: {
+        return TAGGED_TEMPLATES.userAddedBySSOTempalte();
+      }
       default: {
         return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
       }
@@ -137,39 +144,17 @@ const ActivityFeed = ({
   };
 
   const renderError = () => {
-    return (
-      <div className={`${baseClass}__error`}>
-        <div className={`${baseClass}__inner`}>
-          <span className="info__header">
-            <img src={ErrorIcon} alt="error icon" id="error-icon" />
-            Something&apos;s gone wrong.
-          </span>
-          <span className="info__data">Refresh the page or log in again.</span>
-          <span className="info__data">
-            If this keeps happening, please&nbsp;
-            <a
-              href="https://github.com/fleetdm/fleet/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              file an issue
-              <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
-            </a>
-          </span>
-        </div>
-      </div>
-    );
+    return <DataError card />;
   };
 
   const renderNoActivities = () => {
     return (
       <div className={`${baseClass}__no-activities`}>
         <p>
-          <b>This is the start of your Fleet activities.</b>
+          <b>Fleet has not recorded any activity.</b>
         </p>
         <p>
-          Did you recently edit your queries, update your packs, or run a live
-          query? Try again in a few seconds as the system catches up.
+          Try editing a query, updating your policies, or running a live query.
         </p>
       </div>
     );

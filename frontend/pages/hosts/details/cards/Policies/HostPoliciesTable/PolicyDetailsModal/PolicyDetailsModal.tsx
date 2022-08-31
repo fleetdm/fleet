@@ -26,16 +26,11 @@ const PolicyDetailsModal = ({
         {policy?.resolution && (
           <div className={`${baseClass}__resolution`}>
             <span className={`${baseClass}__resolve-header`}> Resolve:</span>
-            <br />
-            {policy?.resolution}
+            <p>{policy?.resolution}</p>
           </div>
         )}
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="brand"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
             Done
           </Button>
         </div>

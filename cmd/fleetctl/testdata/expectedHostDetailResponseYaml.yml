@@ -12,7 +12,6 @@ spec:
   cpu_type: ""
   created_at: "0001-01-01T00:00:00Z"
   detail_updated_at: "0001-01-01T00:00:00Z"
-  device_mapping: null
   display_text: test_host
   distributed_interval: 0
   gigs_disk_space_available: 0
@@ -69,7 +68,7 @@ spec:
   primary_mac: ""
   refetch_requested: false
   seen_time: "0001-01-01T00:00:00Z"
-  status: mia
+  status: offline
   team_id: null
   team_name: null
   updated_at: "0001-01-01T00:00:00Z"

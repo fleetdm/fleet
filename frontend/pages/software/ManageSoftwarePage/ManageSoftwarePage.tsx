@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce";
@@ -6,8 +12,12 @@ import { useDebouncedCallback } from "use-debounce";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
-import { IJiraIntegration } from "interfaces/integration";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+import {
+  IJiraIntegration,
+  IZendeskIntegration,
+  IIntegration,
+} from "interfaces/integration";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -24,13 +34,14 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import LastUpdatedText from "components/LastUpdatedText";
+import MainContent from "components/MainContent";
 
-import softwareTableHeaders from "./SoftwareTableConfig";
+import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
@@ -44,20 +55,31 @@ interface IManageSoftwarePageProps {
   };
 }
 
+interface ISoftwareQueryKey {
+  scope: string;
+  page: number;
+  perPage: number;
+  query: string;
+  orderKey: string;
+  orderDir?: "asc" | "desc";
+  vulnerable: boolean;
+  teamId?: number;
+}
+
 interface ISoftwareAutomations {
   webhook_settings: {
     vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   };
   integrations: {
     jira: IJiraIntegration[];
+    zendesk: IZendeskIntegration[];
   };
 }
 interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "hosts_count";
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
@@ -71,8 +93,11 @@ const ManageSoftwarePage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
+    isPremiumTier,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [
@@ -104,18 +129,28 @@ const ManageSoftwarePage = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
       let jiraIntegrationEnabled = false;
       if (data.integrations.jira) {
         jiraIntegrationEnabled = data?.integrations.jira.some(
-          (integration: any) => {
+          (integration: IIntegration) => {
+            return integration.enable_software_vulnerabilities;
+          }
+        );
+      }
+      let zendeskIntegrationEnabled = false;
+      if (data.integrations.zendesk) {
+        zendeskIntegrationEnabled = data?.integrations.zendesk.some(
+          (integration: IIntegration) => {
             return integration.enable_software_vulnerabilities;
           }
         );
       }
       setIsVulnerabilityAutomationsEnabled(
         data?.webhook_settings?.vulnerabilities_webhook
-          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+          .enable_vulnerabilities_webhook ||
+          jiraIntegrationEnabled ||
+          zendeskIntegrationEnabled
       );
       // Convert from nanosecond to nearest day
       setRecentVulnerabilityMaxAge(
@@ -130,37 +165,29 @@ const ManageSoftwarePage = ({
     data: software,
     error: softwareError,
     isFetching: isFetchingSoftware,
-  } = useQuery<ISoftwareResponse, Error>(
+  } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftwareResponse,
+    ISoftwareQueryKey[]
+  >(
     [
-      "software",
       {
-        params: {
-          scope: "software",
-          pageIndex,
-          pageSize: PAGE_SIZE,
-          searchQuery,
-          sortDirection,
-          sortHeader,
-          teamId: currentTeam?.id,
-          vulnerable: !!location.query.vulnerable,
-        },
-      },
-      location.pathname,
-      location.search,
-    ],
-    // TODO: figure out typing and destructuring for query key inside query function
-    () => {
-      const params = {
+        scope: "software",
         page: pageIndex,
-        perPage: PAGE_SIZE,
+        perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
-        orderKey: sortHeader,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
-        vulnerable: !!location.query.vulnerable,
+        // API expects "epss_probability" rather than "vulnerabilities"
+        orderKey:
+          isPremiumTier && sortHeader === "vulnerabilities"
+            ? "epss_probability"
+            : sortHeader,
         teamId: currentTeam?.id,
-      };
-      return softwareAPI.load(params);
-    },
+        vulnerable: !!location.query.vulnerable,
+      },
+    ],
+    ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
       enabled:
         isOnGlobalTeam ||
@@ -174,23 +201,22 @@ const ManageSoftwarePage = ({
     data: softwareCount,
     error: softwareCountError,
     isFetching: isFetchingCount,
-  } = useQuery<ISoftwareCountResponse, Error, number>(
+  } = useQuery<
+    ISoftwareCountResponse,
+    Error,
+    number,
+    Partial<ISoftwareQueryKey>[]
+  >(
     [
-      "softwareCount",
       {
-        params: {
-          searchQuery,
-          vulnerable: !!location.query.vulnerable,
-          teamId: currentTeam?.id,
-        },
-      },
-    ],
-    () => {
-      return softwareAPI.count({
+        scope: "softwareCount",
         query: searchQuery,
         vulnerable: !!location.query.vulnerable,
         teamId: currentTeam?.id,
-      });
+      },
+    ],
+    ({ queryKey }) => {
+      return softwareAPI.count(queryKey[0]);
     },
     {
       enabled:
@@ -234,6 +260,10 @@ const ManageSoftwarePage = ({
             ? newSortDirection
             : DEFAULT_SORT_DIRECTION
         );
+
+      if (isPremiumTier && newSortHeader === "vulnerabilities") {
+        newSortHeader = "epss_probability";
+      }
       sortHeader !== newSortHeader && setSortHeader(newSortHeader);
     },
     300
@@ -260,6 +290,7 @@ const ManageSoftwarePage = ({
           "success",
           "Successfully updated vulnerability automations."
         );
+        refetchSoftwareVulnerabilitiesWebhook();
       });
     } catch {
       renderFlash(
@@ -268,7 +299,6 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchSoftwareVulnerabilitiesWebhook();
     }
   };
 
@@ -280,6 +310,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
+      !softwareError &&
       state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading
@@ -359,7 +390,10 @@ const ManageSoftwarePage = ({
           }`}
         >
           <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
-          {renderLastUpdatedText(lastUpdatedAt, "software")}
+          <LastUpdatedText
+            lastUpdatedAt={lastUpdatedAt}
+            whatToRetrieve={"software"}
+          />
         </div>
       );
     }
@@ -446,13 +480,19 @@ const ManageSoftwarePage = ({
 
   const isLastPage =
     !!softwareCount &&
-    PAGE_SIZE * pageIndex + (software?.software?.length || 0) >= softwareCount;
+    DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
+      softwareCount;
+
+  const softwareTableHeaders = useMemo(
+    () => generateSoftwareTableHeaders(isPremiumTier),
+    [isPremiumTier]
+  );
 
   return !availableTeams || !config ? (
     <Spinner />
   ) : (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent>
+      <div className={`${baseClass}__wrapper`}>
         {renderHeader()}
         <div className={`${baseClass}__table`}>
           {softwareError && !isFetchingSoftware ? (
@@ -470,10 +510,10 @@ const ManageSoftwarePage = ({
                     "default"
                 )
               }
-              defaultSortHeader={"hosts_count"}
-              defaultSortDirection={"desc"}
+              defaultSortHeader={DEFAULT_SORT_HEADER}
+              defaultSortDirection={DEFAULT_SORT_DIRECTION}
               manualSortBy
-              pageSize={PAGE_SIZE}
+              pageSize={DEFAULT_PAGE_SIZE}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}
@@ -515,7 +555,7 @@ const ManageSoftwarePage = ({
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

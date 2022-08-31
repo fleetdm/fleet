@@ -29,10 +29,11 @@ class ForgotPasswordForm extends Component {
         <InputFieldWithIcon {...fields.email} autofocus placeholder="Email" />
         <div className={`${baseClass}__button-wrap`}>
           <Button
-            className={`${baseClass}__submit-btn button button--brand`}
+            className={`${baseClass}__submit-btn`}
+            variant="brand"
             type="submit"
           >
-            Reset password
+            Send email
           </Button>
         </div>
       </form>

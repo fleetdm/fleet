@@ -43,7 +43,7 @@ const initialState = {
 const actions = {
   SET_SELECTED_OSQUERY_TABLE: "SET_SELECTED_OSQUERY_TABLE",
   SET_LAST_EDITED_QUERY_INFO: "SET_LAST_EDITED_QUERY_INFO",
-};
+} as const;
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {

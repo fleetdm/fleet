@@ -18,9 +18,11 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,6 +77,8 @@ func TestHosts(t *testing.T) {
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
+		{"ListMDM", testHostsListMDM},
+		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
 		{"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
@@ -98,6 +102,8 @@ func TestHosts(t *testing.T) {
 		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
 		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
 		{"HostsListBySoftware", testHostsListBySoftware},
+		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
+		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
 		{"HostsAllPackStats", testHostsAllPackStats},
@@ -109,6 +115,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
+		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
 		{"HostLite", testHostsLite},
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
@@ -116,6 +123,10 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"HostIDsByOSVersion", testHostIDsByOSVersion},
+		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
+		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
+		{"CountHostsNotResponding", testCountHostsNotResponding},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -151,7 +162,7 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, "bar.local", host.Hostname)
@@ -163,7 +174,7 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = ds.SaveHostAdditional(context.Background(), host.ID, &additionalJSON)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.NotNil(t, host)
 	require.NotNil(t, host.Additional)
@@ -172,7 +183,7 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	err = updateHostFunc(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
@@ -189,7 +200,7 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	require.NoError(t, err)
 	require.Empty(t, newP.Hosts)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
 
@@ -222,7 +233,7 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
 }
@@ -330,7 +341,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostPackStats(context.Background(), host.ID, packStats)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
 	require.Len(t, host.PackStats, 2)
@@ -425,7 +436,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostPackStats(context.Background(), host.ID, packStats)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
 	sort.Slice(host.PackStats, func(i, j int) bool {
@@ -485,7 +496,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostPackStats(context.Background(), host.ID, packStats)
 	require.NoError(t, err)
 
-	gotHost, err := ds.Host(context.Background(), host.ID, false)
+	gotHost, err := ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
 	sort.Slice(gotHost.PackStats, func(i, j int) bool {
@@ -576,7 +587,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostPackStats(context.Background(), host.ID, packStats)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 
 	require.Len(t, host.PackStats, 2)
@@ -619,7 +630,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 }
 
@@ -799,6 +810,162 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	gotIDs := []uint{gotHosts[0].ID, gotHosts[1].ID, gotHosts[2].ID}
 	wantIDs := []uint{hosts[0].ID, hosts[2].ID, hosts[5].ID}
 	require.ElementsMatch(t, wantIDs, gotIDs)
+
+	// device mapping not included because missing optional param
+	require.Nil(t, gotHosts[0].DeviceMapping)
+	require.Nil(t, gotHosts[1].DeviceMapping)
+	require.Nil(t, gotHosts[2].DeviceMapping)
+
+	// add optional param to include host device mapping
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "a@b.c"}, DeviceMapping: true}, 3)
+	require.NotNil(t, gotHosts[0].DeviceMapping)
+	require.NotNil(t, gotHosts[1].DeviceMapping)
+	require.NotNil(t, gotHosts[2].DeviceMapping) // json "null" rather than nil
+
+	var dm []*fleet.HostDeviceMapping
+
+	err = json.Unmarshal(*gotHosts[0].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, 2)
+
+	err = json.Unmarshal(*gotHosts[1].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, 1)
+
+	err = json.Unmarshal(*gotHosts[2].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Nil(t, dm)
+}
+
+func testHostsListMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hostIDs []uint
+	for i := 0; i < 10; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
+	err := ds.SetOrUpdateMDMData(ctx, hostIDs[0], true, simpleMDM, true) // enrollment: automatic
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], true, kandji, true) // enrollment: automatic
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], true, unknown, false) // enrollment: manual
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, simpleMDM, false) // enrollment: unenrolled
+	require.NoError(t, err)
+
+	var simpleMDMID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &simpleMDMID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, simpleMDM)
+	})
+	var kandjiID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+	})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMIDFilter: &simpleMDMID}, 2)
+	assert.Equal(t, 2, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMIDFilter: &kandjiID}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic}, 2)
+	assert.Equal(t, 2, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManual}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusUnenrolled}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic, MDMIDFilter: &kandjiID}, 1)
+	assert.Equal(t, 1, len(hosts))
+}
+
+func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hostIDs []uint
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	err := ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{"a", "b"}, []string{"c"})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[1], "1.0.0", []string{"a"}, []string{"c"})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[2], "1.0.0", []string{"a", "b"}, nil)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[2], "1.0.0", []string{"a", "b"}, nil)
+	require.NoError(t, err)
+
+	var munkiIDs []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &munkiIDs, `SELECT id FROM munki_issues WHERE name IN ('a', 'b', 'c') ORDER BY name`)
+	})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &munkiIDs[0]}, 3) // "a" error, all 3 hosts
+	assert.Len(t, hosts, 3)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &munkiIDs[1]}, 2) // "b" error, 2 hosts
+	assert.Len(t, hosts, 2)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &munkiIDs[2]}, 2) // "c" warning, 2 hosts
+	assert.Len(t, hosts, 2)
+
+	nonExisting := uint(123)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &nonExisting}, 0)
+	assert.Len(t, hosts, 0)
+
+	// insert issue names at the limit of what is allowed
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{strings.Repeat("Z", maxMunkiIssueNameLen)}, []string{strings.Repeat("💞", maxMunkiIssueNameLen)})
+	require.NoError(t, err)
+
+	issues, err := ds.GetMunkiIssues(ctx, hostIDs[0])
+	require.NoError(t, err)
+	require.Len(t, issues, 2)
+	names := []string{issues[0].Name, issues[1].Name}
+	require.ElementsMatch(t, []string{strings.Repeat("Z", maxMunkiIssueNameLen), strings.Repeat("💞", maxMunkiIssueNameLen)}, names)
+
+	// test the truncation of overly long issue names, ascii and multi-byte utf8
+	// Note that some unicode characters may not be supported properly by mysql
+	// (e.g. 🐈 did fail even with truncation), but there's not much we can do
+	// about it.
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{strings.Repeat("A", maxMunkiIssueNameLen+1)}, []string{strings.Repeat("☺", maxMunkiIssueNameLen+1)})
+	require.NoError(t, err)
+
+	issues, err = ds.GetMunkiIssues(ctx, hostIDs[0])
+	require.NoError(t, err)
+	require.Len(t, issues, 2)
+	names = []string{issues[0].Name, issues[1].Name}
+	require.ElementsMatch(t, []string{strings.Repeat("A", maxMunkiIssueNameLen), strings.Repeat("☺", maxMunkiIssueNameLen)}, names)
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
@@ -817,6 +984,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, &team.ID, 0)
 		require.NoError(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, h.NodeKey)
@@ -824,10 +992,12 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 0)
 		require.NoError(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 	}
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
@@ -1158,7 +1328,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
 	assert.Equal(t, uint(2), summary.OnlineCount)
-	assert.Equal(t, uint(1), summary.OfflineCount)
+	assert.Equal(t, uint(2), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
@@ -1167,7 +1337,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, uint(4), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
-	assert.Equal(t, uint(3), summary.OfflineCount)
+	assert.Equal(t, uint(4), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), summary.MIACount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
@@ -1227,7 +1397,7 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), 1, false)
+		h1Verify, err := ds.Host(context.Background(), 1)
 		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, aDayAgo, h1Verify.SeenTime, time.Second)
@@ -1237,7 +1407,7 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), 1, false)
+		h1Verify, err := ds.Host(context.Background(), 1)
 		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
@@ -1279,12 +1449,12 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), h1.ID, false)
+		h1Verify, err := ds.Host(context.Background(), h1.ID)
 		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, anHourAgo, h1Verify.SeenTime, time.Second)
 
-		h2Verify, err := ds.Host(context.Background(), h2.ID, false)
+		h2Verify, err := ds.Host(context.Background(), h2.ID)
 		require.NoError(t, err)
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aDayAgo, h2Verify.SeenTime, time.Second)
@@ -1294,12 +1464,12 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	{
-		h1Verify, err := ds.Host(context.Background(), h1.ID, false)
+		h1Verify, err := ds.Host(context.Background(), h1.ID)
 		require.NoError(t, err)
 		require.NotNil(t, h1Verify)
 		assert.WithinDuration(t, aSecondAgo, h1Verify.SeenTime, time.Second)
 
-		h2Verify, err := ds.Host(context.Background(), h2.ID, false)
+		h2Verify, err := ds.Host(context.Background(), h2.ID)
 		require.NoError(t, err)
 		require.NotNil(t, h2Verify)
 		assert.WithinDuration(t, aSecondAgo, h2Verify.SeenTime, time.Second)
@@ -1335,22 +1505,23 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
+	_, err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
 	require.NoError(t, err)
 
 	// Both hosts should still exist because they are new
-	_, err = ds.Host(context.Background(), h1.ID, false)
+	_, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
-	_, err = ds.Host(context.Background(), h2.ID, false)
+	_, err = ds.Host(context.Background(), h2.ID)
 	require.NoError(t, err)
 
-	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
+	deleted, err := ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
 	require.NoError(t, err)
+	require.Equal(t, []uint{h1.ID}, deleted)
 
 	// Now only the host with details should exist
-	_, err = ds.Host(context.Background(), h1.ID, false)
+	_, err = ds.Host(context.Background(), h1.ID)
 	assert.NotNil(t, err)
-	_, err = ds.Host(context.Background(), h2.ID, false)
+	_, err = ds.Host(context.Background(), h2.ID)
 	require.NoError(t, err)
 }
 
@@ -1501,7 +1672,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Nil(t, h.Additional)
 
 	// Additional not yet set
-	h, err = ds.Host(context.Background(), h.ID, false)
+	h, err = ds.Host(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Nil(t, h.Additional)
 
@@ -1515,7 +1686,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "foobar.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
-	h, err = ds.Host(context.Background(), h.ID, false)
+	h, err = ds.Host(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 
@@ -1531,7 +1702,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
-	h, err = ds.Host(context.Background(), h.ID, false)
+	h, err = ds.Host(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 
@@ -1545,18 +1716,19 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "baz.local", h.Hostname)
 	assert.Nil(t, h.Additional)
 
-	h, err = ds.Host(context.Background(), h.ID, false)
+	h, err = ds.Host(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, &additional, h.Additional)
 }
 
 func testHostsByIdentifier(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
 			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
 			NodeKey:         fmt.Sprintf("node_key_%d", i),
 			UUID:            fmt.Sprintf("uuid_%d", i),
@@ -1572,21 +1744,26 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "uuid_1")
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "osquery_host_id_2")
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "node_key_4")
 	require.NoError(t, err)
 	assert.Equal(t, uint(4), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
 	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	require.Error(t, err)
+	require.Nil(t, h)
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
@@ -1600,7 +1777,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	}
 
 	for i := 1; i <= 10; i++ {
-		host, err := ds.Host(context.Background(), uint(i), false)
+		host, err := ds.Host(context.Background(), uint(i))
 		require.NoError(t, err)
 		assert.Nil(t, host.TeamID)
 	}
@@ -1609,7 +1786,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{3, 4, 5}))
 
 	for i := 1; i <= 10; i++ {
-		host, err := ds.Host(context.Background(), uint(i), false)
+		host, err := ds.Host(context.Background(), uint(i))
 		require.NoError(t, err)
 		var expectedID *uint
 		switch {
@@ -1625,7 +1802,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{5, 6, 7, 8, 9, 10}))
 
 	for i := 1; i <= 10; i++ {
-		host, err := ds.Host(context.Background(), uint(i), false)
+		host, err := ds.Host(context.Background(), uint(i))
 		require.NoError(t, err)
 		var expectedID *uint
 		switch {
@@ -1654,7 +1831,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	assert.Len(t, host.Users, 0)
 
@@ -1676,7 +1853,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostUsers(context.Background(), host.ID, hostUsers)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
@@ -1686,7 +1863,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostUsers(context.Background(), host.ID, hostUsers)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
@@ -1697,7 +1874,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostUsers(context.Background(), host.ID, hostUsers)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
@@ -1721,7 +1898,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHost(context.Background(), host)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	assert.Len(t, host.Users, 0)
 
@@ -1742,7 +1919,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostUsers(context.Background(), host.ID, hostUsers)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, host.Users, []fleet.HostUser{u1, u2})
@@ -1752,7 +1929,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostUsers(context.Background(), host.ID, hostUsers)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 1)
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
@@ -1785,6 +1962,24 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 
 	addHostSeenLast(t, ds, 2, 2)
 	addHostSeenLast(t, ds, 3, 4)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 2, unseen)
+
+	// host not counted as unseen if less than a full 24 hours has passed
+	_, err = ds.writer.ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86399*time.Second))
+	require.NoError(t, err)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 1, unseen)
+
+	// host counted as unseen if more than 24 hours has passed
+	_, err = ds.writer.ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86401*time.Second))
+	require.NoError(t, err)
 
 	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
 	require.NoError(t, err)
@@ -1874,11 +2069,162 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
 
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
 	require.Len(t, hosts, 2)
+}
+
+func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
+	// seed hosts
+	hostsByID := make(map[uint]fleet.Host)
+	for i := 0; i < 9; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hostsByID[h.ID] = *h
+	}
+
+	// seed operating systems
+	seeds := []fleet.OperatingSystem{
+		{Name: "CentOS", Version: "8.0.0", Platform: "rhel", KernelVersion: "5.10.76-linuxkit"},
+		{Name: "Ubuntu", Version: "20.4.0 LTS", Platform: "ubuntu", KernelVersion: "5.10.76-linuxkit"},
+		{Name: "Ubuntu", Version: "20.5.0 LTS", Platform: "ubuntu", KernelVersion: "5.10.76-linuxkit"},
+	}
+	var hostIDsCentOS []uint
+	var hostsIDsUbuntu20_4 []uint
+	var hostsIDsUbuntu20_5 []uint
+	for _, h := range hostsByID {
+		r := h.ID % 3
+		err := ds.UpdateHostOperatingSystem(context.Background(), h.ID, seeds[r])
+		require.NoError(t, err)
+		switch r {
+		case 0:
+			hostIDsCentOS = append(hostIDsCentOS, h.ID)
+		case 1:
+			hostsIDsUbuntu20_4 = append(hostsIDsUbuntu20_4, h.ID)
+		case 2:
+			hostsIDsUbuntu20_5 = append(hostsIDsUbuntu20_5, h.ID)
+		}
+	}
+
+	storedOSs, err := ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	require.Len(t, storedOSs, 3)
+	storedOSByNameVers := make(map[string]fleet.OperatingSystem)
+	for _, os := range storedOSs {
+		storedOSByNameVers[fmt.Sprintf("%s %s", os.Name, os.Version)] = os
+	}
+
+	// filter by id of Ubuntu 20.4.0
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSIDFilter: ptr.Uint(storedOSByNameVers["Ubuntu 20.4.0 LTS"].ID)}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostsIDsUbuntu20_4, h.ID)
+	}
+
+	// filter by id of Ubuntu 20.5.0
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSIDFilter: ptr.Uint(storedOSByNameVers["Ubuntu 20.5.0 LTS"].ID)}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostsIDsUbuntu20_5, h.ID)
+	}
+
+	// filter by id of CentOS 8.0.0
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSIDFilter: ptr.Uint(storedOSByNameVers["CentOS 8.0.0"].ID)}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostIDsCentOS, h.ID)
+	}
+}
+
+func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
+	// seed hosts
+	hostsByID := make(map[uint]fleet.Host)
+	for i := 0; i < 9; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hostsByID[h.ID] = *h
+	}
+
+	// seed operating systems
+	seeds := []fleet.OperatingSystem{
+		{Name: "macOS", Version: "12.5.1", Arch: "x86_64", Platform: "darwin", KernelVersion: "21.4.0"},
+		{Name: "macOS", Version: "12.5.1", Arch: "arm64", Platform: "darwin", KernelVersion: "21.4.0"},
+		{Name: "macOS", Version: "12.5.2", Arch: "x86_64", Platform: "darwin", KernelVersion: "21.4.0"},
+	}
+	var hostIDs_12_5_1_X86 []uint
+	var hostIDs_12_5_1_ARM []uint
+	var hostIDs_12_5_2_X86 []uint
+	for _, h := range hostsByID {
+		r := h.ID % 3
+		err := ds.UpdateHostOperatingSystem(context.Background(), h.ID, seeds[r])
+		require.NoError(t, err)
+		switch r {
+		case 0:
+			hostIDs_12_5_1_X86 = append(hostIDs_12_5_1_X86, h.ID)
+		case 1:
+			hostIDs_12_5_1_ARM = append(hostIDs_12_5_1_ARM, h.ID)
+		case 2:
+			hostIDs_12_5_2_X86 = append(hostIDs_12_5_2_X86, h.ID)
+		}
+	}
+
+	storedOSs, err := ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	require.Len(t, storedOSs, 3)
+	storedOSByNameVersArch := make(map[string]fleet.OperatingSystem)
+	for _, os := range storedOSs {
+		storedOSByNameVersArch[fmt.Sprintf("%s %s %s", os.Name, os.Version, os.Arch)] = os
+	}
+
+	// filter by id of macOS 12.5.1 (x86_64)
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSIDFilter: ptr.Uint(storedOSByNameVersArch["macOS 12.5.1 x86_64"].ID)}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostIDs_12_5_1_X86, h.ID)
+	}
+
+	// filter by id of macOS 12.5.1 (arm64)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSIDFilter: ptr.Uint(storedOSByNameVersArch["macOS 12.5.1 arm64"].ID)}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostIDs_12_5_1_ARM, h.ID)
+	}
+
+	// filter by name and version of macOS 12.5.1 includes both x86_64 and arm64 architectures
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSNameFilter: ptr.String("macOS"), OSVersionFilter: ptr.String("12.5.1")}, 6)
+	var testHostIDs []uint
+	testHostIDs = append(testHostIDs, hostIDs_12_5_1_X86...)
+	testHostIDs = append(testHostIDs, hostIDs_12_5_1_ARM...)
+	for _, h := range hosts {
+		require.Contains(t, testHostIDs, h.ID)
+	}
+
+	// filter by id of macOS 12.5.2 (x86_64)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSIDFilter: ptr.Uint(storedOSByNameVersArch["macOS 12.5.2 x86_64"].ID)}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostIDs_12_5_2_X86, h.ID)
+	}
+
+	// filter by name and version of macOS 12.5.2
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSNameFilter: ptr.String("macOS"), OSVersionFilter: ptr.String("12.5.2")}, 3)
+	for _, h := range hosts {
+		require.Contains(t, hostIDs_12_5_2_X86, h.ID)
+	}
 }
 
 func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
@@ -2003,13 +2349,13 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 
 	prevRead := getReads(t, ds)
-	h1WithExtras, err := ds.Host(context.Background(), h1.ID, false)
+	h1WithExtras, err := ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	newRead := getReads(t, ds)
 	withExtraRowReads := newRead - prevRead
 
 	prevRead = getReads(t, ds)
-	h1WithoutExtras, err := ds.Host(context.Background(), h1.ID, true)
+	h1WithoutExtras, err := ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	newRead = getReads(t, ds)
 	withoutExtraRowReads := newRead - prevRead
@@ -2048,7 +2394,7 @@ func checkHostIssuesWithOpts(t *testing.T, ds *Datastore, hosts []*fleet.Host, f
 		return
 	}
 
-	hostById, err := ds.Host(context.Background(), hid, false)
+	hostById, err := ds.Host(context.Background(), hid)
 	require.NoError(t, err)
 	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
@@ -2099,7 +2445,7 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 		defer wg.Done()
 
 		for {
-			host1, err := ds.Host(context.Background(), host1.ID, false)
+			host1, err := ds.Host(context.Background(), host1.ID)
 			if err != nil {
 				errCh <- err
 				return
@@ -2160,7 +2506,7 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 		defer wg.Done()
 
 		for {
-			host2, err := ds.Host(context.Background(), host2.ID, false)
+			host2, err := ds.Host(context.Background(), host2.ID)
 			if err != nil {
 				errCh <- err
 				return
@@ -2449,7 +2795,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
 	require.Len(t, hosts, 10)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	_, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
 
 	// host expiration is still disabled
@@ -2461,15 +2807,17 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	deleted, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
+	require.Len(t, deleted, 5)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
 	// And it doesn't remove more than it should
-	err = ds.CleanupExpiredHosts(context.Background())
+	deleted, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
+	require.Len(t, deleted, 0)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
@@ -2524,7 +2872,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 	userSQuery := test.NewScheduledQuery(t, ds, userPack.ID, userQuery.ID, 30, true, true, "time-scheduled-user")
 
 	// Even if the scheduled queries didn't run, we get their pack stats (with zero values).
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	packStats := host.PackStats
 	require.Len(t, packStats, 3)
@@ -2624,7 +2972,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 		WallTime:           0,
 	}}
 	// Reload the host and set the scheduled queries stats.
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	hostPackStats := []fleet.PackStats{
 		{PackID: globalPack.ID, PackName: globalPack.Name, QueryStats: globalPackSQueryStats},
@@ -2633,7 +2981,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostPackStats(context.Background(), host.ID, hostPackStats)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	packStats = host.PackStats
 	require.Len(t, packStats, 3)
@@ -2741,7 +3089,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 			globalStats: globalStatsHost2,
 		},
 	} {
-		host, err := ds.Host(context.Background(), tc.hostID, false)
+		host, err := ds.Host(context.Background(), tc.hostID)
 		require.NoError(t, err)
 		hostPackStats := []fleet.PackStats{
 			{PackID: globalPack.ID, PackName: globalPack.Name, QueryStats: tc.globalStats},
@@ -2764,7 +3112,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 			expectedStats: globalStatsHost2,
 		},
 	} {
-		host, err := ds.Host(context.Background(), tc.host.ID, false)
+		host, err := ds.Host(context.Background(), tc.host.ID)
 		require.NoError(t, err)
 		packStats := host.PackStats
 		require.Len(t, packStats, 1)
@@ -2968,7 +3316,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 		UserTime:           183,
 		WallTime:           3,
 	})
-	host, err := ds.Host(context.Background(), host1.ID, false)
+	host, err := ds.Host(context.Background(), host1.ID)
 	require.NoError(t, err)
 	hostPackStats := []fleet.PackStats{
 		{PackID: globalPack.ID, PackName: globalPack.Name, QueryStats: stats},
@@ -2978,7 +3326,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 
 	// host should only return scheduled query stats only for the scheduled queries
 	// scheduled to run on "darwin".
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	packStats := host.PackStats
 	require.Len(t, packStats, 1)
@@ -2993,7 +3341,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 
 	// host2 should only return scheduled query stats only for the scheduled queries
 	// scheduled to run on "linux"
-	host2, err = ds.Host(context.Background(), host2.ID, false)
+	host2, err = ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
 	packStats2 := host2.PackStats
 	require.Len(t, packStats2, 1)
@@ -3091,7 +3439,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	}
 	removeHostSeenTimes(h1.ID)
 
-	h1, err = ds.Host(context.Background(), h1.ID, true)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
 	require.Equal(t, h1.CreatedAt, h1.SeenTime)
 
@@ -3188,9 +3536,9 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Reload hosts.
-	h1, err = ds.Host(context.Background(), h1.ID, true)
+	h1, err = ds.Host(context.Background(), h1.ID)
 	require.NoError(t, err)
-	h2, err = ds.Host(context.Background(), h2.ID, true)
+	h2, err = ds.Host(context.Background(), h2.ID)
 	require.NoError(t, err)
 
 	// Equal doesn't work, it looks like a time.Time scanned from
@@ -3230,7 +3578,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 
 	removeHostSeenTimes(h3.ID)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	_, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(context.Background(), teamFilter, fleet.HostListOptions{})
@@ -3287,10 +3635,10 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 		{Email: "b@b.c", Source: "src1"},
 	})
 
-	// non-existent host should have empty device mapping
-	dms, err = ds.ListHostDeviceMapping(ctx, h.ID+1)
+	// device mapping is not included in basic method for host by id
+	host, err := ds.Host(ctx, h.ID)
 	require.NoError(t, err)
-	require.Len(t, dms, 0)
+	require.Nil(t, host.DeviceMapping)
 
 	// create additional hosts to test device mapping of multiple hosts in ListHosts results
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -3324,7 +3672,13 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{DeviceMapping: true}, 3)
+	// device mapping not included in list hosts unless optional param is set to true
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 3)
+	require.Nil(t, hosts[0].DeviceMapping)
+	require.Nil(t, hosts[1].DeviceMapping)
+	require.Nil(t, hosts[2].DeviceMapping)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{DeviceMapping: true}, 3)
 
 	hostsByID := make(map[uint]*fleet.Host)
 	for _, hst := range hosts {
@@ -3334,7 +3688,7 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	var dm []*fleet.HostDeviceMapping
 
 	// device mapping for host 1
-	require.NotNil(t, *hostsByID[1].DeviceMapping)
+	require.NotNil(t, hostsByID[1].DeviceMapping)
 	err = json.Unmarshal(*hostsByID[1].DeviceMapping, &dm)
 	require.NoError(t, err)
 	var emails []string
@@ -3355,7 +3709,10 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "src2", dm[0].Source)
 
 	// no device mapping for host 3
-	assert.Nil(t, hostsByID[3].DeviceMapping)
+	require.NotNil(t, hostsByID[3].DeviceMapping) // json "null" rather than nil
+	err = json.Unmarshal(*hostsByID[3].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Nil(t, dm)
 }
 
 func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
@@ -3441,49 +3798,188 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err := ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
 
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 999, "9.0"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.3.0"))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.3.0", []string{"a", "b"}, []string{"c"}))
 
 	version, err := ds.GetMunkiVersion(context.Background(), 123)
 	require.NoError(t, err)
 	require.Equal(t, "1.3.0", version)
 
+	issues, err := ds.GetMunkiIssues(context.Background(), 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 3)
+
+	for _, iss := range issues {
+		assert.NotZero(t, iss.MunkiIssueID)
+		assert.False(t, iss.HostIssueCreatedAt.IsZero())
+	}
+
+	// ignore IDs and timestamps in slice comparison
+	issues[0].MunkiIssueID, issues[0].HostIssueCreatedAt = 0, time.Time{}
+	issues[1].MunkiIssueID, issues[1].HostIssueCreatedAt = 0, time.Time{}
+	issues[2].MunkiIssueID, issues[2].HostIssueCreatedAt = 0, time.Time{}
+	assert.ElementsMatch(t, []*fleet.HostMunkiIssue{
+		{Name: "a", IssueType: "error"},
+		{Name: "b", IssueType: "error"},
+		{Name: "c", IssueType: "warning"},
+	}, issues)
+
 	version, err = ds.GetMunkiVersion(context.Background(), 999)
 	require.NoError(t, err)
 	require.Equal(t, "9.0", version)
 
+	issues, err = ds.GetMunkiIssues(context.Background(), 999)
+	require.NoError(t, err)
+	require.Len(t, issues, 0)
+
 	// simulate uninstall
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, ""))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "", nil, nil))
 
 	_, err = ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
+	issues, err = ds.GetMunkiIssues(context.Background(), 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 0)
 
-	_, _, _, err = ds.GetMDM(context.Background(), 432)
+	_, err = ds.GetMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
 
-	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	hmdm, err := ds.GetMDM(context.Background(), 432)
 	require.NoError(t, err)
-	assert.True(t, enrolled)
-	assert.Equal(t, "url", serverURL)
-	assert.False(t, installedFromDep)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "url", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	urlMDMID := *hmdm.MDMID
+	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
 
-	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 432)
+	hmdm, err = ds.GetMDM(context.Background(), 432)
 	require.NoError(t, err)
-	assert.False(t, enrolled)
-	assert.Equal(t, "url3", serverURL)
-	assert.True(t, installedFromDep)
+	assert.False(t, hmdm.Enrolled)
+	assert.Equal(t, "url3", hmdm.ServerURL)
+	assert.True(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	assert.NotEqual(t, urlMDMID, *hmdm.MDMID)
+	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
-	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 455)
+	hmdm, err = ds.GetMDM(context.Background(), 455)
 	require.NoError(t, err)
-	assert.True(t, enrolled)
-	assert.Equal(t, "url2", serverURL)
-	assert.True(t, installedFromDep)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "https://kandji.io", hmdm.ServerURL)
+	assert.True(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	kandjiID1 := *hmdm.MDMID
+	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
+
+	// switch to simplemdm in an update
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", false)) // now simplemdm name
+
+	hmdm, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "https://simplemdm.com", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, hmdm.Name)
+
+	// switch back to "url"
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "url", false))
+
+	hmdm, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.False(t, hmdm.Enrolled)
+	assert.Equal(t, "url", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.Equal(t, urlMDMID, *hmdm.MDMID) // id is the same as created previously for that url
+	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
+
+	// switch to a different Kandji server URL, will have a different MDM ID as
+	// even though this is another Kandji, the URL is different.
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io/2", false))
+
+	hmdm, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "https://kandji.io/2", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	assert.NotEqual(t, kandjiID1, *hmdm.MDMID)
+	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
+}
+
+func testMunkiIssuesBatchSize(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	allIDs := make(map[string]uint)
+	storeIDs := func(msgToID map[[2]string]uint) {
+		for k, v := range msgToID {
+			assert.NotZero(t, v)
+			allIDs[k[0]] = v
+		}
+	}
+
+	cases := []struct {
+		errors   []string
+		warnings []string
+	}{
+		{nil, nil},
+
+		{[]string{"a"}, nil},
+		{[]string{"b", "c"}, nil},
+		{[]string{"d", "e", "f"}, nil},
+		{[]string{"g", "h", "i", "j"}, nil},
+		{[]string{"k", "l", "m", "n", "o"}, nil},
+
+		{nil, []string{"A"}},
+		{nil, []string{"B", "C"}},
+		{nil, []string{"D", "E", "F"}},
+		{nil, []string{"G", "H", "I", "J"}},
+		{nil, []string{"K", "L", "M", "N", "O"}},
+
+		{[]string{"a", "p", "q"}, []string{"A", "B", "P"}},
+	}
+	for _, c := range cases {
+		t.Run(strings.Join(c.errors, ",")+","+strings.Join(c.warnings, ","), func(t *testing.T) {
+			msgToID, err := ds.getOrInsertMunkiIssues(ctx, c.errors, c.warnings, 2)
+			require.NoError(t, err)
+			require.Len(t, msgToID, len(c.errors)+len(c.warnings))
+			storeIDs(msgToID)
+		})
+	}
+
+	// try those errors/warning with some hosts
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"a", "b"}, []string{"C"}))
+	issues, err := ds.GetMunkiIssues(ctx, 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 3)
+	for _, iss := range issues {
+		assert.Equal(t, allIDs[iss.Name], iss.MunkiIssueID)
+	}
+
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"c", "z"}, []string{"D", "E", "Z"}))
+	issues, err = ds.GetMunkiIssues(ctx, 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 5)
+	for _, iss := range issues {
+		if iss.Name == "z" || iss.Name == "Z" {
+			// z/Z do not exist in allIDs, by checking not equal it ensures it is not 0
+			assert.NotEqual(t, allIDs[iss.Name], iss.MunkiIssueID)
+		} else {
+			assert.Equal(t, allIDs[iss.Name], iss.MunkiIssueID)
+		}
+	}
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
@@ -3492,9 +3988,17 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
 	require.Zero(t, updatedAt)
+	issues, updatedAt, err := ds.AggregatedMunkiIssues(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, issues, 0)
+	require.Zero(t, updatedAt)
 	status, updatedAt, err := ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
+	require.Zero(t, updatedAt)
+	solutions, updatedAt, err := ds.AggregatedMDMSolutions(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
 	require.Zero(t, updatedAt)
 
 	// Make sure generation works when there's no mdm or munki data
@@ -3507,15 +4011,23 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
 	require.NotZero(t, updatedAt)
+	issues, updatedAt, err = ds.AggregatedMunkiIssues(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, issues)
+	require.NotZero(t, updatedAt)
 	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
 	require.NotZero(t, updatedAt)
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+	require.NotZero(t, updatedAt)
 
 	// So now we try with data
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 999, "9.0"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 342, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"a", "b"}, []string{"c"}))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", []string{"a"}, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 342, "1.2.3", nil, []string{"c"}))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
@@ -3533,12 +4045,37 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		},
 	})
 
+	issues, _, err = ds.AggregatedMunkiIssues(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, issues, 3)
+	// ignore the ids
+	issues[0].ID = 0
+	issues[1].ID = 0
+	issues[2].ID = 0
+	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
+		{
+			Name:       "a",
+			IssueType:  "error",
+			HostsCount: 2,
+		},
+		{
+			Name:       "b",
+			IssueType:  "error",
+			HostsCount: 1,
+		},
+		{
+			Name:       "c",
+			IssueType:  "warning",
+			HostsCount: 2,
+		},
+	})
+
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "url3", true))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "url3", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "https://kandji.io", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "https://kandji.io", true))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
@@ -3548,6 +4085,25 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, status.UnenrolledHostsCount)
 	assert.Equal(t, 3, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+
+	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, solutions, 3) // 3 different urls
+	for _, sol := range solutions {
+		switch sol.ServerURL {
+		case "url":
+			assert.Equal(t, 3, sol.HostsCount)
+			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
+		case "https://simplemdm.com":
+			assert.Equal(t, 1, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMSimpleMDM, sol.Name)
+		case "https://kandji.io":
+			assert.Equal(t, 2, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+		default:
+			require.Fail(t, "unknown MDM solutions URL: %s", sol.ServerURL)
+		}
+	}
 
 	// Team filters
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
@@ -3569,14 +4125,14 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{h2.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "https://simplemdm.com", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h1.ID, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h2.ID, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
 
-	// h3 adds it but then removes it
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, ""))
+	// h3 adds the version but then removes it
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "1.2.3", []string{"f"}, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "", []string{"d"}, []string{"f"}))
 
 	// Make the updated_at different enough
 	time.Sleep(1 * time.Second)
@@ -3592,12 +4148,41 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.True(t, updatedAt.After(firstUpdatedAt))
+
+	issues, updatedAt, err = ds.AggregatedMunkiIssues(context.Background(), &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, issues, 2)
+	// ignore IDs
+	issues[0].ID = 0
+	issues[1].ID = 0
+	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
+		{
+			Name:       "d",
+			IssueType:  "error",
+			HostsCount: 2,
+		},
+		{
+			Name:       "f",
+			IssueType:  "warning",
+			HostsCount: 1,
+		},
+	})
+	require.True(t, updatedAt.After(firstUpdatedAt))
+
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, status.HostsCount)
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID)
+	require.True(t, updatedAt.After(firstUpdatedAt))
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	assert.Equal(t, "https://simplemdm.com", solutions[0].ServerURL)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, solutions[0].Name)
+	assert.Equal(t, 1, solutions[0].HostsCount)
 }
 
 func testHostsLite(t *testing.T, ds *Datastore) {
@@ -3761,7 +4346,7 @@ func testHostsSaveHostUsers(t *testing.T, ds *Datastore) {
 	err = ds.SaveHostUsers(context.Background(), host.ID, users)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, host.Users, 2)
 	test.ElementsMatchSkipID(t, users, host.Users)
@@ -3856,6 +4441,10 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {
+	// empty tables
+	err := ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name: "team1",
 	})
@@ -3909,7 +4498,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		},
 		{
 			Platform:  "rhel",
-			OSVersion: "CentOS Stream 8.0.0",
+			OSVersion: "CentOS 8.0.0",
 		},
 		{
 			Platform:  "ubuntu",
@@ -3922,6 +4511,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 			TeamID:    &team1.ID,
 		},
 	}
+
+	hostsByID := make(map[uint]*fleet.Host)
 
 	for i, host := range hosts {
 		host.DetailUpdatedAt = time.Now()
@@ -3933,70 +4524,136 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		host.UUID = strconv.Itoa(i)
 		host.Hostname = fmt.Sprintf("%d.localdomain", i)
 
-		_, err := ds.NewHost(context.Background(), host)
+		h, err := ds.NewHost(context.Background(), host)
 		require.NoError(t, err)
+		hostsByID[h.ID] = h
 	}
 
 	ctx := context.Background()
+
+	// add host operating system records
+	for _, h := range hostsByID {
+		nv := strings.Split(h.OSVersion, " ")
+		err := ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{Name: nv[0], Version: nv[1], Platform: h.Platform, Arch: "x86_64"})
+		require.NoError(t, err)
+	}
+	osList, err := ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+	require.Len(t, osList, 5)
+	osByNameVers := make(map[string]fleet.OperatingSystem)
+	for _, os := range osList {
+		osByNameVers[fmt.Sprintf("%s %s", os.Name, os.Version)] = os
+	}
 
 	err = ds.UpdateOSVersions(ctx)
 	require.NoError(t, err)
 
 	// all hosts
-	osVersions, err := ds.OSVersions(ctx, nil, nil)
+	osVersions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	require.True(t, time.Now().After(osVersions.CountsUpdatedAt))
 	expected := []fleet.OSVersion{
-		{HostsCount: 1, Name: "CentOS Stream 8.0.0", Platform: "rhel"},
-		{HostsCount: 2, Name: "Ubuntu 20.4.0", Platform: "ubuntu"},
-		{HostsCount: 1, Name: "macOS 12.1.0", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.2.1", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
+		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// filter by platform
 	platform := "darwin"
-	osVersions, err = ds.OSVersions(ctx, nil, &platform)
+	osVersions, err = ds.OSVersions(ctx, nil, &platform, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 1, Name: "macOS 12.1.0", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.2.1", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	// filter by operating system name and version
+	osVersions, err = ds.OSVersions(ctx, nil, nil, ptr.String("Ubuntu"), ptr.String("20.4.0"))
+	require.NoError(t, err)
+
+	expected = []fleet.OSVersion{
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// team 1
-	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil)
+	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 2, Name: "Ubuntu 20.4.0", Platform: "ubuntu"},
-		{HostsCount: 2, Name: "macOS 12.2.1", Platform: "darwin"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
+		{HostsCount: 2, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// team 2
-	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil)
+	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 1, Name: "macOS 12.2.1", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// team 3 (no hosts assigned to team)
-	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil)
+	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil, nil, nil)
 	require.NoError(t, err)
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// non-existent team
-	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil)
+	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
 	require.Error(t, err)
+
+	// new host with arm64
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   "666",
+		NodeKey:         "666",
+		UUID:            "666",
+		Hostname:        fmt.Sprintf("%s.localdomain", "666"),
+	})
+	require.NoError(t, err)
+	hostsByID[h.ID] = h
+
+	err = ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+		Name:     "macOS",
+		Version:  "12.2.1",
+		Platform: "darwin",
+		Arch:     "arm64",
+	})
+	require.NoError(t, err)
+
+	// different architecture is considered a unique operating system
+	newOSList, err := ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+	require.Len(t, newOSList, len(osList)+1)
+
+	// but aggregate stats should group architectures together
+	err = ds.UpdateOSVersions(ctx)
+	require.NoError(t, err)
+
+	osVersions, err = ds.OSVersions(ctx, nil, nil, nil, nil)
+	require.NoError(t, err)
+	expected = []fleet.OSVersion{
+		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
+		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
+		{HostsCount: 4, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"}, // includes new arm64 host
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+	}
+	require.Equal(t, expected, osVersions.OSVersions)
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
@@ -4107,12 +4764,21 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, "", false)
 	require.NoError(t, err)
 	// Update host_munki_info.
-	err = ds.SetOrUpdateMunkiVersion(context.Background(), host.ID, "42")
+	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", []string{"a"}, []string{"b"})
 	require.NoError(t, err)
 	// Update device_auth_token.
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, "foo")
 	require.NoError(t, err)
-
+	// Update host_batteries
+	err = ds.ReplaceHostBatteries(context.Background(), host.ID, []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a"}})
+	require.NoError(t, err)
+	// Update host_operating_system
+	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
+	require.NoError(t, err)
+	// Insert a windows update for the host
+	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
+	_, err = ds.writer.Exec(stmt, host.ID, 1, 123)
+	require.NoError(t, err)
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -4131,4 +4797,277 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
 	}
+}
+
+func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
+	var idOne uint = 1
+	var idTwo uint = 2
+
+	cases := []struct {
+		currentTeamID *uint
+		newTeamID     *uint
+		out           bool
+	}{
+		{nil, nil, false},
+		{nil, &idOne, false},
+		{&idOne, nil, true},
+		{&idOne, &idOne, false},
+		{&idOne, &idTwo, true},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
+	}
+}
+
+func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hosts := make([]*fleet.Host, 10)
+	getPlatform := func(i int) string {
+		if i < 5 {
+			return "ubuntu"
+		}
+		return "centos"
+	}
+	for i := range hosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+			Platform:        getPlatform(i),
+			OSVersion:       fmt.Sprintf("20.4.%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	t.Run("no match", func(t *testing.T) {
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "sdfasw"}
+		none, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
+		require.NoError(t, err)
+		require.Len(t, none, 0)
+	})
+
+	t.Run("filtering by os version", func(t *testing.T) {
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "20.4.0"}
+		result, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		for _, id := range result {
+			r, err := ds.Host(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, r.Platform, "ubuntu")
+			require.Equal(t, r.OSVersion, "20.4.0")
+		}
+	})
+}
+
+func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		Platform:        "linux",
+		Hostname:        "host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, nil)
+	require.NoError(t, err)
+
+	bat1, err := ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, bat1, 0)
+
+	h1Bat := []*fleet.HostBattery{
+		{HostID: h1.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "b", CycleCount: 2, Health: "Check Battery"},
+	}
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h1Bat, bat1)
+
+	bat2, err := ds.ListHostBatteries(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Len(t, bat2, 0)
+
+	// update "a", remove "b", add "c"
+	h1Bat = []*fleet.HostBattery{
+		{HostID: h1.ID, SerialNumber: "a", CycleCount: 2, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "c", CycleCount: 3, Health: "Bad"},
+	}
+
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h1Bat, bat1)
+
+	// add "d" to h2
+	h2Bat := []*fleet.HostBattery{
+		{HostID: h2.ID, SerialNumber: "d", CycleCount: 1, Health: "Good"},
+	}
+
+	err = ds.ReplaceHostBatteries(ctx, h2.ID, h2Bat)
+	require.NoError(t, err)
+
+	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h2Bat, bat2)
+
+	// remove all from h1
+	h1Bat = []*fleet.HostBattery{}
+
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, bat1, 0)
+
+	// h2 unchanged
+	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h2Bat, bat2)
+}
+
+func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	config := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// responsive
+	_, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "1",
+		NodeKey:             "1",
+		Platform:            "linux",
+		Hostname:            "host1",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-1 * time.Hour),
+		LabelUpdatedAt:      time.Now(),
+		PolicyUpdatedAt:     time.Now(),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err := countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// not responsive
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		ID:                  2,
+		OsqueryHostID:       "2",
+		NodeKey:             "2",
+		Platform:            "linux",
+		Hostname:            "host2",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-3 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-3 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-3 * time.Hour),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 1, count) // count increased by 1
+
+	// responsive
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "3",
+		NodeKey:             "3",
+		Platform:            "linux",
+		Hostname:            "host3",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-49 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-48 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-48 * time.Hour),
+		SeenTime:            time.Now().Add(-48 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 1, count) // count unchanged
+
+	// not responsive
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "4",
+		NodeKey:             "4",
+		Platform:            "linux",
+		Hostname:            "host4",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-51 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-48 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-48 * time.Hour),
+		SeenTime:            time.Now().Add(-48 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count increased by 1
+
+	// was responsive but hasn't been seen in past 7 days so it is not counted
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "5",
+		NodeKey:             "5",
+		Platform:            "linux",
+		Hostname:            "host5",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-8 * 24 * time.Hour).Add(-1 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-8 * 24 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-8 * 24 * time.Hour),
+		SeenTime:            time.Now().Add(-8 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count unchanged
+
+	// distributed interval (1h1m) is greater than osquery detail interval (1h)
+	// so measurement period for non-responsiveness is 2h2m
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "6",
+		NodeKey:             "6",
+		Platform:            "linux",
+		Hostname:            "host6",
+		DistributedInterval: uint((1*time.Hour + 1*time.Minute).Seconds()),        // 1h1m
+		DetailUpdatedAt:     time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute), // 2h1m
+		LabelUpdatedAt:      time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute),
+		PolicyUpdatedAt:     time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count unchanged
 }

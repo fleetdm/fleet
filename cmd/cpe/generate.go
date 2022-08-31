@@ -2,18 +2,16 @@ package main
 
 import (
 	"compress/gzip"
-	"database/sql"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/vuln_centos"
 )
 
 func panicif(err error) {
@@ -23,23 +21,13 @@ func panicif(err error) {
 }
 
 func main() {
-	var (
-		runCentOS bool
-		verbose   bool
-	)
-	flag.BoolVar(&runCentOS, "centos", true, "Sets whether to run the CentOS sqlite generation")
+	var verbose bool
 	flag.BoolVar(&verbose, "verbose", false, "Sets verbose mode")
 	flag.Parse()
 
 	dbPath := cpe()
 
 	fmt.Printf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath))
-
-	// The CentOS repository data is added to the CPE database.
-	if runCentOS {
-		centos(dbPath, verbose)
-		fmt.Printf("Sqlite file %s size with CentOS data: %.2f MB\n", dbPath, getSizeMB(dbPath))
-	}
 
 	fmt.Println("Compressing DB...")
 	compressedPath, err := compress(dbPath)
@@ -77,11 +65,11 @@ func cpe() string {
 	panicif(err)
 
 	fmt.Println("Generating DB...")
-	dbPath := path.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
+	dbPath := filepath.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
 	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
 	panicif(err)
 
-	file, err := os.Create(path.Join(cwd, "etagenv"))
+	file, err := os.Create(filepath.Join(cwd, "etagenv"))
 	panicif(err)
 	file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
 	file.Close()
@@ -111,21 +99,6 @@ func compress(path string) (string, error) {
 		return "", err
 	}
 	return compressedPath, nil
-}
-
-func centos(dbPath string, verbose bool) {
-	fmt.Println("Starting CentOS sqlite generation...")
-
-	db, err := sql.Open("sqlite3", dbPath)
-	panicif(err)
-	defer db.Close()
-
-	pkgs, err := vuln_centos.ParseCentOSRepository(vuln_centos.WithVerbose(verbose))
-	panicif(err)
-
-	fmt.Printf("Storing CVE info for %d CentOS packages...\n", len(pkgs))
-	err = vuln_centos.GenCentOSSqlite(db, pkgs)
-	panicif(err)
 }
 
 func getSanitizedEtag(resp *http.Response) string {

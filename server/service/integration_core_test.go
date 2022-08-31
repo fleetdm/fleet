@@ -1,17 +1,18 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -56,7 +58,7 @@ func (s *integrationTestSuite) TearDownTest() {
 	}
 
 	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -94,8 +96,8 @@ func (s *integrationTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	// CalculateHostsPerSoftware performs a cleanup.
-	err = s.ds.CalculateHostsPerSoftware(ctx, time.Now())
+	// SyncHostsSoftware performs a cleanup.
+	err = s.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 }
 
@@ -111,7 +113,7 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	params := fleet.UserPayload{
 		Name:       ptr.String("user1"),
 		Email:      ptr.String("email@asd.com"),
-		Password:   ptr.String("pass"),
+		Password:   &test.GoodPassword,
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 
@@ -127,7 +129,7 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	params := fleet.UserPayload{
 		Name:     ptr.String("user1"),
 		Email:    ptr.String("email@asd.com"),
-		Password: ptr.String("pass"),
+		Password: ptr.String(test.GoodPassword),
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -140,7 +142,7 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	params := fleet.UserPayload{
 		Name:       ptr.String("user1"),
 		Email:      ptr.String("email@asd.com"),
-		Password:   ptr.String("pass"),
+		Password:   ptr.String(test.GoodPassword),
 		GlobalRole: ptr.String("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -162,7 +164,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	params := fleet.UserPayload{
 		Name:     ptr.String("user2"),
 		Email:    ptr.String("email2@asd.com"),
-		Password: ptr.String("pass"),
+		Password: ptr.String(test.GoodPassword),
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -291,7 +293,7 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
   host_expiry_settings:
     host_expiry_enabled: true
     host_expiry_window: 0
-  host_settings:
+  features:
     additional_queries:
       time: SELECT * FROM time
     enable_host_users: true
@@ -299,14 +301,14 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	s.applyConfig(spec)
 
 	spec = []byte(`
-  host_settings:
+  features:
     enable_host_users: true
     additional_queries: null
 `)
 	s.applyConfig(spec)
 
 	config := s.getConfig()
-	assert.Nil(t, config.HostSettings.AdditionalQueries)
+	assert.Nil(t, config.Features.AdditionalQueries)
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
@@ -319,6 +321,64 @@ func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	s.Run("has logging", func() {
 		require.NotNil(s.T(), config.Logging)
 	})
+}
+
+func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
+	t := s.T()
+
+	spec := []byte(`
+  host_settings:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+	s.applyConfig(spec)
+	config := s.getConfig()
+	require.NotNil(t, config.Features.AdditionalQueries)
+	require.True(t, config.Features.EnableHostUsers)
+	require.True(t, config.Features.EnableSoftwareInventory)
+
+	spec = []byte(`
+  host_settings:
+    additional_queries: null
+    enable_host_users: false
+    enable_software_inventory: false
+`)
+	s.applyConfig(spec)
+	config = s.getConfig()
+	require.Nil(t, config.Features.AdditionalQueries)
+	require.False(t, config.Features.EnableHostUsers)
+	require.False(t, config.Features.EnableSoftwareInventory)
+
+	// Test raw API interactions
+	appConfigSpec := map[string]map[string]bool{
+		"host_settings":   {"enable_software_inventory": true},
+		"server_settings": {"enable_analytics": false},
+	}
+	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.Features.EnableSoftwareInventory)
+
+	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, `
+    {
+      "host_settings": {
+        "enable_host_users": false,
+        "enable_software_inventory": true,
+        "additional_queries": { "foo": "bar" }
+      }
+    }`)
+		return err
+	})
+
+	var resp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	require.False(t, resp.Features.EnableHostUsers)
+	require.True(t, resp.Features.EnableSoftwareInventory)
+	require.NotNil(t, resp.Features.AdditionalQueries)
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -467,7 +527,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
@@ -475,8 +535,24 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
-	_, err = s.ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+
+	// Reload software so that 'GeneratedCPEID is set.
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
+	soft1 = host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	n, err := s.ds.InsertVulnerabilities(
+		context.Background(), []fleet.SoftwareVulnerability{
+			{
+				SoftwareID: soft1.ID,
+				CVE:        "cve-123-123-132",
+			},
+		}, fleet.NVDSource,
+	)
 	require.NoError(t, err)
+	require.Equal(t, 1, int(n))
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
@@ -502,11 +578,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 
-	countReq := countSoftwareRequest{}
-	countResp := countSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
-	assert.Equal(t, 3, countResp.Count)
-
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -518,14 +589,19 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 0)
 	assert.Nil(t, lsResp.CountsUpdatedAt)
 
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+
+	countReq := countSoftwareRequest{}
+	countResp := countSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
+	assert.Equal(t, 3, countResp.Count)
+
 	// the software/count endpoint is different, it doesn't care about hosts counts
 	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
-
-	// calculate hosts counts
-	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
@@ -686,11 +762,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
@@ -728,11 +804,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.Error(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
@@ -750,11 +826,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err := s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
@@ -831,6 +907,31 @@ func (s *integrationTestSuite) TestCountSoftware() {
 		"label_id", fmt.Sprint(label.ID),
 	)
 	assert.Equal(t, 1, resp.Count)
+
+	// filter by MDM criteria without any host having such information
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Equal(t, 0, resp.Count)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, true, "https://simplemdm.com", false))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
+	require.Equal(t, 1, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Equal(t, 1, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual", "mdm_id", fmt.Sprint(mdmID))
+	require.Equal(t, 1, resp.Count)
 }
 
 func (s *integrationTestSuite) TestPacks() {
@@ -914,10 +1015,14 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, len(hosts))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
@@ -926,8 +1031,9 @@ func (s *integrationTestSuite) TestListHosts() {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host.ID, resp.Hosts[0].ID)
@@ -943,15 +1049,153 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID), "disable_failing_policies", "true")
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
+
+	// filter by MDM criteria without any host having such information
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+	// and same by munki issue id
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
+	require.NotNil(t, resp.MDMSolution)
+	assert.Equal(t, mdmID, resp.MDMSolution.ID)
+	assert.Equal(t, 1, resp.MDMSolution.HostsCount)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, resp.MDMSolution.Name)
+	assert.Equal(t, "https://simplemdm.com", resp.MDMSolution.ServerURL)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID), "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.Equal(t, mdmID, resp.MDMSolution.ID)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+
+	// set munki information on a host
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
+	var errMunkiID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &errMunkiID,
+			`SELECT id FROM munki_issues WHERE name = 'err' AND issue_type = 'error'`)
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	require.NotNil(t, resp.MunkiIssue)
+	assert.Equal(t, fleet.AggregatedMunkiIssue{
+		ID:         errMunkiID,
+		Name:       "err",
+		IssueType:  "error",
+		HostsCount: 1,
+	}, *resp.MunkiIssue)
+
+	// filters can be combined, no problem
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID), "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.NotNil(t, resp.MunkiIssue)
+
+	// set operating system information on a host
+	testOS := fleet.OperatingSystem{Name: "fooOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "bar"}
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ?`, "fooOS", "4.2")
+	})
+	require.Greater(t, osID, uint(0))
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", "unknownOS", "os_version", "4.2")
+	require.Len(t, resp.Hosts, 0)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
+	require.Len(t, resp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -1096,7 +1340,7 @@ func (s *integrationTestSuite) TestInvites() {
 	var createFromInviteResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
-		Password:    ptr.String("pass1word!"),
+		Password:    ptr.String(test.GoodPassword),
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(validInviteToken),
 	}, http.StatusOK, &createFromInviteResp)
@@ -1121,7 +1365,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// create user from never used but deleted invite
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
-		Password:    ptr.String("pass1word!"),
+		Password:    ptr.String(test.GoodPassword),
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
@@ -1158,7 +1402,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 			"empty name",
 			fleet.UserPayload{
 				Name:        ptr.String(""),
-				Password:    ptr.String("pass1word!"),
+				Password:    &test.GoodPassword,
 				Email:       ptr.String("a@b.c"),
 				InviteToken: ptr.String(invite.Token),
 			},
@@ -1168,7 +1412,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 			"empty email",
 			fleet.UserPayload{
 				Name:        ptr.String("Name"),
-				Password:    ptr.String("pass1word!"),
+				Password:    &test.GoodPassword,
 				Email:       ptr.String(""),
 				InviteToken: ptr.String(invite.Token),
 			},
@@ -1188,7 +1432,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 			"empty token",
 			fleet.UserPayload{
 				Name:        ptr.String("Name"),
-				Password:    ptr.String("pass1word!"),
+				Password:    &test.GoodPassword,
 				Email:       ptr.String("a@b.c"),
 				InviteToken: ptr.String(""),
 			},
@@ -1198,7 +1442,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 			"invalid token",
 			fleet.UserPayload{
 				Name:        ptr.String("Name"),
-				Password:    ptr.String("pass1word!"),
+				Password:    &test.GoodPassword,
 				Email:       ptr.String("a@b.c"),
 				InviteToken: ptr.String("invalid"),
 			},
@@ -1250,11 +1494,27 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	}
 	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
+	require.Equal(t, uint(3), resp.AllLinuxCount)
+	assert.True(t, len(resp.BuiltinLabels) > 0)
+	for _, lbl := range resp.BuiltinLabels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+	builtinsCount := len(resp.BuiltinLabels)
+
+	// host summary builtin labels match list labels response
+	var listResp listLabelsResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+	assert.True(t, len(listResp.Labels) > 0)
+	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+	assert.Equal(t, len(listResp.Labels), builtinsCount)
 
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
+	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host
@@ -1263,18 +1523,22 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
+	require.Equal(t, uint(1), resp.AllLinuxCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
+	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
 	require.Equal(t, "rhel", resp.Platforms[0].Platform)
+	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(3))
+	require.Equal(t, uint(3), resp.AllLinuxCount)
 	require.Len(t, resp.Platforms, 3)
 	for i, p := range resp.Platforms {
 		gotPlatforms[i] = p.Platform
@@ -1285,6 +1549,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
+	require.Equal(t, resp.AllLinuxCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
 }
 
@@ -1704,12 +1969,13 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NoError(t, err)
 	require.Nil(t, r.Err)
 	hd := r.Host.HostDetail
-	require.Len(t, hd.Policies, 2)
-	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, hd.Policies[0].PolicyData))
-	require.Equal(t, hd.Policies[0].Response, "pass")
+	policies := *hd.Policies
+	require.Len(t, policies, 2)
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[0].PolicyData))
+	require.Equal(t, policies[0].Response, "pass")
 
-	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, hd.Policies[1].PolicyData))
-	require.Equal(t, hd.Policies[1].Response, "") // policy didn't "run"
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[1].PolicyData))
+	require.Equal(t, policies[1].Response, "") // policy didn't "run"
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)
@@ -2168,6 +2434,48 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	require.Len(t, listHosts.Hosts, 0)
 }
 
+func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
+	t := s.T()
+	ctx := context.Background()
+	hosts := s.createHosts(t)
+
+	testSize := 50
+	var mappings []*fleet.HostDeviceMapping
+	for i := 0; i < testSize; i++ {
+		testEmail, _ := server.GenerateRandomText(14)
+		mappings = append(mappings, &fleet.HostDeviceMapping{HostID: hosts[0].ID, Email: testEmail, Source: "google_chrome_profiles"})
+	}
+
+	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings)
+
+	var listHosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
+
+	hostsByID := make(map[uint]HostResponse)
+	for _, h := range listHosts.Hosts {
+		hostsByID[h.ID] = h
+	}
+	require.NotNil(t, *hostsByID[hosts[0].ID].DeviceMapping)
+
+	var dm []*fleet.HostDeviceMapping
+	err := json.Unmarshal(*hostsByID[hosts[0].ID].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, testSize)
+}
+
+type macadminsDataResponse struct {
+	Macadmins *struct {
+		Munki       *fleet.HostMunkiInfo    `json:"munki"`
+		MunkiIssues []*fleet.HostMunkiIssue `json:"munki_issues"`
+		MDM         *struct {
+			EnrollmentStatus string  `json:"enrollment_status"`
+			ServerURL        string  `json:"server_url"`
+			Name             *string `json:"name"`
+			ID               *uint   `json:"id"`
+		} `json:"mobile_device_management"`
+	} `json:"macadmins"`
+}
+
 func (s *integrationTestSuite) TestGetMacadminsData() {
 	t := s.T()
 
@@ -2233,52 +2541,122 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, err)
 	require.NotNil(t, hostOnlyMDM)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.3.0"))
+	hostMDMNoID, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "5",
+		UUID:            t.Name() + "5",
+		Hostname:        t.Name() + "foo.local5",
+		PrimaryIP:       "192.168.1.5",
+		PrimaryMac:      "30-65-EC-6F-D5-5A",
+		OsqueryHostID:   "5",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostMDMNoID)
 
-	macadminsData := getMacadminsDataResponse{}
+	// insert a host_mdm row for hostMDMNoID without any mdm_id
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep) VALUES (?, ?, ?, ?)`,
+			hostMDMNoID.ID, true, "https://simplemdm.com", true)
+		return err
+	})
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
+
+	macadminsData := macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url2", true))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.5.0"))
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+	sort.Slice(macadminsData.Macadmins.MunkiIssues, func(i, j int) bool {
+		l, r := macadminsData.Macadmins.MunkiIssues[i], macadminsData.Macadmins.MunkiIssues[j]
+		return l.Name < r.Name
+	})
+	assert.NotZero(t, macadminsData.Macadmins.MunkiIssues[0].MunkiIssueID)
+	assert.False(t, macadminsData.Macadmins.MunkiIssues[0].HostIssueCreatedAt.IsZero())
+	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
+	assert.Equal(t, "error", macadminsData.Macadmins.MunkiIssues[0].IssueType)
+	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[1].Name)
+	assert.NotZero(t, macadminsData.Macadmins.MunkiIssues[1].MunkiIssueID)
+	assert.False(t, macadminsData.Macadmins.MunkiIssues[1].HostIssueCreatedAt.IsZero())
+	assert.Equal(t, "warning", macadminsData.Macadmins.MunkiIssues[1].IssueType)
 
-	macadminsData = getMacadminsDataResponse{}
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, nil))
+
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
-	assert.Equal(t, "url2", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "https://simplemdm.com", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, *macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	assert.Equal(t, "1.5.0", macadminsData.Macadmins.Munki.Version)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
+	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false))
 
-	macadminsData = getMacadminsDataResponse{}
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	assert.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
 
 	// nothing returns null
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostNothing.ID), nil, http.StatusOK, &macadminsData)
 	require.Nil(t, macadminsData.Macadmins)
 
 	// only munki info returns null on mdm
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostOnlyMunki.ID, "3.2.0"))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "3.2.0", nil, []string{"warning1"}))
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.Nil(t, macadminsData.Macadmins.MDM)
 	require.NotNil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "3.2.0", macadminsData.Macadmins.Munki.Version)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
+	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "AAA", true))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "https://kandji.io", true))
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.NotNil(t, macadminsData.Macadmins.MDM)
+	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMKandji, *macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
-	assert.Equal(t, "AAA", macadminsData.Macadmins.MDM.ServerURL)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 0)
+	assert.Equal(t, "https://kandji.io", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// host without mdm_id still works, returns nil id and unknown name
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostMDMNoID.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	require.NotNil(t, macadminsData.Macadmins.MDM)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	assert.Nil(t, macadminsData.Macadmins.MDM.ID)
+	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
 	// generate aggregated data
@@ -2299,10 +2677,39 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			HostsCount:    1,
 		},
 	})
+	require.Len(t, agg.Macadmins.MunkiIssues, 2)
+	// ignore ids
+	agg.Macadmins.MunkiIssues[0].ID = 0
+	agg.Macadmins.MunkiIssues[1].ID = 0
+	assert.ElementsMatch(t, agg.Macadmins.MunkiIssues, []fleet.AggregatedMunkiIssue{
+		{
+			Name:       "error1",
+			IssueType:  "error",
+			HostsCount: 1,
+		},
+		{
+			Name:       "warning1",
+			IssueType:  "warning",
+			HostsCount: 1,
+		},
+	})
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
-	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
-	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
+	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 3)
+	require.Len(t, agg.Macadmins.MDMSolutions, 2)
+	for _, sol := range agg.Macadmins.MDMSolutions {
+		switch sol.ServerURL {
+		case "url2":
+			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+		case "https://kandji.io":
+			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+		default:
+			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
+		}
+	}
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
@@ -2314,7 +2721,9 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MunkiIssues)
 	require.Empty(t, agg.Macadmins.MDMStatus)
+	require.Empty(t, agg.Macadmins.MDMSolutions)
 
 	agg = getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
@@ -2331,6 +2740,14 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 	builtInsCount := len(listResp.Labels)
+
+	// labels summary has the built-in ones
+	var summaryResp getLabelsSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount)
+	for _, lbl := range summaryResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
 
 	// create a label without name, an error
 	var createResp createLabelResponse
@@ -2362,6 +2779,10 @@ func (s *integrationTestSuite) TestLabels() {
 	// list labels
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount+1)
+
+	// labels summary
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
 	// next page is empty
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
@@ -2410,6 +2831,21 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount)
 	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
+	// labels summary, only the built-ins remains
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount)
+	for _, lbl := range summaryResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
+	// host summary matches built-ins count
+	var hostSummaryResp getHostSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &hostSummaryResp)
+	assert.Len(t, hostSummaryResp.BuiltinLabels, builtInsCount)
+	for _, lbl := range hostSummaryResp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 }
@@ -2504,7 +2940,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// create a new user
 	var createResp createUserResponse
-	userRawPwd := "pass"
+	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
 		Name:       ptr.String("extra"),
 		Email:      ptr.String("extra@asd.com"),
@@ -2577,7 +3013,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user - email change, password ok
 	params = fleet.UserPayload{
 		Email:    ptr.String("extra2@asd.com"),
-		Password: ptr.String("pass"),
+		Password: ptr.String(test.GoodPassword),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 	assert.Equal(t, u.ID, modResp.User.ID)
@@ -2592,7 +3028,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// perform a required password change as the user themselves
 	s.token = s.getTestToken(u.Email, userRawPwd)
 	var perfPwdResetResp performRequiredPasswordResetResponse
-	newRawPwd := "new_password!"
+	newRawPwd := test.GoodPassword2
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       u.ID,
@@ -2710,54 +3146,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	t := s.T()
 
 	// create a test http server to act as the Jira and Zendesk server
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			w.WriteHeader(501)
-			return
-		}
-
-		switch r.URL.Path {
-		case "/rest/api/2/project/qux":
-			switch usr, _, _ := r.BasicAuth(); usr {
-			case "ok":
-				w.Write([]byte(jiraProjectResponsePayload))
-			case "fail":
-				w.WriteHeader(http.StatusUnauthorized)
-			default:
-				w.WriteHeader(502)
-			}
-		case "/rest/api/2/project/qux2":
-			switch usr, _, _ := r.BasicAuth(); usr {
-			case "ok":
-				w.Write([]byte(jiraProjectResponsePayload))
-			case "fail":
-				w.WriteHeader(http.StatusUnauthorized)
-			default:
-				w.WriteHeader(502)
-			}
-		case "/api/v2/groups/122.json":
-			switch _, t, _ := r.BasicAuth(); t {
-			case "ok":
-				w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
-			case "fail":
-				w.WriteHeader(http.StatusUnauthorized)
-			default:
-				w.WriteHeader(502)
-			}
-		case "/api/v2/groups/123.json":
-			switch _, t, _ := r.BasicAuth(); t {
-			case "ok":
-				w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
-			case "fail":
-				w.WriteHeader(http.StatusUnauthorized)
-			default:
-				w.WriteHeader(502)
-			}
-		default:
-			w.WriteHeader(502)
-		}
-	}))
-	defer srv.Close()
+	srvURL := startExternalServiceWebServer(t)
 
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
@@ -2769,13 +3158,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config := s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
-	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
+	require.Equal(t, srvURL, config.Integrations.Jira[0].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
-	require.Equal(t, "********", config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Jira[0].APIToken)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
@@ -2799,22 +3188,22 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 2)
 
 	// first integration
-	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
+	require.Equal(t, srvURL, config.Integrations.Jira[0].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
-	require.Equal(t, "********", config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Jira[0].APIToken)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
 	// second integration
-	require.Equal(t, srv.URL, config.Integrations.Jira[1].URL)
+	require.Equal(t, srvURL, config.Integrations.Jira[1].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[1].Username)
-	require.Equal(t, "********", config.Integrations.Jira[1].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Jira[1].APIToken)
 	require.Equal(t, "qux2", config.Integrations.Jira[1].ProjectKey)
 	require.False(t, config.Integrations.Jira[1].EnableSoftwareVulnerabilities)
 
@@ -2830,7 +3219,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -2849,7 +3238,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -2875,7 +3264,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// try adding Jira integration with masked API token
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -2891,13 +3280,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %[1]q,
 					"username": "ok",
-					"api_token": "********",
+					"api_token": %q,
 					"project_key": "qux2",
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL, fleet.MaskedPassword)), http.StatusBadRequest)
 
 	// edit Jira integration without sending API token
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -2911,7 +3300,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -2925,13 +3314,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %q,
 					"username": "ok",
-					"api_token": "********",
+					"api_token": %q,
 					"project_key": "qux",
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL, fleet.MaskedPassword)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -2951,7 +3340,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -2966,7 +3355,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"UNKNOWN_FIELD": "foo"
 			}]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// unknown project key fails as bad request
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -2975,13 +3364,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %q,
 					"username": "ok",
-					"api_token": "********",
+					"api_token": %q,
 					"project_key": "qux3",
 					"enable_software_vulnerabilities": true
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL, fleet.MaskedPassword)), http.StatusBadRequest)
 
 	// cannot have two integrations enabled at the same time
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3003,7 +3392,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusUnprocessableEntity)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// cannot have two jira integrations with the same project key
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3025,7 +3414,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// even disabled integrations are tested for Jira connection and credentials,
 	// so this fails because the 2nd one uses the "fail" username.
@@ -3043,12 +3432,12 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 					"url": %[1]q,
 					"username": "fail",
 					"api_token": "bar2",
-					"project_key": "qux",
+					"project_key": "qux2",
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// cannot enable webhook with a jira integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -3081,7 +3470,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			},
 			"interval": "1h"
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	// cannot enable jira with webhook already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3094,7 +3483,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusUnprocessableEntity)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// disable webhook, enable jira with wrong credentials
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3115,7 +3504,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			},
 			"interval": "1h"
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// update jira config to correct credentials (need to disable webhook too as
 	// last request failed)
@@ -3137,7 +3526,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			},
 			"interval": "1h"
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	// remove all integrations
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -3148,7 +3537,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`), http.StatusOK)
 
 	// set environmental varible to use Zendesk test client
-	os.Setenv("TEST_ZENDESK_CLIENT", "true")
+	t.Setenv("TEST_ZENDESK_CLIENT", "true")
 	// create zendesk integration
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
@@ -3160,14 +3549,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
 	require.Len(t, config.Integrations.Zendesk, 1)
-	require.Equal(t, srv.URL, config.Integrations.Zendesk[0].URL)
+	require.Equal(t, srvURL, config.Integrations.Zendesk[0].URL)
 	require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
-	require.Equal(t, "********", config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[0].APIToken)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
 
@@ -3191,23 +3580,23 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
 	require.Len(t, config.Integrations.Zendesk, 2)
 
 	// first integration
-	require.Equal(t, srv.URL, config.Integrations.Zendesk[0].URL)
+	require.Equal(t, srvURL, config.Integrations.Zendesk[0].URL)
 	require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
-	require.Equal(t, "********", config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[0].APIToken)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
 
 	// second integration
-	require.Equal(t, srv.URL, config.Integrations.Zendesk[1].URL)
+	require.Equal(t, srvURL, config.Integrations.Zendesk[1].URL)
 	require.Equal(t, "test123@example.com", config.Integrations.Zendesk[1].Email)
-	require.Equal(t, "********", config.Integrations.Zendesk[1].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[1].APIToken)
 	require.Equal(t, int64(123), config.Integrations.Zendesk[1].GroupID)
 	require.False(t, config.Integrations.Zendesk[1].EnableSoftwareVulnerabilities)
 
@@ -3223,7 +3612,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
@@ -3243,7 +3632,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
@@ -3270,7 +3659,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// try adding Zendesk integration with masked API token
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3286,13 +3675,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %[1]q,
 					"email": "test123@example.com",
-					"api_token": "********",
+					"api_token": %q,
 					"group_id": 123,
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL, fleet.MaskedPassword)), http.StatusBadRequest)
 
 	// edit Zendesk integration without sending API token
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3306,7 +3695,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
@@ -3321,13 +3710,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %q,
 					"email": "ok@example.com",
-					"api_token": "********",
+					"api_token": %q,
 					"group_id": 122,
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL, fleet.MaskedPassword)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
@@ -3348,7 +3737,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
@@ -3364,7 +3753,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"UNKNOWN_FIELD": "foo"
 			}]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// unknown group id fails as bad request
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3377,7 +3766,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// cannot have two zendesk integrations enabled at the same time
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3399,7 +3788,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusUnprocessableEntity)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// cannot have two zendesk integrations with the same group id
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3421,7 +3810,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// even disabled integrations are tested for Zendesk connection and credentials,
 	// so this fails because the 2nd one uses the "fail" token.
@@ -3444,7 +3833,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// cannot enable webhook with a zendesk integration already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -3477,7 +3866,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			},
 			"interval": "1h"
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	// cannot enable zendesk with webhook already enabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3490,7 +3879,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusUnprocessableEntity)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// disable webhook, enable zendesk with wrong credentials
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3511,7 +3900,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			},
 			"interval": "1h"
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srvURL)), http.StatusBadRequest)
 
 	// update zendesk config to correct credentials (need to disable webhook too as
 	// last request failed)
@@ -3533,7 +3922,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			},
 			"interval": "1h"
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 
 	// can have jira enabled and zendesk disabled
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3553,7 +3942,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": false
 			}]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
@@ -3578,7 +3967,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srvURL)), http.StatusOK)
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
 	require.False(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
@@ -3603,7 +3992,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"enable_software_vulnerabilities": true
 			}]
 		}
-	}`, srv.URL)), http.StatusUnprocessableEntity)
+	}`, srvURL)), http.StatusUnprocessableEntity)
 
 	// remove all integrations on exit, so that other tests can enable the
 	// webhook as needed
@@ -3796,7 +4185,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 			},
 		},
 	}
-	password := "p4ssw0rd."
+	password := test.GoodPassword
 	require.NoError(t, teamObserver.SetPassword(password, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), teamObserver)
 	require.NoError(t, err)
@@ -3871,6 +4260,25 @@ func (s *integrationTestSuite) TestAppConfig() {
     }
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
+
+	// the global agent options were not modified by the last call, so the
+	// corresponding activity should not have been created.
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	if !assert.Len(t, listActivities.Activities, 0) {
+		// if there is an activity, make sure it is not edited_agent_options
+		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	}
+
+	// test a change that does modify the agent options.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "agent_options": { "foo": 1 }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
 
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
@@ -4010,7 +4418,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
 	for i, h := range hosts {
 		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
-		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h))
+		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h, false))
 
 		if i == 0 {
 			// this host has all software, refresh the list so we have the software.ID filled
@@ -4021,13 +4429,22 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	for i, sw := range sws {
 		cpe := "somecpe" + strconv.Itoa(i)
 		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
-
-		if i < 10 {
-			// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-			_, err := s.ds.InsertCVEForCPE(context.Background(), fmt.Sprintf("cve-123-123-%03d", i), []string{cpe})
-			require.NoError(t, err)
-		}
 	}
+
+	// Reload software to load GeneratedCPEID
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
+	var vulns []fleet.SoftwareVulnerability
+	for i, sw := range hosts[0].Software[:10] {
+		vulns = append(vulns, fleet.SoftwareVulnerability{
+			SoftwareID: sw.ID,
+			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+		})
+	}
+
+	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
+	require.NoError(t, err)
+	require.Equal(t, 10, int(n))
 
 	// create a team and make the last 3 hosts part of it (meaning 3 that use
 	// sws[19], 2 for sws[18], and 1 for sws[17])
@@ -4065,7 +4482,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
@@ -4206,6 +4623,88 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, searchResp.Targets.Labels, 1)
 	require.Len(t, searchResp.Targets.Teams, 0)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestSearchHosts() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// no search criteria
+	var searchResp searchHostsResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)) // no request params
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)) // no omitted host id
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)-1) // one omitted host id
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+	require.Contains(t, searchResp.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestCountTargets() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+	require.Equal(t, "TestTeam", team.Name)
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	for i := range hosts {
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblIDs[0]: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	var hostIDs []uint
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	err = s.ds.AddHostsToTeam(context.Background(), ptr.Uint(team.ID), []uint{hostIDs[0]})
+	require.NoError(t, err)
+
+	var countResp countTargetsResponse
+	// sleep to reduce flake in last seen time so that online/offline counts can be tested
+	time.Sleep(1 * time.Second)
+
+	// none selected
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{}, http.StatusOK, &countResp)
+	require.Equal(t, uint(0), countResp.TargetsCount)
+	require.Equal(t, uint(0), countResp.TargetsOnline)
+	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// all hosts label selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(3), countResp.TargetsCount)
+	require.Equal(t, uint(1), countResp.TargetsOnline)
+	require.Equal(t, uint(2), countResp.TargetsOffline)
+
+	// team selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(1), countResp.TargetsCount)
+	require.Equal(t, uint(1), countResp.TargetsOnline)
+	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// host id selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(1), countResp.TargetsCount)
+	require.Equal(t, uint(0), countResp.TargetsOnline)
+	require.Equal(t, uint(1), countResp.TargetsOffline)
 }
 
 func (s *integrationTestSuite) TestStatus() {
@@ -4417,7 +4916,7 @@ func (s *integrationTestSuite) TestPasswordReset() {
 
 	// create a new user
 	var createResp createUserResponse
-	userRawPwd := "passw0rd!"
+	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
 		Name:       ptr.String("forgotpwd"),
 		Email:      ptr.String("forgotpwd@example.com"),
@@ -4449,7 +4948,7 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	})
 
 	// proceed with reset password
-	userNewPwd := "newpassw0rd!"
+	userNewPwd := test.GoodPassword2
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userNewPwd}), http.StatusOK)
 	res.Body.Close()
 
@@ -4467,112 +4966,12 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 }
 
-func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
-	t := s.T()
-
-	hosts := s.createHosts(t)
-	ac, err := s.ds.AppConfig(context.Background())
-	require.NoError(t, err)
-	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
-	err = s.ds.SaveAppConfig(context.Background(), ac)
-	require.NoError(t, err)
-
-	// create some mappings and MDM/Munki data
-	s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
-		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
-		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	})
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(context.Background(), hosts[0].ID, "1.3.0"))
-
-	// create an auth token for hosts[0]
-	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
-		return err
-	})
-
-	// get host without token
-	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/", nil, http.StatusNotFound)
-	res.Body.Close()
-
-	// get host with invalid token
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token", nil, http.StatusUnauthorized)
-	res.Body.Close()
-
-	// get host with valid token
-	var getHostResp getDeviceHostResponse
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getHostResp)
-	res.Body.Close()
-	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
-	require.False(t, getHostResp.Host.RefetchRequested)
-	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
-	hostDevResp := getHostResp.Host
-
-	// make request for same host on the host details API endpoint, responses should match
-	getHostResp = getDeviceHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
-	require.Equal(t, hostDevResp, getHostResp.Host)
-
-	// request a refetch for that valid host
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/refetch", nil, http.StatusOK)
-	res.Body.Close()
-
-	// host should have that flag turned to true
-	getHostResp = getDeviceHostResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getHostResp)
-	res.Body.Close()
-	require.True(t, getHostResp.Host.RefetchRequested)
-
-	// request a refetch for an invalid token
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/no_such_token/refetch", nil, http.StatusUnauthorized)
-	res.Body.Close()
-
-	// list device mappings for valid token
-	var listDMResp listHostDeviceMappingResponse
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/device_mapping", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&listDMResp)
-	res.Body.Close()
-	require.Equal(t, hosts[0].ID, listDMResp.HostID)
-	require.Len(t, listDMResp.DeviceMapping, 2)
-	devDMs := listDMResp.DeviceMapping
-
-	// compare response with standard list device mapping API for that same host
-	listDMResp = listHostDeviceMappingResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listDMResp)
-	require.Equal(t, hosts[0].ID, listDMResp.HostID)
-	require.Equal(t, devDMs, listDMResp.DeviceMapping)
-
-	// list device mappings for invalid token
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/device_mapping", nil, http.StatusUnauthorized)
-	res.Body.Close()
-
-	// get macadmins for valid token
-	var getMacadm getMacadminsDataResponse
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/macadmins", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getMacadm)
-	res.Body.Close()
-	require.Equal(t, "1.3.0", getMacadm.Macadmins.Munki.Version)
-	devMacadm := getMacadm.Macadmins
-
-	// compare response with standard macadmins API for that same host
-	getMacadm = getMacadminsDataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hosts[0].ID), nil, http.StatusOK, &getMacadm)
-	require.Equal(t, devMacadm, getMacadm.Macadmins)
-
-	// get macadmins for invalid token
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
-	res.Body.Close()
-}
-
 func (s *integrationTestSuite) TestModifyUser() {
 	t := s.T()
 
 	// create a new user
 	var createResp createUserResponse
-	userRawPwd := "passw0rd!"
+	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
 		Name:                     ptr.String("moduser"),
 		Email:                    ptr.String("moduser@example.com"),
@@ -4610,7 +5009,7 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.Equal(t, u.Email, modResp.User.Email) // new email is pending confirmation, not changed immediately
 
 	// as the user: set new password without providing current one
-	newRawPwd := userRawPwd + "2"
+	newRawPwd := test.GoodPassword2
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
 		NewPassword: ptr.String(newRawPwd),
 	}, http.StatusUnprocessableEntity, &modResp)
@@ -4735,6 +5134,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 
 func (s *integrationTestSuite) TestHostsReportDownload() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
 	err := s.ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -4745,6 +5145,19 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
 	customLabelID := lids[0]
+
+	// create a policy and make host[1] fail that policy
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// create some device mappings for host[2]
+	err = s.ds.ReplaceHostDeviceMapping(ctx, hosts[2].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[2].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[2].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+	require.NoError(t, err)
 
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
@@ -4759,8 +5172,32 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, errs.Errors, 1)
 	assert.Equal(t, "format", errs.Errors[0].Name)
 
+	// valid format, no column specified so all columns returned
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
 	rows, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1) // all hosts + header row
+	require.Len(t, rows[0], 44)        // total number of cols
+	t.Log(rows[0])
+
+	const (
+		idCol     = 2
+		issuesCol = 40
+	)
+
+	// find the row for hosts[1], it should have issues=1 (1 failing policy)
+	for _, row := range rows[1:] {
+		if row[idCol] == fmt.Sprint(hosts[1].ID) {
+			require.Equal(t, "1", row[issuesCol], row)
+		} else {
+			require.Equal(t, "0", row[issuesCol], row)
+		}
+	}
+
+	// valid format, some columns
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")
+	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
@@ -4771,27 +5208,185 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
 
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2")
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 
 	// search criteria are applied
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "query", "local0")
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "query", "local0", "columns", "hostname")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, 2) // headers + matching host
 	require.Contains(t, rows[1], hosts[0].Hostname)
 
+	// with device mapping results
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "id,hostname,device_mapping")
+	rawCSV, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(rawCSV), `"a@b.c,b@b.c"`) // inside quotes because it contains a comma
+	rows, err = csv.NewReader(bytes.NewReader(rawCSV)).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	for _, row := range rows[1:] {
+		if row[0] == fmt.Sprint(hosts[2].ID) {
+			require.Equal(t, "a@b.c,b@b.c", row[2], row)
+		} else {
+			require.Equal(t, "", row[2], row)
+		}
+	}
+
 	// with a label id
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "label_id", fmt.Sprintf("%d", customLabelID))
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, 2) // headers + member host
 	require.Contains(t, rows[1], hosts[2].Hostname)
+
+	// valid format but an invalid column is provided
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "format", "csv", "columns", "memory,hostname,status,nosuchcolumn")
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
+	res.Body.Close()
+	require.Len(t, errs.Errors, 1)
+	require.Contains(t, errs.Errors[0].Reason, "nosuchcolumn")
+
+	// valid format, valid columns, order is respected, sorted
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "order_key", "hostname", "order_direction", "desc", "columns", "memory,hostname,status")
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	require.Equal(t, []string{"memory", "hostname", "status"}, rows[0]) // first row contains headers
+	require.Len(t, rows[1], 3)
+	// status is timing-dependent, ignore in the assertion
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local2"}, rows[1][:2])
+	require.Len(t, rows[2], 3)
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
+	require.Len(t, rows[3], 3)
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
+	t.Log(rows)
+}
+
+func (s *integrationTestSuite) TestSSODisabled() {
+	t := s.T()
+
+	var initiateResp initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+
+	var callbackResp callbackSSOResponse
+	// callback without SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	// callback with invalid SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
+	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
+}
+
+func (s *integrationTestSuite) TestSandboxEndpoints() {
+	t := s.T()
+	validEmail := testUsers["user1"].Email
+	validPwd := testUsers["user1"].PlaintextPassword
+	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
+
+	// demo login endpoint always fails
+	formBody := make(url.Values)
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	require.NotEqual(t, http.StatusOK, res.StatusCode)
+
+	// installers endpoint is not enabled
+	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
+	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
+}
+
+func (s *integrationTestSuite) TestGetHostBatteries() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	bats := []*fleet.HostBattery{
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 1002, Health: "Poor"},
+	}
+	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// only cycle count and health are returned
+	require.ElementsMatch(t, []*fleet.HostBattery{
+		{CycleCount: 1, Health: "Normal"},
+		{CycleCount: 1002, Health: "Replacement recommended"},
+	}, *getHostResp.Host.Batteries)
+
+	// same for get host by identifier
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", host.NodeKey), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// only cycle count and health are returned
+	require.ElementsMatch(t, []*fleet.HostBattery{
+		{CycleCount: 1, Health: "Normal"},
+		{CycleCount: 1002, Health: "Replacement recommended"},
+	}, *getHostResp.Host.Batteries)
+}
+
+func (s *integrationTestSuite) TestOSVersions() {
+	t := s.T()
+
+	testOS := fleet.OperatingSystem{Name: "barOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "foo"}
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	// set operating system information on a host
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
+	})
+	require.Greater(t, osID, uint(0))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	var osVersionsResp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
 }
 
 // this test can be deleted once the "v1" version is removed.
@@ -4854,6 +5449,70 @@ func jsonMustMarshal(t testing.TB, v interface{}) []byte {
 	b, err := json.Marshal(v)
 	require.NoError(t, err)
 	return b
+}
+
+// starts a test web server that mocks responses to requests to external
+// services with a valid payload (if the request is valid) or a status code
+// error. It returns the URL to use to make requests to that server.
+//
+// For Jira, the project keys "qux" and "qux2" are supported.
+// For Zendesk, the group IDs "122" and "123" are supported.
+//
+// The basic auth's user (or password for Zendesk) "ok" means that auth is
+// allowed, while "fail" means unauthorized and anything else results in status
+// 502.
+func startExternalServiceWebServer(t *testing.T) string {
+	// create a test http server to act as the Jira and Zendesk server
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.WriteHeader(501)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/rest/api/2/project/qux":
+			switch usr, _, _ := r.BasicAuth(); usr {
+			case "ok":
+				w.Write([]byte(jiraProjectResponsePayload))
+			case "fail":
+				w.WriteHeader(http.StatusUnauthorized)
+			default:
+				w.WriteHeader(502)
+			}
+		case "/rest/api/2/project/qux2":
+			switch usr, _, _ := r.BasicAuth(); usr {
+			case "ok":
+				w.Write([]byte(jiraProjectResponsePayload))
+			case "fail":
+				w.WriteHeader(http.StatusUnauthorized)
+			default:
+				w.WriteHeader(502)
+			}
+		case "/api/v2/groups/122.json":
+			switch _, pwd, _ := r.BasicAuth(); pwd {
+			case "ok":
+				w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
+			case "fail":
+				w.WriteHeader(http.StatusUnauthorized)
+			default:
+				w.WriteHeader(502)
+			}
+		case "/api/v2/groups/123.json":
+			switch _, pwd, _ := r.BasicAuth(); pwd {
+			case "ok":
+				w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
+			case "fail":
+				w.WriteHeader(http.StatusUnauthorized)
+			default:
+				w.WriteHeader(502)
+			}
+		default:
+			w.WriteHeader(502)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	return srv.URL
 }
 
 const (

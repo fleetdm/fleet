@@ -1,6 +1,5 @@
 import React from "react";
 
-import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 import DifferentialIcon from "../../../../assets/images/icon-plus-minus-black-16x16@2x.png";
 import SnapshotIcon from "../../../../assets/images/icon-snapshot-black-16x14@2x.png";
 
@@ -8,7 +7,7 @@ const baseClass = "pack-info-side-panel";
 
 const PackInfoSidePanel = () => {
   return (
-    <SecondarySidePanelContainer className={baseClass}>
+    <div className={baseClass}>
       <h3 className={`${baseClass}__title`}>What&apos;s a query pack?</h3>
       <p>
         Osquery supports grouping of queries (called query packs) which run on a
@@ -64,7 +63,7 @@ const PackInfoSidePanel = () => {
         </a>
         .
       </p>
-    </SecondarySidePanelContainer>
+    </div>
   );
 };
 

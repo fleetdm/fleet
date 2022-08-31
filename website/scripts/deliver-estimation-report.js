@@ -40,7 +40,7 @@ module.exports = {
 
 
     // Fetch projects
-    let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders);// let projects = [];// « hack if you get rate limited and want to test beta projets
+    let projects = await sails.helpers.http.get(`https://api.github.com/orgs/fleetdm/projects`, {}, baseHeaders).retry();// let projects = [];// « hack if you get rate limited and want to test beta projets
 
     // This nasty little hack mixes in new "beta" projects that are part of Github Projects 2.0 (beta)
     // but makes them look like normal projects from the actually-documented GitHub REST API.
@@ -65,7 +65,7 @@ module.exports = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     let graphqlHairball = await sails.helpers.http.post(`https://api.github.com/graphql`,{
       query:'{organization(login: "fleetdm") {projectsNext(first: 20) {nodes {id databaseId title fields(first: 20) {nodes {id name settings}} items(first: 20) {nodes{title id fieldValues(first: 8) {nodes{value projectField{name}}} content{...on Issue {repository{name} labels(first:20) {nodes{name}} assignees(first: 10) {nodes{login}}}}}} }}}}'
-    }, baseHeaders);
+    }, baseHeaders).retry();
     projects = projects.concat(
       graphqlHairball.data.organization.projectsNext.nodes.map((betaProject) => ({
         _isBetaProject: true,// « we need this because some APIs only work for one kind of project or the other
@@ -96,7 +96,7 @@ module.exports = {
 
       let columns;
       if (!project._isBetaProject) {
-        columns = await sails.helpers.http.get(`https://api.github.com/projects/${project.id}/columns`, {}, baseHeaders);
+        columns = await sails.helpers.http.get(`https://api.github.com/projects/${project.id}/columns`, {}, baseHeaders).retry();
       } else {
         columns = project._betaProjectColumns;// [?] https://docs.github.com/en/enterprise-cloud@latest/graphql/reference/objects#projectnextitem
       }
@@ -107,7 +107,7 @@ module.exports = {
 
         let cards;
         if (!project._isBetaProject) {
-          cards = await sails.helpers.http.get(`https://api.github.com/projects/columns/${column.id}/cards`, {}, baseHeaders);
+          cards = await sails.helpers.http.get(`https://api.github.com/projects/columns/${column.id}/cards`, {}, baseHeaders).retry();
         } else {
           cards = project._betaProjectCards.filter((betaCard) => betaCard._betaStatusId === column._betaStatusId);
         }
@@ -123,7 +123,7 @@ module.exports = {
               // ignore "notes" (FUTURE: Maybe add some kind of sniffing for a prefix like "[5]")
               labels = [];
             } else {
-              let issue = await sails.helpers.http.get(card.content_url, {}, baseHeaders);
+              let issue = await sails.helpers.http.get(card.content_url, {}, baseHeaders).retry();
               labels = issue.labels;
             }
           } else {
@@ -166,7 +166,7 @@ module.exports = {
     } else {
       await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForGithubEstimates, {
         text: `New estimation report:\n${require('util').inspect(estimationReport, {depth:null})}`
-      });
+      }).retry();
     }
 
   }

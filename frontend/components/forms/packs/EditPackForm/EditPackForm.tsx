@@ -10,7 +10,7 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
-import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
+import PackQueriesTable from "components/queries/PackQueriesTable";
 
 const baseClass = "edit-pack-form";
 
@@ -30,6 +30,7 @@ interface IEditPackForm {
   formData: IEditPackFormData;
   scheduledQueries: IScheduledQuery[];
   isLoadingPackQueries: boolean;
+  isUpdatingPack: boolean;
 }
 
 interface IEditPackFormData {
@@ -51,6 +52,7 @@ const EditPackForm = ({
   targetsCount,
   isPremiumTier,
   formData,
+  isUpdatingPack,
 }: IEditPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>(formData.name);
@@ -128,7 +130,7 @@ const EditPackForm = ({
         targetsCount={targetsCount}
         isPremiumTier={isPremiumTier}
       />
-      <PackQueriesListWrapper
+      <PackQueriesTable
         onAddPackQuery={onAddPackQuery}
         onEditPackQuery={onEditPackQuery}
         onRemovePackQueries={onRemovePackQueries}
@@ -139,7 +141,12 @@ const EditPackForm = ({
         <Button onClick={onCancelEditPack} type="button" variant="inverse">
           Cancel
         </Button>
-        <Button onClick={onFormSubmit} variant="brand">
+        <Button
+          onClick={onFormSubmit}
+          variant="brand"
+          className="save-loading"
+          isLoading={isUpdatingPack}
+        >
           Save
         </Button>
       </div>

@@ -44,9 +44,13 @@ func (c *Client) DebugMigrations() (*fleet.MigrationStatus, error) {
 
 // DebugErrors calls the /debug/errors endpoint and on success writes its
 // (potentially large) response body to w.
-func (c *Client) DebugErrors(w io.Writer) error {
+func (c *Client) DebugErrors(w io.Writer, flush bool) error {
 	endpoint := "/debug/errors"
-	response, err := c.AuthenticatedDo("GET", endpoint, "", nil)
+	rawQuery := ""
+	if flush {
+		rawQuery = "flush=true"
+	}
+	response, err := c.AuthenticatedDo("GET", endpoint, rawQuery, nil)
 	if err != nil {
 		return fmt.Errorf("GET %s: %w", endpoint, err)
 	}

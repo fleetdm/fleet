@@ -1,13 +1,24 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import macadminsAPI from "services/entities/macadmins";
-import { IMacadminAggregate, IDataTableMDMFormat } from "interfaces/macadmins";
+import {
+  IMacadminAggregate,
+  IDataTableMDMFormat,
+  IMDMSolution,
+} from "interfaces/macadmins";
 
+import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
-import renderLastUpdatedText from "components/LastUpdatedText";
-import generateTableHeaders from "./MDMTableConfig";
+import TableDataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
+import {
+  generateSolutionsTableHeaders,
+  generateSolutionsDataSet,
+} from "./MDMSolutionsTableConfig";
+import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
 
 interface IMDMCardProps {
   showMDMUI: boolean;
@@ -17,13 +28,15 @@ interface IMDMCardProps {
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "hosts_count";
+const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
+const ENROLLMENT_DEFAULT_SORT_DIRECTION = "asc";
+const ENROLLMENT_DEFAULT_SORT_HEADER = "status";
 const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
-const EmptyMDM = (): JSX.Element => (
+const EmptyMDMEnrollment = (): JSX.Element => (
   <div className={`${baseClass}__empty-mdm`}>
-    <h1>Unable to detect MDM enrollment.</h1>
+    <h1>Unable to detect MDM enrollment</h1>
     <p>
       To see MDM versions, deploy&nbsp;
       <a
@@ -38,53 +51,78 @@ const EmptyMDM = (): JSX.Element => (
   </div>
 );
 
+const EmptyMDMSolutions = (): JSX.Element => (
+  <div className={`${baseClass}__empty-mdm`}>
+    <h1>No MDM solutions detected</h1>
+    <p>
+      This report is updated every hour to protect the performance of your
+      devices.
+    </p>
+  </div>
+);
+
 const MDM = ({
   showMDMUI,
   currentTeamId,
   setShowMDMUI,
   setTitleDetail,
 }: IMDMCardProps): JSX.Element => {
+  const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
   >([]);
+  const [solutions, setSolutions] = useState<IMDMSolution[] | null>([]);
 
-  const { isFetching: isMDMFetching } = useQuery<IMacadminAggregate, Error>(
-    ["MDM", currentTeamId],
-    () => macadminsAPI.loadAll(currentTeamId),
-    {
-      keepPreviousData: true,
-      onSuccess: (data) => {
-        const {
-          counts_updated_at,
-          mobile_device_management_enrollment_status,
-        } = data.macadmins;
-        const {
-          enrolled_manual_hosts_count,
-          enrolled_automated_hosts_count,
-          unenrolled_hosts_count,
-        } = mobile_device_management_enrollment_status;
+  const { isFetching: isMDMFetching, error: errorMDM } = useQuery<
+    IMacadminAggregate,
+    Error
+  >(["MDM", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
+    keepPreviousData: true,
+    onSuccess: (data) => {
+      const {
+        counts_updated_at,
+        mobile_device_management_enrollment_status,
+        mobile_device_management_solution,
+      } = data.macadmins;
+      const {
+        enrolled_manual_hosts_count,
+        enrolled_automated_hosts_count,
+        unenrolled_hosts_count,
+      } = mobile_device_management_enrollment_status;
 
-        setShowMDMUI(true);
-        setTitleDetail &&
-          setTitleDetail(
-            renderLastUpdatedText(counts_updated_at, "MDM enrollment")
-          );
-        setFormattedMDMData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
-      },
-    }
-  );
+      setShowMDMUI(true);
+      setTitleDetail &&
+        setTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"MDM enrollment"}
+          />
+        );
+      setFormattedMDMData([
+        {
+          status: "Enrolled (manual)",
+          hosts: enrolled_manual_hosts_count,
+        },
+        {
+          status: "Enrolled (automatic)",
+          hosts: enrolled_automated_hosts_count,
+        },
+        { status: "Unenrolled", hosts: unenrolled_hosts_count },
+      ]);
+      setSolutions(mobile_device_management_solution);
+    },
+    onError: () => {
+      setShowMDMUI(true);
+    },
+  });
 
-  const tableHeaders = generateTableHeaders();
+  const onTabChange = (index: number) => {
+    setNavTabIndex(index);
+  };
+
+  const solutionsTableHeaders = generateSolutionsTableHeaders();
+  const enrollmentTableHeaders = generateEnrollmentTableHeaders();
+  const solutionsDataSet = generateSolutionsDataSet(solutions);
 
   // Renders opaque information as host information is loading
   const opacity = showMDMUI ? { opacity: 1 } : { opacity: 0 };
@@ -97,22 +135,58 @@ const MDM = ({
         </div>
       )}
       <div style={opacity}>
-        <TableContainer
-          columns={tableHeaders}
-          data={formattedMDMData}
-          isLoading={isMDMFetching}
-          defaultSortHeader={DEFAULT_SORT_HEADER}
-          defaultSortDirection={DEFAULT_SORT_DIRECTION}
-          hideActionButton
-          resultsTitle={"MDM"}
-          emptyComponent={EmptyMDM}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disableActionButton
-          disablePagination
-          pageSize={PAGE_SIZE}
-        />
+        <TabsWrapper>
+          <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
+            <TabList>
+              <Tab>Solutions</Tab>
+              <Tab>Enrollment</Tab>
+            </TabList>
+            <TabPanel>
+              {errorMDM ? (
+                <TableDataError card />
+              ) : (
+                <TableContainer
+                  columns={solutionsTableHeaders}
+                  data={solutionsDataSet}
+                  isLoading={isMDMFetching}
+                  defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"MDM"}
+                  emptyComponent={EmptyMDMSolutions}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  isClientSidePagination
+                  disableCount
+                  disableActionButton
+                  pageSize={PAGE_SIZE}
+                />
+              )}
+            </TabPanel>
+            <TabPanel>
+              {errorMDM ? (
+                <TableDataError card />
+              ) : (
+                <TableContainer
+                  columns={enrollmentTableHeaders}
+                  data={formattedMDMData}
+                  isLoading={isMDMFetching}
+                  defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
+                  defaultSortDirection={ENROLLMENT_DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"MDM"}
+                  emptyComponent={EmptyMDMEnrollment}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  disableCount
+                  disableActionButton
+                  disablePagination
+                  pageSize={PAGE_SIZE}
+                />
+              )}
+            </TabPanel>
+          </Tabs>
+        </TabsWrapper>
       </div>
     </div>
   );

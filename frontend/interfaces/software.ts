@@ -41,7 +41,7 @@ export const TYPE_CONVERSION: Record<string, string> = {
   ie_extensions: "Browser plugin (IE)",
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
-};
+} as const;
 
 export const formatSoftwareType = (source: string): string => {
   const DICT = TYPE_CONVERSION;

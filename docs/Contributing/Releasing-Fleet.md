@@ -1,11 +1,30 @@
 # Releasing Fleet
 
-Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
+## Release process
 
-1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes that have been made since the last
+This section outlines the release process at Fleet.
+
+The current release cadence is once every three weeks and concentrates around Wednesdays.
+
+### Release freeze period
+
+To make sure we build quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, we will not merge new feature work.
+
+Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+1. Regressions
+2. Security concerns
+3. Issues with features targeted for the current release
+
+Non-release blocking bugs may include known issues that were not targeted for the current release or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
+
+### What to do?
+
+Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
+
+1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes you made since the last
    Fleet release. Use `make changelog` to pull the changes files into `CHANGELOG.md`, then manually
-   edit. When editing, order the most relevant/important changes at the time, and try to make the
-   tone and syntax of the written language match throughout. `make changelog` will stage all changes
+   edit. When editing, order the most relevant/important changes at the time and try to make the
+   tone and syntax of the written language match throughout the document. `make changelog` will stage all changes
    file entries for deletion with the commit.
 
    Add a "Performance" section below the list of changes. This section should summarize the number of
@@ -17,12 +36,12 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    - [fleetctl package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
    - [Helm chart.yaml](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
    - Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
+   - [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploying/Server-Installation.md#deploying-fleet-on-kubernetes)
 
    Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
    `HEAD` of the `main` branch points to the commit with these changes.
 
 2. Tag and push the new release in Git:
-
    ```sh
    git tag fleet-v<VERSION>
    git push origin fleet-v<VERSION>
@@ -31,21 +50,20 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
    is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-   GitHub Actions will automatically begin building the new release after the tag is pushed.
+   After the tag is pushed, GitHub Actions will automatically begin building the new release.
 
    ***
 
-   Wait while GitHub Actions creates and uploads the artifacts...
+   Wait while GitHub Actions creates and uploads the artifacts.
 
    ***
 
-   When the Actions Workflow has completed:
+   When the Actions Workflow has been completed:
 
 3. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).
    Use the version number as the release title. Use the below template for the release description
    (replace items in <> with the appropriate values):
-
-   ````
+   ```
    ### Changes
 
    <COPY FROM CHANGELOG>
@@ -61,10 +79,9 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    ### Binary Checksum
 
    **SHA256**
-   ```
+
    <COPY FROM checksums.txt>
    ```
-   ````
 
    When editing is complete, publish the release.
 
@@ -84,40 +101,31 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 
    Announce the release via blog post (on Medium) and Twitter (linking to blog post).
 
-## Patch releases
+### Patch releases
 
-Generally, a patch should be released when bugs or performance issues are identified that prevent
-users from getting their job done with Fleet.
+A patch is released when an issue with the current stable release falls under the following criteria:
+- Security concerns
+- Previously stable features are unusable/broken
+- New features are unusable/broken
 
-### Process
+Any issue that meets the patch release criteria is sent to the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals).
 
-#### The easy way
+#### Process
 
-If all commits on `main` are acceptable for a patch (no high-risk changes, new features, etc.), then
-the process is easy. Just follow the regular release process as described above, incrementing
-only the patch (`major.minor.patch`) of the version number. In this scenario, there is no need to
-perform any of the steps below.
-
-#### The hard way
-
-When only some of the newer changes in `main` are acceptable for release, a separate patch branch
-must be created and relevant changes cherry-picked onto that branch:
-
-1. Create the new branch, starting from the git tag of the prior release. Patch branches should be
-   prefixed with `patch-`. In this example we are creating `4.3.1`:
+1. The DRI for release testing/QA notifies the [directly responsible individual (DRI) for creating the patch release branch](https://fleetdm.com/handbook/engineering#rituals) to create the new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `4.3.1`:
 
    ```
    git checkout fleet-v4.3.0
    git checkout --branch patch-fleet-v4.3.1
    ```
 
-2. Cherry pick the necessary commits into the new branch:
+2. The DRI for creating the patch release branch cherry picks the necessary commits into the new branch:
 
    ```
    git cherry-pick d34db33f
    ```
 
-3. Push the branch to github.com/fleetdm/fleet:
+3. The DRI for creating the patch release branch pushes the branch to github.com/fleetdm/fleet:
 
    ```
    git push origin patch-fleet-v4.3.1
@@ -127,21 +135,17 @@ must be created and relevant changes cherry-picked onto that branch:
    Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
    be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
-4. Check in the GitHub UI that Actions ran successfully for this branch and perform [QA smoke
-   testing](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
+4. The DRI for creating the patch release branch checks in the GitHub UI that Actions ran successfully for this branch.
 
-5. Follow the standard release instructions at the top of this document. Be sure that modifications
-   to the changelog and config files are commited _on the `patch-*` branch_. When the patch has been
-   released, return to finish the following steps.
+5. The DRI for creating the patch release branch notifies the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals) that the branch is available for completing [smoke tests](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
 
-6. Cherry-pick the commit containing the changelog updates into a new branch, and merge that commit
-   into `main` through a Pull Request.
+6. The DRI for release testing/QA makes sure the standard release instructions at the top of this document are followed. Be sure that modifications to the changelog and config files are commited _on the `patch-*` branch_.
 
-7. **Important!** Manually check the database migrations. Any migrations that are not cherry-picked in a
-   patch must have a _higher_ timestamp than migrations that were cherry-picked. If there
-   are new migrations that were not cherry-picked, verify that those migrations have higher
-   timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that
-   migrations are run in the appropriate order.
+7. The DRI for release testing/QA notifies the [DRI for the release ritual](https://fleetdm.com/handbook/engineering#rituals) that the patch release is ready. The DRI for the release ritual releases the patch.
+
+8. The DRI for creating the patch release branch cherry-picks the commit containing the changelog updates into a new branch, and merges that commit into `main` through a Pull Request.
+
+9. **Important!** The DRI for creating the patch release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
 
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
 

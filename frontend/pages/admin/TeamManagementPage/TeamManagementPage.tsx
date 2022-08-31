@@ -5,29 +5,27 @@ import { useErrorHandler } from "react-error-boundary";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, {
+  ILoadTeamsResponse,
+  ITeamFormData,
+} from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
-import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
-import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
-
-interface ITeamsResponse {
-  teams: ITeam[];
-}
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isUpdatingTeams, setIsUpdatingTeams] = useState<boolean>(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
@@ -40,14 +38,14 @@ const TeamManagementPage = (): JSX.Element => {
 
   const {
     data: teams,
-    isLoading: isLoadingTeams,
+    isFetching: isFetchingTeams,
     error: loadingTeamsError,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
       onError: (error) => handlePageError(error),
     }
   );
@@ -95,7 +93,8 @@ const TeamManagementPage = (): JSX.Element => {
   );
 
   const onCreateSubmit = useCallback(
-    (formData: ICreateTeamFormData) => {
+    (formData: ITeamFormData) => {
+      setIsUpdatingTeams(true);
       teamsAPI
         .create(formData)
         .then(() => {
@@ -113,6 +112,9 @@ const TeamManagementPage = (): JSX.Element => {
             renderFlash("error", "Could not create team. Please try again.");
             toggleCreateTeamModal();
           }
+        })
+        .finally(() => {
+          setIsUpdatingTeams(false);
         });
     },
     [toggleCreateTeamModal]
@@ -120,6 +122,7 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (teamEditing) {
+      setIsUpdatingTeams(true);
       teamsAPI
         .destroy(teamEditing.id)
         .then(() => {
@@ -132,6 +135,7 @@ const TeamManagementPage = (): JSX.Element => {
           );
         })
         .finally(() => {
+          setIsUpdatingTeams(false);
           refetchTeams();
           toggleDeleteTeamModal();
         });
@@ -139,10 +143,11 @@ const TeamManagementPage = (): JSX.Element => {
   }, [teamEditing, toggleDeleteTeamModal]);
 
   const onEditSubmit = useCallback(
-    (formData: IEditTeamFormData) => {
+    (formData: ITeamFormData) => {
       if (formData.name === teamEditing?.name) {
         toggleEditTeamModal();
       } else if (teamEditing) {
+        setIsUpdatingTeams(true);
         teamsAPI
           .update(formData, teamEditing.id)
           .then(() => {
@@ -166,6 +171,9 @@ const TeamManagementPage = (): JSX.Element => {
                 `Could not edit ${teamEditing.name}. Please try again.`
               );
             }
+          })
+          .finally(() => {
+            setIsUpdatingTeams(false);
           });
       }
     },
@@ -232,7 +240,7 @@ const TeamManagementPage = (): JSX.Element => {
         <TableContainer
           columns={tableHeaders}
           data={tableData}
-          isLoading={isLoadingTeams}
+          isLoading={isFetchingTeams}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           inputPlaceHolder={"Search"}
@@ -254,6 +262,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
+          isUpdatingTeams={isUpdatingTeams}
         />
       )}
       {showDeleteTeamModal && (
@@ -261,6 +270,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={teamEditing?.name || ""}
+          isUpdatingTeams={isUpdatingTeams}
         />
       )}
       {showEditTeamModal && (
@@ -269,6 +279,7 @@ const TeamManagementPage = (): JSX.Element => {
           onSubmit={onEditSubmit}
           defaultName={teamEditing?.name || ""}
           backendValidators={backendValidators}
+          isUpdatingTeams={isUpdatingTeams}
         />
       )}
     </div>

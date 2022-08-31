@@ -18,12 +18,20 @@ const (
 // The Heat command creates XML fragments allowing WiX to include the entire
 // directory. See
 // https://wixtoolset.org/documentation/manual/v3/overview/heat.html.
-func Heat(path string) error {
-	cmd := exec.Command(
-		"docker", "run", "--rm", "--platform", "linux/amd64",
-		"--volume", path+":/wix", // mount volume
-		"fleetdm/wix:latest",  // image name
-		"heat", "dir", "root", // command in image
+func Heat(path string, native bool) error {
+	var args []string
+
+	if !native {
+		args = append(
+			args,
+			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"--volume", path+":/wix", // mount volume
+			"fleetdm/wix:latest", // image name
+		)
+	}
+
+	args = append(args,
+		"heat", "dir", "root", // command
 		"-out", "heat.wxs",
 		"-gg", "-g1", // generate UUIDs (required by wix)
 		"-cg", "OrbitFiles", // set ComponentGroup name
@@ -31,7 +39,13 @@ func Heat(path string) error {
 		"-dr", directoryReference, // set reference name
 		"-ke", // keep empty directories
 	)
+
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if native {
+		cmd.Dir = path
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("heat failed: %w", err)
@@ -44,16 +58,30 @@ func Heat(path string) error {
 //
 // See
 // https://wixtoolset.org/documentation/manual/v3/overview/candle.html.
-func Candle(path string) error {
-	cmd := exec.Command(
-		"docker", "run", "--rm", "--platform", "linux/amd64",
-		"--volume", path+":/wix", // mount volume
-		"fleetdm/wix:latest",             // image name
-		"candle", "heat.wxs", "main.wxs", // command in image
+func Candle(path string, native bool) error {
+	var args []string
+
+	if !native {
+		args = append(
+			args,
+			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"--volume", path+":/wix", // mount volume
+			"fleetdm/wix:latest", // image name
+		)
+	}
+
+	args = append(args,
+		"candle", "heat.wxs", "main.wxs", // command
 		"-ext", "WixUtilExtension",
 		"-arch", "x64",
 	)
+
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if native {
+		cmd.Dir = path
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("candle failed: %w", err)
@@ -66,18 +94,32 @@ func Candle(path string) error {
 //
 // See
 // https://wixtoolset.org/documentation/manual/v3/overview/light.html.
-func Light(path string) error {
-	cmd := exec.Command(
-		"docker", "run", "--rm", "--platform", "linux/amd64",
-		"--volume", path+":/wix", // mount volume
-		"fleetdm/wix:latest",                  // image name
-		"light", "heat.wixobj", "main.wixobj", // command in image
+func Light(path string, native bool) error {
+	var args []string
+
+	if !native {
+		args = append(
+			args,
+			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"--volume", path+":/wix", // mount volume
+			"fleetdm/wix:latest", // image name
+		)
+	}
+
+	args = append(args,
+		"light", "heat.wixobj", "main.wixobj", // command
 		"-ext", "WixUtilExtension",
 		"-b", "root", // Set directory for finding heat files
 		"-out", "orbit.msi",
 		"-sval", // skip validation (otherwise Wine crashes)
 	)
+
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if native {
+		cmd.Dir = path
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("light failed: %w", err)

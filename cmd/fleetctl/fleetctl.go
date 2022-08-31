@@ -1,10 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"os"
+	"path"
+	"runtime"
 	"time"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
@@ -30,7 +34,17 @@ func exitErrHandler(c *cli.Context, err error) {
 	if err == nil {
 		return
 	}
+
 	fmt.Fprintf(c.App.ErrWriter, "Error: %+v\n", err)
+
+	if errors.Is(err, fs.ErrPermission) {
+		switch runtime.GOOS {
+		case "darwin", "linux":
+			fmt.Fprintf(c.App.ErrWriter, "\nThis error can usually be resolved by fixing the permissions on the %s directory, or re-running this command with sudo.\n", path.Dir(c.String("config")))
+		case "windows":
+			fmt.Fprintf(c.App.ErrWriter, "\nThis error can usually be resolved by fixing the permissions on the %s directory, or re-running this command with 'Run as administrator'.\n", path.Dir(c.String("config")))
+		}
+	}
 	cli.OsExiter(1)
 }
 
@@ -72,6 +86,15 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		hostsCommand(),
 		vulnerabilityDataStreamCommand(),
 		packageCommand(),
+		{
+			// It's become common for folks to unintentionally install fleetctl when they actually
+			// need the Fleet server. This is hopefully a more helpful error message.
+			Name:  "prepare",
+			Usage: "This is not the binary you're looking for. Please use the fleet server binary for prepare commands.",
+			Action: func(c *cli.Context) error {
+				return errors.New("This is not the binary you're looking for. Please use the fleet server binary for prepare commands.")
+			},
+		},
 	}
 	return app
 }

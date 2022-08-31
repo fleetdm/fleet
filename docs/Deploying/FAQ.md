@@ -8,6 +8,7 @@
 - [When do I need to deploy a new enroll secret to my hosts?](#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts)
 - [How do I migrate hosts from one Fleet server to another (eg. testing to production)?](#how-do-i-migrate-hosts-from-one-fleet-server-to-another-eg-testing-to-production)
 - [What do I do about "too many open files" errors?](#what-do-i-do-about-too-many-open-files-errors)
+- [Can I skip versions when updating Fleet to the latest version?](#can-i-skip-versions-when-updating-to-the-latest-version)
 - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
@@ -53,7 +54,7 @@ Osquery requires that all communication between the agent and Fleet are over a s
 - Try specifying the path to the full certificate chain used by the server using the `--tls_server_certs` flag in `osqueryd`. This is often unnecessary when using a certificate signed by an authority trusted by the system, but is mandatory when working with self-signed certificates. In all cases it can be a useful debugging step.
 - Ensure that the CNAME or one of the Subject Alternate Names (SANs) on the certificate matches the address at which the server is being accessed. If osquery connects via `https://localhost:443`, but the certificate is for `https://fleet.example.com`, the verification will fail.
 - Is Fleet behind a load-balancer? Ensure that if the load-balancer is terminating TLS, this is the certificate provided to osquery.
-- Does the certificate verify with `curl`? Try `curl -v -X POST https://fleetserver:port/api/osquery/enroll`.
+- Does the certificate verify with `curl`? Try `curl -v -X POST https://fleetserver:port/api/v1/osquery/enroll`.
 
 ## What do I need to do to change the Fleet server TLS certificate?
 
@@ -106,6 +107,26 @@ Some deployments may benefit by setting the [`--server_keepalive`](./Configurati
 
 This was also seen as a symptom of a different issue: if you're deploying on AWS on T type instances, there are different scenarios where the activity can increase and the instances will burst. If they run out of credits, then they'll stop processing leaving the file descriptors open.
 
+## Can I skip versions when updating Fleet to the latest version?
+
+Absolutely! If you're updating from the current major release of Fleet (v4), you can install the [latest version](https://github.com/fleetdm/fleet/releases/latest) without upgrading to each minor version along the way. Just make sure to back up your database in case anything odd does pop up!
+
+If you're updating from an older version (we'll use Fleet v3 as an example), it's best to take some stops along the way:
+
+1. Back up your database. 
+2. Upgrade to the last release of of v3 - [3.13.0](https://github.com/fleetdm/fleet/releases/tag/3.13.0).
+3. Migrate the database.
+4. Test
+5. Check the release post for [v4.0.0 ](https://github.com/fleetdm/fleet/releases/tag/v4.0.0) to see the breaking changes and get Fleet ready for v4.
+6. Upgrade to v4.0.0.
+7. Migrate the database.
+8. Test
+9. Upgrade to the [current release](https://github.com/fleetdm/fleet/releases/latest).
+10. One last migration.
+11. Test again for good measure. 
+
+Taking it a bit slower on major releases gives you an opportunity to better track down where any issues may have been introduced. 
+
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
 This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./Configuration.md#mysql-max-open-conns) and [`--mysql_max_idle_conns`](./Configuration.md#mysql-max-idle-conns) flags appropriately.
@@ -132,7 +153,7 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 
 ## What MySQL versions are supported?
 
-Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Fleet has been known to run successfully on MariaDB and other MySQL flavors, but is not officially supported.
+Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Fleet has been known to run successfully on MariaDB and other MySQL flavors but is not officially supported.
 
 ## What are the MySQL user requirements?
 
@@ -238,7 +259,7 @@ Check out the [documentation on running database migrations](./Upgrading-Fleet.m
 
 ## What API endpoints should I expose to the public internet?
 
-If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/osquery" endpoint to the public internet.
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.
 
 ## What is the minimum version of MySQL required by Fleet?
 
@@ -250,4 +271,4 @@ To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set i
 
 ## Will my older version of Fleet work with Redis 6?
 
-Most likely, yes! While we'd definitely reccomend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so you may run into some unforseen hiccups. 
+Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups. 

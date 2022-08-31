@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -12,7 +12,7 @@ import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
-import teamAPI from "services/entities/teams";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -36,6 +36,7 @@ import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
+import MainContent from "components/MainContent";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 
@@ -54,6 +55,8 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import DeleteHostModal from "./modals/DeleteHostModal";
 import RenderOSPolicyModal from "./modals/OSPolicyModal";
 
+import parseOsVersion from "./modals/OSPolicyModal/helpers";
+
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
@@ -68,10 +71,6 @@ interface IHostDetailsProps {
 
 interface IFleetQueriesResponse {
   queries: IQuery[];
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface IHostResponse {
@@ -141,6 +140,7 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
+  const [isUpdatingHost, setIsUpdatingHost] = useState<boolean>(false);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
@@ -163,7 +163,7 @@ const HostDetailsPage = ({
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
     () => teamAPI.loadAll(),
     {
@@ -172,7 +172,7 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
     }
   );
 
@@ -202,12 +202,12 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: hostSettings } = useQuery<
+  const { data: features } = useQuery<
     IConfig,
     Error,
     { enable_host_users: boolean; enable_software_inventory: boolean }
   >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data.host_settings,
+    select: (data: IConfig) => data.features,
   });
 
   const refetchExtensions = () => {
@@ -332,15 +332,7 @@ const HostDetailsPage = ({
     ])
   );
 
-  const operatingSystem = host?.os_version.slice(
-    0,
-    host?.os_version.lastIndexOf(" ")
-  );
-  const operatingSystemVersion = host?.os_version.slice(
-    host?.os_version.lastIndexOf(" ") + 1
-  );
-  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
+  const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -352,6 +344,8 @@ const HostDetailsPage = ({
       "primary_ip",
       "public_ip",
       "geolocation",
+      "batteries",
+      "detail_updated_at",
     ])
   );
 
@@ -389,13 +383,14 @@ const HostDetailsPage = ({
     setLastEditedQueryDescription(
       "Checks to see if the required minimum operating system version is installed."
     );
-    setLastEditedQueryBody(osPolicy);
+    setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
     router.replace(NEW_POLICY);
   };
 
   const onDestroyHost = async () => {
     if (host) {
+      setIsUpdatingHost(true);
       try {
         await hostAPI.destroy(host);
         renderFlash(
@@ -408,6 +403,7 @@ const HostDetailsPage = ({
         renderFlash("error", `Host "${host.hostname}" could not be deleted.`);
       } finally {
         setShowDeleteHostModal(false);
+        setIsUpdatingHost(false);
       }
     }
   };
@@ -454,6 +450,8 @@ const HostDetailsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHost(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
 
     try {
@@ -470,6 +468,8 @@ const HostDetailsPage = ({
     } catch (error) {
       console.log(error);
       renderFlash("error", "Could not transfer host. Please try again.");
+    } finally {
+      setIsUpdatingHost(false);
     }
   };
 
@@ -497,7 +497,12 @@ const HostDetailsPage = ({
             </>
           </Button>
         )}
-        <div data-tip data-for="query" data-tip-disable={isOnline}>
+        <div
+          data-tip
+          data-for="query"
+          data-tip-disable={isOnline}
+          className={`${!isOnline && "tooltip"}`}
+        >
           <Button
             onClick={() => setShowQueryHostModal(true)}
             variant="text-icon"
@@ -511,7 +516,6 @@ const HostDetailsPage = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="query"
           backgroundColor="#3e4771"
@@ -539,123 +543,142 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
+  const failingPoliciesCount = titleData?.issues;
 
   return (
-    <div className={`${baseClass} body-wrap`}>
-      <div>
-        <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
-          <img src={BackChevron} alt="back chevron" id="back-chevron" />
-          <span>Back to all hosts</span>
-        </Link>
-      </div>
-      <HostSummaryCard
-        statusClassName={statusClassName}
-        titleData={titleData}
-        isPremiumTier={isPremiumTier}
-        isOnlyObserver={isOnlyObserver}
-        toggleOSPolicyModal={toggleOSPolicyModal}
-        showRefetchSpinner={showRefetchSpinner}
-        onRefetchHost={onRefetchHost}
-        renderActionButtons={renderActionButtons}
-      />
-      <TabsWrapper>
-        <Tabs>
-          <TabList>
-            <Tab>Details</Tab>
-            <Tab>Software</Tab>
-            <Tab>Schedule</Tab>
-            <Tab>Policies</Tab>
-          </TabList>
-          <TabPanel>
-            <AboutCard
-              aboutData={aboutData}
-              deviceMapping={deviceMapping}
-              macadmins={macadmins}
-              wrapFleetHelper={wrapFleetHelper}
-            />
-            <div className="col-2">
-              <AgentOptionsCard
-                osqueryData={osqueryData}
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
+        <div>
+          <Button
+            variant={"text-icon"}
+            onClick={() => {
+              browserHistory.goBack();
+            }}
+            className={`${baseClass}__back-link`}
+          >
+            <>
+              <img src={BackChevron} alt="back chevron" id="back-chevron" />
+              <span>Back to all hosts</span>
+            </>
+          </Button>
+        </div>
+        <HostSummaryCard
+          statusClassName={statusClassName}
+          titleData={titleData}
+          isPremiumTier={isPremiumTier}
+          isOnlyObserver={isOnlyObserver}
+          toggleOSPolicyModal={toggleOSPolicyModal}
+          showRefetchSpinner={showRefetchSpinner}
+          onRefetchHost={onRefetchHost}
+          renderActionButtons={renderActionButtons}
+        />
+        <TabsWrapper>
+          <Tabs>
+            <TabList>
+              <Tab>Details</Tab>
+              <Tab>Software</Tab>
+              <Tab>Schedule</Tab>
+              <Tab>
+                {failingPoliciesCount > 0 && (
+                  <span className="count">{failingPoliciesCount}</span>
+                )}
+                Policies
+              </Tab>
+            </TabList>
+            <TabPanel>
+              <AboutCard
+                aboutData={aboutData}
+                deviceMapping={deviceMapping}
+                macadmins={macadmins}
                 wrapFleetHelper={wrapFleetHelper}
               />
-              <LabelsCard
-                labels={host?.labels || []}
-                onLabelClick={onLabelClick}
+              <div className="col-2">
+                <AgentOptionsCard
+                  osqueryData={osqueryData}
+                  wrapFleetHelper={wrapFleetHelper}
+                />
+                <LabelsCard
+                  labels={host?.labels || []}
+                  onLabelClick={onLabelClick}
+                />
+              </div>
+              <UsersCard
+                users={host?.users || []}
+                usersState={usersState}
+                isLoading={isLoadingHost}
+                onUsersTableSearchChange={onUsersTableSearchChange}
+                hostUsersEnabled={features?.enable_host_users}
               />
-            </div>
-            <UsersCard
-              users={host?.users || []}
-              usersState={usersState}
-              isLoading={isLoadingHost}
-              onUsersTableSearchChange={onUsersTableSearchChange}
-              hostUsersEnabled={hostSettings?.enable_host_users}
-            />
-          </TabPanel>
-          <TabPanel>
-            <SoftwareCard
-              isLoading={isLoadingHost}
-              software={hostSoftware}
-              softwareInventoryEnabled={hostSettings?.enable_software_inventory}
-            />
-          </TabPanel>
-          <TabPanel>
-            <ScheduleCard
-              scheduleState={scheduleState}
-              isLoading={isLoadingHost}
-            />
-            <PacksCard packsState={packsState} isLoading={isLoadingHost} />
-          </TabPanel>
-          <TabPanel>
-            <PoliciesCard
-              policies={host?.policies || []}
-              isLoading={isLoadingHost}
-              togglePolicyDetailsModal={togglePolicyDetailsModal}
-            />
-          </TabPanel>
-        </Tabs>
-      </TabsWrapper>
+            </TabPanel>
+            <TabPanel>
+              <SoftwareCard
+                isLoading={isLoadingHost}
+                software={hostSoftware}
+                softwareInventoryEnabled={features?.enable_software_inventory}
+                deviceType={host?.platform === "darwin" ? "macos" : ""}
+              />
+            </TabPanel>
+            <TabPanel>
+              <ScheduleCard
+                scheduleState={scheduleState}
+                isLoading={isLoadingHost}
+              />
+              <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+            </TabPanel>
+            <TabPanel>
+              <PoliciesCard
+                policies={host?.policies || []}
+                isLoading={isLoadingHost}
+                togglePolicyDetailsModal={togglePolicyDetailsModal}
+              />
+            </TabPanel>
+          </Tabs>
+        </TabsWrapper>
 
-      {showDeleteHostModal && (
-        <DeleteHostModal
-          onCancel={() => setShowDeleteHostModal(false)}
-          onSubmit={onDestroyHost}
-          hostName={host?.hostname}
-        />
-      )}
-      {showQueryHostModal && host && (
-        <SelectQueryModal
-          onCancel={() => setShowQueryHostModal(false)}
-          queries={fleetQueries || []}
-          queryErrors={fleetQueriesError}
-          isOnlyObserver={isOnlyObserver}
-          onQueryHostCustom={onQueryHostCustom}
-          onQueryHostSaved={onQueryHostSaved}
-        />
-      )}
-      {!!host && showTransferHostModal && (
-        <TransferHostModal
-          onCancel={() => setShowTransferHostModal(false)}
-          onSubmit={onTransferHostSubmit}
-          teams={teams || []}
-          isGlobalAdmin={isGlobalAdmin as boolean}
-        />
-      )}
-      {!!host && showPolicyDetailsModal && (
-        <PolicyDetailsModal
-          onCancel={onCancelPolicyDetailsModal}
-          policy={selectedPolicy}
-        />
-      )}
-      {showOSPolicyModal && (
-        <RenderOSPolicyModal
-          onCancel={() => setShowOSPolicyModal(false)}
-          onCreateNewPolicy={onCreateNewPolicy}
-          titleData={titleData}
-          osPolicy={osPolicy}
-          osPolicyLabel={osPolicyLabel}
-        />
-      )}
-    </div>
+        {showDeleteHostModal && (
+          <DeleteHostModal
+            onCancel={() => setShowDeleteHostModal(false)}
+            onSubmit={onDestroyHost}
+            hostName={host?.hostname}
+            isUpdatingHost={isUpdatingHost}
+          />
+        )}
+        {showQueryHostModal && host && (
+          <SelectQueryModal
+            onCancel={() => setShowQueryHostModal(false)}
+            queries={fleetQueries || []}
+            queryErrors={fleetQueriesError}
+            isOnlyObserver={isOnlyObserver}
+            onQueryHostCustom={onQueryHostCustom}
+            onQueryHostSaved={onQueryHostSaved}
+          />
+        )}
+        {!!host && showTransferHostModal && (
+          <TransferHostModal
+            onCancel={() => setShowTransferHostModal(false)}
+            onSubmit={onTransferHostSubmit}
+            teams={teams || []}
+            isGlobalAdmin={isGlobalAdmin as boolean}
+            isUpdatingHost={isUpdatingHost}
+          />
+        )}
+        {!!host && showPolicyDetailsModal && (
+          <PolicyDetailsModal
+            onCancel={onCancelPolicyDetailsModal}
+            policy={selectedPolicy}
+          />
+        )}
+        {showOSPolicyModal && (
+          <RenderOSPolicyModal
+            onCancel={() => setShowOSPolicyModal(false)}
+            onCreateNewPolicy={onCreateNewPolicy}
+            titleData={titleData}
+            osPolicy={osPolicyQuery}
+            osPolicyLabel={osPolicyLabel}
+          />
+        )}
+      </div>
+    </MainContent>
   );
 };
 

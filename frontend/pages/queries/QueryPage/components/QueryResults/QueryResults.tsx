@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { Row } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import { filter, get } from "lodash";
 
 import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
@@ -41,6 +41,32 @@ const NAV_TITLES = {
   ERRORS: "Errors",
 };
 
+const reorderCSVFields = (fields: string[]) => {
+  const result = fields.filter((field) => field !== "host_hostname");
+  result.unshift("host_hostname");
+
+  return result;
+};
+
+const generateExportCSVFile = (rows: Row[], filename: string) => {
+  return new global.window.File(
+    [
+      convertToCSV(
+        rows.map((r) => r.original),
+        reorderCSVFields
+      ),
+    ],
+    filename,
+    {
+      type: "text/csv",
+    }
+  );
+};
+
+const generateExportFilename = (descriptor: string) => {
+  return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
+};
+
 const QueryResults = ({
   campaign,
   isQueryFinished,
@@ -52,24 +78,16 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
-
-  const totalRowsCount = get(campaign, ["query_results", "length"], 0);
+  const percentResponded =
+    targetsTotalCount > 0
+      ? Math.round((hostsCount.total / targetsTotalCount) * 100)
+      : 0;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
-  const [
-    targetsRespondedPercent,
-    setTargetsRespondedPercent,
-  ] = useState<number>(0);
   const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
-
-  useEffect(() => {
-    const calculatePercent =
-      targetsTotalCount !== 0
-        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
-        : 0;
-    setTargetsRespondedPercent(calculatePercent);
-  }, [campaign]);
+  const [filteredResults, setFilteredResults] = useState<Row[]>([]);
+  const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
 
   useEffect(() => {
     if (isQueryFinished) {
@@ -82,43 +100,23 @@ const QueryResults = ({
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (queryResults) {
-      const csv = convertToCSV(queryResults, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${CSV_QUERY_TITLE} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
+    FileSaver.saveAs(
+      generateExportCSVFile(
+        filteredResults,
+        generateExportFilename(CSV_QUERY_TITLE)
+      )
+    );
   };
 
   const onExportErrorsResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (errors) {
-      const csv = convertToCSV(errors, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${CSV_QUERY_TITLE} Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
+    FileSaver.saveAs(
+      generateExportCSVFile(
+        filteredErrors,
+        generateExportFilename(`${CSV_QUERY_TITLE} Errors`)
+      )
+    );
   };
 
   const onShowQueryModal = () => {
@@ -143,27 +141,66 @@ const QueryResults = ({
     );
   };
 
-  const renderTable = (tableData: unknown[]) => {
+  const renderTableButtons = (tableType: "results" | "errors") => {
     return (
-      <TableContainer
-        columns={resultsTableHeaders(tableData || [])}
-        data={tableData || []}
-        emptyComponent={renderNoResults}
-        isLoading={false}
-        disableCount
-        isClientSidePagination
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        resultsTitle={"hosts"}
-      />
+      <div className={`${baseClass}__results-cta`}>
+        <Button
+          className={`${baseClass}__show-query-btn`}
+          onClick={onShowQueryModal}
+          variant="text-link"
+        >
+          <>
+            Show query <img alt="Show query" src={EyeIcon} />
+          </>
+        </Button>
+        <Button
+          className={`${baseClass}__export-btn`}
+          onClick={
+            tableType === "errors"
+              ? onExportErrorsResults
+              : onExportQueryResults
+          }
+          variant="text-link"
+        >
+          <>
+            {`Export ${tableType}`}{" "}
+            <img alt={`Export ${tableType}`} src={DownloadIcon} />
+          </>
+        </Button>
+      </div>
     );
   };
 
-  const renderResultsTable = () => {
-    const emptyResults = !queryResults || !queryResults.length;
-    const hasNoResultsYet = !isQueryFinished && emptyResults;
+  const renderTable = (
+    tableData: unknown[],
+    tableType: "errors" | "results"
+  ) => {
+    return (
+      <div className={`${baseClass}__results-table-container`}>
+        <TableContainer
+          columns={resultsTableHeaders(tableData || [])}
+          data={tableData || []}
+          emptyComponent={renderNoResults}
+          isLoading={false}
+          isClientSidePagination
+          isClientSideFilter
+          isMultiColumnFilter
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          resultsTitle={tableType}
+          customControl={() => renderTableButtons(tableType)}
+          setExportRows={
+            tableType === "errors" ? setFilteredErrors : setFilteredResults
+          }
+        />
+      </div>
+    );
+  };
+
+  const renderResultsTab = () => {
+    const hasNoResultsYet = !isQueryFinished && !queryResults?.length;
     const finishedWithNoResults =
-      isQueryFinished && (!hostsCount.successful || emptyResults);
+      isQueryFinished && (!queryResults?.length || !hostsCount.successful);
 
     if (hasNoResultsYet) {
       return <Spinner />;
@@ -173,74 +210,10 @@ const QueryResults = ({
       return renderNoResults();
     }
 
-    return (
-      <div className={`${baseClass}__results-table-container`}>
-        <div className={`${baseClass}__results-table-header`}>
-          <span className={`${baseClass}__results-count`}>
-            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
-          </span>
-          <div className={`${baseClass}__results-cta`}>
-            <Button
-              className={`${baseClass}__show-query-btn`}
-              onClick={onShowQueryModal}
-              variant="text-link"
-            >
-              <>
-                Show query <img alt="Show query" src={EyeIcon} />
-              </>
-            </Button>
-            <Button
-              className={`${baseClass}__export-btn`}
-              onClick={onExportQueryResults}
-              variant="text-link"
-            >
-              <>
-                Export results <img alt="Export results" src={DownloadIcon} />
-              </>
-            </Button>
-          </div>
-        </div>
-        {renderTable(queryResults)}
-      </div>
-    );
+    return renderTable(queryResults, "results");
   };
 
-  const renderErrorsTable = () => {
-    return (
-      <div className={`${baseClass}__error-table-container`}>
-        <div className={`${baseClass}__errors-table-header`}>
-          {errors && (
-            <span className={`${baseClass}__error-count`}>
-              {errors.length} error{errors.length !== 1 && "s"}
-            </span>
-          )}
-          <div className={`${baseClass}__errors-cta`}>
-            <Button
-              className={`${baseClass}__show-query-btn`}
-              onClick={onShowQueryModal}
-              variant="text-link"
-            >
-              <>
-                Show query <img alt="Show query" src={EyeIcon} />
-              </>
-            </Button>
-            <Button
-              className={`${baseClass}__export-btn`}
-              onClick={onExportErrorsResults}
-              variant="text-link"
-            >
-              <>
-                Export errors <img alt="" src={DownloadIcon} />
-              </>
-            </Button>
-          </div>
-        </div>
-        <div className={`${baseClass}__error-table-wrapper`}>
-          {renderTable(errors)}
-        </div>
-      </div>
-    );
-  };
+  const renderErrorsTab = () => renderTable(errors, "errors");
 
   const renderFinishedButtons = () => (
     <div className={`${baseClass}__btn-wrapper`}>
@@ -268,10 +241,7 @@ const QueryResults = ({
         onClick={onStopQuery}
         variant="alert"
       >
-        <>
-          <Spinner isInButton />
-          Stop
-        </>
+        <>Stop</>
       </Button>
     </div>
   );
@@ -286,7 +256,7 @@ const QueryResults = ({
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
           <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
-          {targetsRespondedPercent}%&nbsp;
+          {percentResponded}%&nbsp;
           <TooltipWrapper
             tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
@@ -310,8 +280,8 @@ const QueryResults = ({
               </span>
             </Tab>
           </TabList>
-          <TabPanel>{renderResultsTable()}</TabPanel>
-          <TabPanel>{renderErrorsTable()}</TabPanel>
+          <TabPanel>{renderResultsTab()}</TabPanel>
+          <TabPanel>{renderErrorsTab()}</TabPanel>
         </Tabs>
       </TabsWrapper>
       {showQueryModal && <ShowQueryModal onCancel={onShowQueryModal} />}

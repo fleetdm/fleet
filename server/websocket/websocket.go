@@ -61,11 +61,12 @@ func (c *Conn) WriteJSONError(data interface{}) error {
 // ReadJSONMessage reads an incoming Message from JSON. Note that the
 // Message.Data field is guaranteed to be *json.RawMessage, and so unchecked
 // type assertions may be performed as in:
-//  msg, err := c.ReadJSONMessage()
-//  if err == nil && msg.Type == "foo" {
-//  	var foo fooData
-//  	json.Unmarshal(*(msg.Data.(*json.RawMessage)), &foo)
-//  }
+//
+//	msg, err := c.ReadJSONMessage()
+//	if err == nil && msg.Type == "foo" {
+//		var foo fooData
+//		json.Unmarshal(*(msg.Data.(*json.RawMessage)), &foo)
+//	}
 func (c *Conn) ReadJSONMessage() (*JSONMessage, error) {
 	data, err := c.Recv()
 	if err != nil {

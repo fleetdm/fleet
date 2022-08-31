@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -226,13 +228,13 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 
 			// run the collection
 			var stats collectorExecStats
-			task := Task{
-				InsertBatch:        batchSizes,
-				UpdateBatch:        batchSizes,
-				DeleteBatch:        batchSizes,
-				RedisPopCount:      batchSizes,
-				RedisScanKeysCount: 10,
-			}
+			task := NewTask(nil, nil, clock.C, config.OsqueryConfig{
+				AsyncHostInsertBatch:        batchSizes,
+				AsyncHostUpdateBatch:        batchSizes,
+				AsyncHostDeleteBatch:        batchSizes,
+				AsyncHostRedisPopCount:      batchSizes,
+				AsyncHostRedisScanKeysCount: 10,
+			})
 			err := task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 			require.NoError(t, err)
 			// inserts, updates and deletes are a bit tricky to track automatically,
@@ -274,13 +276,13 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 	// update host 1, policy 1, already existing
 	setupTest(t, map[int]map[int]*bool{1: {1: nil}})
 	var stats collectorExecStats
-	task := Task{
-		InsertBatch:        batchSizes,
-		UpdateBatch:        batchSizes,
-		DeleteBatch:        batchSizes,
-		RedisPopCount:      batchSizes,
-		RedisScanKeysCount: 10,
-	}
+	task := NewTask(nil, nil, clock.C, config.OsqueryConfig{
+		AsyncHostInsertBatch:        batchSizes,
+		AsyncHostUpdateBatch:        batchSizes,
+		AsyncHostDeleteBatch:        batchSizes,
+		AsyncHostRedisPopCount:      batchSizes,
+		AsyncHostRedisScanKeysCount: 10,
+	})
 	err := task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 	require.NoError(t, err)
 
@@ -309,11 +311,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
-	task := Task{
-		Datastore:    ds,
-		Pool:         pool,
-		AsyncEnabled: false,
-	}
+	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
 
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
@@ -356,17 +354,14 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
-	task := Task{
-		Datastore:    ds,
-		Pool:         pool,
-		AsyncEnabled: true,
-
-		InsertBatch:        3,
-		UpdateBatch:        3,
-		DeleteBatch:        3,
-		RedisPopCount:      3,
-		RedisScanKeysCount: 10,
-	}
+	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
+		EnableAsyncHostProcessing:   "true",
+		AsyncHostInsertBatch:        3,
+		AsyncHostUpdateBatch:        3,
+		AsyncHostDeleteBatch:        3,
+		AsyncHostRedisPopCount:      3,
+		AsyncHostRedisScanKeysCount: 10,
+	})
 
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))

@@ -15,6 +15,9 @@ let plugins = [
   new HtmlWebpackPlugin({
     filename: "../frontend/templates/react.tmpl",
     inject: false,
+    templateParameters: {
+      isProduction: process.env.NODE_ENV === "production",
+    },
     template: "frontend/templates/react.ejs",
   }),
   new WebpackNotifierPlugin({

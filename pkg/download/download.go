@@ -16,10 +16,18 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-// Decompressed downloads and decompresses a file from a URL to a local path.
-//
-// It supports gz, bz2 and xz compressed files.
-func Decompressed(client *http.Client, u url.URL, path string) error {
+// Download downloads a file from a URL and writes it to path.
+func Download(client *http.Client, u *url.URL, path string) error {
+	return download(client, u, path, false)
+}
+
+// DownloadAndExtract downloads and extracts a file from a URL and writes it to path.
+// The compression method is determined using extension from the url path. Only .gz, .bz2, or .xz extensions are supported.
+func DownloadAndExtract(client *http.Client, u *url.URL, path string) error {
+	return download(client, u, path, true)
+}
+
+func download(client *http.Client, u *url.URL, path string, extract bool) error {
 
 	// atomically write to file
 	dir, file := filepath.Split(path)
@@ -60,25 +68,31 @@ func Decompressed(client *http.Client, u url.URL, path string) error {
 	}
 	defer resp.Body.Close()
 
-	var decompressor io.Reader
-	switch {
-	case strings.HasSuffix(u.Path, "gz"):
-		decompressor, err = gzip.NewReader(resp.Body)
-		if err != nil {
-			return err
+	r := io.Reader(resp.Body)
+
+	// extract (optional)
+	if extract {
+		switch {
+		case strings.HasSuffix(u.Path, "gz"):
+			gr, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				return err
+			}
+			r = gr
+		case strings.HasSuffix(u.Path, "bz2"):
+			r = bzip2.NewReader(resp.Body)
+		case strings.HasSuffix(u.Path, "xz"):
+			xzr, err := xz.NewReader(resp.Body)
+			if err != nil {
+				return err
+			}
+			r = xzr
+		default:
+			return fmt.Errorf("unknown extension: %s", u.Path)
 		}
-	case strings.HasSuffix(u.Path, "bz2"):
-		decompressor = bzip2.NewReader(resp.Body)
-	case strings.HasSuffix(u.Path, "xz"):
-		decompressor, err = xz.NewReader(resp.Body)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unknown extension: %s", u.Path)
 	}
 
-	if _, err := io.Copy(tmpFile, decompressor); err != nil {
+	if _, err := io.Copy(tmpFile, r); err != nil {
 		return err
 	}
 

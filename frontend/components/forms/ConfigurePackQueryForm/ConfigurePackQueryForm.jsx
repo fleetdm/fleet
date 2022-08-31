@@ -144,13 +144,9 @@ export class ConfigurePackQueryForm extends Component {
             label="Shard"
             type="number"
           />
-          <div className={`${baseClass}__btn-wrapper`}>
+          <div className="modal-cta-wrap">
             {renderCancelButton()}
-            <Button
-              className={`${baseClass}__submit-btn`}
-              type="submit"
-              variant="brand"
-            >
+            <Button type="submit" variant="brand">
               Save
             </Button>
           </div>

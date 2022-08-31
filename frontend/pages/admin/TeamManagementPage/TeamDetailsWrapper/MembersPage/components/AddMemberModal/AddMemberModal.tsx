@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 
 import { INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
@@ -65,21 +65,16 @@ const AddMemberModal = ({
             </>
           </Button>
         </p>
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             disabled={selectedMembers.length === 0}
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={onFormSubmit}
           >
-            Add Member
+            Add member
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>

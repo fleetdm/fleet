@@ -6,6 +6,7 @@ const (
 	outfileFlagName          = "outfile"
 	debugFlagName            = "debug"
 	fleetCertificateFlagName = "fleet-certificate"
+	stdoutFlagName           = "stdout"
 )
 
 func outfileFlag() cli.Flag {
@@ -43,4 +44,16 @@ func fleetCertificateFlag() cli.Flag {
 
 func getFleetCertificate(c *cli.Context) string {
 	return c.String(fleetCertificateFlagName)
+}
+
+func stdoutFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:    stdoutFlagName,
+		EnvVars: []string{"STDOUT"},
+		Usage:   "Print contents to stdout",
+	}
+}
+
+func getStdout(c *cli.Context) bool {
+	return c.Bool(stdoutFlagName)
 }

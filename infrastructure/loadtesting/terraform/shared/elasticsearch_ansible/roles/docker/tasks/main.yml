@@ -1,0 +1,25 @@
+---
+- ansible.builtin.file:
+    path: /var/lib/docker/volumes/
+    owner: root
+    group: root
+    mode: '0755'
+    state: directory
+- name: create docker volume partition
+  community.general.parted:
+    device: /dev/sdb
+    number: 1
+    state: present
+    fs_type: ext4
+- name: format docker volume
+  community.general.filesystem:
+    dev: /dev/sdb1
+    fstype: ext4
+- name: docker volume mount
+  ansible.posix.mount:
+    path: /var/lib/docker/volumes/
+    src: /dev/sdb1
+    fstype: ext4
+    state: mounted
+- package: name=docker
+- systemd: name=docker.service enabled=true state=started

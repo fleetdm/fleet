@@ -1,6 +1,6 @@
 # Using Fleet FAQ
 
-- [What do I need to do to switch from Kolide Fleet to FleetDM Fleet?](#waht-do-i-need-to-do-to-switch-from-kolide-fleet-to-fleetdm-fleet)
+- [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
 - [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
 - [Can I target my hosts using their enroll secrets?](#can-I-target-my-hosts-using-their-enroll-secrets)
 - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
@@ -19,25 +19,21 @@
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
+- [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
 - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
 - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
 - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
 - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
 - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
 - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
 - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
+- [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
 
-## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
+## How can I switch to Fleet from Kolide Fleet?
 
-The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
-
-Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for the new Fleet.
-
-To migrate from `kolide/fleet` to the new Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
+To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
 
@@ -127,7 +123,7 @@ Both queries will run as scheduled on applicable hosts. If there are any hosts t
 
 Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
 
-## Why does my query work locally with osquery, but not in Fleet?
+## Why does my query work locally with osquery but not in Fleet?
 
 If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access. 
 
@@ -172,23 +168,6 @@ The following are reasons why a host may not be updating a policy's response:
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
 * Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./Adding-hosts.md).
-* Restart the `fleetctl preview` docker containers.
-* Uninstall and reinstall Docker.
-
-## Fleet preview fails with Invalid interpolation. What should I do?
-
-If you tried running `fleetctl preview` and you get the following error:
-
-```
-fleetctl preview
-Downloading dependencies into /root/.fleet/preview...
-Pulling Docker dependencies...
-Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
-
-Failed to run docker-compose
-```
-
-You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
 
 ## How does Fleet deal with IP duplication?
 
@@ -198,13 +177,22 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
-## Can I disable auto-updates for Orbit?
+## Can I control how Orbit handles updates?
 
-Yes, auto-updates can be disabled by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
+Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
+
+You can also indicate the [channels you would like Orbit to watch for updates](https://github.com/fleetdm/fleet/tree/main/orbit#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+```
+
+You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
+
 ## Can I bundle osquery extensions into Orbit?
 
 This isn't supported yet, but we're working on it! 
@@ -245,13 +233,9 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
 
-## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
-
-If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the most likely culprit is that you're behind a corporate proxy server and need to [add the proxy settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by `fleetctl preview` is able to connect properly. 
-
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies and teams (Available in Fleet Premium) through the UI, the REST API or `fleetctl`.  
+The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
 
 ## How often is the software inventory updated?
 
@@ -259,7 +243,7 @@ By default, Fleet will query hosts for software inventory hourly. If you'd like 
 
 ## Can I group results from multiple hosts?
 
-There are a few ways you can go about getting counts of hosts that meet a specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retreive all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
+There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
 
 ```
 $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
@@ -274,3 +258,63 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    6 "macOS 12.3.1"
 ```
 
+## How do I downgrade from Fleet Premium to Fleet Free?
+
+If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
+
+How to downgrade from Fleet Premium to Fleet Free:
+
+First, back up your users and update all team-level users to global users:
+
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so
+   that, if you choose to upgrade later, you can restore user roles.
+2. Head to the **Settings > Users** page in the Fleet UI.
+3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**,
+   then select
+   **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+
+Next, move all team-level scheduled queries to the global level:
+1. Head to the **Schedule** page in the Fleet UI.
+2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select
+   **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select
+   query** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts
+   following the downgrade process.
+
+Next, move all team level policies to the global level:
+1. Head to the **Policies** page in the Fleet UI.
+2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**,
+  and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
+  **create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a team because they will no longer run on any hosts
+following the downgrade process.
+
+Next, back up your teams:
+1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so
+that, if you choose to upgrade later, you can restore teams.
+2. Head to the **Settings > Teams** page in the Fleet UI.
+3. Delete all teams. This will move all hosts to the global level.
+
+Lastly, remove your Fleet Premium license key:
+1. Remove your license key from your Fleet configuration. Documentation on where the license key is
+   located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+2. Restart your Fleet server.
+
+## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
+
+No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
+
+## How can I uninstall Orbit/Fleet Desktop?
+To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
+
+### MacOS
+Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
+
+### Windows
+Use the "Add or remove programs" dialog to remove Orbit.
+
+### Ubuntu
+Run `sudo apt remove fleet-osquery -y`
+
+### CentOS
+Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -16,6 +16,7 @@ const baseClass = "app-config-form";
 const Advanced = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     domain: appConfig.smtp_settings.domain || "",
@@ -54,6 +55,10 @@ const Advanced = ({
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [enableHostExpiry]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -175,6 +180,8 @@ const Advanced = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        isLoading={isUpdatingSettings}
       >
         Save
       </Button>

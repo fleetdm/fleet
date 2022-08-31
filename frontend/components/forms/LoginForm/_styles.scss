@@ -1,8 +1,7 @@
 .login-form {
   transition: opacity 300ms ease-in;
-  transform: translateY(-150px);
   opacity: 1;
-  width: 500px;
+  width: 516px;
   align-self: center;
   border-radius: 10px;
   overflow: hidden;
@@ -15,12 +14,14 @@
     display: flex;
     align-items: center;
     background-color: $core-white;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+    border-radius: 10px;
+    min-height: 360px;
     box-sizing: border-box;
     flex-direction: column;
     padding: $pad-xxlarge;
+    margin: $pad-xxlarge 0;
     font-weight: $regular;
+    width: 516px;
   }
 
   &__submit-btn {

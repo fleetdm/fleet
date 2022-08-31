@@ -16,8 +16,8 @@ import (
 // Jira is a Jira client to be used to make requests to a jira external
 // service.
 type Jira struct {
-	client     *jira.Client
-	projectKey string
+	client *jira.Client
+	opts   JiraOptions
 }
 
 // JiraOptions defines the options to configure a Jira client.
@@ -43,8 +43,8 @@ func NewJiraClient(opts *JiraOptions) (*Jira, error) {
 	}
 
 	return &Jira{
-		client:     client,
-		projectKey: opts.ProjectKey,
+		client: client,
+		opts:   *opts,
 	}, nil
 }
 
@@ -60,7 +60,7 @@ func (j *Jira) GetProject(ctx context.Context) (*jira.Project, error) {
 			err  error
 			resp *jira.Response
 		)
-		proj, resp, err = j.client.Project.GetWithContext(ctx, j.projectKey)
+		proj, resp, err = j.client.Project.GetWithContext(ctx, j.opts.ProjectKey)
 		return resp, err
 	}
 
@@ -70,13 +70,13 @@ func (j *Jira) GetProject(ctx context.Context) (*jira.Project, error) {
 	return proj, nil
 }
 
-// CreateIssue creates an issue on the jira server targeted by the Jira client.
+// CreateJiraIssue creates an issue on the jira server targeted by the Jira client.
 // It returns the created issue or an error.
-func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+func (j *Jira) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
 	if issue.Fields == nil {
 		issue.Fields = &jira.IssueFields{}
 	}
-	issue.Fields.Project.Key = j.projectKey
+	issue.Fields.Project.Key = j.opts.ProjectKey
 
 	var createdIssue *jira.Issue
 	op := func() (*jira.Response, error) {
@@ -92,6 +92,14 @@ func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue,
 		return nil, err
 	}
 	return createdIssue, nil
+}
+
+// JiraConfigMatches returns true if the jira client has been configured using
+// those same options. The Jira in the name is required so that the interface
+// method is not the same as the one for Zendesk (for mock or wrapper
+// implementations).
+func (j *Jira) JiraConfigMatches(opts *JiraOptions) bool {
+	return j.opts == *opts
 }
 
 // TODO: find approach to consolidate overlapping logic for jira and zendesk retries

@@ -37,6 +37,8 @@ interface IQueryFormProps {
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
+  isQuerySaving: boolean;
+  isQueryUpdating: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -64,6 +66,8 @@ const QueryForm = ({
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
+  isQuerySaving,
+  isQueryUpdating,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -413,6 +417,7 @@ const QueryForm = ({
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly
+          wrapEnabled
         />
       )}
       <span className={`${baseClass}__platform-compatibility`}>
@@ -438,11 +443,6 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
-        {isSaveAsNewLoading && (
-          <div className={`${baseClass}__loading-overlay`}>
-            <Spinner />
-          </div>
-        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -460,6 +460,7 @@ const QueryForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
+          wrapEnabled
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
@@ -489,10 +490,11 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
+                  className="save-as-new-loading"
+                  isLoading={isSaveAsNewLoading}
                 >
                   Save as new
                 </Button>
@@ -509,13 +511,14 @@ const QueryForm = ({
                   }
                 >
                   <Button
-                    className={`${baseClass}__save`}
+                    className="save-loading"
                     variant="brand"
                     onClick={promptSaveQuery()}
                     disabled={
                       isAnyTeamMaintainerOrTeamAdmin &&
                       !hasTeamMaintainerPermissions
                     }
+                    isLoading={isQueryUpdating}
                   >
                     Save
                   </Button>
@@ -523,18 +526,16 @@ const QueryForm = ({
                 <ReactTooltip
                   className={`save-query-button-tooltip`}
                   place="bottom"
-                  type="dark"
                   effect="solid"
                   backgroundColor="#3e4771"
                   id="save-query-button"
                   data-html
                 >
-                  <div
-                    className={`tooltip`}
-                    style={{ width: "152px", textAlign: "center" }}
-                  >
-                    You can only save changes to a query if you are the author.
-                  </div>
+                  <>
+                    You can only save
+                    <br /> changes to a query if you
+                    <br /> are the author.
+                  </>
                 </ReactTooltip>
               </div>
             </>
@@ -555,6 +556,7 @@ const QueryForm = ({
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
           backendValidators={backendValidators}
+          isLoading={isQuerySaving}
         />
       )}
     </>

@@ -21,11 +21,11 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   source  = "terraform-aws-modules/rds-aurora/aws"
   version = "5.3.0"
 
-  name                  = "${local.name}-mysql-iam"
+  name                  = "${local.name}-mysql"
   engine                = "aurora-mysql"
   engine_version        = "5.7.mysql_aurora.2.10.0"
-  instance_type         = "db.r6g.large"
-  instance_type_replica = "db.r6g.large"
+  instance_type         = "db.r6g.4xlarge"
+  instance_type_replica = "db.r6g.4xlarge"
 
   iam_database_authentication_enabled = true
   storage_encrypted                   = true
@@ -37,20 +37,22 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   performance_insights_enabled        = true
   enabled_cloudwatch_logs_exports     = ["slowquery"]
 
-  vpc_id                 = module.vpc.vpc_id
-  vpc_security_group_ids = [aws_security_group.backend.id]
-  subnets                = module.vpc.database_subnets
-  create_security_group  = true
-  allowed_cidr_blocks    = module.vpc.private_subnets_cidr_blocks
+  vpc_id                  = data.terraform_remote_state.shared.outputs.vpc.vpc_id
+  vpc_security_group_ids  = [aws_security_group.backend.id]
+  subnets                 = data.terraform_remote_state.shared.outputs.vpc.database_subnets
+  create_security_group   = true
+  allowed_cidr_blocks     = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
+  # Old Jump box?
+  # allowed_security_groups = ["sg-0063a978193fdf7ee"]
 
-  replica_count         = var.scale_down ? 0 : 1
+  replica_count         = 1
   replica_scale_enabled = true
-  replica_scale_min     = var.scale_down ? 0 : 1
-  replica_scale_max     = var.scale_down ? 0 : 3
+  replica_scale_min     = 1
+  replica_scale_max     = 1
   snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
 
   monitoring_interval           = 60
-  iam_role_name                 = "${local.name}-rds-enhanced-monitoring"
+  iam_role_name                 = "${local.name}-rds"
   iam_role_use_name_prefix      = true
   iam_role_description          = "${local.name} RDS enhanced monitoring IAM role"
   iam_role_path                 = "/autoscaling/"

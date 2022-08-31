@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,20 +31,26 @@ type liveQueriesTestSuite struct {
 	withServer
 	suite.Suite
 
-	lq    *live_query.MockLiveQuery
+	lq    *live_query_mock.MockLiveQuery
 	hosts []*fleet.Host
 }
 
+// SetupTest partially implements suite.SetupTestSuite.
+func (s *liveQueriesTestSuite) SetupTest() {
+	s.lq.Mock.Test(s.T())
+}
+
+// SetupSuite partially implements suite.SetupAllSuite.
 func (s *liveQueriesTestSuite) SetupSuite() {
-	require.NoError(s.T(), os.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s"))
+	s.T().Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 
 	s.withDS.SetupSuite("liveQueriesTestSuite")
 
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, TestServerOpts{Lq: lq, Rs: rs})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Lq: lq, Rs: rs})
 	s.server = server
 	s.users = users
 	s.token = getTestAdminToken(s.T(), s.server)
@@ -66,6 +72,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	}
 }
 
+// TearDownTest partially implements suite.TearDownTestSuite.
 func (s *liveQueriesTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
@@ -494,4 +501,65 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
 	req.NodeKey += "zzzz"
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
 	assert.Contains(t, errRes["error"], "invalid node key")
+}
+
+func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
+	t := s.T()
+
+	spec := []byte(`
+  features:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+	s.applyConfig(spec)
+
+	a := json.RawMessage(`{"time": "SELECT * FROM time"}`)
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: false,
+				AdditionalQueries:       &a,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "select 1 from osquery;"}, nil)
+
+	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	dqResp = getDistributedQueriesResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 }

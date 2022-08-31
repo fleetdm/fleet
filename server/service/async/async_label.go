@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -19,9 +20,10 @@ const (
 )
 
 func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
-	if !t.AsyncEnabled {
+	cfg := t.taskConfigs[config.AsyncTaskLabelMembership]
+	if !cfg.Enabled {
 		host.LabelUpdatedAt = ts
-		return t.Datastore.RecordLabelQueryExecutions(ctx, host, results, ts, deferred)
+		return t.datastore.RecordLabelQueryExecutions(ctx, host, results, ts, deferred)
 	}
 
 	keySet := fmt.Sprintf(labelMembershipHostKey, host.ID)
@@ -37,7 +39,7 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// the collector will have plenty of time to run (multiple times) to try to
 	// persist all the data in mysql.
 	ttl := labelMembershipKeysMinTTL
-	if maxTTL := 10 * t.CollectorInterval; maxTTL > ttl {
+	if maxTTL := 10 * cfg.CollectInterval; maxTTL > ttl {
 		ttl = maxTTL
 	}
 
@@ -65,9 +67,9 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 		args = args.Add(score, k)
 	}
 
-	conn := t.Pool.Get()
+	conn := t.pool.Get()
 	defer conn.Close()
-	if err := redis.BindConn(t.Pool, conn, keySet, keyTs); err != nil {
+	if err := redis.BindConn(t.pool, conn, keySet, keyTs); err != nil {
 		return ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 
@@ -79,14 +81,16 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// outside of the redis script because in Redis Cluster mode the key may not
 	// live on the same node as the host's keys. At the same time, purge any
 	// entry in the set that is older than now - TTL.
-	if _, err := storePurgeActiveHostID(t.Pool, labelMembershipActiveHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
+	if _, err := storePurgeActiveHostID(t.pool, labelMembershipActiveHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
 		return ctxerr.Wrap(ctx, err, "store active host id")
 	}
 	return nil
 }
 
 func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	hosts, err := loadActiveHostIDs(pool, labelMembershipActiveHostIDsKey, t.RedisScanKeysCount)
+	cfg := t.taskConfigs[config.AsyncTaskLabelMembership]
+
+	hosts, err := loadActiveHostIDs(pool, labelMembershipActiveHostIDsKey, cfg.RedisScanKeysCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load active host ids")
 	}
@@ -100,7 +104,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 		for {
 			stats.RedisCmds++
 
-			vals, err := redigo.Ints(conn.Do("ZPOPMIN", keySet, t.RedisPopCount))
+			vals, err := redigo.Ints(conn.Do("ZPOPMIN", keySet, cfg.RedisPopCount))
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "redis ZPOPMIN")
 			}
@@ -122,7 +126,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 					deletes = append(deletes, [2]uint{uint(labelID), hostID})
 				}
 			}
-			if items < t.RedisPopCount {
+			if items < cfg.RedisPopCount {
 				return inserts, deletes, nil
 			}
 		}
@@ -157,8 +161,8 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 		return ds.AsyncBatchUpdateLabelTimestamp(ctx, ids, ts)
 	}
 
-	insertBatch := make([][2]uint, 0, t.InsertBatch)
-	deleteBatch := make([][2]uint, 0, t.DeleteBatch)
+	insertBatch := make([][2]uint, 0, cfg.InsertBatch)
+	deleteBatch := make([][2]uint, 0, cfg.DeleteBatch)
 	for _, host := range hosts {
 		hid := host.HostID
 		ins, del, err := getKeyTuples(hid)
@@ -168,13 +172,13 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 		insertBatch = append(insertBatch, ins...)
 		deleteBatch = append(deleteBatch, del...)
 
-		if len(insertBatch) >= t.InsertBatch {
+		if len(insertBatch) >= cfg.InsertBatch {
 			if err := runInsertBatch(insertBatch); err != nil {
 				return err
 			}
 			insertBatch = insertBatch[:0]
 		}
-		if len(deleteBatch) >= t.DeleteBatch {
+		if len(deleteBatch) >= cfg.DeleteBatch {
 			if err := runDeleteBatch(deleteBatch); err != nil {
 				return err
 			}
@@ -200,8 +204,8 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 			hostIDs[i] = host.HostID
 		}
 
-		ts := time.Now()
-		updateBatch := make([]uint, t.UpdateBatch)
+		ts := t.clock.Now()
+		updateBatch := make([]uint, cfg.UpdateBatch)
 		for {
 			n := copy(updateBatch, hostIDs)
 			if n == 0 {
@@ -226,8 +230,10 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 }
 
 func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) time.Time {
-	if t.AsyncEnabled {
-		conn := redis.ConfigureDoer(t.Pool, t.Pool.Get())
+	cfg := t.taskConfigs[config.AsyncTaskLabelMembership]
+
+	if cfg.Enabled {
+		conn := redis.ConfigureDoer(t.pool, t.pool.Get())
 		defer conn.Close()
 
 		key := fmt.Sprintf(labelMembershipReportedKey, host.ID)

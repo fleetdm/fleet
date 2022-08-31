@@ -3,8 +3,8 @@ import React from "react";
 const baseClass = "hosts-status";
 
 interface IHostSummaryProps {
-  onlineCount: string | undefined;
-  offlineCount: string | undefined;
+  onlineCount: number;
+  offlineCount: number;
   isLoadingHosts: boolean;
   showHostsUI: boolean;
 }

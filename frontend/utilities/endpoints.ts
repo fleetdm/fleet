@@ -8,6 +8,7 @@ export default {
     return `/${API_VERSION}/fleet/email/change/${token}`;
   },
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/enable`;
   },

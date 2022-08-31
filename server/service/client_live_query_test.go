@@ -88,12 +88,14 @@ func TestLiveQueryWithContext(t *testing.T) {
 	baseURL, err := url.Parse(ts.URL)
 	require.NoError(t, err)
 	client := &Client{
-		baseURL:            baseURL,
-		urlPrefix:          "",
-		token:              "1234",
-		http:               fleethttp.NewClient(),
-		insecureSkipVerify: false,
-		writer:             nil,
+		baseClient: &baseClient{
+			baseURL:            baseURL,
+			http:               fleethttp.NewClient(),
+			insecureSkipVerify: false,
+			urlPrefix:          "",
+		},
+		token:  "1234",
+		writer: nil,
 	}
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()

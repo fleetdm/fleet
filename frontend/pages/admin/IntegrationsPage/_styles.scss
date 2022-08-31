@@ -22,25 +22,14 @@
 
     img {
       width: 12px;
-      height: 12px;
-      margin-left: 7px;
+      margin-left: 2px;
     }
-  }
-
-  h1 {
-    font-size: $large;
-    font-weight: $regular;
-    line-height: normal;
-    letter-spacing: normal;
-    color: $core-fleet-black;
   }
 
   h2 {
     font-size: $small;
     font-weight: $bold;
     margin: 0 0 $pad-large;
-    line-height: 20px;
-    color: $core-fleet-black;
   }
 
   ul {
@@ -93,12 +82,21 @@
   }
 }
 
-.logo__header {
-  width: 24px;
+.type__header {
+  width: 12px;
 }
 
-.logo__cell {
-  img {
+.type__cell {
+  .logo-cell {
+    display: block;
+    text-align: center;
+  }
+
+  .zendesk-icon {
+    width: 16px;
+  }
+
+  .jira-icon {
     width: 24px;
   }
 }

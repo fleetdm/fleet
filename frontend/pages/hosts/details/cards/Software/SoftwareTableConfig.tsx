@@ -2,8 +2,7 @@ import React from "react";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 
-// TODO: Enable after backend has been updated to provide last_opened_at
-// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+import { formatDistanceToNow } from "date-fns";
 
 import { ISoftware } from "interfaces/software";
 
@@ -25,6 +24,7 @@ interface ICellProps {
   };
   row: {
     original: ISoftware;
+    index: number;
   };
 }
 
@@ -37,6 +37,12 @@ interface IStringCellProps extends ICellProps {
 interface IVulnCellProps extends ICellProps {
   cell: {
     value: string[];
+  };
+}
+
+interface ILastUsedCellProps extends ICellProps {
+  cell: {
+    value: string;
   };
 }
 
@@ -83,16 +89,36 @@ const formatSoftwareType = (source: string) => {
   return DICT[source] || "Unknown";
 };
 
-const condenseVulnerabilities = (cves: string[]): string[] => {
-  const condensed = (cves?.length && cves.slice(-3).reverse()) || [];
-  return cves.length > 3
-    ? condensed.concat(`+${cves.length - 3} more`)
+const condenseVulnerabilities = (vulns: string[]): string[] => {
+  const condensed =
+    (vulns?.length && vulns.length === 4
+      ? vulns.slice(-4).reverse()
+      : vulns.slice(-3).reverse()) || [];
+  return vulns?.length > 4
+    ? condensed.concat(`+${vulns?.length - 3} more`)
     : condensed;
+};
+
+interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[];
+}
+
+export const generateSoftwareTableData = (
+  software: ISoftware[]
+): ISoftwareTableData[] => {
+  return software.map((s) => {
+    return {
+      ...s,
+      vulnerabilities: s.vulnerabilities?.map((v) => v.cve) || [],
+    };
+  });
 };
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
+export const generateSoftwareTableHeaders = (
+  deviceUser = false
+): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
@@ -163,7 +189,8 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       filter: "hasLength", // filters out rows where vulnerabilities has no length if filter value is `true`
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = cellProps.cell.value || [];
-        const tooltipText = condenseVulnerabilities(vulnerabilities)?.map(
+
+        const tooltipText = condenseVulnerabilities(vulnerabilities).map(
           (value) => {
             return (
               <span key={`vuln_${value}`}>
@@ -181,10 +208,10 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
           <>
             <span
               className={`vulnerabilities ${
-                vulnerabilities.length > 1 ? "text-muted" : ""
+                vulnerabilities.length > 1 ? "text-muted tooltip" : ""
               }`}
               data-tip
-              data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+              data-for={`vulnerabilities__${cellProps.row.original.id}`}
               data-tip-disable={vulnerabilities.length <= 1}
             >
               {vulnerabilities.length === 1
@@ -192,11 +219,9 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
                 : `${vulnerabilities.length} vulnerabilities`}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
-              id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+              id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
               <span className={`vulnerabilities tooltip__tooltip-text`}>
@@ -207,34 +232,52 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
         );
       },
     },
-    // TODO: Enable after backend has been updated to provide last_opened_at
-    // {
-    //   title: "Last used",
-    //   Header: (cellProps) => (
-    //     <HeaderCell
-    //       value={cellProps.column.title}
-    //       isSortedDesc={cellProps.column.isSortedDesc}
-    //     />
-    //   ),
-    //   accessor: "last_opened_at",
-    //   Cell: (cellProps) => {
-    //     const lastUsed = isNaN(Date.parse(cellProps.cell.value))
-    //       ? "Unavailable"
-    //       : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
-    //     return (
-    //       <span
-    //         className={
-    //           lastUsed === "Unavailable"
-    //             ? "software-last-used-muted"
-    //             : "software-last-used"
-    //         }
-    //       >
-    //         {lastUsed}
-    //       </span>
-    //     );
-    //   },
-    //   sortType: "dateStrings",
-    // },
+    {
+      title: "Last used",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "last_opened_at",
+      Cell: (cellProps: ILastUsedCellProps): JSX.Element => {
+        const lastUsed = cellProps.cell.value
+          ? `${formatDistanceToNow(Date.parse(cellProps.cell.value))} ago`
+          : "Unavailable";
+        const hasLastUsed = lastUsed !== "Unavailable";
+        return (
+          <>
+            <span
+              className={`last-used ${
+                lastUsed === "Unavailable" ? "text-muted tooltip" : ""
+              }`}
+              data-tip
+              data-for={`last_used__${cellProps.row.original.id}`}
+              data-tip-disable={hasLastUsed}
+            >
+              {lastUsed}
+            </span>
+            <ReactTooltip
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`last_used__${cellProps.row.original.id}`}
+              className="last_used_tooltip"
+              data-tip-disable={hasLastUsed}
+              data-html
+            >
+              <span className={`last_used tooltip__tooltip-text`}>
+                Last used information <br />
+                is only available for the <br />
+                Application (macOS) <br />
+                software type.
+              </span>
+            </ReactTooltip>
+          </>
+        );
+      },
+      sortType: "dateStrings",
+    },
     {
       title: "",
       Header: "",
@@ -244,9 +287,7 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
       Cell: (cellProps: IStringCellProps) => {
         return (
           <Link
-            to={`${
-              PATHS.MANAGE_HOSTS
-            }?software_id=${cellProps.row.original.id.toString()}`}
+            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
             className={`software-link`}
           >
             View all hosts{" "}
@@ -266,4 +307,4 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
   return tableHeaders;
 };
 
-export default generateSoftwareTableHeaders;
+export default { generateSoftwareTableHeaders, generateSoftwareTableData };

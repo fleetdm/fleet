@@ -2,7 +2,6 @@ import React from "react";
 import { Meta, Story } from "@storybook/react";
 
 import Spinner from ".";
-import { ISpinnerProps } from "./Spinner";
 
 import "../../index.scss";
 
@@ -14,6 +13,6 @@ export default {
   },
 } as Meta;
 
-const Template: Story<ISpinnerProps> = (props) => <Spinner {...props} />;
+const Template: Story = (props) => <Spinner {...props} />;
 
 export const Default = Template.bind({});

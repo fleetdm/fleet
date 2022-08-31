@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Team Admin user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -15,7 +19,7 @@ describe("Premium tier - Team Admin user", () => {
   });
 
   beforeEach(() => {
-    cy.loginWithCySession("anita@organization.com", "user123#");
+    cy.loginWithCySession("anita@organization.com", GOOD_PASSWORD);
   });
   describe("Navigation", () => {
     beforeEach(() => cy.visit("/dashboard"));
@@ -95,7 +99,9 @@ describe("Premium tier - Team Admin user", () => {
     });
     it("views all hosts for all platforms", () => {
       cy.findByText(/view all hosts/i).click();
-      cy.get(".manage-hosts__label-block").should("not.exist");
+      cy.findByRole("status", { name: /hosts filtered by/i }).should(
+        "not.exist"
+      );
     });
     it("views all hosts for windows only", () => {
       cy.getAttached(".homepage__platforms").within(() => {
@@ -103,11 +109,9 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByText(/windows/i).click();
       });
       cy.findByText(/view all hosts/i).click();
-      cy.getAttached(".manage-hosts__label-block").within(() => {
-        cy.getAttached(".title").within(() => {
-          cy.findByText(/windows/i).should("exist");
-        });
-      });
+      cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
+        "exist"
+      );
     });
     it("views all hosts for linux only", () => {
       cy.getAttached(".homepage__platforms").within(() => {
@@ -115,11 +119,9 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByText(/linux/i).click();
       });
       cy.findByText(/view all hosts/i).click();
-      cy.getAttached(".manage-hosts__label-block").within(() => {
-        cy.getAttached(".title").within(() => {
-          cy.findByText(/linux/i).should("exist");
-        });
-      });
+      cy.findByRole("status", { name: /hosts filtered by Linux/i }).should(
+        "exist"
+      );
     });
     it("views all hosts for macOS only", () => {
       cy.getAttached(".homepage__platforms").within(() => {
@@ -127,11 +129,9 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByText(/macos/i).click();
       });
       cy.findByText(/view all hosts/i).click();
-      cy.getAttached(".manage-hosts__label-block").within(() => {
-        cy.getAttached(".title").within(() => {
-          cy.findByText(/macos/i).should("exist");
-        });
-      });
+      cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
+        "exist"
+      );
     });
   });
   describe("Manage hosts page", () => {
@@ -223,7 +223,7 @@ describe("Premium tier - Team Admin user", () => {
           });
         cy.findAllByText(/detect presence/i).click();
       });
-      cy.getAttached(".query-form__save").should("be.disabled");
+      cy.findByRole("button", { name: "Save" }).should("be.disabled");
     });
   });
   describe("Manage schedules page", () => {
@@ -237,17 +237,19 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/advanced/i).should("not.exist");
     });
     it("creates a new team scheduled query", () => {
+      cy.getAttached(".no-schedule__cta-buttons").should("exist");
       cy.getAttached(".no-schedule__schedule-button").click();
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
         cy.findByText(/detect presence/i).click();
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
       cy.findByText(/successfully added/i).should("be.visible");
     });
     it("edit a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
@@ -258,19 +260,24 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByText(/every day/i).click();
         cy.findByText(/every 6 hours/i).click();
 
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
       cy.findByText(/successfully updated/i).should("be.visible");
     });
     it("remove a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
           cy.findByText(/6 hours/i).should("exist");
-          cy.findByText(/action/i).click();
-          cy.findByText(/remove/i).click();
+          cy.getAttached(".Select-placeholder").within(() => {
+            cy.findByText(/action/i).click();
+          });
+          cy.getAttached(".Select-menu").within(() => {
+            cy.findByText(/remove/i).click();
+          });
         });
       cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
         () => {
@@ -290,9 +297,11 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/gatekeeper enabled/i).click();
       cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).click();
+      });
+      cy.getAttached(".modal-cta-wrap").within(() => {
         cy.findByRole("button", { name: /save policy/i }).click();
       });
-      cy.findByRole("button", { name: /^Save$/ }).click();
       cy.findByText(/policy created/i).should("exist");
     });
     it("allows team admin to edit a team policy", () => {
@@ -338,7 +347,7 @@ describe("Premium tier - Team Admin user", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-policies-modal").within(() => {
+      cy.getAttached(".delete-policy-modal").within(() => {
         cy.findByRole("button", { name: /delete/i }).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
@@ -392,7 +401,7 @@ describe("Premium tier - Team Admin user", () => {
   describe("User profile page", () => {
     it("should render elements according to role-based access controls", () => {
       cy.visit("/profile");
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByText(/team/i)
           .next()
           .contains(/mystic/i); // Updated team name

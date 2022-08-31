@@ -1,4 +1,7 @@
 .query-page {
+  .body-wrap {
+    min-width: 0;
+  }
   &__results {
     display: flex;
     flex-grow: 1;
@@ -157,6 +160,11 @@
     margin-left: 16px;
     font-size: $x-small;
     display: flex;
+    align-items: center;
+    
+    .loading-spinner {
+      margin-left: -12px;
+    }
 
     span {
       font-weight: 700;

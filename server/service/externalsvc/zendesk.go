@@ -19,8 +19,8 @@ import (
 
 // Zendesk is a Zendesk client to be used to make requests to the Zendesk external service.
 type Zendesk struct {
-	client  *zendesk.Client
-	groupID int64
+	client *zendesk.Client
+	opts   ZendeskOptions
 }
 
 // ZendeskOptions defines the options to configure a Zendesk client.
@@ -52,8 +52,8 @@ func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
 	client.SetCredential(zendesk.NewAPITokenCredential(opts.Email, opts.APIToken))
 
 	return &Zendesk{
-		client:  client,
-		groupID: opts.GroupID,
+		client: client,
+		opts:   *opts,
 	}, nil
 }
 
@@ -65,7 +65,7 @@ func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 	var group *zendesk.Group
 
 	op := func() (interface{}, error) {
-		g, err := z.client.GetGroup(ctx, z.groupID)
+		g, err := z.client.GetGroup(ctx, z.opts.GroupID)
 		group = &g
 		return group, err
 	}
@@ -76,10 +76,10 @@ func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 	return group, nil
 }
 
-// CreateTicket creates a ticket on the Zendesk server targeted by the Zendesk client.
+// CreateZendeskTicket creates a ticket on the Zendesk server targeted by the Zendesk client.
 // It returns the created ticket or an error.
-func (z *Zendesk) CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
-	ticket.GroupID = z.groupID
+func (z *Zendesk) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
+	ticket.GroupID = z.opts.GroupID
 
 	var createdTicket *zendesk.Ticket
 	op := func() (interface{}, error) {
@@ -92,6 +92,14 @@ func (z *Zendesk) CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*ze
 		return nil, err
 	}
 	return createdTicket, nil
+}
+
+// ZendeskConfigMatches returns true if the zendesk client has been configured
+// using those same options. The Zendesk in the name is required so that the
+// interface method is not the same as the one for Jira (for mock or wrapper
+// implementations).
+func (z *Zendesk) ZendeskConfigMatches(opts *ZendeskOptions) bool {
+	return z.opts == *opts
 }
 
 // TODO: find approach to consolidate overlapping logic for jira and zendesk retries
@@ -150,7 +158,7 @@ func NewZendeskTestClient(opts *ZendeskOptions) (*Zendesk, error) {
 	client.SetCredential(zendesk.NewAPITokenCredential(opts.Email, opts.APIToken))
 
 	return &Zendesk{
-		client:  client,
-		groupID: opts.GroupID,
+		client: client,
+		opts:   *opts,
 	}, nil
 }

@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe(
   "Free tier - Maintainer user",
   {
@@ -21,7 +25,7 @@ describe(
 
     describe("Navigation", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays intended global maintainer top navigation", () => {
@@ -39,7 +43,7 @@ describe(
     });
     describe("Dashboard", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays cards for all platforms", () => {
@@ -97,7 +101,9 @@ describe(
       });
       it("views all hosts for all platforms", () => {
         cy.findByText(/view all hosts/i).click();
-        cy.get(".manage-hosts__label-block").should("not.exist");
+        cy.findByRole("status", { name: /hosts filtered by/i }).should(
+          "not.exist"
+        );
       });
       it("views all hosts for windows only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -105,11 +111,9 @@ describe(
           cy.findByText(/windows/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/windows/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for linux only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -117,11 +121,9 @@ describe(
           cy.findByText(/linux/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/linux/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Linux/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for macOS only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -129,16 +131,14 @@ describe(
           cy.findByText(/macos/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/macos/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
+          "exist"
+        );
       });
     });
     describe("Manage hosts page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/manage");
       });
       it("verifies maintainer is on the Manage Hosts page", () => {
@@ -158,13 +158,14 @@ describe(
         cy.contains("button", /done/i).click();
       });
       it("allows maintainer to open the 'Add label' form", () => {
+        cy.getAttached(".label-filter-select__control").click();
         cy.findByRole("button", { name: /add label/i }).click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+        cy.findByText(/New Label/i).should("exist");
       });
     });
     describe("Host details tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/1");
       });
       it("verifies teams is disabled", () => {
@@ -194,7 +195,7 @@ describe(
     });
     describe("Query pages", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/queries/manage");
       });
       it("allows maintainer to add a new query", () => {
@@ -247,7 +248,7 @@ describe(
     });
     describe("Manage policies page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/policies/manage");
       });
       it("hides manage automations from maintainer", () => {
@@ -274,7 +275,7 @@ describe(
             });
         });
         cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".remove-policies-modal").within(() => {
+        cy.getAttached(".delete-policy-modal").within(() => {
           cy.findByRole("button", { name: /delete/i }).should("exist");
           cy.findByRole("button", { name: /cancel/i }).click();
         });
@@ -299,7 +300,7 @@ describe(
     });
     describe("Manage packs page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/packs/manage");
       });
       it("allows maintainer to create a pack", () => {
@@ -329,16 +330,16 @@ describe(
     });
     describe("User profile page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/profile");
       });
       it("verifies teams is disabled for the Profile page", () => {
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText(/teams/i).should("not.exist");
         });
       });
       it("renders elements according to role-based access controls", () => {
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText("Role")
             .next()
             .contains(/maintainer/i);
@@ -356,7 +357,7 @@ describe(
         return false;
       });
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
       });
       it("verifies maintainer does not have access to settings", () => {
         cy.findByText(/settings/i).should("not.exist");

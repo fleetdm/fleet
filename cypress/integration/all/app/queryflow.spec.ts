@@ -17,7 +17,7 @@ describe("Query flow (empty)", () => {
       cy.visit("/queries/manage");
     });
     it("creates a new query", () => {
-      cy.getAttached(".queries-list-wrapper__create-button").click();
+      cy.getAttached(".queries-table__create-button").click();
       cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type("{selectall}SELECT * FROM windows_crashes;");
@@ -62,13 +62,13 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/run/i).click();
       // Ensures live query runs
       cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.getAttached(".query-results__results-table-header").within(() => {
+      cy.getAttached(".table-container").within(() => {
         cy.findByText(/show query/i).click();
       });
       cy.getAttached(".show-query-modal").within(() => {
         cy.findByText(/done/i).click();
       });
-      cy.getAttached(".query-results__results-table-header").within(() => {
+      cy.getAttached(".table-container").within(() => {
         const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
         cy.findByText(/export results/i).click();
         const filename = `Query Results (${formattedTime}).csv`;
@@ -84,20 +84,25 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".query-form__save").click();
+      cy.findByRole("button", { name: "Save" }).click();
       cy.findByText(/query updated/i).should("be.visible");
     });
     it("saves an existing query as new query", () => {
-      cy.getAttached(".name__cell .button--text-link").eq(1).click();
+      cy.getAttached(".name__cell .button--text-link")
+        .eq(1)
+        .within(() => {
+          cy.findByText(/get authorized/i).click();
+        });
       cy.findByText(/run query/i).should("exist");
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".query-form__save-as-new").click();
+      cy.findByRole("button", { name: /save as new/i }).click();
       cy.findByText(/copy of/i).should("be.visible");
     });
     it("deletes an existing query", () => {
       cy.findByText(/detect presence of authorized ssh keys/i)
+        .parent()
         .parent()
         .parent()
         .within(() => {
@@ -106,10 +111,10 @@ describe("Query flow (seeded)", () => {
           });
         });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-query-modal .modal-cta-wrap").within(() => {
+      cy.getAttached(".delete-query-modal .modal-cta-wrap").within(() => {
         cy.findByRole("button", { name: /delete/i }).click();
       });
-      cy.findByText(/successfully removed query/i).should("be.visible");
+      cy.findByText(/successfully deleted query/i).should("be.visible");
       cy.findByText(/detect presence of authorized ssh keys/i).should(
         "not.exist"
       );
@@ -147,13 +152,26 @@ describe("Query flow (seeded)", () => {
             cy.getAttached(".input-field").click().type("50");
           }
         );
-        cy.getAttached(
-          ".schedule-editor-modal__btn-wrap .modal-cta-wrap"
-        ).within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
       cy.findByText(/successfully added/i).should("be.visible");
+    });
+
+    it("shows sql of a scheduled query successfully", () => {
+      cy.getAttached("tbody>tr")
+        .should("have.length", 1)
+        .within(() => {
+          cy.findByText(/action/i).click();
+          cy.findByText(/show query/i).click();
+        });
+      cy.getAttached(".show-query-modal").within(() => {
+        cy.getAttached(".ace_content").within(() => {
+          cy.findByText(/select/i).should("exist");
+          cy.findByText(/datetime/i).should("exist");
+        });
+      });
     });
 
     it("edit a scheduled query successfully", () => {
@@ -167,7 +185,7 @@ describe("Query flow (seeded)", () => {
         cy.findByText(/every 6 hours/i).click();
         cy.findByText(/every day/i).click();
 
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });

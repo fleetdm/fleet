@@ -253,3 +253,18 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 
 	return nil
 }
+
+func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
+	sql := `
+		SELECT observer_can_run
+		FROM queries
+		WHERE id = ?
+	`
+	var observerCanRun bool
+	err := sqlx.GetContext(ctx, ds.reader, &observerCanRun, sql, queryID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "selecting observer_can_run")
+	}
+
+	return observerCanRun, nil
+}

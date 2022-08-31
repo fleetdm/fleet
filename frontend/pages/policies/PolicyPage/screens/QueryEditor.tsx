@@ -67,6 +67,7 @@ const QueryEditor = ({
     }
   }, []);
 
+  const [isUpdatingPolicy, setIsUpdatingPolicy] = useState<boolean>(false);
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -75,11 +76,12 @@ const QueryEditor = ({
     if (policyTeamId) {
       formData.team_id = policyTeamId;
     }
-
+    setIsUpdatingPolicy(true);
     try {
       const policy: IPolicy = await createPolicy(formData).then(
         (data) => data.policy
       );
+      setIsUpdatingPolicy(false);
       router.push(PATHS.EDIT_POLICY(policy));
       renderFlash("success", "Policy created!");
     } catch (createError: any) {
@@ -94,6 +96,8 @@ const QueryEditor = ({
           "Something went wrong creating your policy. Please try again."
         );
       }
+    } finally {
+      setIsUpdatingPolicy(false);
     }
   });
 
@@ -101,6 +105,8 @@ const QueryEditor = ({
     if (!policyIdForEdit) {
       return false;
     }
+
+    setIsUpdatingPolicy(true);
 
     const updatedPolicy = deepDifference(formData, {
       lastEditedQueryName,
@@ -135,6 +141,8 @@ const QueryEditor = ({
           "Something went wrong updating your policy. Please try again."
         );
       }
+    } finally {
+      setIsUpdatingPolicy(false);
     }
 
     return false;
@@ -147,7 +155,7 @@ const QueryEditor = ({
   const backPath = policyTeamId ? `?team_id=${policyTeamId}` : "";
 
   return (
-    <div className={`${baseClass}__form body-wrap`}>
+    <div className={`${baseClass}__form`}>
       <Link
         to={`${PATHS.MANAGE_POLICIES}/${backPath}`}
         className={`${baseClass}__back-link`}
@@ -167,6 +175,7 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
+        isUpdatingPolicy={isUpdatingPolicy}
       />
     </div>
   );

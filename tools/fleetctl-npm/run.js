@@ -70,7 +70,34 @@ const run = async () => {
     try {
       await install();
     } catch (err) {
-      console.error(`Failed to install: ${err.message}`);
+      // Users commonly see permission errors when trying to install the binaries if they have run
+      // `sudo npm install -g fleetctl` (or the Windows equivalent of running as admin), then later
+      // try to run fleetctl without those elevated privileges.
+      if (err.code === "EACCES") {
+        switch (process.platform) {
+          case "darwin":
+          case "linux":
+            console.error(
+              "Error: It looks like your fleetctl has been installed as root."
+            );
+            console.error("Please re-run this command with sudo.");
+            process.exit(1);
+            break;
+          case "win32":
+          case "win64":
+            console.error(
+              "Error: It looks like your fleetctl has been installed as administrator."
+            );
+            console.error(
+              "Please re-run this command using 'Run as administrator'."
+            );
+            process.exit(1);
+            break;
+          default:
+          // Fall through to generic error print below
+        }
+      }
+      console.error(`Error: Failed to install: ${err.message}`);
       process.exit(1);
     }
     console.log("Install completed.");

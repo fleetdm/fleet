@@ -5,11 +5,13 @@ module.exports = {
 
   description: 'Display "Blog article" page.',
 
-  urlWildcardSuffix: 'slug',
+
+  urlWildcardSuffix: 'pageUrlSuffix',
+
 
   inputs: {
-    slug : {
-      description: 'The relative path to the blog page from within this route.',
+    pageUrlSuffix : {
+      description: 'The relative path to the blog article page from within this route.',
       example: 'guides/deploying-fleet-on-render',
       type: 'string',
       defaultsTo: ''
@@ -25,43 +27,35 @@ module.exports = {
   },
 
 
-  fn: async function ({slug}) {
+  fn: async function ({pageUrlSuffix}) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
-      url: _.trimRight('/' + slug)
-    });
-    let needsRedirectMaybe = (!thisPage);
 
-    if (needsRedirectMaybe) {
-      // Creating a lower case, repeating-slashless slug
-      let multipleSlashesRegex = /\/{2,}/g;
-      let modifiedslug = slug.toLowerCase().replace(multipleSlashesRegex, '/');
-      // Finding the appropriate page content using the modified slug.
-      let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, {
-        url: _.trimRight('/' + _.trim(modifiedslug, '/'), '/')
-      });
-      if(revisedPage) {
-        // If we matched a page with the modified slug, then redirect to that.
-        throw {redirect: revisedPage.url};
-      } else {
-        // If no page was found, throw a 404 error.
+    // Serve appropriate page content.
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + pageUrlSuffix });
+    if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with all slashes deduped, and any leading or trailing slash removed (leading slashes are only possible if this is a regex, rather than "/*" route)
+      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+/,'').replace(/\/+$/,'');
+      thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + revisedPageUrlSuffix });
+      if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
+        throw {redirect: thisPage.url};
+      } else {// If no page could be found even with the revised suffix, then throw a 404 error.
         throw 'notFound';
       }
     }
-    // Setting the pages meta title and description from the articles meta tags.
-    // Note: Every article page will have a 'articleTitle' and a 'authorFullName' meta tag.
-    // if they are undefined, we'll use the generic title and description set in layout.ejs
+
+    // Setting the pages meta title and description from the articles meta tags, as well as an article image, if provided.
+    // Note: Every article page should have a 'articleTitle' and a 'authorFullName' meta tag.
+    // Note: Leaving title and description as `undefined` in our view means we'll default to the generic title and description set in layout.ejs.
     let pageTitleForMeta;
     if(thisPage.meta.articleTitle) {
       pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet for osquery';
-    }
+    }//ﬁ
     let pageDescriptionForMeta;
-    if(!thisPage.meta.articleTitle || !thisPage.meta.authorFullName) {
-      pageDescriptionForMeta = thisPage.meta.articleTitle +' by '+thisPage.meta.authorFullName+'.';
-    }
+    if(thisPage.meta.articleTitle && thisPage.meta.authorFullName) {
+      pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') + ' by ' + thisPage.meta.authorFullName;
+    }//ﬁ
 
     // Respond with view.
     return {
@@ -71,6 +65,7 @@ module.exports = {
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
+      pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
     };
 
   }

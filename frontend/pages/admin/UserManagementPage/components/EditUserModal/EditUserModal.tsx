@@ -3,6 +3,7 @@ import React from "react";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
 
@@ -23,6 +24,7 @@ interface IEditUserModalProps {
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
+  isUpdatingUsers: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -44,6 +46,7 @@ const EditUserModal = ({
   editUserErrors,
   isModifiedByGlobalAdmin,
   isInvitePending,
+  isUpdatingUsers,
 }: IEditUserModalProps): JSX.Element => {
   return (
     <Modal
@@ -69,6 +72,7 @@ const EditUserModal = ({
         isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
         isInvitePending={isInvitePending}
         currentTeam={currentTeam}
+        isUpdatingUsers={isUpdatingUsers}
       />
     </Modal>
   );

@@ -48,12 +48,18 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </File>
                 <Environment Id='OrbitUpdateInterval' Name='ORBIT_UPDATE_INTERVAL' Value='{{ .OrbitUpdateInterval }}' Action='set' System='yes' />
+                <!--
+                  ##############################################################################################
+                  NOTE: We've seen some system fail to install the MSI when using Account="NT AUTHORITY\SYSTEM"
+                  ##############################################################################################
+                  -->
                 <ServiceInstall
                   Name="Fleet osquery"
-                  Account="NT AUTHORITY\SYSTEM"
+                  Account="LocalSystem"
                   ErrorControl="ignore"
                   Start="auto"
                   Type="ownProcess"
+                  Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
                   Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log"{{ if .FleetURL }} --fleet-url "{{ .FleetURL }}"{{ end }}{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}"'
                 >
                   <util:ServiceConfig

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
 import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
@@ -62,10 +62,14 @@ interface ITableContainerProps {
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
+  isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
+  // in lieu of displaying the empty component when client-side filtering yields zero results
   highlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange?:
+    | ((queryData: ITableQueryData) => void)
+    | ((queryData: ITableQueryData) => number);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
@@ -73,11 +77,13 @@ interface ITableContainerProps {
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
+  setExportRows?: (rows: Row[]) => void;
+  resetPageIndex?: boolean;
 }
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({
@@ -116,6 +122,7 @@ const TableContainer = ({
   searchToolTipText,
   isClientSidePagination,
   isClientSideFilter,
+  isMultiColumnFilter,
   highlightOnHover,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
@@ -128,6 +135,8 @@ const TableContainer = ({
   onSelectSingleRow,
   renderCount,
   renderFooter,
+  setExportRows,
+  resetPageIndex,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -170,6 +179,13 @@ const TableContainer = ({
     [hasPageIndexChangedRef]
   );
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    if (pageIndex !== 0 && resetPageIndex) {
+      onPaginationChange(0);
+    }
+  }, [resetPageIndex, pageIndex]);
+
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
   };
@@ -191,7 +207,11 @@ const TableContainer = ({
       setPageIndex(0);
     }
 
-    onQueryChange(queryData);
+    // NOTE: used to reset page number to 0 when modifying filters
+    const newPageIndex = onQueryChange(queryData);
+    if (newPageIndex === 0) {
+      setPageIndex(0);
+    }
 
     prevPageIndex.current = pageIndex;
   }, [
@@ -210,7 +230,7 @@ const TableContainer = ({
     } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
-    return data.length;
+    return data?.length || 0;
   }, [filteredCount, clientFilterCount, data]);
 
   const renderPagination = useCallback(() => {
@@ -269,7 +289,9 @@ const TableContainer = ({
                 {renderCount()}
               </div>
             )}
-            {!renderCount && data && displayCount() && !disableCount ? (
+            {!renderCount &&
+            !disableCount &&
+            (isMultiColumnFilter || displayCount()) ? (
               <div
                 className={`${baseClass}__results-count ${
                   stackControls ? "stack-table-controls" : ""
@@ -327,8 +349,6 @@ const TableContainer = ({
                 />
               </div>
               <ReactTooltip
-                place="top"
-                type="dark"
                 effect="solid"
                 backgroundColor="#3e4771"
                 id="search-tooltip"
@@ -344,8 +364,8 @@ const TableContainer = ({
       </div>
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
-        {(!isLoading && data.length === 0) ||
-        (searchQuery.length && data.length === 0) ? (
+        {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
+        (searchQuery.length && data.length === 0 && !isMultiColumnFilter) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
@@ -365,12 +385,12 @@ const TableContainer = ({
           <>
             {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
-            {clientFilterCount === 0 && (
+            {clientFilterCount === 0 && !isMultiColumnFilter && (
               <EmptyComponent pageIndex={pageIndex} />
             )}
             <div
               className={
-                isClientSideFilter
+                isClientSideFilter && !isMultiColumnFilter
                   ? `client-result-count-${clientFilterCount}`
                   : ""
               }
@@ -407,6 +427,7 @@ const TableContainer = ({
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderFooter={renderFooter}
                 renderPagination={renderPagination}
+                setExportRows={setExportRows}
               />
             </div>
           </>
