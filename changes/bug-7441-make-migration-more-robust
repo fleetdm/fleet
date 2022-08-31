@@ -1,0 +1,2 @@
+If there are two or more entries in the software table with the same name, version, source, release
+and arch but different vendors then the migration used for increasing the vendor width will fail.

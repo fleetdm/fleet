@@ -268,15 +268,18 @@ describe("Policies flow (empty)", () => {
           { parseSpecialCharSequences: false }
         );
       // eslint-disable-next-line cypress/no-unnecessary-waiting
-      cy.wait(700); // wait for text input debounce
+      cy.wait(1000); // wait for text input debounce
       cy.getAttached(".platform").each((el, i) => {
         testCompatibility(el, i, [true, false, true]);
       });
 
       // Query with only macOS tables treated as compatible only with macOS
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.getAttached(".ace_scroller")
         .first()
         .click({ force: true })
+        .type("{selectall} ")
+        .wait(300) // wait for ace to clear text before proceeding
         .type(
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
         );

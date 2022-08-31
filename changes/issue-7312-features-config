@@ -1,1 +1,2 @@
-* Renamed the `host_settings` config to `features`
+* Renamed the `host_settings` config to `features`.
+* Teams: Added the ability to apply custom `features` settings to each team.

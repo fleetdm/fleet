@@ -681,18 +681,42 @@ const ManageHostsPage = ({
   const handleClearSoftwareFilter = () => {
     handleResetPageIndex();
 
-    router.replace(PATHS.MANAGE_HOSTS);
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["software_id"]),
+      })
+    );
     setSoftwareDetails(null);
   };
 
   const handleClearMDMSolutionFilter = () => {
     handleResetPageIndex();
-    router.replace(PATHS.MANAGE_HOSTS);
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["mdm_id"]),
+      })
+    );
     setMDMSolutionDetails(null);
   };
 
   const handleClearMDMEnrollmentFilter = () => {
-    router.replace(PATHS.MANAGE_HOSTS);
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["mdm_enrollment_status"]),
+      })
+    );
   };
 
   const handleTeamSelect = (teamId: number) => {

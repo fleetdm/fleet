@@ -129,7 +129,10 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version": {
-		Query: "select * from os_version limit 1",
+		// Collect operating system information for the `hosts` table.
+		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
+		// the `os_unix_like` extra detail query below.
+		Query: "SELECT * FROM os_version LIMIT 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
@@ -137,22 +140,13 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
-				rows[0]["name"],
-				rows[0]["version"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-				rows[0]["build"],
-			))
-
 			if build, ok := rows[0]["build"]; ok {
 				host.Build = build
 			}
 
 			host.Platform = rows[0]["platform"]
 			host.PlatformLike = rows[0]["platform_like"]
-			host.CodeName = rows[0]["code_name"]
+			host.CodeName = rows[0]["codename"]
 
 			// On centos6 there is an osquery bug that leaves
 			// platform empty. Here we workaround.
@@ -160,6 +154,51 @@ var hostDetailQueries = map[string]DetailQuery{
 				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
 				host.Platform = "centos"
 			}
+
+			if host.Platform != "windows" {
+				// Populate `host.OSVersion` for non-Windows hosts.
+				// Note Windows-specific registry query is required to populate `host.OSVersion` for
+				// Windows that is handled in `os_version_windows` detail query below.
+				host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
+					rows[0]["name"],
+					rows[0]["version"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+					rows[0]["build"],
+				))
+			}
+
+			return nil
+		},
+	},
+	"os_version_windows": {
+		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
+		Query: `SELECT
+			os.name,
+			r.data
+		FROM
+			os_version os,
+			(
+				SELECT
+					data
+				FROM
+					registry
+				WHERE
+					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r
+		LIMIT 1`,
+		Platforms: []string{"windows"},
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)))
+				return nil
+			}
+
+			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["data"])
+			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
+			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			host.OSVersion = s
 
 			return nil
 		},
@@ -342,6 +381,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		// always present.
 	},
 	"os_windows": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, the `hosts` table is populated via the `os_version` and
+		// `os_version_windows` detail queries above.
 		Query: `
 	SELECT
 		os.name,
@@ -363,6 +405,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSWindows,
 	},
 	"os_unix_like": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, the `hosts` table is populated via the `os_version` detail
+		// query above.
 		Query: `
 	SELECT
 		os.name,
@@ -1061,7 +1106,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
-func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
+func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -1070,13 +1115,13 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 		generatedMap[key] = query
 	}
 
-	if ac != nil && ac.Features.EnableSoftwareInventory {
+	if features != nil && features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.Features.EnableHostUsers {
+	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 	}
 
