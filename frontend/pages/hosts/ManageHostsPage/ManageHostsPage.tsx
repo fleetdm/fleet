@@ -695,21 +695,6 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleChangeMunkiIssueFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: Object.assign({}, queryParams, {
-          munki_issue_id: munkiIssueId,
-        }),
-      })
-    );
-  };
-
   const handleClearMunkiIssueFilter = () => {
     handleResetPageIndex();
 
