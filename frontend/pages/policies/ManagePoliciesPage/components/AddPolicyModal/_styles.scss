@@ -5,27 +5,26 @@
   padding: $pad-xxlarge;
   border-radius: $pad-small;
 
-  .info {
-    display: flex;
-
-    &__header {
-      display: block;
-      color: $core-fleet-black;
-      font-weight: $bold;
-      font-size: $x-small;
-      text-align: left;
-    }
-    &__data {
-      display: block;
-      color: $core-fleet-black;
-      font-weight: normal;
-      font-size: $x-small;
-      text-align: left;
-      margin-top: 10px;
-    }
-  }
-
   &__policy-selection {
     padding: $pad-large 0;
+
+    .children-wrapper {
+      display: block;
+    }
+
+    .info {
+      display: flex;
+
+      &__header {
+        display: block;
+        text-align: left;
+      }
+      &__data {
+        display: block;
+        font-weight: normal;
+        text-align: left;
+        margin-top: 10px;
+      }
+    }
   }
 }

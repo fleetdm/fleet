@@ -16,6 +16,7 @@ export interface IFlashMessage {
   fullWidth: boolean;
   notification: INotification | null;
   isPersistent?: boolean;
+  className?: string;
   onRemoveFlash: () => void;
   onUndoActionClick?: (
     value: () => void
@@ -26,13 +27,19 @@ const FlashMessage = ({
   fullWidth,
   notification,
   isPersistent,
+  className,
   onRemoveFlash,
   onUndoActionClick,
 }: IFlashMessage): JSX.Element | null => {
   const { alertType, isVisible, message, undoAction } = notification || {};
-  const klass = classnames(baseClass, `${baseClass}--${alertType}`, {
-    [`${baseClass}--full-width`]: fullWidth,
-  });
+  const baseClasses = classnames(
+    baseClass,
+    className,
+    `${baseClass}--${alertType}`,
+    {
+      [`${baseClass}--full-width`]: fullWidth,
+    }
+  );
 
   const [hide, setHide] = useState(false);
 
@@ -62,7 +69,7 @@ const FlashMessage = ({
   }
 
   return (
-    <div className={klass} id={klass}>
+    <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
         {alertType === "success" ? (
           <FleetIcon name="success-check" />
