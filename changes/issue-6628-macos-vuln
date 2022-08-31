@@ -1,4 +1,4 @@
 * Improved vulnerability detection on MacOS to decrease false positives and added the ability to define custom rules for matching software to CPEs for vulnerability processing.
-  When upgrading flet, there are a few config options to consider or else vulnerability processing will stop working.
+  When upgrading fleet, there are a few config options to consider or else vulnerability processing will stop working.
   If the environment variable `FLEET_VULNERABILITIES_DISABLE_DATA_SYNC` is set to `true` or the flag `--vulnerabilities_disable_data_sync`, you must manually download the latest CPE database and CPE translations from [NVD Releases](https://github.com/fleetdm/nvd/releases/latest) and copy it to the vulnerabilities databases path.
   If `FLEET_VULNERABILITIES_CPE_DATABASE_URL` is set, you must ensure the schema of the CPE database is updated. See `applyCPEDatabaseSchema` in [server/vulnerabilities/db.go](https://github.com/fleetdm/fleet/blob/11e90fdeeeaa7716db710ec9843e14a896953156/server/vulnerabilities/db.go#L23) for the expected schema.
