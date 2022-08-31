@@ -1,6 +1,6 @@
 # Happy 1st anniversary, Fleet.
 
-![Happy 1st anniversary, Fleet.](https://miro.medium.com/max/1400/1*zCLe1aP9ytZ-Ea7b22_dbA.png)
+![Happy 1st anniversary, Fleet.](../website/assets/images/articles/happy-1st-anniversary-fleet-cover-800x450@2x.png)
 
 This week we celebrate our first anniversary since officially releasing the Fleet project under Fleet Device Management — and what a year we’ve had.
 
@@ -22,7 +22,7 @@ Over the course of a year (and 29 releases), we’ve seen over 2,700 commits to 
 
 ## What's next?
 
-On the road ahead we plan to continue releasing iterative steps to bring value to our users, and the osquery community, by providing a privacy-friendly, self-service, and open source device management solution. He’s a little teaser of what’s to come in the months ahead:
+On the road ahead, we plan to continue releasing iterative steps to bring value to our users, and the osquery community, by providing a privacy-friendly, self-service, and open source device management solution. Here’s a little teaser of what’s to come in the months ahead:
 
 - Improvements to vulnerability detection — vulnerable software across all devices and ability to ignore certain vulnerabilities.
 - Improvements to the software inventory — last used date, installation date.
@@ -39,4 +39,4 @@ Fleet
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-10-08">
 <meta name="articleTitle" value="Happy 1st anniversary, Fleet.">
-<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*zCLe1aP9ytZ-Ea7b22_dbA.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/happy-1st-anniversary-fleet-cover-800x450@2x.png">

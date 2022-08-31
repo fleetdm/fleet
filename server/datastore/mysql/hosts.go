@@ -9,11 +9,14 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -101,6 +104,10 @@ func (ds *Datastore) SaveHostPackStats(ctx context.Context, hostID uint, stats [
 }
 
 func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint, stats []fleet.PackStats) error {
+	// NOTE: this implementation must be kept in sync with the async/batch version
+	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
+	// the behaviour per host must be the same.
+
 	var args []interface{}
 	queryCount := 0
 	for _, pack := range stats {
@@ -282,6 +289,10 @@ var hostRefs = []string{
 	"host_mdm",
 	"host_munki_info",
 	"host_device_auth",
+	"host_batteries",
+	"host_operating_system",
+	"host_munki_issues",
+	"windows_updates",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -315,35 +326,44 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
-func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
-	policiesColumns := `,
-		       coalesce(failing_policies.count, 0) as failing_policies_count,
-		       coalesce(failing_policies.count, 0) as total_issues_count`
-	policiesJoin := `
-			JOIN (
-		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
-			) failing_policies`
+func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
+	sqlStatement := `
+SELECT
+  h.*,
+  COALESCE(hst.seen_time, h.created_at) AS seen_time,
+  t.name AS team_name,
+  (
+    SELECT
+      additional
+    FROM
+      host_additional
+    WHERE
+      host_id = h.id
+  ) AS additional,
+  coalesce(failing_policies.count, 0) as failing_policies_count,
+  coalesce(failing_policies.count, 0) as total_issues_count
+FROM
+  hosts h
+  LEFT JOIN teams t ON (h.team_id = t.id)
+  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  JOIN (
+    SELECT
+      count(*) as count
+    FROM
+      policy_membership
+    WHERE
+      passes = 0
+      AND host_id = ?
+  ) failing_policies
+WHERE
+  h.id = ?
+LIMIT
+  1
+`
 	args := []interface{}{id, id}
-	if skipLoadingExtras {
-		policiesColumns = ""
-		policiesJoin = ""
-		args = []interface{}{id}
-	}
-	sqlStatement := fmt.Sprintf(`
-		SELECT
-		       h.*,
-		       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		       t.name AS team_name,
-		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
-				%s
-		FROM hosts h
-			LEFT JOIN teams t ON (h.team_id = t.id)
-			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-			%s
-		WHERE h.id = ?
-		LIMIT 1`, policiesColumns, policiesJoin)
-	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, ds.reader, host, sqlStatement, args...)
+
+	var host fleet.Host
+	err := sqlx.GetContext(ctx, ds.reader, &host, sqlStatement, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
@@ -363,16 +383,36 @@ func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) 
 	}
 	host.Users = users
 
-	return host, nil
+	return &host, nil
 }
 
-func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
-	var amount int
-	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM hosts`)
-	if err != nil {
-		return 0, err
+func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
+	var hostsByOS []struct {
+		Platform  string `db:"platform"`
+		OSVersion string `db:"os_version"`
+		NumHosts  int    `db:"num_hosts"`
 	}
-	return amount, nil
+
+	const stmt = `
+    SELECT platform, os_version, count(*) as num_hosts
+    FROM hosts
+    GROUP BY platform, os_version
+  `
+	if err := sqlx.SelectContext(ctx, db, &hostsByOS, stmt); err != nil {
+		return nil, 0, err
+	}
+
+	byOS = make(map[string][]fleet.HostsCountByOSVersion)
+	for _, h := range hostsByOS {
+		totalCount += h.NumHosts
+		byVersion := byOS[h.Platform]
+		byVersion = append(byVersion, fleet.HostsCountByOSVersion{
+			Version:     h.OSVersion,
+			NumEnrolled: h.NumHosts,
+		})
+		byOS[h.Platform] = byVersion
+	}
+	return byOS, totalCount, nil
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -383,8 +423,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	`
 
 	if opt.DeviceMapping {
-		sql += `, 
-			dm.device_mapping
+		sql += `,
+			COALESCE(dm.device_mapping, 'null') as device_mapping
 		`
 	}
 
@@ -463,19 +503,43 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		failingPoliciesJoin = ""
 	}
 
+	mdmJoin := ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
+	if opt.MDMIDFilter == nil && opt.MDMEnrollmentStatusFilter == "" {
+		mdmJoin = ""
+	}
+
+	operatingSystemJoin := ""
+	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) {
+		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
+	}
+
+	munkiFilter := "TRUE"
+	munkiJoin := ""
+	if opt.MunkiIssueIDFilter != nil {
+		munkiJoin = ` JOIN host_munki_issues hmi ON h.id = hmi.host_id `
+		munkiFilter = "hmi.munki_issue_id = ?"
+		params = append(params, opt.MunkiIssueIDFilter)
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
 		%s
 		%s
 		%s
-		WHERE TRUE AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+		%s
+		%s
+		%s
+		WHERE TRUE AND %s AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter, munkiFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
+	sql, params = filterHostsByMDM(sql, opt, params)
+	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -486,6 +550,35 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 	if opt.TeamFilter != nil {
 		sql += ` AND h.team_id = ?`
 		params = append(params, *opt.TeamFilter)
+	}
+	return sql, params
+}
+
+func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.MDMIDFilter != nil {
+		sql += ` AND hmdm.mdm_id = ?`
+		params = append(params, *opt.MDMIDFilter)
+	}
+	if opt.MDMEnrollmentStatusFilter != "" {
+		switch opt.MDMEnrollmentStatusFilter {
+		case fleet.MDMEnrollStatusAutomatic:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
+		case fleet.MDMEnrollStatusManual:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0`
+		case fleet.MDMEnrollStatusUnenrolled:
+			sql += ` AND hmdm.enrolled = 0`
+		}
+	}
+	return sql, params
+}
+
+func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.OSIDFilter != nil {
+		sql += ` AND hos.os_id = ?`
+		params = append(params, *opt.OSIDFilter)
+	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
+		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ? AND version = ?)`
+		params = append(params, *opt.OSNameFilter, *opt.OSVersionFilter)
 	}
 	return sql, params
 }
@@ -510,8 +603,8 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
 		params = append(params, time.Now())
 	case "offline":
-		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) >= ?", fleet.OnlineIntervalBuffer)
-		params = append(params, time.Now(), time.Now())
+		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
+		params = append(params, time.Now())
 	case "mia":
 		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
@@ -537,17 +630,31 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	return count, nil
 }
 
-func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
-	sqlStatement := `
+func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
+	var ids []uint
+	selectIDs := `
+    SELECT
+      id
+    FROM
+      hosts
+    WHERE
+      hostname = '' AND
+      osquery_version = '' AND
+      created_at < (? - INTERVAL 5 MINUTE)`
+	if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
+	}
+
+	cleanupHosts := `
 		DELETE FROM hosts
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
-	if _, err := ds.writer.ExecContext(ctx, sqlStatement, now); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
+	if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 	}
 
-	return nil
+	return ids, nil
 }
 
 func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
@@ -555,7 +662,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	args := []interface{}{now, now, now, now, now}
+	args := []interface{}{now, now, now, now}
 	whereClause := ds.whereFilterHostsByTeams(filter, "h")
 	if platform != nil {
 		whereClause += " AND h.platform IN (?) "
@@ -565,7 +672,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			SELECT
 				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id = hst.host_id) WHERE %s
@@ -611,6 +718,21 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
+func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
+	// if the host is global, then there should be nothing to clean up
+	if currentTeamID == nil {
+		return false
+	}
+
+	// if the host is switching from a team to global, we should clean up
+	if newTeamID == nil {
+		return true
+	}
+
+	// clean up if the host is switching to a different team
+	return *currentTeamID != *newTeamID
+}
+
 // EnrollHost enrolls a host
 func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
@@ -622,12 +744,14 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
 		var hostID int64
-		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at, team_id FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
 		case errors.Is(err, sql.ErrNoRows):
-			// Create new host record
+			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
+			// so that the frontend automatically starts background checks to update the page whenever
+			// the refetch is completed.
 			sqlInsert := `
 				INSERT INTO hosts (
 					detail_updated_at,
@@ -635,8 +759,9 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 					policy_updated_at,
 					osquery_host_id,
 					node_key,
-					team_id
-				) VALUES (?, ?, ?, ?, ?, ?)
+					team_id,
+					refetch_requested
+				) VALUES (?, ?, ?, ?, ?, ?, 1)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
@@ -651,6 +776,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 				return backoff.Permanent(ctxerr.Errorf(ctx, "host identified by %s enrolling too often", osqueryHostID))
 			}
 			hostID = int64(host.ID)
+
+			if shouldCleanTeamPolicies(host.TeamID, teamID) {
+				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, []uint{host.ID}); err != nil {
+					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
+				}
+			}
+
 			// Update existing host record
 			sqlUpdate := `
 				UPDATE hosts
@@ -851,8 +983,11 @@ func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter,
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	stmt := `
-		SELECT * FROM hosts
-		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
+		SELECT h.*, COALESCE(hst.seen_time, h.created_at) AS seen_time
+		FROM hosts h
+		LEFT JOIN host_seen_times hst
+		ON (h.id = hst.host_id)
+		WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}
@@ -879,18 +1014,11 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
-		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership
-					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
-		}
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership")
+		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 
-		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
 		}
@@ -981,15 +1109,20 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 		Total  int `db:"total"`
 		Unseen int `db:"unseen"`
 	}
+
+	// convert daysCount to integer number of seconds for more precision in sql query
+	unseenSeconds := daysCount * 24 * 60 * 60
+
 	err = sqlx.GetContext(ctx, ds.reader, &counts,
 		`SELECT
 			COUNT(*) as total,
-			SUM(IF(DATEDIFF(CURRENT_DATE, COALESCE(hst.seen_time, h.created_at)) >= ?, 1, 0)) as unseen
+			SUM(IF(TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?, 1, 0)) as unseen
 		FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id`,
-		daysCount,
+		unseenSeconds,
 	)
+
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
 	}
@@ -1033,13 +1166,13 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	return policies, nil
 }
 
-func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) error {
+func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	ac, err := appConfigDB(ctx, ds.reader)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	if !ac.HostExpirySettings.HostExpiryEnabled {
-		return nil
+		return nil, nil
 	}
 
 	// Usual clean up queries used to be like this:
@@ -1048,8 +1181,10 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	// so instead, we get the ids one by one and delete things one by one
 	// it might take longer, but it should lock only the row we need
 
-	rows, err := ds.writer.QueryContext(
+	var ids []uint
+	err = ds.writer.SelectContext(
 		ctx,
+		&ids,
 		`SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id
@@ -1057,30 +1192,21 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		ac.HostExpirySettings.HostExpiryWindow,
 	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting expired host ids")
+		return nil, ctxerr.Wrap(ctx, err, "getting expired host ids")
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var id uint
-		err := rows.Scan(&id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "scanning expired host id")
-		}
+	for _, id := range ids {
 		err = ds.DeleteHost(ctx, id)
 		if err != nil {
-			return err
+			return nil, err
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "expired hosts, row err")
 	}
 
 	_, err = ds.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting expired host seen times")
+		return nil, ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
-	return nil
+	return ids, nil
 }
 
 func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
@@ -1188,22 +1314,103 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 	})
 }
 
+func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
+	const (
+		replaceStmt = `
+    INSERT INTO
+      host_batteries (
+        host_id,
+        serial_number,
+        cycle_count,
+        health
+      )
+    VALUES
+      %s
+    ON DUPLICATE KEY UPDATE
+      cycle_count = VALUES(cycle_count),
+      health = VALUES(health),
+      updated_at = CURRENT_TIMESTAMP
+`
+		valuesPart = `(?, ?, ?, ?),`
+
+		deleteExceptStmt = `
+    DELETE FROM
+      host_batteries
+    WHERE
+      host_id = ? AND
+      serial_number NOT IN (?)
+`
+		deleteAllStmt = `
+    DELETE FROM
+      host_batteries
+    WHERE
+      host_id = ?
+`
+	)
+
+	replaceArgs := make([]interface{}, 0, len(mappings)*4)
+	deleteNotIn := make([]string, 0, len(mappings))
+	for _, hb := range mappings {
+		deleteNotIn = append(deleteNotIn, hb.SerialNumber)
+		replaceArgs = append(replaceArgs, hid, hb.SerialNumber, hb.CycleCount, hb.Health)
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// first, insert the new batteries or update the existing ones
+		if len(replaceArgs) > 0 {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf(replaceStmt, strings.TrimSuffix(strings.Repeat(valuesPart, len(mappings)), ",")), replaceArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert host batteries")
+			}
+		}
+
+		// then, delete the old ones
+		if len(deleteNotIn) > 0 {
+			delStmt, args, err := sqlx.In(deleteExceptStmt, hid, deleteNotIn)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating host batteries delete NOT IN statement")
+			}
+			if _, err := tx.ExecContext(ctx, delStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host batteries")
+			}
+		} else if _, err := tx.ExecContext(ctx, deleteAllStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete all host batteries")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
 	res, err := ds.writer.ExecContext(ctx, updateQuery, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "update")
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "rows affected by update")
 	}
 	if affected == 0 {
 		_, err = ds.writer.ExecContext(ctx, insertQuery, args...)
 	}
-	return ctxerr.Wrap(ctx, err)
+	return ctxerr.Wrap(ctx, err, "insert")
 }
 
-func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error {
+	// NOTE(mna): if we lose too many saves due to some errors, we could continue
+	// processing even when part of the ingestion fails (e.g. process version if
+	// issues fail or vice-versa, ignore issues that failed to be created, etc.).
+	// Currently, taking a strict approach as a point that was mentioned in the
+	// ticket was to care about data accuracy, so instead of allowing to save
+	// only a subset of issues, we fail if we can't save the complete set.
+
+	msgToID, err := ds.getOrInsertMunkiIssues(ctx, errors, warnings, fleet.DefaultMunkiIssuesBatchSize)
+	if err != nil {
+		return err
+	}
+
+	if err := ds.replaceHostMunkiIssues(ctx, hostID, msgToID); err != nil {
+		return err
+	}
+
 	if version == "" {
 		// Only update deleted_at if there wasn't any deleted at for this host
 		updateQuery := `UPDATE host_munki_info SET deleted_at = NOW() WHERE host_id = ? AND deleted_at is NULL`
@@ -1221,13 +1428,246 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 	)
 }
 
+func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, msgToID map[[2]string]uint) error {
+	// This needs an efficient way to check if the batch of messages are the same
+	// as existing ones, as this should be a common case (i.e. Munki does not run
+	// *that* often, so it is likely that the host reports the same messages for
+	// some time, or none at all). The approach is as follows:
+	//
+	// * Read a COUNT of new IDs (those to be saved) and a COUNT of old IDs
+	//   (those to be removed) from the read replica.
+	// * If COUNT(new) == len(newIDs) and COUNT(old) == 0, no write is required.
+	// * If COUNT(old) > 0, delete those obsolete ids.
+	// * If COUNT(new) < len(newIDs), insert those missing ids.
+	//
+	// In the best scenario, a single statement is executed on the read replica,
+	// and in the worst case, 3 statements are executed, 2 on the primary.
+	//
+	// Of course this is racy, as the check is done in the replica and the write
+	// is not transactional, but this is not an issue here as host-reported data
+	// is eventually consistent in nature and that data is reported at regular
+	// intervals.
+
+	newIDs := make([]uint, 0, len(msgToID))
+	for _, id := range msgToID {
+		newIDs = append(newIDs, id)
+	}
+
+	const countStmt = `SELECT
+    (SELECT COUNT(*) FROM host_munki_issues WHERE host_id = ? AND munki_issue_id IN (?)) as count_new,
+    (SELECT COUNT(*) FROM host_munki_issues WHERE host_id = ? AND munki_issue_id NOT IN (?)) as count_old`
+
+	var counts struct {
+		CountNew int `db:"count_new"`
+		CountOld int `db:"count_old"`
+	}
+
+	// required to get the old count if the new is empty
+	idsForIN := newIDs
+	if len(idsForIN) == 0 {
+		// must have at least one for the IN/NOT IN to work, add an impossible one
+		idsForIN = []uint{0}
+	}
+	stmt, args, err := sqlx.In(countStmt, hostID, idsForIN, hostID, idsForIN)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare read host_munki_issues counts arguments")
+	}
+	if err := sqlx.GetContext(ctx, ds.reader, &counts, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "read host_munki_issues counts")
+	}
+	if counts.CountNew == len(newIDs) && counts.CountOld == 0 {
+		return nil
+	}
+
+	if counts.CountOld > 0 {
+		// must delete those IDs
+		const delStmt = `DELETE FROM host_munki_issues WHERE host_id = ? AND munki_issue_id NOT IN (?)`
+		stmt, args, err := sqlx.In(delStmt, hostID, idsForIN)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare delete host_munki_issues arguments")
+		}
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host_munki_issues")
+		}
+	}
+
+	if counts.CountNew < len(newIDs) {
+		// must insert missing IDs
+		const (
+			insStmt  = `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES %s ON DUPLICATE KEY UPDATE host_id = host_id`
+			stmtPart = `(?, ?),`
+		)
+
+		stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtPart, len(newIDs)), ","))
+		args := make([]interface{}, 0, 2*len(newIDs))
+		for _, id := range newIDs {
+			args = append(args, hostID, id)
+		}
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host_munki_issues")
+		}
+	}
+
+	return nil
+}
+
+const maxMunkiIssueNameLen = 255
+
+func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (msgToID map[[2]string]uint, err error) {
+	for i, e := range errors {
+		if n := utf8.RuneCountInString(e); n > maxMunkiIssueNameLen {
+			runes := []rune(e)
+			errors[i] = string(runes[:maxMunkiIssueNameLen])
+		}
+	}
+	for i, w := range warnings {
+		if n := utf8.RuneCountInString(w); n > maxMunkiIssueNameLen {
+			runes := []rune(w)
+			warnings[i] = string(runes[:maxMunkiIssueNameLen])
+		}
+	}
+
+	// get list of unique messages+type to load ids and create if necessary
+	msgToID = make(map[[2]string]uint, len(errors)+len(warnings))
+	for _, e := range errors {
+		msgToID[[2]string{e, "error"}] = 0
+	}
+	for _, w := range warnings {
+		msgToID[[2]string{w, "warning"}] = 0
+	}
+
+	type munkiIssue struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}
+
+	readIDs := func(q sqlx.QueryerContext, msgs [][2]string, typ string) error {
+		const readStmt = `SELECT id, name FROM munki_issues WHERE issue_type = ? AND name IN (?)`
+
+		names := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			if msg[1] == typ {
+				names = append(names, msg[0])
+			}
+		}
+
+		for len(names) > 0 {
+			batch := names
+			if len(batch) > batchSize {
+				batch = names[:batchSize]
+			}
+			names = names[len(batch):]
+
+			var issues []*munkiIssue
+			stmt, args, err := sqlx.In(readStmt, typ, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate munki issues read batch statement")
+			}
+			if err := sqlx.SelectContext(ctx, q, &issues, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "read munki issues batch")
+			}
+
+			for _, issue := range issues {
+				msgToID[[2]string{issue.Name, typ}] = issue.ID
+			}
+		}
+		return nil
+	}
+
+	missingIDs := func() [][2]string {
+		var missing [][2]string
+		for msg, id := range msgToID {
+			if id == 0 {
+				missing = append(missing, msg)
+			}
+		}
+		return missing
+	}
+
+	allMsgs := make([][2]string, 0, len(msgToID))
+	for k := range msgToID {
+		allMsgs = append(allMsgs, k)
+	}
+
+	// get the IDs for existing munki issues (from the read replica)
+	if err := readIDs(ds.reader, allMsgs, "error"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load error message IDs from reader")
+	}
+	if err := readIDs(ds.reader, allMsgs, "warning"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load warning message IDs from reader")
+	}
+
+	// create any missing munki issues (using the primary)
+	if missing := missingIDs(); len(missing) > 0 {
+		const (
+			// UPDATE issue_type = issue_type results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
+			insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE issue_type = issue_type`
+			stmtParts = `(?, ?),`
+		)
+
+		msgsToReload := missing
+
+		args := make([]interface{}, 0, batchSize*2)
+		for len(missing) > 0 {
+			batch := missing
+			if len(batch) > batchSize {
+				batch = missing[:batchSize]
+			}
+			missing = missing[len(batch):]
+
+			args = args[:0]
+			for _, msg := range batch {
+				args = append(args, msg[0], msg[1])
+			}
+			stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtParts, len(batch)), ","))
+			if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "batch-insert munki issues")
+			}
+		}
+
+		// load the IDs for the missing munki issues, from the primary as we just
+		// inserted them
+		if err := readIDs(ds.writer, msgsToReload, "error"); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load error message IDs from writer")
+		}
+		if err := readIDs(ds.writer, msgsToReload, "warning"); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load warning message IDs from writer")
+		}
+		if missing := missingIDs(); len(missing) > 0 {
+			// some messages still have no IDs
+			return nil, ctxerr.New(ctx, "found munki issues without id after batch-insert")
+		}
+	}
+
+	return msgToID, nil
+}
+
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL)
+	if err != nil {
+		return err
+	}
+
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, hostID,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, host_id) VALUES (?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, hostID,
 	)
+}
+
+func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string) (mdmID uint, err error) {
+	mdmName := fleet.MDMNameFromServerURL(serverURL)
+
+	readStmt := &parameterizedStmt{
+		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
+		Args:      []interface{}{mdmName, serverURL},
+	}
+	insStmt := &parameterizedStmt{
+		Statement: `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`,
+		Args:      []interface{}{mdmName, serverURL},
+	}
+	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
 }
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
@@ -1243,20 +1683,46 @@ func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, 
 	return version, nil
 }
 
-func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool, error) {
-	dest := struct {
-		Enrolled         bool   `db:"enrolled"`
-		ServerURL        string `db:"server_url"`
-		InstalledFromDep bool   `db:"installed_from_dep"`
-	}{}
-	err := sqlx.GetContext(ctx, ds.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id = ?`, hostID)
+func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+	var hmdm fleet.HostMDM
+	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
+		SELECT
+			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(mdms.name, ?) AS name
+		FROM
+			host_mdm hm
+		LEFT OUTER JOIN
+			mobile_device_management_solutions mdms
+		ON hm.mdm_id = mdms.id
+		WHERE hm.host_id = ?`, fleet.UnknownMDMName, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
 		}
-		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
-	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
+	return &hmdm, nil
+}
+
+func (ds *Datastore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	var issues []*fleet.HostMunkiIssue
+	err := sqlx.SelectContext(ctx, ds.reader, &issues, `
+    SELECT
+      hmi.munki_issue_id,
+      mi.name,
+      mi.issue_type,
+      hmi.created_at
+	  FROM
+      host_munki_issues hmi
+    INNER JOIN
+      munki_issues mi
+    ON
+      hmi.munki_issue_id = mi.id
+    WHERE host_id = ?
+`, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "select host_munki_issues for host_id %d", hostID)
+	}
+	return issues, nil
 }
 
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
@@ -1286,6 +1752,36 @@ func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) (
 		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling munki versions")
 	}
 	return versions, versionsJson.UpdatedAt, nil
+}
+
+func (ds *Datastore) AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error) {
+	id := uint(0)
+
+	if teamID != nil {
+		id = *teamID
+	}
+
+	var result []fleet.AggregatedMunkiIssue
+	var resultJSON struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &resultJSON,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'munki_issues'`,
+		id,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// not having stats is not an error
+			return nil, time.Time{}, nil
+		}
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting munki issues")
+	}
+	if err := json.Unmarshal(resultJSON.JsonValue, &result); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling munki issues")
+	}
+	return result, resultJSON.UpdatedAt, nil
 }
 
 func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
@@ -1318,6 +1814,36 @@ func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fle
 	return status, statusJson.UpdatedAt, nil
 }
 
+func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
+	id := uint(0)
+
+	if teamID != nil {
+		id = *teamID
+	}
+
+	var result []fleet.AggregatedMDMSolutions
+	var resultJSON struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &resultJSON,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'mdm_solutions'`,
+		id,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// not having stats is not an error
+			return nil, time.Time{}, nil
+		}
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting mdm solutions")
+	}
+	if err := json.Unmarshal(resultJSON.JsonValue, &result); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling mdm solutions")
+	}
+	return result, resultJSON.UpdatedAt, nil
+}
+
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader, &ids, `SELECT id FROM teams`); err != nil {
@@ -1328,16 +1854,28 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		if err := ds.generateAggregatedMunkiVersion(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 		}
+		if err := ds.generateAggregatedMunkiIssues(ctx, &id); err != nil {
+			return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
+		}
 		if err := ds.generateAggregatedMDMStatus(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
+		}
+		if err := ds.generateAggregatedMDMSolutions(ctx, &id); err != nil {
+			return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
 		}
 	}
 
 	if err := ds.generateAggregatedMunkiVersion(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 	}
+	if err := ds.generateAggregatedMunkiIssues(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
+	}
 	if err := ds.generateAggregatedMDMStatus(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
+	}
+	if err := ds.generateAggregatedMDMSolutions(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
 	}
 	return nil
 }
@@ -1381,6 +1919,54 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
+func (ds *Datastore) generateAggregatedMunkiIssues(ctx context.Context, teamID *uint) error {
+	id := uint(0)
+
+	var issues []fleet.AggregatedMunkiIssue
+	query := `
+  SELECT
+    COUNT(*) as hosts_count,
+    hmi.munki_issue_id as id,
+		mi.name,
+		mi.issue_type
+  FROM
+    host_munki_issues hmi
+  INNER JOIN
+    munki_issues mi
+  ON
+    hmi.munki_issue_id = mi.id
+`
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		query += ` JOIN hosts h ON (h.id = hmi.host_id) WHERE h.team_id = ? `
+		id = *teamID
+	}
+	query += `GROUP BY hmi.munki_issue_id, mi.name, mi.issue_type`
+
+	err := sqlx.SelectContext(ctx, ds.reader, &issues, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki_issues")
+	}
+
+	issuesJSON, err := json.Marshal(issues)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
+	}
+
+	_, err = ds.writer.ExecContext(ctx, `
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`, id, "munki_issues", issuesJSON)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_issues id %d", id)
+	}
+	return nil
+}
+
 func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *uint) error {
 	id := uint(0)
 
@@ -1420,6 +2006,52 @@ ON DUPLICATE KEY UPDATE
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_status id %d", id)
+	}
+	return nil
+}
+
+func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID *uint) error {
+	id := uint(0)
+
+	var results []fleet.AggregatedMDMSolutions
+	query := `SELECT
+				mdms.id,
+				mdms.server_url,
+				mdms.name,
+				COUNT(DISTINCT hm.host_id) as hosts_count
+			 FROM mobile_device_management_solutions mdms
+			 INNER JOIN host_mdm hm
+			 ON hm.mdm_id = mdms.id
+`
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ?`
+		id = *teamID
+	}
+	query += ` GROUP BY id, server_url, name`
+	err := sqlx.SelectContext(ctx, ds.reader, &results, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_mdm")
+	}
+
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
+	}
+
+	_, err = ds.writer.ExecContext(ctx,
+		`
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`,
+		id, "mdm_solutions", resultsJSON,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_solutions id %d", id)
 	}
 	return nil
 }
@@ -1579,8 +2211,18 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return nil
 }
 
-// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
-func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+// OSVersions gets the aggregated os version host counts. Records with the same name and version are combined into one count (e.g.,
+// counts for the same macOS version on x86_64 and arm64 architectures are counted together.
+// Results can be filtered using the following optional criteria: team id, platform, or name and
+// version. Name cannot be used without version, and conversely, version cannot be used without name.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	if name != nil && version == nil {
+		return nil, errors.New("invalid usage: cannot filter by name without version")
+	}
+	if name == nil && version != nil {
+		return nil, errors.New("invalid usage: cannot filter by version without name")
+	}
+
 	query := `
 SELECT
     json_value,
@@ -1611,105 +2253,272 @@ WHERE
 		return nil, err
 	}
 
-	osVersions := &fleet.OSVersions{
+	res := &fleet.OSVersions{
 		CountsUpdatedAt: row.UpdatedAt,
+		OSVersions:      []fleet.OSVersion{},
 	}
 
+	var counts []fleet.OSVersion
 	if row.JSONValue != nil {
-		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
-		if err != nil {
-			return nil, err
+		if err := json.Unmarshal(*row.JSONValue, &counts); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
 
-	// filter by os versions by platform
+	// filter counts by platform
 	if platform != nil {
 		var filtered []fleet.OSVersion
-		for _, osVersion := range osVersions.OSVersions {
-			if *platform == osVersion.Platform {
-				filtered = append(filtered, osVersion)
+		for _, os := range counts {
+			if *platform == os.Platform {
+				filtered = append(filtered, os)
 			}
 		}
-		osVersions.OSVersions = filtered
+		counts = filtered
+	}
+
+	// aggregate counts by name and version
+	byNameVers := make(map[string]fleet.OSVersion)
+	for _, os := range counts {
+		if name != nil &&
+			version != nil &&
+			*name != os.NameOnly &&
+			*version != os.Version {
+			continue
+		}
+		key := fmt.Sprintf("%s %s", os.NameOnly, os.Version)
+		val, ok := byNameVers[key]
+		if !ok {
+			// omit os id
+			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount}
+		} else {
+			newVal := val
+			newVal.HostsCount += os.HostsCount
+			byNameVers[key] = newVal
+		}
+	}
+
+	for _, os := range byNameVers {
+		res.OSVersions = append(res.OSVersions, os)
 	}
 
 	// Sort by os versions. We can't control the order when using json_arrayagg
 	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
-	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+	sort.Slice(res.OSVersions, func(i, j int) bool { return res.OSVersions[i].Name < res.OSVersions[j].Name })
 
-	return osVersions, nil
+	return res, nil
 }
 
 // Aggregated stats for os versions are stored by team id with 0 representing the global case
 // If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
-	sql := `
-INSERT INTO aggregated_stats (id, type, json_value)
-SELECT
-  team_id id,
-  'os_versions' type,
-  COALESCE(
-    CONCAT('[', GROUP_CONCAT(
-      JSON_OBJECT(
-        'hosts_count', hosts_count,
-        'name', name,
-        'platform', platform
-      )
-    ), ']'),
-    JSON_ARRAY()
-  ) json_value
-FROM
-  (
-    SELECT
-      COUNT(*) hosts_count,
-      h.os_version name,
-      h.platform,
-      0 team_id
-    FROM
-      hosts h
-    GROUP BY
-      h.os_version,
-      h.platform
-    UNION
-    SELECT
-      COUNT(*) hosts_count,
-      h.os_version name,
-      h.platform,
-      h.team_id
-    FROM
-      hosts h
-      JOIN teams t ON t.id = h.team_id
-    GROUP BY
-      h.os_version,
-      h.platform,
-      h.team_id
-  ) as team_os_versions
-GROUP BY
-  team_id
-UNION
-SELECT
-  t.id,
-  'os_versions' type,
-  JSON_ARRAY() json_value
-FROM
-  teams t
-WHERE NOT EXISTS (
-  SELECT
-    id
-  FROM
-    hosts h
-  WHERE
-    t.id = h.team_id
-)
-ON DUPLICATE KEY UPDATE
-  json_value = VALUES(json_value),
-  updated_at = CURRENT_TIMESTAMP
-`
+	selectStmt := `
+	SELECT
+		COUNT(*) hosts_count,
+		h.team_id,
+		os.id,
+		os.name,
+		os.version,
+		os.platform
+	FROM hosts h
+	JOIN host_operating_system hos ON h.id = hos.host_id
+	JOIN operating_systems os ON hos.os_id = os.id
+	GROUP BY team_id, os.id
+	`
 
-	_, err := ds.writer.ExecContext(ctx, sql)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	var rows []struct {
+		HostsCount int    `db:"hosts_count"`
+		Name       string `db:"name"`
+		Version    string `db:"version"`
+		Platform   string `db:"platform"`
+		ID         uint   `db:"id"`
+		TeamID     *uint  `db:"team_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &rows, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "update os versions")
+	}
+
+	// each team has a slice of stats with team host counts per os version
+	statsByTeamID := make(map[uint][]fleet.OSVersion)
+	// stats are also aggregated globally per os version
+	globalStats := make(map[uint]fleet.OSVersion)
+
+	for _, r := range rows {
+		os := fleet.OSVersion{
+			HostsCount: r.HostsCount,
+			Name:       fmt.Sprintf("%s %s", r.Name, r.Version),
+			NameOnly:   r.Name,
+			Version:    r.Version,
+			Platform:   r.Platform,
+			ID:         r.ID,
+		}
+		// increment global stats
+		if _, ok := globalStats[os.ID]; !ok {
+			globalStats[os.ID] = os
+		} else {
+			newStats := globalStats[os.ID]
+			newStats.HostsCount += r.HostsCount
+			globalStats[os.ID] = newStats
+		}
+		// push to team stats if applicable
+		if r.TeamID != nil {
+			statsByTeamID[*r.TeamID] = append(statsByTeamID[*r.TeamID], os)
+		}
+	}
+
+	// if an existing team has no hosts assigned, we still want to store empty stats
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, "SELECT id FROM teams"); err != nil {
+		return ctxerr.Wrap(ctx, err, "update os versions")
+	}
+	for _, id := range teamIDs {
+		if _, ok := statsByTeamID[id]; !ok {
+			statsByTeamID[id] = []fleet.OSVersion{}
+		}
+	}
+
+	// global stats are stored under id 0
+	for _, os := range globalStats {
+		statsByTeamID[0] = append(statsByTeamID[0], os)
+	}
+
+	// nothing to do so return early
+	if len(statsByTeamID) < 1 {
+		// log to help troubleshooting in case this happens
+		level.Info(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
+		return nil
+	}
+
+	// assemble values as arguments for insert statement
+	args := make([]interface{}, 0, len(statsByTeamID)*3)
+	for id, stats := range statsByTeamID {
+		jsonValue, err := json.Marshal(stats)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal os version stats")
+		}
+		args = append(args, id, "os_versions", jsonValue)
+	}
+
+	insertStmt := "INSERT INTO aggregated_stats (id, type, json_value) VALUES "
+	insertStmt += strings.TrimSuffix(strings.Repeat("(?,?,?),", len(statsByTeamID)), ",")
+	insertStmt += " ON DUPLICATE KEY UPDATE json_value = VALUES(json_value), updated_at = CURRENT_TIMESTAMP"
+
+	if _, err := ds.writer.ExecContext(ctx, insertStmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "insert os versions into aggregated stats")
 	}
 
 	return nil
+}
+
+// EnrolledHostIDs returns the complete list of host IDs.
+func (ds *Datastore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
+	const stmt = `SELECT id FROM hosts`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get enrolled host IDs")
+	}
+	return ids, nil
+}
+
+// CountEnrolledHosts returns the current number of enrolled hosts.
+func (ds *Datastore) CountEnrolledHosts(ctx context.Context) (int, error) {
+	const stmt = `SELECT count(*) FROM hosts`
+
+	var count int
+	if err := sqlx.SelectContext(ctx, ds.reader, &count, stmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count enrolled host")
+	}
+	return count, nil
+}
+
+func (ds *Datastore) HostIDsByOSVersion(
+	ctx context.Context,
+	osVersion fleet.OSVersion,
+	offset int,
+	limit int,
+) ([]uint, error) {
+	var ids []uint
+
+	stmt := dialect.From("hosts").
+		Select("id").
+		Where(
+			goqu.C("platform").Eq(osVersion.Platform),
+			goqu.C("os_version").Eq(osVersion.Name)).
+		Order(goqu.I("id").Desc()).
+		Offset(uint(offset)).
+		Limit(uint(limit))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	return ids, nil
+}
+
+// ListHostBatteries returns battery information as reported by osquery for the identified host.
+//
+// Note: Because of a known osquery issue with M1 Macs, we are ignoring the stored `health` value
+// in the db and replacing it at the service layer with custom a value determined by the cycle
+// count. See https://github.com/fleetdm/fleet/pull/6782#discussion_r926103758.
+// TODO: Update once the underlying osquery issue has been resolved.
+func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+	const stmt = `
+    SELECT
+      host_id,
+      serial_number,
+      cycle_count,
+      health
+    FROM
+      host_batteries
+    WHERE
+      host_id = ?
+`
+
+	var batteries []*fleet.HostBattery
+	if err := sqlx.SelectContext(ctx, ds.reader, &batteries, stmt, hid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
+	}
+	return batteries, nil
+}
+
+// countHostNotResponding counts the hosts that haven't been submitting results for sent queries.
+//
+// Notes:
+//   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
+//   - Default values for:
+//     - host.DistributedInterval is usually 10s.
+//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+//   - Count only includes hosts seen during the last 7 days.
+func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
+) {
+	interval := config.Osquery.DetailUpdateInterval.Seconds()
+
+	// The primary `WHERE` clause is intended to capture where Fleet hasn't received a distributed write
+	// from the host during the interval since the host was last seen. Thus we assume the host
+	// is having some issue in executing distributed queries or sending the results.
+	// The subquery `WHERE` clause excludes from the count any hosts that were inactive during the
+	// current seven-day statistics reporting period.
+	sql := `
+SELECT h.host_id FROM (
+  SELECT * FROM hosts JOIN host_seen_times hst ON hosts.id = hst.host_id
+  WHERE hst.seen_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+) h
+WHERE
+  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= (GREATEST(h.distributed_interval, ?) * 2)
+`
+
+	var ids []int
+	if err := sqlx.SelectContext(ctx, db, &ids, sql, interval); err != nil {
+		return len(ids), ctxerr.Wrap(ctx, err, "count hosts not responding")
+	}
+	if len(ids) > 0 {
+		// We log to help troubleshooting in case this happens.
+		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
+	}
+	return len(ids), nil
 }

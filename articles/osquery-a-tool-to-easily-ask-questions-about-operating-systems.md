@@ -1,6 +1,6 @@
 # Osquery: a tool to easily ask questions about operating systems
 
-![osquery hero image](https://miro.medium.com/1*0iCxml_BJkCwz8w1VXvi3A.png)
+![osquery](../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-1600x900@2x.jpg)
 
 ## What is osquery?
 Osquery is an easy-to-use operating system monitoring tool that uses SQL to expose a device’s operating system as a highly performant relational database. But what does that mean? In short, osquery allows you to ask questions about your operating system. More than that, though:
@@ -21,7 +21,7 @@ So, we’ve established that osquery is a powerful, flexible tool that uses SQL 
 ### Osquery for vulnerability management
 
 With osquery, you can easily monitor devices for vulnerabilities and misconfigurations.
-
+osquery-a-tool-to-easily-ask-questions-about-operating-systems
 - Check for security misconfigurations.
 - See if unwanted or malicious applications or extensions are running.
 - Verify the status of firewalls and drive encryption.
@@ -55,13 +55,13 @@ To deploy osquery at scale across your organization’s devices, an osquery mana
 - Meet compliance goals.
 - Automate security workflows in a single application.
 
-![A screenshot of the Fleet UI](https://miro.medium.com/1*YouCWw7mEW8arzxWPuGdEw.png)
+![A screenshot of the Fleet UI](../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-1-800x450@2x.png)
 
-Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.com/get-started), and you can be up and running with a sandbox environment in less than 5 minutes. Alternatively, check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
+Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.com/try-fleet/register), and you can be up and running with a sandbox environment in less than 5 minutes. Or you can check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="authorFullName" value="Kelvin Omereshone">
 <meta name="publishedOn" value="2022-04-04">
 <meta name="articleTitle" value="Osquery: a tool to easily ask questions about operating systems">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*0iCxml_BJkCwz8w1VXvi3A.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-1600x900@2x.jpg">

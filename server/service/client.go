@@ -3,36 +3,25 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// httpClient interface allows the HTTP methods to be mocked.
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
+// Client is used to consume Fleet APIs from Go code
 type Client struct {
-	addr               string
-	baseURL            *url.URL
-	urlPrefix          string
-	token              string
-	http               httpClient
-	insecureSkipVerify bool
+	*baseClient
+	addr          string
+	token         string
+	customHeaders map[string]string
 
 	writer io.Writer
 }
@@ -42,46 +31,14 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseURL, err := url.Parse(addr)
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix)
 	if err != nil {
-		return nil, fmt.Errorf("parsing URL: %w", err)
+		return nil, err
 	}
-
-	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") && !strings.Contains(baseURL.Host, "127.0.0.1") {
-		return nil, errors.New("address must start with https:// for remote connections")
-	}
-
-	rootCAPool := x509.NewCertPool()
-	if rootCA != "" {
-		// read in the root cert file specified in the context
-		certs, err := ioutil.ReadFile(rootCA)
-		if err != nil {
-			return nil, fmt.Errorf("reading root CA: %w", err)
-		}
-
-		// add certs to pool
-		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
-			return nil, errors.New("failed to add certificates to root CA pool")
-		}
-	} else if !insecureSkipVerify {
-		// Use only the system certs (doesn't work on Windows)
-		rootCAPool, err = x509.SystemCertPool()
-		if err != nil {
-			return nil, fmt.Errorf("loading system cert pool: %w", err)
-		}
-	}
-
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-		InsecureSkipVerify: insecureSkipVerify,
-		RootCAs:            rootCAPool,
-	}))
 
 	client := &Client{
-		addr:               addr,
-		baseURL:            baseURL,
-		http:               httpClient,
-		insecureSkipVerify: insecureSkipVerify,
-		urlPrefix:          urlPrefix,
+		baseClient: baseClient,
+		addr:       addr,
 	}
 
 	for _, option := range options {
@@ -113,6 +70,20 @@ func SetClientWriter(w io.Writer) ClientOption {
 	}
 }
 
+// WithCustomHeaders sets custom headers to be sent with every request made
+// with the client.
+func WithCustomHeaders(headers map[string]string) ClientOption {
+	return func(c *Client) error {
+		// clone the map to prevent any changes in the original affecting the client
+		m := make(map[string]string, len(headers))
+		for k, v := range headers {
+			m[k] = v
+		}
+		c.customHeaders = m
+		return nil
+	}
+}
+
 func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
@@ -131,6 +102,12 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating request object")
+	}
+
+	// set the custom headers first, they should not override the actual headers
+	// we set explicitly.
+	for k, v := range c.customHeaders {
+		request.Header.Set(k, v)
 	}
 	for k, v := range headers {
 		request.Header.Set(k, v)
@@ -177,13 +154,6 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 
 func (c *Client) SetToken(t string) {
 	c.token = t
-}
-
-func (c *Client) url(path, rawQuery string) *url.URL {
-	u := *c.baseURL
-	u.Path = c.urlPrefix + path
-	u.RawQuery = rawQuery
-	return &u
 }
 
 // http.RoundTripper that will log debug information about the request and
@@ -240,36 +210,75 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	}
 	defer response.Body.Close()
 
-	switch response.StatusCode {
-	case http.StatusOK:
-		// ok
-	case http.StatusNotFound:
-		return notFoundErr{}
-	case http.StatusUnauthorized:
-		return ErrUnauthenticated
-	default:
-		return fmt.Errorf(
-			"%s %s received status %d %s",
-			verb, path,
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
-	err = json.NewDecoder(response.Body).Decode(&responseDest)
-	if err != nil {
-		return fmt.Errorf("decode %s %s response: %w", verb, path, err)
-	}
-
-	if e, ok := responseDest.(errorer); ok {
-		if e.error() != nil {
-			return fmt.Errorf("%s %s error: %s", verb, path, e.error())
-		}
-	}
-
-	return nil
+	return c.parseResponse(verb, path, response, responseDest)
 }
 
 func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
+}
+
+// ApplyGroup applies the given spec group to Fleet.
+func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{})) error {
+	logfn := func(format string, args ...interface{}) {
+		if logf != nil {
+			logf(format, args...)
+		}
+	}
+	if len(specs.Queries) > 0 {
+		if err := c.ApplyQueries(specs.Queries); err != nil {
+			return fmt.Errorf("applying queries: %w", err)
+		}
+		logfn("[+] applied %d queries\n", len(specs.Queries))
+	}
+
+	if len(specs.Labels) > 0 {
+		if err := c.ApplyLabels(specs.Labels); err != nil {
+			return fmt.Errorf("applying labels: %w", err)
+		}
+		logfn("[+] applied %d labels\n", len(specs.Labels))
+	}
+
+	if len(specs.Policies) > 0 {
+		if err := c.ApplyPolicies(specs.Policies); err != nil {
+			return fmt.Errorf("applying policies: %w", err)
+		}
+		logfn("[+] applied %d policies\n", len(specs.Policies))
+	}
+
+	if len(specs.Packs) > 0 {
+		if err := c.ApplyPacks(specs.Packs); err != nil {
+			return fmt.Errorf("applying packs: %w", err)
+		}
+		logfn("[+] applied %d packs\n", len(specs.Packs))
+	}
+
+	if specs.AppConfig != nil {
+		if err := c.ApplyAppConfig(specs.AppConfig); err != nil {
+			return fmt.Errorf("applying fleet config: %w", err)
+		}
+		logfn("[+] applied fleet config\n")
+
+	}
+
+	if specs.EnrollSecret != nil {
+		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+			return fmt.Errorf("applying enroll secrets: %w", err)
+		}
+		logfn("[+] applied enroll secrets\n")
+	}
+
+	if len(specs.Teams) > 0 {
+		if err := c.ApplyTeams(specs.Teams); err != nil {
+			return fmt.Errorf("applying teams: %w", err)
+		}
+		logfn("[+] applied %d teams\n", len(specs.Teams))
+	}
+
+	if specs.UsersRoles != nil {
+		if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+			return fmt.Errorf("applying user roles: %w", err)
+		}
+		logfn("[+] applied user roles\n")
+	}
+	return nil
 }

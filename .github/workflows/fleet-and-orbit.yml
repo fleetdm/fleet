@@ -1,6 +1,6 @@
-name: Test Orbit & Fleet
+name: Test Fleetctl Package, Orbit & Fleet
 
-# This workflow tests orbit code changes (compiles and runs orbit from source).
+# This workflow tests orbit code changes (compiles orbit from source).
 # It uses a fleet instance also built and executed from source.
 #
 # It tests that orbit osquery agents enroll successfully to Fleet.
@@ -27,6 +27,7 @@ jobs:
       subdomain: ${{ steps.gen.outputs.subdomain }}
       domain: ${{ steps.gen.outputs.domain }}
       address: ${{ steps.gen.outputs.address }}
+      enroll_secret: ${{ steps.gen.outputs.enroll_secret }}
     steps:
     - id: gen
       run: |
@@ -34,8 +35,11 @@ jobs:
         echo "::set-output name=subdomain::fleet-test-$UUID"
         echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
         echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
+        ENROLL=$(uuidgen)
+        echo "::set-output name=enroll_secret::$ENROLL"
   
   run-server:
+    timeout-minutes: 60
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -45,12 +49,12 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: Start tunnel
       env: 
@@ -63,7 +67,7 @@ jobs:
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
-        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
+        until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
           echo "Awaiting tunnel ready..."
           sleep 5
         done
@@ -78,10 +82,10 @@ jobs:
       run: make generate
 
     - name: Build fleet and fleetctl
-      run: make fleet fleetctl
+      # fleet-dev builds fleet with "race" enabled.
+      run: make fleet-dev fleetctl
 
     - name: Run Fleet server
-      timeout-minutes: 10
       env:
         FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
         FLEET_SERVER_ADDRESS: 0.0.0.0:1337
@@ -92,7 +96,7 @@ jobs:
         make db-reset
         ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
         ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
-        until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
+        until ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example
         do
           echo "Retrying setup in 5s..."
           sleep 5
@@ -103,7 +107,7 @@ jobs:
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
-          sleep 10
+          sleep 30
         done
         ./build/fleetctl get hosts
         echo "Success! $EXPECTED hosts enrolled."
@@ -114,146 +118,275 @@ jobs:
 
     - name: Upload fleet logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: fleet-logs
         path: |
           fleet_log
 
-  get-enroll-secret:
+
+  # Sets the enroll secret of the Fleet server.
+  #
+  # This job also makes sure the Fleet server is up and running.
+  set-enroll-secret:
+    timeout-minutes: 60
     strategy:
       matrix:
         go-version: ['^1.17.0']
     runs-on: ubuntu-latest
     needs: gen
-    outputs:
-      enroll_secret: ${{ steps.enroll.outputs.enroll_secret }}
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: Build Fleetctl
       run: make fleetctl
 
     - id: enroll
-      name: Fetch enroll secret
-      timeout-minutes: 10
+      name: Set enroll secret
       run: |
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password admin123#
+        until ./build/fleetctl login --email admin@example.com --password preview1337#
         do
-          echo "Retrying in 10s..."
-          sleep 10
+          echo "Retrying in 30s..."
+          sleep 30
         done
-        SECRET_JSON=$(./build/fleetctl get enroll_secret --json --debug)
-        echo $SECRET_JSON
-        SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
-        echo "::set-output name=enroll_secret::$SECRET"
-      
-  orbit-macos-and-ubuntu:
-    timeout-minutes: 15
+        echo '---
+        apiVersion: v1
+        kind: enroll_secret
+        spec:
+          secrets:
+          - secret: ${{ needs.gen.outputs.enroll_secret }}
+        ' > secrets.yml
+        ./build/fleetctl apply -f secrets.yml
+
+
+  # TODO(lucas): Currently, to simplify the workflow we do all in one job:
+  # 1. Generate TUF repository (compile Orbit from source).
+  # 2. Run TUF server on localhost.
+  # 3. Generate packages using localhost TUF server.
+  #
+  # When installing the generated packages, Orbit will log "update errors"
+  # because the TUF URL is set to http://localhost:8081.
+  #
+  # TODO(lucas): Test the generated RPM package on a CentOS docker image.
+  run-tuf-and-gen-pkgs:
+    timeout-minutes: 60
     strategy:
       matrix:
-        # TODO(lucas): Add edge channel for osqueryd.
-        osqueryd-channel: ['stable']
         go-version: ['^1.17.0']
-        os: ['macos-latest', 'ubuntu-latest']
-    runs-on: ${{ matrix.os }}
-    needs: [gen, get-enroll-secret]
+    # We can only generate all (PKG, MSI, DEB, RPM) packages from a macOS host.
+    runs-on: macos-latest
+    needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
-    - name: Build and Run Orbit
+    # Docker needs to be installed manually on macOS.
+    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
+    - name: Install Docker
+      timeout-minutes: 20
+      if: matrix.os == 'macos-latest'
       run: |
-        sudo hostname ${{ matrix.os }}-orbit-dev-osqueryd-${{ matrix.osqueryd-channel }}
-        echo "Hostname: $(hostname -s)"
-        mkdir /tmp/orbit
-        cp ./orbit/pkg/packaging/certs.pem /tmp/orbit
-        mkdir orbit_logs
-        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
-          --debug \
-          --dev-mode \
-          --disable-updates \
-          --root-dir /tmp/orbit \
-          --fleet-url ${{ needs.gen.outputs.address }} \
-          --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
-          --osqueryd-channel ${{ matrix.osqueryd-channel }} \
-          -- --verbose 1>./orbit_logs/stdout.log 2>./orbit_logs/stderr.log &
-        # TODO(lucas): Improve checking of "enrolled".
-        # This waits until the server goes down.
+        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
+        brew install --cask docker.rb
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
+          sleep 1;
+        done
+        echo "Docker is ready."
+
+    - name: Build Repository and run TUF server
+      env:
+        SYSTEMS: "macos windows linux"
+        PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
+        PKG_TUF_URL: http://localhost:8081
+        DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
+        DEB_TUF_URL: http://localhost:8081
+        RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
+        RPM_TUF_URL: http://localhost:8081
+        MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
+        MSI_TUF_URL: http://localhost:8081
+        ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
+        GENERATE_PKG: 1
+        GENERATE_DEB: 1
+        GENERATE_RPM: 1
+        GENERATE_MSI: 1
+        FLEET_DESKTOP: 1
+      run: |
+        ./tools/tuf/test/main.sh
+
+    - name: Upload PKG installer
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: fleet-osquery.pkg
+        path: |
+          fleet-osquery.pkg
+
+    - name: Upload DEB installer
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: fleet-osquery_42.0.0_amd64.deb
+        path: |
+          fleet-osquery_42.0.0_amd64.deb
+
+    - name: Upload MSI installer
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: fleet-osquery.msi
+        path: |
+          fleet-osquery.msi
+
+
+  orbit-macos:
+    timeout-minutes: 60
+    runs-on: macos-latest
+    needs: [gen, run-tuf-and-gen-pkgs]
+    steps:
+
+    - name: Checkout Code
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+
+    - name: Download pkg
+      id: download
+      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      with:
+        name: fleet-osquery.pkg
+
+    - name: Install pkg
+      run: |
+        sudo hostname orbit-macos
+        sudo installer -pkg ${{ steps.download.outputs.download-path }}/fleet-osquery.pkg -target /
+
+    - name: Wait enroll
+      run: |
+        # Wait until fleet server goes down.
         while curl --fail ${{ needs.gen.outputs.address }};
         do
           echo "Retrying in 10s..."
           sleep 10
         done
 
+    - name: Run orbit shell
+      run:
+        sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        mkdir orbit-logs
+        sudo cp /var/log/orbit/* orbit-logs/
+
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
-        name: orbit-${{ matrix.os }}-logs-${{ matrix.osqueryd-channel }}
+        name: orbit-logs
         path: |
-          orbit_logs
+          orbit-logs
+
+    - name: Uninstall pkg
+      run: |
+        ./orbit/tools/cleanup/cleanup_macos.sh
+
+
+  orbit-ubuntu:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    needs: [gen, run-tuf-and-gen-pkgs]
+    steps:
+
+    - name: Download deb
+      id: download
+      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      with:
+        name: fleet-osquery_42.0.0_amd64.deb
+
+    - name: Install deb
+      run: |
+        sudo hostname orbit-ubuntu
+        sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
+
+    - name: Wait enroll
+      run: |
+        # Wait until fleet server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
+
+    - name: Run orbit shell
+      run:
+        sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        mkdir orbit-logs
+        sudo journalctl -u orbit.service > orbit-logs/orbit_service.log
+
+    - name: Upload orbit logs
+      if: always()
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: orbit-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall deb
+      run: |
+        sudo apt remove fleet-osquery -y
+
 
   orbit-windows:
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        # TODO(lucas): Add edge channel for osqueryd.
-        osqueryd-channel: ['stable']
-        go-version: ['^1.17.8']
-    needs: [gen, get-enroll-secret]
+    timeout-minutes: 60
+    needs: [run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
     
-    - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+    - name: Download msi
+      id: download
+      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       with:
-        go-version: ${{ matrix.go-version }}
+        name: fleet-osquery.msi
 
-    - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+    - name: Install msi
+      run: |
+        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt
 
-    - name: Build and Run Orbit
+    - name: Wait enroll
       shell: bash
       run: |
-        mkdir "/C/Program Files/Orbit"
-        cp ./orbit/pkg/packaging/certs.pem "/C/Program Files/Orbit"
-        mkdir orbit_logs
-        go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
-          --debug \
-          --dev-mode \
-          --disable-updates \
-          --root-dir "/C/Program Files/Orbit" \
-          --fleet-url ${{ needs.gen.outputs.address }} \
-          --enroll-secret ${{ needs.get-enroll-secret.outputs.enroll_secret }} \
-          --osqueryd-channel ${{ matrix.osqueryd-channel }} \
-          -- --verbose 1>./orbit_logs/stdout.log 2>./orbit_logs/stderr.log &
-        # TODO(lucas): Improve checking of "enrolled".
-        # This waits until the server goes down.
         while curl --fail ${{ needs.gen.outputs.address }};
         do
           echo "Retrying in 10s..."
           sleep 10
         done
 
-    - name: Upload orbit logs
+    - name: Run orbit shell
+      shell: cmd
+      run: |
+        "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e "if (.[0]) then true else false end"
+
+    - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
-        name: orbit-windows-logs-${{ matrix.osqueryd-channel }}
-        path: |
-          orbit_logs
+        name: orbit-logs-windows
+        path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

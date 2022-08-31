@@ -24,7 +24,6 @@ const (
 	jsonFlagName                = "json"
 	withQueriesFlagName         = "with-queries"
 	expiredFlagName             = "expired"
-	stdoutFlagName              = "stdout"
 	includeServerConfigFlagName = "include-server-config"
 )
 
@@ -753,10 +752,7 @@ func getCarveCommand() *cli.Command {
 		Name:  "carve",
 		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  stdoutFlagName,
-				Usage: "Print carve contents to stdout",
-			},
+			stdoutFlag(),
 			configFlag(),
 			contextFlag(),
 			outfileFlag(),
@@ -825,10 +821,6 @@ func getCarveCommand() *cli.Command {
 
 func log(c *cli.Context, msg ...interface{}) {
 	fmt.Fprint(c.App.Writer, msg...)
-}
-
-func logf(c *cli.Context, format string, a ...interface{}) {
-	fmt.Fprintf(c.App.Writer, format, a...)
 }
 
 func getUserRolesCommand() *cli.Command {
@@ -981,14 +973,14 @@ func getSoftwareCommand() *cli.Command {
 				return errors.New("Can't specify both yaml and json flags.")
 			}
 
-			var teamID *uint
+			query := url.Values{}
 
-			teamIDFlag := c.Uint(teamFlagName)
-			if teamIDFlag != 0 {
-				teamID = &teamIDFlag
+			teamID := c.Uint(teamFlagName)
+			if teamID != 0 {
+				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
-			software, err := client.ListSoftware(teamID)
+			software, err := client.ListSoftware(query.Encode())
 			if err != nil {
 				return fmt.Errorf("could not list software: %w", err)
 			}

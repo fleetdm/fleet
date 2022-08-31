@@ -31,7 +31,7 @@ class ResetPasswordForm extends Component {
           className={`${baseClass}__input`}
           type="password"
           hint={[
-            "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+            "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
           ]}
         />
         <InputFieldWithIcon
@@ -42,8 +42,9 @@ class ResetPasswordForm extends Component {
         />
         <div className={`${baseClass}__button-wrap`}>
           <Button
+            variant="brand"
             onClick={handleSubmit}
-            className={`${baseClass}__btn button button--brand`}
+            className={`${baseClass}__btn`}
             type="submit"
           >
             Reset password

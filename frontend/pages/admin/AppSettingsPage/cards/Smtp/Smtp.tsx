@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -22,6 +22,7 @@ const baseClass = "app-config-form";
 const Smtp = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     enableSMTP: appConfig.smtp_settings.enable_smtp || false,
@@ -87,6 +88,10 @@ const Smtp = ({
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [smtpAuthenticationType]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -248,6 +253,8 @@ const Smtp = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        isLoading={isUpdatingSettings}
       >
         Save
       </Button>

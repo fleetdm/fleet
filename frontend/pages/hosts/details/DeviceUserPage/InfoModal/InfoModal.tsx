@@ -36,13 +36,8 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
             <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
           </a>
         </p>
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            onClick={onCancel}
-            variant="brand"
-          >
+        <div className="modal-cta-wrap">
+          <Button type="button" onClick={onCancel} variant="brand">
             Ok
           </Button>
         </div>

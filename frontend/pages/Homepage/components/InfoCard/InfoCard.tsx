@@ -27,15 +27,18 @@ const baseClass = "homepage-info-card";
 
 const useInfoCard = ({
   title,
-  description,
+  description: defaultDescription,
   children,
   action,
   total_host_count,
-  showTitle,
+  showTitle = true,
 }: IInfoCardProps): JSX.Element => {
   const [actionLink, setActionURL] = useState<string | null>(null);
   const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
     null
+  );
+  const [description, setDescription] = useState<JSX.Element | string | null>(
+    defaultDescription || null
   );
 
   const renderAction = () => {
@@ -77,6 +80,7 @@ const useInfoCard = ({
     if (React.isValidElement(child)) {
       child = React.cloneElement(child, {
         setTitleDetail,
+        setTitleDescription: setDescription,
         setActionURL,
       });
     }

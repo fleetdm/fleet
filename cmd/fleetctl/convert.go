@@ -13,13 +13,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
 )
 
-func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*specGroup, error) {
-	specs := &specGroup{
+func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spec.Group, error) {
+	specs := &spec.Group{
 		Queries: []*fleet.QuerySpec{},
 		Packs:   []*fleet.PackSpec{},
 		Labels:  []*fleet.LabelSpec{},
@@ -123,7 +124,7 @@ func convertCommand() *cli.Command {
 			re := regexp.MustCompile(`\s*\\\n`)
 			b = re.ReplaceAll(b, []byte(`\n`))
 
-			var specs *specGroup
+			var specs *spec.Group
 
 			var pack fleet.PermissivePackContent
 			if err := json.Unmarshal(b, &pack); err != nil {
@@ -151,15 +152,15 @@ func convertCommand() *cli.Command {
 			}
 
 			for _, pack := range specs.Packs {
-				spec, err := json.Marshal(pack)
+				specBytes, err := json.Marshal(pack)
 				if err != nil {
 					return err
 				}
 
-				meta := specMetadata{
+				meta := spec.Metadata{
 					Kind:    fleet.PackKind,
 					Version: fleet.ApiVersion,
-					Spec:    spec,
+					Spec:    specBytes,
 				}
 
 				out, err := yaml.Marshal(meta)
@@ -172,15 +173,15 @@ func convertCommand() *cli.Command {
 			}
 
 			for _, query := range specs.Queries {
-				spec, err := json.Marshal(query)
+				specBytes, err := json.Marshal(query)
 				if err != nil {
 					return err
 				}
 
-				meta := specMetadata{
+				meta := spec.Metadata{
 					Kind:    fleet.QueryKind,
 					Version: fleet.ApiVersion,
-					Spec:    spec,
+					Spec:    specBytes,
 				}
 
 				out, err := yaml.Marshal(meta)

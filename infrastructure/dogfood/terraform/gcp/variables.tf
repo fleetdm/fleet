@@ -68,5 +68,5 @@ variable "redis_mem" {
 }
 
 variable "image" {
-  default = "fleet:v4.13.2"
+  default = "fleet:v4.19.0"
 }

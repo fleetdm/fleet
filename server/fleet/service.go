@@ -3,11 +3,20 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	"github.com/kolide/kit/version"
 )
+
+// EnterpriseOverrides contains the methods that can be overriden by the
+// enterprise service
+//
+// TODO: find if there's a better way to accomplish this and standardize.
+type EnterpriseOverrides struct {
+	HostFeatures func(context context.Context, host *Host) (*Features, error)
+}
 
 type OsqueryService interface {
 	EnrollAgent(
@@ -41,6 +50,12 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// SetEnterpriseOverrides allows the enterprise service to override specific methods
+	// that can't be easily overridden via embedding.
+	//
+	// TODO: find if there's a better way to accomplish this and standardize.
+	SetEnterpriseOverrides(overrides EnterpriseOverrides)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.
 
@@ -56,6 +71,9 @@ type Service interface {
 
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
+
+	// NewUser creates a new user with the given payload
+	NewUser(ctx context.Context, p UserPayload) (*User, error)
 
 	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
 	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a
@@ -106,10 +124,14 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
-	// CallbackSSO handles the IDP response. The original URL the viewer attempted to access is returned from this
-	// function, so we can redirect back to the front end and load the page the viewer originally attempted to access
-	// when prompted for login.
-	CallbackSSO(ctx context.Context, auth Auth) (*SSOSession, error)
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid
+	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// GetSSOUser handles retrieval of an user that is trying to authenticate
+	// via SSO
+	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
+	// LoginSSOUser logs-in the given SSO user
+	LoginSSOUser(ctx context.Context, user *User, redirectURL string) (*SSOSession, error)
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
@@ -168,6 +190,7 @@ type Service interface {
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
@@ -239,16 +262,22 @@ type Service interface {
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
-	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
+	// GetHost returns the host with the provided ID.
+	//
+	// The return value can also include policy information and CVE scores based
+	// on the values provided to `opts`
+	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_identifier, node_key, UUID, or hostname.
-	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
+	// HostByIdentifier returns one host matching the provided identifier.
+	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
+	// hostname.
+	//
+	// The return value can also include policy information and CVE scores based
+	// on the values provided to `opts`
+	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
-
-	FlushSeenHosts(ctx context.Context) error
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
@@ -256,14 +285,26 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// SearchHosts performs a search on the hosts table using the following criteria:
+	//	- matchQuery is the query SQL
+	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
+	//	- excludedHostIDs is an optional list of IDs to omit from the search
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*AggregatedMDMSolutions, error)
+	AggregatedMunkiIssue(ctx context.Context, teamID *uint, munkiIssueID uint) (*AggregatedMunkiIssue, error)
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	// OSVersions returns a list of operating systems and associated host counts, which may be
+	// filtered using the following optional criteria: team id, platform, or name and version.
+	// Name cannot be used without version, and conversely, version cannot be used without name.
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -271,6 +312,7 @@ type Service interface {
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte) (info *AppConfig, err error)
+	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
 	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec) error
@@ -319,7 +361,7 @@ type Service interface {
 	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// TargetService
+	// TargetService **NOTE: SearchTargets will be removed in Fleet 5.0**
 
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of IDs of labels to omit,
 	// and it will return a set of targets (hosts and label) which match the supplied search query. If the query ID is
@@ -440,7 +482,7 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -454,4 +496,10 @@ type Service interface {
 
 	/// Geolocation
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Installers
+
+	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
+	CheckInstallerExistence(ctx context.Context, installer Installer) error
 }

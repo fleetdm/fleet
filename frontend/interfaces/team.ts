@@ -1,5 +1,7 @@
 import PropTypes from "prop-types";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
+import { IIntegrations } from "./integration";
+import { IWebhookFailingPolicies } from "./webhook";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -14,7 +16,7 @@ export default PropTypes.shape({
 });
 
 /**
- * The id, name, and optional description for a team entity
+ * The id, name, description, and host count for a team entity
  */
 export interface ITeamSummary {
   id: number;
@@ -24,7 +26,7 @@ export interface ITeamSummary {
 }
 
 /**
- * The shape of a team entity
+ * The shape of a team entity excluding integrations and webhook settings
  */
 export interface ITeam extends ITeamSummary {
   uuid?: string;
@@ -34,18 +36,26 @@ export interface ITeam extends ITeamSummary {
   agent_options?: {
     [key: string]: any;
   };
-  webhook_settings?: {
-    [key: string]: any;
-  };
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
   role?: string; // role value is included when the team is in the context of a user
 }
 
-export interface ILoadTeamResponse {
-  team: ITeam;
+/**
+ * The integrations and webhook settings of a team
+ */
+export interface ITeamAutomationsConfig {
+  webhook_settings: {
+    failing_policies_webhook: IWebhookFailingPolicies;
+  };
+  integrations: IIntegrations;
 }
+
+/**
+ * The shape of a team entity including integrations and webhook settings
+ */
+export type ITeamConfig = ITeam & ITeamAutomationsConfig;
 
 /**
  * The shape of a new member to add to a team

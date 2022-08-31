@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/mail"
 	"time"
 	"unicode"
 
@@ -144,28 +145,7 @@ type UserPayload struct {
 
 func (p *UserPayload) VerifyInviteCreate() error {
 	invalid := &InvalidArgumentError{}
-	if p.Name == nil {
-		invalid.Append("name", "Full name missing required argument")
-	} else if *p.Name == "" {
-		invalid.Append("name", "Full name cannot be empty")
-	}
-
-	// we don't need a password for single sign on
-	if p.SSOInvite == nil || !*p.SSOInvite {
-		if p.Password == nil {
-			invalid.Append("password", "Password missing required argument")
-		} else if *p.Password == "" {
-			invalid.Append("password", "Password cannot be empty")
-		} else if err := ValidatePasswordRequirements(*p.Password); err != nil {
-			invalid.Append("password", err.Error())
-		}
-	}
-
-	if p.Email == nil {
-		invalid.Append("email", "Email missing required argument")
-	} else if *p.Email == "" {
-		invalid.Append("email", "Email cannot be empty")
-	}
+	p.verifyCreateShared(invalid)
 
 	if p.InviteToken == nil {
 		invalid.Append("invite_token", "Invite token missing required argument")
@@ -181,6 +161,19 @@ func (p *UserPayload) VerifyInviteCreate() error {
 
 func (p *UserPayload) VerifyAdminCreate() error {
 	invalid := &InvalidArgumentError{}
+	p.verifyCreateShared(invalid)
+
+	if p.InviteToken != nil {
+		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+func (p *UserPayload) verifyCreateShared(invalid *InvalidArgumentError) {
 	if p.Name == nil {
 		invalid.Append("name", "Full name missing required argument")
 	} else if *p.Name == "" {
@@ -193,8 +186,9 @@ func (p *UserPayload) VerifyAdminCreate() error {
 			invalid.Append("password", "Password missing required argument")
 		} else if *p.Password == "" {
 			invalid.Append("password", "Password cannot be empty")
+		} else if err := ValidatePasswordRequirements(*p.Password); err != nil {
+			invalid.Append("password", err.Error())
 		}
-		// Skip password validation in the case of admin created users
 	}
 
 	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
@@ -206,15 +200,6 @@ func (p *UserPayload) VerifyAdminCreate() error {
 	} else if *p.Email == "" {
 		invalid.Append("email", "Email cannot be empty")
 	}
-
-	if p.InviteToken != nil {
-		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
-	}
-
-	if invalid.HasErrors() {
-		return invalid
-	}
-	return nil
 }
 
 func (p *UserPayload) VerifyModify(ownUser bool) error {
@@ -258,8 +243,19 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		Email: *p.Email,
 		Teams: []UserTeam{},
 	}
-	if err := user.SetPassword(*p.Password, keySize, cost); err != nil {
-		return nil, err
+
+	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
+		user.SSOEnabled = true
+		// SSO user requires a stand-in password to satisfy `NOT NULL` constraint
+		err := user.SetFakePassword(keySize, cost)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := user.SetPassword(*p.Password, keySize, cost)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// add optional fields
@@ -297,24 +293,22 @@ func (u *User) ValidatePassword(password string) error {
 }
 
 func (u *User) SetPassword(plaintext string, keySize, cost int) error {
-	salt, err := server.GenerateRandomText(keySize)
-	if err != nil {
+	if err := ValidatePasswordRequirements(plaintext); err != nil {
 		return err
 	}
 
-	withSalt := []byte(fmt.Sprintf("%s%s", plaintext, salt))
-	hashed, err := bcrypt.GenerateFromPassword(withSalt, cost)
+	hashed, salt, err := saltAndHashPassword(keySize, plaintext, cost)
 	if err != nil {
 		return err
 	}
-
-	u.Salt = salt
 	u.Password = hashed
+	u.Salt = salt
+
 	return nil
 }
 
-// Requirements for user password:
-// at least 7 character length
+// ValidatePasswordRequirements checks the provided password against the following requirements:
+// at least 12 character length
 // at least 1 symbol
 // at least 1 number
 func ValidatePasswordRequirements(password string) error {
@@ -332,11 +326,70 @@ func ValidatePasswordRequirements(password string) error {
 		}
 	}
 
-	if len(password) >= 7 &&
+	if len(password) >= 12 &&
 		number &&
 		symbol {
 		return nil
 	}
 
-	return errors.New("Password does not meet validation requirements")
+	return errors.New("Password does not meet required criteria")
+}
+
+// ValidateEmail checks that the provided email address is valid, this function
+// uses the stdlib func `mail.ParseAddress` underneath, which parses email
+// adddresses using RFC5322, so it properly parses strings like "User
+// <example.com>" thus we check if:
+//
+// 1. We're able to parse the address
+// 2. The parsed address is equal to the provided address
+//
+// TODO: see issue #7199, we should use this logic for all user-creation flows
+func ValidateEmail(email string) error {
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return fmt.Errorf("Invalid email address: %e", err)
+	}
+
+	if addr.Address != email {
+		return errors.New("Invalid email address")
+	}
+
+	return nil
+}
+
+// SetFakePassword sets a stand-in password consisting of random text generated by filling in keySize bytes with
+// random data and then base64 encoding those bytes.
+//
+// Usage should be limited to cases such as SSO users where a stand-in password is needed to satisfy `NOT NULL` constraints.
+// There is no guarantee that the generated password will otherwise satisfy complexity, length or
+// other requirements of standard password validation.
+func (u *User) SetFakePassword(keySize, cost int) error {
+	plaintext, err := server.GenerateRandomText(14)
+	if err != nil {
+		return err
+	}
+
+	hashed, salt, err := saltAndHashPassword(keySize, plaintext, cost)
+	if err != nil {
+		return err
+	}
+	u.Password = hashed
+	u.Salt = salt
+
+	return nil
+}
+
+func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte, salt string, err error) {
+	salt, err = server.GenerateRandomText(keySize)
+	if err != nil {
+		return nil, "", err
+	}
+
+	withSalt := []byte(fmt.Sprintf("%s%s", plaintext, salt))
+	hashed, err = bcrypt.GenerateFromPassword(withSalt, cost)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return hashed, salt, nil
 }

@@ -1,1 +1,0 @@
-* Prevent ingestion of Google Chrome profiles without an associated email and clean rows with empty emails. Fixes issue 4780

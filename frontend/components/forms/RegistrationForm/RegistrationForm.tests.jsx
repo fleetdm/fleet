@@ -38,6 +38,6 @@ describe("RegistrationForm - component", () => {
       container.querySelectorAll(".user-registration__container--confirmation")
         .length
     ).toEqual(1);
-    expect(screen.getByText("Success")).toBeInTheDocument();
+    expect(screen.getByText("Confirm configuration")).toBeInTheDocument();
   });
 });

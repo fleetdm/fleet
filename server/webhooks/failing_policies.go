@@ -2,8 +2,6 @@ package webhooks
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"net/url"
 	"path"
 	"sort"
@@ -17,164 +15,10 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-// TriggerFailingPoliciesWebhook performs the webhook requests for failing policies.
-func TriggerFailingPoliciesWebhook(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	appConfig *fleet.AppConfig,
-	failingPoliciesSet fleet.FailingPolicySet,
-	now time.Time,
-) error {
-	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "invalid server url")
-	}
-
-	globalSettings := appConfig.WebhookSettings.FailingPoliciesWebhook
-	var globalPolicyIDs map[uint]struct{}
-	var globalWebhookURL *url.URL
-	if globalSettings.Enable {
-		globalPolicyIDs = make(map[uint]struct{}, len(globalSettings.PolicyIDs))
-		for _, policyID := range globalSettings.PolicyIDs {
-			globalPolicyIDs[policyID] = struct{}{}
-		}
-		globalWebhookURL, err = url.Parse(globalSettings.DestinationURL)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "parse global webhook url: %s", globalSettings.DestinationURL)
-		}
-	}
-
-	// team caches
-	teamSettings := make(map[uint]fleet.FailingPoliciesWebhookSettings)
-	teamPolicyIDs := make(map[uint]map[uint]struct{})
-	teamWebhookURLs := make(map[uint]*url.URL)
-	getTeam := func(teamID uint) error {
-		settings, ok := teamSettings[teamID]
-		if ok {
-			return nil
-		}
-
-		team, err := ds.Team(ctx, teamID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get team: %d", teamID)
-		}
-
-		settings = team.Config.WebhookSettings.FailingPoliciesWebhook
-		teamSettings[teamID] = settings
-
-		if settings.Enable {
-			policyIDs := make(map[uint]struct{}, len(settings.PolicyIDs))
-			for _, policyID := range settings.PolicyIDs {
-				policyIDs[policyID] = struct{}{}
-			}
-			teamPolicyIDs[teamID] = policyIDs
-
-			webhookURL, err := url.Parse(settings.DestinationURL)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "parse webhook url: %s", settings.DestinationURL)
-			}
-			teamWebhookURLs[teamID] = webhookURL
-		}
-
-		return nil
-	}
-
-	policySets, err := failingPoliciesSet.ListSets()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list policies set")
-	}
-
-	for _, policyID := range policySets {
-		policy, err := ds.Policy(ctx, policyID)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			level.Debug(logger).Log("msg", "skipping failing policy, deleted", "policyID", policyID)
-			if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
-			}
-			continue
-		case err != nil:
-			return ctxerr.Wrapf(ctx, err, "get policy: %d", policyID)
-		default:
-			// Ok
-		}
-
-		if policy.TeamID != nil {
-			// team policy
-			err := getTeam(*policy.TeamID)
-			switch {
-			case errors.Is(err, sql.ErrNoRows):
-				// shouldn't happen, unless the team was deleted after the policy was retrieved above
-				level.Debug(logger).Log("msg", "team does not exist", "teamID", *policy.TeamID)
-				continue
-			case err != nil:
-				level.Error(logger).Log("msg", "failed to get team", "teamID", *policy.TeamID, "err", err)
-				continue
-			}
-
-			settings := teamSettings[*policy.TeamID]
-			if !settings.Enable {
-				continue
-			}
-
-			_, ok := teamPolicyIDs[*policy.TeamID][policy.ID]
-			if !ok {
-				level.Debug(logger).Log("msg", "skipping failing policy, not found in team policy IDs", "policyID", policyID)
-				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
-				}
-				continue
-			}
-
-			webhookURL := teamWebhookURLs[*policy.TeamID]
-
-			err = sendFailingPoliciesBatchedPOSTs(
-				ctx,
-				policy,
-				failingPoliciesSet,
-				settings.HostBatchSize,
-				serverURL,
-				webhookURL,
-				now,
-				logger,
-			)
-			if err != nil {
-				level.Error(logger).Log("msg", "failed to send failing policies webhook requests", "policyID", policy.ID, "err", err)
-			}
-
-			continue
-		}
-
-		// global policy
-		_, ok := globalPolicyIDs[policy.ID]
-		if !ok {
-			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
-			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
-			}
-			continue
-		}
-
-		err = sendFailingPoliciesBatchedPOSTs(
-			ctx,
-			policy,
-			failingPoliciesSet,
-			globalSettings.HostBatchSize,
-			serverURL,
-			globalWebhookURL,
-			now,
-			logger,
-		)
-		if err != nil {
-			level.Error(logger).Log("msg", "failed to send failing policies webhook requests", "policyID", policy.ID, "err", err)
-		}
-	}
-
-	return nil
-}
-
-func sendFailingPoliciesBatchedPOSTs(
+// SendFailingPoliciesBatchedPOSTs sends a failing policy to the provided
+// webhook URL. It sends in batches if hostBatchSize > 0. After a successful
+// send, the corresponding hosts are removed from the failing policies set.
+func SendFailingPoliciesBatchedPOSTs(
 	ctx context.Context,
 	policy *fleet.Policy,
 	failingPoliciesSet fleet.FailingPolicySet,
@@ -206,12 +50,12 @@ func sendFailingPoliciesBatchedPOSTs(
 		}
 		batch := hosts[i:end]
 
-		failingHosts := make([]FailingHost, len(batch))
+		failingHosts := make([]failingHost, len(batch))
 		for i, host := range batch {
 			failingHosts[i] = makeFailingHost(host, serverURL)
 		}
 
-		payload := FailingPoliciesPayload{
+		payload := failingPoliciesPayload{
 			Timestamp:    now,
 			Policy:       policy,
 			FailingHosts: failingHosts,
@@ -227,22 +71,22 @@ func sendFailingPoliciesBatchedPOSTs(
 	return nil
 }
 
-type FailingPoliciesPayload struct {
+type failingPoliciesPayload struct {
 	Timestamp    time.Time     `json:"timestamp"`
 	Policy       *fleet.Policy `json:"policy"`
-	FailingHosts []FailingHost `json:"hosts"`
+	FailingHosts []failingHost `json:"hosts"`
 }
 
-type FailingHost struct {
+type failingHost struct {
 	ID       uint   `json:"id"`
 	Hostname string `json:"hostname"`
 	URL      string `json:"url"`
 }
 
-func makeFailingHost(host fleet.PolicySetHost, serverURL *url.URL) FailingHost {
+func makeFailingHost(host fleet.PolicySetHost, serverURL *url.URL) failingHost {
 	u := *serverURL
 	u.Path = path.Join(serverURL.Path, "hosts", strconv.FormatUint(uint64(host.ID), 10))
-	return FailingHost{
+	return failingHost{
 		ID:       host.ID,
 		Hostname: host.Hostname,
 		URL:      u.String(),

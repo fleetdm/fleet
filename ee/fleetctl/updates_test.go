@@ -43,11 +43,10 @@ func TestPassphraseHandlerEnvironment(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.role, func(t *testing.T) {
 			tt := tt
-			t.Parallel()
 
 			handler := newPassphraseHandler()
 			envKey := fmt.Sprintf("FLEET_%s_PASSPHRASE", strings.ToUpper(tt.role))
-			require.NoError(t, os.Setenv(envKey, tt.passphrase))
+			t.Setenv(envKey, tt.passphrase)
 
 			passphrase, err := handler.getPassphrase(tt.role, false, false)
 			require.NoError(t, err)
@@ -64,17 +63,17 @@ func TestPassphraseHandlerEnvironment(t *testing.T) {
 func TestPassphraseHandlerEmpty(t *testing.T) {
 	// Not t.Parallel() due to modifications to environment.
 	handler := newPassphraseHandler()
-	require.NoError(t, os.Setenv("FLEET_ROOT_PASSPHRASE", ""))
+	t.Setenv("FLEET_ROOT_PASSPHRASE", "")
 	_, err := handler.getPassphrase("root", false, false)
 	require.Error(t, err)
 }
 
 func setPassphrases(t *testing.T) {
 	t.Helper()
-	require.NoError(t, os.Setenv("FLEET_ROOT_PASSPHRASE", "root"))
-	require.NoError(t, os.Setenv("FLEET_TIMESTAMP_PASSPHRASE", "timestamp"))
-	require.NoError(t, os.Setenv("FLEET_TARGETS_PASSPHRASE", "targets"))
-	require.NoError(t, os.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "snapshot"))
+	t.Setenv("FLEET_ROOT_PASSPHRASE", "root")
+	t.Setenv("FLEET_TIMESTAMP_PASSPHRASE", "timestamp")
+	t.Setenv("FLEET_TARGETS_PASSPHRASE", "targets")
+	t.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "snapshot")
 }
 
 func runUpdatesCommand(args ...string) error {
@@ -104,7 +103,7 @@ func TestUpdatesErrorInvalidPassphrase(t *testing.T) {
 	require.NoError(t, runUpdatesCommand("init", "--path", tmpDir))
 
 	// Should not be able to add with invalid passphrase
-	require.NoError(t, os.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "invalid"))
+	t.Setenv("FLEET_SNAPSHOT_PASSPHRASE", "invalid")
 	// Reset the cache that already has correct passwords stored
 	passHandler = newPassphraseHandler()
 	require.Error(t, runUpdatesCommand("add", "--path", tmpDir, "--target", "anything", "--platform", "windows", "--name", "test", "--version", "1.3.4.7"))
@@ -129,7 +128,7 @@ func assertFileExists(t *testing.T, path string) {
 	assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
 }
 
-func assertVersion(t *testing.T, expected int, versionFunc func() (int, error)) {
+func assertVersion(t *testing.T, expected int64, versionFunc func() (int64, error)) {
 	t.Helper()
 	actual, err := versionFunc()
 	require.NoError(t, err)
@@ -217,7 +216,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	// Initialize an update client
 	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	updater, err := update.New(update.Options{
+	updater, err := update.NewUpdater(update.Options{
 		RootDirectory: tmpDir,
 		ServerURL:     server.URL,
 		RootKeys:      roots,
@@ -354,7 +353,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	tmpDir = t.TempDir()
 	localStore, err = filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	updater, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	updater, err = update.NewUpdater(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
 	require.NoError(t, err)
 	require.NoError(t, updater.UpdateMetadata())
 }

@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import ClipboardIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
 import EditIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import DeleteIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -71,13 +71,17 @@ const EnrollSecretRow = ({
     return (
       <span className={`${baseClass}__name`}>
         <span className="buttons">
-          {copyMessage && <span>{`${copyMessage} `}</span>}
+          {copyMessage && (
+            <span
+              className={`${baseClass}__copy-message`}
+            >{`${copyMessage} `}</span>
+          )}
           <Button
             variant="unstyled"
             className={`${baseClass}__secret-copy-icon`}
             onClick={onCopySecret}
           >
-            <FleetIcon name="clipboard" />
+            <img src={ClipboardIcon} alt="copy to clipboard" />
           </Button>
           <a
             href="#showSecret"

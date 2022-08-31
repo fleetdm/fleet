@@ -6,16 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -48,22 +45,20 @@ type threadSafeDSMock struct {
 	*mock.Store
 }
 
-func (d *threadSafeDSMock) AllCPEs(ctx context.Context) ([]string, error) {
+func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.AllCPEs(ctx)
+	return d.Store.ListSoftwareCPEs(ctx)
 }
 
-func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
+func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.InsertCVEForCPE(ctx, cve, cpes)
+	return d.Store.InsertVulnerabilities(ctx, vulns, src)
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.Run(t)
 
 	tempDir := t.TempDir()
 
@@ -71,80 +66,76 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	ctx := context.Background()
 
 	// download the CVEs once for all sub-tests, and then disable syncing
-	cfg := config.FleetConfig{}
-	err := SyncCVEData(tempDir, cfg)
+	err := nettest.RunWithNetRetry(t, func() error {
+		return DownloadNVDCVEFeed(tempDir, "")
+	})
 	require.NoError(t, err)
-	cfg.Vulnerabilities.DisableDataSync = true
-	cfg.Vulnerabilities.RecentVulnerabilityMaxAge = 365 * 24 * time.Hour
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
-				return []string{tt.cpe}, nil
+			ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+				return []fleet.SoftwareCPE{
+					{CPE: tt.cpe},
+				}, nil
 			}
 
 			cveLock := &sync.Mutex{}
-			cveToCPEs := make(map[string][]string)
 			var cvesFound []string
-			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+			ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 				cveLock.Lock()
 				defer cveLock.Unlock()
-				cveToCPEs[cve] = cpes
-				cvesFound = append(cvesFound, cve)
+				for _, v := range vulns {
+					cvesFound = append(cvesFound, v.CVE)
+				}
+
 				return 0, nil
 			}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
+			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false)
 			require.NoError(t, err)
 
 			printMemUsage()
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
-			require.Equal(t, []string{tt.cpe}, cveToCPEs[tt.cve])
 		})
 	}
 
 	t.Run("recent_vulns", func(t *testing.T) {
-		googleChromeCPE := "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*"
-		mozillaFirefoxCPE := "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*"
-		curlCPE := "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*"
-
-		// consider recent vulnerabilities to be anything published in 2018
-		theClock = clock.NewMockClock(time.Date(2019, 01, 01, 0, 0, 0, 0, time.UTC))
-		defer func() { theClock = clock.C }()
-
 		safeDS := &threadSafeDSMock{Store: ds}
 
-		ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
-			return []string{googleChromeCPE, mozillaFirefoxCPE, curlCPE}, nil
+		softwareCPEs := []fleet.SoftwareCPE{
+			{CPE: "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*", ID: 1, SoftwareID: 1},
+			{CPE: "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
+			{CPE: "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
+		}
+		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+			return softwareCPEs, nil
 		}
 
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 1, nil
 		}
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), cfg, true)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
-		byCPE := make(map[string]int)
-		for _, cpes := range recent {
-			for _, cpe := range cpes {
-				byCPE[cpe]++
-			}
+		byCPE := make(map[uint]int)
+		for _, cpe := range recent {
+			byCPE[cpe.SoftwareID]++
 		}
 
 		// even if it's somewhat far in the past, I've seen the exact numbers
 		// change a bit between runs with different downloads, so allow for a bit
 		// of wiggle room.
-		assert.Greater(t, byCPE[googleChromeCPE], 150, "google chrome CVEs")
-		assert.Greater(t, byCPE[mozillaFirefoxCPE], 280, "mozilla firefox CVEs")
-		assert.Greater(t, byCPE[curlCPE], 10, "curl CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[0].SoftwareID], 150, "google chrome CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
 		// call it again but now return 0 from this call, simulating CVE-CPE pairs
 		// that already existed in the DB.
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 0, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), cfg, true)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
@@ -165,32 +156,11 @@ func TestSyncsCVEFromURL(t *testing.T) {
 	defer ts.Close()
 
 	tempDir := t.TempDir()
-	err := SyncCVEData(
-		tempDir, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CVEFeedPrefixURL: ts.URL + "/feeds/json/cve/1.1/"}})
+	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
+	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL)
 	require.Error(t, err)
-	require.Equal(t,
-		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
+	require.Contains(t,
 		err.Error(),
+		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
 	)
-}
-
-func TestSyncsCVEFromURLSkipsIfDisableSync(t *testing.T) {
-	tempDir := t.TempDir()
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DisableDataSync: true,
-		},
-	}
-	err := SyncCVEData(tempDir, fleetConfig)
-	require.NoError(t, err)
-	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
-		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
-			return nil
-		}
-
-		t.FailNow()
-
-		return nil
-	})
-	require.NoError(t, err)
 }

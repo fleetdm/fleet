@@ -18,7 +18,7 @@ export default {
   ADMIN_SETTINGS_HOST_STATUS_WEBHOOK: `${URL_PREFIX}/settings/organization/host-status-webhook`,
   ADMIN_SETTINGS_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
   ADMIN_SETTINGS_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
-  ALL_PACKS: `${URL_PREFIX}/packs/all`,
+  ADMIN_SETTINGS_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
   },
@@ -46,6 +46,9 @@ export default {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
+  SOFTWARE_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/${id}`;
+  },
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {
     return `${URL_PREFIX}/settings/teams/${teamId}/members`;
   },

@@ -1,13 +1,16 @@
 import React from "react";
-import { Link } from "react-router";
+import { Column } from "react-table";
 import ReactTooltip from "react-tooltip";
+import { Link } from "react-router";
 
-import PATHS from "router/paths";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
+import PATHS from "router/paths";
+import { formatFloatAsPercentage } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
 
 // NOTE: cellProps come from react-table
@@ -59,35 +62,72 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
-const softwareTableHeaders = [
-  {
-    title: "Name",
-    Header: "Name",
-    disableSortBy: true,
-    accessor: "name",
-    Cell: (cellProps: IStringCellProps): JSX.Element => (
-      <TextCell value={cellProps.cell.value} />
-    ),
-  },
-  {
-    title: "Version",
-    Header: "Version",
-    disableSortBy: true,
-    accessor: "version",
-    Cell: (cellProps: IStringCellProps): JSX.Element => (
-      <TextCell value={cellProps.cell.value} />
-    ),
-  },
-  {
-    title: "Type",
-    Header: "Type",
-    disableSortBy: true,
-    accessor: "source",
-    Cell: (cellProps: IStringCellProps): JSX.Element => (
-      <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
-    ),
-  },
-  {
+const withBundleTooltip = (name: string, bundle: string) => (
+  <span className="name-container">
+    <TooltipWrapper
+      tipContent={`
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `}
+    >
+      {name}
+    </TooltipWrapper>
+  </span>
+);
+
+const getMaxProbability = (vulns: IVulnerability[]) =>
+  vulns.reduce(
+    (max, { epss_probability }) => Math.max(max, epss_probability || 0),
+    0
+  );
+
+const generateEPSSColumnHeader = () => {
+  return {
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+            The probability that this software will be exploited
+            <br />
+            in the next 30 days (EPSS probability). This data is
+            <br />
+            reported by FIRST.org.
+          `}
+        >
+          Probability of exploit
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      );
+    },
+    disableSortBy: false,
+    accessor: "vulnerabilities",
+    Cell: (cellProps: IVulnCellProps): JSX.Element => {
+      const vulns = cellProps.cell.value || [];
+      const maxProbability = (!!vulns.length && getMaxProbability(vulns)) || 0;
+      const displayValue =
+        (maxProbability && formatFloatAsPercentage(maxProbability)) || "---";
+
+      return (
+        <span
+          className={`vulnerabilities ${!vulns.length ? "text-muted" : ""}`}
+        >
+          {displayValue}
+        </span>
+      );
+    },
+  };
+};
+
+const generateVulnColumnHeader = () => {
+  return {
     title: "Vulnerabilities",
     Header: "Vulnerabilities",
     disableSortBy: true,
@@ -112,10 +152,10 @@ const softwareTableHeaders = [
         <>
           <span
             className={`text-cell vulnerabilities ${
-              vulnerabilities.length > 1 ? "text-muted" : ""
+              vulnerabilities.length > 1 ? "text-muted tooltip" : ""
             }`}
             data-tip
-            data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+            data-for={`vulnerabilities__${cellProps.row.original.id}`}
             data-tip-disable={vulnerabilities.length <= 1}
           >
             {vulnerabilities.length === 1
@@ -123,11 +163,9 @@ const softwareTableHeaders = [
               : `${vulnerabilities.length} vulnerabilities`}
           </span>
           <ReactTooltip
-            place="top"
-            type="dark"
             effect="solid"
             backgroundColor="#3e4771"
-            id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+            id={`vulnerabilities__${cellProps.row.original.id}`}
             data-html
           >
             <span className={`vulnerabilities tooltip__tooltip-text`}>
@@ -137,34 +175,74 @@ const softwareTableHeaders = [
         </>
       );
     },
-  },
-  {
-    title: "Hosts",
-    Header: (cellProps: IHeaderProps): JSX.Element => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    disableSortBy: false,
-    accessor: "hosts_count",
-    Cell: (cellProps: INumberCellProps): JSX.Element => (
-      <span className="hosts-cell__wrapper">
-        <span className="hosts-cell__count">
-          <TextCell value={cellProps.cell.value} />
-        </span>
-        <span className="hosts-cell__link">
-          <Link
-            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
-            className="software-link"
-          >
-            <span className="link-text">View all hosts</span>
-            <img alt="link to hosts filtered by software ID" src={Chevron} />
-          </Link>
-        </span>
-      </span>
-    ),
-  },
-];
+  };
+};
 
-export default softwareTableHeaders;
+const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
+  const softwareTableHeaders = [
+    {
+      title: "Name",
+      Header: "Name",
+      disableSortBy: true,
+      accessor: "name",
+      Cell: (cellProps: IStringCellProps): JSX.Element => {
+        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        return (
+          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+            {bundle ? withBundleTooltip(name, bundle) : name}
+          </Link>
+        );
+      },
+    },
+    {
+      title: "Version",
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "version",
+      Cell: (cellProps: IStringCellProps): JSX.Element => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      title: "Type",
+      Header: "Type",
+      disableSortBy: true,
+      accessor: "source",
+      Cell: (cellProps: IStringCellProps): JSX.Element => (
+        <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
+      ),
+    },
+    isPremiumTier ? generateEPSSColumnHeader() : generateVulnColumnHeader(),
+    {
+      title: "Hosts",
+      Header: (cellProps: IHeaderProps): JSX.Element => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      accessor: "hosts_count",
+      Cell: (cellProps: INumberCellProps): JSX.Element => (
+        <span className="hosts-cell__wrapper">
+          <span className="hosts-cell__count">
+            <TextCell value={cellProps.cell.value} />
+          </span>
+          <span className="hosts-cell__link">
+            <Link
+              to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
+              className="software-link"
+            >
+              <span className="link-text">View all hosts</span>
+              <img alt="link to hosts filtered by software ID" src={Chevron} />
+            </Link>
+          </span>
+        </span>
+      ),
+    },
+  ];
+
+  return softwareTableHeaders;
+};
+
+export default generateTableHeaders;

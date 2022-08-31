@@ -113,7 +113,7 @@ resource "aws_ecs_service" "fleet" {
 // possibility of providing this capability in the future.
 resource "aws_cloudwatch_log_group" "backend" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key:exp:2022-07-01
   name              = "fleetdm"
-  retention_in_days = 1
+  retention_in_days = var.cloudwatch_log_retention
 }
 
 resource "aws_ecs_task_definition" "backend" {

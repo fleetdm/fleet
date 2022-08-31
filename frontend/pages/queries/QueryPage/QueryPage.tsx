@@ -10,12 +10,17 @@ import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
 import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { ITeam } from "interfaces/team";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
+import SelectTargets from "components/LiveQuery/SelectTargets";
+
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
-import SelectTargets from "pages/queries/QueryPage/screens/SelectTargets";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
@@ -42,7 +47,7 @@ const QueryPage = ({
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
-  const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
   const handlePageError = useErrorHandler();
   const {
@@ -65,6 +70,9 @@ const QueryPage = ({
   );
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
+  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
@@ -80,10 +88,10 @@ const QueryPage = ({
     data: storedQuery,
     error: storedQueryError,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
-    ["query", queryIdForEdit],
-    () => queryAPI.load(queryIdForEdit as number),
+    ["query", queryId],
+    () => queryAPI.load(queryId as number),
     {
-      enabled: !!queryIdForEdit,
+      enabled: !!queryId,
       refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
@@ -105,6 +113,9 @@ const QueryPage = ({
       enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
+        setTargetedHosts((prevHosts) =>
+          prevHosts.filter((h) => h.id !== host.id).concat(host)
+        );
         const targets = selectedTargets;
         host.target_type = "hosts";
         targets.push(host);
@@ -112,6 +123,7 @@ const QueryPage = ({
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
+        router.replace(location.pathname);
       },
     }
   );
@@ -179,7 +191,7 @@ const QueryPage = ({
     const step1Opts = {
       router,
       baseClass,
-      queryIdForEdit,
+      queryIdForEdit: queryId,
       showOpenSchemaActionText,
       storedQuery,
       isStoredQueryLoading,
@@ -193,19 +205,25 @@ const QueryPage = ({
 
     const step2Opts = {
       baseClass,
-      selectedTargets: [...selectedTargets],
-      queryIdForEdit,
+      queryId,
+      selectedTargets,
+      targetedHosts,
+      targetedLabels,
+      targetedTeams,
+      targetsTotalCount,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
-      targetsTotalCount,
+      setTargetedHosts,
+      setTargetedLabels,
+      setTargetedTeams,
       setTargetsTotalCount,
     };
 
     const step3Opts = {
+      queryId,
       selectedTargets,
       storedQuery,
-      queryIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       targetsTotalCount,
@@ -222,23 +240,26 @@ const QueryPage = ({
   };
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
-  const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
   return (
-    <div className={`${baseClass} ${sidebarClass}`}>
-      <div className={`${baseClass}__content`}>{renderScreen()}</div>
+    <>
+      <MainContent className={baseClass}>
+        <div className={`${baseClass}_wrapper`}>{renderScreen()}</div>
+      </MainContent>
       {showSidebar && (
-        <QuerySidePanel
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          selectedOsqueryTable={selectedOsqueryTable}
-          onClose={onCloseSchemaSidebar}
-        />
+        <SidePanelContent>
+          <QuerySidePanel
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            selectedOsqueryTable={selectedOsqueryTable}
+            onClose={onCloseSchemaSidebar}
+          />
+        </SidePanelContent>
       )}
-    </div>
+    </>
   );
 };
 

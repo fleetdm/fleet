@@ -36,6 +36,7 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
+  isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -62,6 +63,7 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
+  isUpdatingPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -82,6 +84,7 @@ const PolicyForm = ({
   const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
     false
   );
+  const [isPolicySaving, setIsPolicySaving] = useState<boolean>(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -436,6 +439,7 @@ const PolicyForm = ({
           value={lastEditedQueryBody}
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          wrapEnabled
           readOnly
         />
       )}
@@ -464,6 +468,7 @@ const PolicyForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChangePolicy}
           handleSubmit={promptSavePolicy}
+          wrapEnabled
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
@@ -479,14 +484,35 @@ const PolicyForm = ({
           >
             {hasSavePermissions && (
               <Button
-                className={`${baseClass}__save`}
                 variant="brand"
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
+                className="save-loading"
+                isLoading={isUpdatingPolicy}
               >
-                <>{!isEditMode ? "Save policy" : "Save"}</>
+                Save
               </Button>
             )}
+          </span>
+          <ReactTooltip
+            className={`${baseClass}__button-wrap--tooltip`}
+            place="bottom"
+            effect="solid"
+            id={`${baseClass}__button-wrap--tooltip`}
+            backgroundColor="#3e4771"
+          >
+            Select the platform(s) this
+            <br />
+            policy will be checked on
+            <br />
+            to save or run the policy.
+          </ReactTooltip>
+          <span
+            className={`${baseClass}__button-wrap--tooltip`}
+            data-tip
+            data-for={`${baseClass}__button-wrap--tooltip`}
+            data-tip-disable={!isEditMode || isAnyPlatformSelected}
+          >
             <Button
               className={`${baseClass}__run`}
               variant="blue-green"
@@ -499,7 +525,6 @@ const PolicyForm = ({
           <ReactTooltip
             className={`${baseClass}__button-wrap--tooltip`}
             place="bottom"
-            type="dark"
             effect="solid"
             id={`${baseClass}__button-wrap--tooltip`}
             backgroundColor="#3e4771"
@@ -520,6 +545,7 @@ const PolicyForm = ({
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
+          isUpdatingPolicy={isUpdatingPolicy}
         />
       )}
     </>

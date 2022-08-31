@@ -1,6 +1,6 @@
 # Fleet 4.13.0 | Security fixes, policy automations for teams, and aggregated macOS versions for MacAdmins.
 
-![Fleet 4.13.0](https://miro.medium.com/1*8uH_y1m3XZFX5rWtieMV7A.png)
+![Fleet 4.13.0](../website/assets/images/articles/fleet-4.13.0-cover-800x450@2x.png)
 
 Fleet 4.13.0 is here. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.13.0) or continue reading to summarize what’s new.
 
@@ -23,7 +23,7 @@ More information on the impact of the issues can be found in the following secur
 
 **Available to Fleet Premium users.**
 
-![Manage automations](https://miro.medium.com/1*pn7wCcVOhvDUjHhB68Jq4g.png)
+![Manage automations](../website/assets/images/articles/fleet-4.13.0-1-800x450@2x.png)
 
 Fleet Premium users can now tell Fleet to create separate tickets for misconfigured servers and workstations across their teams.
 
@@ -31,7 +31,7 @@ Fleet Premium users can now tell Fleet to create separate tickets for misconfigu
 
 **Available to Fleet and Fleet Premium users.**
 
-![Aggregated macOS versions for MacAdmins](https://miro.medium.com/1*28R3spTJu4UCXTTDyDggwg.png)
+![Aggregated macOS versions for MacAdmins](../website/assets/images/articles/fleet-4.13.0-2-800x450@2x.png)
 
 We added an “Operating systems” card to the homepage to show the number of hosts with specific MacOS versions. MacAdmins can now quickly see if the number of hosts with the latest macOS security update is trending in the right direction.
 
@@ -62,4 +62,4 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-04-19">
 <meta name="articleTitle" value="Fleet 4.13.0 | Security fixes, policy automations for teams, and aggregated macOS versions for MacAdmins.">
-<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*8uH_y1m3XZFX5rWtieMV7A.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.13.0-cover-1600x900@2x.jpg">

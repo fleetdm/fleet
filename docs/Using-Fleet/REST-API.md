@@ -186,7 +186,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
   "errors": [
     {
       "name": "base",
-      "reason": "email not configured",
+      "reason": "email not configured"
     }
   ]
 }
@@ -476,8 +476,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
@@ -852,13 +852,14 @@ None.
     "metadata_url": "",
     "idp_name": "",
     "enable_sso": false,
-    "enable_sso_idp_login": false
+    "enable_sso_idp_login": false,
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "agent_options": {
@@ -885,9 +886,9 @@ None.
     }
   },
   "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
+     "tier": "free",
+     "expiration": "0001-01-01T00:00:00Z"
+   },
   "logging": {
       "debug": false,
       "json": false,
@@ -908,13 +909,6 @@ None.
               "enable_log_compression": false
           }
       }
-  },
-  "license": {
-    "tier": "free",
-    "organization": "fleet",
-    "device_count": 100,
-    "expiration": "2021-12-31T19:00:00-05:00",
-    "note": ""
   },
   "vulnerability_settings": {
     "databases_path": ""
@@ -1014,6 +1008,7 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| transparency_url      | string  | body | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
 | enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
 | destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
 | host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
@@ -1025,16 +1020,18 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
 | destination_url       | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
 | host_batch_size       | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
-| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not that Jira integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies | boolean | body | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                   | string | body | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
 | username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
-| password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
+| api_token             | string | body | _integrations.jira[] settings_. The API token of the Jira username to use for this Jira integration. |
 | project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
-| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not that Zendesk integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies | boolean | body | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                   | string | body | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
 | email              | string | body | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token              | string | body | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
-| group_id           | string | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| group_id           | integer | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -1099,7 +1096,7 @@ Modifies the Fleet's configuration with the supplied information.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "license": {
@@ -1232,6 +1229,7 @@ Replaces all existing global enroll secrets.
 | Name      | Type    | In   | Description                                                        |
 | --------- | ------- | ---- | ------------------------------------------------------------------ |
 | spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
+
 #### Example
 
 Replace all global enroll secrets with a new enroll secret.
@@ -1245,7 +1243,7 @@ Replace all global enroll secrets with a new enroll secret.
     "spec": {
         "secrets": [
             {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
             }
         ]
     }
@@ -1340,7 +1338,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
 {
   "secrets": [
     {
-      "secret": "n07v32y53c237734m3n201153c237",
+      "secret": "n07v32y53c237734m3n201153c237"
     }
   ]
 }
@@ -1355,7 +1353,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
   "secrets": [
     {
       "secret": "n07v32y53c237734m3n201153c237",
-      "created_at": "0001-01-01T00:00:00Z",
+      "created_at": "0001-01-01T00:00:00Z"
     }
   ]
 }
@@ -1728,17 +1726,26 @@ None.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
-           |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included
-for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for
-more information about this feature.
-### Get host's Google Chrome profiles
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+
 If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
+
+If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the aggregated statistics corresponding to the `mdm_id` (and, if provided, `team_id`). See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object. Note that the statistics are for the corresponding `mdm_id` (and `team_id` if provided) only, and do not take into account other potential filters such as `mdm_enrollment_status`.
+
+If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the aggregated statistics corresponding to the `munki_issue_id` (and, if provided, `team_id`). See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object.
 
 #### Example
 
@@ -1750,7 +1757,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "hostname",
+  "order_key": "hostname"
 }
 ```
 
@@ -1803,11 +1810,21 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
+      },
+      "geolocation": {
+        "country_iso": "US",
+        "city_name": "New York",
+        "geometry": {
+          "type": "point",
+          "coordinates": [40.6799, -74.0028]
+        }
       }
     }
   ]
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Count hosts
 
@@ -1823,12 +1840,18 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, mdm or munki filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1842,7 +1865,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "hostname",
+  "order_key": "hostname"
 }
 ```
 
@@ -1881,6 +1904,55 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 {
   "team_id": 1,
   "totals_hosts_count": 2408,
+  "online_count": 2267,
+  "offline_count": 141,
+  "mia_count": 0,
+  "new_count": 0,
+  "all_linux_count": 1204,
+  "builtin_labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin"
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 11,
+      "name": "Red Hat Linux",
+      "description": "All Red Hat Enterprise Linux hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 12,
+      "name": "All Linux",
+      "description": "All Linux distributions",
+      "label_type": "builtin"
+    }
+  ],
   "platforms": [
     {
       "platform": "linux",
@@ -1891,10 +1963,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "hosts_count": 1204
     }
   ],
-  "online_count": 2267,
-  "offline_count": 141,
-  "mia_count": 0,
-  "new_count": 0
 }
 ```
 
@@ -2022,7 +2090,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "id": 6,
         "name": "All Hosts",
         "description": "All hosts which have enrolled in Fleet",
-        "query": "select 1;",
+        "query": "SELECT 1;",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2033,7 +2101,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "id": 9,
         "name": "CentOS Linux",
         "description": "All CentOS hosts",
-        "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2057,7 +2125,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 1,
         "name": "SomeQuery",
-        "query": "select * from foo;",
+        "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
@@ -2066,7 +2134,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 2,
         "name": "SomeQuery2",
-        "query": "select * from bar;",
+        "query": "SELECT * FROM bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "platform": "darwin",
@@ -2075,7 +2143,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 3,
         "name": "SomeQuery3",
-        "query": "select * from baz;",
+        "query": "SELECT * FROM baz;",
         "description": "",
         "resolution": "",
         "platform": "",
@@ -2085,10 +2153,26 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "issues": {
       "failing_policies_count": 2,
       "total_issues_count": 2
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
     }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2153,9 +2237,25 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "gigs_disk_space_available": 45.86,
     "percent_disk_space_available": 73,
     "pack_stats": null,
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
@@ -2388,9 +2488,25 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
     "munki": {
       "version": "1.2.3"
     },
+    "munki_issues": [
+      {
+        "id": 1,
+        "name": "Could not retrieve managed install primary manifest",
+        "type": "error",
+        "created_at": "2022-08-01T05:09:44Z"
+      },
+      {
+        "id": 2,
+        "name": "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
+        "type": "warning",
+        "created_at": "2022-08-01T05:09:44Z"
+      }
+    ],
     "mobile_device_management": {
       "enrollment_status": "Enrolled (automated)",
-      "server_url": "http://some.url/mdm"
+      "server_url": "http://some.url/mdm",
+      "name": "MDM Vendor Name",
+      "id": 999
     }
   }
 }
@@ -2451,11 +2567,39 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
         "hosts_count": 50
       }
     ],
+    "munki_issues": [
+      {
+        "id": 1,
+        "name": "Could not retrieve managed install primary manifest",
+        "type": "error",
+        "hosts_count": 2851
+      },
+      {
+        "id": 2,
+        "name": "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
+        "type": "warning",
+        "hosts_count": 1983
+      }
+    ],
     "mobile_device_management_enrollment_status": {
       "enrolled_manual_hosts_count": 124,
-      "enrolled_automatic_hosts_count": 124,
+      "enrolled_automated_hosts_count": 124,
       "unenrolled_hosts_count": 112
-    }
+    },
+    "mobile_device_management_solution": [
+      {
+        "id": 1,
+        "name": "SimpleMDM",
+        "hosts_count": 8360,
+        "server_url": "https://a.simplemdm.com/mdm"
+      },
+      {
+        "id": 2,
+        "name": "Intune",
+        "hosts_count": 1700,
+        "server_url": "https://enrollment.manage.microsoft.com"
+      }
+    ]
   }
 }
 ```
@@ -2468,10 +2612,12 @@ Retrieves the aggregated host OS versions information.
 
 #### Parameters
 
-| Name     | Type     | In    | Description                                                                                                                          |
+| Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id  | integery | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
-| platform | string   | query | Filters the hosts to the specified platform                                                                                          |
+| team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| platform            | string   | query | Filters the hosts to the specified platform |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 
 ##### Default response
 
@@ -2484,43 +2630,51 @@ Retrieves the aggregated host OS versions information.
     {
       "hosts_count": 1,
       "name": "CentOS 6.10.0",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "6.10.0",
+      "platform": "rhel",
+      "os_id": 1
     },
     {
       "hosts_count": 1,
       "name": "CentOS Linux 7.9.2009",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "7.9.2009",
+      "platform": "rhel",
+      "os_id": 2
     },
     {
       "hosts_count": 1,
       "name": "CentOS Linux 8.3.2011",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "8.2.2011",
+      "platform": "rhel",
+      "os_id": 3
     },
     {
       "hosts_count": 1,
       "name": "Debian GNU/Linux 10.0.0",
-      "platform": "debian"
+      "name_only": "Debian GNU/Linux",
+      "version": "10.0.0",
+      "platform": "debian",
+      "os_id": 4
     },
     {
       "hosts_count": 1,
       "name": "Debian GNU/Linux 9.0.0",
-      "platform": "debian"
+      "name_only": "Debian GNU/Linux",
+      "version": "9.0.0",
+      "platform": "debian",
+      "os_id": 5
     },
     {
       "hosts_count": 1,
-      "name": "Ubuntu 16.4.0",
-      "platform": "ubuntu"
+      "name": "Ubuntu 16.4.0 LTS",
+      "name_only": "Ubuntu",
+      "version": "16.4.0 LTS",
+      "platform": "ubuntu",
+      "os_id": 6
     },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 18.4.0",
-      "platform": "ubuntu"
-    },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 20.4.0",
-      "platform": "ubuntu"
-    }
   ]
 }
 ```
@@ -2537,6 +2691,7 @@ requested by a web browser.
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | format                  | string  | query | **Required**, must be "csv" (only supported format for now).                                                                                                                                                                                                                                                                                |
+| columns                 | string  | query | Comma-delimited list of columns to include in the report (returns all columns if none is specified).                                                                                                                                                                                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
@@ -2545,21 +2700,24 @@ requested by a web browser.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, munki or mdm filters.                                                                                                                                                                                                                                                                 |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?software_id=123&format=csv`
+`GET /api/v1/fleet/hosts/report?software_id=123&format=csv&columns=hostname,primary_ip,platform`
 
 ##### Default response
 
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
 ```
 
 ---
@@ -2570,6 +2728,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 - [Create label](#create-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
+- [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
@@ -2600,7 +2759,7 @@ Creates a dynamic label.
 {
   "name": "Ubuntu hosts",
   "description": "Filters ubuntu hosts",
-  "query": "select 1 from os_version where platform = 'ubuntu';",
+  "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
   "platform": ""
 }
 ```
@@ -2617,7 +2776,7 @@ Creates a dynamic label.
     "id": 1,
     "name": "Ubuntu hosts",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "label_type": "regular",
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu hosts",
@@ -2667,7 +2826,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
     "id": 1,
     "name": "Ubuntu hosts",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "platform": "darwin",
     "label_type": "regular",
     "label_membership_type": "dynamic",
@@ -2706,13 +2865,64 @@ Returns the specified label.
     "id": 12,
     "name": "Ubuntu",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "label_type": "regular",
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu",
     "count": 0,
     "host_ids": null
   }
+}
+```
+
+### Get labels summary
+
+Returns a list of all the labels in Fleet.
+
+`GET /api/v1/fleet/labels/summary`
+
+#### Example
+
+`GET /api/v1/fleet/labels/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin",
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin",
+    },
+  ]
 }
 ```
 
@@ -2724,10 +2934,9 @@ Returns a list of all the labels in Fleet.
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| id              | integer | path  | **Required**. The label's id.                                                                                                 |
-| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                              |
+| Name            | Type    | In    | Description   |
+| --------------- | ------- | ----- |------------------------------------- |
+| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
@@ -2747,7 +2956,7 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
+      "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
       "host_count": 7,
@@ -2761,7 +2970,7 @@ Returns a list of all the labels in Fleet.
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2776,7 +2985,7 @@ Returns a list of all the labels in Fleet.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2791,7 +3000,7 @@ Returns a list of all the labels in Fleet.
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
       "host_count": 3,
@@ -2805,7 +3014,7 @@ Returns a list of all the labels in Fleet.
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2993,7 +3202,7 @@ Deletes the label specified by ID.
     "label_ids": [
       6
     ],
-    "team_ids": [],
+    "team_ids": []
   }
 }
 ```
@@ -3137,7 +3346,7 @@ Deletes the label specified by ID.
       "label_ids": [
         6
       ],
-      "team_ids": [],
+      "team_ids": []
     },
   ]
 }
@@ -3246,7 +3455,7 @@ Delete pack by name.
       "name": "osquery_info",
       "query_id": 22,
       "query_name": "osquery_info",
-      "query": "select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;",
+      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
       "interval": 6667,
       "snapshot": true,
       "removed": false,
@@ -3254,7 +3463,7 @@ Delete pack by name.
       "version": "4.6.0",
       "shard": null,
       "denylist": null
-    },
+    }
   ]
 }
 ```
@@ -3309,7 +3518,7 @@ Delete pack by name.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -3348,14 +3557,14 @@ Delete pack by name.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
     "platform": "windows",
     "version": "4.5.0",
     "shard": 10,
-    "denylist": null,
+    "denylist": null
   }
 }
 ```
@@ -3384,7 +3593,7 @@ Delete pack by name.
 
 ```json
 {
-  "platform": "",
+  "platform": ""
 }
 ```
 
@@ -3402,7 +3611,7 @@ Delete pack by name.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -4570,7 +4779,7 @@ None.
 
 ```json
 {
-  "interval": 604800,
+  "interval": 604800
 }
 ```
 
@@ -4733,7 +4942,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -4786,7 +4995,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ```json
 {
-  "interval": 604800,
+  "interval": 604800
 }
 ```
 
@@ -4903,15 +5112,15 @@ Deletes the session specified by ID. When the user associated with the session n
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                                                    |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+| Name                    | Type    | In    | Description                                                                                                                                                                |
+| ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 
 #### Example
 
@@ -4926,40 +5135,24 @@ Deletes the session specified by ID. When the user associated with the session n
     "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 4,
-        "name": "osquery",
-        "version": "2.1.11",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 456
-      },
-      {
-        "id": 3,
-        "name": "osquery",
-        "version": "2.1.11",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 345
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 234
-      },
-      {
         "id": 1,
-        "name": "Chrome.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 123
+        "name": "glibc",
+        "version": "2.12",
+        "source": "rpm_packages",
+        "release": "1.212.el6",
+        "vendor": "CentOS",
+        "arch": "x86_64",
+        "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+        "vulnerabilities": [
+          {
+            "cve": "CVE-2009-5155",
+            "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
+            "cvss_score": 7.5,
+            "epss_probability": 0.01537,
+            "cisa_known_exploit": false
+          }
+        ],
+        "hosts_count": 1
       }
     ]
   }
@@ -4974,13 +5167,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                               |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities.                                                                                                                                                                                                                                                                         |
 
 #### Example
 
@@ -5122,7 +5311,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 6,
         "name": "All Hosts",
         "description": "All hosts which have enrolled in Fleet",
-        "query": "select 1;",
+        "query": "SELECT 1;",
         "label_type": "builtin",
         "label_membership_type": "dynamic",
         "host_count": 5,
@@ -5383,8 +5572,8 @@ _Available in Fleet Premium_
             },
             "decorators": {
               "load": [
-                "select uuid as host_uuid from system_info;",
-                "select hostname as hostname from system_info;"
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
               ]
             }
           },
@@ -5424,6 +5613,15 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).     |
+| &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration. |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use. |
+| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project. |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration. |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use. |
+| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group. |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 
 #### Example (add users to a team)
 
@@ -5433,7 +5631,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "user_ids": [1, 17, 22, 32],
+  "user_ids": [1, 17, 22, 32]
 }
 ```
 
@@ -5493,7 +5691,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
+  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44]
 }
 ```
 
@@ -5652,6 +5850,7 @@ _Available in Fleet Premium_
 ## Translator
 
 - [Translate IDs](#translate-i-ds)
+
 ### Translate IDs
 
 Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
@@ -5735,7 +5934,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
         "identifier": "host-ABC",
         "id": 45
       }
-    },
+    }
   ]
 }
 ```
@@ -6332,6 +6531,85 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
+## Debug
+
+- [Get a summary of errors](#get-a-summary-of-errors)
+- [Get database information](#get-database-information)
+- [Get profiling information](#get-profiling-information)
+
+The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get a summary of errors
+
+Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+
+The server only stores and returns a single instance of each error.
+
+`GET /debug/errors`
+
+#### Parameters
+
+| Name  | Type    | In    | Description                                                                       |
+| ----- | ------- | ----- | --------------------------------------------------------------------------------- |
+| flush | boolean | query | Whether or not clear the errors from Redis after reading them. Default is `false` |
+
+#### Example
+
+`GET /debug/errors?flush=true`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "count": "3",
+    "chain": [
+      {
+        "message": "Authorization header required"
+      },
+      {
+        "message": "missing FleetError in chain",
+        "data": {
+          "timestamp": "2022-06-03T14:16:01-03:00"
+        },
+        "stack": [
+          "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
+          "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
+          "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
+        ]
+      }
+    ]
+  }
+]
+```
+
+### Get database information
+
+Returns information about the current state of the database; valid keys are:
+
+- `locks`: returns transaction locking information.
+- `innodb-status`: returns InnoDB status information.
+- `process-list`: returns running processes (queries, etc).
+
+`GET /debug/db/{key}`
+
+#### Parameters
+
+None.
+
+### Get profiling information
+
+Returns runtime profiling data of the server in the format expected by `go tools pprof`. The responses are equivalent to those returned by the Go `http/pprof` package.
+
+Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
+
+`GET /debug/pprof/{key}`
+
+#### Parameters
+
+None.
 
 ---
 <meta name="pageOrderInSection" value="400">

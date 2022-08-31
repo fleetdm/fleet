@@ -102,19 +102,6 @@
   &__table {
     .table-container {
       &__header-left {
-        .manage-software-page__count {
-          display: flex;
-
-          :first-child {
-            margin-right: $pad-small;
-          }
-          .count-error {
-            color: $ui-error;
-          }
-          .count-loading {
-            color: $ui-fleet-black-50;
-          }
-        }
         .controls {
           .form-field--dropdown {
             margin: 0;
@@ -223,6 +210,12 @@
             tbody {
               .name__cell {
                 width: $col-md;
+                a {
+                  text-decoration: none;
+                  &:hover {
+                    text-decoration: underline;
+                  }
+                }
               }
               .version__cell {
                 width: 0;
@@ -232,6 +225,9 @@
                 width: 0;
               }
               .vulnerabilities__cell {
+                span {
+                  display: inline;
+                }
                 .text-muted {
                   color: $ui-fleet-black-50;
                 }

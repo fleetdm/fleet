@@ -8,26 +8,29 @@ import RESPONSES from "./responses";
 
 type IResponses = Record<string, Record<string, Record<string, unknown>>>;
 
-const DELAY = 1000; // modify the DELAY value (in milliseconds) to simulate a delayed async response
+const DELAY = 1000;
 
-const ENDPOINT = "/latest/fleet"; // modify the ENDPOINT string to correspond to your API spec
+const ENDPOINT = "/latest/fleet";
 
-// WILDCARDS can be used to represent URL parameters in any combination as illustrated below
-// modify the WILDCARDS array if you prefer to use different characters
 const WILDCARDS: string[] = [":", "*", "{", "}"];
 
-// REQUEST_RESPONSE_MAPPINGS dictionary maps your static responses to the specified API request path
 const REQUEST_RESPONSE_MAPPINGS: IResponses = {
   GET: {
-    config: RESPONSES.config1, // just first integration -- to throw error, rename config as configz
+    // response is list of all labels excluding any expensive data operations (UI only needs label
+    // name and id for this page)
+    "labels?summary=true": RESPONSES.labels,
+    // request query string is hostname, uuid, or mac address; response is host detail excluding any
+    // expensive data operations
+    "targets?query={*}": RESPONSES.hosts,
   },
-  // additional mappings can be specified for other HTTP request types (POST, PATCH, DELETE, etc.)
-  PATCH: {
-    config: RESPONSES.configAdd2, // will add second integration to first one
-  },
-  DELETE: {
-    // will remove second integration
-    config: RESPONSES.config1,
+  POST: {
+    // request body is ISelectedTargets
+    "targets/count": {
+      targets_count: 1,
+      targets_online: 0,
+      targets_offline: 1,
+      targets_missing_in_action: 0,
+    },
   },
 } as IResponses;
 

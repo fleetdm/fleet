@@ -3,7 +3,6 @@ package update
 
 import (
 	"archive/tar"
-	"bufio"
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
@@ -17,13 +16,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"github.com/theupdateframework/go-tuf/data"
@@ -85,11 +82,13 @@ type TargetInfo struct {
 	// ExtractedExecSubPath is the path to the executable in case the
 	// target is a compressed file.
 	ExtractedExecSubPath []string
+	// CustomCheckExec allows for a custom method for checking a downloaded executable.
+	CustomCheckExec func(execPath string) error
 }
 
-// New creates a new updater given the provided options. All the necessary
+// NewUpdater creates a new updater given the provided options. All the necessary
 // directories are initialized.
-func New(opt Options) (*Updater, error) {
+func NewUpdater(opt Options) (*Updater, error) {
 	if opt.LocalStore == nil {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}
@@ -150,11 +149,7 @@ func NewDisabled(opt Options) *Updater {
 // UpdateMetadata downloads and verifies remote repository metadata.
 func (u *Updater) UpdateMetadata() error {
 	if _, err := u.client.Update(); err != nil {
-		// An error is returned if we are already up-to-date. We can ignore that
-		// error.
-		if !client.IsLatestSnapshot(ctxerr.Cause(err)) {
-			return fmt.Errorf("update metadata: %w", err)
-		}
+		return fmt.Errorf("update metadata: %w", err)
 	}
 	return nil
 }
@@ -286,7 +281,7 @@ func (u *Updater) Get(target string) (*LocalTarget, error) {
 		}
 		if err := checkFileHash(meta, localTarget.Path); err != nil {
 			log.Debug().Str("info", err.Error()).Msg("change detected")
-			if err := u.download(target, repoPath, localTarget.Path); err != nil {
+			if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
 				return nil, fmt.Errorf("download %q: %w", repoPath, err)
 			}
 			if strings.HasSuffix(localTarget.Path, ".tar.gz") {
@@ -299,7 +294,7 @@ func (u *Updater) Get(target string) (*LocalTarget, error) {
 		}
 	case errors.Is(err, os.ErrNotExist):
 		log.Debug().Err(err).Msg("stat file")
-		if err := u.download(target, repoPath, localTarget.Path); err != nil {
+		if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
 			return nil, fmt.Errorf("download %q: %w", repoPath, err)
 		}
 	default:
@@ -330,52 +325,9 @@ func (u *Updater) Get(target string) (*LocalTarget, error) {
 	return localTarget, nil
 }
 
-func writeDevWarningBanner(w io.Writer) {
-	warningColor := color.New(color.FgWhite, color.Bold, color.BgRed)
-	warningColor.Fprintf(w, "WARNING: You are attempting to override orbit with a dev build.\nPress Enter to continue, or Control-c to exit.")
-	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
-	// next line
-	warningColor.DisableColor()
-	warningColor.Fprintln(w)
-	bufio.NewScanner(os.Stdin).Scan()
-}
-
-// CopyDevBuilds uses a development build for the given target+channel.
-//
-// This is just for development, must not be used in production.
-func (u *Updater) CopyDevBuild(target, devBuildPath string) {
-	writeDevWarningBanner(os.Stderr)
-
-	localPath, err := u.ExecutableLocalPath(target)
-	if err != nil {
-		panic(err)
-	}
-	if err := secure.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
-		panic(err)
-	}
-	dst, err := secure.OpenFile(localPath, os.O_CREATE|os.O_WRONLY, constant.DefaultExecutableMode)
-	if err != nil {
-		panic(err)
-	}
-	defer dst.Close()
-
-	src, err := secure.OpenFile(devBuildPath, os.O_RDONLY, constant.DefaultExecutableMode)
-	if err != nil {
-		panic(err)
-	}
-	defer src.Close()
-
-	if _, err := src.Stat(); err != nil {
-		panic(err)
-	}
-	if _, err := io.Copy(dst, src); err != nil {
-		panic(err)
-	}
-}
-
 // download downloads the target to the provided path. The file is deleted and
 // an error is returned if the hash does not match.
-func (u *Updater) download(target, repoPath, localPath string) error {
+func (u *Updater) download(target, repoPath, localPath string, customCheckExec func(execPath string) error) error {
 	staging := filepath.Join(u.opt.RootDirectory, stagingDir)
 
 	if err := secure.MkdirAll(staging, constant.DefaultDirMode); err != nil {
@@ -422,7 +374,7 @@ func (u *Updater) download(target, repoPath, localPath string) error {
 		return fmt.Errorf("close tmp file: %w", err)
 	}
 
-	if err := u.checkExec(target, tmp.Name()); err != nil {
+	if err := u.checkExec(target, tmp.Name(), customCheckExec); err != nil {
 		return fmt.Errorf("exec check failed %q: %w", tmp.Name(), err)
 	}
 
@@ -452,7 +404,7 @@ func goosFromPlatform(platform string) (string, error) {
 }
 
 // checkExec checks/verifies a downloaded executable target by executing it.
-func (u *Updater) checkExec(target, tmpPath string) error {
+func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPath string) error) error {
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return err
@@ -477,11 +429,18 @@ func (u *Updater) checkExec(target, tmpPath string) error {
 		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.Info.ExtractedExecSubPath...)...)
 	}
 
-	// Note that this would fail for any binary that returns nonzero for --help.
-	out, err := exec.Command(tmpPath, "--help").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("exec new version: %s: %w", string(out), err)
+	if customCheckExec != nil {
+		if err := customCheckExec(tmpPath); err != nil {
+			return fmt.Errorf("custom exec new version failed: %w", err)
+		}
+	} else {
+		// Note that this would fail for any binary that returns nonzero for --help.
+		cmd := exec.Command(tmpPath, "--help")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("exec new version: %s: %w", string(out), err)
+		}
 	}
+
 	return nil
 }
 

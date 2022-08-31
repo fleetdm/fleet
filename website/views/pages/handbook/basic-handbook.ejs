@@ -95,7 +95,16 @@
             )
           ) %>
           </div>
-
+          <div v-if="isHandbookLandingPage">
+            <div class="container-fluid d-flex flex-column p-0">
+              <div v-for="page in handbookIndexLinks">
+                <h3 class="mb-2"><a style="color: #000; text-decoration: none;" :href="page.url">{{page.pageTitle}}</a></h3>
+                <p v-for="link in page.pageLinks">
+                  <a :href="link.hashLink">{{link.headingText}}</a>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

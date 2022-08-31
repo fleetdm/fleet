@@ -2,9 +2,9 @@ resource "aws_elasticache_replication_group" "default" {
   availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
   engine                        = "redis"
   parameter_group_name          = aws_elasticache_parameter_group.default.id
-  subnet_group_name             = module.vpc.elasticache_subnet_group_name
+  subnet_group_name             = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
   security_group_ids            = [aws_security_group.redis.id, aws_security_group.backend.id]
-  replication_group_id          = "fleetdm-redis"
+  replication_group_id          = "${local.prefix}-redis"
   number_cache_clusters         = 3
   node_type                     = "cache.m6g.large"
   engine_version                = "5.0.6"
@@ -14,12 +14,12 @@ resource "aws_elasticache_replication_group" "default" {
   at_rest_encryption_enabled    = false #tfsec:ignore:aws-elasticache-enable-at-rest-encryption
   transit_encryption_enabled    = false #tfsec:ignore:aws-elasticache-enable-in-transit-encryption
   apply_immediately             = true
-  replication_group_description = "fleetdm-redis"
+  replication_group_description = "${local.prefix}-redis"
 
 }
 
 resource "aws_elasticache_parameter_group" "default" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
-  name   = "fleetdm-redis-foobar"
+  name   = "${local.prefix}-redis"
   family = "redis5.0"
 
   parameter {
@@ -34,7 +34,7 @@ resource "aws_elasticache_parameter_group" "default" { #tfsec:ignore:aws-vpc-add
 
 resource "aws_security_group" "redis" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key tfsec:ignore:aws-vpc-add-description-to-security-group
   name   = local.security_group_name
-  vpc_id = module.vpc.vpc_id
+  vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
 }
 
 locals {
@@ -46,7 +46,7 @@ resource "aws_security_group_rule" "ingress" { #tfsec:ignore:aws-vpc-add-descrip
   from_port         = "6379"
   to_port           = "6379"
   protocol          = "tcp"
-  cidr_blocks       = module.vpc.private_subnets_cidr_blocks
+  cidr_blocks       = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
   security_group_id = aws_security_group.redis.id
 }
 

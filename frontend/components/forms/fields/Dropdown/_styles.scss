@@ -97,12 +97,8 @@
   &--single {
     > .Select-control {
       .Select-value {
-        line-height: 40px;
+        line-height: 38px;
         border: none;
-        top: 1px;
-        right: 1px;
-        left: 1px;
-        bottom: 1px;
       }
     }
   }
@@ -223,15 +219,19 @@
   .Select-placeholder {
     color: $core-fleet-blue;
     font-size: $small;
-    line-height: 40px;
-    padding: 0 $pad-medium;
+    line-height: 38px;
     box-sizing: border-box;
   }
   .Select-input {
     color: $core-fleet-blue;
     font-size: $small;
-    padding-left: 2px;
     box-sizing: border-box;
+    height: 38px;
+
+    > input {
+      line-height: 38px;
+      padding: 0;
+    }
   }
 
   &.Select--multi {
@@ -243,7 +243,6 @@
 
     .Select-multi-value-wrapper {
       flex-grow: 1;
-      padding: $pad-xsmall;
 
       .Select-value {
         margin-top: 2px;

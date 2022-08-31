@@ -798,3 +798,11 @@ func amountLabelsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	}
 	return amount, nil
 }
+
+func (ds *Datastore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	labelsSummary := []*fleet.LabelSummary{}
+	if err := sqlx.SelectContext(ctx, ds.reader, &labelsSummary, "SELECT id, name, description, label_type FROM labels"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "labels summary")
+	}
+	return labelsSummary, nil
+}

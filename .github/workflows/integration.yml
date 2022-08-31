@@ -43,14 +43,14 @@ jobs:
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} &
-        until [ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]; do
+        until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
           echo "Awaiting tunnel ready..."
           sleep 5
         done
 
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
+      uses: dawidd6/action-download-artifact@7847792dd435a50521b8e3bd3576dae7459d1fa8 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -113,7 +113,7 @@ jobs:
    steps:
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
+      uses: dawidd6/action-download-artifact@7847792dd435a50521b8e3bd3576dae7459d1fa8 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -128,7 +128,7 @@ jobs:
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password admin123#
+        until ./build/fleetctl login --email admin@example.com --password preview1337#
         do
           echo "Retrying in 5s..."
           sleep 5
@@ -145,6 +145,9 @@ jobs:
     runs-on: macos-latest
     needs: [gen, login]
     steps:
+    - name: Checkout Code
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+
     - name: Install dependencies
       run: |
         npm install -g fleetctl
@@ -163,8 +166,26 @@ jobs:
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
-          sleep 1
+          sleep 10
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        mkdir orbit-logs
+        sudo cp /var/log/orbit/* orbit-logs/
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
+        ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 15
@@ -180,14 +201,16 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
-    - name: Download binaries
-      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
+    - name: Install Go
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
-        workflow: build-binaries.yaml
-        branch: main
-        name: build
-        path: build
-        check_artifacts: true
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+
+    - name: Build Fleetctl
+      run: make fleetctl
 
     - name: Install Orbit
       run: |
@@ -204,8 +227,24 @@ jobs:
         do
           echo "Awaiting enrollment..."
           sudo systemctl status orbit.service || true
-          sleep 1
+          sleep 10
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        sudo journalctl -u orbit.service > orbit-logs
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
         sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
@@ -234,7 +273,7 @@ jobs:
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Upload MSI
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
@@ -273,3 +312,10 @@ jobs:
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
     # wait until the expected number of hosts enroll.
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

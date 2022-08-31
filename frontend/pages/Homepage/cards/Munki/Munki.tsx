@@ -6,7 +6,8 @@ import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import TableDataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
 import generateTableHeaders from "./MunkiTableConfig";
 
 interface IMunkiCardProps {
@@ -46,23 +47,28 @@ const Munki = ({
 }: IMunkiCardProps): JSX.Element => {
   const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
 
-  const { isFetching: isMunkiFetching } = useQuery<IMacadminAggregate, Error>(
-    ["munki", currentTeamId],
-    () => macadminsAPI.loadAll(currentTeamId),
-    {
-      keepPreviousData: true,
-      onSuccess: (data) => {
-        const { counts_updated_at, munki_versions } = data.macadmins;
+  const { isFetching: isMunkiFetching, error: errorMunki } = useQuery<
+    IMacadminAggregate,
+    Error
+  >(["munki", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
+    keepPreviousData: true,
+    onSuccess: (data) => {
+      const { counts_updated_at, munki_versions } = data.macadmins;
 
-        setMunkiData(munki_versions);
-        setShowMunkiUI(true);
-        setTitleDetail &&
-          setTitleDetail(
-            renderLastUpdatedText(counts_updated_at, "Munki versions")
-          );
-      },
-    }
-  );
+      setMunkiData(munki_versions);
+      setShowMunkiUI(true);
+      setTitleDetail &&
+        setTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"Munki versions"}
+          />
+        );
+    },
+    onError: () => {
+      setShowMunkiUI(true);
+    },
+  });
 
   const tableHeaders = generateTableHeaders();
 
@@ -77,22 +83,26 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        <TableContainer
-          columns={tableHeaders}
-          data={munkiData || []}
-          isLoading={isMunkiFetching}
-          defaultSortHeader={DEFAULT_SORT_HEADER}
-          defaultSortDirection={DEFAULT_SORT_DIRECTION}
-          hideActionButton
-          resultsTitle={"Munki"}
-          emptyComponent={EmptyMunki}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disableActionButton
-          disablePagination
-          pageSize={PAGE_SIZE}
-        />
+        {errorMunki ? (
+          <TableDataError card />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={munkiData || []}
+            isLoading={isMunkiFetching}
+            defaultSortHeader={DEFAULT_SORT_HEADER}
+            defaultSortDirection={DEFAULT_SORT_DIRECTION}
+            hideActionButton
+            resultsTitle={"Munki"}
+            emptyComponent={EmptyMunki}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disableActionButton
+            disablePagination
+            pageSize={PAGE_SIZE}
+          />
+        )}
       </div>
     </div>
   );

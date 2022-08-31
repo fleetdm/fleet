@@ -2,7 +2,7 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API routes in this document are only intended for use by the Fleet UI and fleetctl clients.
+Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
 
 - [Get queries spec](#get-queries-spec)
 - [Get query spec](#get-query-spec)
@@ -16,12 +16,25 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API r
 - [Get label spec](#get-label-spec)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
+- [Search hosts to target for live query](#search-targets)
+- [Count targets for live query](#count-targets)
 - [Check live query status](#check-live-query-status)
 - [Check result store status](#check-result-store-status)
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
 - [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
 - [Run live query by name](#run-live-query-by-name)
 - [Apply policies spec](#apply-policies-spec)
+- [Device-authenticated routes](#device-authenticated-routes)
+    - [Get device's host](#get-devices-host)
+    - [Refetch device's host](#refetch-devices-host)
+    - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
+    - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+    - [Get device's policies](#get-devices-policies)
+    - [Get device's API features](#get-devices-api-features)
+    - [Get device's transparency URL](#get-devices-transparency-url)
+- [Check if an installer exists](#check-if-an-installer-exists)
+- [Download an installer](#download-an-installer)
+- [Setup Fleet instance](#setup-fleet-instance)
 
 ### Get queries spec
 
@@ -52,9 +65,9 @@ None.
     {
       "name": "osquery_schedule",
       "description": "Report performance stats for each file in the query schedule.",
-      "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
+      "query": "SELECT name, interval, executions, output_size, wall_time, (user_time/executions) AS avg_user_time, (system_time/executions) AS avg_system_time, average_memory, last_executed FROM osquery_schedule;"
     }
-  ]
+]
 }
 ```
 
@@ -245,7 +258,7 @@ Returns the specs for all packs in the Fleet instance.
 
 ### Apply packs spec
 
-Returns the specs for all packs in the Fleet instance.
+The following returns the specs for all packs in the Fleet instance.
 
 `POST /api/v1/fleet/spec/packs`
 
@@ -451,11 +464,12 @@ If the `name` is not already associated with an existing team, this API route cr
 
 #### Parameters
 
-| Name          | Type   | In   | Description                                                                                                                                                                                                                                             |
-| ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
-| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)  |
-| secrets       | list   | body | **Required.** A list of plain text strings is used as the enroll secrets.                                                                                                                                                                                  |
+| Name          | Type   | In   | Description                                                                                                                                                                                                                         |
+| ------------- | ------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name          | string | body | **Required.** The team's name.                                                                                                                                                                                                      |
+| agent_options | string | body | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
+| features      | object | body | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
+| secrets       | list   | body | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                 |
 
 #### Example
 
@@ -468,6 +482,13 @@ If the `name` is not already associated with an existing team, this API route cr
   "specs": [
     {
       "name": "Client Platform Engineering",
+      "features": {
+        "enable_host_users": false,
+        "enable_software_inventory": true,
+        "additional_queries": {
+          "foo": "SELECT * FROM bar;"
+        }
+      },
       "agent_options": {
         "spec": {
           "config": {
@@ -535,8 +556,8 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
   "specs": [
     {
       "name": "Ubuntu",
-      "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "description": "Filters Ubuntu hosts",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     },
     {
@@ -576,7 +597,7 @@ None.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
+      "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
@@ -584,7 +605,7 @@ None.
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -593,7 +614,7 @@ None.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -602,7 +623,7 @@ None.
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
@@ -610,7 +631,7 @@ None.
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -618,8 +639,8 @@ None.
     {
       "id": 11,
       "name": "Ubuntu",
-      "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "description": "Filters Ubuntu hosts",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     }
   ]
@@ -693,7 +714,7 @@ None.
 
 ### Modify enroll secrets
 
-Replaces the active global enroll secrets with the secrets specified.
+This replaces the active global enroll secrets with the secrets specified.
 
 `POST /api/v1/fleet/spec/enroll_secret`
 
@@ -725,9 +746,131 @@ Replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
+### Search targets
+
+Accepts a search query and a list of host IDs to omit and returns a set of up to ten matching hosts. If
+a query ID is provided and the referenced query allows observers to run, targets will include hosts
+for which the user has an observer role.
+
+`POST /api/latest/fleet/hosts/search`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                                                                                                      |
+|-------------------|---------|------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| query             | string  | body | The query used to identify hosts to target. Searchable items include a host's hostname or IPv4 address.                                          |
+| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included.  |
+| excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                           |
+
+#### Example
+
+`POST /api/v1/fleet/targets/search`
+
+##### Request body
+
+```json
+{
+  "query": "foo",
+  "query_id": 42,
+  "selected": {
+    "hosts": [],
+    "labels": [],
+    "teams": [1]
+  }
+}
+```
+
+##### Default response
+
+```json
+{
+  "targets": {
+    "hosts": [
+      {
+        "created_at": "2021-02-03T16:11:43Z",
+        "updated_at": "2021-02-03T21:58:19Z",
+        "id": 1337,
+        "detail_updated_at": "2021-02-03T21:58:10Z",
+        "label_updated_at": "2021-02-03T21:58:10Z",
+        "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "seen_time": "2021-02-03T21:58:20Z",
+        "hostname": "foof41482833",
+        "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+        "platform": "rhel",
+        "osquery_version": "4.5.1",
+        "os_version": "CentOS 6.10.0",
+        "build": "",
+        "platform_like": "rhel",
+        "code_name": "",
+        "uptime": 32688000000000,
+        "memory": 2086899712,
+        "cpu_type": "x86_64",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "foof41482833",
+        "primary_ip": "172.20.0.3",
+        "primary_mac": "02:42:ac:14:00:03",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "status": "offline",
+        "display_text": "foof41482833"
+      }
+    ]
+  }
+}
+```
+
+### Count targets
+
+Counts the number of online and offline hosts included in a given set of selected targets.
+
+`POST /api/latest/fleet/targets/count`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                         |
+|----------|---------|------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.  |
+| selected | object  | body | The object includes lists of selected host IDs, label IDs, and team IDs.                                                                            |
+
+#### Example
+
+`POST /api/latest/fleet/targets/count`
+
+##### Request body
+
+```json
+{
+  "query_id": 1337,
+  "selected": {
+    "hosts": [],
+    "labels": [42],
+    "teams": []
+  }
+}
+```
+
+##### Default response
+
+```json
+{
+  "targets_count": 813,
+  "targets_offline": 813,
+  "targets_online": 0
+}
+```
+
 ### Check live query status
 
-Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+This checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/live_query`
 
@@ -745,7 +888,7 @@ None.
 
 ### Check result store status
 
-Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+This checks Fleet's result store status. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/result_store`
 
@@ -763,9 +906,9 @@ None.
 
 ### Run live query
 
-Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+Runs the specified query as a live query on the specified hosts or group of hosts and returns a new live query campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
 
-After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
+After you initiate the query, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run`
 
@@ -787,7 +930,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query": "select instance_id from system_info",
+  "query": "SELECT instance_id FROM system_info",
   "selected": {
     "hosts": [171]
   }
@@ -826,7 +969,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query": "select instance_id from system_info;",
+  "query": "SELECT instance_id FROM system_info;",
   "selected": {
     "labels": [7]
   }
@@ -922,7 +1065,7 @@ One of `query` and `query_id` must be specified.
 
 ```json
 {
-  "query": "select instance_id from system_info",
+  "query": "SELECT instance_id FROM system_info",
   "selected": {
     "labels": ["All Hosts"]
   }
@@ -961,7 +1104,7 @@ Before you retrieve the live query results, you must create a live query campaig
 
 Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
 
-`/api/v1/fleet/results/websockets`
+`/api/v1/fleet/results/websocket`
 
 ### Parameters
 
@@ -975,7 +1118,7 @@ Note that live queries are automatically cancelled if this method is not called 
 #### Example script to handle request and response
 
 ```
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websockets');
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
 
 socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
@@ -1262,9 +1405,9 @@ NOTE: when updating a policy, team and platform will be ignored.
       "resolution": "some resolution steps here"
     },
     {
-      "name": "Is Filevault enabled on macOS devices?",
+      "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
-      "description": "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+      "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
       "platform": "darwin"
     }
@@ -1275,5 +1418,434 @@ NOTE: when updating a policy, team and platform will be ignored.
 ##### Default response
 
 `Status: 200`
+
+### Device-authenticated routes
+
+Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+
+#### Get device's host
+
+Returns the host information about the device that makes the request.
+
+`GET /api/v1/fleet/device/{token}`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                                        |
+| --------------- | ------ | ----- | ---------------------------------------------------|
+| token           | string | path  | The device's authentication token.                 |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "software": [
+      {
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      }
+    ],
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "rhel",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "build": "",
+    "platform_like": "rhel",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 16788398080,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "158",
+    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+    "cpu_physical_cores": 12,
+    "cpu_logical_cores": 12,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "additional": {},
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 73,
+    "users": [
+      {
+        "uid": 0,
+        "username": "root",
+        "type": "",
+        "groupname": "root",
+        "shell": "/bin/bash"
+      },
+      {
+        "uid": 1,
+        "username": "bin",
+        "type": "",
+        "groupname": "bin",
+        "shell": "/sbin/nologin"
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "CentOS Linux",
+        "description": "All CentOS hosts",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "status": "online",
+    "display_text": "23cfc9caacf0",
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
+  },
+  "org_logo_url": "https://example.com/logo.jpg",
+  "license": {
+    "tier": "free",
+    "expiration": "2031-01-01T00:00:00Z"
+  }
+}
+```
+
+#### Refetch device's host
+
+Same as [Refetch host route](../Using-Fleet/REST-API.md#refetch-host) for the current device.
+
+`POST /api/v1/fleet/device/{token}/refetch`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+#### Get device's Google Chrome profiles
+
+Same as [Get host's Google Chrome profiles](../Using-Fleet/REST-API.md#get-hosts-google-chrome-profiles) for the current device.
+
+`GET /api/v1/fleet/device/{token}/device_mapping`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+#### Get device's mobile device management (MDM) and Munki information
+
+Same as [Get host's mobile device management and Munki information](../Using-Fleet/REST-API.md#get-hosts-mobile-device-management-mdm-and-munki-information) for the current device.
+
+`GET /api/v1/fleet/device/{token}/macadmins`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+#### Get device's policies
+
+_Available in Fleet Premium_
+
+Lists the policies applied to the current device.
+
+`GET /api/v1/fleet/device/{token}/policies`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/policies`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policies": [
+    {
+      "id": 1,
+      "name": "SomeQuery",
+      "query": "SELECT * FROM foo;",
+      "description": "this is a query",
+      "resolution": "fix with these steps...",
+      "platform": "windows,linux",
+      "response": "pass"
+    },
+    {
+      "id": 2,
+      "name": "SomeQuery2",
+      "query": "SELECT * FROM bar;",
+      "description": "this is another query",
+      "resolution": "fix with these other steps...",
+      "platform": "darwin",
+      "response": "fail"
+    },
+    {
+      "id": 3,
+      "name": "SomeQuery3",
+      "query": "SELECT * FROM baz;",
+      "description": "",
+      "resolution": "",
+      "platform": "",
+      "response": ""
+    }
+  ]
+}
+```
+
+#### Get device's API features
+
+This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
+
+`GET /api/v1/fleet/device/{token}/api_features`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/api_features`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "features": {}
+}
+```
+
+#### Get device's transparency URL
+
+Returns the URL to open when clicking the "Transparency" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
+
+`GET /api/v1/fleet/device/{token}/transparency`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/transparency`
+
+##### Default response
+
+`Status: 307`
+
+Redirects to the transparency URL.
+
+### Download an installer
+
+Downloads a pre-built fleet-osquery installer with the given parameters.
+
+`POST /api/_version_/fleet/download_installer/{kind}`
+
+#### Parameters
+
+| Name          | Type    | In                     | Description                                                        |
+| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
+| kind          | string  | path                   | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | x-www-form-urlencoded  | The global enroll secret.                                          |
+| token         | string  | x-www-form-urlencoded  | The authentication token.                                          |
+| desktop       | boolean | x-www-form-urlencoded  | Set to `true` to ask for an installer that includes Fleet Desktop. |
+
+##### Default response
+
+```
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+If an installer with the provided parameters is found, the installer is returned as a binary blob in the body of the response.
+
+##### Installer doesn't exist
+
+`Status: 400`
+
+This error occurs if an installer with the provided parameters doesn't exist.
+
+
+### Check if an installer exists 
+
+Checks if a pre-built fleet-osquery installer with the given parameters exists.
+
+`HEAD /api/_version_/fleet/download_installer/{kind}`
+
+#### Parameters
+
+| Name          | Type    | In    | Description                                                        |
+| ------------- | ------- | ----- | ------------------------------------------------------------------ |
+| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | query | The global enroll secret.                                          |
+| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
+
+##### Default response
+
+`Status: 200`
+
+If an installer with the provided parameters is found.
+
+##### Installer doesn't exist
+
+`Status: 400`
+
+If an installer with the provided parameters doesn't exist.
+
+### Setup Fleet instance
+
+Sets up a new Fleet instance with the given parameters.
+
+`POST /api/_version_/setup`
+
+#### Parameters
+
+| Name          | Type    | In                     | Description                                                        |
+| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
+| admin         | object  | body                   | **Required.** Contains the following admin user details: `admin`, `email`, `name`, `password`, and `password_confirmation`.                        |
+| org_info      | object  | body                   | **Required.** Contains the following organizational details: `org_name`.                         |
+| server_url    | string  | body                   | **Required.** The URL of the Fleet instance.                                      |
+
+
+##### Request body
+
+```json
+{
+	"admin": {
+		"admin": true,
+		"email": "janedoe@example.com",
+		"name": "Jane Doe",
+		"password": "password!234",
+		"password_confirmation": "password!234"
+	},
+	"org_info": {
+		"org_name": "Fleet Device Management"
+	},
+	"server_url": "https://localhost:8080"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+If the Fleet instance is provided required parameters to complete setup.
+
+```json
+{
+  "admin": {
+    "created_at": "2021-01-07T19:40:04Z",
+    "updated_at": "2021-01-07T19:40:04Z",
+    "id": 1,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "api_only": false,
+    "teams": []
+  },
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "server_url": "https://localhost:8080",
+  "osquery_enroll_secret": null,
+  "token": "ur4RWGBeiNmNzer/dnGzgUQ+jxrJe19xuHg/LhLkbhuZMQu35scyBHUHs68+RJxZynxQnuTz4WTHXayAJJaGgg=="
+}
+
+```
 
 <meta name="pageOrderInSection" value="800">

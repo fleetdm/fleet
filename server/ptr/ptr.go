@@ -11,15 +11,6 @@ func String(x string) *string {
 	return &x
 }
 
-// StringValueOrZero returns the string value.
-// Returns empty string if x is nil.
-func StringValueOrZero(x *string) string {
-	if x == nil {
-		return ""
-	}
-	return *x
-}
-
 // Int returns a pointer to the provided int.
 func Int(x int) *int {
 	return &x
@@ -35,6 +26,12 @@ func Bool(x bool) *bool {
 	return &x
 }
 
+// BoolPtr returns a double pointer to the provided bool.
+func BoolPtr(x bool) **bool {
+	p := Bool(x)
+	return &p
+}
+
 // Time returns a pointer to the provided time.Time.
 func Time(x time.Time) *time.Time {
 	return &x
@@ -42,5 +39,20 @@ func Time(x time.Time) *time.Time {
 
 // RawMessage returns a pointer to the provided json.RawMessage.
 func RawMessage(x json.RawMessage) *json.RawMessage {
+	return &x
+}
+
+// Float64 returns a pointer to a float64.
+func Float64(x float64) *float64 {
+	return &x
+}
+
+// Float64Ptr returns a pointer to a *float64.
+func Float64Ptr(x float64) **float64 {
+	p := Float64(x)
+	return &p
+}
+
+func Int64(x int64) *int64 {
 	return &x
 }

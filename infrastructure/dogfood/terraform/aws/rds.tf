@@ -5,7 +5,8 @@ resource "random_password" "database_password" {
 // Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
 // possibility of providing this capability in the future.
 resource "aws_secretsmanager_secret" "database_password_secret" { #tfsec:ignore:aws-ssm-secret-use-customer-key:exp:2022-07-01
-  name = "/fleet/database/password/master"
+  name                    = "/fleet/database/password/master"
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
@@ -31,7 +32,7 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //  vpc_id                = module.vpc.vpc_id
 //  subnets               = module.vpc.database_subnets
 //  create_security_group = true
-//  allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
+//  allowed_cidr_blocks   = concat(module.vpc.private_subnets_cidr_blocks, var.extra_security_group_cidrs)
 //
 //  replica_scale_enabled = false
 //  replica_count         = 0
@@ -66,7 +67,7 @@ module "aurora_mysql" {
 
   name                  = "${local.name}-mysql-iam"
   engine                = "aurora-mysql"
-  engine_version        = "5.7.mysql_aurora.2.10.0"
+  engine_version        = "5.7.mysql_aurora.2.10.2"
   instance_type         = var.db_instance_type_writer
   instance_type_replica = var.db_instance_type_reader
 
@@ -77,12 +78,13 @@ module "aurora_mysql" {
   create_random_password              = false
   database_name                       = var.database_name
   enable_http_endpoint                = false
-  #performance_insights_enabled        = true
+  backup_retention_period             = var.rds_backup_retention_period
+  #performance_insights_enabled       = true
 
   vpc_id                = module.vpc.vpc_id
   subnets               = module.vpc.database_subnets
   create_security_group = true
-  allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
+  allowed_cidr_blocks   = concat(module.vpc.private_subnets_cidr_blocks, var.extra_security_group_cidrs)
 
   replica_count         = 1
   replica_scale_enabled = true

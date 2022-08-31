@@ -4,19 +4,25 @@
   // don't have to do `typeof` checks below.
   var me;
   var isHomepage;
+  var headerCTAHidden;
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %></title>
-    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <%// Twitter meta tags%>
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Open source device management' %>" />
-    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
-    <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <%// Meta tags for other social previews %>
+    <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -26,6 +32,20 @@
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
+    <% /* Rollbar */%>
+    <script>
+    var _rollbarConfig = {
+        accessToken: "20a8dbf5d8884b5480e58d99748ec127",
+        captureUncaught: true,
+        captureUnhandledRejections: true,
+        payload: {
+            environment: "production"
+        }
+    };
+    // Rollbar Snippet
+    !function(r){var e={};function o(n){if(e[n])return e[n].exports;var t=e[n]={i:n,l:!1,exports:{}};return r[n].call(t.exports,t,t.exports,o),t.l=!0,t.exports}o.m=r,o.c=e,o.d=function(r,e,n){o.o(r,e)||Object.defineProperty(r,e,{enumerable:!0,get:n})},o.r=function(r){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(r,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(r,"__esModule",{value:!0})},o.t=function(r,e){if(1&e&&(r=o(r)),8&e)return r;if(4&e&&"object"==typeof r&&r&&r.__esModule)return r;var n=Object.create(null);if(o.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:r}),2&e&&"string"!=typeof r)for(var t in r)o.d(n,t,function(e){return r[e]}.bind(null,t));return n},o.n=function(r){var e=r&&r.__esModule?function(){return r.default}:function(){return r};return o.d(e,"a",e),e},o.o=function(r,e){return Object.prototype.hasOwnProperty.call(r,e)},o.p="",o(o.s=0)}([function(r,e,o){"use strict";var n=o(1),t=o(5);_rollbarConfig=_rollbarConfig||{},_rollbarConfig.rollbarJsUrl=_rollbarConfig.rollbarJsUrl||"https://cdn.rollbar.com/rollbarjs/refs/tags/v2.22.0/rollbar.min.js",_rollbarConfig.async=void 0===_rollbarConfig.async||_rollbarConfig.async;var a=n.setupShim(window,_rollbarConfig),l=t(_rollbarConfig);window.rollbar=n.Rollbar,a.loadFull(window,document,!_rollbarConfig.async,_rollbarConfig,l)},function(r,e,o){"use strict";var n=o(2),t=o(3);function a(r){return function(){try{return r.apply(this,arguments)}catch(r){try{console.error("[Rollbar]: Internal error",r)}catch(r){}}}}var l=0;function i(r,e){this.options=r,this._rollbarOldOnError=null;var o=l++;this.shimId=function(){return o},"undefined"!=typeof window&&window._rollbarShims&&(window._rollbarShims[o]={handler:e,messages:[]})}var s=o(4),d=function(r,e){return new i(r,e)},c=function(r){return new s(d,r)};function u(r){return a((function(){var e=this,o=Array.prototype.slice.call(arguments,0),n={shim:e,method:r,args:o,ts:new Date};window._rollbarShims[this.shimId()].messages.push(n)}))}i.prototype.loadFull=function(r,e,o,n,t){var l=!1,i=e.createElement("script"),s=e.getElementsByTagName("script")[0],d=s.parentNode;i.crossOrigin="",i.src=n.rollbarJsUrl,o||(i.async=!0),i.onload=i.onreadystatechange=a((function(){if(!(l||this.readyState&&"loaded"!==this.readyState&&"complete"!==this.readyState)){i.onload=i.onreadystatechange=null;try{d.removeChild(i)}catch(r){}l=!0,function(){var e;if(void 0===r._rollbarDidLoad){e=new Error("rollbar.js did not load");for(var o,n,a,l,i=0;o=r._rollbarShims[i++];)for(o=o.messages||[];n=o.shift();)for(a=n.args||[],i=0;i<a.length;++i)if("function"==typeof(l=a[i])){l(e);break}}"function"==typeof t&&t(e)}()}})),d.insertBefore(i,s)},i.prototype.wrap=function(r,e,o){try{var n;if(n="function"==typeof e?e:function(){return e||{}},"function"!=typeof r)return r;if(r._isWrap)return r;if(!r._rollbar_wrapped&&(r._rollbar_wrapped=function(){o&&"function"==typeof o&&o.apply(this,arguments);try{return r.apply(this,arguments)}catch(o){var e=o;throw e&&("string"==typeof e&&(e=new String(e)),e._rollbarContext=n()||{},e._rollbarContext._wrappedSource=r.toString(),window._rollbarWrappedError=e),e}},r._rollbar_wrapped._isWrap=!0,r.hasOwnProperty))for(var t in r)r.hasOwnProperty(t)&&(r._rollbar_wrapped[t]=r[t]);return r._rollbar_wrapped}catch(e){return r}};for(var p="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,captureEvent,captureDomContentLoaded,captureLoad".split(","),f=0;f<p.length;++f)i.prototype[p[f]]=u(p[f]);r.exports={setupShim:function(r,e){if(r){var o=e.globalAlias||"Rollbar";if("object"==typeof r[o])return r[o];r._rollbarShims={},r._rollbarWrappedError=null;var l=new c(e);return a((function(){e.captureUncaught&&(l._rollbarOldOnError=r.onerror,n.captureUncaughtExceptions(r,l,!0),e.wrapGlobalEventHandlers&&t(r,l,!0)),e.captureUnhandledRejections&&n.captureUnhandledRejections(r,l,!0);var a=e.autoInstrument;return!1!==e.enabled&&(void 0===a||!0===a||"object"==typeof a&&a.network)&&r.addEventListener&&(r.addEventListener("load",l.captureLoad.bind(l)),r.addEventListener("DOMContentLoaded",l.captureDomContentLoaded.bind(l))),r[o]=l,l}))()}},Rollbar:c}},function(r,e,o){"use strict";function n(r,e,o,n){r._rollbarWrappedError&&(n[4]||(n[4]=r._rollbarWrappedError),n[5]||(n[5]=r._rollbarWrappedError._rollbarContext),r._rollbarWrappedError=null);var t=e.handleUncaughtException.apply(e,n);o&&o.apply(r,n),"anonymous"===t&&(e.anonymousErrorsPending+=1)}r.exports={captureUncaughtExceptions:function(r,e,o){if(r){var t;if("function"==typeof e._rollbarOldOnError)t=e._rollbarOldOnError;else if(r.onerror){for(t=r.onerror;t._rollbarOldOnError;)t=t._rollbarOldOnError;e._rollbarOldOnError=t}e.handleAnonymousErrors();var a=function(){var o=Array.prototype.slice.call(arguments,0);n(r,e,t,o)};o&&(a._rollbarOldOnError=t),r.onerror=a}},captureUnhandledRejections:function(r,e,o){if(r){"function"==typeof r._rollbarURH&&r._rollbarURH.belongsToShim&&r.removeEventListener("unhandledrejection",r._rollbarURH);var n=function(r){var o,n,t;try{o=r.reason}catch(r){o=void 0}try{n=r.promise}catch(r){n="[unhandledrejection] error getting `promise` from event"}try{t=r.detail,!o&&t&&(o=t.reason,n=t.promise)}catch(r){}o||(o="[unhandledrejection] error getting `reason` from event"),e&&e.handleUnhandledRejection&&e.handleUnhandledRejection(o,n)};n.belongsToShim=o,r._rollbarURH=n,r.addEventListener("unhandledrejection",n)}}}},function(r,e,o){"use strict";function n(r,e,o){if(e.hasOwnProperty&&e.hasOwnProperty("addEventListener")){for(var n=e.addEventListener;n._rollbarOldAdd&&n.belongsToShim;)n=n._rollbarOldAdd;var t=function(e,o,t){n.call(this,e,r.wrap(o),t)};t._rollbarOldAdd=n,t.belongsToShim=o,e.addEventListener=t;for(var a=e.removeEventListener;a._rollbarOldRemove&&a.belongsToShim;)a=a._rollbarOldRemove;var l=function(r,e,o){a.call(this,r,e&&e._rollbar_wrapped||e,o)};l._rollbarOldRemove=a,l.belongsToShim=o,e.removeEventListener=l}}r.exports=function(r,e,o){if(r){var t,a,l="EventTarget,Window,Node,ApplicationCache,AudioTrackList,ChannelMergerNode,CryptoOperation,EventSource,FileReader,HTMLUnknownElement,IDBDatabase,IDBRequest,IDBTransaction,KeyOperation,MediaController,MessagePort,ModalWindow,Notification,SVGElementInstance,Screen,TextTrack,TextTrackCue,TextTrackList,WebSocket,WebSocketWorker,Worker,XMLHttpRequest,XMLHttpRequestEventTarget,XMLHttpRequestUpload".split(",");for(t=0;t<l.length;++t)r[a=l[t]]&&r[a].prototype&&n(e,r[a].prototype,o)}}},function(r,e,o){"use strict";function n(r,e){this.impl=r(e,this),this.options=e,function(r){for(var e=function(r){return function(){var e=Array.prototype.slice.call(arguments,0);if(this.impl[r])return this.impl[r].apply(this.impl,e)}},o="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,_createItem,wrap,loadFull,shimId,captureEvent,captureDomContentLoaded,captureLoad".split(","),n=0;n<o.length;n++)r[o[n]]=e(o[n])}(n.prototype)}n.prototype._swapAndProcessMessages=function(r,e){var o,n,t;for(this.impl=r(this.options);o=e.shift();)n=o.method,t=o.args,this[n]&&"function"==typeof this[n]&&("captureDomContentLoaded"===n||"captureLoad"===n?this[n].apply(this,[t[0],o.ts]):this[n].apply(this,t));return this},r.exports=n},function(r,e,o){"use strict";r.exports=function(r){return function(e){if(!e&&!window._rollbarInitialized){for(var o,n,t=(r=r||{}).globalAlias||"Rollbar",a=window.rollbar,l=function(r){return new a(r)},i=0;o=window._rollbarShims[i++];)n||(n=o.handler),o.handler._swapAndProcessMessages(l,o.messages);window[t]=n,window._rollbarInitialized=!0}}}}]);
+    // End Rollbar Snippet
+    </script>
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
@@ -47,6 +67,23 @@
     <noscript>
       <img alt="Meta pixel" height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=673041690615149&ev=PageView&noscript=1"/>
     </noscript>
+    <%/* Hotjar code */%>
+    <!-- Hotjar Tracking Code for https://fleetdm.com/ -->
+<script>
+    (function(h,o,t,j,a,r){
+        h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+        h._hjSettings={hjid:3068651,hjsv:6};
+        a=o.getElementsByTagName('head')[0];
+        r=o.createElement('script');r.async=1;
+        r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+        a.appendChild(r);
+    })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+</script>
+    <%/* Heap analytics code */%>
+    <script type="text/javascript">
+  window.heap=window.heap||[],heap.load=function(e,t){window.heap.appid=e,window.heap.config=t=t||{};var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src="https://cdn.heapanalytics.com/js/heap-"+e+".js";var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(r,a);for(var n=function(e){return function(){heap.push([e].concat(Array.prototype.slice.call(arguments,0)))}},p=["addEventProperties","addUserProperties","clearEventProperties","identify","resetIdentity","removeEventProperty","setEventProperties","track","unsetEventProperty"],o=0;o<p.length;o++)heap[p[o]]=n(p[o])};
+  heap.load("4175146533");
+</script>
     <%/* Snitcher analytics code */%>
     <script>
       !function(i,s,o,g,r,a,m){i.Ip2cObject=o;i[o]||(i[o]=function(){
@@ -79,26 +116,22 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap">
-      <div class="<%= isHomepage ? 'homepage-header' : 'header' %>" purpose="page-header">
+    <div purpose="page-wrap" dat>
+<!--       <div purpose="header-report-cta" class="<%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
+          <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
+            <p class="text-center pr-1 mb-0">We surveyed 200+ security practitioners to discover the state of device management in 2022. </p>
+            <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
+          </div>
+      </div> -->
+      <div class="header <%= !headerCTAHidden ? 'homepage-header-top' : null %>" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/" style="max-width: 118px;">
-            <% /* The homepage-header on the homepage has a white fleet logo */ %>
-            <% if (isHomepage) { %>
-            <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
-            <% } else { %>
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
-            <% } %>
           </a>
           <div class="d-flex d-lg-none">
             <button purpose="header-btn" style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
               <span class="mr-2">Menu</span>
-              <% /* The hamburger icon on the homepage is white */ %>
-              <% if (isHomepage) { %>
-              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-16x14@2x.png" style="width: 16px;" />
-              <% } else { %>
               <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png" style="width: 16px;" />
-              <% } %>
             </button>
           </div>
           <%/* Mobile Navigation menu */%>
@@ -127,27 +160,37 @@
               <div class="d-block">
                 <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                   <a href="/docs">Docs</a>
-                  <a href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                  <a href="/releases">Releases</a>
                   <a href="/queries">Query library</a>
                   <span>GUIDES</span>
-                  <a class="pl-3" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
-                  <a class="pl-3" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                  <a class="pl-3" href="/deploy">Deployment guides</a>
+                  <a class="pl-3" href="/guides">How-to guides</a>
                 </div>
               </div>
               <hr>
               <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
               <div class="d-block">
                 <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                  <a href="/slack">Chat</a>
-                  <a href="/docs/contributing">Contribute</a>
-                  <a href="/articles">Articles</a>
+                  <a href="/announcements">Announcements</a>
+                  <a href="/securing">Security</a>
+                  <a href="/engineering">Engineering</a>
+                  <a href="/podcasts">Podcasts</a>
+                  <a href="/reports/state-of-device-management">Reports</a>
+                  <span>RESOURCES</span>
+                  <a href="/slack" target="_blank">Join the conversation</a>
+                  <a href="/contribute">Contribute to Fleet</a>
+                  <span>RESOURCES</span>
                   <a href="/handbook">Handbook</a>
                   <a href="/logos">Logos & artwork</a>
                 </div>
               </div>
               <hr>
-              <a href="/pricing" class="d-flex align-items-center mb-2 pb-3" style="text-decoration: none; font-weight: 700;">Pricing</a>
-              <a style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex " href="/get-started?tryitnow" >Try it out</a>
+              <a href="/pricing" class="d-flex align-items-center" style="text-decoration: none; font-weight: 700;">Pricing</a>
+              <% if(_.has(me, 'id')) {%>
+                <hr>
+                <a href="/logout" class="d-flex mt-2 text-decoration-none" style="text-decoration: none; line-height: 23px;">Log out</a>
+              <% }%>
+                <a style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet/register?tryitnow">Try Fleet</a>
             </div>
           </div>
           <%/* Desktop Navigation bar */%>
@@ -167,20 +210,28 @@
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/docs">Docs</a>
-                <a class="dropdown-item mb-1" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                <a class="dropdown-item mb-1" href="/releases">Releases</a>
                 <a class="dropdown-item mb-1" href="/queries">Query library</a>
                 <div class="dropdown-divider"></div>
                 <span class="muted dropdown-header">GUIDES</span>
-                <a class="dropdown-item mb-1" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
-                <a class="dropdown-item" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                <a class="dropdown-item" href="/deploy">Deployment guides</a>
+                <a class="dropdown-item" href="/guides">How-to guides</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown">Community</a>
               <div purpose="header-dropdown" class="dropdown-menu">
-                <a class="dropdown-item mb-1" href="/slack">Chat</a>
-                <a class="dropdown-item mb-1" href="/docs/contributing">Contribute</a>
-                <a class="dropdown-item mb-1" href="/articles">Articles</a>
+                <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
+                <a class="dropdown-item mb-1" href="/securing">Security</a>
+                <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
+                <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
+                <a class="dropdown-item mb-1" href="/reports/state-of-device-management">Reports</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">CONTRIBUTE</span>
+                <a class="dropdown-item mb-1" href="/slack" target="_blank">Join the conversation</a>
+                <a class="dropdown-item mb-1" href="/contribute">Contribute to Fleet</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">RESOURCES</span>
                 <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
                 <a class="dropdown-item" href="/logos">Logos & artwork</a>
               </div>
@@ -190,7 +241,10 @@
               <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
               allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
             </span>
-            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary align-items-center d-flex" href="/get-started?tryitnow" >Try it out</a>
+            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try Fleet</a>
+            <% if(_.has(me, 'id')) {%>
+            <a href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none" style="text-decoration: none; line-height: 23px;">Log out</a>
+            <% }%>
           </div>
         </div>
       </div>
@@ -210,7 +264,7 @@
           <div class="d-flex flex-grow-1 flex-column">
             <div purpose="footer-nav" class="justify-content-between justify-content-sm-end order-l pb-xl-2 px-lg-0">
               <div class="flex-column">
-                <a href="/get-started" class="d-block pr-md-5 pr-sm-3 pb-2">Get started</a>
+                <a href="/try-fleet/register?tryitnow" class="d-block pr-md-5 pr-sm-3 pb-2">Try it out</a>
                 <a href="/docs" class="d-block pr-md-5 pr-sm-3 pb-2">Docs</a>
                 <a href="/queries" class="d-block pr-md-5 pr-sm-3 pb-2">Query library</a>
                 <a href="/transparency" class="d-block pr-md-5 pr-sm-3 pb-2 pb-xl-0">Transparency</a>
@@ -283,6 +337,25 @@
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
 
+    <%/* Linkedin Ads Insight tag */%>
+    <script type="text/javascript">
+    _linkedin_partner_id = "4365817";
+    window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
+    window._linkedin_data_partner_ids.push(_linkedin_partner_id);
+    </script><script type="text/javascript">
+    (function(l) {
+    if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
+    window.lintrk.q=[]}
+    var s = document.getElementsByTagName("script")[0];
+    var b = document.createElement("script");
+    b.type = "text/javascript";b.async = true;
+    b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
+    s.parentNode.insertBefore(b, s);})(window.lintrk);
+    </script>
+    <noscript>
+    <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
+    </noscript>
+
     <% /* Delete the global `self` to help avoid client-side bugs.
     (see https://developer.mozilla.org/en-US/docs/Web/API/Window/self) */ %>
     <script>delete window.self;</script>
@@ -290,35 +363,38 @@
     <% /* Sticky header */ %>
     <script>
         var lastScrollTop = 0;
-        var header = document.querySelector('.header') || document.querySelector('.homepage-header')
-
+        var header = document.querySelector('.header')
+        var ctaBanner = document.querySelector('[purpose="header-report-cta"]')
         window.addEventListener('scroll', windowScrolled)
 
         function windowScrolled() {
-            var scrollTop = window.pageYOffset || document.documentElement.scrollTop
-            var fleetLogo = header.querySelector('img')
-            var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
+          var scrollTop = window.pageYOffset || document.documentElement.scrollTop
+          var fleetLogo = header.querySelector('img')
+          var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
+          let ctaBannerHeightOrTopOfPage = ctaBanner ? ctaBanner.clientHeight : 0;
+          if(scrollTop < ctaBannerHeightOrTopOfPage && header.classList.contains('homepage-header')) {
+              if (ctaBanner) {
+                header.classList.add('homepage-header-top')
+              }
+              header.classList.remove('sticky')
+              fleetLogo.src = '/images/logo-white-162x92@2x.png'
+              hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
+              return;
+          }
+          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
+            header.classList.add('translate-y-0');
+          } else {
+            // If the header is touching the top of the viewport
+            if(header.getBoundingClientRect().y <= 0) {
+              header.classList.remove('homepage-header-top')
+              header.classList.add('sticky')
 
-            if(scrollTop == 0 && header.classList.contains('homepage-header')) {
-                header.classList.remove('sticky')
-                fleetLogo.src = '/images/logo-white-118x48@2x.png'
-                fleetLogo.style = 'width: 118px; height: 48px;'
-                hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
-
-                return;
+              fleetLogo.src = '/images/logo-blue-162x92@2x.png'
+              hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
             }
-            if (scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
-                header.classList.add('translate-y-0')
-             } else {
-                if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
-                    header.classList.add('sticky')
-                    fleetLogo.src = '/images/logo-blue-162x92@2x.png'
-                    fleetLogo.style = 'height: 92px; width: 162px;'
-                    hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
-                }
-                header.classList.remove('translate-y-0')
-            }
-            lastScrollTop = scrollTop
+            header.classList.remove('translate-y-0');
+          }
+          lastScrollTop = scrollTop;
         }
     </script>
 
@@ -333,6 +409,7 @@
     <script src="/dependencies/vue.js"></script>
     <script src="/dependencies/vue-router.js"></script>
     <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
+    <script src="/dependencies/chart.min.js"></script>
     <script src="/dependencies/cloud.js"></script>
     <script src="/dependencies/docsearch.min.js"></script>
     <script src="/dependencies/highlight.min.js"></script>
@@ -342,6 +419,8 @@
     <script src="/js/cloud.setup.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
@@ -374,7 +453,13 @@
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
+    <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
+    <script src="/js/pages/try-fleet/register.page.js"></script>
+    <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
+    <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
+    <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -401,9 +486,9 @@
           msedge: '16',
           // msie: '11',
           safari: '10',//« earliest version to eliminate rare bug where `window.location` doesn't exist momentarily after doing a server-side redirect
-          firefox: '28',//« earliest version to support both ES5 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          chrome: '29',//« earliest version to support both ES5 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
-          opera: '17',//« earliest version to support both ES5 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
+          firefox: '54',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
+          chrome: '51',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
+          opera: '38',//« earliest version to support both ES6 (for Vue.js) and unprefixed flexbox (for Bootstrap 4)
         };
         var LATEST_SUPPORTED_VERSION_BY_BROWSER_NAME = {
           'microsoft edge': LATEST_SUPPORTED_VERSION_BY_USER_AGENT.msedge,

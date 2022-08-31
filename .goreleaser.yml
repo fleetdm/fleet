@@ -90,7 +90,7 @@ dockers:
     ids:
       - fleet
       - fleetctl
-    dockerfile: tools/docker/fleet.Dockerfile
+    dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
       - 'fleetdm/fleet:latest'
       - 'fleetdm/fleet:{{ .Tag }}'
@@ -101,7 +101,9 @@ dockers:
     goarch: amd64
     ids:
       - fleetctl
-    dockerfile: tools/docker/fleetctl.Dockerfile
+    dockerfile: tools/fleetctl-docker/Dockerfile
+    build_flag_templates:
+      - "--build-arg=binpath=fleetctl"
     image_templates:
       - 'fleetdm/fleetctl:latest'
       - 'fleetdm/fleetctl:{{ .Tag }}'

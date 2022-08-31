@@ -1,6 +1,6 @@
 # A new Fleet
 
-![A new Fleet](https://miro.medium.com/max/1400/1*Lr6moo5NCy4Sm49NL6EswQ.jpeg)
+![A new Fleet](../website/assets/images/articles/a-new-fleet-cover-700x340@2x.jpeg)
 
 It’s been an awesome year for the Fleet project. I’ve had the chance to work with organizations such as Bloomberg, Security Onion, Secureframe, and more to make some major improvements to Fleet. With 3.0, users have been successfully scaling into deployments in the tens of thousands of hosts.
 
@@ -47,4 +47,4 @@ Zach Wasserman — CTO, Fleet
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2020-01-05">
 <meta name="articleTitle" value="A new Fleet">
-<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*Lr6moo5NCy4Sm49NL6EswQ.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/a-new-fleet-cover-700x340@2x.jpeg">

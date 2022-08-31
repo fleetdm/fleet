@@ -33,6 +33,7 @@ describe("Teams flow (seeded)", () => {
     cy.setup();
     cy.loginWithCySession();
     cy.seedPremium();
+    cy.seedQueries();
     cy.viewport(1200, 660);
   });
   after(() => {
@@ -87,7 +88,6 @@ describe("Teams flow (seeded)", () => {
     beforeEach(() => {
       cy.loginWithCySession();
       cy.visit("/schedule/manage");
-      cy.seedQueries();
     });
     it("adds a query to team schedule", () => {
       cy.getAttached(".manage-schedule-page__header").within(() => {
@@ -120,7 +120,7 @@ describe("Teams flow (seeded)", () => {
             cy.getAttached(".input-field").click().type("50");
           }
         );
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });

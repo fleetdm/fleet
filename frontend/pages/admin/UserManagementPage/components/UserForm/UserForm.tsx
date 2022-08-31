@@ -85,6 +85,7 @@ interface ICreateUserFormProps {
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
   createOrEditUserErrors?: IUserFormErrors;
+  isUpdatingUsers?: boolean;
 }
 
 const UserForm = ({
@@ -108,6 +109,7 @@ const UserForm = ({
   isInvitePending,
   serverErrors,
   createOrEditUserErrors,
+  isUpdatingUsers,
 }: ICreateUserFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -195,6 +197,10 @@ const UserForm = ({
       submitData.new_password = formData.password;
       delete submitData.password;
       delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
+      // if an existing user is converted to sso, the API expects `new_password` to be null
+      if (formData.sso_enabled) {
+        submitData.new_password = null;
+      }
     }
 
     if (
@@ -232,7 +238,8 @@ const UserForm = ({
       !isNewUser &&
       !isInvitePending &&
       formData.password &&
-      !validPassword(formData.password)
+      !validPassword(formData.password) &&
+      !formData.sso_enabled
     ) {
       setErrors({
         ...errors,
@@ -412,25 +419,28 @@ const UserForm = ({
             "
         }
       />
-      {!isNewUser && !isInvitePending && isModifiedByGlobalAdmin && (
-        <div className={`${baseClass}__edit-password`}>
-          <div className={`${baseClass}__password`}>
-            <InputField
-              label="Password"
-              error={errors.password}
-              name="password"
-              onChange={onInputChange("password")}
-              placeholder="••••••••"
-              value={formData.password || ""}
-              type="password"
-              hint={[
-                "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-              ]}
-              blockAutoComplete
-            />
+      {!isNewUser &&
+        !isInvitePending &&
+        isModifiedByGlobalAdmin &&
+        !formData.sso_enabled && (
+          <div className={`${baseClass}__edit-password`}>
+            <div className={`${baseClass}__password`}>
+              <InputField
+                label="Password"
+                error={errors.password}
+                name="password"
+                onChange={onInputChange("password")}
+                placeholder="••••••••"
+                value={formData.password || ""}
+                type="password"
+                hint={[
+                  "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+                ]}
+                blockAutoComplete
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
       <div className={`${baseClass}__sso-input`}>
         <Checkbox
           name="sso_enabled"
@@ -507,7 +517,7 @@ const UserForm = ({
                     value={formData.password || ""}
                     type="password"
                     hint={[
-                      "Must include 7 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
+                      "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
                     ]}
                     blockAutoComplete
                     tooltip={`\
@@ -559,20 +569,18 @@ const UserForm = ({
       )}
       {!isPremiumTier && renderGlobalRoleForm()}
 
-      <div className={`${baseClass}__btn-wrap`}>
+      <div className="modal-cta-wrap">
         <Button
-          className={`${baseClass}__btn`}
           type="submit"
           variant="brand"
           onClick={onFormSubmit}
+          className={`${submitText === "Create" ? "create" : "save"}-loading
+          `}
+          isLoading={isUpdatingUsers}
         >
           {submitText}
         </Button>
-        <Button
-          className={`${baseClass}__btn`}
-          onClick={onCancel}
-          variant="inverse"
-        >
+        <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
       </div>

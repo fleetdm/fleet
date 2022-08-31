@@ -62,14 +62,14 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID, false)
+		_, err = ds.Host(context.Background(), host.ID)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
 		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID, false)
+		host2, err := ds.Host(context.Background(), host.ID)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})
@@ -973,4 +973,15 @@ func TestDebugs(t *testing.T) {
 	processList, err := ds.ProcessList(context.Background())
 	require.NoError(t, err)
 	require.Greater(t, len(processList), 0)
+}
+
+func TestANSIQuotesEnabled(t *testing.T) {
+
+	// Ensure sql_mode=ANSI_QUOTES is enabled for tests
+	ds := CreateMySQLDS(t)
+
+	var sqlMode string
+	err := ds.writer.GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
+	require.NoError(t, err)
+	require.Contains(t, sqlMode, "ANSI_QUOTES")
 }

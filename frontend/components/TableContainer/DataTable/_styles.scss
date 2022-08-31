@@ -88,7 +88,7 @@
         }
 
         &.selection__header {
-          width: 0px;
+          width: 22px;
           padding: $pad-medium;
         }
 
@@ -178,19 +178,22 @@
         }
         .w400 {
           max-width: calc(400px - 48px);
+          min-width: 100%;
+          text-align: left;
         }
         .w250 {
           max-width: calc(250px - 48px);
+          min-width: 100%;
+          text-align: left;
+        }
+        .grey-cell {
+          color: $ui-fleet-black-50;
+          font-style: italic;
         }
       }
       .highlight-on-hover:hover {
         background-color: $ui-off-white;
       }
-    }
-
-    .tooltip {
-      display: flex;
-      justify-content: center;
     }
   }
 

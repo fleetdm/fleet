@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
 // mailError is set when an error performing mail operations
@@ -42,9 +42,12 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	}
 
 	// Set up a default enroll secret
-	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+	secret := svc.config.Packaging.GlobalEnrollSecret
+	if secret == "" {
+		secret, err = server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+		}
 	}
 	secrets := []*fleet.EnrollSecret{
 		{
@@ -81,55 +84,15 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	return nil
 }
 
-func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
-	if jiraSettings.APIToken == "" || jiraSettings.APIToken == "********" {
-		return &badRequestError{message: fmt.Sprintf("jira integration request failed: missing or invalid API token")}
-	}
-	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-		BaseURL:           jiraSettings.URL,
-		BasicAuthUsername: jiraSettings.Username,
-		BasicAuthPassword: jiraSettings.APIToken,
-		ProjectKey:        jiraSettings.ProjectKey,
-	})
-	if err != nil {
-		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
-	}
-	if _, err := client.GetProject(ctx); err != nil {
-		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
-	}
-	return nil
-}
-
-func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings *fleet.ZendeskIntegration) error {
-	if zendeskSettings.APIToken == "" || zendeskSettings.APIToken == "********" {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: missing or invalid API token")}
-	}
-	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
-		URL:      zendeskSettings.URL,
-		Email:    zendeskSettings.Email,
-		APIToken: zendeskSettings.APIToken,
-		GroupID:  zendeskSettings.GroupID,
-	})
-	if err != nil {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
-	}
-	grp, err := client.GetGroup(ctx)
-	if err != nil {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
-	}
-	if grp.ID != zendeskSettings.GroupID {
-		return &badRequestError{message: fmt.Sprint("zendesk integration request failed: no matching group id", grp.ID, zendeskSettings.GroupID)}
-	}
-	return nil
-}
-
 func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return &svc.license, nil
@@ -155,13 +118,14 @@ func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateInte
 
 func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.VulnerabilitiesConfig, error) {
 	return &fleet.VulnerabilitiesConfig{
-		DatabasesPath:             svc.config.Vulnerabilities.DatabasesPath,
-		Periodicity:               svc.config.Vulnerabilities.Periodicity,
-		CPEDatabaseURL:            svc.config.Vulnerabilities.CPEDatabaseURL,
-		CVEFeedPrefixURL:          svc.config.Vulnerabilities.CVEFeedPrefixURL,
-		CurrentInstanceChecks:     svc.config.Vulnerabilities.CurrentInstanceChecks,
-		DisableDataSync:           svc.config.Vulnerabilities.DisableDataSync,
-		RecentVulnerabilityMaxAge: svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
+		DatabasesPath:               svc.config.Vulnerabilities.DatabasesPath,
+		Periodicity:                 svc.config.Vulnerabilities.Periodicity,
+		CPEDatabaseURL:              svc.config.Vulnerabilities.CPEDatabaseURL,
+		CVEFeedPrefixURL:            svc.config.Vulnerabilities.CVEFeedPrefixURL,
+		CurrentInstanceChecks:       svc.config.Vulnerabilities.CurrentInstanceChecks,
+		DisableDataSync:             svc.config.Vulnerabilities.DisableDataSync,
+		RecentVulnerabilityMaxAge:   svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
+		DisableWinOSVulnerabilities: svc.config.Vulnerabilities.DisableWinOSVulnerabilities,
 	}, nil
 }
 

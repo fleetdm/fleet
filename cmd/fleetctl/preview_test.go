@@ -1,21 +1,20 @@
 package main
 
 import (
-	"os"
+	"bytes"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPreview(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.Run(t)
 
-	os.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
+	t.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
 	testOverridePreviewDirectory = t.TempDir()
 	configPath := filepath.Join(t.TempDir(), "config")
 	t.Log("config path: ", configPath)
@@ -24,12 +23,21 @@ func TestPreview(t *testing.T) {
 		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	output := runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main"})
+	var output *bytes.Buffer
+	nettest.RunWithNetRetry(t, func() error {
+		var err error
+		output, err = runAppNoChecks([]string{
+			"preview", "--config", configPath,
+			"--tag", "main",
+			"--disable-open-browser",
+		})
+		return err
+	})
 
 	queriesRe := regexp.MustCompile(`applied ([0-9]+) queries`)
 	policiesRe := regexp.MustCompile(`applied ([0-9]+) policies`)
-	require.True(t, queriesRe.MatchString(output))
-	require.True(t, policiesRe.MatchString(output))
+	require.True(t, queriesRe.MatchString(output.String()))
+	require.True(t, policiesRe.MatchString(output.String()))
 
 	// run some sanity checks on the preview environment
 
@@ -54,4 +62,24 @@ func TestPreview(t *testing.T) {
 	// a vulnerability database path must be set
 	ok = strings.Contains(appConf, `databases_path: /vulndb`)
 	require.True(t, ok, appConf)
+}
+
+func TestDockerCompose(t *testing.T) {
+	t.Run("returns the right command according to the version", func(t *testing.T) {
+		v1 := dockerCompose{dockerComposeV1}
+		cmd1 := v1.Command("up")
+		require.Equal(t, []string{"docker-compose", "up"}, cmd1.Args)
+
+		v2 := dockerCompose{dockerComposeV2}
+		cmd2 := v2.Command("up")
+		require.Equal(t, []string{"docker", "compose", "up"}, cmd2.Args)
+	})
+
+	t.Run("strings according to the version", func(t *testing.T) {
+		v1 := dockerCompose{dockerComposeV1}
+		require.Equal(t, v1.String(), "`docker-compose`")
+
+		v2 := dockerCompose{dockerComposeV2}
+		require.Equal(t, v2.String(), "`docker compose`")
+	})
 }

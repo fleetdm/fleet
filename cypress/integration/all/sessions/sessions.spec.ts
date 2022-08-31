@@ -1,3 +1,7 @@
+import CONSTANTS from "../../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Sessions", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -8,7 +12,7 @@ describe("Sessions", () => {
     cy.getAttached(".login-form__forgot-link").should("exist");
     // Log in
     cy.getAttached("input").first().type("admin@example.com");
-    cy.getAttached("input").last().type("user123#");
+    cy.getAttached("input").last().type(GOOD_PASSWORD);
     cy.getAttached("button").click();
     // Verify dashboard
     cy.url().should("include", "/dashboard");

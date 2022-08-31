@@ -1,30 +1,39 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { INewMembersBody, IRemoveMembersBody } from "interfaces/team";
-import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import { pick } from "lodash";
 
-interface ITeamSearchOptions {
+import { IEnrollSecret } from "interfaces/enroll_secret";
+import {
+  INewMembersBody,
+  IRemoveMembersBody,
+  ITeamConfig,
+} from "interfaces/team";
+
+interface ILoadTeamsParams {
   page?: number;
   perPage?: number;
   globalFilter?: string;
 }
 
-interface ITeamName {
+/**
+ * The response body expected for the "Get team" endpoint.
+ * See https://fleetdm.com/docs/using-fleet/rest-api#get-team
+ */
+export interface ILoadTeamResponse {
+  team: ITeamConfig;
+}
+
+export interface ILoadTeamsResponse {
+  teams: ITeamConfig[];
+}
+
+export interface ITeamFormData {
   name: string;
 }
 
-interface ITeamWebhooks {
-  webhook_settings: {
-    [key: string]: any;
-  };
-}
-
-type ITeamEditData = ITeamName | ITeamWebhooks;
-
 export default {
-  create: (formData: ICreateTeamFormData) => {
+  create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
 
     return sendRequest("POST", TEAMS, formData);
@@ -35,7 +44,7 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  load: (teamId: number) => {
+  load: (teamId: number): Promise<ILoadTeamResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 
@@ -43,9 +52,9 @@ export default {
   },
   loadAll: ({
     page = 0,
-    perPage = 100,
+    perPage = 20,
     globalFilter = "",
-  }: ITeamSearchOptions = {}) => {
+  }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
     const { TEAMS } = endpoints;
 
     // TODO: add this query param logic to client class
@@ -60,18 +69,38 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (updateParams: ITeamEditData, teamId?: number) => {
-    // we are grouping this update with the config api update function
-    // on the ManagePoliciesPage to streamline updating the
-    // webhook settings globally or for a team - see ManagePoliciesPage line 208
+  update: (
+    { name, webhook_settings, integrations }: Partial<ITeamConfig>,
+    teamId?: number
+  ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
-      return Promise.reject();
+      return Promise.reject("Invalid usage: missing team id");
     }
 
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
+    const requestBody: Record<string, unknown> = {};
+    if (name) {
+      requestBody.name = name;
+    }
+    if (webhook_settings) {
+      requestBody.webhook_settings = webhook_settings;
+    }
+    if (integrations) {
+      const { jira, zendesk } = integrations;
+      const teamIntegrationProps = [
+        "enable_failing_policies",
+        "group_id",
+        "project_key",
+        "url",
+      ];
+      requestBody.integrations = {
+        jira: jira?.map((j) => pick(j, teamIntegrationProps)),
+        zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
+      };
+    }
 
-    return sendRequest("PATCH", path, updateParams);
+    return sendRequest("PATCH", path, requestBody);
   },
   addMembers: (teamId: number, newMembers: INewMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;

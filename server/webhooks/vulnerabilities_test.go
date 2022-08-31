@@ -34,8 +34,9 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		},
 	}
 
-	recentVulns := map[string][]string{
-		"CVE-2012-1234": {"cpe1", "cpe2"},
+	recentVulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: 1, CVE: "CVE-2012-1234"},
+		{SoftwareID: 2, CVE: "CVE-2012-1234"},
 	}
 
 	t.Run("disabled", func(t *testing.T) {
@@ -83,37 +84,37 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 
 		cases := []struct {
 			name  string
-			vulns map[string][]string
+			vulns []fleet.SoftwareVulnerability
 			hosts []*fleet.HostShort
 			want  string
 		}{
 			{
 				"1 vuln, 1 host",
-				map[string][]string{cves[0]: {"cpe1"}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
 			},
 			{
 				"1 vuln, 2 hosts",
-				map[string][]string{cves[0]: {"cpe1"}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
 				hosts[:2],
 				fmt.Sprintf("%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2),
 			},
 			{
 				"1 vuln, 3 hosts",
-				map[string][]string{cves[0]: {"cpe1"}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
 				hosts[:3],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3), // 2 requests, batch of 2 max
 			},
 			{
 				"1 vuln, 4 hosts",
-				map[string][]string{cves[0]: {"cpe1"}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
 				hosts[:4],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3, jsonH4), // 2 requests, batch of 2 max
 			},
 			{
 				"2 vulns, 1 host each",
-				map[string][]string{cves[0]: {"cpe1"}, cves[1]: {"cpe2"}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[1], SoftwareID: 2}},
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonCVE2, jsonH1),
 			},
@@ -131,7 +132,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				}))
 				defer srv.Close()
 
-				ds.HostsByCPEsFunc = func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
+				ds.HostsBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
 					return c.hosts, nil
 				}
 
@@ -140,8 +141,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, c.vulns, &appCfg, now)
 				require.NoError(t, err)
 
-				assert.True(t, ds.HostsByCPEsFuncInvoked)
-				ds.HostsByCPEsFuncInvoked = false
+				assert.True(t, ds.HostsBySoftwareIDsFuncInvoked)
+				ds.HostsBySoftwareIDsFuncInvoked = false
 
 				want := strings.Split(c.want, "\n")
 				assert.ElementsMatch(t, want, requests)

@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Team observer/maintainer user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -15,7 +19,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
   });
   describe("Team maintainer and team observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
     });
     describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
@@ -90,7 +94,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
       });
       it("views all hosts for all platforms", () => {
         cy.findByText(/view all hosts/i).click();
-        cy.get(".manage-hosts__label-block").should("not.exist");
+        cy.findByRole("status", { name: /hosts filtered by/i }).should(
+          "not.exist"
+        );
       });
       it("views all hosts for windows only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -98,11 +104,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText(/windows/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/windows/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for linux only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -110,11 +114,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText(/linux/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/linux/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Linux/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for macOS only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -122,17 +124,15 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText(/macos/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/macos/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
+          "exist"
+        );
       });
     });
   });
   describe("Team observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
@@ -200,7 +200,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
     });
 
     beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
       cy.visit("/hosts/manage");
     });
     describe("Manage hosts page", () => {
@@ -216,7 +216,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.contains("Apples").click({ force: true });
           cy.contains("Oranges").click({ force: true });
         });
-        cy.contains(/oranges/i);
+        cy.getAttached(".team_name__cell").within(() => {
+          cy.findByText(/oranges/i).should("exist");
+        });
         cy.getAttached(".button-wrap")
           .contains("button", /add hosts/i)
           .click();
@@ -251,17 +253,17 @@ describe("Premium tier - Team observer/maintainer user", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/schedule/manage");
         cy.contains(/oranges/i).should("exist");
-        cy.contains(/advanced/i).should("not.exist");
         cy.getAttached(".no-schedule__cta-buttons").within(() => {
-          cy.findByRole("button", { name: /schedule a query/i }).click();
+          cy.contains(/advanced/i).should("not.exist");
         });
+        cy.getAttached(".no-schedule__schedule-button").click();
         // Schedule a query on maintaining team
         cy.getAttached(".schedule-editor-modal__form").within(() => {
           cy.findByText(/select query/i).click();
           cy.findByText(/detect presence/i).click();
           cy.findByText(/every day/i).click();
           cy.findByText(/every 6 hours/i).click();
-          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+          cy.getAttached(".modal-cta-wrap").within(() => {
             cy.findByRole("button", { name: /schedule/i }).click();
           });
         });
@@ -283,10 +285,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
 
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap").within(() => {
+        cy.findByRole("button", { name: /save/i }).click();
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /save policy/i }).click();
         });
-        cy.findByRole("button", { name: /^Save$/ }).click();
         cy.findByText(/policy created/i).should("exist");
 
         // On maintaining team, should see "save" and "run" for a new policy
@@ -300,7 +302,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/profile");
         // See 2 Teams in the Team section and Various in the Role section
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText("Teams")
             .next()
             .contains(/2 teams/i);

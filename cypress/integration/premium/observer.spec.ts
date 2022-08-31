@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Observer user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -16,7 +20,7 @@ describe("Premium tier - Observer user", () => {
 
   describe("Global observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
     });
     describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
@@ -90,7 +94,9 @@ describe("Premium tier - Observer user", () => {
       });
       it("views all hosts for all platforms", () => {
         cy.findByText(/view all hosts/i).click();
-        cy.get(".manage-hosts__label-block").should("not.exist");
+        cy.findByRole("status", { name: /hosts filtered by/i }).should(
+          "not.exist"
+        );
       });
       it("views all hosts for windows only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -98,11 +104,9 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/windows/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/windows/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for linux only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -110,11 +114,9 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/linux/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/linux/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Linux/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for macOS only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -122,11 +124,9 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/macos/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/macos/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
+          "exist"
+        );
       });
     });
     describe("Manage hosts page", () => {
@@ -241,7 +241,7 @@ describe("Premium tier - Observer user", () => {
 
   describe("Team observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("toni@organization.com", "user123#");
+      cy.loginWithCySession("toni@organization.com", GOOD_PASSWORD);
     });
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {
@@ -302,7 +302,7 @@ describe("Premium tier - Observer user", () => {
     describe("User profile page", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/profile");
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText(/team/i)
             .next()
             .contains(/apples/i);

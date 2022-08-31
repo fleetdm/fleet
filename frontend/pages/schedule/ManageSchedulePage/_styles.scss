@@ -34,10 +34,6 @@
     .fleeticon-offline {
       color: $ui-error;
     }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
-    }
   }
 
   &__description {
@@ -76,23 +72,13 @@
     margin-right: $pad-medium;
   }
 
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
-    }
-  }
-
   .Select.is-open {
     .Select-value-label {
       color: $core-vibrant-blue !important;
     }
   }
 
-  .schedule-list-wrapper {
+  .schedule-table {
     .data-table-block {
       .data-table__table {
         thead {
@@ -234,6 +220,11 @@
         font-size: $x-small;
         margin: 0;
       }
+    }
+
+    &__cta-buttons {
+      display: flex;
+      justify-content: center;
     }
   }
 

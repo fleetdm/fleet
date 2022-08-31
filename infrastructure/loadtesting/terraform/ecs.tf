@@ -1,107 +1,3 @@
-resource "aws_alb" "main" {
-  name                       = "fleetdm"
-  internal                   = false #tfsec:ignore:aws-elb-alb-not-public
-  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets                    = module.vpc.public_subnets
-  idle_timeout               = 600
-  drop_invalid_header_fields = true
-  #checkov:skip=CKV_AWS_150:don't like it
-}
-
-resource "aws_alb" "internal" {
-  name                       = "fleetdm-internal"
-  internal                   = true
-  security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
-  subnets                    = module.vpc.private_subnets
-  idle_timeout               = 600
-  drop_invalid_header_fields = true
-  #checkov:skip=CKV_AWS_150:don't like it
-}
-
-resource "aws_alb_listener" "https-fleetdm-internal" {
-  load_balancer_arn = aws_alb.internal.arn
-  port              = 80
-  protocol          = "HTTP" #tfsec:ignore:aws-elb-http-not-used
-
-  default_action {
-    target_group_arn = aws_alb_target_group.internal.arn
-    type             = "forward"
-  }
-}
-
-resource "aws_alb_target_group" "internal" {
-  name                 = "fleetdm-internal"
-  protocol             = "HTTP"
-  target_type          = "ip"
-  port                 = "8080"
-  vpc_id               = module.vpc.vpc_id
-  deregistration_delay = 30
-
-  load_balancing_algorithm_type = "least_outstanding_requests"
-
-  health_check {
-    path                = "/healthz"
-    matcher             = "200"
-    timeout             = 10
-    interval            = 15
-    healthy_threshold   = 5
-    unhealthy_threshold = 5
-  }
-
-  depends_on = [aws_alb.main]
-}
-
-resource "aws_alb_target_group" "main" {
-  name                 = "fleetdm"
-  protocol             = "HTTP"
-  target_type          = "ip"
-  port                 = "8080"
-  vpc_id               = module.vpc.vpc_id
-  deregistration_delay = 30
-
-  load_balancing_algorithm_type = "least_outstanding_requests"
-
-  health_check {
-    path                = "/healthz"
-    matcher             = "200"
-    timeout             = 10
-    interval            = 15
-    healthy_threshold   = 5
-    unhealthy_threshold = 5
-  }
-
-  depends_on = [aws_alb.main]
-}
-
-resource "aws_alb_listener" "https-fleetdm" {
-  load_balancer_arn = aws_alb.main.arn
-  port              = 443
-  protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetdm_com.certificate_arn
-
-  default_action {
-    target_group_arn = aws_alb_target_group.main.arn
-    type             = "forward"
-  }
-}
-
-resource "aws_alb_listener" "http" {
-  load_balancer_arn = aws_alb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type = "redirect"
-
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
-    }
-  }
-}
-
 resource "aws_ecs_cluster" "fleet" {
   name = "${local.prefix}-backend"
 
@@ -116,44 +12,40 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = var.scale_down ? 0 : 10
+  desired_count                      = 10
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
 
   load_balancer {
-    target_group_arn = aws_alb_target_group.internal.arn
+    target_group_arn = aws_lb_target_group.internal.arn
     container_name   = "fleet"
     container_port   = 8080
   }
 
   load_balancer {
-    target_group_arn = aws_alb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.main.arn
     container_name   = "fleet"
     container_port   = 8080
   }
 
   network_configuration {
-    subnets         = module.vpc.private_subnets
+    subnets         = data.terraform_remote_state.shared.outputs.vpc.private_subnets
     security_groups = [aws_security_group.backend.id]
   }
-
-  depends_on = [aws_alb_listener.http, aws_alb_listener.https-fleetdm]
 }
 
 resource "aws_cloudwatch_log_group" "backend" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key
-  name              = "fleetdm"
+  name              = local.prefix
   retention_in_days = 1
 }
-
-data "aws_region" "current" {}
 
 data "aws_secretsmanager_secret" "license" {
   name = "/fleet/license"
 }
 
 resource "aws_ecs_task_definition" "backend" {
-  family                   = "fleet"
+  family                   = local.prefix
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
@@ -164,7 +56,7 @@ resource "aws_ecs_task_definition" "backend" {
     [
       {
         name      = "prometheus-exporter"
-        image     = "917007347864.dkr.ecr.us-east-2.amazonaws.com/prometheus-to-cloudwatch:latest"
+        image     = "${data.terraform_remote_state.shared.outputs.ecr.repository_url}:latest"
         essential = false
         logConfiguration = {
           logDriver = "awslogs"
@@ -314,7 +206,7 @@ resource "aws_ecs_task_definition" "backend" {
 
 
 resource "aws_ecs_task_definition" "migration" {
-  family                   = "fleet-migrate"
+  family                   = "${local.prefix}-migrate"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
@@ -388,15 +280,15 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = var.scale_down ? 0 : 10
-  min_capacity       = var.scale_down ? 0 : 10
+  max_capacity       = 10
+  min_capacity       = 10
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy_memory" {
-  name               = "fleet-memory-autoscaling"
+  name               = "${local.prefix}-memory-autoscaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
@@ -411,7 +303,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
-  name               = "fleet-cpu-autoscaling"
+  name               = "${local.prefix}-cpu-autoscaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
@@ -424,24 +316,4 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
 
     target_value = 90
   }
-}
-
-output "fleet_migration_revision" {
-  value = aws_ecs_task_definition.migration.revision
-}
-
-output "fleet_migration_subnets" {
-  value = jsonencode(aws_ecs_service.fleet.network_configuration[0].subnets)
-}
-
-output "fleet_migration_security_groups" {
-  value = jsonencode(aws_ecs_service.fleet.network_configuration[0].security_groups)
-}
-
-output "fleet_ecs_cluster_arn" {
-  value = aws_ecs_cluster.fleet.arn
-}
-
-output "fleet_ecs_cluster_id" {
-  value = aws_ecs_cluster.fleet.id
 }

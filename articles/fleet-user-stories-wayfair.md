@@ -2,7 +2,7 @@
 
 ## Ahmed Elshaer — DFIR, Blue Team, SecOps @ Wayfair
 
-![Two people talking about Fleet](https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg)
+![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-wayfair-cover-800x450@2x.jpeg)
 
 This week, I spoke with Ahmed Elshaer (DFIR, Blue Team, SecOps) about how Wayfair uses Fleet and osquery:
 
@@ -36,4 +36,4 @@ Fleet very fast, after a release or two. What I hope to see in Fleet are the fol
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-08-20">
 <meta name="articleTitle" value="Fleet user stories — Wayfair">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-wayfair-cover-800x450@2x.jpeg">

@@ -2,9 +2,12 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import { Column } from "react-table";
+import ReactTooltip from "react-tooltip";
 
-import { IHost } from "interfaces/host";
+import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -12,12 +15,13 @@ import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCel
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import {
   humanHostMemory,
-  humanHostUptime,
+  humanHostLastRestart,
   humanHostLastSeen,
   humanHostDetailUpdated,
   hostTeamName,
 } from "utilities/helpers";
 import { IConfig } from "interfaces/config";
+import { IDataColumn } from "interfaces/datatable_config";
 import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
@@ -51,15 +55,55 @@ interface ICellProps {
   };
 }
 
-interface IHostDataColumn {
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
-  id?: string;
-  title?: string;
-  accessor?: string;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
+interface INumberCellProps {
+  cell: {
+    value: number;
+  };
+  row: {
+    original: IHost;
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
+    toggleRowSelected: () => void;
+  };
 }
+
+interface IDeviceUserCellProps {
+  cell: {
+    value: IDeviceUser[];
+  };
+  row: {
+    original: IHost;
+  };
+}
+
+const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
+  if (!users?.length) {
+    return [];
+  }
+  const condensed =
+    users.length === 4
+      ? users
+          .slice(-4)
+          .map((u) => u.email)
+          .reverse()
+      : users
+          .slice(-3)
+          .map((u) => u.email)
+          .reverse() || [];
+  return users.length > 4
+    ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
+    : condensed;
+};
+
+const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={Math.random().toString().slice(2)}>
+        {line}
+        <br />
+      </span>
+    );
+  });
+};
 
 const lastSeenTime = (status: string, seenTime: string): string => {
   if (status !== "online") {
@@ -68,7 +112,7 @@ const lastSeenTime = (status: string, seenTime: string): string => {
   return "Online";
 };
 
-const allHostTableHeaders: IHostDataColumn[] = [
+const allHostTableHeaders: IDataColumn[] = [
   // We are using React Table useRowSelect functionality for the selection header.
   // More information on its API can be found here
   // https://react-table.tanstack.com/docs/api/useRowSelect
@@ -95,14 +139,14 @@ const allHostTableHeaders: IHostDataColumn[] = [
   },
   {
     title: "Hostname",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "hostname",
-    Cell: (cellProps) => (
+    Cell: (cellProps: ICellProps) => (
       <LinkCell
         value={cellProps.cell.value}
         path={PATHS.HOST_DETAILS(cellProps.row.original)}
@@ -116,14 +160,14 @@ const allHostTableHeaders: IHostDataColumn[] = [
   },
   {
     title: "Team",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "team_name",
-    Cell: (cellProps) => (
+    Cell: (cellProps: ICellProps) => (
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),
   },
@@ -132,14 +176,16 @@ const allHostTableHeaders: IHostDataColumn[] = [
     Header: "Status",
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <StatusCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Issues",
     Header: () => <img alt="host issues" src={IssueIcon} />,
     disableSortBy: true,
     accessor: "issues",
-    Cell: (cellProps) => (
+    Cell: (cellProps: ICellProps) => (
       <IssueCell
         issues={cellProps.row.original.issues}
         rowId={cellProps.row.original.id}
@@ -147,48 +193,106 @@ const allHostTableHeaders: IHostDataColumn[] = [
     ),
   },
   {
-    title: "OS",
-    Header: (cellProps) => (
+    title: "Disk space available",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "gigs_disk_space_available",
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
+      const { id, percent_disk_space_available } = cellProps.row.original;
+
+      return (
+        <DiskSpaceGraph
+          baseClass="gigs_disk_space_available__cell"
+          gigsDiskSpaceAvailable={cellProps.cell.value}
+          percentDiskSpaceAvailable={percent_disk_space_available}
+          id={`disk-space__${id}`}
+        />
+      );
+    },
+  },
+  {
+    title: "Operating system",
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "os_version",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Osquery",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "osquery_version",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
+    title: "Used by",
+    Header: "Used by",
+    disableSortBy: true,
+    accessor: "device_mapping",
+    Cell: (cellProps: IDeviceUserCellProps): JSX.Element => {
+      const numUsers = cellProps.cell.value?.length || 0;
+      const users = condenseDeviceUsers(cellProps.cell.value || []);
+      if (users.length) {
+        const tooltipText = tooltipTextWithLineBreaks(users);
+        return (
+          <>
+            <span
+              className={`text-cell ${
+                users.length > 1 ? "text-muted tooltip" : ""
+              }`}
+              data-tip
+              data-for={`device_mapping__${cellProps.row.original.id}`}
+              data-tip-disable={users.length <= 1}
+            >
+              {numUsers === 1 ? users[0] : `${numUsers} users`}
+            </span>
+            <ReactTooltip
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`device_mapping__${cellProps.row.original.id}`}
+              data-html
+            >
+              <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
+            </ReactTooltip>
+          </>
+        );
+      }
+      return <span className="text-muted">---</span>;
+    },
   },
   {
     title: "IP address",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "primary_ip",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Last fetched",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "detail_updated_at",
-    Cell: (cellProps) => (
+    Cell: (cellProps: ICellProps) => (
       <TextCell
         value={cellProps.cell.value}
         formatter={humanHostDetailUpdated}
@@ -197,97 +301,102 @@ const allHostTableHeaders: IHostDataColumn[] = [
   },
   {
     title: "Last seen",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "seen_time",
-    Cell: (cellProps) => (
+    Cell: (cellProps: ICellProps) => (
       <TextCell value={cellProps.cell.value} formatter={humanHostLastSeen} />
     ),
   },
   {
     title: "UUID",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "uuid",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: "Uptime",
-    Header: (cellProps) => (
+    title: "Last restarted",
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "uptime",
-    Cell: (cellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostUptime} />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      const { uptime, detail_updated_at } = cellProps.row.original;
+
+      return (
+        <TextCell value={humanHostLastRestart(detail_updated_at, uptime)} />
+      );
+    },
   },
   {
     title: "CPU",
     Header: "CPU",
     disableSortBy: true,
     accessor: "cpu_type",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "RAM",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "memory",
-    Cell: (cellProps) => (
+    Cell: (cellProps: ICellProps) => (
       <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
     ),
   },
   {
     title: "MAC address",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "primary_mac",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Serial number",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "hardware_serial",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Hardware model",
-    Header: (cellProps) => (
+    Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "hardware_model",
-    Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
 ];
 
 const defaultHiddenColumns = [
+  "device_mapping",
   "primary_mac",
   "cpu_type",
   "memory",
@@ -306,9 +415,9 @@ const generateAvailableTableHeaders = (
   config: IConfig,
   currentUser: IUser,
   currentTeam: ITeamSummary | undefined
-): IHostDataColumn[] => {
+): IDataColumn[] => {
   return allHostTableHeaders.reduce(
-    (columns: IHostDataColumn[], currentColumn: IHostDataColumn) => {
+    (columns: Column[], currentColumn: Column) => {
       // skip over column headers that are not shown in free observer tier
       if (
         permissionUtils.isFreeTier(config) &&
@@ -356,7 +465,7 @@ const generateVisibleTableColumns = (
   config: IConfig,
   currentUser: IUser,
   currentTeam: ITeamSummary | undefined
-): IHostDataColumn[] => {
+): IDataColumn[] => {
   // remove columns set as hidden by the user.
   return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(
     (column) => {

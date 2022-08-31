@@ -10,19 +10,6 @@ func init() {
 	MigrationClient.AddMigration(Up_20210927143116, Down_20210927143116)
 }
 
-func columnExists(tx *sql.Tx, table, column string) bool {
-	var count int
-	err := tx.QueryRow(
-		`SELECT count(*) FROM information_schema.columns WHERE COLUMN_NAME = ? AND table_name = ? LIMIT 1;`,
-		column, table,
-	).Scan(&count)
-	if err != nil {
-		return false
-	}
-
-	return count == 1
-}
-
 func Up_20210927143116(tx *sql.Tx) error {
 	if columnExists(tx, "software", "bundle_identifier") {
 		return nil

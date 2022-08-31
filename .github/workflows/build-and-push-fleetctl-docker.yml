@@ -1,0 +1,46 @@
+name: Build and push fleetdm/fleetctl Docker image
+
+# Manually trigger this workflow for now
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  docker-push:
+    runs-on: ubuntu-latest
+    environment: Docker Hub
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # v1.10.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+        with:
+          go-version: 1.17.8
+
+      - name: Install Go Dependencies
+        run: make deps-go
+
+      - name: Build fleetdm/fleetctl
+        run: make fleetctl-docker
+
+      - name: Push to Docker
+        run: |
+          docker tag fleetdm/fleetctl fleetdm/fleetctl:${{ inputs.image_tag }}
+          docker push fleetdm/fleetctl:${{ inputs.image_tag }}
+

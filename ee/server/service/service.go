@@ -36,7 +36,7 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	return &Service{
+	eeservice := &Service{
 		Service: svc,
 		ds:      ds,
 		logger:  logger,
@@ -44,5 +44,13 @@ func NewService(
 		clock:   c,
 		authz:   authorizer,
 		license: license,
-	}, nil
+	}
+
+	// Override methods that can't be easily overriden via
+	// embedding.
+	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+		HostFeatures: eeservice.HostFeatures,
+	})
+
+	return eeservice, nil
 }

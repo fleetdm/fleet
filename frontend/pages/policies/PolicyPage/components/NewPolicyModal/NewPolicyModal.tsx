@@ -12,6 +12,7 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
+import Spinner from "components/Spinner";
 
 export interface INewPolicyModalProps {
   baseClass: string;
@@ -20,6 +21,7 @@ export interface INewPolicyModalProps {
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
+  isUpdatingPolicy: boolean;
 }
 
 const validatePolicyName = (name: string) => {
@@ -40,6 +42,7 @@ const NewPolicyModal = ({
   setIsNewPolicyModalOpen,
   backendValidators,
   platformSelector,
+  isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
   const {
     lastEditedQueryName,
@@ -98,80 +101,80 @@ const NewPolicyModal = ({
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
-      <form
-        onSubmit={handleSavePolicy}
-        className={`${baseClass}__save-modal-form`}
-        autoComplete="off"
-      >
-        <InputField
-          name="name"
-          onChange={(value: string) => setName(value)}
-          value={name}
-          error={errors.name}
-          inputClassName={`${baseClass}__policy-save-modal-name`}
-          label="Name"
-          placeholder="What yes or no question does your policy ask about your devices?"
-        />
-        <InputField
-          name="description"
-          onChange={(value: string) => setDescription(value)}
-          value={description}
-          inputClassName={`${baseClass}__policy-save-modal-description`}
-          label="Description"
-          placeholder="Add a description here (optional)"
-        />
-        <InputField
-          name="resolution"
-          onChange={(value: string) => setResolution(value)}
-          value={resolution}
-          inputClassName={`${baseClass}__policy-save-modal-resolution`}
-          label="Resolution"
-          type="textarea"
-          placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
-        />
-        {platformSelector.render()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
+      <>
+        <form
+          onSubmit={handleSavePolicy}
+          className={`${baseClass}__save-modal-form`}
+          autoComplete="off"
         >
-          <Button
-            className={`${baseClass}__button--modal-cancel`}
-            onClick={() => setIsNewPolicyModalOpen(false)}
-            variant="text-link"
-          >
-            Cancel
-          </Button>
-          <span
-            className={`${baseClass}__button-wrap--modal-save`}
-            data-tip
-            data-for={`${baseClass}__button--modal-save-tooltip`}
-            data-tip-disable={!disableSave}
-          >
+          <InputField
+            name="name"
+            onChange={(value: string) => setName(value)}
+            value={name}
+            error={errors.name}
+            inputClassName={`${baseClass}__policy-save-modal-name`}
+            label="Name"
+            placeholder="What yes or no question does your policy ask about your devices?"
+          />
+          <InputField
+            name="description"
+            onChange={(value: string) => setDescription(value)}
+            value={description}
+            inputClassName={`${baseClass}__policy-save-modal-description`}
+            label="Description"
+            placeholder="Add a description here (optional)"
+          />
+          <InputField
+            name="resolution"
+            onChange={(value: string) => setResolution(value)}
+            value={resolution}
+            inputClassName={`${baseClass}__policy-save-modal-resolution`}
+            label="Resolution"
+            type="textarea"
+            placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
+          />
+          {platformSelector.render()}
+          <div className="modal-cta-wrap">
+            <span
+              className={`${baseClass}__button-wrap--modal-save`}
+              data-tip
+              data-for={`${baseClass}__button--modal-save-tooltip`}
+              data-tip-disable={!disableSave}
+            >
+              <Button
+                type="submit"
+                variant="brand"
+                onClick={handleSavePolicy}
+                disabled={disableSave}
+                className="save-policy-loading"
+                isLoading={isUpdatingPolicy}
+              >
+                Save policy
+              </Button>
+              <ReactTooltip
+                className={`${baseClass}__button--modal-save-tooltip`}
+                place="bottom"
+                effect="solid"
+                id={`${baseClass}__button--modal-save-tooltip`}
+                backgroundColor="#3e4771"
+              >
+                Select the platform(s) this
+                <br />
+                policy will be checked on
+                <br />
+                to save the policy.
+              </ReactTooltip>
+            </span>
             <Button
-              className={`${baseClass}__button--modal-save`}
-              type="submit"
-              variant="brand"
-              onClick={handleSavePolicy}
-              disabled={disableSave}
+              className={`${baseClass}__button--modal-cancel`}
+              onClick={() => setIsNewPolicyModalOpen(false)}
+              variant="inverse"
             >
-              Save
+              Cancel
             </Button>
-            <ReactTooltip
-              className={`${baseClass}__button--modal-save-tooltip`}
-              place="bottom"
-              type="dark"
-              effect="solid"
-              id={`${baseClass}__button--modal-save-tooltip`}
-              backgroundColor="#3e4771"
-            >
-              Select the platform(s) this
-              <br />
-              policy will be checked on
-              <br />
-              to save the policy.
-            </ReactTooltip>
-          </span>
-        </div>
-      </form>
+          </div>
+        </form>
+      </>
     </Modal>
   );
 };

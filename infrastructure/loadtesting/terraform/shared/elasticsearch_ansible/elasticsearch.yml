@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+  roles:
+    - role: ec2
+    - role: ansible
+    - role: docker
+    - role: elasticsearch
+    - role: elasticapm
+    - role: kibana
+    - role: cloudwatch
+    - role: ssh

@@ -16,7 +16,10 @@ Information about running an update server with fleetctl.
 Information about running an update server with fleetctl.
 
 ### [Upgrading Fleet](./Upgrading-Fleet.md) 
-Includes a guide for how to update and run new versions of Fleet
+Includes a guide for how to update and run new versions of Fleet.
+
+### [Debugging](./Debugging.md)
+Information to gather as part of debugging an issue with a deployment.
 
 ### [FAQ](./FAQ.md) 
 Includes commonly asked questions and answers about deployment from the Fleet community.

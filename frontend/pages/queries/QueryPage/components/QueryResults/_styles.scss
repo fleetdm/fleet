@@ -1,5 +1,4 @@
 .query-results {
-  padding: $pad-xxxlarge $pad-xxlarge;
 
   &__text-wrapper {
     margin-top: 20px;
@@ -35,6 +34,10 @@
     }
   }
 
+  &__results-cta {
+    display: flex;
+  }
+
   &__results-cta > *:not(:last-child),
   &__errors-cta > *:not(:last-child) {
     margin-right: $pad-medium;
@@ -52,12 +55,6 @@
     img {
       width: 13px;
       margin-left: 8px;
-    }
-  }
-
-  .table-container {
-    &__header {
-      display: none;
     }
   }
 
@@ -85,17 +82,8 @@
     }
   }
 
-  &__results-table-header,
-  &__errors-table-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: $pad-xlarge;
-  }
-
-  &__results-count,
-  &__error-count {
-    font-size: $x-small;
-    font-weight: $bold;
+  &__results-table-container,
+  &__error-table-container {
+    margin-top: 32px;
   }
 }

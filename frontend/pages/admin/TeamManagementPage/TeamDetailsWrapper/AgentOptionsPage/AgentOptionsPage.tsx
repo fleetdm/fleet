@@ -6,7 +6,7 @@ import yaml from "js-yaml";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import osqueryOptionsAPI from "services/entities/osquery_options";
 
 // @ts-ignore
@@ -24,10 +24,6 @@ interface IAgentOptionsPageProps {
   };
 }
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 const AgentOptionsPage = ({
   params: { team_id },
 }: IAgentOptionsPageProps): JSX.Element => {
@@ -37,11 +33,11 @@ const AgentOptionsPage = ({
   const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
 
-  useQuery<ITeamsResponse, Error, ITeam[]>(
+  useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
       onSuccess: (data) => {
         const selected = data.find((team) => team.id === teamIdFromURL);
 
@@ -81,8 +77,18 @@ const AgentOptionsPage = ({
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        This file describes options returned to osquery when it checks for
-        configuration.
+        Agent options configure the osquery agent. When you update agent
+        options, they will be applied the next time a host checks in to Fleet.
+        <br />
+        <a
+          href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+          className={`${baseClass}__learn-more`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn more about agent options&nbsp;
+          <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+        </a>
       </p>
       <InfoBanner className={`${baseClass}__config-docs`}>
         See Fleet documentation for an example file that includes the overrides

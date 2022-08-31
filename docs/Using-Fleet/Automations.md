@@ -1,25 +1,27 @@
 # Automations
 
-You can configure automations in Fleet to send a webhook request if a certain condition is met.
+You can configure automations in Fleet to send a webhook request or create a ticket (Jira or Zendesk) if a certain condition is met.
 
-[Vulnerability automations](#vulnerability-automations) send a webhook request if a new vulnerability (CVE) is
+[Vulnerability automations](#vulnerability-automations) are triggered if a new vulnerability (CVE) is
 detected on at least one host.
 
-[Policy automations](#policy-automations) send a webhook request if a policy is newly failing on at
+[Policy automations](#policy-automations) are triggered if a policy is newly failing on at
 least one host.
 
-[Host status automations](#host-status-automations) send a webhook request if a configured
+[Host status automations](#host-status-automations) are triggered if a configured
 percentage of hosts have not checked in to Fleet for a configured number of days.
 
 ## Vulnerability automations
 
-Vulnerability automations send a webhook request if a new vulnerability (CVE) is
+Vulnerability automations are triggered if a new vulnerability (CVE) is
 found on at least one host.
 
 > Note that a CVE is "new" if it was published to the national vulnerability (NVD) database within
 > the last 30 days (by default).
 
-Fleet sends these webhook requests once every hour. If two new vulnerabilities are detected
+Fleet checks if it's time to send these webhook requests, or create tickets (Jira or Zendesk), once every hour. 
+
+If two new vulnerabilities are detected
 within the hour, two
 webhook requests are sent. This interval can be updated with the [`vulnerabilities_periodicity` configuration option](../Deploying/Configuration.md#periodicity).
 
@@ -51,15 +53,31 @@ POST https://server.com/example
 }
 ```
 
+You can configure Fleet to create a ticket instead of a webhook request.
+
+Follow the steps below to configure Jira or Zendesk as a ticket destination:
+
+1. In the top bar of the Fleet UI, select your avatar and then **Settings**.
+2. Select **Integrations > Add integration**.
+3. Under **Ticket destination** select **Jira** or select **Zendesk**.
+4. Enter your ticket destination's credentials.
+5. In the top bar, select **Software > Manage automations**.
+6. Select **Enable vulnerability automations** and choose **Ticket**.
+7. Under **Ticket destination**, select your ticket destination and select **Save**.
+
+The Jira and Zendesk ticket destinations are currently in beta.
+
 ## Policy automations
 
-Policy automations send a webhook request if a policy is newly failing on at
+Policy automations are triggered if a policy is newly failing on at
 least one host.
 
 > Note that a policy is "newly failing" if a host updated its response from "no response" to "failing"
 > or from "passing" to "failing."
 
-Fleet sends these webhook requests once per day. If two policies are newly failing
+Fleet checks if it's time to send these webhook requests, or create tickets (Jira or Zendesk), once every day. 
+
+If two policies are newly failing
 within the day, two webhook requests are sent. This interval can be updated with the `webhook_settings.interval`
 configuration option using the [`config` yaml document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.
 
@@ -99,7 +117,19 @@ POST https://server.com/example
 }
 ```
 
-To enable policy automations, navigate to **Policies > Manage automations** in the Fleet UI.
+You can configure Fleet to create a ticket instead of a webhook request.
+
+Follow the steps below to configure Jira or Zendesk as a ticket destination:
+
+1. In the top bar of the Fleet UI, select your avatar and then **Settings**.
+2. Select **Integrations > Add integration**.
+3. Under **Ticket destination** select **Jira** or select **Zendesk**.
+4. Enter your ticket destination's credentials.
+5. In the top bar, select **Policies > Manage automations**.
+6. Select **Enable policy automations**, check the policies you'd like to listen to, and choose **Ticket**.
+7. Under **Ticket destination**, select your ticket destination and select **Save**.
+
+The Jira and Zendesk ticket destinations are currently in beta.
 
 ## Host status automations
 

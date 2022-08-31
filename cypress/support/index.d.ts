@@ -9,6 +9,11 @@ declare namespace Cypress {
     setup(): Chainable<Element>;
 
     /**
+     * Custom command to setup the testing environment with fixture data for software and vulnerabilities.
+     */
+    setupWithSoftware(): Chainable<Element>;
+
+    /**
      * Custom command to login the user programmatically using the fleet API.
      */
     login(email?: string, password?: string): Chainable<Element>;
@@ -25,6 +30,11 @@ declare namespace Cypress {
     logout(): Chainable<Element>;
 
     /**
+     * Custom command to set a Fleet Desktop token to a host.
+     */
+    setDesktopToken(hostId?: number, token?: string): Chainable<Element>;
+
+    /**
      * Custom command to add new queries by default.
      */
     seedQueries(): Chainable<Element>;
@@ -37,7 +47,7 @@ declare namespace Cypress {
     /**
      * Custom command to add new policies by default.
      */
-    seedPolicies(): Chainable<Element>;
+    seedPolicies(teamName?: string): Chainable<Element>;
 
     /**
      * Custom command to add a new user in Fleet (via fleetctl).
@@ -62,17 +72,23 @@ declare namespace Cypress {
      * NOTE: login() command is required before this, as it will make authenticated
      * requests.
      */
-    setupSSO(enable_idp_login?: boolean): Chainable<Element>;
+    setupSSO(options?: {
+      enable_sso_idp_login?: boolean;
+      enable_jit_provisioning?: boolean;
+    }): Chainable<Element>;
 
     /**
      * Custom command to login a user1@example.com via SSO.
      */
-    loginSSO(): Chainable<Element>;
+    loginSSO(options?: {
+      username?: string;
+      password?: string;
+    }): Chainable<Element>;
 
     /**
      * Custom command to get the emails handled by the Mailhog server.
      */
-    getEmails(): Chainable<Response>;
+    getEmails(): Chainable;
 
     /**
      * Custom command to seed the Free tier teams/users.
@@ -104,7 +120,7 @@ declare namespace Cypress {
      * NOTE: login() command is required before this, as it will make authenticated
      * requests.
      */
-    addDockerHost(): Chainable;
+    addDockerHost(teamName?: string): Chainable;
 
     /**
      * Custom command to stop any running Docker hosts.

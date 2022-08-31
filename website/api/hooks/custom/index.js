@@ -151,9 +151,23 @@ will be disabled and/or hidden in the UI.
               return res.redirect(sails.config.custom.baseUrl+req.url);
             }//•
 
+            // Prevent the browser from caching logged-in users' pages.
+            // (including w/ the Chrome back button)
+            // > • https://mixmax.com/blog/chrome-back-button-cache-no-store
+            // > • https://madhatted.com/2013/6/16/you-do-not-understand-browser-history
+            //
+            // This also prevents an issue where webpages may be cached by browsers, and thus
+            // reference an old bundle file (e.g. dist/production.min.js or dist/production.min.css),
+            // which might have a different hash encoded in its filename.  This way, by preventing caching
+            // of the webpage itself, the HTML is always fresh, and thus always trying to load the latest,
+            // correct bundle files.
+            res.setHeader('Cache-Control', 'no-cache, no-store');
+
             // No session? Proceed as usual.
             // (e.g. request for a static asset)
-            if (!req.session) { return next(); }
+            if (!req.session) {
+              return next();
+            }
 
             // Not logged in? Proceed as usual.
             if (!req.session.userId) { return next(); }
@@ -232,12 +246,6 @@ will be disabled and/or hidden in the UI.
               res.locals.isEmailVerificationRequired = sails.config.custom.verifyEmailAddresses;
 
             }//ﬁ
-
-            // Prevent the browser from caching logged-in users' pages.
-            // (including w/ the Chrome back button)
-            // > • https://mixmax.com/blog/chrome-back-button-cache-no-store
-            // > • https://madhatted.com/2013/6/16/you-do-not-understand-browser-history
-            res.setHeader('Cache-Control', 'no-cache, no-store');
 
             return next();
           }

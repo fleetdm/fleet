@@ -49,10 +49,6 @@
     .fleeticon-offline {
       color: $ui-error;
     }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
-    }
   }
 
   &__description {
@@ -108,16 +104,6 @@
     a {
       color: $core-vibrant-blue;
       text-decoration: none;
-    }
-  }
-
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
     }
   }
 

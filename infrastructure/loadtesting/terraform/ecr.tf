@@ -4,22 +4,8 @@ resource "aws_kms_key" "main" {
   enable_key_rotation     = true
 }
 
-resource "aws_ecr_repository" "prometheus-to-cloudwatch" {
-  name                 = "prometheus-to-cloudwatch"
-  image_tag_mutability = "IMMUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  encryption_configuration {
-    encryption_type = "KMS"
-    kms_key         = aws_kms_key.main.arn
-  }
-}
-
 resource "aws_ecr_repository" "fleet" {
-  name                 = "fleet"
+  name                 = local.prefix
   image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
@@ -58,6 +44,7 @@ resource "docker_registry_image" "loadtest" {
   build {
     context    = "${path.cwd}/docker/"
     dockerfile = "loadtest.Dockerfile"
+    platform   = "linux/amd64"
     build_args = {
       TAG = var.tag
     }

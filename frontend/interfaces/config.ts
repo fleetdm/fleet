@@ -35,6 +35,7 @@ export default PropTypes.shape({
   idp_name: PropTypes.string,
   enable_sso: PropTypes.bool,
   enable_sso_idp_login: PropTypes.bool,
+  enable_jit_provisioning: PropTypes.bool,
   host_expiry_enabled: PropTypes.bool,
   host_expiry_window: PropTypes.number,
   agent_options: PropTypes.string,
@@ -72,6 +73,10 @@ export default PropTypes.shape({
   }),
 });
 
+export interface IFleetDesktopSettings {
+  transparency_url: string;
+}
+
 export interface IConfigFormData {
   smtpAuthenticationMethod: string;
   smtpAuthenticationType: string;
@@ -105,6 +110,7 @@ export interface IConfigFormData {
   hostStatusWebhookHostPercentage?: number;
   hostStatusWebhookDaysCount?: number;
   enableUsageStatistics: boolean;
+  transparency_url: string;
 }
 
 export interface IConfig {
@@ -112,6 +118,7 @@ export interface IConfig {
     org_name: string;
     org_logo_url: string;
   };
+  sandbox_enabled: boolean;
   server_settings: {
     server_url: string;
     live_query_disabled: boolean;
@@ -141,12 +148,13 @@ export interface IConfig {
     idp_name: string;
     enable_sso: boolean;
     enable_sso_idp_login: boolean;
+    enable_jit_provisioning: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
-  host_settings: {
+  features: {
     enable_host_users: boolean;
     enable_software_inventory: boolean;
   };
@@ -162,6 +170,7 @@ export interface IConfig {
     expiration: string;
     note: string;
   };
+  fleet_desktop: IFleetDesktopSettings;
   vulnerabilities: {
     databases_path: string;
     periodicity: number;
@@ -175,11 +184,7 @@ export interface IConfig {
   // vulnerability_settings: {
   //   databases_path: string;
   // };
-  webhook_settings: {
-    host_status_webhook: IWebhookHostStatus;
-    failing_policies_webhook: IWebhookFailingPolicies;
-    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
-  };
+  webhook_settings: IWebhookSettings;
   integrations: IIntegrations;
   logging: {
     debug: boolean;
@@ -204,3 +209,14 @@ export interface IConfig {
     };
   };
 }
+
+export interface IWebhookSettings {
+  failing_policies_webhook: IWebhookFailingPolicies;
+  host_status_webhook: IWebhookHostStatus;
+  vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+}
+
+export type IAutomationsConfig = Pick<
+  IConfig,
+  "webhook_settings" | "integrations"
+>;

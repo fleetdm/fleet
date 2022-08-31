@@ -1,0 +1,15 @@
+---
+- package: name=openssh-server
+- ansible.builtin.systemd: name=sshd.service state=started enabled=yes
+- ansible.builtin.file:
+    path: /home/ec2-user/.ssh
+    owner: ec2-user
+    group: ec2-user
+    mode: '0700'
+    state: directory
+- ansible.builtin.template:
+    src: authorized_keys.j2
+    dest: /home/ec2-user/.ssh/authorized_keys
+    owner: ec2-user
+    group: ec2-user
+    mode: '0600'

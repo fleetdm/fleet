@@ -3,11 +3,17 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
-import hostSummaryAPI from "services/entities/host_summary";
-import teamsAPI from "services/entities/teams";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
+import { ILabelSummary } from "interfaces/label";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
+import enrollSecretsAPI from "services/entities/enroll_secret";
+import hostSummaryAPI from "services/entities/host_summary";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
 
@@ -15,6 +21,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import MainContent from "components/MainContent";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -25,11 +32,8 @@ import WelcomeHost from "./cards/WelcomeHost";
 import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
+import AddHostsModal from "../../components/AddHostsModal";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
-
-interface ITeamsResponse {
-  teams: ITeam[];
-}
 
 const baseClass = "homepage";
 
@@ -37,50 +41,60 @@ const Homepage = (): JSX.Element => {
   const {
     config,
     currentTeam,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
     isPremiumTier,
     isFreeTier,
-    isPreviewMode,
+    isSandboxMode,
     isOnGlobalTeam,
     setCurrentTeam,
   } = useContext(AppContext);
 
   const [selectedPlatform, setSelectedPlatform] = useState<string>("");
-  const [totalCount, setTotalCount] = useState<string | undefined>();
-  const [macCount, setMacCount] = useState<string>("0");
-  const [windowsCount, setWindowsCount] = useState<string>("0");
-  const [onlineCount, setOnlineCount] = useState<string | undefined>();
-  const [offlineCount, setOfflineCount] = useState<string | undefined>();
+  const [labels, setLabels] = useState<ILabelSummary[]>();
+  const [macCount, setMacCount] = useState<number>(0);
+  const [windowsCount, setWindowsCount] = useState<number>(0);
+  const [linuxCount, setLinuxCount] = useState<number>(0);
+  const [onlineCount, setOnlineCount] = useState<number>(0);
+  const [offlineCount, setOfflineCount] = useState<number>(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
     false
   );
   const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
   const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
   const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
     false
   );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
-      onSuccess: (responseTeams) => {
-        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
-          setCurrentTeam(responseTeams[0]);
-        }
-      },
-    }
-  );
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
 
-  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<
-    IHostSummary,
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ILoadTeamsResponse,
     Error,
-    IHostSummary
-  >(
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: !!isPremiumTier,
+    select: (data: ILoadTeamsResponse) =>
+      data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+    onSuccess: (responseTeams) => {
+      if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+        setCurrentTeam(responseTeams[0]);
+      }
+    },
+  });
+
+  const {
+    data: hostSummaryData,
+    isFetching: isHostSummaryFetching,
+    error: errorHosts,
+  } = useQuery<IHostSummary, Error, IHostSummary>(
     ["host summary", currentTeam, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
@@ -90,24 +104,64 @@ const Homepage = (): JSX.Element => {
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
-        setOnlineCount(data.online_count.toLocaleString("en-US"));
-        setOfflineCount(data.offline_count.toLocaleString("en-US"));
+        setLabels(data.builtin_labels);
+        setOnlineCount(data.online_count);
+        setOfflineCount(data.offline_count);
+
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
-        setMacCount(macHosts.hosts_count.toLocaleString("en-US"));
+
         const windowsHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
-        setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
+
+        setMacCount(macHosts.hosts_count);
+        setWindowsCount(windowsHosts.hosts_count);
+        setLinuxCount(data.all_linux_count);
         setShowHostsUI(true);
       },
+    }
+  );
+
+  const {
+    isLoading: isGlobalSecretsLoading,
+    data: globalSecrets,
+    refetch: refetchGlobalSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["global secrets"],
+    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
+    {
+      enabled: !!canEnrollGlobalHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", currentTeam],
+    () => {
+      if (currentTeam) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!currentTeam?.id && !!canEnrollHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
 
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
+  };
+
+  const toggleAddHostsModal = () => {
+    setShowAddHostsModal(!showAddHostsModal);
   };
 
   const HostsSummaryCard = useInfoCard({
@@ -117,15 +171,8 @@ const Homepage = (): JSX.Element => {
       text: "View all hosts",
     },
     total_host_count: (() => {
-      if (!isHostSummaryFetching) {
-        if (totalCount) {
-          return totalCount;
-        }
-
-        return (
-          hostSummaryData?.totals_hosts_count.toLocaleString("en-US") ||
-          undefined
-        );
+      if (!isHostSummaryFetching && !errorHosts) {
+        return `${hostSummaryData?.totals_hosts_count}` || undefined;
       }
 
       return undefined;
@@ -136,10 +183,12 @@ const Homepage = (): JSX.Element => {
         currentTeamId={currentTeam?.id}
         macCount={macCount}
         windowsCount={windowsCount}
+        linuxCount={linuxCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
-        setTotalCount={setTotalCount}
+        labels={labels}
+        errorHosts={!!errorHosts}
       />
     ),
   });
@@ -158,11 +207,20 @@ const Homepage = (): JSX.Element => {
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
-    children: <WelcomeHost />,
+    showTitle: true,
+    children: (
+      <WelcomeHost
+        totalsHostsCount={
+          (hostSummaryData && hostSummaryData.totals_hosts_count) || 0
+        }
+        toggleAddHostsModal={toggleAddHostsModal}
+      />
+    ),
   });
 
   const LearnFleetCard = useInfoCard({
     title: "Learn how to use Fleet",
+    showTitle: true,
     children: <LearnFleet />,
   });
 
@@ -216,7 +274,7 @@ const Homepage = (): JSX.Element => {
   });
 
   const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM) enrollment",
+    title: "Mobile device management (MDM)",
     showTitle: showMDMUI,
     description: (
       <p>
@@ -246,26 +304,29 @@ const Homepage = (): JSX.Element => {
       <OperatingSystems
         currentTeamId={currentTeam?.id}
         selectedPlatform={selectedPlatform as IOsqueryPlatform}
-        setShowOperatingSystemsUI={setShowOperatingSystemsUI}
-        showOperatingSystemsUI={showOperatingSystemsUI}
+        showTitle={showOperatingSystemsUI}
+        setShowTitle={setShowOperatingSystemsUI}
       />
     ),
   });
 
-  const allLayout = () => (
-    <div className={`${baseClass}__section`}>
-      {isPreviewMode && (
-        <>
-          {WelcomeHostCard}
-          {LearnFleetCard}
-        </>
-      )}
-      {SoftwareCard}
-      {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
-        <>{ActivityFeedCard}</>
-      )}
-    </div>
-  );
+  const allLayout = () => {
+    return (
+      <div className={`${baseClass}__section`}>
+        {!currentTeam &&
+          canEnrollGlobalHosts &&
+          hostSummaryData &&
+          hostSummaryData?.totals_hosts_count < 2 && (
+            <>
+              {WelcomeHostCard}
+              {LearnFleetCard}
+            </>
+          )}
+        {SoftwareCard}
+        {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+      </div>
+    );
+  };
 
   const macOSLayout = () => (
     <div className={`${baseClass}__section`}>
@@ -275,7 +336,9 @@ const Homepage = (): JSX.Element => {
     </div>
   );
 
-  const windowsLayout = () => null;
+  const windowsLayout = () => (
+    <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+  );
   const linuxLayout = () => null;
 
   const renderCards = () => {
@@ -291,9 +354,30 @@ const Homepage = (): JSX.Element => {
     }
   };
 
+  const renderAddHostsModal = () => {
+    const enrollSecret =
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+
+    return (
+      <AddHostsModal
+        currentTeam={currentTeam}
+        enrollSecret={enrollSecret}
+        isLoading={isLoadingTeams || isGlobalSecretsLoading}
+        isSandboxMode={!!isSandboxMode}
+        onCancel={toggleAddHostsModal}
+      />
+    );
+  };
+
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
@@ -338,8 +422,9 @@ const Homepage = (): JSX.Element => {
           </>
         </div>
         {renderCards()}
+        {showAddHostsModal && renderAddHostsModal()}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

@@ -14,15 +14,18 @@ export default PropTypes.shape({
   host_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
-export interface ILabel {
-  created_at: string;
-  updated_at: string;
+export interface ILabelSummary {
   id: number | string;
-  uuid?: string;
   name: string;
   description?: string;
-  query: string;
   label_type: "regular" | "builtin";
+}
+
+export interface ILabel extends ILabelSummary {
+  created_at: string;
+  updated_at: string;
+  uuid?: string;
+  query: string;
   label_membership_type: string;
   hosts_count: number;
   display_text: string;

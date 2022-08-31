@@ -24,7 +24,7 @@
                   <a
                     style="max-width: 242px"
                     class="btn btn-block btn-lg btn-info my-3 mx-auto"
-                    href="/get-started"
+                    href="/try-fleet/register"
                     >Get started</a
                   >
                   <div
@@ -78,10 +78,10 @@
                     <p class="font-weight-bold mb-0">
                       Premium
                     </p>
-                    <h2 style="color: #6b6cfa">$1</h2>
+                    <h2 style="color: #6b6cfa">$2</h2>
                     <p class="mb-0">/host/month</p>
                     <p style="color: #8f8ea1; font-size: 13px" class="mb-0">
-                      (USD, billed annually at $12)
+                      (USD, billed annually at $24)
                     </p>
                   </div>
                   <a
@@ -129,7 +129,7 @@
                         style="width: 16px; height: 16px; left: 0; top: 4px"
                         class="position-absolute"
                       />
-                      Self-hosted agent autoupdates
+                      Self-managed agent autoupdates
                     </p>
                   </div>
                 </div>
@@ -676,6 +676,25 @@
                       />
                     </div>
                   </div>
+                  <div class="row mb-3">
+                    <div class="col-7 d-flex">
+                      <img
+                        alt="a bullet point ellipse"
+                        src="/images/ellipse-6x6@2x.png"
+                        style="width: 6px; height: 6px; margin-top: 09.6px"
+                      />
+                      <p class="ml-2 my-0">Just-in-time provisioning†</p>
+                    </div>
+                    <div class="col-2"></div>
+                    <div class="col-3">
+                      <img
+                        alt="a check mark"
+                        class="mx-auto"
+                        src="/images/check-16x16@2x.png"
+                        style="width: 16px; height: 16px"
+                      />
+                    </div>
+                  </div>
                   <div class="row mb-4 mt-5">
                     <div class="col-7 pr-0 pr-md-2">
                       <p class="m-0" style="color: #8b8fa2">MONITORING</p>
@@ -770,7 +789,7 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Standard query library†</p>
+                      <p class="ml-2 my-0">Standard query and policy library†</p>
                     </div>
                     <div class="col-2">
                       <img
@@ -824,34 +843,10 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Self-remediation*†</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-7">
-                      <p class="m-0" style="color: #8b8fa2">DATA OUTPUTS</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-2"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
                       <p class="ml-2 my-0">
-                        Flexible log destinations (AWS Kinesis, Lambda, GCP)
+                        Policy and vulnerability automations
+                        <br>
+                        (webhook, Zendesk, JIRA, ServiceNow*†)
                       </p>
                     </div>
                     <div class="col-2">
@@ -878,7 +873,75 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">StreamAlert integration*†</p>
+                      <p class="ml-2 my-0">Vulnerability scores (EPSS and CVSS)</p>
+                    </div>
+                    <div class="col-2"></div>
+                    <div class="col-3">
+                      <img
+                        alt="a check mark"
+                        class="mx-auto"
+                        src="/images/check-16x16@2x.png"
+                        style="width: 16px; height: 16px"
+                      />
+                    </div>
+                  </div>
+                  <div class="row mb-3">
+                    <div class="col-7 d-flex">
+                      <img
+                        alt="a bullet point ellipse"
+                        src="/images/ellipse-6x6@2x.png"
+                        style="width: 6px; height: 6px; margin-top: 09.6px"
+                      />
+                      <p class="ml-2 my-0">CISA known exploited vulnerabilities</p>
+                    </div>
+                    <div class="col-2"></div>
+                    <div class="col-3">
+                      <img
+                        alt="a check mark"
+                        class="mx-auto"
+                        src="/images/check-16x16@2x.png"
+                        style="width: 16px; height: 16px"
+                      />
+                    </div>
+                  </div>
+                  <div class="row mb-3">
+                    <div class="col-7 d-flex">
+                      <img
+                        alt="a bullet point ellipse"
+                        src="/images/ellipse-6x6@2x.png"
+                        style="width: 6px; height: 6px; margin-top: 09.6px"
+                      />
+                      <p class="ml-2 my-0">End-user self-service†</p>
+                    </div>
+                    <div class="col-2"></div>
+                    <div class="col-3">
+                      <img
+                        alt="a check mark"
+                        class="mx-auto"
+                        src="/images/check-16x16@2x.png"
+                        style="width: 16px; height: 16px"
+                      />
+                    </div>
+                  </div>
+                  <div class="row mb-4 mt-5">
+                    <div class="col-7">
+                      <p class="m-0" style="color: #8b8fa2">DATA OUTPUTS</p>
+                    </div>
+                    <div class="col-2"></div>
+                    <div class="col-2"></div>
+                  </div>
+                  <div class="row mb-3">
+                    <div class="col-7 d-flex">
+                      <img
+                        alt="a bullet point ellipse"
+                        src="/images/ellipse-6x6@2x.png"
+                        style="width: 6px; height: 6px; margin-top: 09.6px"
+                      />
+                      <p class="ml-2 my-0">
+                        Flexible log destinations
+                        <br>
+                        (AWS Kinesis, Lambda, GCP, Kafka)
+                      </p>
                     </div>
                     <div class="col-2">
                       <img
@@ -937,7 +1000,7 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Self-managed (host Fleet in your own environment)</p>
+                      <p class="ml-2 my-0">Self-managed</p>
                     </div>
                     <div class="col-2">
                       <img
@@ -991,7 +1054,7 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Configure osquery startup flags on the fly*</p>
+                      <p class="ml-2 my-0">Configure osquery startup flags remotely*†</p>
                     </div>
                     <div class="col-2">
                       <img
@@ -1043,7 +1106,7 @@
                         src="/images/ellipse-6x6@2x.png"
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
-                      <p class="ml-2 my-0">Self-hosted autoupdate registry†</p>
+                      <p class="ml-2 my-0">Self-managed autoupdate registry†</p>
                     </div>
                     <div class="col-2"></div>
                     <div class="col-3">
@@ -1063,28 +1126,7 @@
                         style="width: 6px; height: 6px; margin-top: 09.6px"
                       />
                       <p class="ml-2 my-0">
-                        Mass deploy custom osquery extensions*
-                      </p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Autoupdate custom osquery extensions*
+                        Manage osquery extensions remotely*†
                       </p>
                     </div>
                     <div class="col-2"></div>
@@ -1134,7 +1176,7 @@
                 <li>The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.</li>
                 <li>The majority of new features contributed by Fleet Device Management Inc will be open source.</li>
                 <li>The product will be available for download without leaving an email address or logging in.</li>
-                <li>We will always allow you to benchmark the performance of Fleet.</li>
+                <li>We will always allow you to benchmark the performance of Fleet.  (Fleet also <a href="https://fleetdm.com/handbook/engineering#rituals" target="_blank">load tests the platform before every release</a>, with increasingly ambitious targets.  The scale of realtime reporting supported by Fleet has increased 5,000% since 2019.  Today, Fleet deployments supports 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)</li>
               </ol>
 
             </div>
@@ -1241,7 +1283,7 @@
             purpose="animated-arrow-button"
             target="_blank"
             href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo"
-            >Schedule a demo
+            >Talk to an expert
           </a>
         </div>
       </section>

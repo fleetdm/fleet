@@ -1,7 +1,7 @@
 import React from "react";
 
 interface IHeaderCellProps {
-  value: string;
+  value: string | JSX.Element;
   isSortedDesc?: boolean;
   disableSortBy?: boolean;
 }

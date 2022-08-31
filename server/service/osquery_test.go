@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"sort"
 	"strconv"
@@ -21,13 +21,16 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mockresult "github.com/fleetdm/fleet/v4/server/mock/mockresult"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/kit/log"
@@ -184,8 +187,9 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-// One of these queries is the disk space, only one of the two works in a platform
-var expectedDetailQueries = len(osquery_utils.GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})) - 1
+// One of these queries is the disk space, only one of the two works in a platform. Similarly, one
+// is for operating system.
+var expectedDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -212,6 +216,82 @@ func TestEnrollAgent(t *testing.T) {
 	nodeKey, err := svc.EnrollAgent(context.Background(), "valid_secret", "host123", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
+}
+
+func TestEnrollAgentEnforceLimit(t *testing.T) {
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{
+			ID:         0,
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
+
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		const maxHosts = 2
+
+		var hostIDSeq uint
+		ds := new(mock.Store)
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			switch secret {
+			case "valid_secret":
+				return &fleet.EnrollSecret{Secret: "valid_secret"}, nil
+			default:
+				return nil, errors.New("not found")
+			}
+		}
+		ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+			hostIDSeq++
+			return &fleet.Host{
+				ID: hostIDSeq, OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+			}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id}, nil
+		}
+		ds.DeleteHostFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+
+		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
+		svc := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
+			EnrollHostLimiter: redisWrapDS,
+			License:           &fleet.LicenseInfo{DeviceCount: maxHosts},
+		})
+
+		nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host001", nil)
+		require.NoError(t, err)
+		assert.NotEmpty(t, nodeKey)
+
+		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host002", nil)
+		require.NoError(t, err)
+		assert.NotEmpty(t, nodeKey)
+
+		_, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf("maximum number of hosts reached: %d", maxHosts))
+
+		// delete a host with id 1
+		err = svc.DeleteHost(ctx, 1)
+		require.NoError(t, err)
+
+		// now host 003 can be enrolled
+		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		require.NoError(t, err)
+		assert.NotEmpty(t, nodeKey)
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, "enrolled_hosts:*", false, false, false)
+		runTest(t, pool)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, "enrolled_hosts:*", true, true, false)
+		runTest(t, pool)
+	})
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
@@ -278,7 +358,8 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{})
+	svc := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
 	host := fleet.Host{ID: 1, Hostname: "foobar"}
@@ -312,12 +393,13 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
-	err = svc.FlushSeenHosts(context.Background())
+	err = task.FlushHostsLastSeen(context.Background(), time.Now())
 	require.NoError(t, err)
 	assert.True(t, ds.MarkHostsSeenFuncInvoked)
+	ds.MarkHostsSeenFuncInvoked = false
 	assert.ElementsMatch(t, []uint{1, 7}, gotHostIDs)
 
-	err = svc.FlushSeenHosts(context.Background())
+	err = task.FlushHostsLastSeen(context.Background(), time.Now())
 	require.NoError(t, err)
 	assert.True(t, ds.MarkHostsSeenFuncInvoked)
 	require.Len(t, gotHostIDs, 0)
@@ -410,6 +492,9 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	discoveryUsed := map[string]struct{}{
 		hostDetailQueryPrefix + "google_chrome_profiles": {},
 		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "mdm":                    {},
+		hostDetailQueryPrefix + "munki_info":             {},
+		hostDetailQueryPrefix + "windows_update_history": {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -425,7 +510,7 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -474,7 +559,9 @@ func TestHostDetailQueries(t *testing.T) {
 
 	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+2)
+	// 2 additional queries, but -3 expected queries due to removed disk space query (only 1 of 2
+	// active for a given platform) and removed two Windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
 		assert.True(t,
@@ -483,6 +570,132 @@ func TestHostDetailQueries(t *testing.T) {
 	}
 	assert.Equal(t, "bam", queries[hostAdditionalQueryPrefix+"bim"])
 	assert.Equal(t, "select foo", queries[hostAdditionalQueryPrefix+"foobar"])
+}
+
+func TestQueriesAndHostFeatures(t *testing.T) {
+	ds := new(mock.Store)
+	team1 := fleet.Team{
+		ID: 1,
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: false,
+			},
+		},
+	}
+
+	team2 := fleet.Team{
+		ID: 2,
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: true,
+			},
+		},
+	}
+
+	host := fleet.Host{
+		ID:       1,
+		Platform: "darwin",
+		NodeKey:  "test_key",
+		Hostname: "test_hostname",
+		UUID:     "test_uuid",
+		TeamID:   nil,
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: false,
+			},
+		}, nil
+	}
+
+	ds.TeamFeaturesFunc = func(ctx context.Context, id uint) (*fleet.Features, error) {
+		switch id {
+		case uint(1):
+			return &team1.Config.Features, nil
+		case uint(2):
+			return &team2.Config.Features, nil
+		default:
+			return nil, errors.New("team not found")
+		}
+	}
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+
+	lq := live_query_mock.New(t)
+	lq.On("QueriesForHost", uint(1)).Return(map[string]string{}, nil)
+	lq.On("QueriesForHost", uint(2)).Return(map[string]string{}, nil)
+	lq.On("QueriesForHost", nil).Return(map[string]string{}, nil)
+
+	t.Run("free license", func(t *testing.T) {
+		license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+		svc := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
+
+		ctx := hostctx.NewContext(context.Background(), &host)
+		queries, _, _, err := svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 1 to host
+		host.TeamID = &team1.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 2 to host
+		host.TeamID = &team2.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+	})
+
+	t.Run("premium license", func(t *testing.T) {
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
+
+		host.TeamID = nil
+		ctx := hostctx.NewContext(context.Background(), &host)
+		queries, _, _, err := svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 1 to host
+		host.TeamID = &team1.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.Contains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 2 to host
+		host.TeamID = &team2.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.Contains(t, queries, "fleet_detail_query_software_macos")
+	})
 }
 
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
@@ -496,7 +709,7 @@ func TestGetDistributedQueriesMissingHost(t *testing.T) {
 func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -514,7 +727,7 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -528,7 +741,9 @@ func TestLabelQueries(t *testing.T) {
 	// should be turned on so that we can quickly fill labels)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// -3 expected queries due to removed disk space query (only 1 of 2 active for a given platform)
+	// and removed two Windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -618,7 +833,9 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+3)
+	// +3 for label queries, but -3 expected queries due to removed disk space query (only 1 of 2
+	// active for a given platform) and removed two Windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -655,7 +872,7 @@ func TestLabelQueries(t *testing.T) {
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -665,7 +882,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -686,7 +903,15 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries-2)
+	// -5 due to windows not having battery, mdm, munki_info and removed disk space query and
+	// operating system query (only 1 of 2 active for a given platform)
+	// -1 due to 'windows_update_history'
+	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)-1) {
+		// this is just to print the diff between the expected and actual query
+		// keys when the count assertion fails, to help debugging - they are not
+		// expected to match.
+		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+	}
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -838,7 +1063,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// somehow confusingly, the query response above changed the host's platform
+	// from windows to darwin, so now it has all expected queries except the
+	// extra disk space one and the two windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -846,7 +1074,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 func TestDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -858,7 +1086,7 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -872,7 +1100,7 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "hi.com", serverURL)
 		return nil
 	}
-	ds.SetOrUpdateMunkiVersionFunc = func(ctx context.Context, hostID uint, version string) error {
+	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
@@ -892,7 +1120,14 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries-1)
+	// -6 due to linux platform, so battery, mdm, and munki are missing, and the extra disk space
+	// query, and the two windows-specific operating system queries, then +1 due to software inventory being enabled.
+	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)) {
+		// this is just to print the diff between the expected and actual query
+		// keys when the count assertion fails, to help debugging - they are not
+		// expected to match.
+		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+	}
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -1071,7 +1306,7 @@ func TestDetailQueries(t *testing.T) {
 	require.NotNil(t, gotHost)
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-	require.True(t, ds.SetOrUpdateMunkiVersionFuncInvoked)
+	require.True(t, ds.SetOrUpdateMunkiInfoFuncInvoked)
 	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 
 	// osquery_info
@@ -1148,7 +1383,10 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+1)
+	// host platform changed to darwin, so -3 for the
+	// extra disk space query and the two windows-specific operating system query,
+	// +1 for the software inventory enabled.
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1158,12 +1396,12 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	rs := &mock.QueryResultStore{
+	rs := &mockresult.QueryResultStore{
 		HealthCheckFunc: func() error {
 			return nil
 		},
 	}
-	lq := &live_query.MockLiveQuery{}
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
@@ -1228,7 +1466,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
@@ -1256,7 +1494,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 
 	hostCtx := hostctx.NewContext(context.Background(), host)
@@ -1272,7 +1510,13 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries-1)
+	// -3 for the non-windows queries, +1 for the distributed query for campaign ID 42
+	if !assert.Equal(t, len(expectedDetailQueries)-3, len(queries)) {
+		// this is just to print the diff between the expected and actual query
+		// keys when the count assertion fails, to help debugging - they are not
+		// expected to match.
+		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+	}
 	verifyDiscovery(t, queries, discovery)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
@@ -1336,7 +1580,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1355,7 +1599,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1381,7 +1625,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1414,7 +1658,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1450,7 +1694,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1487,7 +1731,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1525,7 +1769,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1556,7 +1800,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1733,16 +1977,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 			assert.Equal(t, tt.updateIntervalsCalled, updateIntervalsCalled)
 		})
 	}
-}
-
-type notFoundError struct{}
-
-func (e notFoundError) Error() string {
-	return "not found"
-}
-
-func (e notFoundError) IsNotFound() bool {
-	return true
 }
 
 func TestAuthenticationErrors(t *testing.T) {
@@ -1944,12 +2178,12 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 
 func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds := new(mock.Store)
-	rs := &mock.QueryResultStore{
+	rs := &mockresult.QueryResultStore{
 		HealthCheckFunc: func() error {
 			return nil
 		},
 	}
-	lq := &live_query.MockLiveQuery{}
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
@@ -2017,12 +2251,12 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 
 func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds := new(mock.Store)
-	rs := &mock.QueryResultStore{
+	rs := &mockresult.QueryResultStore{
 		HealthCheckFunc: func() error {
 			return nil
 		},
 	}
-	lq := &live_query.MockLiveQuery{}
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
@@ -2076,7 +2310,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 func TestPolicyQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -2094,7 +2328,7 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -2116,7 +2350,9 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+2)
+	// all queries -3 for the extra disk space one and two windows-specific operating system queries,
+	// and +2 for the policy queries
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2172,7 +2408,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// all standard queries minus the extra disk space and two windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2181,7 +2418,9 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+2)
+	// all standard queries -3 (the extra disk space and two windows-specific operating system
+	// queries) and +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2209,7 +2448,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// all standard queries minus the extra disk space and two windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2218,7 +2458,9 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+2)
+	// all standard queries -3 (the extra disk space and two windows-specific operating system
+	// queries) and +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2248,7 +2490,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// all standard queries minus the extra disk space and two windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 }
@@ -2256,11 +2499,11 @@ func TestPolicyQueries(t *testing.T) {
 func TestPolicyWebhooks(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(t, ds, testConfig, nil, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, nil, lq, &TestServerOpts{
 		FailingPolicySet: failingPolicySet,
 		Clock:            mockClock,
 	})
@@ -2284,7 +2527,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{
+			Features: fleet.Features{
 				EnableHostUsers: true,
 			},
 			WebhookSettings: fleet.WebhookSettings{
@@ -2313,7 +2556,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+3)
+	// all queries -3 for extra disk space and two windows-specific operating system queries, +3 for policies
+	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2426,7 +2670,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// all standard queries minus the extra disk space and two windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2435,7 +2680,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries+3)
+	// all queries -3 for extra disk space and windows-specific operating system queries, +3 for policies
+	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2523,11 +2769,11 @@ func TestPolicyWebhooks(t *testing.T) {
 // want hosts to get queries and continue to check in.
 func TestLiveQueriesFailing(t *testing.T) {
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	cfg := config.TestConfig()
 	buf := new(bytes.Buffer)
 	logger := log.NewLogfmtLogger(buf)
-	svc := newTestServiceWithConfig(t, ds, cfg, nil, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, cfg, nil, lq, &TestServerOpts{
 		Logger: logger,
 	})
 
@@ -2548,7 +2794,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -2558,11 +2804,76 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, expectedDetailQueries)
+	// all standard queries minus the extra disk space and two windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
-	logs, err := ioutil.ReadAll(buf)
+	logs, err := io.ReadAll(buf)
 	require.NoError(t, err)
 	require.Contains(t, string(logs), "level=error")
 	require.Contains(t, string(logs), "failed to get queries for host")
+}
+
+// TestFleetDesktopOrbitInfo tests that the orbit_info table extension is
+// refetched for "orbitInfoRefetchAfterEnrollDur" after enroll.
+func TestFleetDesktopOrbitInfo(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	mockClock := clock.NewMockClock()
+	fleetConfig := config.TestConfig()
+	fleetConfig.Osquery.LabelUpdateInterval = 5 * time.Minute
+	fleetConfig.Osquery.PolicyUpdateInterval = 5 * time.Minute
+	fleetConfig.Osquery.DetailUpdateInterval = 5 * time.Minute
+	svc := newTestServiceWithConfig(t, ds, fleetConfig, nil, lq, &TestServerOpts{Clock: mockClock})
+
+	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
+
+	now := time.Now().UTC()
+	mockClock.SetTime(now)
+
+	host := &fleet.Host{
+		Platform: "darwin",
+		// Host has enrolled 30 seconds ago.
+		LastEnrolledAt: now.Add(-30 * time.Second),
+		// Host is up-to-date with details, labels and policies
+		// because update interval for each is 5m.
+		DetailUpdatedAt: now.Add(-5 * time.Second),
+		LabelUpdatedAt:  now.Add(-5 * time.Second),
+		PolicyUpdatedAt: now.Add(-5 * time.Second),
+	}
+
+	ctx := hostctx.NewContext(context.Background(), host)
+
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	verifyDiscovery(t, queries, discovery)
+	require.Contains(t, queries, "fleet_detail_query_orbit_info")
+
+	// Advance mock clock
+	mockClock.AddTime(orbitInfoRefetchAfterEnrollDur)
+	ctx = hostctx.NewContext(context.Background(), host)
+
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.Len(t, queries, 0)
+	require.Len(t, discovery, 0)
+}
+
+func distQueriesMapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, strings.TrimPrefix(k, "fleet_detail_query_"))
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func osqueryMapKeys(m map[string]osquery_utils.DetailQuery) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

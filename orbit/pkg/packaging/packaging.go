@@ -1,4 +1,7 @@
 // Package packaging provides tools for building Orbit installation packages.
+//
+// The functions exported by this package are not safe for concurrent use at
+// the moment.
 package packaging
 
 import (
@@ -60,6 +63,21 @@ type Options struct {
 	Desktop bool
 	// OrbitUpdateInterval is the interval that Orbit will use to check for updates.
 	OrbitUpdateInterval time.Duration
+	// LegacyVarLibSymlink indicates whether Orbit is legacy (< 0.0.11),
+	// which assumes it is installed under /var/lib.
+	LegacyVarLibSymlink bool
+	// Native tooling is used to determine if the package should be built
+	// natively instead of via Docker images.
+	NativeTooling bool
+	// MacOSDevIDCertificateContent is a string containing a PEM keypair used to
+	// sign a macOS package via NativeTooling
+	MacOSDevIDCertificateContent string
+	// AppStoreConnectAPIKeyID is the Appstore Connect API key provided by Apple
+	AppStoreConnectAPIKeyID string
+	// AppStoreConnectAPIKeyIssuer is the issuer of App Store API Key
+	AppStoreConnectAPIKeyIssuer string
+	// AppStoreConnectAPIKeyContent is the content of the App Store API Key
+	AppStoreConnectAPIKeyContent string
 }
 
 func initializeTempDir() (string, error) {
@@ -104,7 +122,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}
 	updateOpt.LocalStore = localStore
 
-	updater, err := update.New(updateOpt)
+	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init updater: %w", err)
 	}
@@ -160,10 +178,6 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
 			return nil, fmt.Errorf("failed to get orbit version: %w", err)
 		}
-	}
-
-	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
-		updater.CopyDevBuild("orbit", devBuildPath)
 	}
 
 	return &UpdatesData{

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	jira "github.com/andygrunwald/go-jira"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 )
 
@@ -35,10 +36,10 @@ type TestAutomationFailer struct {
 	callCounts int
 }
 
-// CreateIssue implements the JiraClient and introduces a forced failure if
+// CreateJiraIssue implements the JiraClient and introduces a forced failure if
 // required, otherwise it returns the result of calling
-// f.JiraClient.CreateIssue with the provided arguments.
-func (f *TestAutomationFailer) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+// f.JiraClient.CreateJiraIssue with the provided arguments.
+func (f *TestAutomationFailer) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
 	var testValue string
 	if issue.Fields != nil && issue.Fields.Summary != "" {
 		testValue = issue.Fields.Summary
@@ -46,17 +47,25 @@ func (f *TestAutomationFailer) CreateIssue(ctx context.Context, issue *jira.Issu
 	if err := f.forceErr(testValue); err != nil {
 		return nil, err
 	}
-	return f.JiraClient.CreateIssue(ctx, issue)
+	return f.JiraClient.CreateJiraIssue(ctx, issue)
 }
 
-// CreateTicket implements the ZendeskClient and introduces a forced failure if
+// CreateZendeskTicket implements the ZendeskClient and introduces a forced failure if
 // required, otherwise it returns the result of calling
-// f.ZendeskClient.CreateIssue with the provided arguments.
-func (f *TestAutomationFailer) CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
+// f.ZendeskClient.CreateZendeskTicket with the provided arguments.
+func (f *TestAutomationFailer) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
 	if err := f.forceErr(ticket.Subject); err != nil {
 		return nil, err
 	}
-	return f.ZendeskClient.CreateTicket(ctx, ticket)
+	return f.ZendeskClient.CreateZendeskTicket(ctx, ticket)
+}
+
+func (f *TestAutomationFailer) JiraConfigMatches(opts *externalsvc.JiraOptions) bool {
+	return f.JiraClient.JiraConfigMatches(opts)
+}
+
+func (f *TestAutomationFailer) ZendeskConfigMatches(opts *externalsvc.ZendeskOptions) bool {
+	return f.ZendeskClient.ZendeskConfigMatches(opts)
 }
 
 func (f *TestAutomationFailer) forceErr(testValue string) error {

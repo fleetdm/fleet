@@ -2,22 +2,30 @@ package main
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
@@ -133,7 +141,7 @@ func (n *nodeKeyManager) Add(nodekey string) {
 	n.l.Lock()
 	defer n.l.Unlock()
 
-	f, err := os.OpenFile(n.filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(n.filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		fmt.Println("error opening nodekey file:", err.Error())
 		return
@@ -145,17 +153,25 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type agent struct {
-	agentIndex     int
-	softwareCount  softwareEntityCount
-	userCount      entityCount
-	policyPassProb float64
-	strings        map[string]string
-	serverAddress  string
-	fastClient     fasthttp.Client
-	stats          *Stats
-	nodeKeyManager *nodeKeyManager
-	nodeKey        string
-	templates      *template.Template
+	agentIndex      int
+	softwareCount   softwareEntityCount
+	userCount       entityCount
+	policyPassProb  float64
+	munkiIssueProb  float64
+	munkiIssueCount int
+	strings         map[string]string
+	serverAddress   string
+	fastClient      fasthttp.Client
+	stats           *Stats
+	nodeKeyManager  *nodeKeyManager
+	nodeKey         string
+	templates       *template.Template
+	os              string
+	// deviceAuthToken holds Fleet Desktop device authentication token.
+	//
+	// Non-nil means the agent is identified as orbit osquery,
+	// nil means the agent is identified as vanilla osquery.
+	deviceAuthToken *string
 
 	scheduledQueries []string
 
@@ -184,21 +200,32 @@ func newAgent(
 	serverAddress, enrollSecret string, templates *template.Template,
 	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
+	orbitProb float64,
+	munkiIssueProb float64, munkiIssueCount int,
 ) *agent {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	transport.DisableCompression = true
+	var deviceAuthToken *string
+	if rand.Float64() <= orbitProb {
+		deviceAuthToken = ptr.String(uuid.NewString())
+	}
+	// #nosec (osquery-perf is only used for testing)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
 	return &agent{
-		agentIndex:     agentIndex,
-		serverAddress:  serverAddress,
-		softwareCount:  softwareCount,
-		userCount:      userCount,
-		strings:        make(map[string]string),
-		policyPassProb: policyPassProb,
+		agentIndex:      agentIndex,
+		serverAddress:   serverAddress,
+		softwareCount:   softwareCount,
+		userCount:       userCount,
+		strings:         make(map[string]string),
+		policyPassProb:  policyPassProb,
+		munkiIssueProb:  munkiIssueProb,
+		munkiIssueCount: munkiIssueCount,
 		fastClient: fasthttp.Client{
-			TLSConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSConfig: tlsConfig,
 		},
-		templates: templates,
+		templates:       templates,
+		deviceAuthToken: deviceAuthToken,
+		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
@@ -350,7 +377,7 @@ func (a *agent) config() {
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 
-func (a *agent) randomString(n int) string {
+func randomString(n int) string {
 	sb := strings.Builder{}
 	sb.Grow(n)
 	for i := 0; i < n; i++ {
@@ -363,32 +390,32 @@ func (a *agent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
 	}
-	val := a.randomString(12)
+	val := randomString(12)
 	a.strings[key] = val
 	return val
 }
 
-func (a *agent) HostUsersMacOS() []fleet.HostUser {
+func (a *agent) hostUsersMacOS() []map[string]string {
 	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
 	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
-	commonUsers := make([]fleet.HostUser, a.userCount.common)
+	commonUsers := make([]map[string]string, a.userCount.common)
 	for i := 0; i < len(commonUsers); i++ {
-		commonUsers[i] = fleet.HostUser{
-			Uid:       uint(i),
-			Username:  fmt.Sprintf("Common_%d", i),
-			Type:      "", // Empty for macOS.
-			GroupName: groupNames[i%len(groupNames)],
-			Shell:     shells[i%len(shells)],
+		commonUsers[i] = map[string]string{
+			"uid":       fmt.Sprint(i),
+			"username":  fmt.Sprintf("Common_%d", i),
+			"type":      "", // Empty for macOS.
+			"groupname": groupNames[i%len(groupNames)],
+			"shell":     shells[i%len(shells)],
 		}
 	}
-	uniqueUsers := make([]fleet.HostUser, a.userCount.unique)
+	uniqueUsers := make([]map[string]string, a.userCount.unique)
 	for i := 0; i < len(uniqueUsers); i++ {
-		uniqueUsers[i] = fleet.HostUser{
-			Uid:       uint(i),
-			Username:  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
-			Type:      "", // Empty for macOS.
-			GroupName: groupNames[i%len(groupNames)],
-			Shell:     shells[i%len(shells)],
+		uniqueUsers[i] = map[string]string{
+			"uid":       fmt.Sprint(i),
+			"username":  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			"type":      "", // Empty for macOS.
+			"groupname": groupNames[i%len(groupNames)],
+			"shell":     shells[i%len(shells)],
 		}
 	}
 	users := append(commonUsers, uniqueUsers...)
@@ -398,33 +425,158 @@ func (a *agent) HostUsersMacOS() []fleet.HostUser {
 	return users
 }
 
-func (a *agent) SoftwareMacOS() []fleet.Software {
+func extract(src, dst string) {
+	srcF, err := os.Open(src)
+	if err != nil {
+		panic(err)
+	}
+	defer srcF.Close()
+
+	dstF, err := os.Create(dst)
+	if err != nil {
+		panic(err)
+	}
+	defer dstF.Close()
+
+	r := bzip2.NewReader(srcF)
+	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
+	_, err = io.Copy(dstF, r) //nolint:gosec
+	if err != nil {
+		panic(err)
+	}
+}
+
+func loadSoftware(platform string, ver string) []map[string]string {
+	_, exFilename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("No caller information")
+	}
+	exDir := path.Dir(exFilename)
+
+	srcPath := filepath.Join(
+		exDir,
+		"..",
+		"..",
+		"server",
+		"vulnerabilities",
+		"testdata",
+		platform,
+		"software",
+		fmt.Sprintf("%s_%s-software.json.bz2", platform, ver),
+	)
+
+	tmpDir, err := ioutil.TempDir("", "osquery-perf")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	dstPath := filepath.Join(tmpDir, fmt.Sprintf("%s-software.json", ver))
+
+	extract(srcPath, dstPath)
+
+	type softwareJSON struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Release string `json:"release,omitempty"`
+		Arch    string `json:"arch,omitempty"`
+	}
+
+	var software []softwareJSON
+	contents, err := ioutil.ReadFile(dstPath)
+	if err != nil {
+		log.Printf("reading vuln software for %s %s: %s\n", platform, ver, err)
+		return nil
+	}
+
+	err = json.Unmarshal(contents, &software)
+	if err != nil {
+		log.Printf("unmarshalling vuln software for %s %s:%s", platform, ver, err)
+		return nil
+	}
+
+	var r []map[string]string
+	for _, fi := range software {
+		r = append(r, map[string]string{
+			"name":    fi.Name,
+			"version": fi.Version,
+			"source":  "osquery-perf",
+		})
+	}
+	return r
+}
+
+func (a *agent) softwareWindows11() []map[string]string {
+	return loadSoftware("windows", "11")
+}
+
+func (a *agent) softwareUbuntu1604() []map[string]string {
+	return loadSoftware("ubuntu", "1604")
+}
+
+func (a *agent) softwareUbuntu1804() []map[string]string {
+	return loadSoftware("ubuntu", "1804")
+}
+
+func (a *agent) softwareUbuntu2004() []map[string]string {
+	return loadSoftware("ubuntu", "2004")
+}
+
+func (a *agent) softwareUbuntu2104() []map[string]string {
+	return loadSoftware("ubuntu", "2104")
+}
+
+func (a *agent) softwareUbuntu2110() []map[string]string {
+	return loadSoftware("ubuntu", "2110")
+}
+
+func (a *agent) softwareUbuntu2204() []map[string]string {
+	return loadSoftware("ubuntu", "2204")
+}
+
+func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
-	commonSoftware := make([]fleet.Software, a.softwareCount.common)
+	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
-		commonSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Common_%d", i),
-			Version:          "0.0.1",
-			BundleIdentifier: "com.fleetdm.osquery-perf",
-			Source:           "osquery-perf",
-			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		commonSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Common_%d", i),
+			"version":           "0.0.1",
+			"bundle_identifier": "com.fleetdm.osquery-perf",
+			"source":            "osquery-perf",
+			"last_opened_at":    lastOpenedAt,
 		}
 	}
-	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
+	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
-		uniqueSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
-			Version:          "1.1.1",
-			BundleIdentifier: "com.fleetdm.osquery-perf",
-			Source:           "osquery-perf",
-			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		uniqueSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           "1.1.1",
+			"bundle_identifier": "com.fleetdm.osquery-perf",
+			"source":            "osquery-perf",
+			"last_opened_at":    lastOpenedAt,
 		}
 	}
-	randomVulnerableSoftware := make([]fleet.Software, a.softwareCount.vulnerable)
+	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
 		sw := vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
-		sw.LastOpenedAt = a.genLastOpenedAt(&lastOpenedCount)
-		randomVulnerableSoftware[i] = sw
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		randomVulnerableSoftware[i] = map[string]string{
+			"name":              sw.Name,
+			"version":           sw.Version,
+			"bundle_identifier": sw.BundleIdentifier,
+			"source":            sw.Source,
+			"last_opened_at":    lastOpenedAt,
+		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
@@ -502,7 +654,31 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
+func (a *agent) orbitInfo() (bool, []map[string]string) {
+	if a.deviceAuthToken != nil {
+		return true, []map[string]string{
+			{"device_auth_token": *a.deviceAuthToken, "version": "osquery-perf"},
+		}
+	}
+	return false, nil // vanilla osquery returns no results (due to discovery query).
+}
+
 func (a *agent) mdm() []map[string]string {
+	possibleURLs := []string{
+		"https://kandji.com/1",
+		"https://jamf.com/1",
+		"https://airwatch.com/1",
+		"https://microsoft.com/1",
+		"https://simplemdm.com/1",
+		"https://example.com/1",
+		"https://kandji.com/2",
+		"https://jamf.com/2",
+		"https://airwatch.com/2",
+		"https://microsoft.com/2",
+		"https://simplemdm.com/2",
+		"https://example.com/2",
+	}
+
 	enrolled := "true"
 	if rand.Intn(2) == 1 {
 		enrolled = "false"
@@ -511,14 +687,48 @@ func (a *agent) mdm() []map[string]string {
 	if rand.Intn(2) == 1 {
 		installedFromDep = "false"
 	}
+	ix := rand.Intn(len(possibleURLs))
 	return []map[string]string{
-		{"enrolled": enrolled, "server_url": "http://some.url/mdm", "installed_from_dep": installedFromDep},
+		{"enrolled": enrolled, "server_url": possibleURLs[ix], "installed_from_dep": installedFromDep},
 	}
 }
 
+var munkiIssues = func() []string {
+	// generate a list of random munki issues (messages)
+	issues := make([]string, 1000)
+	for i := range issues {
+		// message size: between 60 and 200, with spaces between each 10-char word so
+		// that it can still make a bit of sense for UI tests.
+		numParts := rand.Intn(15) + 6 // number between 0-14, add 6 to get between 6-20
+		var sb strings.Builder
+		for j := 0; j < numParts; j++ {
+			if j > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(randomString(10))
+		}
+		issues[i] = sb.String()
+	}
+	return issues
+}()
+
 func (a *agent) munkiInfo() []map[string]string {
+	var errors, warnings []string
+
+	if rand.Float64() <= a.munkiIssueProb {
+		for i := 0; i < a.munkiIssueCount; i++ {
+			if rand.Intn(2) == 1 {
+				errors = append(errors, munkiIssues[rand.Intn(len(munkiIssues))])
+			} else {
+				warnings = append(warnings, munkiIssues[rand.Intn(len(munkiIssues))])
+			}
+		}
+	}
+
+	errList := strings.Join(errors, ";")
+	warnList := strings.Join(warnings, ";")
 	return []map[string]string{
-		{"version": "1.2.3"},
+		{"version": "1.2.3", "errors": errList, "warnings": warnList},
 	}
 }
 
@@ -539,60 +749,145 @@ func (a *agent) googleChromeProfiles() []map[string]string {
 	return result
 }
 
-func (a *agent) DistributedWrite(queries map[string]string) {
-	r := service.SubmitDistributedQueryResultsRequest{
-		Results:  make(fleet.OsqueryDistributedQueryResults),
-		Statuses: make(map[string]fleet.OsqueryStatus),
+func (a *agent) batteries() []map[string]string {
+	count := rand.Intn(3) // return between 0 and 2 batteries
+	result := make([]map[string]string, count)
+	for i := range result {
+		health := "Good"
+		cycleCount := rand.Intn(2000)
+		switch {
+		case cycleCount > 1500:
+			health = "Poor"
+		case cycleCount > 1000:
+			health = "Fair"
+		}
+		result[i] = map[string]string{
+			"serial_number": fmt.Sprintf("%04d", i),
+			"cycle_count":   strconv.Itoa(cycleCount),
+			"health":        health,
+		}
 	}
-	r.NodeKey = a.nodeKey
-	const hostPolicyQueryPrefix = "fleet_policy_query_"
-	const hostDetailQueryPrefix = "fleet_detail_query_"
-	for name := range queries {
-		r.Results[name] = defaultQueryResult
-		r.Statuses[name] = fleet.StatusOK
-		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
-			r.Results[name] = a.runPolicy(queries[name])
-			continue
+	return result
+}
+
+func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
+	const (
+		hostPolicyQueryPrefix = "fleet_policy_query_"
+		hostDetailQueryPrefix = "fleet_detail_query_"
+	)
+	statusOK := fleet.StatusOK
+
+	switch {
+	case strings.HasPrefix(name, hostPolicyQueryPrefix):
+		return true, a.runPolicy(query), &statusOK
+	case name == hostDetailQueryPrefix+"scheduled_query_stats":
+		return true, a.randomQueryStats(), &statusOK
+	case name == hostDetailQueryPrefix+"orbit_info":
+		if ok, results := a.orbitInfo(); ok {
+			return true, results, &statusOK
 		}
-		if name == hostDetailQueryPrefix+"scheduled_query_stats" {
-			r.Results[name] = a.randomQueryStats()
-			continue
+		return true, nil, nil
+	case name == hostDetailQueryPrefix+"mdm":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.mdm()
 		}
-		if name == hostDetailQueryPrefix+"mdm" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
-			r.Results[name] = nil
-			if r.Statuses[name] == fleet.StatusOK {
-				r.Results[name] = a.mdm()
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"munki_info":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.munkiInfo()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"google_chrome_profiles":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.googleChromeProfiles()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"battery":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.batteries()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"users":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.hostUsersMacOS()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_macos":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.softwareMacOS()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.softwareWindows11()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_linux":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			switch a.os {
+			case "ubuntu_16.04":
+				results = a.softwareUbuntu1604()
+			case "ubuntu_18.04":
+				results = a.softwareUbuntu1804()
+			case "ubuntu_20.04":
+				results = a.softwareUbuntu2004()
+			case "ubuntu_21.04":
+				results = a.softwareUbuntu2104()
+			case "ubuntu_21.10":
+				results = a.softwareUbuntu2110()
+			case "ubuntu_22.04":
+				results = a.softwareUbuntu2204()
 			}
 		}
-		if name == hostDetailQueryPrefix+"munki_info" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
-			r.Results[name] = nil
-			if r.Statuses[name] == fleet.StatusOK {
-				r.Results[name] = a.munkiInfo()
-			}
-		}
-		if name == hostDetailQueryPrefix+"google_chrome_profiles" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
-			r.Results[name] = nil
-			if r.Statuses[name] == fleet.StatusOK {
-				r.Results[name] = a.googleChromeProfiles()
-			}
-		}
+		return true, results, &ss
+	default:
+		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
-			continue
+			return false, nil, nil
 		}
 		var ni bytes.Buffer
 		err := a.templates.ExecuteTemplate(&ni, name, a)
 		if err != nil {
 			panic(err)
 		}
-		var m []map[string]string
-		err = json.Unmarshal(ni.Bytes(), &m)
+		err = json.Unmarshal(ni.Bytes(), &results)
 		if err != nil {
 			panic(err)
 		}
-		r.Results[name] = m
+
+		return true, results, &statusOK
+	}
+}
+
+func (a *agent) DistributedWrite(queries map[string]string) {
+	r := service.SubmitDistributedQueryResultsRequest{
+		Results:  make(fleet.OsqueryDistributedQueryResults),
+		Statuses: make(map[string]fleet.OsqueryStatus),
+	}
+	r.NodeKey = a.nodeKey
+	for name, query := range queries {
+		handled, results, status := a.processQuery(name, query)
+		if !handled {
+			// If osquery-perf does not handle the incoming query,
+			// always return status OK and the default query result.
+			r.Results[name] = defaultQueryResult
+			r.Statuses[name] = fleet.StatusOK
+		} else {
+			if results != nil {
+				r.Results[name] = results
+			}
+			if status != nil {
+				r.Statuses[name] = *status
+			}
+		}
 	}
 	body, err := json.Marshal(r)
 	if err != nil {
@@ -634,15 +929,37 @@ func main() {
 	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
+	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
+	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
 	flag.Parse()
 
 	rand.Seed(*randSeed)
 
-	// Currently all hosts will be macOS.
-	tmpl, err := template.ParseFS(templatesFS, "mac10.14.6.tmpl")
-	if err != nil {
-		log.Fatal("parse templates: ", err)
+	templateNames := []string{
+		"mac10.14.6.tmpl",
+
+		// Uncomment this to add windows hosts
+		// "windows_11.tmpl",
+
+		// Uncomment this to add ubuntu hosts with vulnerable software
+		// "partial_ubuntu.tmpl",
+		// "ubuntu_16.04.tmpl",
+		// "ubuntu_18.04.tmpl",
+		// "ubuntu_20.04.tmpl",
+		// "ubuntu_21.04.tmpl",
+		// "ubuntu_21.10.tmpl",
+		// "ubuntu_22.04.tmpl",
+	}
+
+	var tmpls []*template.Template
+	for _, t := range templateNames {
+		tmpl, err := template.ParseFS(templatesFS, t)
+		if err != nil {
+			log.Fatal("parse templates: ", err)
+		}
+		tmpls = append(tmpls, tmpl)
 	}
 
 	// Spread starts over the interval to prevent thundering herd
@@ -658,18 +975,28 @@ func main() {
 	}
 
 	for i := 0; i < *hostCount; i++ {
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, softwareEntityCount{
-			entityCount: entityCount{
-				common: *commonSoftwareCount,
-				unique: *uniqueSoftwareCount,
+		tmpl := tmpls[i%len(tmpls)]
+		if strings.HasPrefix(tmpl.Name(), "partial") {
+			continue
+		}
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
+			softwareEntityCount{
+				entityCount: entityCount{
+					common: *commonSoftwareCount,
+					unique: *uniqueSoftwareCount,
+				},
+				vulnerable:     *vulnerableSoftwareCount,
+				withLastOpened: *withLastOpenedSoftwareCount,
+				lastOpenedProb: *lastOpenedChangeProb,
+			}, entityCount{
+				common: *commonUserCount,
+				unique: *uniqueUserCount,
 			},
-			vulnerable:     *vulnerableSoftwareCount,
-			withLastOpened: *withLastOpenedSoftwareCount,
-			lastOpenedProb: *lastOpenedChangeProb,
-		}, entityCount{
-			common: *commonUserCount,
-			unique: *uniqueUserCount,
-		}, *policyPassProb)
+			*policyPassProb,
+			*orbitProb,
+			*munkiIssueProb,
+			*munkiIssueCount,
+		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
 		go a.runLoop(i, onlyAlreadyEnrolled != nil && *onlyAlreadyEnrolled)

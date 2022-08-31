@@ -98,6 +98,13 @@ type Label struct {
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
 }
 
+type LabelSummary struct {
+	ID          uint      `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	LabelType   LabelType `json:"label_type" db:"label_type"`
+}
+
 func (l Label) AuthzType() string {
 	return "label"
 }

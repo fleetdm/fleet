@@ -8,10 +8,18 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,16 +33,32 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
+	redisPool fleet.RedisPool
+
+	lq *live_query_mock.MockLiveQuery
 }
 
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	users, server := RunServerForTestsWithDS(
-		s.T(), s.ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	s.lq = live_query_mock.New(s.T())
+	config := TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Pool: s.redisPool,
+		Lq:   s.lq,
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
+}
+
+func (s *integrationEnterpriseTestSuite) TearDownTest() {
+	// reset the mock
+	s.lq.Mock = mock.Mock{}
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
@@ -49,16 +73,31 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
-	// updates a team
+	// updates a team, no secret is provided so it will keep the one generated
+	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	features := fleet.Features{
+		EnableHostUsers:         false,
+		EnableSoftwareInventory: false,
+		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+	}
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts, Features: &features}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 
-	assert.Len(t, team.Secrets, 0)
+	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
+	require.Equal(t, features, team.Config.Features)
+
+	// an activity was created for team spec applied
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
@@ -78,10 +117,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
-	assert.Len(t, team.Secrets, 0)
+	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
+	require.Equal(t, appConfig.Features, team.Config.Features)
+
+	// an activity was created for the newly created team via the applied spec
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
@@ -161,7 +210,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 		s.token = oldToken
 	})
 
-	password := "garbage"
+	password := test.GoodPassword
 	email := "testteam@user.com"
 
 	u := &fleet.User{
@@ -271,7 +320,7 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 		Email:      "available@example.com",
 		GlobalRole: ptr.String("observer"),
 	}
-	err = user.SetPassword("foobar123#", 10, 10)
+	err = user.SetPassword(test.GoodPassword, 10, 10)
 	require.Nil(t, err)
 	user, err = s.ds.NewUser(context.Background(), user)
 	require.Nil(t, err)
@@ -349,12 +398,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
 	require.Len(t, listResp.Teams, 1)
 	assert.Equal(t, team.Name, listResp.Teams[0].Name)
+	assert.NotNil(t, listResp.Teams[0].Config.AgentOptions)
 	tm1ID := listResp.Teams[0].ID
 
 	// get team
 	var getResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, team.Name, getResp.Team.Name)
+	assert.NotNil(t, getResp.Team.Config.AgentOptions)
 
 	// modify team
 	team.Description = "Alt " + team.Description
@@ -381,7 +432,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Email:      "user@example.com",
 		GlobalRole: ptr.String("observer"),
 	}
-	require.NoError(t, user.SetPassword("foobar123#", 10, 10))
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
 	user, err := s.ds.NewUser(context.Background(), user)
 	require.NoError(t, err)
 
@@ -432,6 +483,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.NoError(t, json.Unmarshal(*tmResp.Team.Config.AgentOptions, &m))
 	assert.Equal(t, opts, m)
 
+	// list activities, it should have created one for edited_agent_options
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), string(*listActivities.Activities[0].Details))
+
 	// modify team agent options - unknown team
 	tmResp.Team = nil
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID+1), opts, http.StatusNotFound, &tmResp)
@@ -454,4 +513,844 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// delete team again, now an unknown team
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusNotFound, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
+	t := s.T()
+
+	// create a test http server to act as the Jira and Zendesk server
+	srvURL := startExternalServiceWebServer(t)
+
+	// create a new team
+	team := &fleet.Team{
+		Name:        t.Name(),
+		Description: "Team description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "XYZ"}},
+	}
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &tmResp)
+	require.Equal(t, team.Name, tmResp.Team.Name)
+	require.Len(t, tmResp.Team.Secrets, 1)
+	require.Equal(t, "XYZ", tmResp.Team.Secrets[0].Secret)
+	team.ID = tmResp.Team.ID
+
+	// modify the team's config - enable the webhook
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusOK, &tmResp)
+	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	// add an unknown automation - does not exist at the global level
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Jira: []*fleet.TeamJiraIntegration{
+			{
+				URL:                   srvURL,
+				ProjectKey:            "qux",
+				EnableFailingPolicies: false,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a couple Jira integrations at the global level (qux and qux2)
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// enable an automation - should fail as the webhook is enabled too
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Jira: []*fleet.TeamJiraIntegration{
+			{
+				URL:                   srvURL,
+				ProjectKey:            "qux",
+				EnableFailingPolicies: true,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// get the team, no integration was saved
+	var getResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 0)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
+
+	// disable the webhook and enable the automation
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         false,
+				DestinationURL: "http://example.com",
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+
+	// enable the webhook without changing the integration should fail (an integration is already enabled)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a second, disabled Jira integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux2",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 2)
+	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.Equal(t, "qux2", tmResp.Team.Config.Integrations.Jira[1].ProjectKey)
+
+	// enabling the second without disabling the first fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux2",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// updating to use the same project key fails (must be unique)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// remove second integration, disable first so that nothing is enabled now
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// enable the webhook now works
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusOK, &tmResp)
+
+	// set environmental varible to use Zendesk test client
+	t.Setenv("TEST_ZENDESK_CLIENT", "true")
+
+	// add an unknown automation - does not exist at the global level
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Zendesk: []*fleet.TeamZendeskIntegration{
+			{
+				URL:                   srvURL,
+				GroupID:               122,
+				EnableFailingPolicies: false,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a couple Zendesk integrations at the global level (122 and 123), keep the jira ones too
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "a@b.c",
+					"api_token": "ok",
+					"group_id": 122
+				},
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// enable a Zendesk automation - should fail as the webhook is enabled too
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Zendesk: []*fleet.TeamZendeskIntegration{
+			{
+				URL:                   srvURL,
+				GroupID:               122,
+				EnableFailingPolicies: true,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// disable the webhook and enable the automation
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         false,
+				DestinationURL: "http://example.com",
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
+
+	// enable the webhook without changing the integration should fail (an integration is already enabled)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a second, disabled Zendesk integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
+	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.Equal(t, int64(123), tmResp.Team.Config.Integrations.Zendesk[1].GroupID)
+
+	// enabling the second without disabling the first fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// updating to use the same group ID fails (must be unique per group ID)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// remove second Zendesk integration, add disabled Jira integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
+
+	// enabling a Jira integration when a Zendesk one is enabled fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// set additional integrations on the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// removing Zendesk 122 from the global config removes it from the team too
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// get the team, only one Zendesk integration remains, none are enabled
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.False(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
+
+	// removing Jira qux2 from the global config does not impact the team as it is unused.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// get the team, integrations are unchanged
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.False(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
+
+	// enable Jira qux for the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// removing Zendesk 123 from the global config removes it from the team but
+	// leaves the Jira integration enabled.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.True(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
+
+	// remove all integrations on exit, so that other tests can enable the
+	// webhook as needed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{},
+			Jira:    []*fleet.TeamJiraIntegration{},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 0)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 0)
+	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"integrations": {}
+	}`), http.StatusOK)
+}
+
+func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
+	t := s.T()
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          51,
+		Name:        "team1-policies",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// create an auth token for host
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "TestQueryEnterpriseGlobalPolicy",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+	})
+	require.NoError(t, err)
+
+	// add a global policy
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+
+	// add a policy to team
+	oldToken := s.token
+	t.Cleanup(func() {
+		s.token = oldToken
+	})
+
+	password := test.GoodPassword
+	email := "test_enterprise_policies@user.com"
+
+	u := &fleet.User{
+		Name:       "test team user",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team,
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(email, password)
+	tpParams := teamPolicyRequest{
+		Name:        "TestQueryEnterpriseTeamPolicy",
+		Query:       "select * from osquery;",
+		Description: "Some description",
+		Resolution:  "some team resolution",
+		Platform:    "darwin",
+	}
+	tpResp := teamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
+
+	// try with invalid token
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// GET `/api/_version_/fleet/device/{token}/policies`
+	listDevicePoliciesResp := listDevicePoliciesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	res.Body.Close()
+	require.Len(t, listDevicePoliciesResp.Policies, 2)
+	require.NoError(t, listDevicePoliciesResp.Err)
+
+	// GET `/api/_version_/fleet/device/{token}`
+	getDeviceHostResp := getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	res.Body.Close()
+	require.NoError(t, getDeviceHostResp.Err)
+	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
+	require.False(t, getDeviceHostResp.Host.RefetchRequested)
+	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+}
+
+// TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
+func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// create device token for host
+	token := "token_test_custom_transparency_url"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+
+	// confirm intitial default url
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// confirm device endpoint returns initial default url
+	deviceResp := &transparencyURLResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+
+	// set custom url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "customURL", acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns custom url
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, "customURL", rawResp.Header.Get("Location"))
+
+	// empty string applies default url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns default url
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	config := fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:             true,
+			EntityID:              "https://localhost:8080",
+			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			IDPName:               "SimpleSAML",
+			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			EnableJITProvisioning: false,
+		},
+	}
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// users can't be created if SSO is disabled
+	auth, body := s.LoginSSOUser("sso_user", "user123#")
+	require.Contains(t, body, "/login?status=account_invalid")
+	// ensure theresn't a user in the DB
+	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// enable JIT provisioning
+	config.SSOSettings.EnableJITProvisioning = true
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// a new user is created and redirected accordingly
+	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	// a successful redirect has this content
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user.Email)
+
+	// a new activity item is created
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.NotEmpty(t, activitiesResp.Activities)
+	require.Condition(t, func() bool {
+		for _, a := range activitiesResp.Activities {
+			if *a.ActorEmail == auth.UserID() && a.Type == fleet.ActivityTypeUserAddedBySSO {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
+	t := s.T()
+
+	// Global config has both features enabled
+	spec := []byte(`
+  features:
+    additional_queries: null
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+	s.applyConfig(spec)
+
+	// Team config has only additional queries enabled
+	a := json.RawMessage(`{"time": "SELECT * FROM time"}`)
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          8324,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: false,
+				AdditionalQueries:       &a,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// Create a host without a team
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "select 1 from osquery;"}, nil)
+
+	// ensure we can read distributed queries for the host
+	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	// get distributed queries for the host
+	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.NotContains(t, dqResp.Queries, "fleet_additional_query_time")
+
+	// add the host to team1
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	dqResp = getDistributedQueriesResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
 }

@@ -547,7 +547,7 @@ func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform str
 	if teamID != nil {
 		err := ds.AddHostsToTeam(context.Background(), teamID, []uint{host.ID})
 		require.NoError(t, err)
-		host, err = ds.Host(context.Background(), host.ID, false)
+		host, err = ds.Host(context.Background(), host.ID)
 		require.NoError(t, err)
 	}
 	return host
@@ -785,7 +785,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-	host1, err = ds.Host(context.Background(), host1.ID, false)
+	host1, err = ds.Host(context.Background(), host1.ID)
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -940,9 +940,11 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
+	host2, err := ds.EnrollHost(context.Background(), "2", "2", &team1.ID, 0)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-	host1, err = ds.Host(context.Background(), host1.ID, false)
+	host1, err = ds.Host(context.Background(), host1.ID)
 	require.NoError(t, err)
 
 	tq, err := ds.NewQuery(context.Background(), &fleet.Query{
@@ -971,6 +973,8 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 
 	checkPassingCount := func(expectedCount uint) {
 		policies, err := ds.ListTeamPolicies(context.Background(), team1.ID)
@@ -982,17 +986,34 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		policies, err = ds.ListGlobalPolicies(context.Background())
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
-		assert.Equal(t, uint(1), policies[0].PassingHostCount)
+		assert.Equal(t, uint(2), policies[0].PassingHostCount)
 
 		policies, err = ds.ListTeamPolicies(context.Background(), team2.ID)
 		require.NoError(t, err)
 		require.Len(t, policies, 0)
 	}
 
+	checkPassingCount(2)
+
+	// team policies are removed when AddHostsToTeam is called
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), ptr.Uint(team2.ID), []uint{host1.ID}))
 	checkPassingCount(1)
 
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), ptr.Uint(team2.ID), []uint{host1.ID}))
+	// team policies are not removed when a host is enrolled in the same team
+	_, err = ds.EnrollHost(context.Background(), "2", "2", &team1.ID, 0)
+	require.NoError(t, err)
+	checkPassingCount(1)
 
+	// team policies are removed if the host is enrolled in a different team
+	_, err = ds.EnrollHost(context.Background(), "2", "2", &team2.ID, 0)
+	require.NoError(t, err)
+	checkPassingCount(0)
+
+	// team policies are removed if the host is re-enrolled without a team
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	checkPassingCount(1)
+	_, err = ds.EnrollHost(context.Background(), "2", "2", nil, 0)
+	require.NoError(t, err)
 	checkPassingCount(0)
 }
 

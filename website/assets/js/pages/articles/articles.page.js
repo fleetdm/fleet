@@ -41,15 +41,23 @@ parasails.registerPage('articles', {
           break;
         case 'guides':
           this.articleCategory = 'Guides';
-          this.categoryDescription = 'Learn more about how to deploy and use Fleet.';
+          this.categoryDescription = 'Learn more about how to use Fleet to accomplish your goals.';
           break;
         case 'announcements':
           this.articleCategory = 'Announcements';
           this.categoryDescription = 'The latest news from Fleet.';
           break;
-        case 'use-cases':
-          this.articleCategory = 'Product';
-          this.categoryDescription = 'Learn how you can use Fleet to accomplish your goals.';
+        case 'deploy':
+          this.articleCategory = 'Deployment guides';
+          this.categoryDescription = 'Learn more about how to deploy Fleet.';
+          break;
+        case 'podcasts':
+          this.articleCategory = 'Podcasts';
+          this.categoryDescription = 'Listen to the Future of Device Management podcast';
+          break;
+        case 'report':
+          this.articleCategory = 'Reports';
+          this.categoryDescription = '';
           break;
       }
     }
@@ -73,7 +81,7 @@ parasails.registerPage('articles', {
         if (a.meta['publishedOn'] > b.meta['publishedOn']) {
           return -1;
         }
-        if ( b.meta['publishedOn'] < a.meta['publishedOn']){
+        if (b.meta['publishedOn'] > a.meta['publishedOn']){
           return 1;
         }
       });

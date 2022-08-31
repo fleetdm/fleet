@@ -11,7 +11,7 @@ create_user_endpoint="api/latest/fleet/users/admin"
 data='{
   "name": "Anna",
   "email": "anna@organization.com",
-  "password": "user123#",
+  "password": "password123#",
   "invited_by": 1,
   "global_role": "admin",
   "admin_forced_password_reset": false
@@ -22,7 +22,7 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 data='{
   "name": "Mary",
   "email": "mary@organization.com",
-  "password": "user123#",
+  "password": "password123#",
   "invited_by": 1,
   "global_role": "maintainer",
   "admin_forced_password_reset": false
@@ -33,7 +33,7 @@ curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_
 data='{
   "name": "Oliver",
   "email": "oliver@organization.com",
-  "password": "user123#",
+  "password": "password123#",
   "invited_by": 1,
   "global_role": "observer",
   "admin_forced_password_reset": false

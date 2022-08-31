@@ -1,0 +1,19 @@
+---
+- docker_container:
+    name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.15.2
+    env:
+      bootstrap.memory_lock: "true"
+      cluster.name: docker-cluster
+      cluster.routing.allocation.disk.threshold_enabled: "false"
+      discovery.type: single-node
+      ES_JAVA_OPTS: -XX:UseAVX=2 -Xms2g -Xmx4g
+    ulimits:
+      - "memlock:-1:-1"
+    volumes:
+      - "esdata:/usr/share/elasticsearch/data"
+    network_mode: host
+    healthcheck:
+      interval: 20s
+      retries: 10
+      test: curl -s http://localhost:9200/_cluster/health | grep -vq '"status":"red"'

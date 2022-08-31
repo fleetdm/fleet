@@ -23,12 +23,14 @@ import (
 
 func main() {
 	var (
-		zendeskURL     = flag.String("zendesk-url", "", "The Zendesk instance URL")
-		zendeskEmail   = flag.String("zendesk-email", "", "The Zendesk email")
-		zendeskGroupID = flag.Int64("zendesk-group-id", 0, "The Zendesk group id")
-		fleetURL       = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
-		cve            = flag.String("cve", "", "The CVE to create a Zendesk issue for")
-		hostsCount     = flag.Int("hosts-count", 1, "The number of hosts to match the CVE")
+		zendeskURL          = flag.String("zendesk-url", "", "The Zendesk instance URL")
+		zendeskEmail        = flag.String("zendesk-email", "", "The Zendesk email")
+		zendeskGroupID      = flag.Int64("zendesk-group-id", 0, "The Zendesk group id")
+		fleetURL            = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
+		cve                 = flag.String("cve", "", "The CVE to create a Zendesk issue for")
+		hostsCount          = flag.Int("hosts-count", 1, "The number of hosts to match the CVE or failing policy")
+		failingPolicyID     = flag.Int("failing-policy-id", 0, "The failing policy ID")
+		failingPolicyTeamID = flag.Int("failing-policy-team-id", 0, "The Team ID of the failing policy")
 	)
 
 	flag.Parse()
@@ -45,8 +47,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "-zendesk-project-key is required")
 		os.Exit(1)
 	}
-	if *cve == "" {
-		fmt.Fprintf(os.Stderr, "-cve is required")
+	if *cve == "" && *failingPolicyID == 0 {
+		fmt.Fprintf(os.Stderr, "one of -cve or -failing-policy-id is required")
+		os.Exit(1)
+	}
+	if *cve != "" && *failingPolicyID != 0 {
+		fmt.Fprintf(os.Stderr, "only one of -cve or -failing-policy-id is allowed")
 		os.Exit(1)
 	}
 	if *hostsCount <= 0 {
@@ -62,16 +68,6 @@ func main() {
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
-	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
-		URL:      *zendeskURL,
-		Email:    *zendeskEmail,
-		APIToken: zendeskToken,
-		GroupID:  *zendeskGroupID,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	ds := new(mock.Store)
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
 		hosts := make([]*fleet.HostShort, *hostsCount)
@@ -80,18 +76,68 @@ func main() {
 		}
 		return hosts, nil
 	}
-
-	zendesk := &worker.Zendesk{
-		FleetURL:      *fleetURL,
-		Datastore:     ds,
-		Log:           logger,
-		ZendeskClient: client,
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			Integrations: fleet.Integrations{
+				Zendesk: []*fleet.ZendeskIntegration{
+					{
+						EnableSoftwareVulnerabilities: *cve != "",
+						URL:                           *zendeskURL,
+						Email:                         *zendeskEmail,
+						APIToken:                      zendeskToken,
+						GroupID:                       *zendeskGroupID,
+						EnableFailingPolicies:         *failingPolicyID > 0,
+					},
+				},
+			},
+		}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:   tid,
+			Name: fmt.Sprintf("team-test-%d", tid),
+			Config: fleet.TeamConfig{
+				Integrations: fleet.TeamIntegrations{
+					Zendesk: []*fleet.TeamZendeskIntegration{
+						{
+							URL:                   *zendeskURL,
+							GroupID:               *zendeskGroupID,
+							EnableFailingPolicies: *failingPolicyID > 0,
+						},
+					},
+				},
+			},
+		}, nil
 	}
 
-	argsJSON := json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))
+	zendesk := &worker.Zendesk{
+		FleetURL:  *fleetURL,
+		Datastore: ds,
+		Log:       logger,
+		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (worker.ZendeskClient, error) {
+			return externalsvc.NewZendeskClient(opts)
+		},
+	}
 
-	err = zendesk.Run(context.Background(), argsJSON)
-	if err != nil {
+	var argsJSON json.RawMessage
+	if *cve != "" {
+		argsJSON = json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))
+	} else if *failingPolicyID > 0 {
+		jsonStr := fmt.Sprintf(`{"failing_policy":{"policy_id": %d, "policy_name": "test-policy-%[1]d", `, *failingPolicyID)
+		if *failingPolicyTeamID > 0 {
+			jsonStr += fmt.Sprintf(`"team_id":%d, `, *failingPolicyTeamID)
+		}
+		jsonStr += `"hosts": `
+		hosts := make([]fleet.PolicySetHost, 0, *hostsCount)
+		for i := 1; i <= *hostsCount; i++ {
+			hosts = append(hosts, fleet.PolicySetHost{ID: uint(i), Hostname: fmt.Sprintf("host-test-%d", i)})
+		}
+		b, _ := json.Marshal(hosts)
+		jsonStr += string(b) + "}}"
+		argsJSON = json.RawMessage(jsonStr)
+	}
+
+	if err := zendesk.Run(context.Background(), argsJSON); err != nil {
 		log.Fatal(err)
 	}
 }

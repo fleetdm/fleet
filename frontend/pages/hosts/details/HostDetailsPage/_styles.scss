@@ -1,18 +1,9 @@
 .host-details {
-  display: flex;
-  flex-wrap: wrap;
-  flex-grow: 1;
-  align-content: flex-start;
-  padding-bottom: 50px;
-  min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-medium;
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
+  &__wrapper {
+    display: grid;
+    gap: 1rem;
   }
 
   .header {
@@ -70,26 +61,6 @@
             }
           }
         }
-      }
-
-      &__disk-space {
-        display: inline-block;
-        height: 4px;
-        width: 50px;
-        background-color: $ui-fleet-blue-15;
-        border-radius: 2px;
-        margin-right: $pad-small;
-        overflow: hidden;
-      }
-
-      &__disk-space-used {
-        background-color: $ui-success;
-        height: 100%;
-      }
-
-      &__disk-space-warning {
-        background-color: $ui-warning;
-        height: 100%;
       }
 
       &__header {
@@ -193,7 +164,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        cursor: default;
         font-size: $x-small;
         height: 38px;
         margin-right: $pad-small;
@@ -206,18 +176,10 @@
           transform: scale(0.5);
           height: 28px;
         }
-
-        &:hover {
-          cursor: pointer;
-        }
       }
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: default;
-        }
       }
 
       .refetch-spinner {
@@ -259,6 +221,7 @@
     .react-tabs__tab {
       padding: 6px 0px 16px 0px;
       margin-right: $pad-xxlarge;
+      display: inline-block;
     }
 
     .react-tabs__tab--selected {
@@ -335,8 +298,7 @@
       }
     }
 
-    &--offline,
-    &--mia {
+    &--offline {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -346,10 +308,6 @@
         margin-right: $pad-small;
         width: 8px;
       }
-    }
-
-    &--mia {
-      text-transform: uppercase;
     }
   }
 
@@ -386,11 +344,7 @@
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__query-button,
-  &__transfer-button {
-    margin-right: $pad-large;
+    gap: $pad-large;
   }
 
   &__back-link {
@@ -404,32 +358,12 @@
     text-decoration: none;
   }
 
-  #back-chevron {
-    width: 16px;
-    margin-right: $pad-small;
-  }
-
-  &__device-mapping {
-    .device-user-tooltip {
+  &__device_mapping {
+    .device_mapping--tooltip {
       flex-direction: column;
       justify-content: start;
       text-align: left;
     }
-  }
-
-  &__wrapper {
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 6px;
-    margin-top: $pad-small;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
-  }
-
-  &__tooltip-text {
-    font-size: $x-small;
-    display: flex;
-    justify-content: center;
-    text-align: center;
   }
 
   .tooltip__tooltip-icon {

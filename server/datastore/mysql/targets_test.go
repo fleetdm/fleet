@@ -99,21 +99,21 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	metrics, err := ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
-	assert.Equal(t, uint(2), metrics.OfflineHosts)
+	assert.Equal(t, uint(3), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
-	assert.Equal(t, uint(2), metrics.OfflineHosts)
+	assert.Equal(t, uint(3), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{HostIDs: []uint{h1.ID, h2.ID}, LabelIDs: []uint{l1.ID, l2.ID}, TeamIDs: []uint{team1.ID, team2.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
-	assert.Equal(t, uint(2), metrics.OfflineHosts)
+	assert.Equal(t, uint(3), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(3), metrics.OnlineHosts)
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
@@ -172,7 +172,7 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(6), metrics.TotalHosts)
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
-	assert.Equal(t, uint(5), metrics.OfflineHosts)
+	assert.Equal(t, uint(6), metrics.OfflineHosts) // mia hosts are also included in offline hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
@@ -226,7 +226,7 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 
 	expectOnline := fleet.TargetMetrics{TotalHosts: 1, OnlineHosts: 1}
 	expectOffline := fleet.TargetMetrics{TotalHosts: 1, OfflineHosts: 1}
-	expectMIA := fleet.TargetMetrics{TotalHosts: 1, MissingInActionHosts: 1}
+	expectMIA := fleet.TargetMetrics{TotalHosts: 1, OfflineHosts: 1, MissingInActionHosts: 1} // mia hosts are also included in offline hosts as of Fleet 4.15
 
 	testCases := []struct {
 		seenTime            time.Time

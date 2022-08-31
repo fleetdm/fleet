@@ -1,0 +1,84 @@
+
+/**
+ * <bar-chart>
+ *
+ * App-wide styles for our bar charts.
+ */
+
+ [parasails-component='bar-chart'] {
+  font-size: 13px;
+  line-height: 20px;
+
+  [purpose='stacked-title'] {
+    font-size: 13px;
+    display: block;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  [purpose='divided-title'] {
+    font-size: 14px;
+    display: block;
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+  [purpose='subtitle'] {
+    font-size: 13px;
+    display: block;
+    padding-top: 4px;
+    font-weight: 400;
+  }
+  [purpose='chart'] {
+    width: 100%;
+    background: #E6E6E6;
+    border-radius: 4px;
+    overflow-x: hidden;
+    height: 8px;
+    [purpose='chart-fill'] {
+      border-radius: 6px;
+    }
+  }
+  [purpose='label-container']:last-child:not(:only-child) {
+    text-align: right;
+  }
+
+  [purpose='label'] {
+    display: inline-block;
+    margin-top: 4px;
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+  [purpose='range'] {
+    color: #8B8FA2;
+    span {
+      display: flex;
+    }
+  }
+
+  @media (max-width: 769px) {
+    [purpose='label'] {
+      font-size: 12px;
+      white-space: normal;
+    }
+  }
+
+  @media (max-width: 540px) {
+    [purpose='range'] {
+      span:nth-of-type(2n) {
+        display: none;
+      }
+      span:first-of-type, span:last-of-type {
+        display: flex;
+      }
+    }
+  }
+  @media (max-width: 400px) {
+    [purpose='range'] {
+      span {
+        display: none;
+      }
+      span:first-of-type, span:last-of-type {
+        display: flex;
+      }
+    }
+  }
+ }

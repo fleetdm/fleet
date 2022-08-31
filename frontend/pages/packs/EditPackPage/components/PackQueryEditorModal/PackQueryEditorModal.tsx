@@ -13,6 +13,7 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import {
   PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
+  MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
 
@@ -40,6 +41,7 @@ interface IPackQueryEditorModalProps {
   ) => void;
   editQuery?: IScheduledQuery;
   packId: number;
+  isUpdatingPack: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -62,6 +64,7 @@ const PackQueryEditorModal = ({
   allQueries,
   editQuery,
   packId,
+  isUpdatingPack,
 }: IPackQueryEditorModalProps): JSX.Element => {
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
@@ -69,6 +72,7 @@ const PackQueryEditorModal = ({
   const [selectedFrequency, setSelectedFrequency] = useState<string>(
     editQuery?.interval.toString() || ""
   );
+  const [errorFrequency, setErrorFrequency] = useState<string>("");
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
@@ -108,6 +112,9 @@ const PackQueryEditorModal = ({
   };
 
   const onChangeFrequency = (value: string) => {
+    if (errorFrequency) {
+      setErrorFrequency("");
+    }
     setSelectedFrequency(value);
   };
 
@@ -140,12 +147,25 @@ const PackQueryEditorModal = ({
   };
 
   const onFormSubmit = (): void => {
+    setErrorFrequency("");
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;
       }
       return selectedQuery?.id;
     };
+
+    const frequency = parseInt(selectedFrequency, 10);
+    if (!frequency || frequency < 0) {
+      setErrorFrequency("Frequency must be an integer greater than zero");
+      return;
+    }
+    if (frequency > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
+      setErrorFrequency(
+        "Frequency must be an integer that does not exceed 604,800 (i.e. 7 days)"
+      );
+      return;
+    }
 
     onPackQueryFormSubmit(
       {
@@ -182,6 +202,7 @@ const PackQueryEditorModal = ({
         )}
         <InputField
           onChange={onChangeFrequency}
+          error={errorFrequency}
           inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
           value={selectedFrequency}
           placeholder="- - -"
@@ -223,16 +244,18 @@ const PackQueryEditorModal = ({
         />
 
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
           <Button
             type="button"
             variant="brand"
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
+            className={`${editQuery?.name ? "save" : "add-query"}-loading`}
+            isLoading={isUpdatingPack}
           >
             {editQuery?.name ? "Save" : "Add query"}
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
           </Button>
         </div>
       </form>

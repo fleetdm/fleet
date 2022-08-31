@@ -8,12 +8,6 @@ variable "fleet_config" {
   default     = {}
 }
 
-variable "scale_down" {
-  description = "Whether to scale down the environment"
-  type        = bool
-  default     = false
-}
-
 variable "loadtest_containers" {
   description = "The number of containers to loadtest with"
   type        = number

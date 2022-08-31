@@ -22,13 +22,10 @@ const ShowQueryModal = ({ onCancel }: IShowQueryModalProps): JSX.Element => {
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly
+          wrapEnabled
         />
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="brand"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
             Done
           </Button>
         </div>
