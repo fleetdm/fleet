@@ -16,8 +16,8 @@ export interface IAvatarInterface {
 const baseClass = "avatar";
 
 const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isError, setIsError] = useState<boolean>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   const onLoad = useCallback(() => {
     setIsLoading(false);

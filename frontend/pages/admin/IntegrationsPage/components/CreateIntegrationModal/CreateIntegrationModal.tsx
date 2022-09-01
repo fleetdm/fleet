@@ -37,7 +37,7 @@ const CreateIntegrationModal = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
-  const [destination, setDestination] = useState<string>("jira");
+  const [destination, setDestination] = useState("jira");
 
   const onDestinationChange = (value: string) => {
     setDestination(value);

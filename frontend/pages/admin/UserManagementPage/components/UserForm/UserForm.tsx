@@ -125,9 +125,7 @@ const UserForm = ({
     currentUserId,
   });
 
-  const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
-    !!defaultGlobalRole
-  );
+  const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
   useEffect(() => {
     setErrors(createOrEditUserErrors);

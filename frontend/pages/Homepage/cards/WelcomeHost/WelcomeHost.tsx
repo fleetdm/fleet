@@ -41,12 +41,11 @@ const WelcomeHost = ({
   const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
-  const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
-  const [isPoliciesEmpty, setIsPoliciesEmpty] = useState<boolean>(false);
-  const [
-    showRefetchLoadingSpinner,
-    setShowRefetchLoadingSpinner,
-  ] = useState<boolean>(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [isPoliciesEmpty, setIsPoliciesEmpty] = useState(false);
+  const [showRefetchLoadingSpinner, setShowRefetchLoadingSpinner] = useState(
+    false
+  );
 
   const {
     isLoading: isLoadingHost,

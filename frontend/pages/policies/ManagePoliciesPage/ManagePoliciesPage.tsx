@@ -75,10 +75,8 @@ const ManagePolicyPage = ({
   } = useContext(PolicyContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
-  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState<boolean>(
-    false
-  );
-  const [isUpdatingPolicies, setIsUpdatingPolicies] = useState<boolean>(false);
+  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+  const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false

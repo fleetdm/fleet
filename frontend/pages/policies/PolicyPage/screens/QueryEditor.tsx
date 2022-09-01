@@ -67,7 +67,7 @@ const QueryEditor = ({
     }
   }, []);
 
-  const [isUpdatingPolicy, setIsUpdatingPolicy] = useState<boolean>(false);
+  const [isUpdatingPolicy, setIsUpdatingPolicy] = useState(false);
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});

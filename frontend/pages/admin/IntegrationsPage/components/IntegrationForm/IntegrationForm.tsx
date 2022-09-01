@@ -64,7 +64,7 @@ const IntegrationForm = ({
     enableSoftwareVulnerabilities:
       integrationEnableSoftwareVulnerabilities || false,
   });
-  const [integrationDestination, setIntegrationDestination] = useState<string>(
+  const [integrationDestination, setIntegrationDestination] = useState(
     integrationEditingType || destination || "jira"
   );
   const [urlError, setUrlError] = useState<string | null>(null);

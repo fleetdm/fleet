@@ -203,47 +203,31 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [
-    showNoEnrollSecretBanner,
-    setShowNoEnrollSecretBanner,
-  ] = useState<boolean>(true);
-  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
-    false
+  const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
+    true
   );
-  const [showSecretEditorModal, setShowSecretEditorModal] = useState<boolean>(
-    false
-  );
-  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState<boolean>(
-    false
-  );
-  const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
-    false
-  );
-  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
+  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
+  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState(false);
+  const [showEditColumnsModal, setShowEditColumnsModal] = useState(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
-  const [
-    isAllMatchingHostsSelected,
-    setIsAllMatchingHostsSelected,
-  ] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
+  const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
+    false
+  );
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [hosts, setHosts] = useState<IHost[]>();
-  const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
-  const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [isHostsLoading, setIsHostsLoading] = useState(false);
+  const [hasHostErrors, setHasHostErrors] = useState(false);
   const [filteredHostCount, setFilteredHostCount] = useState<number>();
-  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
-  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
+  const [isHostCountLoading, setIsHostCountLoading] = useState(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
   const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
@@ -261,10 +245,10 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
-  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
-  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
+  const [resetPageIndex, setResetPageIndex] = useState(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState(false);
 
   // ======== end states
 

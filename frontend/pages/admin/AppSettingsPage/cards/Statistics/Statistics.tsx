@@ -19,10 +19,9 @@ const Statistics = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [
-    showUsageStatsPreviewModal,
-    setShowUsageStatsPreviewModal,
-  ] = useState<boolean>(false);
+  const [showUsageStatsPreviewModal, setShowUsageStatsPreviewModal] = useState(
+    false
+  );
   const [formData, setFormData] = useState<any>({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
