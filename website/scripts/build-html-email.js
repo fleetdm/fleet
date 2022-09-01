@@ -24,6 +24,7 @@ module.exports = {
 
     let extensionedArticleFileName = articleFileName;
 
+    // Since this script only handles Markdown files in the articles/ folders, we'll make the file extension optional.
     if(!_.endsWith(articleFileName, '.md')) {
       // If the file was specified without a file extension, we'll add `.md` to the provided filename.
       extensionedArticleFileName = extensionedArticleFileName + '.md';
@@ -42,11 +43,16 @@ module.exports = {
     }
 
     // Get the raw Markdown from the file.
-    let mdStringForEmails = await sails.helpers.fs.read(markdownFileToConvert);
+    let mdString = await sails.helpers.fs.read(markdownFileToConvert);
 
+    // Find and remove any HTML elements
+    for (let htmlElement of (mdString.match(/<([A-Za-z\-]+[^\s])[\s\S]+?<\/\1>/igm) || [])) {
+      sails.log.warn('Removing a HTML element from the Markdown file before converting it into an HTML email: \n',htmlElement)
+      mdString = mdString.replace(htmlElement, '');
+    }
 
     let embeddedMetadata = {};
-    for (let tag of (mdStringForEmails.match(/<meta[^>]*>/igm)||[])) {
+    for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
       let name = tag.match(/name="([^">]+)"/i)[1];
       let value = tag.match(/value="([^">]+)"/i)[1];
       embeddedMetadata[name] = value;
@@ -59,10 +65,10 @@ module.exports = {
     let extensionedFileNameForEmailPartial = embeddedMetadata.category+'-'+unextensionedArticleFileName.replace(/\./g, '-')+'.ejs';
 
     // Remove the meta tags from the final Markdown file before we convert it.
-    mdStringForEmails = mdStringForEmails.replace(/<meta[^>]*>/igm, '');
+    mdString = mdString.replace(/<meta[^>]*>/igm, '');
 
     // Convert Markdown to HTML
-    let htmlEmailString = await sails.helpers.strings.toHtmlEmail(mdStringForEmails);
+    let htmlEmailString = await sails.helpers.strings.toHtmlEmail(mdString);
 
     let pageRelSourcePath = path.relative(path.join(topLvlRepoPath, 'articles/'), path.resolve(markdownFileToConvert));
 
