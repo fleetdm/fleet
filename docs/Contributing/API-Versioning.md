@@ -54,13 +54,13 @@ e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1", "2021-11")
 
 // other endpoints here
 
-e.GET("/api/latest/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+e.GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 ```
 
 The versions available are `v1` and `2021-11`. This means that the following are valid API paths:
 
 ```
-/api/latest/fleet/carves/1/block/1234
+/api/v1/fleet/carves/1/block/1234
 /api/2021-11/fleet/carves/1/block/1234
 ```
 
@@ -72,14 +72,14 @@ e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1", "2021-11", "2021-12")
 
 // other endpoints here
 
-e.EndingAtVersion("2021-11").GET("/api/latest/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpointDeprecated, getCarveBlockRequestDeprecated{})
-e.StartingAtVersion("2021-12").GET("/api/latest/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+e.EndingAtVersion("2021-11").GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpointDeprecated, getCarveBlockRequestDeprecated{})
+e.StartingAtVersion("2021-12").GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 ```
 
 This will mean that the following are all valid paths:
 
 ```
-/api/latest/fleet/carves/1/block/1234
+/api/v1/fleet/carves/1/block/1234
 /api/2021-11/fleet/carves/1/block/1234
 /api/2021-12/fleet/carves/1/block/1234
 ```
@@ -95,7 +95,7 @@ e := NewUserAuthenticatedEndpointer(svc, opts, r, "2021-12")
 
 // other endpoints here
 
-e.GET("/api/latest/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
+e.GET("/api/v1/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 ```
 
 This will mean that the following are the only valid paths after this point:

@@ -1,0 +1,2 @@
+- Added the MSRC feed parser that we will be using for generating the MSRC artifacts.
+- Added sync logic for keeping the local MSRC artifacts up to date.
