@@ -33,16 +33,13 @@ module.exports = {
 
   fn: async function ({emailAddress, subscribeTo}) {
 
-    // Look for an existing NewsletterSubscription that uses the provided email address
-    let doesSubscriptionForProvidedEmailExist = await NewsletterSubscription.findOne({emailAddress: emailAddress});
 
-    // If one does not exist, we'll create a new one.
-    if(!doesSubscriptionForProvidedEmailExist) {
-      await NewsletterSubscription.create({emailAddress: emailAddress});
-    }
+    await NewsletterSubscription.create({emailAddress: emailAddress})
+    .tolerate('E_UNIQUE');
 
     let argins = {};
-    // Once we've found or created a NewsletterSubscription, we'll set the `isSubscribedTo____` boolean attributes based on the subscribeTo input
+
+    // Update the NewsletterSubscription record for this email address with `isSubscribedTo____` boolean attributes based on the subscribeTo input
     if(subscribeTo === 'releases') {
       argins.isSubscribedToReleases = true;
     }

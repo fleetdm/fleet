@@ -29,15 +29,11 @@ module.exports = {
 
   fn: async function ({emailAddress}) {
 
-    let subscription = await NewsletterSubscription.findOne({emailAddress: emailAddress});
+    let updatedSubscription = await NewsletterSubscription.updateOne({emailAddress: emailAddress}).set({isUnsubscribedFromAll: true});
 
-
-    if(!subscription) {
-      throw new Error('Consistency violation: Somehow, the NewsletterSubscription record for ' + emailAddress + 'has gone missing');
-    } else {
-      NewsletterSubscription.updateOne({emailAddress: emailAddress}).set({isUnsubscribedFromAll: true});
+    if(!updatedSubscription) { // If a subscription could not be found with the specified email address, we'll log a warning and return a 200 response.
+      sails.log.warn('When a user tried to unsubscribe from the Fleet newsletter, a NewsletterSubscription record for the specified email address ('+ emailAddress +') could not be found.');
     }
-
     // All done.
     return;
 
