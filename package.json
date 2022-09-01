@@ -21,7 +21,7 @@
     "@types/uuid": "^8.3.3",
     "ace-builds": "1.4.12",
     "autoprefixer": "^9.4.3",
-    "axios": "^0.21.1",
+    "axios": "^0.27.2",
     "bourbon": "^5.0.0",
     "classnames": "2.2.5",
     "core-js": "3",

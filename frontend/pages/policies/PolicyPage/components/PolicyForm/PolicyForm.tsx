@@ -73,18 +73,11 @@ const PolicyForm = ({
   backendValidators,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
-    false
-  );
-  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
-    false
-  );
-  const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
-    false
-  );
-  const [isPolicySaving, setIsPolicySaving] = useState<boolean>(false);
+  const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState(false);
+  const [showQueryEditor, setShowQueryEditor] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingResolution, setIsEditingResolution] = useState(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id

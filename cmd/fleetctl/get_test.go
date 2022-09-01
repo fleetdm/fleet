@@ -603,7 +603,7 @@ spec:
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
-		expectedYaml := `---
+		expectedYAML := `---
 apiVersion: v1
 kind: config
 spec:
@@ -675,6 +675,7 @@ spec:
     osquery_policy: 1h0m0s
   vulnerabilities:
     cpe_database_url: ""
+    cpe_translations_url: ""
     current_instance_checks: ""
     cve_feed_prefix_url: ""
     databases_path: ""
@@ -788,6 +789,7 @@ spec:
       "databases_path": "",
       "periodicity": "0s",
       "cpe_database_url": "",
+      "cpe_translations_url": "",
       "cve_feed_prefix_url": "",
       "current_instance_checks": "",
       "disable_data_sync": false,
@@ -824,8 +826,8 @@ spec:
 }
 `
 
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
+		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
+		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
 		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
 }

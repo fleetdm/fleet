@@ -65,21 +65,18 @@ const QueryPage = ({
     setLastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
-  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState<boolean>(
-    false
-  );
-  const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
+  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
+  const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
   const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
-  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [
-    showOpenSchemaActionText,
-    setShowOpenSchemaActionText,
-  ] = useState<boolean>(false);
+  const [targetsTotalCount, setTargetsTotalCount] = useState(0);
+  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
+    false
+  );
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion

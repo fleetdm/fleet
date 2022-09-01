@@ -15,8 +15,8 @@ interface ISecretFieldProps {
   secret: string | null;
 }
 const SecretField = ({ secret }: ISecretFieldProps): JSX.Element | null => {
-  const [showSecret, setShowSecret] = useState<boolean>(false);
-  const [copyMessage, setCopyMessage] = useState<string>("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [copyMessage, setCopyMessage] = useState("");
 
   const onCopySecret = (evt: React.MouseEvent) => {
     evt.preventDefault();

@@ -33,7 +33,7 @@ const RunQuery = ({
 }: IRunQueryProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
+  const [isQueryFinished, setIsQueryFinished] = useState(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
