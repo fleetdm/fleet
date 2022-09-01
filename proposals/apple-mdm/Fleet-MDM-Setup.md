@@ -1,8 +1,9 @@
 # Setup
 
-The setup consists of configuring:
+The one-time setup consists of configuring:
 - The APNs certificate used by the MDM protocol
 - The SCEP certificate for enrollment
+- The DEP token
 
 We will define `fleetctl apple-mdm setup ...` commands to create/define all Apple/MDM credentials that are fed to the Fleet server.
 
@@ -81,13 +82,10 @@ TODO(Lucas): Store private key encrypted with passphrase?
 
 #### 2. New tool `tools/mdm-apple/mdm-apple-customer-setup` (Fleet representative)
 
-Usage: 
-```
-mdm-apple-customer-setup --zip fleet-mdm-apple-apns-setup.zip
-```
+`mdm-apple-customer-setup --zip fleet-mdm-apple-apns-setup.zip`
 
 Output:
-- fleet-mdm-apple-apns-push-req-encrypted.p7
+- `fleet-mdm-apple-apns-push-req-encrypted.p7`
 - Text to stdout that explains next step, something like:
 	"Send generated file 'fleet-mdm-apple-apns-push-req-encrypted.p7' back to customer via preferred medium (email, Slack)."
 
@@ -125,3 +123,28 @@ Generates SCEP CA and key:
 - `fleet-mdm-apple-scep.pem`
 
 The contents of `fleet-mdm-apple-scep.pem` and `fleet-mdm-apple-scep.key` are passed to Fleet as environment variables.
+
+## DEP
+
+### 1. Generate key material
+
+`fleetctl apple-mdm setup dep init`
+
+- Generates `fleet-mdm-apple-dep.pem` and `fleet-mdm-apple-dep.key`:
+	- Stores `fleet-mdm-apple-dep.pem` as a file.
+	- Keeps `fleet-mdm-apple-dep.key` in some location like `~/.fleet/config`/`/tmp` (the user does not need to handle the `.key`).
+
+### 2. Upload PEM to Apple
+
+User uploads `fleet-mdm-apple-dep.pem` to https://business.apple.com, and downloads a `*.p7m` file.
+Let's call it `fleet-mdm-apple-dep-auth-token-encrypted.p7m`.
+
+### 3. Finalize DEP setup
+
+`fleetctl apple-mdm setup dep finalize --encrypted-token=fleet-mdm-apple-dep-auth-token-encrypted.p7m`
+	
+1. Decrypts the provided `fleet-mdm-apple-dep-auth-token-encrypted.p7m` with the `fleet-mdm-apple-dep.key` from `~/.fleet/config`/`/tmp`.
+2. Generates a `fleet-mdm-apple-dep.token` file.
+3. Removes `fleet-mdm-apple-dep.key` from `~/.fleet/config`.
+
+The contents of `fleet-mdm-apple-dep.token` is passed to Fleet as environment variable.

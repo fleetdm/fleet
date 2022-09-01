@@ -98,66 +98,31 @@ Users will be able to create the two following types of enrollments:
 - Global manual enrollment
 - Global DEP enrollment
 
-We'll have a new `apple_manual_enrollments` table with the following fields:
+We'll have a new `apple_enrollments` table with the following fields:
 - ID (to deduce an "Enroll URL")
 - Name
+- Automatic (bool)
 - Configuration (JSON?)
-- Team (or global)
-- Authentication configuration (initially NULL, meaning not authenticated)
-
-We'll have a new `apple_dep_enrollments` table with the following fields:
-- ID
-- Name
-- Configuration (JSON?)
-- Team (or global)
-- Authentication configuration (initially NULL, meaning not authenticated)
-- Reference to `dep_names` table (will be NULL at first)
+- Team (0 for global)
 
 Fleetctl commands (and APIs):
 - Create enrollments:
-	`fleetctl apple-mdm enrollments create --configuration=<TBD> --name=Foo`
+	`fleetctl apple-mdm enrollments create-automatic --name=Foo --configuration=<TBD>`
+	`fleetctl apple-mdm enrollments create-manual --name=Bar --configuration=<TBD>`
 
 - List enrollments (the "global" manual enroll and the DEP enroll):
 	`fleetctl apple-mdm enrollments list`
 
-##### DEP enrollment setup
-
-These commands use the <ENROLLMENT_ID>, which is the `enrollments.ID` (obtained via `fleetctl apple-mdm enrollments list`).
-The token downloaded from https://business.apple.com basically links a "DEP enrollment" in Fleet (entry in `apple_dep_enrollments`) to what Apple calls an "MDM server" in https://business.apple.com.
-
-###### 1. `fleetctl apple-mdm enrollments dep set-token setup --enrollment=<ENROLLMENT_ID>`
-
-- Checks the `ENROLLMENT_ID` is a DEP enrollment.
-- Generates `fleet-mdm-apple-dep.pem` and `fleet-mdm-apple-dep.key`:
-	- Stores `fleet-mdm-apple-dep.pem` as a file.
-	- Keeps `fleet-mdm-apple-dep.key` in `~/.fleet/config` under <ENROLLMENT_ID>.
-
-###### 2. Upload PEM to Apple
-
-User uploads `fleet-mdm-apple-dep.pem` to https://business.apple.com, and downloads a `*.p7m` file. Let's call it `fleet-mdm-apple-dep-auth-token-encrypted.p7m`.
-
-###### 3. Finalize DEP setup
-
-`fleetctl apple-mdm enrollments dep set-token finalize --enrollment=<ENROLLMENT_ID> --encrypted-auth-token=fleet-mdm-apple-dep-auth-token-encrypted.p7m`
-	
-- Checks that the `ENROLLMENT_ID` is a DEP enrollment.
-- Decrypts the provided `fleet-mdm-apple-dep-auth-token-encrypted.p7m` with the `fleet-mdm-apple-dep.key` that corresponds to `<ENROLLMENT_ID>` from `~/.fleet/config`.
-- Calls new Fleet API that:
-	- Apply DEP configuration using token (loaded from apple_dep_enrollmentsID==<ENROLLMENT_ID>) and get a "depProfileUUID".
-	- Creates `dep_names` entry with such token + depProfileUUID (as assigner_profile_uuid) (encryption of the token in MySQL will be a TODO.).
-	- Link such `dep_names` entry to the given `<ENROLLMENT_ID>`.
-- If all looks good, then it removes `fleet-mdm-apple-dep.key` from `~/.fleet/config`.
-
 #### Custom commands for DEP enrollments
 
-- List DEP devices: DEP devices of that enrollment and their status (using the DEP proxy API).
-	`fleetctl apple-mdm enrollments dep list <ENROLLMENT_ID>`
+- List DEP devices: DEP devices of that enrollment and their status (using the "DEP proxy API").
+	`fleetctl apple-mdm enrollments dep list`
 - Sync DEP profiles: makes sure to set the enroll profile for new devices in a DEP enrollment. (Fleet would sync all DEP enrollments automatically every 5m.)
-	`fleetctl apple-mdm enrollments dep sync-profiles <ENROLLMENT_ID>`
+	`fleetctl apple-mdm enrollments dep sync-profiles`
 
 #### DEP syncer
 
-Fleet must start a "DEP syncer" routine for each entry in `apple_dep_enrollments` that has a non-NULL `dep_names` (period of 5m).
+Fleet runs a "DEP syncer" routine to fetch newly added devices to apple.business.com and automatically apply DEP enroll configuration to them.
 
 ### Hosts
 
