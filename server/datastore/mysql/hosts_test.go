@@ -127,6 +127,7 @@ func TestHosts(t *testing.T) {
 		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
+		{"FailingPoliciesCount", testFailingPoliciesCount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5070,4 +5071,100 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
 	require.NoError(t, err)
 	require.Equal(t, 2, count) // count unchanged
+}
+
+func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
+			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		hosts = append(hosts, h)
+	}
+
+	t.Run("no policies", func(t *testing.T) {
+		for _, h := range hosts {
+			actual, err := ds.FailingPoliciesCount(ctx, h)
+			require.NoError(t, err)
+			require.Equal(t, actual, uint(0))
+		}
+	})
+
+	t.Run("with policies and memberships", func(t *testing.T) {
+		u := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+		var policies []*fleet.Policy
+		for i := 0; i < 10; i++ {
+			q := test.NewQuery(t, ds, fmt.Sprintf("query%d", i), "select 1", 0, true)
+			p, err := ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+			require.NoError(t, err)
+			policies = append(policies, p)
+		}
+
+		testCases := []struct {
+			host     *fleet.Host
+			policyEx map[uint]*bool
+			expected uint
+		}{
+			{
+				host: hosts[0],
+				policyEx: map[uint]*bool{
+					policies[0].ID: ptr.Bool(true),
+					policies[1].ID: ptr.Bool(true),
+					policies[2].ID: ptr.Bool(false),
+					policies[3].ID: ptr.Bool(true),
+					policies[4].ID: nil,
+					policies[5].ID: nil,
+				},
+				expected: 1,
+			},
+			{
+				host: hosts[1],
+				policyEx: map[uint]*bool{
+					policies[0].ID: ptr.Bool(true),
+					policies[1].ID: ptr.Bool(true),
+					policies[2].ID: ptr.Bool(true),
+					policies[3].ID: ptr.Bool(true),
+					policies[4].ID: ptr.Bool(true),
+					policies[5].ID: ptr.Bool(true),
+					policies[6].ID: ptr.Bool(true),
+					policies[7].ID: ptr.Bool(true),
+					policies[8].ID: ptr.Bool(true),
+					policies[9].ID: ptr.Bool(true),
+				},
+				expected: 0,
+			},
+			{
+				host: hosts[2],
+				policyEx: map[uint]*bool{
+					policies[0].ID: ptr.Bool(true),
+					policies[1].ID: ptr.Bool(true),
+					policies[2].ID: ptr.Bool(true),
+					policies[3].ID: ptr.Bool(true),
+					policies[4].ID: ptr.Bool(true),
+					policies[5].ID: ptr.Bool(false),
+					policies[6].ID: ptr.Bool(false),
+					policies[7].ID: ptr.Bool(false),
+					policies[8].ID: ptr.Bool(false),
+					policies[9].ID: ptr.Bool(false),
+				},
+				expected: 5,
+			},
+			{
+				host:     hosts[3],
+				policyEx: map[uint]*bool{},
+				expected: 0,
+			},
+		}
+
+		for _, tc := range testCases {
+			if len(tc.policyEx) != 0 {
+				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false))
+			}
+			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		}
+	})
 }

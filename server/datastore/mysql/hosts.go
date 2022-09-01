@@ -1139,6 +1139,31 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
+func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+	if host.FleetPlatform() == "" {
+		// We log to help troubleshooting in case this happens.
+		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+	}
+
+	query := `
+		SELECT -1 * SUM(pm.passes - 1) AS n_failed
+		FROM policies p
+				INNER JOIN policy_membership pm ON (p.id = pm.policy_id AND pm.host_id = ?)
+		WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
+		AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
+		GROUP BY host_id
+	`
+
+	var r uint
+	if err := sqlx.GetContext(ctx, ds.reader, &r, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get failing policies count")
+	}
+	return r, nil
+}
+
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.

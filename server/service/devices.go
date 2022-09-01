@@ -10,6 +10,40 @@ import (
 )
 
 /////////////////////////////////////////////////////////////////////////////////
+// Fleet Desktop end points
+/////////////////////////////////////////////////////////////////////////////////
+type getFleetDesktopResponse struct {
+	Err             error `json:"error,omitempty"`
+	FailingPolicies uint  `json:"failing_policies_count"`
+}
+
+type getFleetDesktopRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getFleetDesktopRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+// getFleetDesktopEndpoint is meant to be the only API endpoint used by Fleet Desktop. This
+// endpoint should not include any kind of identifying information about the host.
+func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	host, ok := hostctx.FromContext(ctx)
+
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getFleetDesktopResponse{Err: err}, nil
+	}
+
+	r, err := svc.FailingPoliciesCount(ctx, host)
+	if err != nil {
+		return getFleetDesktopResponse{Err: err}, nil
+	}
+
+	return getFleetDesktopResponse{FailingPolicies: r}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Host
 /////////////////////////////////////////////////////////////////////////////////
 

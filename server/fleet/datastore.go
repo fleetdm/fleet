@@ -237,6 +237,9 @@ type Datastore interface {
 	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
+	// FailingPoliciesCount returns the number of failling policies for 'host'
+	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
