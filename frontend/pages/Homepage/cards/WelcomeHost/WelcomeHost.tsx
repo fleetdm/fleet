@@ -246,18 +246,15 @@ const WelcomeHost = ({
             if (p.response) {
               return (
                 <Button
-                  variant="text-icon"
+                  variant="unstyled"
                   onClick={() => handlePolicyModal(p.id)}
                 >
                   <div className="policy-block">
-                    <div className="info">
-                      <img
-                        alt={p.response}
-                        src={p.response === policyPass ? IconPassed : IconError}
-                      />
-                      {p.name}
-                    </div>
-                    <img alt="" src={IconChevron} />
+                    <img
+                      alt={p.response}
+                      src={p.response === policyPass ? IconPassed : IconError}
+                    />
+                    <span className="info">{p.name}</span>
                   </div>
                 </Button>
               );

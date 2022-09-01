@@ -71,27 +71,44 @@
       }
     }
 
-    .policy-block {
+    .children-wrapper {
       width: 100%;
-      padding: $pad-small 12px;
+    }
+
+    .policy-block {
+      min-width: 100%;
       border: 1px solid $ui-fleet-black-25;
       border-radius: 6px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      font-weight: $regular;
+
+      img {
+        margin: 0 $pad-small;
+        transform: scale(0.5);
+        position: relative;
+        top: -1px;
+      }
 
       .info {
-        font-size: $small;
-        display: flex;
-        align-items: center;
         line-height: 1;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        flex: 1;
+        text-align: left;
+      }
 
-        img {
-          margin-right: $pad-small;
-          transform: scale(0.5);
-          position: relative;
-          top: -1px;
-        }
+      &::after {
+        content: url("../assets/images/icon-chevron-purple-9x6@2x.png");
+        transform: scale(0.5) rotate(-90deg);
+        border-radius: 0px;
+        margin: 0 $pad-xsmall;
+      }
+
+      .chevron {
+        margin-left: auto;
       }
     }
   }
