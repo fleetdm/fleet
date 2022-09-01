@@ -888,7 +888,6 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsInLabelCheckCount(t, ds, filter, l1.ID, fleet.HostListOptions{}, 10)
 	require.Len(t, hosts, 10)
-	// assert.Equal(t, "bar.local", hosts[0].Hostname)
 
 	h1 := hosts[0]
 	h2 := hosts[1]
