@@ -21,7 +21,7 @@
     "grunt": "1.0.4",
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
-    "marked": "4.0.10",
+    "marked": "4.1.0",
     "sails-hook-grunt": "^4.0.0",
     "yaml": "1.10.2"
   },
