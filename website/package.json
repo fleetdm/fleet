@@ -17,7 +17,7 @@
     "sails-postgresql": "^5.0.0"
   },
   "devDependencies": {
-    "eslint": "5.16.0",
+    "eslint": "8.23.0",
     "grunt": "1.0.4",
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
