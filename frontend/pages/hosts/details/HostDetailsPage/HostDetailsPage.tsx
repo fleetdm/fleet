@@ -539,7 +539,7 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
-  const failingPoliciesCount = titleData?.issues?.failing_policies_count || 0;
+  const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
   return (
     <MainContent className={baseClass}>
