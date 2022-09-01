@@ -328,9 +328,16 @@ type PackagingConfig struct {
 }
 
 // MDMAppleConfig holds all the configuration for Apple MDM.
+// TODO(lucas): Allow yaml.
 type MDMAppleConfig struct {
 	// Enable enables MDM functionality on Fleet.
 	Enable bool
+
+	// ServerAddress is the address of Fleet server.
+	//
+	// The address is used in enrollment configurations and is the
+	// address apple devices will use to connect to Fleet.
+	ServerAddress string
 
 	// SCEP holds the SCEP protocol and server configuration.
 	SCEP MDMAppleSCEPConfig
@@ -363,21 +370,12 @@ type MDMMunkiConfig struct {
 type MunkiPkgConfig struct {
 	// FilePath is the file system path of the pkg file.
 	FilePath string
-	// ServerURL is the Fleet URL to set on the pkg manifest file.
-	ServerURL string
 }
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
 type MDMAppleDEP struct {
-	// ServerURL is the Fleet URL to set in the `configuration_web_url` and `url` fields
-	// of the DEP profile.
-	//
-	// Value used only during DEP setup.
-	ServerURL string
-	// EncryptedAuthToken holds the contents of the token .p7m file downloaded from ABM.
-	//
-	// Value used only during DEP setup.
-	EncryptedAuthToken []byte
+	// Token holds the tokens to authenticate to ABM:w
+	Token []byte
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
 	SyncPeriodicity time.Duration
@@ -419,32 +417,12 @@ type SCEPSignerConfig struct {
 	AllowRenewalDays int
 }
 
-// SCEPCAConfig holds SCEP CA certificate configuration.
+// SCEPCAConfig holds the SCEP CA certificate.
 type SCEPCAConfig struct {
-	// Passphrase used to encrypt/decrypt the CA private key.
-	Passphrase string
-	// ValidityYears are the years the CA certificate will be valid.
-	//
-	// Value used only during setup (CA certificate creation).
-	ValidityYears int64
-	// CN is the Common Name to set in the CA certificate.
-	//
-	// Value used only during setup (CA certificate creation).
-	CN string
-	// Organization is the organization string
-	// to set in the CA certificate.
-	//
-	// Value used only during setup (CA certificate creation).
-	Organization string
-	// OrganizationUnit is the organization unit string
-	// to set in the CA certificate.
-	//
-	// Value used only during setup (CA certificate creation).
-	OrganizationalUnit string
-	// Country is the country to set in the CA certificate.
-	//
-	// Value used only during setup (CA certificate creation).
-	Country string
+	// PEMCert contains the PEM-encoded certificate.
+	PEMCert []byte
+	// PEMKey contains the unencrypted PEM-encoded private key.
+	PEMKey []byte
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -811,20 +789,17 @@ func (man Manager) addConfigs() {
 	// MDM Apple config
 	// TODO(lucas): Define proper default values for all the MDM configuration.
 	man.addConfigBool("mdm.apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigString("mdm.apple.scep.ca.passphrase", "", "Passphrase for encrypting/decrypting the SCEP CA private key")
-	man.addConfigInt("mdm.apple.scep.ca.years", 10, "Validity of the SCEP CA certificate in years")
-	man.addConfigString("mdm.apple.scep.ca.cn", "Fleet", "Common name to set in the SCEP CA certificate")
-	man.addConfigString("mdm.apple.scep.ca.organization", "Fleet", "Organization to set in the SCEP CA certificate")
-	man.addConfigString("mdm.apple.scep.ca.organizational_unit", "Fleet", "Organizational unit to set in the SCEP CA certificate")
-	man.addConfigString("mdm.apple.scep.ca.country", "United States", "Country to set in the SCEP CA certificate")
+	man.addConfigString("mdm.apple.server_address", "", "Public address of the server for apple devices to connect to")
+	man.addConfigString("mdm.apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
+	man.addConfigString("mdm.apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
 	man.addConfigInt("mdm.apple.scep.signer.validity_days", 3650, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm.apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm.apple.scep.challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigString("mdm.apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
 	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
 	man.addConfigString("mdm.apple.dep.server_url", "", "URL of the Fleet server to be set in the DEP profile")
-	man.addConfigString("mdm.apple.dep.encrypted_auth_token", "", "MDM DEP Encrypted Auth Token (.p7m)")
-	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 1*time.Hour, "How much time to wait between device fetching + assigning of DEP profile")
+	man.addConfigString("mdm.apple.dep.token", "", "MDM DEP Auth Token")
+	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 5*time.Minute, "How much time to wait between device fetching + assigning of DEP profile")
 	man.addConfigInt("mdm.apple.dep.sync_device_limit", 0, "Maximum number of devices to return on DEP sync/fetch requests (0 uses Apple default)")
 	// TODO(lucas): Using file system for PoC. The plan is to support storing the Munki repository on a S3 bucket.
 	man.addConfigString("mdm.apple.munki.repo_path", "", "Local path where the Munki repository is stored")
@@ -1042,15 +1017,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDMApple: MDMAppleConfig{
-			Enable: man.getConfigBool("mdm.apple.enable"),
+			Enable:        man.getConfigBool("mdm.apple.enable"),
+			ServerAddress: man.getConfigString("mdm.apple.server_address"),
 			SCEP: MDMAppleSCEPConfig{
 				CA: SCEPCAConfig{
-					Passphrase:         man.getConfigString("mdm.apple.scep.ca.passphrase"),
-					ValidityYears:      int64(man.getConfigInt("mdm.apple.scep.ca.years")),
-					CN:                 man.getConfigString("mdm.apple.scep.ca.cn"),
-					Organization:       man.getConfigString("mdm.apple.scep.ca.organization"),
-					OrganizationalUnit: man.getConfigString("mdm.apple.scep.ca.organizational_unit"),
-					Country:            man.getConfigString("mdm.apple.scep.ca.country"),
+					PEMCert: []byte(man.getConfigString("mdm.apple.scep.ca.cert_pem")),
+					PEMKey:  []byte(man.getConfigString("mdm.apple.scep.ca.key_pem")),
 				},
 				Signer: SCEPSignerConfig{
 					ValidityDays:     man.getConfigInt("mdm.apple.scep.signer.validity_days"),
@@ -1065,10 +1037,9 @@ func (man Manager) LoadConfig() FleetConfig {
 				},
 			},
 			DEP: MDMAppleDEP{
-				ServerURL:          man.getConfigString("mdm.apple.dep.server_url"),
-				EncryptedAuthToken: []byte(man.getConfigString("mdm.apple.dep.encrypted_auth_token")),
-				SyncPeriodicity:    man.getConfigDuration("mdm.apple.dep.sync_periodicity"),
-				SyncDeviceLimit:    man.getConfigInt("mdm.apple.dep.sync_device_limit"),
+				Token:           []byte(man.getConfigString("mdm.apple.dep.token")),
+				SyncPeriodicity: man.getConfigDuration("mdm.apple.dep.sync_periodicity"),
+				SyncDeviceLimit: man.getConfigInt("mdm.apple.dep.sync_device_limit"),
 			},
 			Munki: MDMMunkiConfig{
 				RepoPath: man.getConfigString("mdm.apple.munki.repo_path"),
@@ -1077,8 +1048,7 @@ func (man Manager) LoadConfig() FleetConfig {
 					Password: man.getConfigString("mdm.apple.munki.http_basic_auth.password"),
 				},
 				MunkiPkg: MunkiPkgConfig{
-					FilePath:  man.getConfigString("mdm.apple.munki.pkg.file_path"),
-					ServerURL: man.getConfigString("mdm.apple.munki.pkg.server_url"),
+					FilePath: man.getConfigString("mdm.apple.munki.pkg.file_path"),
 				},
 			},
 		},

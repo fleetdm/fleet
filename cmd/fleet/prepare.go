@@ -94,22 +94,6 @@ To setup Fleet infrastructure, use one of the available commands.
 
 	prepareCmd.AddCommand(dbCmd)
 
-	mdmAppleCmd := &cobra.Command{
-		Use:   "mdm-apple",
-		Short: "Subcommands for initializing and configuring Apple MDM in Fleet",
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
-		},
-	}
-
-	mdmAppleCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
-
-	prepareCmd.AddCommand(mdmAppleCmd)
-	mdmAppleSetupCmd := createMDMAppleSetupCmd(configManager, &dev)
-	mdmAppleCmd.AddCommand(mdmAppleSetupCmd)
-	mdmAppleDEPPushTokenCmd := createMDMAppleDEPPushTokenCmd(configManager, &dev)
-	mdmAppleCmd.AddCommand(mdmAppleDEPPushTokenCmd)
-
 	return prepareCmd
 }
 

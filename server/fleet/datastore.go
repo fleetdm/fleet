@@ -606,6 +606,12 @@ type Datastore interface {
 
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM
+
+	NewMDMAppleEnrollment(ctx context.Context, enrollment MDMAppleEnrollmentPayload) (*MDMAppleEnrollment, error)
+	MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*MDMAppleEnrollment, error)
 }
 
 const (

@@ -26,25 +26,23 @@ func Up_20220725165245(tx *sql.Tx) error {
 		return fmt.Errorf("failed to apply MDM core schema: %w", err)
 	}
 
-	// (3) Apply MDM Core extra tables.
-	// mdm_apple_current_push_topic is used to set the current push topic.
-	// TODO(lucas): I originally added this because nanomdm schema allows for multiple
-	// keypairs being stored in `push_certs`. But this may not be needed because
-	// of the stale_token column.
-	// Also, the topic can be obtained from the Push PEM cert using cryptoutil.TopicFromPEMCert
-	// and is stored in the `push_certs` table.
-	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS mdm_apple_current_push_topic(
-		topic VARCHAR(255) NOT NULL,
+	// (3) Apply extra tables.
+	//
+	// TODO(lucas): Adding them here now, but these are Fleet Apple MDM related tables.
+	//
+	// TODO(lucas): Does it make sense to have two tables? `mdm_apple_automatic_enrollments`
+	// and `mdm_apple_manual_enrollments`
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS mdm_apple_enrollments(
+		id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+		name VARCHAR(255) NOT NULL DEFAULT '',
+		config JSON DEFAULT NULL,
+		-- dep_config is NULL for manual enrollments
+		dep_config JSON DEFAULT NULL,
 
-		-- The unique_value column and its constraint enforces a one-row table.
-		-- TODO(lucas): Discuss other alternatives.
-		unique_value ENUM('unique') NOT NULL,
-		UNIQUE (unique_value),
-
-		CHECK (topic != '')
+		PRIMARY KEY (id)
 	);`)
 	if err != nil {
-		return fmt.Errorf("failed to create mdm_apple_current_push_topic: %w", err)
+		return fmt.Errorf("failed to create apple_enrollments: %w", err)
 	}
 
 	// (4) Apply MDM DEP schema.
@@ -52,7 +50,6 @@ func Up_20220725165245(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("failed to apply MDM core schema: %w", err)
 	}
-
 	return nil
 }
 

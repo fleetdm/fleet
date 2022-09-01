@@ -3,7 +3,9 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -34,7 +36,9 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
+	"github.com/micromdm/nanomdm/cryptoutil"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -112,8 +116,8 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 // underlying MySQL writer *sql.DB.
 //
 // TODO(lucas): Discuss alternative approaches.
-func (ds *Datastore) NewMDMAppleSCEPDepot() (*scep_mysql.MySQLDepot, error) {
-	s, err := scep_mysql.NewMySQLDepot(ds.appleMDMWriter.DB)
+func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*scep_mysql.MySQLDepot, error) {
+	s, err := scep_mysql.NewMySQLDepot(ds.appleMDMWriter.DB, caCertPEM, caKeyPEM)
 	if err != nil {
 		return nil, err
 	}
@@ -124,63 +128,93 @@ func (ds *Datastore) NewMDMAppleSCEPDepot() (*scep_mysql.MySQLDepot, error) {
 // underlying MySQL writer *sql.DB.
 //
 // TODO(lucas): Discuss alternative approaches.
-func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
+func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.appleMDMWriter.DB))
 	if err != nil {
 		return nil, err
 	}
+	topic, err := cryptoutil.TopicFromPEMCert(pushCertPEM)
+	if err != nil {
+		return nil, err
+	}
 	return &NanoMDMStorage{
-		MySQLStorage: s,
-		dbWriter:     ds.appleMDMWriter.DB,
+		MySQLStorage:  s,
+		pushCertTopic: topic,
+		pushCertPEM:   pushCertPEM,
+		pushKeyPEM:    pushKeyPEM,
 	}, nil
 }
 
-// NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and implements further functionality.
+// NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
 type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
-	dbWriter *sql.DB
+
+	pushCertTopic string
+	pushCertPEM   []byte
+	pushKeyPEM    []byte
 }
 
-// SetCurrentTopic sets the current MDM Push Certificate topic to use.
-func (n *NanoMDMStorage) SetCurrentTopic(ctx context.Context, topic string) error {
-	_, err := n.dbWriter.ExecContext(ctx, `
-INSERT INTO mdm_apple_current_push_topic
-	(topic)
-VALUES
-	(?)
-ON DUPLICATE KEY UPDATE
-	topic = VALUES(topic)`,
-		topic,
-	)
-	return err
-}
-
-// CurrentTopic returns the current MDM Push Certificate topic in use.
+// RetrievePushCert partially implements nanomdm_storage.PushCertStore.
 //
-// Returns a fleet.NotFoundError if there isn't one set.
-func (n *NanoMDMStorage) CurrentTopic(ctx context.Context) (string, error) {
-	var topic string
-	if err := n.dbWriter.QueryRowContext(ctx,
-		`SELECT topic from mdm_apple_current_push_topic`,
-	).Scan(&topic); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", notFound("topic")
-		}
-		return "", err
+// Always returns "0" as stale token because we are not storing the APNS in MySQL storage,
+// and instead loading them at startup, thus the APNS will never be considered stale.
+func (s *NanoMDMStorage) RetrievePushCert(
+	ctx context.Context, topic string,
+) (cert *tls.Certificate, staleToken string, err error) {
+	tlsCert, err := tls.X509KeyPair(s.pushCertPEM, s.pushKeyPEM)
+	if err != nil {
+		return nil, "", err
 	}
-	return topic, nil
+	return &tlsCert, "0", nil
+}
+
+// IsPushCertStale partially implements nanomdm_storage.PushCertStore.
+//
+// Given that we are not storing the APNS certificate in MySQL storage, and instead loading
+// them at startup (as env variables), the APNS will never be considered stale.
+//
+// TODO(lucas): Revisit solution to support changing the APNS.
+func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
+	return false, nil
+}
+
+// StorePushCert partially implements nanomdm_storage.PushCertStore.
+//
+// Leaving this unimplemented as APNS certificate and key are not stored in MySQL storage,
+// instead they are loaded to memory at startup.
+func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
+	return fmt.Errorf("unimplemented")
 }
 
 // NewMDMAppleDEPStorage returns a *nanodep_mysql.MySQLStorage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 //
 // TODO(lucas): Discuss alternative approaches.
-func (ds *Datastore) NewMDMAppleDEPStorage() (*nanodep_mysql.MySQLStorage, error) {
+func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, error) {
 	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.appleMDMWriter.DB))
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+
+	var tokens nanodep_client.OAuth1Tokens
+	if err := json.Unmarshal(depTokens, &tokens); err != nil {
+		return nil, err
+	}
+	return &NanoDEPStorage{
+		MySQLStorage: s,
+		tokens:       tokens,
+	}, nil
+}
+
+// NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides further functionality.
+type NanoDEPStorage struct {
+	*nanodep_mysql.MySQLStorage
+
+	tokens nanodep_client.OAuth1Tokens
+}
+
+func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+	return &s.tokens, nil
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -545,8 +579,6 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	), nil
 }
 
-//
-//
 // It assumes some deployments may have performed migrations out of order.
 func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, appliedTable, appliedData []int64) *fleet.MigrationStatus {
 	if len(appliedTable) == 0 && len(appliedData) == 0 {

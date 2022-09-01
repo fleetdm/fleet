@@ -435,6 +435,10 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
+type NewMDMAppleEnrollmentFunc func(ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error)
+
+type MDMAppleEnrollmentFunc func(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1068,6 +1072,12 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
+
+	NewMDMAppleEnrollmentFunc        NewMDMAppleEnrollmentFunc
+	NewMDMAppleEnrollmentFuncInvoked bool
+
+	MDMAppleEnrollmentFunc        MDMAppleEnrollmentFunc
+	MDMAppleEnrollmentFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2123,4 +2133,14 @@ func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
 	s.ProcessListFuncInvoked = true
 	return s.ProcessListFunc(ctx)
+}
+
+func (s *DataStore) NewMDMAppleEnrollment(ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error) {
+	s.NewMDMAppleEnrollmentFuncInvoked = true
+	return s.NewMDMAppleEnrollmentFunc(ctx, enrollment)
+}
+
+func (s *DataStore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error) {
+	s.MDMAppleEnrollmentFuncInvoked = true
+	return s.MDMAppleEnrollmentFunc(ctx, enrollmentID)
 }

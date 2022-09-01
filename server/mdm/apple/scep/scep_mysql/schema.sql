@@ -40,20 +40,3 @@ CREATE TABLE scep_certificates (
     CHECK (SUBSTRING(certificate_pem FROM 1 FOR 27) = '-----BEGIN CERTIFICATE-----'),
     CHECK (name IS NULL OR name != '')
 );
-
-CREATE TABLE scep_ca_keys (
-    serial BIGINT NOT NULL,
-
-    -- key_pem must be encrypted with x509.EncryptPEMBlock using the CA passphrase and encoded in PEM armour.
-    key_pem  TEXT NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-    PRIMARY KEY (serial),
-
-    FOREIGN KEY (serial)
-        REFERENCES scep_certificates (serial),
-
-    CHECK (SUBSTRING(key_pem  FROM 1 FOR  5) = '-----')
-);

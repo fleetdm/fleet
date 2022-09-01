@@ -39,6 +39,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	config_apple "github.com/fleetdm/fleet/v4/server/mdm/apple/config"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	mdm_apple_service "github.com/fleetdm/fleet/v4/server/mdm/apple/service"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -347,11 +349,40 @@ the way that the Fleet server works.
 				}
 			}
 
+			var (
+				scepStorage *scep_mysql.MySQLDepot
+				depStorage  *mysql.NanoDEPStorage
+				mdmStorage  *mysql.NanoMDMStorage
+			)
+			if config.MDMApple.Enable {
+				if err := config_apple.Verify(config.MDMApple); err != nil {
+					initFatal(err, "verify apple mdm config")
+				}
+				scepStorage, err = mds.NewMDMAppleSCEPDepot(
+					config.MDMApple.SCEP.CA.PEMCert,
+					config.MDMApple.SCEP.CA.PEMKey,
+				)
+				if err != nil {
+					initFatal(err, "initialize mdm apple scep storage")
+				}
+				mdmStorage, err = mds.NewMDMAppleMDMStorage(
+					config.MDMApple.MDM.PushCert.PEMCert,
+					config.MDMApple.MDM.PushCert.PEMKey,
+				)
+				if err != nil {
+					initFatal(err, "initialize mdm apple MySQL storage")
+				}
+				depStorage, err = mds.NewMDMAppleDEPStorage(config.MDMApple.DEP.Token)
+				if err != nil {
+					initFatal(err, "initialize mdm apple dep storage")
+				}
+			}
+
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -462,24 +493,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
 			if config.MDMApple.Enable {
-				scepStorage, err := mds.NewMDMAppleSCEPDepot()
-				if err != nil {
-					initFatal(err, "initialize mdm apple scep storage")
-				}
-				mdmStorage, err := mds.NewMDMAppleMDMStorage()
-				if err != nil {
-					initFatal(err, "initialize mdm apple MySQL storage")
-				}
-				depStorage, err := mds.NewMDMAppleDEPStorage()
-				if err != nil {
-					initFatal(err, "initialize mdm apple dep storage")
-				}
 				if err := mdm_apple_service.Setup(ctx, rootMux, mdm_apple_service.SetupConfig{
 					MDMConfig:    config.MDMApple,
 					Logger:       logger,
 					MDMStorage:   mdmStorage,
 					SCEPStorage:  scepStorage,
 					DEPStorage:   depStorage,
+					Datastore:    ds,
 					LoggingDebug: config.Logging.Debug,
 				}); err != nil {
 					initFatal(err, "setup mdm apple services")

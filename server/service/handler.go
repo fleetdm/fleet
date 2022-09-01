@@ -400,6 +400,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
+	// TODO(lucas): Do we want these defined here?
+	// Currently defined here to reuse functionality present in this package only (authEndpointer, etc.).
+	if config.MDMApple.Enable {
+		ue.POST("/api/_version_/fleet/mdm/apple/enrollments", createMDMAppleEnrollmentEndpoint, createMDMAppleEnrollmentRequest{})
+	}
+
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
 	// device-authenticated endpoints

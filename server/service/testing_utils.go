@@ -90,7 +90,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		is = opts[0].Is
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter, nil)
 	if err != nil {
 		panic(err)
 	}

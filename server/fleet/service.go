@@ -470,11 +470,18 @@ type Service interface {
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
-	/// Geolocation
+	///////////////////////////////////////////////////////////////////////////////
+	// Geolocation
+
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Installers
 
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM
+
+	NewMDMAppleEnrollment(ctx context.Context, enrollment MDMAppleEnrollmentPayload) (*MDMAppleEnrollment, error)
 }

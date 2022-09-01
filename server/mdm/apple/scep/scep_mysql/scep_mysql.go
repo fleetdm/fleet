@@ -2,7 +2,6 @@
 package scep_mysql
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -13,6 +12,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/scep/v2/depot"
 )
 
@@ -32,22 +32,38 @@ type MySQLDepot struct {
 
 	// caCrt holds the CA's certificate.
 	caCrt *x509.Certificate
-	// caKey holds the (decrypted) CA private key.
+	// caKey holds the CA private key.
 	caKey *rsa.PrivateKey
 }
 
 var _ depot.Depot = (*MySQLDepot)(nil)
 
 // NewMySQLDepot creates and returns a MySQLDepot.
-//
-// CreateCA or LoadCA should be called before any other operation.
-func NewMySQLDepot(db *sql.DB) (*MySQLDepot, error) {
+func NewMySQLDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*MySQLDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
+	caCrt, err := cryptoutil.DecodePEMCertificate(caCertPEM)
+	if err != nil {
+		return nil, err
+	}
+	caKey, err := decodeRSAKeyFromPEM(caKeyPEM)
+	if err != nil {
+		return nil, err
+	}
 	return &MySQLDepot{
-		db: db,
+		db:    db,
+		caCrt: caCrt,
+		caKey: caKey,
 	}, nil
+}
+
+func decodeRSAKeyFromPEM(key []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(key)
+	if block.Type != "RSA PRIVATE KEY" {
+		return nil, errors.New("PEM type is not RSA PRIVATE KEY")
+	}
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 // CA returns the CA's certificate and private key.
@@ -80,116 +96,6 @@ func (d *MySQLDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, rev
 		return false, err
 	}
 	return ct >= 1, nil
-}
-
-// LoadCA loads the CA's certificate and private key into the MySQLDepot and returns them.
-//
-// Returns ErrNotFound if they do not exist.
-func (d *MySQLDepot) LoadCA(pass []byte) (*x509.Certificate, *rsa.PrivateKey, error) {
-	var pemCert, pemKey []byte
-	err := d.db.QueryRow(`
-SELECT
-    certificate_pem, key_pem
-FROM
-    scep_certificates
-INNER JOIN scep_ca_keys
-	ON scep_certificates.serial = scep_ca_keys.serial
-WHERE
-    scep_certificates.serial = 1;`,
-	).Scan(&pemCert, &pemKey)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, ErrNotFound
-		}
-		return nil, nil, err
-	}
-	block, _ := pem.Decode(pemCert)
-	if block.Type != "CERTIFICATE" {
-		return nil, nil, errors.New("PEM block not a certificate")
-	}
-	crt, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	block, _ = pem.Decode(pemKey)
-	if !x509.IsEncryptedPEMBlock(block) {
-		return nil, nil, errors.New("PEM block not encrypted")
-	}
-	keyBytes, err := x509.DecryptPEMBlock(block, pass)
-	if err != nil {
-		return nil, nil, err
-	}
-	key, err := x509.ParsePKCS1PrivateKey(keyBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	d.caCrt = crt
-	d.caKey = key
-	return crt, key, nil
-}
-
-// CreateCA creates a self-signed CA certificate and returns the
-// certificate and its private key.
-// It stores the created certificate and private key into the MySQLDepot.
-//
-// TODO(lucas): SCEP CA private key is stored encrypted with a passphrase
-// (x509.EncryptPEMBlock) on MySQL. Revisit threat model.
-func (d *MySQLDepot) CreateCA(
-	pass []byte,
-	years int,
-	cn, org, orgUnit, country string,
-) (*x509.Certificate, *rsa.PrivateKey, error) {
-	_, err := d.db.Exec(`INSERT IGNORE INTO scep_serials (serial) VALUES (1)`)
-	if err != nil {
-		return nil, nil, err
-	}
-	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, err
-	}
-	caCert := depot.NewCACert(
-		depot.WithYears(years),
-		depot.WithCommonName(cn),
-		depot.WithOrganization(org),
-		depot.WithOrganizationalUnit(orgUnit),
-		depot.WithCountry(country),
-	)
-	crtBytes, err := caCert.SelfSign(rand.Reader, &privKey.PublicKey, privKey)
-	if err != nil {
-		return nil, nil, err
-	}
-	crt, err := x509.ParseCertificate(crtBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-	err = d.Put(crt.Subject.CommonName, crt)
-	if err != nil {
-		return nil, nil, err
-	}
-	encPemBlock, err := x509.EncryptPEMBlock(
-		rand.Reader,
-		"RSA PRIVATE KEY",
-		x509.MarshalPKCS1PrivateKey(privKey),
-		pass,
-		x509.PEMCipher3DES,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	_, err = d.db.Exec(`
-INSERT INTO scep_ca_keys
-    (serial, key_pem)
-VALUES
-    (?, ?)`,
-		crt.SerialNumber.Int64(), // caCert.SelfSign always sets serial to 1.
-		pem.EncodeToMemory(encPemBlock),
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	d.caCrt = crt
-	d.caKey = privKey
-	return crt, privKey, nil
 }
 
 // Put stores a certificate under the given name.

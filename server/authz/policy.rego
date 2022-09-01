@@ -510,3 +510,14 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, observer][_]
   action == read
 }
+
+##
+# Apple MDM
+##
+
+# Global admins can read and write Apple MDM enrollments
+allow {
+  object.type == "mdm_apple_enrollment"
+  subject.global_role == admin
+  action == [read, write][_]
+}

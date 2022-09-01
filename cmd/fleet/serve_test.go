@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -484,7 +485,7 @@ func TestBasicAuthHandler(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pass := false
-			h := basicAuthHandler("foo", "bar", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := fleethttp.BasicAuthHandler("foo", "bar", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				pass = true
 				w.WriteHeader(http.StatusOK)
 			}))

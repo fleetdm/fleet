@@ -15,13 +15,16 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -31,9 +34,9 @@ import (
 	"github.com/micromdm/nanodep/godep"
 	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
 	"github.com/micromdm/nanodep/proxy"
-	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	depsync "github.com/micromdm/nanodep/sync"
 	"github.com/micromdm/nanomdm/certverify"
+	"github.com/micromdm/nanomdm/cryptoutil"
 	nanomdm_httpapi "github.com/micromdm/nanomdm/http/api"
 	httpmdm "github.com/micromdm/nanomdm/http/mdm"
 	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
@@ -55,7 +58,8 @@ type SetupConfig struct {
 	Logger       kitlog.Logger
 	MDMStorage   *mysql.NanoMDMStorage
 	SCEPStorage  *scep_mysql.MySQLDepot
-	DEPStorage   *nanodep_mysql.MySQLStorage
+	DEPStorage   *mysql.NanoDEPStorage
+	Datastore    fleet.Datastore
 	LoggingDebug bool
 }
 
@@ -71,7 +75,12 @@ func Setup(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 	if err := startMunkiRepoServer(ctx, mux, config.MDMConfig.Munki); err != nil {
 		return fmt.Errorf("start munki server: %w", err)
 	}
-	if err := startMunkiPkgServer(ctx, mux, config.MDMConfig.Munki.MunkiPkg, config.Logger); err != nil {
+	if err := startMunkiPkgServer(
+		ctx, mux,
+		config.MDMConfig.ServerAddress,
+		config.MDMConfig.Munki.MunkiPkg.FilePath,
+		config.Logger,
+	); err != nil {
 		return fmt.Errorf("start munki pkg server: %w", err)
 	}
 	return nil
@@ -82,10 +91,10 @@ func Setup(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 func registerServices(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 	scepCACrt, err := registerSCEP(mux, config)
 	if err != nil {
-		return fmt.Errorf("SCEP: %w", err)
+		return fmt.Errorf("scep: %w", err)
 	}
 	if err := registerMDM(mux, config, scepCACrt); err != nil {
-		return fmt.Errorf("MDM: %w", err)
+		return fmt.Errorf("mdm: %w", err)
 	}
 	if err := registerEnroll(ctx, mux, config); err != nil {
 		return fmt.Errorf("enroll endpoint: %w", err)
@@ -95,17 +104,15 @@ func registerServices(ctx context.Context, mux *http.ServeMux, config SetupConfi
 }
 
 func registerSCEP(mux *http.ServeMux, config SetupConfig) (*x509.Certificate, error) {
-	scepCAKeyPassphrase := []byte(config.MDMConfig.SCEP.CA.Passphrase)
-	if len(scepCAKeyPassphrase) == 0 {
-		return nil, errors.New("missing passphrase for SCEP CA private key")
-	}
-	scepCACrt, scepCAKey, err := config.SCEPStorage.LoadCA(scepCAKeyPassphrase)
+	scepCACrt, scepCAKey, err := scep_ca.Load(
+		config.MDMConfig.SCEP.CA.PEMCert,
+		config.MDMConfig.SCEP.CA.PEMKey,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("load SCEP CA: %w", err)
 	}
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(
 		config.SCEPStorage,
-		scep_depot.WithCAPass(string(scepCAKeyPassphrase)),
 		scep_depot.WithValidityDays(config.MDMConfig.SCEP.Signer.ValidityDays),
 		scep_depot.WithAllowRenewalDays(config.MDMConfig.SCEP.Signer.AllowRenewalDays),
 	)
@@ -174,7 +181,7 @@ func registerMDM(mux *http.ServeMux, config SetupConfig, scepCACrt *x509.Certifi
 		logger:                   kitlog.With(config.Logger, "component", "wrapped-nanomdm-service"),
 		cmdPusher: bootstrapCommandPusher{
 			mdmStorage:         config.MDMStorage,
-			serverURL:          config.MDMConfig.Munki.MunkiPkg.ServerURL,
+			serverURL:          config.MDMConfig.ServerAddress,
 			munkiRepoBasicAuth: config.MDMConfig.Munki.HTTPBasicAuth,
 			pushSvc:            pushService,
 		},
@@ -392,17 +399,48 @@ ManagedInstalls
 	return nil
 }
 
+// TODO(lucas): The enroll profile must be protected by SSO. Currently the endpoint is unauthenticated.
 func registerEnroll(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
-	// TODO(lucas): The enroll profile must be protected by SSO. Currently the endpoint is unauthenticated.
-	topic, err := config.MDMStorage.CurrentTopic(ctx)
+	topic, err := cryptoutil.TopicFromPEMCert(config.MDMConfig.MDM.PushCert.PEMCert)
 	if err != nil {
-		return fmt.Errorf("load push certificate topic: %w", err)
+		return fmt.Errorf("extract push certificate topic: %w", err)
 	}
 	enrollLogger := kitlog.With(config.Logger, "handler", "enroll-profile")
 	mux.HandleFunc("/mdm/apple/api/enroll", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			enrollLogger.Log("err", "invalid method")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		values := r.URL.Query()
+		id, ok := values["id"]
+		if !ok || len(id) == 0 {
+			enrollLogger.Log("err", "missing enrollment id")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		enrollmentID, err := strconv.ParseUint(id[0], 10, 64)
+		if err != nil {
+			enrollLogger.Log("err", "invalid enrollment id")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		enrollment, err := config.Datastore.MDMAppleEnrollment(ctx, uint(enrollmentID))
+		if err != nil {
+			enrollLogger.Log("err", err, "enrollmentID", enrollmentID)
+			status := http.StatusInternalServerError
+			if fleet.IsNotFound(err) {
+				status = http.StatusNotFound
+			}
+			w.WriteHeader(status)
+			return
+		}
+		// TODO(lucas): Actually use enrollment.Config.
+		_ = enrollment
 		mobileConfig, err := generateMobileConfig(
-			"https://"+config.MDMConfig.DEP.ServerURL+"/mdm/apple/scep",
-			"https://"+config.MDMConfig.DEP.ServerURL+"/mdm/apple/mdm",
+			"https://"+config.MDMConfig.ServerAddress+"/mdm/apple/scep",
+			"https://"+config.MDMConfig.ServerAddress+"/mdm/apple/mdm",
 			config.MDMConfig.SCEP.Challenge,
 			topic,
 		)
@@ -625,26 +663,26 @@ func startMunkiRepoServer(ctx context.Context, mux *http.ServeMux, config config
 	return nil
 }
 
-func startMunkiPkgServer(ctx context.Context, mux *http.ServeMux, config configpkg.MunkiPkgConfig, logger kitlog.Logger) error {
-	if config.FilePath == "" {
+func startMunkiPkgServer(ctx context.Context, mux *http.ServeMux, serverAddress string, pkgPath string, logger kitlog.Logger) error {
+	if pkgPath == "" {
 		return errors.New("pkg file path empty")
 	}
-	if _, err := os.Stat(config.FilePath); err != nil {
+	if _, err := os.Stat(pkgPath); err != nil {
 		return fmt.Errorf("stat pkg file path: %w", err)
 	}
-	pkgURL, err := url.Parse(config.ServerURL)
+	pkgURL, err := url.Parse(serverAddress)
 	if err != nil {
 		return fmt.Errorf("parse manifest url: %w", err)
 	}
 	const munkiPkgPath = "/mdm/apple/munki/pkg"
 	pkgURL.Path += munkiPkgPath
 	pkgURL.Scheme = "https"
-	manifest, err := createManifest(config.FilePath, pkgURL.String())
+	manifest, err := createManifest(pkgPath, pkgURL.String())
 	if err != nil {
 		return fmt.Errorf("create manifest: %w", err)
 	}
 	mux.HandleFunc(munkiPkgPath, func(w http.ResponseWriter, r *http.Request) {
-		pkgFile, err := os.Open(config.FilePath)
+		pkgFile, err := os.Open(pkgPath)
 		if err != nil {
 			level.Error(logger).Log("msg", "munki package open", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -654,7 +692,7 @@ func startMunkiPkgServer(ctx context.Context, mux *http.ServeMux, config configp
 
 		w.Header().Set(
 			"Content-Disposition",
-			"attachment; filename="+filepath.Base(config.FilePath),
+			"attachment; filename="+filepath.Base(pkgPath),
 		)
 		if _, err := io.Copy(w, pkgFile); err != nil {
 			level.Error(logger).Log("msg", "munki package write response", "err", err)
@@ -663,7 +701,7 @@ func startMunkiPkgServer(ctx context.Context, mux *http.ServeMux, config configp
 	mux.HandleFunc(munkiManifestPath, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(
 			"Content-Disposition",
-			"attachment; filename="+strings.TrimSuffix(filepath.Base(config.FilePath), ".pkg")+".plist",
+			"attachment; filename="+strings.TrimSuffix(filepath.Base(pkgPath), ".pkg")+".plist",
 		)
 
 		if _, err := w.Write(manifest); err != nil {
