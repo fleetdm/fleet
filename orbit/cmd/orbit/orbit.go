@@ -14,11 +14,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
@@ -484,6 +481,21 @@ func main() {
 			return fmt.Errorf("error enroll: %w", err)
 		}
 
+		flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+			CheckInterval: constant.OrbitFlagsInterval,
+			RootDir:       c.String("root-dir"),
+			OrbitNodeKey:  orbitNodeKey,
+		})
+		if err != nil {
+			return err
+		}
+		// do the initial flags update
+		_, err = flagRunner.DoFlagsUpdate()
+		if err != nil {
+			log.Info().Err(err).Msg("Initial flags update failed")
+		}
+		g.Add(flagRunner.Execute, flagRunner.Interrupt)
+
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
 		options = append(options, osquery.WithFlags([]string{"--force"}))
@@ -493,9 +505,6 @@ func main() {
 				osquery.WithFlags([]string{"--verbose", "--tls_dump"}),
 			)
 		}
-
-		// get the initial flags update
-		doFlagsUpdate(orbitClient, c.String("root-dir"), orbitNodeKey)
 
 		// Provide the flagfile to osquery if it exists. This comes after the other flags set by
 		// Orbit so that users can override those flags. Note this means users may unintentionally
@@ -517,25 +526,8 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		updatedChan := make(chan struct{})
-		var shouldRestart = false
-		go retry(constant.OrbitFlagsInterval, true, updatedChan, func() bool {
-			shouldRestart, err = doFlagsUpdate(orbitClient, c.String("root-dir"), orbitNodeKey)
-			if err != nil {
-				log.Info().Msg("error updating flags " + err.Error())
-			}
-			log.Info().Msg("Flags updated : " + strconv.FormatBool(shouldRestart))
-			if shouldRestart {
-				log.Info().Msg("+++ Restarting because of flags update +++")
-				r.Interrupt(errors.New("restarting for flags update"))
-				err := syscall.Kill(os.Getpid(), syscall.SIGINT)
-				if err != nil {
-					log.Info().Msg("Error terminating process")
-					return false
-				}
-			}
-			return true
-		})
+		//registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+
 
 		client, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
 		if err != nil {
@@ -787,125 +779,6 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enroll
 	default:
 		return "", fmt.Errorf("read orbit node key: %w", err)
 	}
-}
-
-// getFlagsFromJSON converts the json of the type below
-// {
-//	  "number": 5,
-//	  "string": "str",
-//	  "boolean": true
-//	}
-// to a map[string]string
-// this map will get compared and written to the filesystem and passed to osquery
-// this only supports simple key:value pairs and not nested structures
-func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
-	result := make(map[string]string)
-
-	var data map[string]interface{}
-	err := json.Unmarshal([]byte(flags), &data)
-	if err != nil {
-		log.Info().Msg(err.Error())
-		return nil, err
-	}
-
-	for k, v := range data {
-		switch t := v.(type) {
-		case string:
-			result["--"+k] = t
-		case bool:
-			result["--"+k] = strconv.FormatBool(t)
-		case float64:
-			result["--"+k] = fmt.Sprint(t)
-		}
-	}
-	return result, nil
-}
-
-// readFlagFile reads and parses the osquery.flags file on disk
-// and returns a map[string]string, of the form:
-// {"--foo":"bar","--value":"5"}
-// this only supports simple key:value pairs and not nested structures
-func readFlagFile(rootDir string) (map[string]string, error) {
-	flagfile := filepath.Join(rootDir, "osquery.flags")
-	bytes, err := ioutil.ReadFile(flagfile)
-	if err != nil {
-		return nil, fmt.Errorf("reading flagfile %s failed: %w", flagfile, err)
-	}
-	result := make(map[string]string)
-	lines := strings.Split(strings.TrimSpace(string(bytes)), "\n")
-	for _, line := range lines {
-		// skip line starting with "#" indicating that it's a comment
-		if !strings.HasPrefix(line, "#") {
-			// split each line by "="
-			str := strings.Split(strings.TrimSpace(line), "=")
-			if len(str) == 2 {
-				result[str[0]] = str[1]
-			}
-			if len(str) == 1 {
-				result[str[0]] = ""
-			}
-		}
-	}
-	return result, nil
-}
-
-// writeFlagFile writes the contents of the data map as a osquery flagfile to disk
-// given a map[string]string, of the form: {"--foo":"bar","--value":"5"}
-// it writes the contents of key=value, one line per pair to the file
-// this only supports simple key:value pairs and not nested structures
-func writeFlagFile(rootDir string, data map[string]string) error {
-	flagfile := filepath.Join(rootDir, "osquery.flags")
-	var sb strings.Builder
-	for k, v := range data {
-		if k != "" && v != "" {
-			sb.WriteString(k + "=" + v + "\n")
-		} else if v == "" {
-			sb.WriteString(k + "\n")
-		}
-	}
-	if err := ioutil.WriteFile(flagfile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
-		return fmt.Errorf("writing flagfile %s failed: %w", flagfile, err)
-	}
-	return nil
-}
-
-// doFlagsUpdate, reads the flagfile on disk if it exists, and also gets flags from fleet
-// it then compare both of these flags, and returns bool indicating if the flags have been updated
-func doFlagsUpdate(orbitClient *service.Client, rootDir string, orbitNodeKey string) (bool, error) {
-	flagFileExists := true
-
-	// first off try and read osquery.flags from disk
-	osqueryFlagMapFromFile, err := readFlagFile(rootDir)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return false, err
-		}
-		// flag file may not exist on disk on first "boot"
-		flagFileExists = false
-	}
-
-	// next GetFlags from Fleet API
-	flagsJSON, err := orbitClient.GetFlags(orbitNodeKey)
-	if err != nil {
-		return false, fmt.Errorf("error getting flags from fleet %w", err)
-	}
-	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
-	if err != nil {
-		return false, fmt.Errorf("error parsing flags %w", err)
-	}
-
-	// compare both flags, if they are equal, nothing to do
-	if flagFileExists && reflect.DeepEqual(osqueryFlagMapFromFile, osqueryFlagMapFromFleet) {
-		return false, nil
-	}
-
-	// flags are not equal, write the fleet flags to disk
-	err = writeFlagFile(rootDir, osqueryFlagMapFromFleet)
-	if err != nil {
-		log.Error().Msg("Error writing flags to disk " + err.Error())
-		return false, fmt.Errorf("error writing flags to disk %w", err)
-	}
-	return true, nil
 }
 
 func killProcessByName(name string) error {

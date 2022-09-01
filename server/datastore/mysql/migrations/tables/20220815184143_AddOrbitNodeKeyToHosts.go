@@ -14,8 +14,6 @@ func Up_20220815184143(tx *sql.Tx) error {
 }
 
 func Down_20220815184143(tx *sql.Tx) error {
-	_, err := tx.Exec(
-		`ALTER TABLE hosts DROP COLUMN orbit_node_key;`,
-	)
-	return err
+	//
+	return nil
 }
