@@ -212,8 +212,7 @@ func main() {
 		}
 
 		fileToken := fstoken.New(c.String("root-dir"))
-		deviceAuthToken, err := fileToken.Generate()
-		if err != nil {
+		if _, err := fileToken.Generate(); err != nil {
 			return fmt.Errorf("load identifier file: %w", err)
 		}
 
@@ -493,7 +492,7 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), *fileToken)
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, fileToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -517,9 +516,9 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
+func registerExtensionRunner(g *run.Group, extSockPath string, fileToken fstoken.Token) {
 	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
-		deviceAuthToken: deviceAuthToken,
+		fstoken: fileToken,
 	}))
 	g.Add(ext.Execute, ext.Interrupt)
 }

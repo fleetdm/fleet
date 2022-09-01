@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/fstoken"
 	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // orbitInfoExtension implements an extension table that provides info about Orbit.
 type orbitInfoExtension struct {
-	deviceAuthToken string
+	fstoken fstoken.Token
 }
 
 var _ orbit_table.Extension = orbitInfoExtension{}
@@ -34,10 +35,14 @@ func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext
 	if v == "" {
 		v = "unknown"
 	}
+	token, err := o.fstoken.Get()
+	if err != nil {
+		return nil, err
+	}
 	return []map[string]string{
 		{
 			"version":           v,
-			"device_auth_token": o.deviceAuthToken,
+			"device_auth_token": token,
 		},
 	}, nil
 }

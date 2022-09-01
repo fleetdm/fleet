@@ -59,7 +59,8 @@ func main() {
 	}
 
 	refetchToken := func() {
-		if deviceToken, err = fileToken.Get(); err != nil {
+		deviceToken, err := fileToken.Get()
+		if err != nil {
 			log.Error().Err(err).Msg("refetch token")
 		}
 		client.SetToken(deviceToken)

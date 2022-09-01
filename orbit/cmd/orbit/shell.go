@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/fstoken"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -109,7 +110,7 @@ var shellCommand = &cli.Command{
 			// leaving the extension runner waiting for the socket.
 			// NOTE(lucas): `--extensions_require` doesn't seem to work with
 			// thrift extensions?
-			registerExtensionRunner(&g, r.ExtensionSocketPath(), "")
+			registerExtensionRunner(&g, r.ExtensionSocketPath(), fstoken.Token{})
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
