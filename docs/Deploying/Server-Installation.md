@@ -448,7 +448,7 @@ spec:
         image: fleetdm/fleet:4.18.0
         env:
           # if running Fleet behind external ingress controller that terminates TLS
-          - name: FLEET_SERVE_TLS
+          - name: FLEET_SERVER_TLS
             value: FALSE
           - name: FLEET_VULNERABILITIES_DATABASES_PATH
             value: /tmp/vuln
