@@ -250,6 +250,14 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	return nil, fleet.ErrMissingLicense
 }
 
+func (svc *Service) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return 0, fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Device API features
 ////////////////////////////////////////////////////////////////////////////////
