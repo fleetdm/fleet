@@ -6,7 +6,7 @@ Note: these can all be namespaced behind something like `apple-mdm` if needed. B
 ### Step 1 - Generate CSR
 ``` sh
 $ fleetctl setup apns init
-Generating MDM keys at ./
+Generating APNS keys at ./
   fleet-apns-pki.crt ... done
   fleet-apns-pki.key ... done
   fleet-apns-push.key ... done
@@ -15,10 +15,10 @@ Send the .csr and .crt files to your friendly Fleet representative
 
 Keep the .key files. You will need them to complete this process. 
 
-Fleet will return a signed certificate to you within 1 business day. Use that file with the .key files in the `fleetctl setup apns gen-req` command.
+Fleet will return a .p7m file to you within (TODO) business days. Use that file in the `fleetctl setup apns gen-req` command.
 ```
 
-### Step 2 - Generate .req file from .p7
+### Step 2 - Generate .req file from .p7m
 ```
 $ fleetctl setup apns gen-req \
 --p7-file=~/path/to/*.p7 \
@@ -29,22 +29,20 @@ Generated fleet-apns-push.req file at ./
 
 Visit identity.apple.com to upload this .req file. For more details, follow these instructions: NEED LINK HERE
 
-Apple will generate a .crt file. Use that file with the .key files in the `fleetctl setup apns finalize` command. 
+Apple will generate a .crt file. Use that file in the `fleetctl setup apns finalize` command. 
 ```
 
 ### Step 3 - Upload push..crt and push.key files to Fleet ENV
 
 ```sh
-$ fleetctl setup apns finalize \
---apple-crt=/path/to/apple.crt \
---push-key=/path/to/fleetctl-apns-push.key \
---context=dogfood
-This command will update your Fleet Server's APNS environment variables with the content of the specified files. 
+$ fleetctl setup apns finalize
+Update your Fleet server's environment variables as follows:
+1. Update ENV["FLEET_MDM_APPLE_ENABLE"]=1
+2. Update ENV["FLEET_MDM_APPLE_PUSH_CERT"] with the contents of the Apple .crt file
+3. Update ENV["FLEET_MDM_APPLE_PUSH_KEY"] with the contents of fleet-apns-push.key
 
-Continue? (Y/n)
+Restart the server to apply the new ENV variables.
 
-Updating ENV["NEED_VARNAME"] with contents of /path/to/apple.crt
-Updating ENV["NEED_VARNAME"] with contents of /path/to/fleetctl-apns-push.key
 ```
 
 ## SCEP
@@ -60,27 +58,27 @@ Next, use these file in the `fleetctl setup scep-ca finalize` command.
 
 ### Step 2 - Update fleet server ENV vars with new certs
 ```
-$ fleetctl setup scep-ca finalize \ 
---scep-crt=/path/to/fleet-scep.crt \
---scep-key=/path/to/fleet-scep.key \
---context=dogfood
-This command will update your Fleet Server's SCEP environment variables with the content of the specified files. 
+$ fleetctl setup scep-ca finalize
+WARNING: If you change the SCEP CA in the fleet server, existing managed devices will no longer report to Fleet. You must un-enroll and re-enroll all devices.
 
-WARNING: If you change the SCEP CA in the fleet server, you must un-enroll and re-enroll all devices.
+Update your Fleet server's environment variables as follows:
+1. Update ENV["NEED ENV VAR"]=1
+2. Update ENV["NEED ENV VAR NAME"] with the contents of fleetctl-scep.crt
+3. Update ENV["NEED ENV VAR NAME"] with the contents of fleetctl-scep.key
 
-Continue? (Y/n)
+Restart the server to apply the new ENV variables.
 
-Updating ENV["NEED_VARNAME"] with contents of /path/to/fleet-scep.crt
-Updating ENV["NEED_VARNAME"] with contents of /path/to/fleet-scep.key
 ```
 
 ## Misc
 ### Error States
 #### Missing required flag
-Matches current behavior of `fleetctl`: Simply shows the help page (try `fleetctl setup --name="hello"`)
+Matches current behavior of `fleetctl`: Simply shows the help page. (To simulate this, try `fleetctl setup --name="hello"`)
+
 #### Required file does not exist 
-Matches current behavior of `fleetctl`: `Error: open does/not/exist: no such file or directory`
-(Try `fleetctl apply -f does/not/exist`)
+Matches current behavior of `fleetctl`: "`Error: open does/not/exist: no such file or directory`".
+
+(To simulate this, try `fleetctl apply -f does/not/exist`)
 ### Help pages - Setup
 
 ```
@@ -94,8 +92,8 @@ USAGE:
    fleetctl setup scep // NEW
    
 SUBCOMMANDS:
-	apns Apple Push Notification Service to enable MDM for Apple devices
-	scep Simple Certificate Enrollment Protocol to enable MDM
+	apns Apple Push Notification Service to enable MDM for Apple devices // New
+	scep Simple Certificate Enrollment Protocol to enable MDM for Apple devices // NEW
 
 OPTIONS:
 	... // remains same
@@ -107,7 +105,7 @@ OPTIONS:
 // ALL NEW
 $ fleetctl setup apns
 NAME:
-	fleetctl setup apns - Set up Apple Push Notification Service to enable Apple MDM
+	fleetctl setup apns - Set up Apple Push Notification Service to enable MDM for Apple devices
 
 USAGE:
 	fleetctl setup apns command
@@ -165,7 +163,7 @@ OPTIONS:
 // ALL NEW
 $ fleetctl setup scep
 NAME:
-	fleetctl setup scep - Set up Simple Certificate Enrollment Protocol to enable MDM
+	fleetctl setup scep - Set up Simple Certificate Enrollment Protocol to enable MDM for Apple Devices
 
 USAGE:
 	fleetctl setup scep command
@@ -173,16 +171,6 @@ USAGE:
 COMMANDS:
 	init     Generate the necessary files to set up SCEP
 	finalize Set the SCEP certs in the Fleet Server's environment variables
-```
-
-```
-// ALL NEW
-$ fleetctl setup apns init
-NAME:
-	fleetctl setup apns init - Generates the necessary files to set up APNS 
-
-USAGE:
-	fleetctl setup apns init
 ```
 
 ```
@@ -201,5 +189,4 @@ OPTIONS:
 ```
 
 ## New API endpoints
-1. Update APNS certs
-2. Update SCEP certs
+None needed for this effort.
