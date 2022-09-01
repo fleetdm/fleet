@@ -791,10 +791,7 @@ export const getValidatedTeamId = (
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
-): Record<
-  string,
-  number | string | boolean | Record<string, number | string | boolean>
-> => {
+): Partial<IHost> => {
   return reduce(
     hostData,
     (result, value, key) => {

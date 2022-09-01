@@ -315,47 +315,43 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString]);
 
-  const titleData: Partial<IHost> = normalizeEmptyValues(
-    pick(host, [
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "hostname",
-    ])
-  );
+  const titleData: Partial<IHost> = pick(host, [
+    "status",
+    "issues",
+    "memory",
+    "cpu_type",
+    "os_version",
+    "osquery_version",
+    "enroll_secret_name",
+    "detail_updated_at",
+    "percent_disk_space_available",
+    "gigs_disk_space_available",
+    "team_name",
+    "hostname",
+  ]);
+
+  console.log("titleData: ", titleData);
 
   const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
-  const aboutData: Partial<IHost> = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-    ])
-  );
+  const aboutData: Partial<IHost> = pick(host, [
+    "seen_time",
+    "uptime",
+    "last_enrolled_at",
+    "hardware_model",
+    "hardware_serial",
+    "primary_ip",
+    "public_ip",
+    "geolocation",
+    "batteries",
+    "detail_updated_at",
+  ]);
 
-  const osqueryData: Partial<IHost> = normalizeEmptyValues(
-    pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ])
-  );
+  const osqueryData: Partial<IHost> = pick(host, [
+    "config_tls_refresh",
+    "logger_tls_period",
+    "distributed_interval",
+  ]);
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
