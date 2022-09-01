@@ -59,37 +59,6 @@ const labelSlug = (label: ILabel): string => {
   return `labels/${id}`;
 };
 
-const labelStubs = [
-  {
-    id: "new",
-    count: 0,
-    description: "Hosts that have been enrolled to Fleet in the last 24 hours.",
-    display_text: "New",
-    slug: "new",
-    statusLabelKey: "new_count",
-    title_description: "(added in last 24hrs)",
-    type: "status",
-  },
-  {
-    id: "online",
-    count: 0,
-    description: "Hosts that have recently checked-in to Fleet.",
-    display_text: "Online",
-    slug: "online",
-    statusLabelKey: "online_count",
-    type: "status",
-  },
-  {
-    id: "offline",
-    count: 0,
-    description: "Hosts that have not checked-in to Fleet recently.",
-    display_text: "Offline",
-    slug: "offline",
-    statusLabelKey: "offline_count",
-    type: "status",
-  },
-];
-
 const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;
 };
@@ -250,7 +219,7 @@ const formatLabelResponse = (response: any): ILabel[] => {
     };
   });
 
-  return labels.concat(labelStubs);
+  return labels;
 };
 
 export const formatSelectedTargetsForApi = (
