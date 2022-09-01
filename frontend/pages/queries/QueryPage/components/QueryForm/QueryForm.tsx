@@ -78,13 +78,11 @@ const QueryForm = ({
 }: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
-  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
-    false
-  );
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState<boolean>(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showQueryEditor, setShowQueryEditor] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id

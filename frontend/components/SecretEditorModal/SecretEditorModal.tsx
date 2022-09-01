@@ -38,7 +38,7 @@ const SecretEditorModal = ({
   selectedSecret,
   isUpdatingSecret,
 }: ISecretEditorModalProps): JSX.Element => {
-  const [enrollSecretString, setEnrollSecretString] = useState<string>(
+  const [enrollSecretString, setEnrollSecretString] = useState(
     selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});

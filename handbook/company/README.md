@@ -7,10 +7,12 @@ Fleet Device Management Inc is an [open core company](https://www.heavybit.com/l
 We are dedicated to
 
 - 🧑‍🚀 automating IT and security.
-- 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
 - 🪟 privacy, transparency, and trust through open source software.
-- 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS.
 - 💻 building a better way to manage computers.
+
+> 5 things is too many.  But we also care deeply about
+> - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
+> - 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS.
 
 
 ## Culture

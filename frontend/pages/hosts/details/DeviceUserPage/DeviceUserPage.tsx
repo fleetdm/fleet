@@ -51,19 +51,17 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isPremiumTier, setIsPremiumTier] = useState<boolean>(false);
-  const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
+  const [isPremiumTier, setIsPremiumTier] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [host, setHost] = useState<IHost | null>();
-  const [orgLogoURL, setOrgLogoURL] = useState<string>("");
+  const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState<boolean>(
-    false
-  );
+  const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],

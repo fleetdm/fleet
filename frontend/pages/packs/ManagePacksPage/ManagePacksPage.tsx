@@ -61,10 +61,8 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const onCreatePackClick = () => router.push(PATHS.NEW_PACK);
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
-  const [showDeletePackModal, setShowDeletePackModal] = useState<boolean>(
-    false
-  );
-  const [isUpdatingPack, setIsUpdatingPack] = useState<boolean>(false);
+  const [showDeletePackModal, setShowDeletePackModal] = useState(false);
+  const [isUpdatingPack, setIsUpdatingPack] = useState(false);
 
   const {
     data: packs,

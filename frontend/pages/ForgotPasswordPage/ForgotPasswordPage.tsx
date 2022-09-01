@@ -13,9 +13,9 @@ import Spinner from "components/Spinner";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 const ForgotPasswordPage = () => {
-  const [email, setEmail] = useState<string>("");
+  const [email, setEmail] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const baseClass = "forgot-password";
 

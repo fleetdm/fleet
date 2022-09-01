@@ -25,12 +25,12 @@ const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const [isUpdatingTeams, setIsUpdatingTeams] = useState<boolean>(false);
+  const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});

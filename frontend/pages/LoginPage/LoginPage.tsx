@@ -55,7 +55,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
-  const [loginVisible, setLoginVisible] = useState<boolean>(true);
+  const [loginVisible, setLoginVisible] = useState(true);
   const [ssoSettings, setSSOSettings] = useState<ISSOSettings>();
   const [pageStatus, setPageStatus] = useState<string | null>(
     new URLSearchParams(location.search).get("status")

@@ -1,4 +1,0 @@
-- Added Windows display version to data ingested for `os_version` column in `hosts` table (e.g.,
-  "Windows 11 Enterprise 21H2")
-- Shortened "Microsoft Windows" to "Windows" for UI display purposes.
-- Updated operating system policy generator modal UI with new policy query to include Windows display version for Windows hosts.
