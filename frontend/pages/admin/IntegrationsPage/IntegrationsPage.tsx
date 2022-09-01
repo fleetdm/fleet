@@ -54,9 +54,7 @@ const IntegrationsPage = (): JSX.Element => {
     integrationEditing,
     setIntegrationEditing,
   ] = useState<IIntegrationTableData>();
-  const [isUpdatingIntegration, setIsUpdatingIntegration] = useState<boolean>(
-    false
-  );
+  const [isUpdatingIntegration, setIsUpdatingIntegration] = useState(false);
   const [jiraIntegrations, setJiraIntegrations] = useState<
     IJiraIntegration[]
   >();
@@ -66,7 +64,7 @@ const IntegrationsPage = (): JSX.Element => {
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const {
     data: integrations,

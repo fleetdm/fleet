@@ -63,17 +63,15 @@ const LabelForm = ({
   backendValidators,
   isUpdatingLabel,
 }: ILabelFormProps): JSX.Element => {
-  const [name, setName] = useState<string>(selectedLabel?.name || "");
-  const [nameError, setNameError] = useState<string>("");
-  const [description, setDescription] = useState<string>(
+  const [name, setName] = useState(selectedLabel?.name || "");
+  const [nameError, setNameError] = useState("");
+  const [description, setDescription] = useState(
     selectedLabel?.description || ""
   );
-  const [descriptionError, setDescriptionError] = useState<string>("");
-  const [query, setQuery] = useState<string>(selectedLabel?.query || "");
-  const [queryError, setQueryError] = useState<string>("");
-  const [platform, setPlatform] = useState<string>(
-    selectedLabel?.platform || ""
-  );
+  const [descriptionError, setDescriptionError] = useState("");
+  const [query, setQuery] = useState(selectedLabel?.query || "");
+  const [queryError, setQueryError] = useState("");
+  const [platform, setPlatform] = useState(selectedLabel?.platform || "");
 
   const debounceSQL = useDebouncedCallback((queryString: string) => {
     let valid = true;

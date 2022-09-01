@@ -52,24 +52,20 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("");
+  const [selectedPlatform, setSelectedPlatform] = useState("");
   const [labels, setLabels] = useState<ILabelSummary[]>();
-  const [macCount, setMacCount] = useState<number>(0);
-  const [windowsCount, setWindowsCount] = useState<number>(0);
-  const [linuxCount, setLinuxCount] = useState<number>(0);
-  const [onlineCount, setOnlineCount] = useState<number>(0);
-  const [offlineCount, setOfflineCount] = useState<number>(0);
-  const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
-    false
-  );
-  const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
-  const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
-  const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
-  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
-  const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
-    false
-  );
-  const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
+  const [macCount, setMacCount] = useState(0);
+  const [windowsCount, setWindowsCount] = useState(0);
+  const [linuxCount, setLinuxCount] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [offlineCount, setOfflineCount] = useState(0);
+  const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
+  const [showSoftwareUI, setShowSoftwareUI] = useState(false);
+  const [showMunkiUI, setShowMunkiUI] = useState(false);
+  const [showMDMUI, setShowMDMUI] = useState(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
+  const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -124,24 +120,20 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const {
-    isLoading: isGlobalSecretsLoading,
-    data: globalSecrets,
-    refetch: refetchGlobalSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["global secrets"],
-    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
-    {
-      enabled: !!canEnrollGlobalHosts,
-      select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
-  );
+  const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: !!canEnrollGlobalHosts,
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
 
-  const {
-    isLoading: isTeamSecretsLoading,
-    data: teamSecrets,
-    refetch: refetchTeamSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+  const { data: teamSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(
     ["team secrets", currentTeam],
     () => {
       if (currentTeam) {

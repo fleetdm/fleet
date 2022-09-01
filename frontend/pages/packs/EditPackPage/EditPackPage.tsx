@@ -89,20 +89,18 @@ const EditPacksPage = ({
     }
   );
 
-  const [targetsCount, setTargetsCount] = useState<number>(0);
-  const [
-    showPackQueryEditorModal,
-    setShowPackQueryEditorModal,
-  ] = useState<boolean>(false);
-  const [
-    showRemovePackQueryModal,
-    setShowRemovePackQueryModal,
-  ] = useState<boolean>(false);
+  const [targetsCount, setTargetsCount] = useState(0);
+  const [showPackQueryEditorModal, setShowPackQueryEditorModal] = useState(
+    false
+  );
+  const [showRemovePackQueryModal, setShowRemovePackQueryModal] = useState(
+    false
+  );
   const [selectedPackQuery, setSelectedPackQuery] = useState<IScheduledQuery>();
   const [selectedPackQueryIds, setSelectedPackQueryIds] = useState<
     number[] | never[]
   >([]);
-  const [isUpdatingPack, setIsUpdatingPack] = useState<boolean>(false);
+  const [isUpdatingPack, setIsUpdatingPack] = useState(false);
 
   const packTargets = storedPack
     ? [

@@ -74,8 +74,8 @@ const TAGGED_TEMPLATES = {
 const ActivityFeed = ({
   setShowActivityFeedTitle,
 }: IActvityCardProps): JSX.Element => {
-  const [pageIndex, setPageIndex] = useState<number>(0);
-  const [showMore, setShowMore] = useState<boolean>(true);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [showMore, setShowMore] = useState(true);
 
   const {
     data: activities,
