@@ -1147,8 +1147,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 
 	query := `
 		SELECT SUM(1 - pm.passes) AS n_failed
-		FROM policies p
-				INNER JOIN policy_membership pm ON (p.id = pm.policy_id AND pm.host_id = ?)
+		FROM policies p INNER JOIN policy_membership pm ON (p.id = pm.policy_id AND pm.host_id = ?)
 		WHERE (p.team_id IS NULL OR p.team_id = (select team_id from hosts WHERE id = ?))
 		AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
 		GROUP BY host_id
