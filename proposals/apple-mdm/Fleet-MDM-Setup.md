@@ -68,15 +68,12 @@ The MDM APNs certificate provisioning will be manual on MVP:
 
 The command will basically mimick [mdmctl mdmcert.download -new](https://github.com/micromdm/micromdm/blob/main/cmd/mdmctl/mdmcert.download.go).
 Steps:
-1. Generate an RSA private key and certificate for signing and encryption. 
-(Store them in `~/.fleet/config`, as there's no need to store these as files.) 
-Let's call these "PKI" key and cert.
+1. Generate an RSA private key and certificate for signing and encryption: `fleet-mdm-apple-apns-pki.crt` and `fleet-mdm-apple-apns-pki.key`
 2. Generate an RSA push private key and CSR. Store the private key as a file: `fleet-mdm-apple-apns-push.key`. 
-TODO(Lucas): Store private key encrypted with passphrase?
-3. Also output:
+3. Also outputs:
 - File fleet-mdm-apple-apns-setup.zip with:
-	- fleet-mdm-apple-apns-push.csr
-	- fleet-mdm-apple-apns-pki.crt
+	- `fleet-mdm-apple-apns-push.csr`
+	- `fleet-mdm-apple-apns-pki.crt`
 - Text to stdout that explains next step, something like:
 	"Send zip to Fleet via preferred medium (e-mail, Slack)."
 
@@ -86,27 +83,30 @@ TODO(Lucas): Store private key encrypted with passphrase?
 
 Output:
 - `fleet-mdm-apple-apns-push-req-encrypted.p7`
-- Text to stdout that explains next step, something like:
-	"Send generated file 'fleet-mdm-apple-apns-push-req-encrypted.p7' back to customer via preferred medium (email, Slack)."
+- Text that explains next step, something like:
+"Send generated file `fleet-mdm-apple-apns-push-req-encrypted.p7` back to customer via preferred medium (email, Slack)."
 
 #### 3. Finalize APNs (customer)
 
-`fleetctl apple-mdm setup apns finalize --encrypted-req=fleet-mdm-apple-apns-push-req-encrypted.p7`
+```sh
+fleetctl apple-mdm setup apns finalize \
+    --certificate=fleet-mdm-apple-apns-pki.crt \
+    --private-key=fleet-mdm-apple-apns-pki.key \
+    --encrypted-req=fleet-mdm-apple-apns-push-req-encrypted.p7
+```
 
 Output:
-	- `fleet-mdm-apple-apns-push.req` file
-
-If successful, it clears PKI key and certificate from `~/.fleet/config`.
+- `fleet-mdm-apple-apns-push.req` file
 
 #### 4. Upload .req to Apple (customer)
 
 Customer uploads `fleet-mdm-apple-apns-push.req` to https://identity.apple.com.
 
-#### 5. Download .pem from Apple (customer)
+#### 5. Download .crt from Apple (customer)
 
-Downloads the final APNs certificate, a `*.pem` file. Let's call it `fleet-mdm-apple-apns-push.pem`.
+Downloads the final APNs certificate, a `*.crt` file. Let's call it `fleet-mdm-apple-apns-push.crt`.
 
-The contents of `fleet-mdm-apple-apns-push.pem` and `fleet-mdm-apple-apns-push.key` are passed to Fleet as environment variables.
+The contents of `fleet-mdm-apple-apns-push.crt` and `fleet-mdm-apple-apns-push.key` are passed to Fleet as environment variables.
 
 ## SCEP
 
@@ -120,9 +120,9 @@ The setup for SCEP consists of generating the "SCEP CA" for Fleet.
 
 Generates SCEP CA and key:
 - `fleet-mdm-apple-scep.key`
-- `fleet-mdm-apple-scep.pem`
+- `fleet-mdm-apple-scep.crt`
 
-The contents of `fleet-mdm-apple-scep.pem` and `fleet-mdm-apple-scep.key` are passed to Fleet as environment variables.
+The contents of `fleet-mdm-apple-scep.crt` and `fleet-mdm-apple-scep.key` are passed to Fleet as environment variables.
 
 ## DEP
 
@@ -130,21 +130,23 @@ The contents of `fleet-mdm-apple-scep.pem` and `fleet-mdm-apple-scep.key` are pa
 
 `fleetctl apple-mdm setup dep init`
 
-- Generates `fleet-mdm-apple-dep.pem` and `fleet-mdm-apple-dep.key`:
-	- Stores `fleet-mdm-apple-dep.pem` as a file.
-	- Keeps `fleet-mdm-apple-dep.key` in some location like `~/.fleet/config`/`/tmp` (the user does not need to handle the `.key`).
+- Generates `fleet-mdm-apple-dep.crt` and `fleet-mdm-apple-dep.key` files.
 
 ### 2. Upload PEM to Apple
 
-User uploads `fleet-mdm-apple-dep.pem` to https://business.apple.com, and downloads a `*.p7m` file.
+User uploads `fleet-mdm-apple-dep.crt` to https://business.apple.com, and downloads a `*.p7m` file.
 Let's call it `fleet-mdm-apple-dep-auth-token-encrypted.p7m`.
 
 ### 3. Finalize DEP setup
 
-`fleetctl apple-mdm setup dep finalize --encrypted-token=fleet-mdm-apple-dep-auth-token-encrypted.p7m`
+```sh
+fleetctl apple-mdm setup dep finalize \
+    --certificate=fleet-mdm-apple-dep.crt \
+    --private-key=fleet-mdm-apple-dep.key \
+    --encrypted-token=fleet-mdm-apple-dep-auth-token-encrypted.p7m
+```
 	
-1. Decrypts the provided `fleet-mdm-apple-dep-auth-token-encrypted.p7m` with the `fleet-mdm-apple-dep.key` from `~/.fleet/config`/`/tmp`.
+1. Decrypts the provided token.
 2. Generates a `fleet-mdm-apple-dep.token` file.
-3. Removes `fleet-mdm-apple-dep.key` from `~/.fleet/config`.
 
 The contents of `fleet-mdm-apple-dep.token` is passed to Fleet as environment variable.

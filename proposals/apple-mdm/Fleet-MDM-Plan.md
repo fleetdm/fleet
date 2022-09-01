@@ -122,7 +122,7 @@ Fleetctl commands (and APIs):
 
 #### DEP syncer
 
-Fleet runs a "DEP syncer" routine to fetch newly added devices to apple.business.com and automatically apply DEP enroll configuration to them.
+Fleet runs a "DEP syncer" routine to fetch newly added devices to business.apple.com and automatically apply DEP enroll configuration to them.
 
 ### Hosts
 
