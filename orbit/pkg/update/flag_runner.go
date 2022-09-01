@@ -1,9 +1,5 @@
 package update
 
-//func test() {
-//	return
-//}
-
 import (
 	"encoding/json"
 	"errors"
@@ -50,18 +46,15 @@ func (r *FlagRunner) Execute() error {
 	for {
 		select {
 		case <-r.cancel:
-			log.Info().Msg("flag update cancel received")
 			return nil
 		case <-ticker.C:
 			didUpdate, err := r.DoFlagsUpdate()
 			if err != nil {
-				log.Info().Err(err).Msg("flags updates failed")
+				log.Info().Err(err).Msg("flags updates failed " + err.Error())
 			}
 			if didUpdate {
-				log.Info().Msg("did update")
+				log.Info().Msg("flags updated, exiting")
 				return nil
-			} else {
-				log.Info().Msg("Flags updated FALSE---")
 			}
 		}
 	}
@@ -69,7 +62,7 @@ func (r *FlagRunner) Execute() error {
 
 func (r *FlagRunner) Interrupt(err error) {
 	r.cancel <- struct{}{}
-	log.Debug().Err(err).Msg("interrupt updater")
+	log.Debug().Err(err).Msg("interrupt for flags updater")
 }
 
 func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
