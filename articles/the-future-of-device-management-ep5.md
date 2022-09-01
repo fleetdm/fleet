@@ -5,7 +5,7 @@
 
 Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/ep-5-jesse-peterson-open-source-communities-for-better/id1641183838?i=1000578069894), [Spotify](https://open.spotify.com/episode/6KfEzJKBOM16XDFAgj2PMA?si=OI2Eh9sfSmeKEACwWxXliw), or [PodBean](https://www.podbean.com/ew/pb-n3hd4-12b2a6a)
 
-Jesse Peterson is a Client Platform Engineer for Meta, contributor to MicroMDM, and creator of NanoMDM. In today’s episode we talk with Jesse about how he’s used his involvement in open source communities to develop better MDM tools and experience career growth. Listen in to learn how your organization can build a better device management strategy.
+Jesse Peterson is a Client Platform Engineer for Meta, contributor to MicroMDM, and creator of NanoMDM. In today’s episode, we talk with Jesse about how he’s used his involvement in open-source communities to develop better MDM tools and experience career growth. Listen in to learn how your organization can build a better device management strategy.
 
 ### Topics discussed:
 
