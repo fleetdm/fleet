@@ -4,7 +4,7 @@ This proposal aims to document the plan to make Fleet an MDM server for Apple de
 
 ## MVP requirements
 
-- **On-premise**, meaning customers can run Fleet with MDM functionality on their infrastructure.
+- **On-premises**, meaning customers can run Fleet with MDM functionality on their infrastructure.
 - Solution must be **100% open source**.
 - **Ease of deployment**, meaning as few new dependencies as possible.
 - MVP will be headless:

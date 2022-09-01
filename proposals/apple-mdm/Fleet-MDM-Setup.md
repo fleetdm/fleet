@@ -1,18 +1,22 @@
 # Setup
 
-The one-time setup consists of configuring:
+The setup consists of configuring:
 - The APNs certificate used by the MDM protocol
 - The SCEP certificate for enrollment
 - The DEP token
 
-We will define `fleetctl apple-mdm setup ...` commands to create/define all Apple/MDM credentials that are fed to the Fleet server.
+We will define `fleetctl apple-mdm setup ...` commands to create/define all Apple/MDM credentials
+that are fed to the Fleet server.
+
+Certificates provided by Apple expire yearly, and new ones have to be downloaded from Apple and
+uploaded into Fleet MDM.
 
 ## APNs
 
 ### Apple MDM APNs setup
 
 Apple's MDM protocol uses the Apple Push Notification service (APNs) to deliver "wake up" messages to managed devices.
-An "MDM server" needs access to an APNS certificate specifically issued for MDM management; such APNs certificate must be issued by an "MDM vendor."
+An "MDM server" needs access to an APNs certificate specifically issued for MDM management; such APNs certificate must be issued by an "MDM vendor."
 
 Here's a sequence diagram with the three actors: Apple Inc., an MDM vendor, and a customer (MDM server).
 
@@ -44,7 +48,7 @@ sequenceDiagram
     apple->>server: Download APNS Certificate (PEM)
     end
     end
-    note over server: APNS keypair<br>ready to use
+    note over server: APNs keypair<br>ready to use
 ```
 
 The "MDM vendor setup" flow (1) is executed once by the "MDM vendor."
