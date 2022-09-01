@@ -609,14 +609,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: Antivirus healthy (macOS)
-  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;
+  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2162) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.93)) WHERE score == 1;
   description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.
   resolution:
     To enable automatic security definition updates, on the failing device, select System
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
   platforms: macOS
-  tags: compliance, malware, hardening, built-in
+  tags: compliance, malware, hardening, built-in, template
   platform: darwin
   contributors: GuillaumeRoss
 ---
