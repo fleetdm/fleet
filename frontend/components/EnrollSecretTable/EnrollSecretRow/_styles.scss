@@ -35,7 +35,7 @@
     align-items: center;
     position: absolute;
     right: 16px;
-    top: 13px;
+    top: 16px;
     height: 16px;
 
     span {
@@ -81,11 +81,8 @@
     }
   }
 
-  &__edit-secret-btn {
-    margin: $pad-small $pad-small $pad-xsmall $pad-large;
-  }
-
+  &__edit-secret-btn,
   &__delete-secret-btn {
-    margin: $pad-small 0 $pad-xsmall;
+    margin: $pad-xsmall $pad-small $pad-large;
   }
 }

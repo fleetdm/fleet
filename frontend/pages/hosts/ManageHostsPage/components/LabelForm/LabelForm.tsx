@@ -21,6 +21,7 @@ interface ILabelFormProps {
   handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
   backendValidators: { [key: string]: string };
+  isUpdatingLabel?: boolean;
 }
 
 const baseClass = "label-form";
@@ -60,17 +61,17 @@ const LabelForm = ({
   handleSubmit,
   onOsqueryTableSelect,
   backendValidators,
+  isUpdatingLabel,
 }: ILabelFormProps): JSX.Element => {
-  const [name, setName] = useState<string>(selectedLabel?.name || "");
-  const [nameError, setNameError] = useState<string>("");
-  const [description, setDescription] = useState<string>(
+  const [name, setName] = useState(selectedLabel?.name || "");
+  const [nameError, setNameError] = useState("");
+  const [description, setDescription] = useState(
     selectedLabel?.description || ""
   );
-  const [query, setQuery] = useState<string>(selectedLabel?.query || "");
-  const [queryError, setQueryError] = useState<string>("");
-  const [platform, setPlatform] = useState<string>(
-    selectedLabel?.platform || ""
-  );
+  const [descriptionError, setDescriptionError] = useState("");
+  const [query, setQuery] = useState(selectedLabel?.query || "");
+  const [queryError, setQueryError] = useState("");
+  const [platform, setPlatform] = useState(selectedLabel?.platform || "");
 
   const debounceSQL = useDebouncedCallback((queryString: string) => {
     let valid = true;
@@ -88,6 +89,7 @@ const LabelForm = ({
 
   useEffect(() => {
     setNameError(backendValidators.name);
+    setDescriptionError(backendValidators.description);
   }, [backendValidators]);
 
   useEffect(() => {
@@ -161,6 +163,7 @@ const LabelForm = ({
     selectedLabel && selectedLabel.label_membership_type === "manual";
   const headerText = isEdit ? "Edit label" : "New label";
   const saveBtnText = isEdit ? "Update label" : "Save label";
+  const saveBtnClass = isEdit ? "update-label-loading" : "save-label-loading";
   const aceHintText = isEdit
     ? "Label queries are immutable. To change the query, delete this label and create a new one."
     : "";
@@ -192,6 +195,7 @@ const LabelForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           hint={aceHintText}
           handleSubmit={noop}
+          wrapEnabled
         />
       )}
 
@@ -206,6 +210,7 @@ const LabelForm = ({
         placeholder="Label name"
       />
       <InputField
+        error={descriptionError}
         name="description"
         onChange={onDescriptionChange}
         value={description}
@@ -237,18 +242,15 @@ const LabelForm = ({
           </p>
         </div>
       )}
-      <div className="modal-cta-wrap">
-        <Button
-          className={`${baseClass}__cancel-btn`}
-          onClick={onCancel}
-          variant="inverse"
-        >
+      <div className={`${baseClass}__button-wrap`}>
+        <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
         <Button
-          className={`${baseClass}__save-btn`}
           type="submit"
           variant="brand"
+          className={saveBtnClass}
+          isLoading={isUpdatingLabel}
         >
           {saveBtnText}
         </Button>

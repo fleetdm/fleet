@@ -203,47 +203,31 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [
-    showNoEnrollSecretBanner,
-    setShowNoEnrollSecretBanner,
-  ] = useState<boolean>(true);
-  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
-    false
+  const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
+    true
   );
-  const [showSecretEditorModal, setShowSecretEditorModal] = useState<boolean>(
-    false
-  );
-  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState<boolean>(
-    false
-  );
-  const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
-    false
-  );
-  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
+  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
+  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState(false);
+  const [showEditColumnsModal, setShowEditColumnsModal] = useState(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
-  const [
-    isAllMatchingHostsSelected,
-    setIsAllMatchingHostsSelected,
-  ] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
+  const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
+    false
+  );
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [hosts, setHosts] = useState<IHost[]>();
-  const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
-  const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [isHostsLoading, setIsHostsLoading] = useState(false);
+  const [hasHostErrors, setHasHostErrors] = useState(false);
   const [filteredHostCount, setFilteredHostCount] = useState<number>();
-  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
-  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
+  const [isHostCountLoading, setIsHostCountLoading] = useState(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
   const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
@@ -261,6 +245,10 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
+  const [resetPageIndex, setResetPageIndex] = useState(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState(false);
 
   // ======== end states
 
@@ -278,7 +266,7 @@ const ManageHostsPage = ({
       ? parseInt(queryParams?.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id, os_name, os_version } = queryParams;
+  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -293,13 +281,18 @@ const ManageHostsPage = ({
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
-  const { data: labels, error: labelsError, refetch: refetchLabels } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  const {
+    isLoading: isLoadingLabels,
+    data: labels,
+    error: labelsError,
+    refetch: refetchLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -540,9 +533,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      osId,
+      osName,
+      osVersion,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -617,7 +610,19 @@ const ManageHostsPage = ({
     return true;
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData({
+      ...tableQueryData,
+      pageIndex: 0,
+    } as ITableQueryProps);
+
+    setResetPageIndex(true);
+  };
+
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -632,6 +637,8 @@ const ManageHostsPage = ({
   };
 
   const handleClearPoliciesFilter = () => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -643,6 +650,8 @@ const ManageHostsPage = ({
   };
 
   const handleClearOSFilter = () => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -654,17 +663,44 @@ const ManageHostsPage = ({
   };
 
   const handleClearSoftwareFilter = () => {
-    router.replace(PATHS.MANAGE_HOSTS);
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["software_id"]),
+      })
+    );
     setSoftwareDetails(null);
   };
 
   const handleClearMDMSolutionFilter = () => {
-    router.replace(PATHS.MANAGE_HOSTS);
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["mdm_id"]),
+      })
+    );
     setMDMSolutionDetails(null);
   };
 
   const handleClearMDMEnrollmentFilter = () => {
-    router.replace(PATHS.MANAGE_HOSTS);
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["mdm_enrollment_status"]),
+      })
+    );
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -692,6 +728,8 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
+
+    handleResetPageIndex();
     router.replace(nextLocation);
     const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -703,6 +741,8 @@ const ManageHostsPage = ({
     const selected = isAll
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
+    handleResetPageIndex();
+
     handleLabelChange(selected as ILabel);
   };
 
@@ -729,6 +769,11 @@ const ManageHostsPage = ({
   const onCancelLabel = () => {
     router.goBack();
   };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
@@ -802,15 +847,15 @@ const ManageHostsPage = ({
       }
 
       if (
-        (os_id || (os_name && os_version)) &&
+        (osId || (osName && osVersion)) &&
         !softwareId &&
         !policyId &&
         !mdmEnrollmentStatus &&
         !mdmId
       ) {
-        newQueryParams.os_id = os_id;
-        newQueryParams.os_name = os_name;
-        newQueryParams.os_version = os_version;
+        newQueryParams.os_id = osId;
+        newQueryParams.os_name = osName;
+        newQueryParams.os_version = osVersion;
       }
       router.replace(
         getNextLocationPath({
@@ -820,6 +865,8 @@ const ManageHostsPage = ({
           queryParams: newQueryParams,
         })
       );
+
+      return 0;
     },
     [
       availableTeams,
@@ -830,9 +877,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      osId,
+      osName,
+      osVersion,
       sortBy,
     ]
   );
@@ -852,6 +899,8 @@ const ManageHostsPage = ({
     if (enrollSecretString) {
       newSecrets.push({ secret: enrollSecretString });
     }
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -887,6 +936,8 @@ const ManageHostsPage = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -901,6 +952,8 @@ const ManageHostsPage = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -927,6 +980,8 @@ const ManageHostsPage = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -937,6 +992,7 @@ const ManageHostsPage = ({
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
+    setIsUpdatingLabel(true);
 
     labelsAPI
       .update(selectedLabel, updateAttrs)
@@ -953,9 +1009,28 @@ const ManageHostsPage = ({
           setLabelValidator({
             name: "A label with this name already exists",
           });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
+          });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -964,6 +1039,7 @@ const ManageHostsPage = ({
   };
 
   const onSaveAddLabel = (formData: ILabelFormData) => {
+    setIsUpdatingLabel(true);
     labelsAPI
       .create(formData)
       .then(() => {
@@ -980,9 +1056,28 @@ const ManageHostsPage = ({
           setLabelValidator({
             name: "A label with this name already exists",
           });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
+          });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -998,6 +1093,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
+    setIsUpdatingLabel(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -1013,9 +1109,12 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
+      renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete label. Please try again.");
+    } finally {
+      setIsUpdatingLabel(false);
     }
   };
 
@@ -1030,6 +1129,8 @@ const ManageHostsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHosts(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1072,9 +1173,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version,
+        osId,
+        osName,
+        osVersion,
       });
 
       toggleTransferHostModal();
@@ -1082,10 +1183,14 @@ const ManageHostsPage = ({
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
   const onDeleteHostSubmit = async () => {
+    setIsUpdatingHosts(true);
+
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -1122,9 +1227,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version,
+        osId,
+        osName,
+        osVersion,
       });
 
       refetchLabels();
@@ -1138,6 +1243,8 @@ const ManageHostsPage = ({
           selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
@@ -1185,14 +1292,14 @@ const ManageHostsPage = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!os_id && !(os_name && os_version)) return null;
+    if (!osId && !(osName && osVersion)) return null;
 
     let os: IOperatingSystemVersion | undefined;
-    if (os_id) {
-      os = osVersions?.find((v) => v.os_id === os_id);
-    } else if (os_name && os_version) {
-      const name: string = os_name;
-      const vers: string = os_version;
+    if (osId) {
+      os = osVersions?.find((v) => v.os_id === osId);
+    } else if (osName && osVersion) {
+      const name: string = osName;
+      const vers: string = osVersion;
 
       os = osVersions?.find(
         ({ name_only, version }) =>
@@ -1364,6 +1471,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1373,6 +1481,7 @@ const ManageHostsPage = ({
       selectedTeam={currentTeam?.id || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1392,6 +1501,7 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
+      isUpdatingLabel={isUpdatingLabel}
     />
   );
 
@@ -1426,6 +1536,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
+        isUpdatingHosts={isUpdatingHosts}
       />
     );
   };
@@ -1436,6 +1547,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      isUpdatingHosts={isUpdatingHosts}
     />
   );
 
@@ -1493,9 +1605,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      os_id: osId,
+      os_name: osName,
+      os_version: osVersion,
       visibleColumns,
     };
 
@@ -1569,8 +1681,8 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
-      os_id ||
-      (os_name && os_version)
+      osId ||
+      (osName && osVersion)
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
@@ -1599,7 +1711,7 @@ const ManageHostsPage = ({
             !mdmId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
-          {(!!os_id || (!!os_name && !!os_version)) &&
+          {(!!osId || (!!osName && !!osVersion)) &&
             !policyId &&
             !softwareId &&
             !showSelectedLabel &&
@@ -1621,6 +1733,7 @@ const ManageHostsPage = ({
           handleSubmit={onSaveAddLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
+          isUpdatingLabel={isUpdatingLabel}
         />
       );
     }
@@ -1634,6 +1747,7 @@ const ManageHostsPage = ({
           handleSubmit={onEditLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
+          isUpdatingLabel={isUpdatingLabel}
           isEdit
         />
       );
@@ -1704,9 +1818,9 @@ const ManageHostsPage = ({
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
-        os_id ||
-        os_name ||
-        os_version
+        osId ||
+        osName ||
+        osVersion
       );
 
       return (
@@ -1767,6 +1881,7 @@ const ManageHostsPage = ({
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        resetPageIndex={resetPageIndex}
         disableNextPage={isLastPage}
       />
     );
@@ -1796,14 +1911,14 @@ const ManageHostsPage = ({
             </span>
           </div>
           <div className={`dismiss-banner-button`}>
-            <button
-              className="button button--unstyled"
+            <Button
+              variant="unstyled"
               onClick={() =>
                 setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
               }
             >
               <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </button>
+            </Button>
           </div>
         </div>
       )
@@ -1848,8 +1963,9 @@ const ManageHostsPage = ({
                       filteredHostCount === 0
                     ) && (
                       <Button
+                        variant="brand"
                         onClick={toggleAddHostsModal}
-                        className={`${baseClass}__add-hosts button button--brand`}
+                        className={`${baseClass}__add-hosts`}
                       >
                         <span>Add hosts</span>
                       </Button>

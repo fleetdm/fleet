@@ -37,10 +37,9 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
-  const [
-    showExpirationFlashMessage,
-    setShowExpirationFlashMessage,
-  ] = useState<boolean>(false);
+  const [showExpirationFlashMessage, setShowExpirationFlashMessage] = useState(
+    false
+  );
 
   // on success of an action, the table will reset its checkboxes.
   // setTimeout is to help with race conditions as table reloads

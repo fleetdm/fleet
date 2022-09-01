@@ -50,28 +50,28 @@ describe("Manage users flow", () => {
         }
       );
       cy.findByPlaceholderText("Password").clear().type(BAD_PASSWORD_LENGTH);
-      cy.getAttached(".create-user-form__btn-wrap")
+      cy.getAttached(".modal-cta-wrap")
         .contains("button", /create/i)
         .click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
         .type(BAD_PASSWORD_NO_NUMBER);
-      cy.getAttached(".create-user-form__btn-wrap")
+      cy.getAttached(".modal-cta-wrap")
         .contains("button", /create/i)
         .click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
         .type(BAD_PASSWORD_NO_NUMBER);
-      cy.getAttached(".create-user-form__btn-wrap")
+      cy.getAttached(".modal-cta-wrap")
         .contains("button", /create/i)
         .click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
         .type(GOOD_PASSWORD);
-      cy.getAttached(".create-user-form__btn-wrap")
+      cy.getAttached(".modal-cta-wrap")
         .contains("button", /create/i)
         .click();
       cy.findByText(/new name/i).should("exist");
@@ -95,30 +95,22 @@ describe("Manage users flow", () => {
         }
       );
       cy.findByLabelText("Password").clear().type(BAD_PASSWORD_LENGTH);
-      cy.getAttached(".create-user-form__btn-wrap")
-        .contains("button", /save/i)
-        .click();
+      cy.getAttached(".modal-cta-wrap").contains("button", /save/i).click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
         .type(BAD_PASSWORD_NO_NUMBER);
-      cy.getAttached(".create-user-form__btn-wrap")
-        .contains("button", /save/i)
-        .click();
+      cy.getAttached(".modal-cta-wrap").contains("button", /save/i).click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
         .type(BAD_PASSWORD_NO_SYMBOL);
-      cy.getAttached(".create-user-form__btn-wrap")
-        .contains("button", /save/i)
-        .click();
+      cy.getAttached(".modal-cta-wrap").contains("button", /save/i).click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
         .type(GOOD_PASSWORD);
-      cy.getAttached(".create-user-form__btn-wrap")
-        .contains("button", /save/i)
-        .click();
+      cy.getAttached(".modal-cta-wrap").contains("button", /save/i).click();
       cy.findByText(/successfully edited/i).should("exist");
     });
     it("deletes an existing user", () => {
@@ -129,7 +121,7 @@ describe("Manage users flow", () => {
           cy.findByText(/action/i).click();
           cy.findByText(/delete/i).click();
         });
-      cy.getAttached(".delete-user-form__btn-wrap")
+      cy.getAttached(".modal-cta-wrap")
         .contains("button", /delete/i)
         .click();
       cy.findByText(/successfully deleted/i).should("exist");

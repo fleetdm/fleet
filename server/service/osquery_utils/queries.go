@@ -129,7 +129,10 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version": {
-		Query: "select * from os_version limit 1",
+		// Collect operating system information for the `hosts` table.
+		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
+		// the `os_unix_like` extra detail query below.
+		Query: "SELECT * FROM os_version LIMIT 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
@@ -137,22 +140,13 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
-				rows[0]["name"],
-				rows[0]["version"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-				rows[0]["build"],
-			))
-
 			if build, ok := rows[0]["build"]; ok {
 				host.Build = build
 			}
 
 			host.Platform = rows[0]["platform"]
 			host.PlatformLike = rows[0]["platform_like"]
-			host.CodeName = rows[0]["code_name"]
+			host.CodeName = rows[0]["codename"]
 
 			// On centos6 there is an osquery bug that leaves
 			// platform empty. Here we workaround.
@@ -160,6 +154,51 @@ var hostDetailQueries = map[string]DetailQuery{
 				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
 				host.Platform = "centos"
 			}
+
+			if host.Platform != "windows" {
+				// Populate `host.OSVersion` for non-Windows hosts.
+				// Note Windows-specific registry query is required to populate `host.OSVersion` for
+				// Windows that is handled in `os_version_windows` detail query below.
+				host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
+					rows[0]["name"],
+					rows[0]["version"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+					rows[0]["build"],
+				))
+			}
+
+			return nil
+		},
+	},
+	"os_version_windows": {
+		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
+		Query: `SELECT
+			os.name,
+			r.data
+		FROM
+			os_version os,
+			(
+				SELECT
+					data
+				FROM
+					registry
+				WHERE
+					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r
+		LIMIT 1`,
+		Platforms: []string{"windows"},
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)))
+				return nil
+			}
+
+			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["data"])
+			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
+			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			host.OSVersion = s
 
 			return nil
 		},
@@ -323,7 +362,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("mdm"),
 	},
 	"munki_info": {
-		Query:            `select version from munki_info;`,
+		Query:            `select version, errors, warnings from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
@@ -342,6 +381,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		// always present.
 	},
 	"os_windows": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, the `hosts` table is populated via the `os_version` and
+		// `os_version_windows` detail queries above.
 		Query: `
 	SELECT
 		os.name,
@@ -363,6 +405,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSWindows,
 	},
 	"os_unix_like": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, the `hosts` table is populated via the `os_version` detail
+		// query above.
 		Query: `
 	SELECT
 		os.name,
@@ -380,7 +425,6 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
-
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -406,6 +450,13 @@ const usersQueryStr = `WITH cached_groups AS (select * from groups)
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
+}
+
+var windowsUpdateHistory = DetailQuery{
+	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
+	Platforms:        []string{"windows"},
+	Discovery:        discoveryTable("windows_update_history"),
+	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
 var softwareMacOS = DetailQuery{
@@ -761,6 +812,46 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
+func directIngestWindowsUpdateHistory(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+	failed bool,
+) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed")
+		return nil
+	}
+
+	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
+	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
+	// Since each antivirus update will have the same KB ID, but different 'dates', to
+	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
+	// date' update in each group.
+
+	uniq := make(map[uint]fleet.WindowsUpdate)
+	for _, row := range rows {
+		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
+		if err != nil {
+			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			continue
+		}
+
+		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
+			uniq[u.KBID] = u
+		}
+	}
+
+	var updates []fleet.WindowsUpdate
+	for _, v := range uniq {
+		updates = append(updates, v)
+	}
+
+	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
+}
+
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
@@ -1010,10 +1101,12 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
 	}
 
-	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
+	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
+	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
+	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
-func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
+func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -1022,14 +1115,18 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 		generatedMap[key] = query
 	}
 
-	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
+	if features != nil && features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.HostSettings.EnableHostUsers {
+	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
+		generatedMap["windows_update_history"] = windowsUpdateHistory
 	}
 
 	if fleetConfig.App.EnableScheduledQueryStats {
@@ -1051,4 +1148,16 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 	}
 
 	return generatedMap
+}
+
+func splitCleanSemicolonSeparated(s string) []string {
+	parts := strings.Split(s, ";")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			cleaned = append(cleaned, part)
+		}
+	}
+	return cleaned
 }

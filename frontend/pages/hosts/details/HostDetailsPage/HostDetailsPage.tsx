@@ -126,28 +126,23 @@ const HostDetailsPage = ({
     return false;
   };
 
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
-    false
-  );
-  const [showOSPolicyModal, setShowOSPolicyModal] = useState<boolean>(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showQueryHostModal, setShowQueryHostModal] = useState(false);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
+  const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
+  const [isUpdatingHost, setIsUpdatingHost] = useState(false);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
-  const [usersSearchString, setUsersSearchString] = useState<string>("");
+  const [usersSearchString, setUsersSearchString] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -201,12 +196,12 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: hostSettings } = useQuery<
+  const { data: features } = useQuery<
     IConfig,
     Error,
     { enable_host_users: boolean; enable_software_inventory: boolean }
   >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data.host_settings,
+    select: (data: IConfig) => data.features,
   });
 
   const refetchExtensions = () => {
@@ -389,6 +384,7 @@ const HostDetailsPage = ({
 
   const onDestroyHost = async () => {
     if (host) {
+      setIsUpdatingHost(true);
       try {
         await hostAPI.destroy(host);
         renderFlash(
@@ -401,6 +397,7 @@ const HostDetailsPage = ({
         renderFlash("error", `Host "${host.hostname}" could not be deleted.`);
       } finally {
         setShowDeleteHostModal(false);
+        setIsUpdatingHost(false);
       }
     }
   };
@@ -447,6 +444,8 @@ const HostDetailsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHost(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
 
     try {
@@ -463,6 +462,8 @@ const HostDetailsPage = ({
     } catch (error) {
       console.log(error);
       renderFlash("error", "Could not transfer host. Please try again.");
+    } finally {
+      setIsUpdatingHost(false);
     }
   };
 
@@ -600,16 +601,14 @@ const HostDetailsPage = ({
                 usersState={usersState}
                 isLoading={isLoadingHost}
                 onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={hostSettings?.enable_host_users}
+                hostUsersEnabled={features?.enable_host_users}
               />
             </TabPanel>
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
                 software={hostSoftware}
-                softwareInventoryEnabled={
-                  hostSettings?.enable_software_inventory
-                }
+                softwareInventoryEnabled={features?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             </TabPanel>
@@ -635,6 +634,7 @@ const HostDetailsPage = ({
             onCancel={() => setShowDeleteHostModal(false)}
             onSubmit={onDestroyHost}
             hostName={host?.hostname}
+            isUpdatingHost={isUpdatingHost}
           />
         )}
         {showQueryHostModal && host && (
@@ -653,6 +653,7 @@ const HostDetailsPage = ({
             onSubmit={onTransferHostSubmit}
             teams={teams || []}
             isGlobalAdmin={isGlobalAdmin as boolean}
+            isUpdatingHost={isUpdatingHost}
           />
         )}
         {!!host && showPolicyDetailsModal && (

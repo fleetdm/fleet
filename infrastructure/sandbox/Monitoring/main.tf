@@ -24,7 +24,7 @@ module "notify_slack" {
   sns_topic_name = var.prefix
 
   slack_webhook_url = var.slack_webhook
-  slack_channel     = "#g-infrastructure"
+  slack_channel     = "#help-p1"
   slack_username    = "monitoring"
 }
 

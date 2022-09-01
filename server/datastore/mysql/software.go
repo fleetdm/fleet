@@ -686,27 +686,13 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (ds *Datastore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	var result []fleet.SoftwareCPE
 
 	var err error
 	var args []interface{}
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
-
-	if excludedPlatforms != nil {
-		stmt += ` WHERE software_id NOT IN (
-			SELECT software_id
-			FROM host_software hs
-			INNER JOIN hosts h on hs.host_id = h.id
-			WHERE h.platform IN (?)
-		)`
-
-		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
-		}
-	}
 	err = sqlx.SelectContext(ctx, ds.reader, &result, stmt, args...)
 
 	if err != nil {

@@ -85,6 +85,7 @@ interface ICreateUserFormProps {
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
   createOrEditUserErrors?: IUserFormErrors;
+  isUpdatingUsers?: boolean;
 }
 
 const UserForm = ({
@@ -108,6 +109,7 @@ const UserForm = ({
   isInvitePending,
   serverErrors,
   createOrEditUserErrors,
+  isUpdatingUsers,
 }: ICreateUserFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -123,9 +125,7 @@ const UserForm = ({
     currentUserId,
   });
 
-  const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
-    !!defaultGlobalRole
-  );
+  const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
   useEffect(() => {
     setErrors(createOrEditUserErrors);
@@ -567,20 +567,18 @@ const UserForm = ({
       )}
       {!isPremiumTier && renderGlobalRoleForm()}
 
-      <div className={`${baseClass}__btn-wrap`}>
+      <div className="modal-cta-wrap">
         <Button
-          className={`${baseClass}__btn`}
           type="submit"
           variant="brand"
           onClick={onFormSubmit}
+          className={`${submitText === "Create" ? "create" : "save"}-loading
+          `}
+          isLoading={isUpdatingUsers}
         >
           {submitText}
         </Button>
-        <Button
-          className={`${baseClass}__btn`}
-          onClick={onCancel}
-          variant="inverse"
-        >
+        <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
       </div>

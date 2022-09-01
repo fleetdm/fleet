@@ -17,11 +17,11 @@ const baseClass = "app-config-form";
 const Statistics = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [
-    showUsageStatsPreviewModal,
-    setShowUsageStatsPreviewModal,
-  ] = useState<boolean>(false);
+  const [showUsageStatsPreviewModal, setShowUsageStatsPreviewModal] = useState(
+    false
+  );
   const [formData, setFormData] = useState<any>({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
@@ -125,7 +125,12 @@ const Statistics = ({
             </Button>
           </div>
         </div>
-        <Button type="submit" variant="brand">
+        <Button
+          type="submit"
+          variant="brand"
+          className="save-loading"
+          isLoading={isUpdatingSettings}
+        >
           Save
         </Button>
       </form>

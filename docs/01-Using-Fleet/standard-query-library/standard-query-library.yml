@@ -48,22 +48,11 @@ apiVersion: v1
 kind: query
 spec:
   name: Get installed Chrome Extensions
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: List installed Chrome Extensions for all users.
   query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
   purpose: Informational
   tags: browser, built-in, inventory
-  contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: Get installed FreeBSD software
-  platforms: FreeBSD
-  description: Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;
-  purpose: Informational
-  tags: inventory
   contributors: zwass
 ---
 apiVersion: v1
@@ -125,7 +114,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get current users with active shell/console on the system
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
   purpose: Informational
@@ -136,7 +125,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for local accounts
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
   purpose: Informational
@@ -148,7 +137,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   purpose: Informational
@@ -195,7 +184,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get network interfaces
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
   purpose: informational
@@ -206,7 +195,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get local user accounts
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description, directory, shell FROM users;
   purpose: informational
@@ -228,7 +217,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get Nmap scanner
-  platforms: macOS, Linux, Windows, FreeBSD
+  platforms: macOS, Linux, Windows
   description: Get Nmap scanner process, as well as its user, parent, and process details.
   query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
     (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
@@ -299,7 +288,7 @@ spec:
   name: Get local administrator accounts on macOS
   platforms: macOS
   description: The query allows you to check macOS systems for local administrator accounts.
-  query: SELECT uid, username, type, group name FROM users u JOIN groups g ON g.gid = u.gid;
+  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
   tags: hunting, inventory
   contributors: alphabrevity
@@ -492,7 +481,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, CIS2.5.2.1
   platform: darwin
   contributors: groob
 ---
@@ -520,7 +509,7 @@ spec:
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
   platforms: macOS
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, CIS2.5.1.1
   platform: darwin
   contributors: groob
 ---
@@ -544,7 +533,7 @@ spec:
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  tags: compliance, malware, hardening, built-in
+  tags: compliance, malware, hardening, built-in, CIS5.1.2
   platform: darwin
   contributors: groob
 ---
@@ -711,7 +700,7 @@ spec:
   description: "Checks if the firewall is enabled."
   resolution: "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall."
   platforms: macOS
-  tags: hardening, compliance, built-in
+  tags: hardening, compliance, built-in, CIS2.5.2.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -747,7 +736,7 @@ spec:
   description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
   resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
   platforms: macOS
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, CIS5.2.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -796,5 +785,149 @@ spec:
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
   platforms: macOS
   tags: compliance, CIS, CIS1.4
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic security and data file updates is enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
+  description: "Checks that the operating system is configured to automatically download updates to built-in macOS security tools such as malware removal tools."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
+  platforms: macOS
+  tags: compliance, CIS, CIS1.5
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic installation of operating system updates is enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically install operating system updates."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
+  platforms: macOS
+  tags: compliance, CIS, CIS1.6
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Time and date are configured to be updated automatically (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically update the time and date."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.2.1
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Inactivity limit of 20 minutes or less (macOS)
+  query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
+  description: "Checks that a mobile device management (MDM) solution configures the operating system lock the screen in 20 minutes or less."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver and lock within an inactivity delay of 20 minutes or less."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.3.1, CIS5.8
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Internet sharing is blocked (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent Internet sharing."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.4.2
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Content caching is disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to disable content caching."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.4.10
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ad tracking is limited (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to limit advertisement tracking."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.5.6
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: iCloud Desktop and Document sync is disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent iCloud Desktop and Documents sync."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.6.1.4
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall logging is enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system log firewall activity."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
+  platforms: macOS
+  tags: compliance, CIS, CIS3.6
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Guest account is disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent the use of a guest account."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
+  platforms: macOS
+  tags: compliance, CIS, CIS6.1.3
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Guest access to shared folders is disabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent guest access to shared folders."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
+  platforms: macOS
+  tags: compliance, CIS, CIS6.1.4
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: No 1Password emergency kit stored on desktop or in downloads (macOS)
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename like '%%Emergency Kit%%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%'));
+  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits." 
+  resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
+  platforms: macOS
+  tags: compliance, built-in
   platform: darwin
   contributors: GuillaumeRoss

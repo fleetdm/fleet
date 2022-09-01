@@ -35,9 +35,9 @@ const Software = ({
   setActionURL,
   setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
-  const [navTabIndex, setNavTabIndex] = useState<number>(0);
-  const [pageIndex, setPageIndex] = useState<number>(0);
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [navTabIndex, setNavTabIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState(false);
 
   const { availableTeams, currentTeam, isOnGlobalTeam } = useContext(
     AppContext
@@ -45,7 +45,7 @@ const Software = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
     },
   });
 

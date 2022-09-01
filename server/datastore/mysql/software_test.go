@@ -298,31 +298,16 @@ func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddCPEForSoftware(ctx, ubuntu.Software[0], "cpe3"))
 	require.NoError(t, ds.AddCPEForSoftware(ctx, ubuntu.Software[1], "cpe4"))
 
-	t.Run("without excludedPlatforms", func(t *testing.T) {
-		cpes, err := ds.ListSoftwareCPEs(ctx, nil)
-		expected := []string{
-			"cpe1", "cpe2", "cpe3", "cpe4",
-		}
-		var actual []string
-		for _, v := range cpes {
-			actual = append(actual, v.CPE)
-		}
-		require.NoError(t, err)
-		assert.ElementsMatch(t, actual, expected)
-	})
-
-	t.Run("with excludedPlatforms", func(t *testing.T) {
-		cpes, err := ds.ListSoftwareCPEs(ctx, []string{"ubuntu"})
-		expected := []string{
-			"cpe1", "cpe2",
-		}
-		var actual []string
-		for _, v := range cpes {
-			actual = append(actual, v.CPE)
-		}
-		require.NoError(t, err)
-		assert.ElementsMatch(t, actual, expected)
-	})
+	cpes, err := ds.ListSoftwareCPEs(ctx)
+	expected := []string{
+		"cpe1", "cpe2", "cpe3", "cpe4",
+	}
+	var actual []string
+	for _, v := range cpes {
+		actual = append(actual, v.CPE)
+	}
+	require.NoError(t, err)
+	assert.ElementsMatch(t, actual, expected)
 }
 
 func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {

@@ -138,9 +138,9 @@ const SelectTargets = ({
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
-  const [searchText, setSearchText] = useState<string>("");
-  const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
-  const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
+  const [isDebouncing, setIsDebouncing] = useState(false);
 
   const debounceSearch = useDebouncedCallback(
     (search: string) => {

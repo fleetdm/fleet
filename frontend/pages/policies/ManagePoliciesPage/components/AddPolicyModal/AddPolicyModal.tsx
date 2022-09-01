@@ -72,18 +72,10 @@ const AddPolicyModal = ({
   });
 
   return (
-    <Modal
-      title="Add a policy"
-      onExit={onCancel}
-      className={`${baseClass}__modal`}
-    >
+    <Modal title="Add a policy" onExit={onCancel} className={baseClass}>
       <>
         Choose a policy template to get started or{" "}
-        <Button
-          variant="unstyled"
-          onClick={onCreateYourOwnPolicyClick}
-          className={`${baseClass}__back-link`}
-        >
+        <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
           create your own policy
         </Button>
         .

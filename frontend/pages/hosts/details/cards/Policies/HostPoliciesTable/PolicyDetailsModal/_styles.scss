@@ -9,16 +9,6 @@
     font-weight: $bold;
   }
 
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-    margin-top: $pad-large;
-  }
-
-  &__btn {
-    margin-left: 12px;
-  }
-  
   .policy-details-modal__resolution {
     overflow: hidden;
   }

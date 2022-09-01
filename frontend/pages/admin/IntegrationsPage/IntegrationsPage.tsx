@@ -54,6 +54,7 @@ const IntegrationsPage = (): JSX.Element => {
     integrationEditing,
     setIntegrationEditing,
   ] = useState<IIntegrationTableData>();
+  const [isUpdatingIntegration, setIsUpdatingIntegration] = useState(false);
   const [jiraIntegrations, setJiraIntegrations] = useState<
     IJiraIntegration[]
   >();
@@ -63,7 +64,7 @@ const IntegrationsPage = (): JSX.Element => {
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const {
     data: integrations,
@@ -233,7 +234,7 @@ const IntegrationsPage = (): JSX.Element => {
           },
         });
       };
-
+      setIsUpdatingIntegration(true);
       deleteIntegrationDestination()
         .then(() => {
           renderFlash(
@@ -264,6 +265,7 @@ const IntegrationsPage = (): JSX.Element => {
           );
         })
         .finally(() => {
+          setIsUpdatingIntegration(false);
           toggleDeleteIntegrationModal();
         });
     }
@@ -442,6 +444,7 @@ const IntegrationsPage = (): JSX.Element => {
             integrationEditing?.groupId?.toString() ||
             ""
           }
+          isUpdatingIntegration={isUpdatingIntegration}
         />
       )}
       {showEditIntegrationModal && integrations && (

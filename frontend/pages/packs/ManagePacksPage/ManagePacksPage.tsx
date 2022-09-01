@@ -61,9 +61,8 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const onCreatePackClick = () => router.push(PATHS.NEW_PACK);
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
-  const [showDeletePackModal, setShowDeletePackModal] = useState<boolean>(
-    false
-  );
+  const [showDeletePackModal, setShowDeletePackModal] = useState(false);
+  const [isUpdatingPack, setIsUpdatingPack] = useState(false);
 
   const {
     data: packs,
@@ -91,6 +90,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   };
 
   const onDeletePackSubmit = useCallback(() => {
+    setIsUpdatingPack(true);
     const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
 
     const promises = selectedPackIds.map((id: number) => {
@@ -110,6 +110,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
       .finally(() => {
         refetchPacks();
         toggleDeletePackModal();
+        setIsUpdatingPack(false);
       });
   }, [refetchPacks, selectedPackIds, toggleDeletePackModal]);
 
@@ -200,6 +201,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           <DeletePackModal
             onCancel={toggleDeletePackModal}
             onSubmit={onDeletePackSubmit}
+            isUpdatingPack={isUpdatingPack}
           />
         )}
       </div>

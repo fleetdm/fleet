@@ -464,11 +464,12 @@ If the `name` is not already associated with an existing team, this API route cr
 
 #### Parameters
 
-| Name          | Type   | In   | Description                                                                                                                                                                                                                                             |
-| ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
-| agent_options | string | body | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                     |
-| secrets       | list   | body | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                                     |
+| Name          | Type   | In   | Description                                                                                                                                                                                                                         |
+| ------------- | ------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name          | string | body | **Required.** The team's name.                                                                                                                                                                                                      |
+| agent_options | string | body | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
+| features      | object | body | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
+| secrets       | list   | body | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                 |
 
 #### Example
 
@@ -481,6 +482,13 @@ If the `name` is not already associated with an existing team, this API route cr
   "specs": [
     {
       "name": "Client Platform Engineering",
+      "features": {
+        "enable_host_users": false,
+        "enable_software_inventory": true,
+        "additional_queries": {
+          "foo": "SELECT * FROM bar;"
+        }
+      },
       "agent_options": {
         "spec": {
           "config": {

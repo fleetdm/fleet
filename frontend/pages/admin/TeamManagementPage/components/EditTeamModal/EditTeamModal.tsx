@@ -6,7 +6,6 @@ import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 
 const baseClass = "edit-team-modal";
 
@@ -15,7 +14,7 @@ interface IEditTeamModalProps {
   onSubmit: (formData: ITeamFormData) => void;
   defaultName: string;
   backendValidators: { [key: string]: string };
-  isLoading: boolean;
+  isUpdatingTeams: boolean;
 }
 
 const EditTeamModal = ({
@@ -23,7 +22,7 @@ const EditTeamModal = ({
   onSubmit,
   defaultName,
   backendValidators,
-  isLoading,
+  isUpdatingTeams,
 }: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -49,42 +48,35 @@ const EditTeamModal = ({
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <form
-          className={`${baseClass}__form`}
-          onSubmit={onFormSubmit}
-          autoComplete="off"
-        >
-          <InputField
-            autofocus
-            name="name"
-            onChange={onInputChange}
-            label="Team name"
-            placeholder="Team name"
-            value={name}
-            error={errors.name}
-          />
-          <div className={`${baseClass}__btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              type="submit"
-              variant="brand"
-              disabled={name === ""}
-            >
-              Save
-            </Button>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      )}
+      <form
+        className={`${baseClass}__form`}
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
+        <InputField
+          autofocus
+          name="name"
+          onChange={onInputChange}
+          label="Team name"
+          placeholder="Team name"
+          value={name}
+          error={errors.name}
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={name === ""}
+            className="save-loading"
+            isLoading={isUpdatingTeams}
+          >
+            Save
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

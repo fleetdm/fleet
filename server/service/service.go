@@ -48,10 +48,16 @@ type Service struct {
 	jitterH  map[time.Duration]*jitterHashTable
 
 	geoIP fleet.GeoIP
+
+	*fleet.EnterpriseOverrides
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
 	return s.geoIP.Lookup(ctx, ip)
+}
+
+func (s *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
+	s.EnterpriseOverrides = &overrides
 }
 
 // NewService creates a new service from the config struct
