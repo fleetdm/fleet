@@ -55,14 +55,13 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "fleetdm/go"
+      - lucasmrod
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
       separator: "-"
     # Add assignees
     assignees:
-      - "fleetdm/go"
       - lucasmrod
 
 # Maintain dependencies for npm
@@ -71,12 +70,11 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "fleetdm/frontend"
+      - lukeheath
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
       separator: "-"
     # Add assignees
     assignees:
-      - "fleetdm/frontend"
       - lukeheath
