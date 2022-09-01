@@ -19,7 +19,7 @@ Fleet will return a signed certificate to you within 1 business day. Use that fi
 ```
 
 ### Step 2 - Generate .req file from .p7
-``` bash
+```
 $ fleetctl setup apns gen-req \
 --p7-file=~/path/to/*.p7 \
 --pki-key=~/path/to/fleet-apns-pki.key \
@@ -49,7 +49,7 @@ Updating ENV["NEED_VARNAME"] with contents of /path/to/fleetctl-apns-push.key
 
 ## SCEP
 ### Step 1 - Generate SCEP CA keys
-```bash
+```
 $ fleetctl setup scep-ca init
 Generating SCEP CA and keys at ./
   fleet-scep.crt ... done
@@ -59,7 +59,7 @@ Next, use these file in the `fleetctl setup scep-ca finalize` command.
 ```
 
 ### Step 2 - Update fleet server ENV vars with new certs
-```bash
+```
 $ fleetctl setup scep-ca finalize \ 
 --scep-crt=/path/to/fleet-scep.crt \
 --scep-key=/path/to/fleet-scep.key \
@@ -83,7 +83,7 @@ Matches current behavior of `fleetctl`: `Error: open does/not/exist: no such fil
 (Try `fleetctl apply -f does/not/exist`)
 ### Help pages - Setup
 
-```bash
+```
 $ fleetctl setup
 NAME:
    fleetctl setup - Set up a Fleet instance or MDM // UPDATED
@@ -103,7 +103,7 @@ OPTIONS:
 
 ### Help pages - APNS
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup apns
 NAME:
@@ -118,7 +118,7 @@ COMMANDS:
 	finalize Set the SCEP certs in the Fleet Server's environment variables
 ```
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup apns init
 NAME:
@@ -128,7 +128,7 @@ USAGE:
 	fleetctl setup apns init
 ```
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup apns gen-req
 NAME:
@@ -144,7 +144,7 @@ OPTIONS:
   --context value  Name of fleetctl config context to use (default: "default") [$CONTEXT]
 ```
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup apns finalize
 NAME:
@@ -161,7 +161,7 @@ OPTIONS:
 
 ### Help Pages - SCEP
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup scep
 NAME:
@@ -175,7 +175,7 @@ COMMANDS:
 	finalize Set the SCEP certs in the Fleet Server's environment variables
 ```
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup apns init
 NAME:
@@ -185,7 +185,7 @@ USAGE:
 	fleetctl setup apns init
 ```
 
-``` bash
+```
 // ALL NEW
 $ fleetctl setup scep finalize
 NAME:
