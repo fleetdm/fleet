@@ -55,10 +55,8 @@ const EditPackForm = ({
   isUpdatingPack,
 }: IEditPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [packName, setPackName] = useState<string>(formData.name);
-  const [packDescription, setPackDescription] = useState<string>(
-    formData.description
-  );
+  const [packName, setPackName] = useState(formData.name);
+  const [packDescription, setPackDescription] = useState(formData.description);
   const [packFormTargets, setPackFormTargets] = useState<ITarget[]>(
     formData.targets
   );

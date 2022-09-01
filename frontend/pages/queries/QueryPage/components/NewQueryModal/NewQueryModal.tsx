@@ -9,7 +9,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import Spinner from "components/Spinner";
 
 export interface INewQueryModalProps {
   baseClass: string;
@@ -39,9 +38,9 @@ const NewQueryModal = ({
   setIsSaveModalOpen,
   backendValidators,
 }: INewQueryModalProps): JSX.Element => {
-  const [name, setName] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [observerCanRun, setObserverCanRun] = useState<boolean>(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [observerCanRun, setObserverCanRun] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );

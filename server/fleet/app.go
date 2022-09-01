@@ -265,13 +265,13 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
 
-	c.Features.EnableSoftwareInventory = true
+	c.Features.ApplyDefaultsForNewInstalls()
 
 	c.ApplyDefaults()
 }
 
 func (c *AppConfig) ApplyDefaults() {
-	c.Features.EnableHostUsers = true
+	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
@@ -337,6 +337,18 @@ type Features struct {
 	EnableHostUsers         bool             `json:"enable_host_users"`
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+}
+
+func (f *Features) ApplyDefaultsForNewInstalls() {
+	// Software inventory is enabled only for new installs as
+	// we didn't want to enable software inventory from one version to the
+	// next in already running fleets
+	f.EnableSoftwareInventory = true
+	f.ApplyDefaults()
+}
+
+func (f *Features) ApplyDefaults() {
+	f.EnableHostUsers = true
 }
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
@@ -476,6 +488,7 @@ type VulnerabilitiesConfig struct {
 	DatabasesPath               string        `json:"databases_path"`
 	Periodicity                 time.Duration `json:"periodicity"`
 	CPEDatabaseURL              string        `json:"cpe_database_url"`
+	CPETranslationsURL          string        `json:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks"`
 	DisableDataSync             bool          `json:"disable_data_sync"`

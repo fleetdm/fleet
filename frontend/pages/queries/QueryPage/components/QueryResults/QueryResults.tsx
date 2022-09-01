@@ -83,9 +83,9 @@ const QueryResults = ({
       ? Math.round((hostsCount.total / targetsTotalCount) * 100)
       : 0;
 
-  const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
+  const [pageTitle, setPageTitle] = useState(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
-  const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
+  const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
 

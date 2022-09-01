@@ -203,47 +203,31 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [
-    showNoEnrollSecretBanner,
-    setShowNoEnrollSecretBanner,
-  ] = useState<boolean>(true);
-  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
-    false
+  const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
+    true
   );
-  const [showSecretEditorModal, setShowSecretEditorModal] = useState<boolean>(
-    false
-  );
-  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState<boolean>(
-    false
-  );
-  const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
-    false
-  );
-  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
+  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
+  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState(false);
+  const [showEditColumnsModal, setShowEditColumnsModal] = useState(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
-  const [
-    isAllMatchingHostsSelected,
-    setIsAllMatchingHostsSelected,
-  ] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
+  const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
+    false
+  );
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [hosts, setHosts] = useState<IHost[]>();
-  const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
-  const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [isHostsLoading, setIsHostsLoading] = useState(false);
+  const [hasHostErrors, setHasHostErrors] = useState(false);
   const [filteredHostCount, setFilteredHostCount] = useState<number>();
-  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
-  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
+  const [isHostCountLoading, setIsHostCountLoading] = useState(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
   const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
@@ -261,10 +245,10 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
-  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
-  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
+  const [resetPageIndex, setResetPageIndex] = useState(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState(false);
 
   // ======== end states
 
@@ -282,7 +266,7 @@ const ManageHostsPage = ({
       ? parseInt(queryParams?.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id, os_name, os_version } = queryParams;
+  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -549,9 +533,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      osId,
+      osName,
+      osVersion,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -863,15 +847,15 @@ const ManageHostsPage = ({
       }
 
       if (
-        (os_id || (os_name && os_version)) &&
+        (osId || (osName && osVersion)) &&
         !softwareId &&
         !policyId &&
         !mdmEnrollmentStatus &&
         !mdmId
       ) {
-        newQueryParams.os_id = os_id;
-        newQueryParams.os_name = os_name;
-        newQueryParams.os_version = os_version;
+        newQueryParams.os_id = osId;
+        newQueryParams.os_name = osName;
+        newQueryParams.os_version = osVersion;
       }
       router.replace(
         getNextLocationPath({
@@ -893,9 +877,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      osId,
+      osName,
+      osVersion,
       sortBy,
     ]
   );
@@ -1189,9 +1173,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version,
+        osId,
+        osName,
+        osVersion,
       });
 
       toggleTransferHostModal();
@@ -1243,9 +1227,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version,
+        osId,
+        osName,
+        osVersion,
       });
 
       refetchLabels();
@@ -1308,14 +1292,14 @@ const ManageHostsPage = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!os_id && !(os_name && os_version)) return null;
+    if (!osId && !(osName && osVersion)) return null;
 
     let os: IOperatingSystemVersion | undefined;
-    if (os_id) {
-      os = osVersions?.find((v) => v.os_id === os_id);
-    } else if (os_name && os_version) {
-      const name: string = os_name;
-      const vers: string = os_version;
+    if (osId) {
+      os = osVersions?.find((v) => v.os_id === osId);
+    } else if (osName && osVersion) {
+      const name: string = osName;
+      const vers: string = osVersion;
 
       os = osVersions?.find(
         ({ name_only, version }) =>
@@ -1621,9 +1605,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      os_id: osId,
+      os_name: osName,
+      os_version: osVersion,
       visibleColumns,
     };
 
@@ -1697,8 +1681,8 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
-      os_id ||
-      (os_name && os_version)
+      osId ||
+      (osName && osVersion)
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
@@ -1727,7 +1711,7 @@ const ManageHostsPage = ({
             !mdmId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
-          {(!!os_id || (!!os_name && !!os_version)) &&
+          {(!!osId || (!!osName && !!osVersion)) &&
             !policyId &&
             !softwareId &&
             !showSelectedLabel &&
@@ -1834,9 +1818,9 @@ const ManageHostsPage = ({
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
-        os_id ||
-        os_name ||
-        os_version
+        osId ||
+        osName ||
+        osVersion
       );
 
       return (

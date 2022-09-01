@@ -35,8 +35,8 @@ const OrgSettingsForm = ({
 
   const handlePageError = useErrorHandler();
 
-  const [activeSection, setActiveSection] = useState<string>("info");
-  const [isUpdatingSettings, setIsUpdatingSettings] = useState<boolean>(false);
+  const [activeSection, setActiveSection] = useState("info");
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
   const { data: appConfig, isLoading, refetch: refetchConfig } = useQuery<
     IConfig,
