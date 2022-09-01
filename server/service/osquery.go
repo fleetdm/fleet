@@ -528,19 +528,12 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
-	// The following is added to improve Fleet Desktop's UX at install time.
-	//
-	// At install (enroll) time, the "orbit_info" extension takes longer to load than the first
-	// query check-in (distributed/read request).
-	// To avoid having to wait for the next check-in to ingest the data (after
-	// svc.config.Osquery.DetailUpdateInterval, 1h by default),
-	// we make the best effort to retrieve such "device auth token" from the device, but with a
-	// limit of orbitInfoRefetchAfterEnrollDur to not generate too much write database overhead
-	// (writes to `host_device_auth` table).
-	if svc.clock.Now().Sub(host.LastEnrolledAt) < orbitInfoRefetchAfterEnrollDur {
-		queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
-		discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
-	}
+	// We always request the `orbit_info` query results, as orbit is responsible for rotating
+	// the device auth token. To prevent excessive writes to host_device_auth table, the
+	// write method (SetOrUpdateDeviceAuthToken) is handled by the cached_mysql package.
+	// See #6348.
+	queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
+	discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
