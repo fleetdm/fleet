@@ -12,7 +12,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 // Fleet Desktop end points
 /////////////////////////////////////////////////////////////////////////////////
-type getFleetDesktopResponse struct {
+type FleetDesktopResponse struct {
 	Err             error `json:"error,omitempty"`
 	FailingPolicies uint  `json:"failing_policies_count"`
 }
@@ -32,15 +32,15 @@ func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet
 
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getFleetDesktopResponse{Err: err}, nil
+		return FleetDesktopResponse{Err: err}, nil
 	}
 
 	r, err := svc.FailingPoliciesCount(ctx, host)
 	if err != nil {
-		return getFleetDesktopResponse{Err: err}, nil
+		return FleetDesktopResponse{Err: err}, nil
 	}
 
-	return getFleetDesktopResponse{FailingPolicies: r}, nil
+	return FleetDesktopResponse{FailingPolicies: r}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

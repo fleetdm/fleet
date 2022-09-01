@@ -1450,7 +1450,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopEndpoint() {
 	res.Body.Close()
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
-	resp := getFleetDesktopResponse{}
+	resp := FleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&resp)
 	res.Body.Close()

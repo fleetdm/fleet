@@ -67,7 +67,7 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		client, err := service.NewDesktopClient(basePath, deviceToken, insecureSkipVerify, rootCA)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
@@ -83,7 +83,7 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.ListDevicePolicies()
+					_, err := client.GetPayload()
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
@@ -112,7 +112,7 @@ func main() {
 			for {
 				<-tic.C
 
-				policies, err := client.ListDevicePolicies()
+				res, err := client.GetPayload()
 				switch {
 				case err == nil:
 					// OK
@@ -126,15 +126,8 @@ func main() {
 					continue
 				}
 
-				failedPolicyCount := 0
-				for _, policy := range policies {
-					if policy.Response != "pass" {
-						failedPolicyCount++
-					}
-				}
-
-				if failedPolicyCount > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+				if res.FailingPolicies > 0 {
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
 				} else {
 					myDeviceItem.SetTitle("🟢 My device")
 				}

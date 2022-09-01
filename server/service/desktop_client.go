@@ -4,18 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// Device client is used to consume `/device/...` endpoints,
+// Device client is used consume the `/api/_version_/fleet/device/{token}/desktop` endpoint,
 // and meant to be used by Fleet Desktop
-type DeviceClient struct {
+type DesktopClient struct {
 	*baseClient
 	token string
 }
 
-func (dc *DeviceClient) request(verb string, path string, query string, responseDest interface{}) error {
+func (dc *DesktopClient) request(verb string, path string, query string, responseDest interface{}) error {
 	var bodyBytes []byte
 	request, err := http.NewRequest(
 		verb,
@@ -35,26 +33,27 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-// NewDeviceClient instantiates a new client to perform requests against device endpoints
-func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
+// NewDesktopClient instantiates a new client to perform requests against the desktop client endpoint.
+func NewDesktopClient(addr, token string, insecureSkipVerify bool, rootCA string) (*DesktopClient, error) {
 	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "")
 	if err != nil {
 		return nil, err
 	}
 
-	return &DeviceClient{
+	return &DesktopClient{
 		baseClient: baseClient,
 		token:      token,
 	}, nil
 }
 
-// ListDevicePolicies fetches all policies for the device with the provided token
-func (dc *DeviceClient) ListDevicePolicies() ([]*fleet.HostPolicy, error) {
+// Get fetches payload used by Fleet Desktop.
+func (dc *DesktopClient) GetPayload() (*FleetDesktopResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/policies"
-	var responseBody listDevicePoliciesResponse
-	err := dc.request(verb, path, "", &responseBody)
+
+	var r FleetDesktopResponse
+	err := dc.request(verb, path, "", &r)
 	if err != nil {
 		return nil, err
 	}
-	return responseBody.Policies, nil
+	return &r, nil
 }
