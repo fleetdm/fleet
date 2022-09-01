@@ -1,4 +1,12 @@
+## Fleet 4.19.1 (Sep 1, 2022)
+
+* Fix a migration error that may occur when upgrading to Fleet 4.19.0.
+
+* Fix a bug in which the incorrect operating system was displayed for Windows hosts on the **Hosts** page and **Host details** page.
+
 ## Fleet 4.19.0 (Aug 22, 2022)
+
+* Warning: Please upgrade to 4.19.1 instead of 4.19.0 due to a migration error included in 4.19.0. Like all releases, Fleet 4.19.1 includes all changes included in 4.19.0.
 
 * Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
 
