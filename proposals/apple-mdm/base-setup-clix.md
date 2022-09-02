@@ -112,7 +112,7 @@ USAGE:
 COMMANDS:
 	init     Generate the necessary files to set up APNS
 	gen-req  Generate the .req file for Apple from the .p7 file from Fleet
-	finalize Set the SCEP certs in the Fleet Server's environment variables
+	finalize Instructions for setting the APNS certs in the Fleet Server's environment variables
 ```
 
 ```
@@ -169,7 +169,7 @@ USAGE:
 
 COMMANDS:
 	init     Generate the necessary files to set up SCEP
-	finalize Set the SCEP certs in the Fleet Server's environment variables
+	finalize Instructions for setting the SCEP certs in the Fleet Server's environment variables
 ```
 
 ## New API endpoints
