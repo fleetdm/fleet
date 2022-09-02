@@ -142,12 +142,12 @@
     margin: 0;
     padding-bottom: 0;
 
-    .hostname-container {
+    .display-name-container {
       display: flex;
       align-items: center;
     }
 
-    .hostname {
+    .display-name {
       font-size: $large;
       font-weight: $bold;
     }
