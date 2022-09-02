@@ -8,11 +8,11 @@ module.exports = {
 
 
   inputs: {
-    articleFileName: {type: 'string', description: 'The filename of the article that will be converted into an HTML email partial', required: true},
+    articleFilename: {type: 'string', description: 'The filename of the article that will be converted into an HTML email partial', required: true},
   },
 
 
-  fn: async function ({ articleFileName }) {
+  fn: async function ({ articleFilename }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -21,26 +21,32 @@ module.exports = {
 
     let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletter-partials';
 
-    let extensionedArticleFileName = articleFileName;
+
+    let extensionedArticleFilename = articleFilename;
 
     // Since this script only handles Markdown files in the articles/ folders, we'll make the file extension optional.
-    if(!_.endsWith(articleFileName, '.md')) {
-      // If the file was specified without a file extension, we'll add `.md` to the provided filename.
-      extensionedArticleFileName = extensionedArticleFileName + '.md';
-      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFileName: '+articleFileName)
+    if(!_.endsWith(articleFilename, '.md')) {
+      // If the file was specified without a file extension, we'll add `.md` to the provided filename, and log a warning.
+      extensionedArticleFilename = extensionedArticleFilename + '.md';
+      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFilename: '+articleFilename)
     }
 
-    let unextensionedArticleFileName = _.trimRight(extensionedArticleFileName, '.md');
+    // Get the filename without the .md file extension. This will be used to build the final filename
+    let unextensionedArticleFilename = _.trimRight(extensionedArticleFilename, '.md');
+
+    // Build the filename for the final HTML partial.
+    let extensionedFileNameForEmailPartial = unextensionedArticleFilename.replace(/\./g, '-')+'.ejs';
 
     // Find the Markdown file in the articles folder
-    let markdownFileToConvert = path.resolve(path.join(topLvlRepoPath, '/articles/'+extensionedArticleFileName));
+    let markdownFileToConvert = path.resolve(path.join(topLvlRepoPath, '/articles/'+extensionedArticleFilename));
 
     if(!markdownFileToConvert) { // If we couldn't find the file specified, throw an error
-      throw new Error('Error: No Markdown file in found in the top level articles/ folder with the filename: '+articleFileName);
+      throw new Error('Error: No Markdown file in found in the top level articles/ folder with the filename: '+articleFilename);
     }
 
-    if (path.extname(markdownFileToConvert) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
-      throw new Error('Error: The specified file ('+articleFileName+') is not a valid Markdown file.'+markdownFileToConvert);
+    // If the file specified is not a markdown file, throw an error.
+    if (path.extname(markdownFileToConvert) !== '.md') {
+      throw new Error('Error: The specified file ('+articleFilename+') is not a valid Markdown file.'+markdownFileToConvert);
     }
 
     // Get the raw Markdown from the file.
@@ -49,37 +55,20 @@ module.exports = {
     // Get the relative path of the Markdown file we are converting
     let pageRelSourcePath = path.relative(path.join(topLvlRepoPath, 'articles/'), path.resolve(markdownFileToConvert));
 
-    let embeddedMetadata = {};
-    try {
-      for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
-        let name = tag.match(/name="([^">]+)"/i)[1];
-        let value = tag.match(/value="([^">]+)"/i)[1];
-        embeddedMetadata[name] = value;
-      }//∞
-    } catch(err) {
-      throw new Error('An error occured while parsing <meta> tags in the Markdown file. Tip: Check the markdown file that is being converted to an email and make sure it doesn\'t contain any code snippets with <meta> inside, as this can fool the build script. Full error: '+err);
-    }
-
-    if(!embeddedMetadata.category) {
-      throw new Error('Error: the Markdown article is missing a category meta tag. To resolve: add a category meta tag to the Markdown file');
-    }
-
-    let extensionedFileNameForEmailPartial = embeddedMetadata.category+'-'+unextensionedArticleFileName.replace(/\./g, '-')+'.ejs';
-
-    // Remove the meta tags from the final Markdown file before we convert it.
+    // Remove any meta tags from the Markdown file before we convert it.
     mdString = mdString.replace(/<meta[^>]*>/igm, '');
 
-    // Find and remove any other HTML elements in the markdown file, note: this regex will match all of the content wrapped within an html element
-    for (let htmlElement of (mdString.match(/<([A-Za-z\-]+[^\s])[\s\S]+?<\/\1>/igm) || [])) {
-      sails.log.warn('Removing a HTML element from the Markdown file before converting it into an HTML email: \n',htmlElement)
-      mdString = mdString.replace(htmlElement, '');
+    // Find and remove any iframe elements in the markdown file
+    for (let matchedIframe of (mdString.match(/<(iframe)[\s\S]+?<\/iframe>/igm) || [])) {
+      sails.log.warn('Removing an <iframe> element from the Markdown file before converting it into an HTML email: \n',matchedIframe)
+      mdString = mdString.replace(matchedIframe, '');
     }
 
     // Convert Markdown to HTML
     let htmlEmailString = await sails.helpers.strings.toHtmlEmail(mdString);
 
-    // Replace relative links with links to fleetdm.com
-    htmlEmailString = htmlEmailString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
+    // Modify path-relative links in the final HTML like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
+    htmlEmailString = htmlEmailString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{
       let oldRelPath = hrefString.match(/href="(\.\/[^"]+|\.\.\/[^"]+)"/)[1];
 
       let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, 'articles/', pageRelSourcePath), '../', oldRelPath);
