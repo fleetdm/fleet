@@ -25,23 +25,6 @@ module.exports = {
       example: '# hello world\n it\'s me, some markdown string \n\n ```js\n//but maybe i have code snippets too...\n```',
       required: true
     },
-
-    allowHtml: {
-      friendlyName: 'Allow HTML?',
-      description: 'Whether or not to allow HTML tags in the Markdown input.  Defaults to `true`.',
-      extendedDescription: 'If `false`, any input that contains HTML tags will trigger the `unsafeMarkdown` exit.',
-      example: true,
-      defaultsTo: true
-    },
-
-    addIdsToHeadings: {
-      friendlyName: 'Add IDs to headings?',
-      description: 'Whether or not to add an ID attribute to rendered heading tags like <h1>',
-      extendedDescription: 'This is not part of the Markdown specification (see http://daringfireball.net/projects/markdown/dingus), but it is the default behavior for the `marked` module.  Defaults to `true`.',
-      example: true,
-      defaultsTo: false
-    }
-
   },
 
 
@@ -63,8 +46,7 @@ module.exports = {
   fn: function(inputs, exits) {
     const { marked } = require('marked');
 
-    // For full list of options, see:
-    //  • https://github.com/chjj/marked
+
     var markedOpts = {
       gfm: true,
       tables: true,
@@ -74,84 +56,38 @@ module.exports = {
       smartypants: false,
     };
 
+    // Creating a custom renderer to add inline styles to HTML elements
     let customRenderer = new marked.Renderer();
 
-    // if (inputs.addIdsToHeadings === true) {
-    //   var headingsRenderedOnThisPage = [];
-    //   customRenderer.heading = function (text, level) {
-    //     // If the heading has underscores and no spaces (e.g. osquery_async_host_collect_log_stats_interval) we'll add optional linebreaks before each underscore
-    //     var textWithLineBreaks;
-    //     if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
-    //       textWithLineBreaks = text.replace(/(\_)/g, '&#8203;_');
-    //     }
-    //     var headingID = _.kebabCase(_.unescape(text).replace(/[\’\']/g, ''));
-    //     if(!_.contains(headingsRenderedOnThisPage, headingID)){
-    //       headingsRenderedOnThisPage.push(headingID);
-    //     } else {
-    //       headingID = sails.helpers.strings.ensureUniq(headingID, headingsRenderedOnThisPage);
-    //       headingsRenderedOnThisPage.push(headingID);
-    //     }
-    //     return '<h'+level+' class="markdown-heading" id="'+headingID+'">'+(textWithLineBreaks ? textWithLineBreaks : text)+'<a href="#'+headingID+'" class="markdown-link"></a></h'+level+'>\n';
-    //   };
-    // } else  {
-    //   customRenderer.heading = function (text, level) {
-    //     return '<h'+level+'>'+text+'</h'+level+'>';
-    //   };
-    // }
-
-    // // Creating a custom codeblock renderer function to render mermaid code blocks (```mermaid```) without the added <pre> tags.
-    // customRenderer.code = function(code) {
-    //   if(code.match(/\<!-- __LANG=\%mermaid\%__ --\>/g)) {
-    //     return '<code>'+_.escape(code)+'\n</code>';
-    //   } else {
-    //     return '<pre><code>'+_.escape(code)+'\n</code></pre>';
-    //   }
-    // };
-
-    // // Creating a custom blockquote renderer function to render blockquotes as tip blockquotes.
-    // customRenderer.blockquote = function(blockquoteHtml) {
-    //   return `<blockquote purpose="tip"><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">\n${blockquoteHtml}\n</div></blockquote>`;
-    // };
-
-    // // Custom renderer function to enable checkboxes in Markdown lists.
-    // customRenderer.listitem = function(innerHtml, hasCheckbox, isChecked) {
-    //   if(!hasCheckbox){ // « If a list item does not have a checkbox, we'll render it normally.
-    //     return `<li>${innerHtml}</li>`;
-    //   } else if(isChecked) {// If this checkbox was checked in Markdown (- [x]), we'll add a disabled checked checkbox, and hide the original checkbox with CSS
-    //     return `<li purpose="checklist-item"><input disabled type="checkbox" checked><span purpose="task">${innerHtml}</span></li>`;
-    //   } else {// If the checkbox was not checked, we'll add a non-checked disabled checkbox, and hide the original checkbox with CSS.
-    //     return `<li purpose="checklist-item"><input disabled type="checkbox"><span purpose="task">${innerHtml}</span></li>`;
-    //   }
-    // };
-
-    // // Creating a custom table renderer to add Bootstrap's responsive table styles to markdown tables.
-    // customRenderer.table = function(headerHtml, bodyHtml) {
-    //   return `<div class="table-responsive-xl"><table class="table">\n<thead>\n${headerHtml}\n</thead>\n<tbody>${bodyHtml}\n</tbody>\n</table>\n</div>`;
-    // };
-
-
+    // For codeblocks (``` ```)
     customRenderer.code = function(codeHTML) {
-      return `<pre style=""><code>'+_.escape(code)+'</code></pre>`
+      return `<pre><code>'+_.escape(code)+'</code></pre>`
     }
+    // For blockquotes (>)
     customRenderer.blockquote = function(quoteHTML) {
       return `<blockquote>\n${quoteHTML}\n</blockquote>\n`;
     }
+
     customRenderer.heading = function(textHTML, level) {
       let inlineStyles;
-      if(level === 1) {
+      if(level === 1) { // For h1s
         inlineStyles = 'font-weight: 800; font-size: 24px; line-height: 32px; margin-bottom: 16px;';
-      } else if (level === 2) {
+      } else if (level === 2) { // For h2s
         inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 28px; margin-bottom: 16px; margin-top: 32px;';
-      } else if (level === 3) {
+      } else if (level === 3) { // for h3s
         inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 24px; margin-bottom: 16px;';
-      } else if (level === 4) {
+      } else {// H4s or higher
         inlineStyles = 'font-weight: 700; font-size: 16px; line-height: 20px; margin-bottom: 16px;';
       }
       return `<h${level} style="${inlineStyles}">\n${textHTML}\n</h${level}>\n`;
     }
+
+    // For <hr> elements (ex: ---)
     customRenderer.hr = function() {
       return `<hr style="border-top: 2px solid #E2E4EA; margin-top: 16px; margin-bottom: 16px; width: 100%;">`;
     }
+
+    // For lists
     customRenderer.list = function(bodyHTML, ordered, start) {
       if(ordered){
         return `<ol style="padding-left: 16px; margin-bottom: 32px;">\n${bodyHTML}</ol>\n`
@@ -159,60 +95,71 @@ module.exports = {
         return `<ul style="padding-left: 16px; margin-bottom: 32px;">\n${bodyHTML}</ul>\n`
       }
     }
+
+    // For list items
     customRenderer.listitem = function(textHTMl, task, checked) {
-      return `<li class="block-li" style="margin-bottom: 16px;">\n${textHTMl}\n</li>\n`
+      return `<li style="margin-bottom: 16px;">\n${textHTMl}\n</li>\n`
     }
+
     customRenderer.paragraph = function(text) {
-      return `<p class="block-p" style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">\n${text}\n</p>\n`;
+      return `<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">\n${text}\n</p>\n`;
     }
-    customRenderer.table = function(headerHTML, bodyHTML) {
-      return;
-    }
+
+    // // For tables (We do not render tables in Makrdown emails)
+    // customRenderer.table = function(headerHTML, bodyHTML) {
+    //   return;
+    // }
+
+    // For bold text
     customRenderer.strong = function(textHTML) {
       return `<strong style="display: inline; font-weight: 700; font-size: 16px; line-height: 24px;">${textHTML}</strong>`;
     }
+
+    // For emphasized text
     customRenderer.em = function(textHTML) {
       return `<span style="display: inline; font-style: italic; font-size:16px;>${textHTML}</span>`
     }
+
+    // For inline codespans
     customRenderer.codespan = function(codeHTML) {
       return `<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">${_.escape(codeHTML)}</code>`
     }
+
+    // For links
     customRenderer.link = function(href, title, textHTML) {
+      (href)=>{
+        let isExternal = ! href.match(/^https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+        // Check if this link is to fleetdm.com or www.fleetdm.com.
+        let isBaseUrl = href.match(/^(https?:\/\/)([^\.]+\.)*fleetdm\.com$/g);
+        if (isExternal) {
+          href = href.replace(/(https?:\/\/([^"]+))/g, '$1 target="_blank"');
+        } else {
+          // Otherwise, change the link to be web root relative.
+          // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+          // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
+          if (isBaseUrl) {
+            href = href.replace(/https?:\/\//, '');
+          } else {
+            href = href.replace(/https?:\/\//, '');
+          }
+        }
+      }
       return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none;" href="${href}">${textHTML}</a>`
     }
+
+    // For Images
     customRenderer.image = function(href, title, textHTML) {
-      let cannonicalLinkToImage = href.replace(/^(\.\.\/website\/assets)/gi, 'https://fleetdm.com')
-      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${cannonicalLinkToImage}" alt="\n${title}\n">`
+      let linkToImageInAssetsFolder = href.replace(/^(\.\.\/website\/assets)/gi, 'https://fleetdm.com')
+      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${linkToImageInAssetsFolder}" alt="${title}">`
     }
-    customRenderer.text = function(textHTML) {
-      if(textHTML) {
-        return `${textHTML}`;
-      } else {
-        return;
-      }
-    }
+
     markedOpts.renderer = customRenderer;
+
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {
       if (err) { return exits.error(err); }
 
-      // If we're not allowing HTML, compile the input again with the `sanitize` option on.
-      if (inputs.allowHtml === false) {
-        markedOpts.sanitize = true;
-        marked(inputs.mdString, markedOpts, function sanitized (err, sanitizedHtmlString) {
-          if (err) { return exits.error(err); }
-
-          // Now compare the unsanitized and the sanitized output, and if they're not the same,
-          // leave through the `unsafeMarkdown` exit since it means that HTML tags were detected.
-          if (htmlString !== sanitizedHtmlString) {
-            return exits.unsafeMarkdown();
-          }
-          return exits.success(htmlString);
-        });
-      }
-      else {
-        return exits.success(htmlString);
-      }
+      return exits.success(htmlString);
     });
   }
 
