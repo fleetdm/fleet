@@ -34,7 +34,7 @@ import {
 } from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IMDMSolution } from "interfaces/macadmins";
+import { IMDMSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
@@ -223,6 +223,10 @@ const ManageHostsPage = ({
     mdmSolutionDetails,
     setMDMSolutionDetails,
   ] = useState<IMDMSolution | null>(null);
+  const [
+    munkiIssueDetails,
+    setMunkiIssueDetails,
+  ] = useState<IMunkiIssuesAggregate | null>(null);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [
     currentQueryOptions,
@@ -248,6 +252,10 @@ const ManageHostsPage = ({
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const munkiIssueId =
+    queryParams?.munki_issue_id !== undefined
+      ? parseInt(queryParams?.munki_issue_id, 10)
+      : undefined;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -427,11 +435,13 @@ const ManageHostsPage = ({
         hosts: returnedHosts,
         software,
         mobile_device_management_solution,
+        munki_issue,
       } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
       mobile_device_management_solution &&
         setMDMSolutionDetails(mobile_device_management_solution);
+      munki_issue && setMunkiIssueDetails(munki_issue);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -517,6 +527,7 @@ const ManageHostsPage = ({
       osId,
       osName,
       osVersion,
+      munkiIssueId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -684,6 +695,20 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleClearMunkiIssueFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["munki_issue_id"]),
+      })
+    );
+    setMunkiIssueDetails(null);
+  };
+
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
     const teamIdParam = getValidatedTeamId(
@@ -819,6 +844,16 @@ const ManageHostsPage = ({
       }
 
       if (
+        munkiIssueId &&
+        !mdmEnrollmentStatus &&
+        !policyId &&
+        !softwareId &&
+        !mdmId
+      ) {
+        newQueryParams.munki_issue_id = munkiIssueId;
+      }
+
+      if (
         (osId || (osName && osVersion)) &&
         !softwareId &&
         !policyId &&
@@ -852,6 +887,7 @@ const ManageHostsPage = ({
       osId,
       osName,
       osVersion,
+      munkiIssueId,
       sortBy,
     ]
   );
@@ -1052,6 +1088,7 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
+        munkiIssueId,
       });
 
       toggleTransferHostModal();
@@ -1106,6 +1143,7 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
+        munkiIssueId,
       });
 
       refetchLabels();
@@ -1321,6 +1359,24 @@ const ManageHostsPage = ({
     );
   };
 
+  const renderMunkiIssueFilterBlock = () => {
+    if (munkiIssueDetails) {
+      return (
+        <FilterPill
+          label={munkiIssueDetails.name}
+          tooltipDescription={
+            <span className={`tooltip__tooltip-text`}>
+              Hosts that reported this Munki issue <br />
+              the last time Munki ran on each host.
+            </span>
+          }
+          onClear={handleClearMunkiIssueFilter}
+        />
+      );
+    }
+    return null;
+  };
+
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1484,6 +1540,7 @@ const ManageHostsPage = ({
       os_id: osId,
       os_name: osName,
       os_version: osVersion,
+      munkiIssueId,
       visibleColumns,
     };
 
@@ -1558,7 +1615,8 @@ const ManageHostsPage = ({
       mdmId ||
       mdmEnrollmentStatus ||
       osId ||
-      (osName && osVersion)
+      (osName && osVersion) ||
+      munkiIssueId
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
@@ -1567,24 +1625,28 @@ const ManageHostsPage = ({
             !softwareId &&
             !mdmId &&
             !mdmEnrollmentStatus &&
+            !munkiIssueId &&
             !showSelectedLabel &&
             renderPoliciesFilterBlock()}
           {!!softwareId &&
             !policyId &&
             !mdmId &&
             !mdmEnrollmentStatus &&
+            !munkiIssueId &&
             !showSelectedLabel &&
             renderSoftwareFilterBlock()}
           {!!mdmId &&
             !policyId &&
             !softwareId &&
             !mdmEnrollmentStatus &&
+            !munkiIssueId &&
             !showSelectedLabel &&
             renderMDMSolutionFilterBlock()}
           {!!mdmEnrollmentStatus &&
             !policyId &&
             !softwareId &&
             !mdmId &&
+            !munkiIssueId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
           {(!!osId || (!!osName && !!osVersion)) &&
@@ -1593,7 +1655,15 @@ const ManageHostsPage = ({
             !showSelectedLabel &&
             !mdmId &&
             !mdmEnrollmentStatus &&
+            !munkiIssueId &&
             renderOSFilterBlock()}
+          {!!munkiIssueId &&
+            !policyId &&
+            !softwareId &&
+            !showSelectedLabel &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
+            renderMunkiIssueFilterBlock()}
         </div>
       );
     }
