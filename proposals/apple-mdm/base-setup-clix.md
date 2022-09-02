@@ -2,6 +2,15 @@
 
 Note: these can all be namespaced behind something like `apple-mdm` if needed. But I would like to avoid creating an mdm vertical vs. an osquery vertical to create an integrated product.
 
+## Items of Note
+- A few NO-OP commands (setup apple-mdm, scep finalize, apns finalize) which are pure instruction gathering only
+- Setup integrated into fleetctl, not namespaced into a separate vertical (e.g. `fleetctl apple-mdm`). That might happen later, but not for setup.
+- 
+
+- TODO: Need link for apple's instructions on how to upload .req file
+- TODO: Need clearer instructions for who/how to contact fleet
+- TODO: Need to communicate some expectation of time to receive fleet .p7m file back
+
 ## APNS
 ### Step 1 - Generate CSR
 ```
@@ -27,7 +36,7 @@ $ fleetctl setup apns gen-req \
 Working...
 Generated fleet-apns-push.req file at ./
 
-Visit identity.apple.com to upload this .req file. For more details, follow these instructions: NEED LINK HERE
+Visit identity.apple.com to upload this .req file. For more details, follow these instructions: TODO LINK
 
 Apple will generate a .crt file. Use that file in the `fleetctl setup apns finalize` command. 
 ```
