@@ -48,7 +48,7 @@ func NewDesktopClient(addr, token string, insecureSkipVerify bool, rootCA string
 
 // Get fetches payload used by Fleet Desktop.
 func (dc *DesktopClient) GetPayload() (*FleetDesktopResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/policies"
+	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/desktop"
 
 	var r FleetDesktopResponse
 	err := dc.request(verb, path, "", &r)
