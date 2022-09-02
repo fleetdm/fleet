@@ -40,6 +40,8 @@ updates:
       - "website"
     schedule:
       interval: "daily"
+    allow:
+      - dependency-type: "production"
     reviewers:
       - "eashaw"
     pull-request-branch-name:
@@ -71,6 +73,8 @@ updates:
       interval: "daily"
     reviewers:
       - lukeheath
+    allow:
+      - dependency-type: "production"
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
