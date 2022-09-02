@@ -86,7 +86,7 @@ module.exports = {
         };
         break;
       default:
-        layout = 'layout-newsletter-email';
+        layout = 'layout-email-newsletter';
     }
 
     // Compile HTML template using the appropriate layout.
