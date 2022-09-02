@@ -29,6 +29,7 @@ export interface ILoadHostsOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  munkiIssueId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -45,6 +46,7 @@ export interface IExportHostsOptions {
   policyResponse?: string;
   softwareId?: number;
   mdmId?: number;
+  munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
   osId?: number;
   osName?: string;
@@ -128,6 +130,7 @@ export default {
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
+    const munkiIssueId = options?.munkiIssueId;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -144,6 +147,7 @@ export default {
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
         softwareId
       ),
       status: getStatusParam(selectedLabels),
@@ -168,6 +172,7 @@ export default {
     softwareId,
     mdmId,
     mdmEnrollmentStatus,
+    munkiIssueId,
     osId,
     osName,
     osVersion,
@@ -192,6 +197,7 @@ export default {
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
         softwareId,
         osId,
         osName,
