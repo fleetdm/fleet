@@ -105,7 +105,7 @@ Visit identity.apple.com to upload this .req file. For more details, follow thes
 Apple will generate a .crt file. Use that file in the `fleetctl setup apns finalize` command. 
 ```
 
-### Step 3 - Upload push..crt and push.key files to Fleet ENV
+### Step 3 - Upload push.crt and push.key files to Fleet ENV
 
 ```sh
 $ fleetctl setup apns finalize
