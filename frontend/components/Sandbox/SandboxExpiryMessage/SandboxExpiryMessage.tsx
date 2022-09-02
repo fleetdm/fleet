@@ -19,11 +19,7 @@ const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
       <p>Your Fleet Sandbox expires in {expiry}.</p>
       <span>
         Learn how to deploy Fleet
-        <img
-          alt="Open external link"
-          className="icon-external"
-          src={ExternalLinkIcon}
-        />
+        <img alt="Open external link" src={ExternalLinkIcon} />
       </span>
     </a>
   );

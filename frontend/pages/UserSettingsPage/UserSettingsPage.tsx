@@ -194,11 +194,7 @@ const UserSettingsPage = ({
                 rel="noopener noreferrer"
               >
                 API-only user
-                <img
-                  className="icon-external"
-                  src={ExternalLinkIcon}
-                  alt="Open external link"
-                />
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
               &nbsp;instead.
             </p>
@@ -215,11 +211,7 @@ const UserSettingsPage = ({
               rel="noopener noreferrer"
             >
               session duration configuration
-              <img
-                className="icon-external"
-                src={ExternalLinkIcon}
-                alt="Open external link"
-              />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
           <div className="modal-cta-wrap">

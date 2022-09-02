@@ -76,11 +76,7 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
           >
             <span>
               {value}
-              <img
-                className="icon-external"
-                src={ExternalLinkIcon}
-                alt={`link to ${value}`}
-              />
+              <img src={ExternalLinkIcon} alt={`link to ${value}`} />
             </span>
           </a>
         );

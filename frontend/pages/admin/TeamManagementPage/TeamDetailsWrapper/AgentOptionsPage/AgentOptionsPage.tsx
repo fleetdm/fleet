@@ -88,11 +88,7 @@ const AgentOptionsPage = ({
           Learn more about agent{" "}
           <span style={{ whiteSpace: "nowrap" }}>
             options
-            <img
-              alt="Open external link"
-              className="icon-external"
-              src={ExternalLinkIcon}
-            />
+            <img alt="Open external link" src={ExternalLinkIcon} />
           </span>
         </a>
       </p>
@@ -105,11 +101,7 @@ const AgentOptionsPage = ({
           rel="noopener noreferrer"
         >
           Go to Fleet docs
-          <img
-            alt="Open external link"
-            className="icon-external"
-            src={ExternalLinkIcon}
-          />
+          <img alt="Open external link" src={ExternalLinkIcon} />
         </a>
       </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>

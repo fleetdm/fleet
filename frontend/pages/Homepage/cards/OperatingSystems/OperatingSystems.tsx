@@ -97,11 +97,7 @@ const OperatingSystems = ({
           See supported operating{" "}
           <span style={{ whiteSpace: "nowrap" }}>
             systems
-            <img
-              alt="Open external link"
-              className="icon-external"
-              src={ExternalLinkIcon}
-            />
+            <img alt="Open external link" src={ExternalLinkIcon} />
           </span>
         </a>
       </p>

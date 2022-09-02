@@ -106,11 +106,7 @@ const Agents = ({
                 Learn more about{" "}
                 <span style={{ whiteSpace: "nowrap" }}>
                   teams
-                  <img
-                    alt="Open external link"
-                    className="icon-external"
-                    src={ExternalLinkIcon}
-                  />
+                  <img alt="Open external link" src={ExternalLinkIcon} />
                 </span>
               </a>
             </InfoBanner>

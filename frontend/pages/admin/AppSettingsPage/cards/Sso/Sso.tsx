@@ -228,11 +228,7 @@ const Sso = ({
                   rel="noopener noreferrer"
                 >
                   Learn more
-                  <img
-                    alt="Open external link"
-                    className="icon-external"
-                    src={ExternalLinkIcon}
-                  />
+                  <img alt="Open external link" src={ExternalLinkIcon} />
                 </a>
               </>
             </Checkbox>

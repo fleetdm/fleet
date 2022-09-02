@@ -60,11 +60,7 @@ const ForgotPasswordPage = () => {
               rel="noopener noreferrer"
             >
               Password reset FAQ
-              <img
-                className="icon-external"
-                src={ExternalLinkIcon}
-                alt="Open external link"
-              />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
         </div>
