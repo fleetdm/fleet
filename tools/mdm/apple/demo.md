@@ -67,35 +67,48 @@ Initial prepare db populates the MySQL database with the MDM tables:
 FLEET_MDM_APPLE_ENABLE=1 ./build/fleet prepare db --dev --logging_debug
 ```
 
-## 4. Fleet prepare mdm-apple setup
+## 4. SCEP setup
 
-The `prepare mdm-apple setup` runs initial setup of MDM. Returns a public key to be uploaded to Apple (for DEP):
 ```sh
-FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_MDM_APPLE_SCEP_CA_PASSPHRASE=sceppassphrase \
-FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.pem) \
-FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.key) \
-./build/fleet prepare mdm-apple setup --dev --logging_debug
+fleetctl apple-mdm setup scep --validity-years=1 --cn "Acme" --organization "Acme Inc." --organizational-unit "Acme Inc. IT" --country US
+Successfully generated SCEP CA: fleet-mdm-apple-scep.crt, fleet-mdm-apple-scep.key.
+Set FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) when running Fleet.
 ```
 
-In https://business.apple.com, upload generated `dep_public_key.pem`.
-Then Download DEP token to `~/mdm-apple-test/dep_encrypted_token.p7m`.
+## 5. DEP setup
 
-## 5. Run Fleet behind ngrok
+1. Init:
+```sh
+fleetctl apple-mdm setup dep init
+Successfully generated DEP public and private key: fleet-mdm-apple-dep.crt, fleet-mdm-apple-dep.key
+Upload fleet-mdm-apple-dep.crt to your Apple Business MDM server. (Don't forget to click "Save" after uploading it.)%
+```
+2. Copy file to ~/Downloads for easy access when uploading to Apple:
+```sh
+cp fleet-mdm-apple-dep.crt ~/Downloads/
+```
+3. In https://business.apple.com:
+   1. select your MDM server in "Your MDM Servers".
+   2. Click "Edit" and upload the generated `fleet-mdm-apple-dep.crt`.
+   3. Then download DEP token to a file named `./dep_encrypted_token.p7m`:
+    ```sh
+    cp ~/Downloads/YourMDMServer_Token_2022-09-02T17-13-49Z_smime.p7m ./dep_encrypted_token.p7m
+    ```
+4. Finalize:
+```sh
+fleetctl apple-mdm setup dep finalize \
+    --certificate ./fleet-mdm-apple-dep.crt \
+    --private-key ./fleet-mdm-apple-dep.key \
+    --encrypted-token ./dep_encrypted_token.p7m
+Successfully generated token file: fleet-mdm-apple-dep.token.
+Set FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) when running Fleet.
+```
+
+## 6. Run Fleet behind ngrok
 
 Fleet needs to run behind TLS with valid certificates (otherwise Apple devices won't trust it).
 ```
 ngrok http https://localhost:8080
-```
-
-## 6. Fleet prepare mdm-apple dep-auth-token
-
-Final `prepare mdm-apple` command `dep-auth-token`:
-```sh
-FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_MDM_APPLE_DEP_ENCRYPTED_AUTH_TOKEN=$(cat ~/mdm-apple-test/dep_encrypted_token.p7m) \
-FLEET_MDM_APPLE_DEP_SERVER_URL=ae8a-181-228-157-44.ngrok.io \
-./build/fleet prepare mdm-apple dep-auth-token --dev --logging_debug
 ```
 
 ## 7. Setup Munki repository
@@ -120,29 +133,80 @@ productsign \
 
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_MDM_APPLE_SCEP_CA_PASSPHRASE=sceppassphrase \
 FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
-FLEET_MDM_APPLE_DEP_SERVER_URL=ae8a-181-228-157-44.ngrok.io \
+FLEET_MDM_APPLE_SERVER_ADDRESS=ab51-181-228-157-44.ngrok.io \
 FLEET_MDM_APPLE_MUNKI_REPO_PATH=~/munki_repo \
 FLEET_MDM_APPLE_MUNKI_HTTP_BASIC_AUTH_USERNAME=fleetmunki \
 FLEET_MDM_APPLE_MUNKI_HTTP_BASIC_AUTH_PASSWORD=munkipass \
 FLEET_MDM_APPLE_MUNKI_PKG_FILE_PATH=~/munki_pkg/munkitools-5.7.3.4444-signed.pkg \
-FLEET_MDM_APPLE_MUNKI_PKG_SERVER_URL=ae8a-181-228-157-44.ngrok.io \
+FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) \
+FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) \
+FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) \
+FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.pem) \
+FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.key) \
 ./build/fleet serve --dev --dev_license --logging_debug 2>&1 | tee ~/fleet.txt
 ```
 
-> The following will obviously be required once we add authentication to the endpoints, not rn.
+Run the setup as usual (you will need a user for administrative commands below):
 ```sh
 fleetctl setup --email foo@example.com --name Gandalf --password p4ssw0rd.123 --org-name "Fleet Device Management Inc."
+Fleet Device Management Inc. periodically collects information about your instance.
+Sending usage statistics from your Fleet instance is optional and can be disabled in settings.
+[+] Fleet setup successful and context configured!
 ```
 
-## 10. Non-DEM Manual enroll
+## 10. Create manual enrollment
 
-Download profile from `/mdm/apple/api/enroll` and install on macOS.
 ```sh
-https://ae8a-181-228-157-44.ngrok.io/mdm/apple/api/enroll
+cat foo.json
+{"TODO": "TODO"}
+
+fleetctl apple-mdm enrollments create-manual \
+    --name foo \
+    --enroll-config foo.json
+Manual enrollment created, id: 1
 ```
-(This will be protected by SSO.)
+
+You can download profile from `/mdm/apple/api/enroll` and install on macOS.
+```sh
+https://ab51-181-228-157-44.ngrok.io/mdm/apple/api/enroll?id=1
+```
+
+## 11. Create automatic (DEP) enrollment
+
+```sh
+cat ./tools/mdm/apple/dep_sample_profile.json
+{
+  "profile_name": "Fleet Device Management Inc.",
+  "allow_pairing": true,
+  "auto_advance_setup": false,
+  "await_device_configured": false,
+  "department": "it@fleetdm.com",
+  "is_supervised": false,
+  "is_multi_user": false,
+  "is_mandatory": false,
+  "is_mdm_removable": true,
+  "language": "en",
+  "org_magic": "1",
+  "region": "US",
+  "support_phone_number": "+1 408 555 1010",
+  "support_email_address": "support@fleetdm.com",
+  "anchor_certs": [],
+  "supervising_host_certs": [],
+  "skip_setup_items": [
+    "Accessibility", "Appearance", "AppleID", 
+    "AppStore", "Biometric", "Diagnostics", "FileVault",
+    "iCloudDiagnostics", "iCloudStorage", "Location", "Payment",
+    "Privacy", "Restore", "ScreenTime", "Siri", "TermsOfAddress",
+    "TOS", "UnlockWithWatch"
+  ]
+}
+
+fleetctl apple-mdm enrollments create-automatic \
+    --name foo \
+    --enroll-config foo.json \
+    --profile ./tools/mdm/apple/dep_sample_profile.json
+```
 
 ## 11. Inspect MDM tables
 
