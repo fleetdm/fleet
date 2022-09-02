@@ -1104,6 +1104,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
+	// add a policy execution
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host,
+		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
+
 	// add a policy to team
 	oldToken := s.token
 	t.Cleanup(func() {
@@ -1162,6 +1166,14 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+
+	// GET `/api/_version_/fleet/device/{token}/desktop`
+	getDesktopResp := getFleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDesktopResp)
+	res.Body.Close()
+	require.NoError(t, getDesktopResp.Err)
+	require.Equal(t, getDesktopResp.FailingPolicies, uint(1))
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
@@ -1361,99 +1373,4 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
-}
-
-func (s *integrationEnterpriseTestSuite) TestFleetDesktopEndpoint() {
-	t := s.T()
-	ctx := context.Background()
-
-	ac, err := s.ds.AppConfig(ctx)
-	require.NoError(t, err)
-
-	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
-	require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{
-		ID:          51,
-		Name:        "team1-policies",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	host := test.NewHost(t, s.ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
-	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}))
-
-	// create an auth token for host
-	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
-		return err
-	})
-
-	qr, err := s.ds.NewQuery(ctx, &fleet.Query{
-		Name:           "TestQueryEnterpriseGlobalPolicy",
-		Description:    "Some description",
-		Query:          "select 1",
-		ObserverCanRun: true,
-	})
-	require.NoError(t, err)
-
-	// add a global policy
-	gpParams := globalPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some global resolution",
-	}
-	gpResp := globalPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
-	require.NotNil(t, gpResp.Policy)
-
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(ctx, host,
-		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
-
-	// add a policy to team
-	oldToken := s.token
-	t.Cleanup(func() {
-		s.token = oldToken
-	})
-
-	password := test.GoodPassword
-	email := "test_enterprise_policies@user.com"
-
-	u := &fleet.User{
-		Name:       "test team user",
-		Email:      email,
-		GlobalRole: nil,
-		Teams: []fleet.UserTeam{
-			{
-				Team: *team,
-				Role: fleet.RoleMaintainer,
-			},
-		},
-	}
-	require.NoError(t, u.SetPassword(password, 10, 10))
-	_, err = s.ds.NewUser(ctx, u)
-	require.NoError(t, err)
-
-	s.token = s.getTestToken(email, password)
-	tpParams := teamPolicyRequest{
-		Name:        "TestQueryEnterpriseTeamPolicy",
-		Query:       "select 1;",
-		Description: "Some description",
-		Resolution:  "some team resolution",
-		Platform:    "darwin",
-	}
-	tpResp := teamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
-
-	// try with invalid token
-	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
-	res.Body.Close()
-
-	// GET `/api/_version_/fleet/device/{token}/desktop`
-	resp := getFleetDesktopResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&resp)
-	res.Body.Close()
-	require.Equal(t, resp.FailingPolicies, uint(1))
-	require.NoError(t, resp.Err)
 }
