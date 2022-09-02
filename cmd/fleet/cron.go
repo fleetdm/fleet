@@ -38,6 +38,7 @@ func cronVulnerabilities(
 	logger kitlog.Logger,
 	identifier string,
 	config *config.VulnerabilitiesConfig,
+	license *fleet.LicenseInfo,
 ) {
 	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
 
@@ -110,7 +111,7 @@ func cronVulnerabilities(
 		}
 		if vulnPath != "" {
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
-			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
+			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
 				errHandler(ctx, logger, "scanning vulnerabilities", err)
 			}
 		}
@@ -130,6 +131,7 @@ func scanVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
+	license *fleet.LicenseInfo,
 ) error {
 	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
@@ -174,9 +176,10 @@ func scanVulnerabilities(
 	collectVulns := vulnAutomationEnabled != ""
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-	recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
 
-	if len(recentVulns) > 0 {
+	vulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+
+	if len(vulns) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
 			// send recent vulnerabilities via webhook
@@ -184,7 +187,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "webhook", "vulnerabilities"),
-				recentVulns,
+				vulns,
 				appConfig,
 				time.Now()); err != nil {
 				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
@@ -196,7 +199,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
-				recentVulns,
+				vulns,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -207,7 +210,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
-				recentVulns,
+				vulns,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
