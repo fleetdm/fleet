@@ -30,7 +30,7 @@ In the settings page, under "Organization Settings" select "Fleet Desktop." Use 
 
 ## Securing Fleet Desktop
 
-To prevent brute-forcing, Fleet rate-limits the endpoings used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
+To prevent brute-forcing, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
 
 <meta name="title" value="Fleet Desktop">
 <meta name="pageOrderInSection" value="450">
