@@ -129,7 +129,7 @@ Once you have the above follow these steps:
 
 - The emails will be generated using the Markdown file locally, any changes present to the local Markdown file will be reflected in the generated email.
 - HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to the digital experience team for help.
-- The filename of the generated email will have the article category added and any periods will be changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `releases--fleet-4-19-0.ejs`
+- The filename of the generated email will have periods changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `fleet-4-19-0.ejs`
 
 ## Rituals
 
