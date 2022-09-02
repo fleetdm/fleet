@@ -5,7 +5,6 @@ Note: these can all be namespaced behind something like `apple-mdm` if needed. B
 ## Items of Note
 - A few NO-OP commands (setup apple-mdm, scep finalize, apns finalize) which are pure instruction gathering only
 - Setup integrated into fleetctl, not namespaced into a separate vertical (e.g. `fleetctl apple-mdm`). That might happen later, but not for setup.
-- 
 
 - TODO: Need link for apple's instructions on how to upload .req file
 - TODO: Need clearer instructions for who/how to contact fleet
