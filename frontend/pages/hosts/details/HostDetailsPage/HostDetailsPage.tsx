@@ -315,7 +315,7 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString]);
 
-  const titleData: Partial<IHost> = pick(host, [
+  const titleData = pick(host, [
     "status",
     "issues",
     "memory",
@@ -330,11 +330,9 @@ const HostDetailsPage = ({
     "hostname",
   ]);
 
-  console.log("titleData: ", titleData);
-
   const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
-  const aboutData: Partial<IHost> = pick(host, [
+  const aboutData = pick(host, [
     "seen_time",
     "uptime",
     "last_enrolled_at",
@@ -347,7 +345,7 @@ const HostDetailsPage = ({
     "detail_updated_at",
   ]);
 
-  const osqueryData: Partial<IHost> = pick(host, [
+  const osqueryData = pick(host, [
     "config_tls_refresh",
     "logger_tls_period",
     "distributed_interval",

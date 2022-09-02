@@ -151,7 +151,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData: Partial<IHost> = normalizeEmptyValues(
+  const titleData = normalizeEmptyValues(
     pick(host, [
       "status",
       "issues",
@@ -166,7 +166,7 @@ const DeviceUserPage = ({
     ])
   );
 
-  const aboutData: Partial<IHost> = normalizeEmptyValues(
+  const aboutData = normalizeEmptyValues(
     pick(host, [
       "seen_time",
       "uptime",
