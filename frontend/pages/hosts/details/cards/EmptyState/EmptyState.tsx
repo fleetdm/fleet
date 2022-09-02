@@ -23,16 +23,15 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
     }
   };
 
-  switch (reason) {
-    case "empty-search":
-      return (
-        <div className={`${baseClass} empty-${title} empty-search`}>
-          <div className={`${baseClass}__inner`}>
-            <div className={`${baseClass}__empty-filter-results`}>
-              <h1>No {title} matched your search criteria.</h1>
-              <p>Try a different search.</p>
-            </div>
+  const renderEmptyState = () => {
+    switch (reason) {
+      case "empty-search":
+        return (
+          <div className={`${baseClass}__empty-filter-results`}>
+            <h2>No {title} matched your search criteria.</h2>
+            <p>Try a different search.</p>
           </div>
+<<<<<<< HEAD
         </div>
       );
     case "disabled":
@@ -53,41 +52,57 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
                 </a>
               </p>
             </div>
+=======
+        );
+      case "disabled":
+        return (
+          <div className={`${baseClass}__disabled`}>
+            <h2>{formalTitle()} has been disabled.</h2>
+            <p>
+              Check out the Fleet documentation for{" "}
+              <a
+                href="https://fleetdm.com/docs/using-fleet/configuration-files#features"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                steps to enable this feature
+                <img alt="External link" src={ExternalLinkIcon} />
+              </a>
+            </p>
+>>>>>>> 03f24515b (h2, reuse component, etc)
           </div>
-        </div>
-      );
-    case "none-detected":
-      return (
-        <div className={`${baseClass} empty-${title}`}>
-          <div className={`${baseClass}__inner`}>
-            <div className={`${baseClass}__disabled`}>
-              <h1>No {formalTitle()} detected</h1>
-              <p>
-                {title === "munki-issues" &&
-                  "The last time Munki ran on this host, no issues were reported."}
-              </p>
-            </div>
+        );
+      case "none-detected":
+        return (
+          <div className={`${baseClass}__none-detected`}>
+            <h2>No {formalTitle()} detected</h2>
+            <p>
+              {title === "munki-issues" &&
+                "The last time Munki ran on this host, no issues were reported."}
+            </p>
           </div>
-        </div>
-      );
-    default:
-      return (
-        <div className={`${baseClass} empty-${title}`}>
-          <div className={`${baseClass}__inner`}>
-            <div className={`${baseClass}__empty-list`}>
-              <h1>
-                No {title === "software" ? "installed software" : title}{" "}
-                detected on this host.
-              </h1>
-              <p>
-                Expecting to see {title}? Try again in a few seconds as the
-                system catches up.
-              </p>
-            </div>
+        );
+      default:
+        return (
+          <div className={`${baseClass}__empty-list`}>
+            <h2>
+              No {title === "software" ? "installed software" : title} detected
+              on this host.
+            </h2>
+            <p>
+              Expecting to see {title}? Try again in a few seconds as the system
+              catches up.
+            </p>
           </div>
-        </div>
-      );
-  }
+        );
+    }
+  };
+
+  return (
+    <div className={`${baseClass} empty-${title}`}>
+      <div className={`${baseClass}__inner`}>{renderEmptyState()}</div>
+    </div>
+  );
 };
 
 export default EmptyState;

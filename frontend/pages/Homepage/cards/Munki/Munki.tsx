@@ -31,7 +31,7 @@ const baseClass = "home-munki";
 
 const EmptyMunkiIssues = (): JSX.Element => (
   <div className={`${baseClass}__empty-munki`}>
-    <h1>No Munki issues detected</h1>
+    <h2>No Munki issues detected</h2>
     <p>
       This report is updated every hour to protect the performance of your
       devices.
@@ -41,7 +41,7 @@ const EmptyMunkiIssues = (): JSX.Element => (
 
 const EmptyMunkiVersions = (): JSX.Element => (
   <div className={`${baseClass}__empty-munki`}>
-    <h1>Unable to detect Munki versions</h1>
+    <h2>Unable to detect Munki versions</h2>
     <p>
       To see Munki versions, deploy&nbsp;
       <a

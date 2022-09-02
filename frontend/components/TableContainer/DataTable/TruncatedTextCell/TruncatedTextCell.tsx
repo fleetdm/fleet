@@ -18,7 +18,7 @@ const TruncatedTextCell = ({
   const [scrollWidth, setScrollWidth] = useState(0);
 
   useLayoutEffect(() => {
-    if (ref != null && ref.current != null) {
+    if (ref?.current !== null) {
       setOffsetWidth(ref.current.offsetWidth);
       setScrollWidth(ref.current.scrollWidth);
     }
