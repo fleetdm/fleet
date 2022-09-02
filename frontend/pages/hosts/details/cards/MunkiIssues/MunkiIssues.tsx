@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 
 import { IMunkiIssue } from "interfaces/host";
 import TableContainer from "components/TableContainer";
@@ -20,7 +20,7 @@ const MunkiIssuesTable = ({
   munkiIssues,
   deviceType,
 }: IMunkiIssuesTableProps): JSX.Element => {
-  const tableMunkiIssues = useMemo(() => munkiIssues, [munkiIssues]);
+  const tableMunkiIssues = munkiIssues;
   const tableHeaders = generateMunkiIssuesTableHeaders();
 
   const EmptyMunkiIssues = () => {
