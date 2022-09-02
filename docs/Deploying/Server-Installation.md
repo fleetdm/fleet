@@ -479,7 +479,7 @@ spec:
                 key: redis_address
         volumeMounts:
           - name: tmp
-            mountPath: /tmp
+            mountPath: /tmp # /tmp might not work on all cloud providers by default
         resources:
           requests:
             memory: "64Mi"
