@@ -268,7 +268,7 @@ const ScheduleEditorModal = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              how to configure a different log destination&nbsp;
+              how to configure a different log destination
               <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
             .

@@ -252,7 +252,7 @@ const Homepage = (): JSX.Element => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Learn about Munki&nbsp;
+          Learn about Munki
           <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </p>
@@ -277,7 +277,7 @@ const Homepage = (): JSX.Element => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Learn about MDM&nbsp;
+          Learn about MDM
           <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </p>

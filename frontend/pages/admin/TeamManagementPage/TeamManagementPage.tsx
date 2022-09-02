@@ -208,7 +208,7 @@ const TeamManagementPage = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Read about teams&nbsp;
+                Read about teams
                 <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>

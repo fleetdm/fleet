@@ -300,7 +300,7 @@ const UserForm = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learn more about user permissions&nbsp;
+              Learn more about user permissions
               <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </InfoBanner>
@@ -355,7 +355,7 @@ const UserForm = ({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Learn more about user permissions&nbsp;
+                  Learn more about user permissions
                   <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
               </InfoBanner>

@@ -378,7 +378,7 @@ const IntegrationsPage = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Read about automations&nbsp;
+                Read about automations
                 <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>

@@ -26,7 +26,7 @@ const DataError = ({ card }: IDataErrorProps): JSX.Element => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              file an issue&nbsp;
+              file an issue
               <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </span>

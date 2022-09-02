@@ -46,7 +46,7 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  steps to enable this feature&nbsp;
+                  steps to enable this feature
                   <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
               </p>

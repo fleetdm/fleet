@@ -71,7 +71,7 @@ const CreateIntegrationModal = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Suggest a new destination&nbsp;
+              Suggest a new destination
               <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </div>

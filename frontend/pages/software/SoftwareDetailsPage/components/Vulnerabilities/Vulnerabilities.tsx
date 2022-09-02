@@ -28,7 +28,7 @@ const NoVulnsDetected = (): JSX.Element => {
             target="_blank"
             rel="noopener noreferrer"
           >
-            File an issue on GitHub&nbsp;
+            File an issue on GitHub
             <img
               className="icon-external"
               src={ExternalLinkIcon}

@@ -59,7 +59,7 @@ const ForgotPasswordPage = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Password reset FAQ&nbsp;
+              Password reset FAQ
               <img
                 className="icon-external"
                 src={ExternalLinkIcon}

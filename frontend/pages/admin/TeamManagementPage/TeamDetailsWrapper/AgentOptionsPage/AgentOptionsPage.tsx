@@ -82,16 +82,18 @@ const AgentOptionsPage = ({
         <br />
         <a
           href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-          className={`${baseClass}__learn-more`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          Learn more about agent options&nbsp;
-          <img
-            alt="Open external link"
-            className="icon-external"
-            src={ExternalLinkIcon}
-          />
+          Learn more about agent{" "}
+          <span style={{ whiteSpace: "nowrap" }}>
+            options
+            <img
+              alt="Open external link"
+              className="icon-external"
+              src={ExternalLinkIcon}
+            />
+          </span>
         </a>
       </p>
       <InfoBanner className={`${baseClass}__config-docs`}>
@@ -102,7 +104,7 @@ const AgentOptionsPage = ({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Go to Fleet docs&nbsp;
+          Go to Fleet docs
           <img
             alt="Open external link"
             className="icon-external"

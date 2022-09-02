@@ -193,7 +193,7 @@ const UserSettingsPage = ({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                API-only user&nbsp;
+                API-only user
                 <img
                   className="icon-external"
                   src={ExternalLinkIcon}
@@ -214,7 +214,7 @@ const UserSettingsPage = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              session duration configuration&nbsp;
+              session duration configuration
               <img
                 className="icon-external"
                 src={ExternalLinkIcon}

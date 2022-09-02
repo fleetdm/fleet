@@ -28,7 +28,7 @@ const expirationMessage = (
       target="_blank"
       rel="noopener noreferrer"
     >
-      please head to the Fleet documentation&nbsp;
+      please head to the Fleet documentation
       <img src={ExternalLinkIcon} alt="Open external link" id="new-tab-icon" />
     </a>
   </>

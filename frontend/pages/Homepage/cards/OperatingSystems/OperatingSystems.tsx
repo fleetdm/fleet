@@ -94,12 +94,15 @@ const OperatingSystems = ({
           target="_blank"
           rel="noreferrer noopener"
         >
-          See supported operating systems&nbsp;
-          <img
-            alt="Open external link"
-            className="icon-external"
-            src={ExternalLinkIcon}
-          />
+          See supported operating{" "}
+          <span style={{ whiteSpace: "nowrap" }}>
+            systems
+            <img
+              alt="Open external link"
+              className="icon-external"
+              src={ExternalLinkIcon}
+            />
+          </span>
         </a>
       </p>
     ) : null;

@@ -22,7 +22,7 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                how to configure software inventory&nbsp;
+                how to configure software inventory
                 <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>

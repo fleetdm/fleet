@@ -60,7 +60,7 @@ const PackInfoSidePanel = () => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          documentation&nbsp;
+          documentation
           <img
             src={ExternalLinkIcon}
             alt="Open external link"

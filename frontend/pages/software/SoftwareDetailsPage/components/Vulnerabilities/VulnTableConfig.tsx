@@ -75,7 +75,7 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
             rel="noopener noreferrer"
           >
             <span>
-              {value}&nbsp;
+              {value}
               <img
                 className="icon-external"
                 src={ExternalLinkIcon}

@@ -27,17 +27,19 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
         <p>
           Want to know what your organization can see?&nbsp;
           <a
-            className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
             href="https://fleetdm.com/transparency"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Read about transparency&nbsp;
-            <img
-              className="icon"
-              src={ExternalLinkIcon}
-              alt="Open external link"
-            />
+            Read about{" "}
+            <span style={{ whiteSpace: "nowrap" }}>
+              transparency
+              <img
+                className="icon"
+                src={ExternalLinkIcon}
+                alt="Open external link"
+              />
+            </span>
           </a>
         </p>
         <div className="modal-cta-wrap">

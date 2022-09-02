@@ -30,7 +30,7 @@ const SandboxDemoMessage = ({
           target="_blank"
           rel="noreferrer"
         >
-          Schedule a demo&nbsp;
+          Schedule a demo
           <img
             alt="Open external link"
             className="icon-external"

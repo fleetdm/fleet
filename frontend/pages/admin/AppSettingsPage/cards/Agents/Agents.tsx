@@ -77,12 +77,11 @@ const Agents = ({
             Fleet.
             <br />
             <a
-              className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
               href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learn more about agent options&nbsp;
+              Learn more about agent options
               <img
                 className="icon"
                 src={ExternalLinkIcon}
@@ -101,16 +100,18 @@ const Agents = ({
               Want some hosts to have different options?&nbsp;
               <a
                 href="https://fleetdm.com/docs/using-fleet/teams"
-                className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Learn more about teams&nbsp;
-                <img
-                  alt="Open external link"
-                  className="icon-external"
-                  src={ExternalLinkIcon}
-                />
+                Learn more about{" "}
+                <span style={{ whiteSpace: "nowrap" }}>
+                  teams
+                  <img
+                    alt="Open external link"
+                    className="icon-external"
+                    src={ExternalLinkIcon}
+                  />
+                </span>
               </a>
             </InfoBanner>
           )}

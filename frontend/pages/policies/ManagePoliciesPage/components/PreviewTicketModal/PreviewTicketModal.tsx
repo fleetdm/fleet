@@ -30,7 +30,7 @@ const PreviewTicketModal = ({
             target="_blank"
             rel="noopener noreferrer"
           >
-            Check out the Fleet documentation&nbsp;
+            Check out the Fleet documentation
             <img src={ExternalLinkIcon} alt="Open external link" />
           </a>
         </p>

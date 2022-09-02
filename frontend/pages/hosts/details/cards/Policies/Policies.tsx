@@ -74,8 +74,11 @@ const Policies = ({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  why the response might not be updating&nbsp;
-                  <img src={ExternalLinkIcon} alt="Open external link" />
+                  why the response might not be{" "}
+                  <span style={{ whiteSpace: "nowrap" }}>
+                    updating
+                    <img src={ExternalLinkIcon} alt="Open external link" />
+                  </span>
                 </a>
               </p>
             </InfoBanner>

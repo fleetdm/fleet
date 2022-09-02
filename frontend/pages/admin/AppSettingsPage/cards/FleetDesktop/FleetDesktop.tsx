@@ -85,12 +85,12 @@ const FleetDesktop = ({
             When an end user clicks “Transparency” in the Fleet Desktop menu, by
             default they are taken to{" "}
             <a
-              className={`${baseClass}__transparency`}
+              style={{ whiteSpace: "nowrap" }}
               href="https://fleetdm.com/transparency"
               target="_blank"
               rel="noopener noreferrer"
             >
-              https://fleetdm.com/transparency&nbsp;
+              https://fleetdm.com/transparency
               <img
                 className="icon"
                 src={ExternalLinkIcon}

@@ -198,7 +198,7 @@ const PolicyPage = ({
               rel="noopener noreferrer"
               href="https://github.com/fleetdm/fleet/issues/new/choose"
             >
-              file an issue&nbsp;
+              file an issue
               <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>

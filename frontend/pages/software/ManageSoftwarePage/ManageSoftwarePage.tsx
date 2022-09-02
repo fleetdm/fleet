@@ -461,7 +461,7 @@ const ManageSoftwarePage = ({
           target="_blank"
           rel="noopener noreferrer"
         >
-          File an issue on GitHub&nbsp;
+          File an issue on GitHub
           <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </div>

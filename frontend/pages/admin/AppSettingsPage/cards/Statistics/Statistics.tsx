@@ -96,12 +96,11 @@ const Statistics = ({
             <br />
             <br />
             <a
-              className={`${baseClass}__learn-more`}
               href="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learn more about usage statistics&nbsp;
+              Learn more about usage statistics
               <img
                 className="icon"
                 src={ExternalLinkIcon}

@@ -71,7 +71,7 @@ const QueriesTable = ({
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        import Fleet’s standard query library&nbsp;
+                        import Fleet’s standard query library
                         <img
                           src={ExternalLinkIcon}
                           alt="Open external link"
