@@ -56,76 +56,72 @@ interface IMunkiIssueTableData extends IMunkiIssue {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
-  const tableHeaders: IDataColumn[] = [
-    {
-      title: "Issue",
-      Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper
-            tipContent={`
+export const munkiIssuesTableHeaders: IDataColumn[] = [
+  {
+    title: "Issue",
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
             Issues reported the last time Munki ran on each host.
           `}
-          >
-            Issue
-          </TooltipWrapper>
-        );
-        return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
-        );
-      },
-      disableSortBy: false,
-      accessor: "name",
-      Cell: (cellProps: IStringCellProps) => (
-        <TruncatedTextCell value={cellProps.cell.value} />
-      ),
-      sortType: "caseInsensitive",
+        >
+          Issue
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      );
     },
-    {
-      title: "Type",
-      Header: "Type",
-      disableSortBy: true,
-      accessor: "type",
-      Cell: (cellProps: IStringCellProps) => (
-        <TextCell value={capitalize(cellProps.cell.value)} />
-      ),
-    },
-    {
-      title: "Time",
-      Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper
-            tipContent={`
+    disableSortBy: false,
+    accessor: "name",
+    Cell: (cellProps: IStringCellProps) => (
+      <TruncatedTextCell value={cellProps.cell.value} />
+    ),
+    sortType: "caseInsensitive",
+  },
+  {
+    title: "Type",
+    Header: "Type",
+    disableSortBy: true,
+    accessor: "type",
+    Cell: (cellProps: IStringCellProps) => (
+      <TextCell value={capitalize(cellProps.cell.value)} />
+    ),
+  },
+  {
+    title: "Time",
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
             The first time Munki reported this issue.
           `}
-          >
-            Time
-          </TooltipWrapper>
-        );
-        return (
-          <HeaderCell
-            value={titleWithToolTip}
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
-        );
-      },
-      disableSortBy: false,
-      accessor: "created_at",
-      Cell: (cellProps: IStringCellProps) => {
-        const time = abbreviateTimeUnits(
-          formatDistanceToNowStrict(new Date(cellProps.cell.value), {
-            addSuffix: true,
-          })
-        );
-        return <TextCell value={time} />;
-      },
+        >
+          Time
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      );
     },
-  ];
+    disableSortBy: false,
+    accessor: "created_at",
+    Cell: (cellProps: IStringCellProps) => {
+      const time = abbreviateTimeUnits(
+        formatDistanceToNowStrict(new Date(cellProps.cell.value), {
+          addSuffix: true,
+        })
+      );
+      return <TextCell value={time} />;
+    },
+  },
+];
 
-  return tableHeaders;
-};
-
-export default generateMunkiIssuesTableHeaders;
+export default munkiIssuesTableHeaders;

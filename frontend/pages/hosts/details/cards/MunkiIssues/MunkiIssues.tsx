@@ -5,7 +5,7 @@ import TableContainer from "components/TableContainer";
 
 import EmptyState from "../EmptyState";
 
-import { generateMunkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
+import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
 const baseClass = "munki-issues";
 
@@ -21,7 +21,7 @@ const MunkiIssuesTable = ({
   deviceType,
 }: IMunkiIssuesTableProps): JSX.Element => {
   const tableMunkiIssues = munkiIssues;
-  const tableHeaders = generateMunkiIssuesTableHeaders();
+  const tableHeaders = munkiIssuesTableHeaders;
 
   const EmptyMunkiIssues = () => {
     return (
