@@ -86,7 +86,7 @@ const AgentOptionsPage = ({
           rel="noopener noreferrer"
         >
           Learn more about agent{" "}
-          <span style={{ whiteSpace: "nowrap" }}>
+          <span className="no-wrap">
             options
             <img alt="Open external link" src={ExternalLinkIcon} />
           </span>

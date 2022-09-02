@@ -95,7 +95,7 @@ const OperatingSystems = ({
           rel="noreferrer noopener"
         >
           See supported operating{" "}
-          <span style={{ whiteSpace: "nowrap" }}>
+          <span className="no-wrap">
             systems
             <img alt="Open external link" src={ExternalLinkIcon} />
           </span>

@@ -75,7 +75,7 @@ const Policies = ({
                   rel="noopener noreferrer"
                 >
                   why the response might not be{" "}
-                  <span style={{ whiteSpace: "nowrap" }}>
+                  <span className="no-wrap">
                     updating
                     <img src={ExternalLinkIcon} alt="Open external link" />
                   </span>

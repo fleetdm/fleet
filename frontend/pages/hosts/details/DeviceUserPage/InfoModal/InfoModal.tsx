@@ -32,7 +32,7 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
             rel="noopener noreferrer"
           >
             Read about{" "}
-            <span style={{ whiteSpace: "nowrap" }}>
+            <span className="no-wrap">
               transparency
               <img
                 className="icon"

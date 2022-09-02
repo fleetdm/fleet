@@ -104,7 +104,7 @@ const Agents = ({
                 rel="noopener noreferrer"
               >
                 Learn more about{" "}
-                <span style={{ whiteSpace: "nowrap" }}>
+                <span className="no-wrap">
                   teams
                   <img alt="Open external link" src={ExternalLinkIcon} />
                 </span>

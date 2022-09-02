@@ -85,7 +85,7 @@ const FleetDesktop = ({
             When an end user clicks “Transparency” in the Fleet Desktop menu, by
             default they are taken to{" "}
             <a
-              style={{ whiteSpace: "nowrap" }}
+              className="no-wrap"
               href="https://fleetdm.com/transparency"
               target="_blank"
               rel="noopener noreferrer"
