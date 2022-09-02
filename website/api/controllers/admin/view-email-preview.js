@@ -74,15 +74,15 @@ module.exports = {
       case 'email-verify-new-email':
         layout = 'layout-email';
         fakeData = {
-          fullName: 'Fleet pal',
+          fullName: 'Fleet user',
           token: '4-32fad81jdaf$329',
         };
         break;
       case 'email-order-confirmation':
         layout = 'layout-email';
         fakeData = {
-          firstName: 'Fleet premium',
-          lastName: 'enjoyer',
+          firstName: 'Fleet',
+          lastName: 'user',
         };
         break;
       default:

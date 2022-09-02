@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'To HTML',
+  friendlyName: 'To HTML email',
 
 
-  description: 'Compile a Markdown string into an HTML string.',
+  description: 'Compile a Markdown string into an HTML string with styles added inline for the Fleet newsletter.',
 
 
   extendedDescription:
