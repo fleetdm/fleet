@@ -61,7 +61,7 @@ module.exports = {
 
     // For codeblocks (``` ```)
     customRenderer.code = function(codeHTML) {
-      return `<pre><code>'+_.escape(code)+'</code></pre>`
+      return '<pre style="padding: 24px; border: 1px solid #E2E4EA; overflow: auto; margin-bottom: 16px; margin-top: 16px; border-radius: 6px; background: #F9FAFC;"><code style="font-size: 13px; line-height: 16px; font-family: Source Code Pro;">'+_.escape(codeHTML)+'</code></pre>';
     }
     // For blockquotes (>)
     customRenderer.blockquote = function(quoteHTML) {
@@ -117,12 +117,12 @@ module.exports = {
 
     // For emphasized text
     customRenderer.em = function(textHTML) {
-      return `<span style="display: inline; font-style: italic; font-size:16px;>${textHTML}</span>`
+      return `<span style="display: inline; font-style: italic; font-size:16px;>${textHTML}</span>`;
     }
 
     // For inline codespans
     customRenderer.codespan = function(codeHTML) {
-      return `<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">${_.escape(codeHTML)}</code>`
+      return '<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">'+codeHTML+'</code>';
     }
 
     // For links
