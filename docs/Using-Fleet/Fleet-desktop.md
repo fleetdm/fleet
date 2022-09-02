@@ -2,6 +2,7 @@
 - [Installing Fleet Desktop](#installing-fleet-desktop)
 - [Upgrading Fleet Desktop](#upgrading-fleet-desktop)
 - [Custom Transparency Link](#custom-transparency-link)
+- [Securing Fleet Desktop](#securing-fleet-desktop)
 
 Fleet Desktop is a menubar icon available on macOS, Windows, and Linux. 
 
@@ -26,6 +27,10 @@ For organizations with complex security postures, they can direct end users to a
 
 To turn on the custom transparency link, in the Fleet GUI, click on your profile in the top right, select "Settings."
 In the settings page, under "Organization Settings" select "Fleet Desktop." Use the "Custom transparency URL" text input to specify the custom URL.
+
+## Securing Fleet Desktop
+
+To prevent brute-forcing, Fleet rate-limits the endpoings used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
 
 <meta name="title" value="Fleet Desktop">
 <meta name="pageOrderInSection" value="450">
