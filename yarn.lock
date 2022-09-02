@@ -10604,7 +10604,7 @@ lodash@4.16.4:
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.16.4.tgz"
   integrity sha1-Ac4wa5utExnypVKGdPiCl663ASc=
 
-lodash@^4.17.11, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.19, lodash@^4.17.2, lodash@^4.17.20, lodash@^4.17.21, lodash@^4.17.4, lodash@^4.7.0, lodash@~4.17.10:
+lodash@^4.17.11, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.19, lodash@^4.17.20, lodash@^4.17.21, lodash@^4.17.4, lodash@^4.7.0, lodash@~4.17.10:
   version "4.17.21"
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"
   integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
@@ -11441,12 +11441,10 @@ normalize-url@1.9.1:
     query-string "^4.1.0"
     sort-keys "^1.0.0"
 
-normalizr@2.3.1:
-  version "2.3.1"
-  resolved "https://registry.npmjs.org/normalizr/-/normalizr-2.3.1.tgz"
-  integrity sha1-rBLXcc4f5qQwlMPYKMqtpO2aRUA=
-  dependencies:
-    lodash "^4.17.2"
+normalizr@3.6.2:
+  version "3.6.2"
+  resolved "https://registry.yarnpkg.com/normalizr/-/normalizr-3.6.2.tgz#ac1571207dc3008adb46e3f62311c17f11dcf083"
+  integrity sha512-30qCybsBaCBciotorvuOZTCGEg2AXrJfADMT2Kk/lvpIAcipHdK0zc33nNtwKzyfQAqIJXAcqET6YgflYUgsoQ==
 
 npm-run-path@^2.0.0:
   version "2.0.2"
