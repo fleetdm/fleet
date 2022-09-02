@@ -31,28 +31,6 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
             <h2>No {title} matched your search criteria.</h2>
             <p>Try a different search.</p>
           </div>
-<<<<<<< HEAD
-        </div>
-      );
-    case "disabled":
-      return (
-        <div className={`${baseClass} empty-${title}`}>
-          <div className={`${baseClass}__inner`}>
-            <div className={`${baseClass}__disabled`}>
-              <h1>{formalTitle()} has been disabled.</h1>
-              <p>
-                Check out the Fleet documentation for{" "}
-                <a
-                  href="https://fleetdm.com/docs/using-fleet/configuration-files#features"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  steps to enable this feature
-                  <img src={ExternalLinkIcon} alt="Open external link" />
-                </a>
-              </p>
-            </div>
-=======
         );
       case "disabled":
         return (
@@ -69,7 +47,6 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
                 <img alt="External link" src={ExternalLinkIcon} />
               </a>
             </p>
->>>>>>> 03f24515b (h2, reuse component, etc)
           </div>
         );
       case "none-detected":
