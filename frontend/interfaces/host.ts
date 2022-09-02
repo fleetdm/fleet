@@ -56,7 +56,7 @@ export default PropTypes.shape({
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
-  display_text: PropTypes.string,
+  display_name: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
   policies: PropTypes.arrayOf(hostPolicyInterface),
   query_results: PropTypes.arrayOf(hostQueryResult),

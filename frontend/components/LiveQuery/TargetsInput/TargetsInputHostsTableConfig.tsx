@@ -31,10 +31,10 @@ export const generateTableHeaders = (
 
   return [
     {
-      title: "Hostname",
-      Header: "Hostname",
+      title: "Hosts",
+      Header: "Hosts",
       disableSortBy: true,
-      accessor: "hostname",
+      accessor: "display_name",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     // TODO: Consider removing status column from selected hosts table because

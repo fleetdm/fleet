@@ -139,14 +139,14 @@ const allHostTableHeaders: IDataColumn[] = [
     disableHidden: true,
   },
   {
-    title: "Hostname",
+    title: "Host",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "hostname",
+    accessor: "display_name",
     Cell: (cellProps: ICellProps) => (
       <LinkCell
         value={cellProps.cell.value}

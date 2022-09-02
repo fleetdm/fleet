@@ -88,7 +88,7 @@ const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;
 };
 const isHost = (target: ISelectTargetsEntity) => {
-  return "hostname" in target;
+  return "display_name" in target;
 };
 
 const filterTarget = (targetType: string) => {
