@@ -54,7 +54,7 @@
     "react-error-boundary": "^3.1.4",
     "react-query": "^3.19.2",
     "react-router": "^3.0.0",
-    "react-router-transition": "0.1.1",
+    "react-router-transition": "1.2.1",
     "react-select": "^1",
     "react-select-5": "npm:react-select@^5.4.0",
     "react-table": "7.7.0",
