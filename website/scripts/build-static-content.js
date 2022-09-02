@@ -147,6 +147,7 @@ module.exports = {
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
+
         // Delete existing HTML output from previous runs, if any.
         await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, APP_PATH_TO_COMPILED_PAGE_PARTIALS));
 
