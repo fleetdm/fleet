@@ -54,20 +54,6 @@ interface IMunkiIssueTableData extends IMunkiIssue {
   time: string;
 }
 
-export const generateMunkiIssuesTableData = (
-  munkiIssues: IMunkiIssue[] | undefined
-): IMunkiIssueTableData[] => {
-  if (!munkiIssues) {
-    return [];
-  }
-  return munkiIssues.map((i) => {
-    return {
-      ...i,
-      time: i.created_at,
-    };
-  });
-};
-
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
@@ -127,14 +113,13 @@ export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
         );
       },
       disableSortBy: false,
-      accessor: "time",
+      accessor: "created_at",
       Cell: (cellProps: IStringCellProps) => {
         const time = abbreviateTimeUnits(
           formatDistanceToNowStrict(new Date(cellProps.cell.value), {
             addSuffix: true,
           })
         );
-
         return <TextCell value={time} />;
       },
     },
@@ -143,7 +128,4 @@ export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
   return tableHeaders;
 };
 
-export default {
-  generateMunkiIssuesTableHeaders,
-  generateMunkiIssuesTableData,
-};
+export default generateMunkiIssuesTableHeaders;

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
-import { uniqueId } from "lodash";
+import { v4 as uuidv4 } from "uuid";
 
 import ReactTooltip from "react-tooltip";
 
@@ -24,7 +24,7 @@ const TruncatedTextCell = ({
     }
   }, []);
 
-  const id = uniqueId();
+  const id = uuidv4();
   const tooltipDisabled = offsetWidth === scrollWidth;
 
   return (

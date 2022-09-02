@@ -5,10 +5,7 @@ import TableContainer from "components/TableContainer";
 
 import EmptyState from "../EmptyState";
 
-import {
-  generateMunkiIssuesTableHeaders,
-  generateMunkiIssuesTableData,
-} from "./MunkiIssuesTableConfig";
+import { generateMunkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
 const baseClass = "munki-issues";
 
@@ -23,10 +20,7 @@ const MunkiIssuesTable = ({
   munkiIssues,
   deviceType,
 }: IMunkiIssuesTableProps): JSX.Element => {
-  const tableMunkiIssues = useMemo(
-    () => generateMunkiIssuesTableData(munkiIssues),
-    [munkiIssues]
-  );
+  const tableMunkiIssues = useMemo(() => munkiIssues, [munkiIssues]);
   const tableHeaders = generateMunkiIssuesTableHeaders();
 
   const EmptyMunkiIssues = () => {
