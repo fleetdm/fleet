@@ -126,29 +126,23 @@ const HostDetailsPage = ({
     return false;
   };
 
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
-    false
-  );
-  const [showOSPolicyModal, setShowOSPolicyModal] = useState<boolean>(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showQueryHostModal, setShowQueryHostModal] = useState(false);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
+  const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [isUpdatingHost, setIsUpdatingHost] = useState<boolean>(false);
+  const [isUpdatingHost, setIsUpdatingHost] = useState(false);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
-  const [usersSearchString, setUsersSearchString] = useState<string>("");
+  const [usersSearchString, setUsersSearchString] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -315,41 +309,47 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString]);
 
-  const titleData = pick(host, [
-    "status",
-    "issues",
-    "memory",
-    "cpu_type",
-    "os_version",
-    "osquery_version",
-    "enroll_secret_name",
-    "detail_updated_at",
-    "percent_disk_space_available",
-    "gigs_disk_space_available",
-    "team_name",
-    "hostname",
-  ]);
+  const titleData = normalizeEmptyValues(
+    pick(host, [
+      "status",
+      "issues",
+      "memory",
+      "cpu_type",
+      "os_version",
+      "osquery_version",
+      "enroll_secret_name",
+      "detail_updated_at",
+      "percent_disk_space_available",
+      "gigs_disk_space_available",
+      "team_name",
+      "hostname",
+    ])
+  );
 
   const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
-  const aboutData = pick(host, [
-    "seen_time",
-    "uptime",
-    "last_enrolled_at",
-    "hardware_model",
-    "hardware_serial",
-    "primary_ip",
-    "public_ip",
-    "geolocation",
-    "batteries",
-    "detail_updated_at",
-  ]);
+  const aboutData = normalizeEmptyValues(
+    pick(host, [
+      "seen_time",
+      "uptime",
+      "last_enrolled_at",
+      "hardware_model",
+      "hardware_serial",
+      "primary_ip",
+      "public_ip",
+      "geolocation",
+      "batteries",
+      "detail_updated_at",
+    ])
+  );
 
-  const osqueryData = pick(host, [
-    "config_tls_refresh",
-    "logger_tls_period",
-    "distributed_interval",
-  ]);
+  const osqueryData = normalizeEmptyValues(
+    pick(host, [
+      "config_tls_refresh",
+      "logger_tls_period",
+      "distributed_interval",
+    ])
+  );
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -537,7 +537,7 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
-  const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+  const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
   return (
     <MainContent className={baseClass}>

@@ -229,7 +229,7 @@ const DeviceUserPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = titleData?.issues?.failing_policies_count || 0;
+    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
