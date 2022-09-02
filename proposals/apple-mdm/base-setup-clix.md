@@ -9,7 +9,6 @@ Note: these can all be namespaced behind something like `apple-mdm` if needed. B
 - TODO: Need link for apple's instructions on how to upload .req file
 - TODO: Need clearer instructions for who/how to contact fleet
 - TODO: Need to communicate some expectation of time to receive fleet .p7m file back
-- TODO: Need link to instructions for changing env vars in Fleet.
 
 ## fleetctl setup
 
@@ -45,7 +44,7 @@ INSTRUCTIONS:
   2. Run and complete the instructions in the `fleetctl setup scep` set of commands
   3. Set the ENV["FLEET_APPLE_MDM_ENABLE"]=1 in your fleet server
 
-For more information on how to change your environment variables in Fleet, visit TODO
+For more information on how to change your environment variables in Fleet, visit https://fleetdm.com/docs/deploying/configuration#options
 ```
 
 ## APNS
@@ -110,7 +109,7 @@ Re-run your Fleet server with new environment variables as follows:
 1. Update ENV["FLEET_APNS_PUSH_CERT"] with the contents of the Apple .crt file
 2. Update ENV["FLEET_APNS_PUSH_KEY"] with the contents of fleet-apns-push.key
 
-For more information on how to change your environment variables in Fleet, visit TODO
+For more information on how to change your environment variables in Fleet, visit https://fleetdm.com/docs/deploying/configuration#options
 
 ```
 
@@ -126,7 +125,7 @@ Re-run your Fleet server with new environment variables as follows:
 1. Update ENV["FLEET_SCEP_CA_CERT"] with the contents of fleetctl-scep.crt
 2. Update ENV["FLEET_SCEP_CA_KEY"] with the contents of fleetctl-scep.key
 
-For more information on how to change your environment variables in Fleet, visit TODO
+For more information on how to change your environment variables in Fleet, visit https://fleetdm.com/docs/deploying/configuration#options
 
 WARNING: If you change the SCEP CA in the Fleet server, existing managed devices will no longer report to Fleet. You must un-enroll and re-enroll all devices.
 
