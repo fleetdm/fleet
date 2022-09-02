@@ -37,9 +37,8 @@ Apple will generate a .crt file. Use that file in the `fleetctl setup apns final
 ```sh
 $ fleetctl setup apns finalize
 Update your Fleet server's environment variables as follows:
-1. Update ENV["APPLE_MDM_ENABLE"]=1
-2. Update ENV["APNS_PUSH_CERT"] with the contents of the Apple .crt file
-3. Update ENV["APNS_PUSH_KEY"] with the contents of fleet-apns-push.key
+1. Update ENV["APNS_PUSH_CERT"] with the contents of the Apple .crt file
+2. Update ENV["APNS_PUSH_KEY"] with the contents of fleet-apns-push.key
 
 Restart the server to apply the new ENV variables.
 
@@ -87,15 +86,32 @@ NAME:
 
 USAGE:
    fleetctl setup [options]
+   fleetctl setup apple-mdm // NEW
    fleetctl setup apns // NEW
    fleetctl setup scep // NEW
    
 SUBCOMMANDS:
+  apple-mdm Instructions for enabling MDM for Apple devices
 	apns Apple Push Notification Service to enable MDM for Apple devices // New
 	scep Simple Certificate Enrollment Protocol to enable MDM for Apple devices // NEW
 
 OPTIONS:
 	... // remains same
+```
+
+### Help pages - Apple MDM
+```
+// ALL NEW
+$ fleetctl setup apple-mdm
+NAME:
+	fleetctl setup apple-mdm - Instructions for enabling MDM for Apple devices
+
+INSTRUCTIONS:
+  Welcome! Here are instructions for enabling MDM for Apple devices in Fleet.
+
+  1. Run and complete the instructions in the `fleetctl setup apns` set of commands
+  2. Run and complete the instructions in the `fleetctl setup scep` set of commands
+  3. Set the ENV["APPLE_MDM_ENABLE"]=1 in your fleet server
 ```
 
 ### Help pages - APNS
