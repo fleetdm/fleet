@@ -282,6 +282,30 @@
       </a>
   </div>
 
+  <div purpose="newsletter-banner">
+    <div style="max-width: 1040px;" class="d-flex flex-lg-row flex-column justify-content-lg-between justify-content-center align-items-lg-center mx-auto">
+      <div purpose="newletter-form-text" class="text-left pb-4 pb-lg-0 pr-0 pr-md-4">
+        <h3>Stay up-to-date with the latest release</h3>
+        <p>Subscribe to the Fleet newsletter to learn about improvements and new features. We release updates every three weeks.</p>
+      </div>
+      <div purpose="newsletter-form" class="text-center" v-if="cloudSuccess">
+        <h4>Great!</h4>
+        <p>You're all set to recieve updates on Fleet releases.</p>
+      </div>
+      <div purpose="newsletter-form" class="d-flex flex-row justify-content-lg-start justify-content-center align-items-center w-100" v-else>
+        <ajax-form class="w-100" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedNewsletterForm()">
+          <div class="flex-sm-row flex-column d-flex w-100">
+            <div class="d-flex flex-column w-100">
+              <input purpose="newsletter-form-input" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Enter your email">
+              <div class="invalid-feedback d-inline" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+            </div>
+            <ajax-button purpose="subscribe-button" type="submit-button" :syncing="syncing" class="btn btn-sm btn-info ml-sm-2 ml-0 mt-3 mt-sm-0">Subscribe</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+    </div>
+  </div>
+
   <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>
     <div style="height: 100%;" class="d-flex flex-column align-items-center justify-content-center">
       <div purpose="embedded-content" class="container-lg">

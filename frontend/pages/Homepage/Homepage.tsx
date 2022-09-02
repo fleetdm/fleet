@@ -323,11 +323,11 @@ const Homepage = (): JSX.Element => {
   };
 
   const macOSLayout = () => (
-    <div className={`${baseClass}__section`}>
-      {OperatingSystemsCard}
-      {MunkiCard}
-      {MDMCard}
-    </div>
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      <div className={`${baseClass}__section`}>{MunkiCard}</div>
+      <div className={`${baseClass}__section`}>{MDMCard}</div>
+    </>
   );
 
   const windowsLayout = () => (
