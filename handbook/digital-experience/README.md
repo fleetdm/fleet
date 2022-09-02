@@ -28,7 +28,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 |:------ |:-----------------|:-------------------------------|-----------|
 | Articles | **Queued** – see [How to submit and publish an article](./how-to-submit-and-publish-an-article). | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
+| Docs | **Gated**. Request review from Chris McGillicuddy – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
 | Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
@@ -387,15 +387,14 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Chris McGillicuddy |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Chris McGillicuddy |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
-| Docs editor pass | Weekly | Edit two sections a week until completed. | Desmi Dizney |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
-| Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
+| Handbook editor pass | Monthly | Edit for copy and content. | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
