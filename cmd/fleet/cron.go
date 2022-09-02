@@ -173,11 +173,10 @@ func scanVulnerabilities(
 
 	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-	collectVulns := vulnAutomationEnabled != ""
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-
-	vulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	vulns, meta := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	mapToVulnIntegrationArgs(vulns, meta, license)
 
 	if len(vulns) > 0 {
 		switch vulnAutomationEnabled {
@@ -224,6 +223,17 @@ func scanVulnerabilities(
 	return nil
 }
 
+func mapToVulnIntegrationArgs(
+	vulns []fleet.SoftwareVulnerability,
+	meta map[string]fleet.CVEMeta,
+	license *fleet.LicenseInfo,
+) interface{} {
+	panic("not implemented")
+}
+
+// filterRecentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
+// (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
+// and their meta data.
 func filterRecentVulns(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -231,40 +241,40 @@ func filterRecentVulns(
 	nvdVulns []fleet.SoftwareVulnerability,
 	ovalVulns []fleet.SoftwareVulnerability,
 	maxAge time.Duration,
-) []fleet.SoftwareVulnerability {
+) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
 	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	recent, err := ds.ListCVEs(ctx, maxAge)
 	if err != nil {
 		errHandler(ctx, logger, "could not fetch recent CVEs", err)
-		return nil
+		return nil, nil
 	}
 
-	lookup := make(map[string]bool)
+	meta := make(map[string]fleet.CVEMeta)
 	for _, r := range recent {
-		lookup[r.CVE] = true
+		meta[r.CVE] = r
 	}
 
 	filtered := make(map[string]fleet.SoftwareVulnerability)
 	for _, v := range nvdVulns {
-		if _, ok := lookup[v.CVE]; ok {
+		if _, ok := meta[v.CVE]; ok {
 			filtered[v.Key()] = v
 		}
 	}
 	for _, v := range ovalVulns {
-		if _, ok := lookup[v.CVE]; ok {
+		if _, ok := meta[v.CVE]; ok {
 			filtered[v.Key()] = v
 		}
 	}
 
-	result := make([]fleet.SoftwareVulnerability, 0, len(filtered))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(filtered))
 	for _, v := range filtered {
-		result = append(result, v)
+		vulns = append(vulns, v)
 	}
 
-	return result
+	return vulns, meta
 }
 
 func checkOvalVulnerabilities(

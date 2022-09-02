@@ -17,8 +17,9 @@ func TestFilterRecentVulns(t *testing.T) {
 		ds := new(mock.Store)
 		logger := kitlog.NewNopLogger()
 
-		result := filterRecentVulns(ctx, ds, logger, nil, nil, 2*time.Hour)
-		require.Empty(t, result)
+		vulns, meta := filterRecentVulns(ctx, ds, logger, nil, nil, 2*time.Hour)
+		require.Empty(t, vulns)
+		require.Empty(t, meta)
 	})
 
 	t.Run("filters both NVD and OVAL vulns based on max age", func(t *testing.T) {
@@ -26,12 +27,14 @@ func TestFilterRecentVulns(t *testing.T) {
 		ds := new(mock.Store)
 		logger := kitlog.NewNopLogger()
 
+		dsMeta := []fleet.CVEMeta{
+			{CVE: "cve-recent-1"},
+			{CVE: "cve-recent-2"},
+			{CVE: "cve-recent-3"},
+		}
+
 		ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
-			return []fleet.CVEMeta{
-				{CVE: "cve-recent-1"},
-				{CVE: "cve-recent-2"},
-				{CVE: "cve-recent-3"},
-			}, nil
+			return dsMeta, nil
 		}
 
 		ovalVulns := []fleet.SoftwareVulnerability{
@@ -56,11 +59,12 @@ func TestFilterRecentVulns(t *testing.T) {
 		}
 
 		var actual []string
-		result := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, maxAge)
-		for _, r := range result {
+		vulns, meta := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, maxAge)
+		for _, r := range vulns {
 			actual = append(actual, r.CVE)
 		}
 
 		require.ElementsMatch(t, expected, actual)
+		require.Equal(t, dsMeta, meta)
 	})
 }
