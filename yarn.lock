@@ -13274,10 +13274,10 @@ require-from-string@^2.0.2:
   resolved "https://registry.npmjs.org/require-from-string/-/require-from-string-2.0.2.tgz"
   integrity sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==
 
-require-hacker@2.1.4:
-  version "2.1.4"
-  resolved "https://registry.npmjs.org/require-hacker/-/require-hacker-2.1.4.tgz"
-  integrity sha1-FoPahmEZSV4P/NqOvtm7z1VoSfI=
+require-hacker@3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/require-hacker/-/require-hacker-3.0.1.tgz#0879be067fcf067530665bcce4c89ac81a870477"
+  integrity sha512-gb616eiOUFATEoYN6hIZmZADMvB6jtptTIRFbFUKN+jHqjFQSvp1IbTVr8q6XXM9GLR4DTjbXvfxBPLWTvQd6A==
   dependencies:
     babel-runtime "^6.6.1"
     colors "^1.1.2"
