@@ -72,16 +72,6 @@
     margin-right: $pad-medium;
   }
 
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
-    }
-  }
-
   .Select.is-open {
     .Select-value-label {
       color: $core-vibrant-blue !important;
@@ -124,12 +114,6 @@
           }
         }
       }
-    }
-
-    a {
-      color: $core-vibrant-blue;
-      font-size: $x-small;
-      text-decoration: none;
     }
 
     &__empty-table {
@@ -230,6 +214,11 @@
         font-size: $x-small;
         margin: 0;
       }
+    }
+
+    &__cta-buttons {
+      display: flex;
+      justify-content: center;
     }
   }
 

@@ -77,8 +77,11 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 When attending a conference or traveling for Fleet, please make a post in [#help-travel](https://fleetdm.slack.com/archives/C03V38WQFLG) on Slack with the following information:
 - The start and end dates for your trip.
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-- The price of your hotel per night.
+- The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
 - The price of the admission fees if attending a conference.
+- Per diem of $100 for food and beverage **(movies, and mini bars are not allowed)**.
+- Customer/Partner Facing Events:
+  - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
 We highly recommend you order a physical Brex card if you do not have one before attending the conference.
@@ -200,6 +203,11 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
+### Slack communications and best practices
+
+In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
+      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
+      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
 
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.

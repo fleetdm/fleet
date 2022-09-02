@@ -12,7 +12,7 @@ import {
   IAppConfigFormErrors,
 } from "../constants";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "app-config-form";
 
@@ -20,6 +20,7 @@ const Sso = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     enableSSO: appConfig.sso_settings.enable_sso || false,
@@ -227,11 +228,7 @@ const Sso = ({
                   rel="noopener noreferrer"
                 >
                   Learn more
-                  <img
-                    src={OpenNewTabIcon}
-                    alt="open new tab"
-                    className="learn-more-icon"
-                  />
+                  <img alt="Open external link" src={ExternalLinkIcon} />
                 </a>
               </>
             </Checkbox>
@@ -242,6 +239,8 @@ const Sso = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        isLoading={isUpdatingSettings}
       >
         Save
       </Button>

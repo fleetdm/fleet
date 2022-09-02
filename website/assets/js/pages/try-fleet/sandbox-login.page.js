@@ -22,6 +22,9 @@ parasails.registerPage('sandbox-login', {
 
     // Server error state for the form
     cloudError: '',
+
+    // Modal
+    modal: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -42,6 +45,14 @@ parasails.registerPage('sandbox-login', {
     submittedLoginForm: async function() {
       this.syncing = true;
       window.location = '/try-fleet/sandbox';
-    }
+    },
+
+    clickOpenVideoModal: function() {
+      this.modal = 'video';
+    },
+
+    closeModal: function() {
+      this.modal = '';
+    },
   }
 });

@@ -5,7 +5,7 @@
   padding: 12px $pad-large;
   margin-bottom: $pad-large;
   background-color: $ui-expiry-message;
-  border: 1px solid #ECE0BB;
+  border: 1px solid #ece0bb;
   border-radius: $border-radius;
   font-size: $xx-small;
 
@@ -26,10 +26,5 @@
     color: $core-fleet-black;
     font-weight: $bold;
     text-align: right;
-
-    .icon-external {
-      width: 12px;
-      padding-left: $pad-xsmall;
-    }
   }
 }

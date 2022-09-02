@@ -58,17 +58,13 @@ const MembersPage = ({
   const smtpConfigured = config?.smtp_settings.configured || false;
   const canUseSso = config?.sso_settings.enable_sso || false;
 
-  const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
-  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<boolean>(
-    false
-  );
-  const [showEditUserModal, setShowEditUserModal] = useState<boolean>(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
-    false
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [isUpdatingMembers, setIsUpdatingMembers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
@@ -143,7 +139,7 @@ const MembersPage = ({
 
   const onRemoveMemberSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
-    setIsLoading(true);
+    setIsUpdatingMembers(true);
     teamsAPI
       .removeMembers(teamId, removedUsers)
       .then(() => {
@@ -160,7 +156,7 @@ const MembersPage = ({
         renderFlash("error", "Unable to remove members. Please try again.")
       )
       .finally(() => {
-        setIsLoading(false);
+        setIsUpdatingMembers(false);
         toggleRemoveMemberModal();
         refetchUsers();
       });
@@ -197,7 +193,7 @@ const MembersPage = ({
   );
 
   const onCreateMemberSubmit = (formData: IFormData) => {
-    setIsLoading(true);
+    setIsUpdatingMembers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       const requestData = {
@@ -238,7 +234,7 @@ const MembersPage = ({
           }
         })
         .finally(() => {
-          setIsLoading(false);
+          setIsUpdatingMembers(false);
         });
     } else {
       const requestData = {
@@ -269,7 +265,7 @@ const MembersPage = ({
           }
         })
         .finally(() => {
-          setIsLoading(false);
+          setIsUpdatingMembers(false);
         });
     }
   };
@@ -281,7 +277,7 @@ const MembersPage = ({
         formData
       );
 
-      setIsLoading(true);
+      setIsUpdatingMembers(true);
 
       const userName = userEditing?.name;
 
@@ -310,7 +306,6 @@ const MembersPage = ({
             } else {
               refetchUsers();
             }
-            setIsLoading(false);
             toggleEditMemberModal();
           })
           .catch((userErrors: { data: IApiError }) => {
@@ -324,6 +319,9 @@ const MembersPage = ({
                 `Could not edit ${userName || "member"}. Please try again.`
               );
             }
+          })
+          .finally(() => {
+            setIsUpdatingMembers(false);
           });
     },
     [toggleEditMemberModal, userEditing, refetchUsers]
@@ -451,7 +449,7 @@ const MembersPage = ({
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeam}
-          isLoading={isLoading}
+          isUpdatingUsers={isUpdatingMembers}
         />
       )}
       {showCreateUserModal && (
@@ -468,14 +466,14 @@ const MembersPage = ({
           canUseSso={canUseSso}
           currentTeam={currentTeam}
           isModifiedByGlobalAdmin={isGlobalAdmin}
-          isLoading={isLoading}
+          isUpdatingUsers={isUpdatingMembers}
         />
       )}
       {showRemoveMemberModal && currentTeam && (
         <RemoveMemberModal
           memberName={userEditing?.name || ""}
           teamName={currentTeam.name}
-          isLoading={isLoading}
+          isUpdatingMembers={isUpdatingMembers}
           onCancel={toggleRemoveMemberModal}
           onSubmit={onRemoveMemberSubmit}
         />

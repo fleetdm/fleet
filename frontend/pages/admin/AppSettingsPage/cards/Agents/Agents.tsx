@@ -12,7 +12,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
 const baseClass = "app-config-form";
@@ -21,6 +21,7 @@ const Agents = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const { ADMIN_TEAMS } = paths;
 
@@ -77,12 +78,15 @@ const Agents = ({
             <br />
             <a
               href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-              className={`${baseClass}__learn-more`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learn more about agent options&nbsp;
-              <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              Learn more about agent options
+              <img
+                className="icon"
+                src={ExternalLinkIcon}
+                alt="Open external link"
+              />
             </a>
           </p>
           {isPremiumTier ? (
@@ -96,12 +100,14 @@ const Agents = ({
               Want some hosts to have different options?&nbsp;
               <a
                 href="https://fleetdm.com/docs/using-fleet/teams"
-                className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Learn more about teams&nbsp;
-                <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+                Learn more about{" "}
+                <span className="no-wrap">
+                  teams
+                  <img alt="Open external link" src={ExternalLinkIcon} />
+                </span>
               </a>
             </InfoBanner>
           )}
@@ -122,6 +128,8 @@ const Agents = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        isLoading={isUpdatingSettings}
       >
         Save
       </Button>

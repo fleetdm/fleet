@@ -46,18 +46,6 @@
 .app-config-form {
   width: 100%;
 
-  &__learn-more {
-    &--inline {
-      margin-left: $pad-medium;
-    }
-
-    img {
-      width: 12px;
-      height: 12px;
-      margin-left: $pad-small;
-    }
-  }
-
   .form-field {
     width: 100%;
 
@@ -257,18 +245,6 @@
 
   &__advanced-options {
     margin-bottom: $pad-large;
-  }
-
-  &__transparency {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    font-weight: $bold;
-    text-decoration: none;
-
-    img {
-      width: 12px;
-      height: 12px;
-    }
   }
 
   .component__tooltip-wrapper {

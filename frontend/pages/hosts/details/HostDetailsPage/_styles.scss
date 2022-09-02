@@ -344,11 +344,7 @@
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__query-button,
-  &__transfer-button {
-    margin-right: $pad-large;
+    gap: $pad-large;
   }
 
   &__back-link {
@@ -360,6 +356,12 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
+  }
+
+  #back-chevron {
+    width: 16px;
+    height: 16px;
+    margin-right: $pad-small;
   }
 
   &__device_mapping {

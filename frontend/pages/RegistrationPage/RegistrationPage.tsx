@@ -7,6 +7,8 @@ import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
 import local from "utilities/local";
 
+import FlashMessage from "components/FlashMessage";
+import { INotification } from "interfaces/notification";
 // @ts-ignore
 import RegistrationForm from "components/forms/RegistrationForm";
 // @ts-ignore
@@ -14,16 +16,26 @@ import Breadcrumbs from "./Breadcrumbs";
 // @ts-ignore
 import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
 
+const ERROR_NOTIFICATION: INotification = {
+  alertType: "error",
+  isVisible: true,
+  message:
+    "We were unable to configure Fleet. If your Fleet server is behind a proxy, please ensure the server can be reached.",
+};
+
 interface IRegistrationPageProps {
   router: InjectedRouter;
 }
+
+const baseClass = "registration-page";
 
 const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const { currentUser, setCurrentUser, setAvailableTeams } = useContext(
     AppContext
   );
-  const [page, setPage] = useState<number>(1);
-  const [pageProgress, setPageProgress] = useState<number>(1);
+  const [page, setPage] = useState(1);
+  const [pageProgress, setPageProgress] = useState(1);
+  const [showSetupError, setShowSetupError] = useState(false);
 
   useEffect(() => {
     const { HOME } = paths;
@@ -51,10 +63,9 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       setAvailableTeams(available_teams);
       return router.push(MANAGE_HOSTS);
     } catch (error) {
-      // TODO: Alert user to server errors
-      console.log(error);
       setPage(1);
-      return false;
+      setPageProgress(1);
+      setShowSetupError(true);
     }
   };
 
@@ -67,11 +78,11 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   };
 
   return (
-    <div className="registration-page">
+    <div className={baseClass}>
       <img
         alt="Fleet logo"
         src={fleetLogoText}
-        className="registration-page__logo"
+        className={`${baseClass}__logo`}
       />
       <Breadcrumbs
         onClick={onSetPage}
@@ -83,6 +94,14 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
         onNextPage={onNextPage}
         onSubmit={onRegistrationFormSubmit}
       />
+      {showSetupError && (
+        <FlashMessage
+          className={`${baseClass}__flash-message`}
+          fullWidth={false}
+          notification={ERROR_NOTIFICATION}
+          onRemoveFlash={() => setShowSetupError(false)}
+        />
+      )}
     </div>
   );
 };

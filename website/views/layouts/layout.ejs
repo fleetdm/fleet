@@ -13,11 +13,16 @@
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <%// Twitter meta tags%>
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
     <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <%// Meta tags for other social previews %>
+    <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -236,7 +241,7 @@
               <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
               allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
             </span>
-            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="pl-4 btn btn-sm btn-primary align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try Fleet</a>
+            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try Fleet</a>
             <% if(_.has(me, 'id')) {%>
             <a href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none" style="text-decoration: none; line-height: 23px;">Log out</a>
             <% }%>

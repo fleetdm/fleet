@@ -73,7 +73,13 @@ type listHostsResponse struct {
 	// filter if one is provided with the request (and it exists in the
 	// database). It is nil otherwise and absent of the JSON response payload.
 	MDMSolution *fleet.AggregatedMDMSolutions `json:"mobile_device_management_solution,omitempty"`
-	Err         error                         `json:"error,omitempty"`
+	// MunkiIssue is populated with the munki issue corresponding to the
+	// munki_issue_id filter if one is provided with the request (and it exists
+	// in the database). It is nil otherwise and absent of the JSON response
+	// payload.
+	MunkiIssue *fleet.AggregatedMunkiIssue `json:"munki_issue,omitempty"`
+
+	Err error `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -99,6 +105,15 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 	}
 
+	var munkiIssue *fleet.AggregatedMunkiIssue
+	if req.Opts.MunkiIssueIDFilter != nil {
+		var err error
+		munkiIssue, err = svc.AggregatedMunkiIssue(ctx, req.Opts.TeamFilter, *req.Opts.MunkiIssueIDFilter)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
 	hosts, err := svc.ListHosts(ctx, req.Opts)
 	if err != nil {
 		return listHostsResponse{Err: err}, nil
@@ -113,7 +128,12 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses, Software: software, MDMSolution: mdmSolution}, nil
+	return listHostsResponse{
+		Hosts:       hostResponses,
+		Software:    software,
+		MDMSolution: mdmSolution,
+		MunkiIssue:  munkiIssue,
+	}, nil
 }
 
 func (svc *Service) AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*fleet.AggregatedMDMSolutions, error) {
@@ -143,6 +163,37 @@ func (svc *Service) AggregatedMDMSolutions(ctx context.Context, teamID *uint, md
 		sol := sol
 		if sol.ID == mdmID {
 			return &sol, nil
+		}
+	}
+	return nil, nil
+}
+
+func (svc *Service) AggregatedMunkiIssue(ctx context.Context, teamID *uint, munkiIssueID uint) (*fleet.AggregatedMunkiIssue, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// This returns the slice of all aggregated stats (one entry per
+	// munki_issue_id), and we then iterate to return only the one that was
+	// requested (the slice is stored as-is in a JSON field in the database).
+	issues, _, err := svc.ds.AggregatedMunkiIssues(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iss := range issues {
+		// don't take the address of the loop variable (although it could be ok
+		// here, but just bad practice)
+		iss := iss
+		if iss.ID == munkiIssueID {
+			return &iss, nil
 		}
 	}
 	return nil, nil
@@ -946,13 +997,22 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		mdm = hmdm
 	}
 
-	if munkiInfo == nil && mdm == nil {
+	var munkiIssues []*fleet.HostMunkiIssue
+	switch issues, err := svc.ds.GetMunkiIssues(ctx, id); {
+	case err != nil:
+		return nil, err
+	case err == nil:
+		munkiIssues = issues
+	}
+
+	if munkiInfo == nil && mdm == nil && len(munkiIssues) == 0 {
 		return nil, nil
 	}
 
 	data := &fleet.MacadminsData{
-		Munki: munkiInfo,
-		MDM:   mdm,
+		Munki:       munkiInfo,
+		MDM:         mdm,
+		MunkiIssues: munkiIssues,
 	}
 
 	return data, nil
@@ -1002,6 +1062,12 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MunkiVersions = versions
 
+	issues, munkiIssUpdatedAt, err := svc.ds.AggregatedMunkiIssues(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiIssues = issues
+
 	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
 	if err != nil {
 		return nil, err
@@ -1015,6 +1081,9 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	agg.MDMSolutions = solutions
 
 	agg.CountsUpdatedAt = munkiUpdatedAt
+	if munkiIssUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = munkiIssUpdatedAt
+	}
 	if mdmUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = mdmUpdatedAt
 	}

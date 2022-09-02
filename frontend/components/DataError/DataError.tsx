@@ -1,6 +1,6 @@
 import React from "react";
 
-import OpenNewTabIcon from "../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
 
 const baseClass = "data-error";
@@ -27,7 +27,7 @@ const DataError = ({ card }: IDataErrorProps): JSX.Element => {
               rel="noopener noreferrer"
             >
               file an issue
-              <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </span>
         </div>
