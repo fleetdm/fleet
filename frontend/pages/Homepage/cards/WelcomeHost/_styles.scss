@@ -29,7 +29,8 @@
     text-decoration: none !important;
 
     img {
-      transform: scale(0.5);
+      height: 12px;
+      width: 12px;
     }
     &:last-of-type {
       margin-top: $pad-large;

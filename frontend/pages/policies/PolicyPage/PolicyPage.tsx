@@ -22,7 +22,7 @@ import SelectTargets from "components/LiveQuery/SelectTargets";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import RunQuery from "pages/policies/PolicyPage/screens/RunQuery";
-import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IPolicyPageProps {
   router: InjectedRouter;
@@ -198,7 +198,8 @@ const PolicyPage = ({
               rel="noopener noreferrer"
               href="https://github.com/fleetdm/fleet/issues/new/choose"
             >
-              file an issue <img alt="" src={ExternalURLIcon} />
+              file an issue
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
         </div>

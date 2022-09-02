@@ -12,7 +12,7 @@ import {
   IAppConfigFormErrors,
 } from "../constants";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "app-config-form";
 
@@ -228,11 +228,7 @@ const Sso = ({
                   rel="noopener noreferrer"
                 >
                   Learn more
-                  <img
-                    src={OpenNewTabIcon}
-                    alt="open new tab"
-                    className="learn-more-icon"
-                  />
+                  <img alt="Open external link" src={ExternalLinkIcon} />
                 </a>
               </>
             </Checkbox>

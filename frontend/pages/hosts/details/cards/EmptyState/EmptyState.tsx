@@ -1,6 +1,6 @@
 import React from "react";
 
-import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "empty-state";
 
@@ -47,7 +47,7 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
                   rel="noopener noreferrer"
                 >
                   steps to enable this feature
-                  <img alt="External link" src={ExternalLinkIcon} />
+                  <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
               </p>
             </div>

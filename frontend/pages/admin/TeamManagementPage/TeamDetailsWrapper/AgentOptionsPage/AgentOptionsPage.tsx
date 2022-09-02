@@ -14,7 +14,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 // @ts-ignore
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "agent-options";
 
@@ -82,12 +82,14 @@ const AgentOptionsPage = ({
         <br />
         <a
           href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-          className={`${baseClass}__learn-more`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          Learn more about agent options&nbsp;
-          <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+          Learn more about agent{" "}
+          <span className="no-wrap">
+            options
+            <img alt="Open external link" src={ExternalLinkIcon} />
+          </span>
         </a>
       </p>
       <InfoBanner className={`${baseClass}__config-docs`}>
@@ -98,8 +100,8 @@ const AgentOptionsPage = ({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Go to Fleet docs{" "}
-          <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+          Go to Fleet docs
+          <img alt="Open external link" src={ExternalLinkIcon} />
         </a>
       </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>

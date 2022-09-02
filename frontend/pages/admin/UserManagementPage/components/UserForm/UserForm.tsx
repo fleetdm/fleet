@@ -20,7 +20,7 @@ import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "create-user-form";
 
@@ -301,7 +301,7 @@ const UserForm = ({
               rel="noopener noreferrer"
             >
               Learn more about user permissions
-              <img src={OpenNewTabIcon} alt="open new tab" />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </InfoBanner>
         )}
@@ -356,7 +356,7 @@ const UserForm = ({
                   rel="noopener noreferrer"
                 >
                   Learn more about user permissions
-                  <img src={OpenNewTabIcon} alt="open new tab" />
+                  <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
               </InfoBanner>
               <SelectedTeamsForm
