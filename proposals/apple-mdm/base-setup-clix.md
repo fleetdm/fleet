@@ -4,7 +4,7 @@ Note: these can all be namespaced behind something like `apple-mdm` if needed. B
 
 ## APNS
 ### Step 1 - Generate CSR
-``` sh
+```
 $ fleetctl setup apns init
 Generating APNS keys at ./
   fleet-apns-pki.crt ... done
@@ -37,9 +37,9 @@ Apple will generate a .crt file. Use that file in the `fleetctl setup apns final
 ```sh
 $ fleetctl setup apns finalize
 Update your Fleet server's environment variables as follows:
-1. Update ENV["FLEET_MDM_APPLE_ENABLE"]=1
-2. Update ENV["FLEET_MDM_APPLE_PUSH_CERT"] with the contents of the Apple .crt file
-3. Update ENV["FLEET_MDM_APPLE_PUSH_KEY"] with the contents of fleet-apns-push.key
+1. Update ENV["APPLE_MDM_ENABLE"]=1
+2. Update ENV["APNS_PUSH_CERT"] with the contents of the Apple .crt file
+3. Update ENV["APNS_PUSH_KEY"] with the contents of fleet-apns-push.key
 
 Restart the server to apply the new ENV variables.
 
@@ -62,9 +62,8 @@ $ fleetctl setup scep-ca finalize
 WARNING: If you change the SCEP CA in the fleet server, existing managed devices will no longer report to Fleet. You must un-enroll and re-enroll all devices.
 
 Update your Fleet server's environment variables as follows:
-1. Update ENV["NEED ENV VAR"]=1
-2. Update ENV["NEED ENV VAR NAME"] with the contents of fleetctl-scep.crt
-3. Update ENV["NEED ENV VAR NAME"] with the contents of fleetctl-scep.key
+1. Update ENV["SCEP_CA_CERT"] with the contents of fleetctl-scep.crt
+2. Update ENV["SCEP_CA_KEY"] with the contents of fleetctl-scep.key
 
 Restart the server to apply the new ENV variables.
 
