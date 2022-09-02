@@ -1,4 +1,5 @@
 import React from "react";
+import { capitalize } from "lodash";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
@@ -70,12 +71,7 @@ const munkiIssuesTableHeaders = [
     disableSortBy: true,
     accessor: "type",
     Cell: (cellProps: ICellProps) => (
-      <TextCell
-        value={
-          cellProps.cell.value.charAt(0).toUpperCase() +
-          cellProps.cell.value.slice(1)
-        }
-      />
+      <TextCell value={capitalize(cellProps.cell.value)} />
     ),
   },
   {
@@ -118,8 +114,4 @@ const munkiIssuesTableHeaders = [
   },
 ];
 
-const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
-  return munkiIssuesTableHeaders;
-};
-
-export default generateMunkiIssuesTableHeaders;
+export default munkiIssuesTableHeaders;

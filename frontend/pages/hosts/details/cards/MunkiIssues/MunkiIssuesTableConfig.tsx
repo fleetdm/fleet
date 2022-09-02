@@ -1,4 +1,5 @@
 import React from "react";
+import { capitalize } from "lodash";
 import ReactTooltip from "react-tooltip";
 
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
@@ -103,12 +104,7 @@ export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
       disableSortBy: true,
       accessor: "type",
       Cell: (cellProps: IStringCellProps) => (
-        <TextCell
-          value={
-            cellProps.cell.value.charAt(0).toUpperCase() +
-            cellProps.cell.value.slice(1)
-          }
-        />
+        <TextCell value={capitalize(cellProps.cell.value)} />
       ),
     },
     {

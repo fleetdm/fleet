@@ -14,8 +14,8 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
-import generateMunkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
-import generateMunkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
+import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
+import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
 
 interface IMunkiCardProps {
   showMunkiUI: boolean;
@@ -102,9 +102,6 @@ const Munki = ({
   const onTabChange = (index: number) => {
     setNavTabIndex(index);
   };
-
-  const munkiVersionsTableHeaders = generateMunkiVersionsTableHeaders();
-  const munkiIssuesTableHeaders = generateMunkiIssuesTableHeaders();
 
   // Renders opaque information as host information is loading
   const opacity = showMunkiUI ? { opacity: 1 } : { opacity: 0 };

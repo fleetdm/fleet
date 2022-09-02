@@ -48,8 +48,4 @@ const munkiVersionsTableHeaders = [
   },
 ];
 
-const generateMunkiVersionsTableHeaders = (): IDataColumn[] => {
-  return munkiVersionsTableHeaders;
-};
-
-export default generateMunkiVersionsTableHeaders;
+export default munkiVersionsTableHeaders;
