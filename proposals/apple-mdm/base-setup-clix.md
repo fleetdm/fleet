@@ -117,39 +117,21 @@ Restart the server to apply the new ENV variables.
 
 ```
 
-## SCEP
-```
-$ fleetctl setup scep
-NAME:
-	fleetctl setup scep - Set up Simple Certificate Enrollment Protocol to enable MDM for Apple Devices
-
-USAGE:
-	fleetctl setup scep command
-
-COMMANDS:
-	init     Generate the necessary files to set up SCEP
-	finalize Instructions for setting the SCEP certs in the Fleet Server's environment variables
-```
+## SCEP Certificate Authority
 ### Step 1 - Generate SCEP CA keys
 ```
-$ fleetctl setup scep-ca init
+$ fleetctl setup scep
 Generating SCEP CA and keys at ./
   fleet-scep.crt ... done
   fleet-scep.key ... done
-  
-Next, use these file in the `fleetctl setup scep-ca finalize` command.
-```
-
-### Step 2 - Update fleet server ENV vars with new certs
-```
-$ fleetctl setup scep-ca finalize
-WARNING: If you change the SCEP CA in the fleet server, existing managed devices will no longer report to Fleet. You must un-enroll and re-enroll all devices.
 
 Update your Fleet server's environment variables as follows:
 1. Update ENV["SCEP_CA_CERT"] with the contents of fleetctl-scep.crt
 2. Update ENV["SCEP_CA_KEY"] with the contents of fleetctl-scep.key
 
 Restart the server to apply the new ENV variables.
+
+WARNING: If you change the SCEP CA in the fleet server, existing managed devices will no longer report to Fleet. You must un-enroll and re-enroll all devices.
 
 ```
 
