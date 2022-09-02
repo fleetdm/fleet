@@ -43,7 +43,7 @@ INSTRUCTIONS:
 
   1. Run and complete the instructions in the `fleetctl setup apns` set of commands
   2. Run and complete the instructions in the `fleetctl setup scep` set of commands
-  3. Set the ENV["APPLE_MDM_ENABLE"]=1 in your fleet server
+  3. Set the ENV["FLEET_APPLE_MDM_ENABLE"]=1 in your fleet server
 ```
 
 ## APNS
@@ -110,8 +110,8 @@ Apple will generate a .crt file. Use that file in the `fleetctl setup apns final
 ```sh
 $ fleetctl setup apns finalize
 Update your Fleet server's environment variables as follows:
-1. Update ENV["APNS_PUSH_CERT"] with the contents of the Apple .crt file
-2. Update ENV["APNS_PUSH_KEY"] with the contents of fleet-apns-push.key
+1. Update ENV["FLEET_APNS_PUSH_CERT"] with the contents of the Apple .crt file
+2. Update ENV["FLEET_APNS_PUSH_KEY"] with the contents of fleet-apns-push.key
 
 Restart the server to apply the new ENV variables.
 
@@ -126,8 +126,8 @@ Generating SCEP CA and keys at ./
   fleet-scep.key ... done
 
 Update your Fleet server's environment variables as follows:
-1. Update ENV["SCEP_CA_CERT"] with the contents of fleetctl-scep.crt
-2. Update ENV["SCEP_CA_KEY"] with the contents of fleetctl-scep.key
+1. Update ENV["FLEET_SCEP_CA_CERT"] with the contents of fleetctl-scep.crt
+2. Update ENV["FLEET_SCEP_CA_KEY"] with the contents of fleetctl-scep.key
 
 Restart the server to apply the new ENV variables.
 
