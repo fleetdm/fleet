@@ -844,6 +844,16 @@ const ManageHostsPage = ({
       }
 
       if (
+        munkiIssueId &&
+        !mdmEnrollmentStatus &&
+        !policyId &&
+        !softwareId &&
+        !mdmId
+      ) {
+        newQueryParams.munki_issue_id = munkiIssueId;
+      }
+
+      if (
         (osId || (osName && osVersion)) &&
         !softwareId &&
         !policyId &&
