@@ -8,7 +8,7 @@ We are dedicated to
 
 - 🧑‍🚀 automating IT and security.
 - 🪟 privacy, transparency, and trust through open source software.
-- 💻 building a better way to manage computers.
+- 💻 a different way to manage computers.
 
 > 5 things is too many.  But we also care deeply about
 > - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
