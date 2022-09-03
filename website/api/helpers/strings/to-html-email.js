@@ -59,11 +59,11 @@ module.exports = {
     // Creating a custom renderer to add inline styles to HTML elements
     let customRenderer = new marked.Renderer();
 
-    // For codeblocks (``` ```)
+    // For codeblocks
     customRenderer.code = function(codeHTML) {
       return '<pre style="padding: 24px; border: 1px solid #E2E4EA; overflow: auto; margin-bottom: 16px; margin-top: 16px; border-radius: 6px; background: #F9FAFC;"><code style="font-size: 13px; line-height: 16px; font-family: Source Code Pro;">'+_.escape(codeHTML)+'</code></pre>';
     }
-    // For blockquotes (>)
+    // For blockquotes
     customRenderer.blockquote = function(quoteHTML) {
       return `<blockquote>\n${quoteHTML}\n</blockquote>\n`;
     }
@@ -82,7 +82,7 @@ module.exports = {
       return `<h${level} style="${inlineStyles}">\n${textHTML}\n</h${level}>\n`;
     }
 
-    // For <hr> elements (ex: ---)
+    // For <hr> elements
     customRenderer.hr = function() {
       return `<hr style="border-top: 2px solid #E2E4EA; margin-top: 16px; margin-bottom: 16px; width: 100%;">`;
     }
@@ -104,11 +104,6 @@ module.exports = {
     customRenderer.paragraph = function(text) {
       return `<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">\n${text}\n</p>\n`;
     }
-
-    // // For tables (We do not render tables in Makrdown emails)
-    // customRenderer.table = function(headerHTML, bodyHTML) {
-    //   return;
-    // }
 
     // For bold text
     customRenderer.strong = function(textHTML) {
@@ -144,7 +139,7 @@ module.exports = {
           }
         }
       }
-      return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none;" href="${href}">${textHTML}</a>`
+      return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none; word-break: break-word;" href="${href}">${textHTML}</a>`
     }
 
     // For Images

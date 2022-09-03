@@ -87,6 +87,9 @@ module.exports = {
         break;
       default:
         layout = 'layout-email-newsletter';
+        fakeData = {
+          emailAddress: 'sage@example.com',
+        };
     }
 
     // Compile HTML template using the appropriate layout.
