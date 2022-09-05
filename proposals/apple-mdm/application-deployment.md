@@ -83,7 +83,7 @@ fleetctl apple-mdm installer get --id=1
 <Output installer `apple_installers` entry, including `pkginfo` to stdout>
 
 #
-# User stores output of `pkginfo` on a `some-app.plist` and edits.
+# User stores output of `pkginfo` on a `some-app.plist` and edits fields.
 #
 vim some-app.plist
 
@@ -154,14 +154,14 @@ List entries in `apple_installments`
 `fleetctl apple-mdm installments delete --id=<INSTALLMENT_ID>`
 Remove entry from `apple_installments`
 
-## Catalogs and Manifests
+## Catalogs and Manifests in Fleet
+
+From https://github.com/munki/munki/wiki/Pkginfo-Files:
 
 > It's important to remember that Munki clients never use pkginfo files directly -- they only query catalogs.
 > Catalogs are constructed from pkginfo files. Therefore, any changes to pkginfo files (adding a new one, deleting one, or editing one)
 > require rebuilding the catalogs using the makecatalogs tool.
 
-From https://github.com/munki/munki/wiki/Pkginfo-Files:
-
-- Fleet will generate only one `catalog`, called `"fleet"` on-the-fly from entries in `apple_installers`.
+- Fleet will generate only one `catalog`, called `"fleet"` on-the-fly from entries in `apple_installers`. (We will need to mimick the `makecatalogs` tool.)
 - Fleet will generate `manifests` for each client on-the-fly from entries in `apple_installments` (Munki clients request for manifests using `<REPO_PATH>/manifests/<ClientIdentifier>`).
-Fleet will determine what software needs to be installed (as managed or optional) on each client by looking at the host's team and entries in `apple_installments`.
+Fleet will determine what software needs to be installed (as managed or optional) on each client by looking at the host's team and entries in `apple_installments`. (We will need to mimick the `manifestutil` tool.)
