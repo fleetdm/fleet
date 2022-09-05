@@ -49,6 +49,8 @@ func (r *Reader) HasChanged() (bool, error) {
 // HasExpired checks if 1 hour has passed since the last recorded `mtime` of
 // the token file
 func (r *Reader) HasExpired() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return time.Now().After(r.mtime.Add(1 * time.Hour))
 }
 
