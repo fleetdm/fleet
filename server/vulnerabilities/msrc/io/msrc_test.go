@@ -1,9 +1,9 @@
 package io
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -53,7 +53,7 @@ func TestMSRCClient(t *testing.T) {
 			result, err := sut.GetFeed(date.Month(), date.Year())
 			require.NoError(t, err)
 
-			contents, err := ioutil.ReadFile(result)
+			contents, err := os.ReadFile(result)
 			require.NoError(t, err)
 			require.Equal(t, []byte("some payload"), contents)
 		})

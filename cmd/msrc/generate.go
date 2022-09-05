@@ -117,12 +117,14 @@ func backfill(upToM time.Month, upToY int, client io.MSRCAPI) ([]*parsed.Securit
 		}
 
 		for name, nB := range r {
-			if eB, ok := bulletins[name]; !ok {
+			eB, ok := bulletins[name]
+			if !ok {
 				bulletins[name] = nB
-			} else {
-				if err = eB.Merge(nB); err != nil {
-					return nil, err
-				}
+				continue
+			}
+
+			if err = eB.Merge(nB); err != nil {
+				return nil, err
 			}
 		}
 	}

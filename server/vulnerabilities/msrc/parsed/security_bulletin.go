@@ -3,7 +3,7 @@ package parsed
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -32,7 +32,7 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 }
 
 func UnmarshalBulletin(fPath string) (*SecurityBulletin, error) {
-	payload, err := ioutil.ReadFile(fPath)
+	payload, err := os.ReadFile(fPath)
 	if err != nil {
 		return nil, err
 	}
