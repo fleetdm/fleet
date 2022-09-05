@@ -175,20 +175,25 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	vulns, meta := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
-	mapToVulnIntegrationArgs(vulns, meta, license)
+	vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
 
 	if len(vulns) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
+			args := webhooks.VulnArgs{
+				Vulnerablities: vulns,
+				Meta:           meta,
+				AppConfig:      appConfig,
+				Time:           time.Now(),
+				IsPremium:      license.IsPremium(),
+			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
 				ctx,
 				ds,
 				kitlog.With(logger, "webhook", "vulnerabilities"),
-				vulns,
-				appConfig,
-				time.Now()); err != nil {
+				args,
+			); err != nil {
 				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 			}
 
@@ -223,18 +228,10 @@ func scanVulnerabilities(
 	return nil
 }
 
-func mapToVulnIntegrationArgs(
-	vulns []fleet.SoftwareVulnerability,
-	meta map[string]fleet.CVEMeta,
-	license *fleet.LicenseInfo,
-) interface{} {
-	panic("not implemented")
-}
-
-// filterRecentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
+// recentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
 // (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
 // and their meta data.
-func filterRecentVulns(
+func recentVulns(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -246,35 +243,33 @@ func filterRecentVulns(
 		return nil, nil
 	}
 
-	recent, err := ds.ListCVEs(ctx, maxAge)
+	meta, err := ds.ListCVEs(ctx, maxAge)
 	if err != nil {
-		errHandler(ctx, logger, "could not fetch recent CVEs", err)
+		errHandler(ctx, logger, "could not fetch CVE meta", err)
 		return nil, nil
 	}
 
-	meta := make(map[string]fleet.CVEMeta)
-	for _, r := range recent {
-		meta[r.CVE] = r
+	recent := make(map[string]fleet.CVEMeta)
+	for _, r := range meta {
+		recent[r.CVE] = r
 	}
 
-	filtered := make(map[string]fleet.SoftwareVulnerability)
+	seen := make(map[string]bool)
+	var vulns []fleet.SoftwareVulnerability
 	for _, v := range nvdVulns {
-		if _, ok := meta[v.CVE]; ok {
-			filtered[v.Key()] = v
+		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			vulns = append(vulns, v)
 		}
 	}
 	for _, v := range ovalVulns {
-		if _, ok := meta[v.CVE]; ok {
-			filtered[v.Key()] = v
+		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			vulns = append(vulns, v)
 		}
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(filtered))
-	for _, v := range filtered {
-		vulns = append(vulns, v)
-	}
-
-	return vulns, meta
+	return vulns, recent
 }
 
 func checkOvalVulnerabilities(

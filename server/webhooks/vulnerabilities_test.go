@@ -42,20 +42,38 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		appCfg := *appCfg
 		appCfg.WebhookSettings.VulnerabilitiesWebhook.Enable = false
-		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, recentVulns, &appCfg, time.Now())
+		args := VulnArgs{
+			Vulnerablities: recentVulns,
+			Meta:           nil,
+			AppConfig:      &appCfg,
+			Time:           time.Now(),
+		}
+		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args)
 		require.NoError(t, err)
 	})
 
 	t.Run("invalid server url", func(t *testing.T) {
 		appCfg := *appCfg
 		appCfg.ServerSettings.ServerURL = ":nope:"
-		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, recentVulns, &appCfg, time.Now())
+		args := VulnArgs{
+			Vulnerablities: recentVulns,
+			Meta:           nil,
+			AppConfig:      &appCfg,
+			Time:           time.Now(),
+		}
+		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid server")
 	})
 
 	t.Run("empty recent vulns", func(t *testing.T) {
-		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, nil, appCfg, time.Now())
+		args := VulnArgs{
+			Vulnerablities: nil,
+			Meta:           nil,
+			AppConfig:      appCfg,
+			Time:           time.Now(),
+		}
+		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args)
 		require.NoError(t, err)
 	})
 
@@ -138,7 +156,13 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 
 				appCfg := *appCfg
 				appCfg.WebhookSettings.VulnerabilitiesWebhook.DestinationURL = srv.URL
-				err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, c.vulns, &appCfg, now)
+				args := VulnArgs{
+					Vulnerablities: c.vulns,
+					Meta:           nil,
+					AppConfig:      &appCfg,
+					Time:           now,
+				}
+				err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args)
 				require.NoError(t, err)
 
 				assert.True(t, ds.HostsBySoftwareIDsFuncInvoked)

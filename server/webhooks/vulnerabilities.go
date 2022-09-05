@@ -20,18 +20,17 @@ func TriggerVulnerabilitiesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	recentVulns []fleet.SoftwareVulnerability,
-	appConfig *fleet.AppConfig,
-	now time.Time,
+	args VulnArgs,
 ) error {
-	vulnConfig := appConfig.WebhookSettings.VulnerabilitiesWebhook
+	vulnConfig := args.AppConfig.WebhookSettings.VulnerabilitiesWebhook
+
 	if !vulnConfig.Enable {
 		return nil
 	}
 
-	level.Debug(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+	level.Debug(logger).Log("enabled", "true", "recentVulns", len(args.Vulnerablities))
 
-	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	serverURL, err := url.Parse(args.AppConfig.ServerSettings.ServerURL)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "invalid server url")
 	}
@@ -40,11 +39,11 @@ func TriggerVulnerabilitiesWebhook(
 	batchSize := vulnConfig.HostBatchSize
 
 	softwareIDsGroupedByCVE := make(map[string][]uint)
-	for _, v := range recentVulns {
+	for _, v := range args.Vulnerablities {
 		softwareIDsGroupedByCVE[v.CVE] = append(softwareIDsGroupedByCVE[v.CVE], v.SoftwareID)
 	}
 
-	for _, v := range recentVulns {
+	for _, v := range args.Vulnerablities {
 		softwareIDs := softwareIDsGroupedByCVE[v.CVE]
 
 		hosts, err := ds.HostsBySoftwareIDs(ctx, softwareIDs)
@@ -57,9 +56,11 @@ func TriggerVulnerabilitiesWebhook(
 			if batchSize > 0 && len(hosts) > batchSize {
 				limit = batchSize
 			}
-			if err := sendVulnerabilityHostBatch(ctx, targetURL, v.CVE, serverURL, hosts[:limit], now); err != nil {
+
+			if err := sendVulnerabilityHostBatch(ctx, targetURL, v.CVE, serverURL, hosts[:limit], args.Time); err != nil {
 				return ctxerr.Wrap(ctx, err, "send vulnerability host batch")
 			}
+
 			hosts = hosts[limit:]
 		}
 	}

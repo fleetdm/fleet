@@ -17,7 +17,7 @@ func TestFilterRecentVulns(t *testing.T) {
 		ds := new(mock.Store)
 		logger := kitlog.NewNopLogger()
 
-		vulns, meta := filterRecentVulns(ctx, ds, logger, nil, nil, 2*time.Hour)
+		vulns, meta := recentVulns(ctx, ds, logger, nil, nil, 2*time.Hour)
 		require.Empty(t, vulns)
 		require.Empty(t, meta)
 	})
@@ -59,12 +59,18 @@ func TestFilterRecentVulns(t *testing.T) {
 		}
 
 		var actual []string
-		vulns, meta := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, maxAge)
+		vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, maxAge)
 		for _, r := range vulns {
 			actual = append(actual, r.CVE)
 		}
 
+		expectedMeta := map[string]fleet.CVEMeta{
+			"cve-recent-1": {CVE: "cve-recent-1"},
+			"cve-recent-2": {CVE: "cve-recent-2"},
+			"cve-recent-3": {CVE: "cve-recent-3"},
+		}
+
 		require.ElementsMatch(t, expected, actual)
-		require.Equal(t, dsMeta, meta)
+		require.Equal(t, expectedMeta, meta)
 	})
 }
