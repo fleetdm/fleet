@@ -24,22 +24,22 @@ type ReleaseLister interface {
 	) ([]*github.RepositoryRelease, *github.Response, error)
 }
 
-// GithubAPI allows users to interact with the MSRC artifacts published on Github.
-type GithubAPI interface {
+// GitHubAPI allows users to interact with the MSRC artifacts published on Github.
+type GitHubAPI interface {
 	Download(string) (string, error)
 	Bulletins() (map[SecurityBulletinName]string, error)
 }
 
-type GithubClient struct {
+type GitHubClient struct {
 	httpClient *http.Client
 	releases   ReleaseLister
 	workDir    string
 }
 
-// NewGithubClient returns a new GithubClient, 'workDir' will be used as the destination directory for
+// NewGitHubClient returns a new GithubClient, 'workDir' will be used as the destination directory for
 // downloading artifacts.
-func NewGithubClient(client *http.Client, releases ReleaseLister, workDir string) GithubClient {
-	return GithubClient{
+func NewGitHubClient(client *http.Client, releases ReleaseLister, workDir string) GitHubClient {
+	return GitHubClient{
 		httpClient: client,
 		releases:   releases,
 		workDir:    workDir,
@@ -48,7 +48,7 @@ func NewGithubClient(client *http.Client, releases ReleaseLister, workDir string
 
 // Download downloads the security bulletin located at 'URL' in 'workDir', returns the path of
 // the downloaded bulletin.
-func (gh GithubClient) Download(URL string) (string, error) {
+func (gh GitHubClient) Download(URL string) (string, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
 		return "", err
@@ -63,7 +63,7 @@ func (gh GithubClient) Download(URL string) (string, error) {
 }
 
 // Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
-func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
+func (gh GitHubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

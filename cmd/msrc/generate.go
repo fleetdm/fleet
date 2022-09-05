@@ -27,7 +27,7 @@ func main() {
 	now := time.Now()
 	httpC := http.DefaultClient
 
-	ghAPI := io.NewGithubClient(httpC, github.NewClient(httpC).Repositories, wd)
+	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
 	msrcAPI := io.NewMSRCClient(httpC, wd, nil)
 
 	fmt.Println("Downloading existing bulletins...")
@@ -59,7 +59,7 @@ func update(
 	y int,
 	eBulletins map[io.SecurityBulletinName]string,
 	msrcClient io.MSRCAPI,
-	ghClient io.GithubAPI,
+	ghClient io.GitHubAPI,
 ) ([]*parsed.SecurityBulletin, error) {
 	fmt.Println("Downloading current feed...")
 	f, err := msrcClient.GetFeed(m, y)

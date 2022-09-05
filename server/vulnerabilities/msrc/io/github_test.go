@@ -89,7 +89,7 @@ func TestGithubClient(t *testing.T) {
 		expectedPath := filepath.Join(dstDir, fileName)
 		url := server.URL + urlPath
 
-		sut := NewGithubClient(server.Client(), mockGHReleaseLister{}, dstDir)
+		sut := NewGitHubClient(server.Client(), mockGHReleaseLister{}, dstDir)
 		actualPath, err := sut.Download(url)
 		require.NoError(t, err)
 		require.Equal(t, expectedPath, actualPath)
@@ -97,7 +97,7 @@ func TestGithubClient(t *testing.T) {
 	})
 
 	t.Run("#Bulletins", func(t *testing.T) {
-		sut := NewGithubClient(nil, mockGHReleaseLister{}, t.TempDir())
+		sut := NewGitHubClient(nil, mockGHReleaseLister{}, t.TempDir())
 
 		bulletins, err := sut.Bulletins()
 		require.NoError(t, err)

@@ -62,7 +62,7 @@ func bulletinsDelta(
 // If 'os' is nil, then all security bulletins will be synched.
 func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
 	rep := github.NewClient(client).Repositories
-	gh := io.NewGithubClient(client, rep, dstDir)
+	gh := io.NewGitHubClient(client, rep, dstDir)
 	fs := io.NewFSClient(dstDir)
 
 	if err := sync(os, fs, gh); err != nil {
@@ -75,7 +75,7 @@ func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error 
 func sync(
 	os []fleet.OperatingSystem,
 	fsClient io.FSAPI,
-	ghClient io.GithubAPI,
+	ghClient io.GitHubAPI,
 ) error {
 	remoteURLs, err := ghClient.Bulletins()
 	if err != nil {
