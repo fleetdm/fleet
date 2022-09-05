@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -142,5 +141,5 @@ func serialize(b *parsed.SecurityBulletin, d time.Time, wd string) error {
 		return err
 	}
 	filePath := io.FileName(b.ProductName, d, "json")
-	return ioutil.WriteFile(filePath, payload, 0o644)
+	return os.WriteFile(filePath, payload, 0o644)
 }
