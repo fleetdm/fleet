@@ -107,15 +107,15 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		now := time.Now()
 
 		hosts := []*fleet.HostShort{
-			{ID: 1, Hostname: "h1"},
-			{ID: 2, Hostname: "h2"},
-			{ID: 3, Hostname: "h3"},
-			{ID: 4, Hostname: "h4"},
+			{ID: 1, Hostname: "h1", Platform: "darwin", OSVersion: "123"},
+			{ID: 2, Hostname: "h2", Platform: "linux", OSVersion: "456"},
+			{ID: 3, Hostname: "h3", Platform: "windows", OSVersion: "1"},
+			{ID: 4, Hostname: "h4", Platform: "linux", OSVersion: "2"},
 		}
-		jsonH1 := fmt.Sprintf(`{"id":1,"hostname":"h1","url":"%s/hosts/1"}`, appCfg.ServerSettings.ServerURL)
-		jsonH2 := fmt.Sprintf(`{"id":2,"hostname":"h2","url":"%s/hosts/2"}`, appCfg.ServerSettings.ServerURL)
-		jsonH3 := fmt.Sprintf(`{"id":3,"hostname":"h3","url":"%s/hosts/3"}`, appCfg.ServerSettings.ServerURL)
-		jsonH4 := fmt.Sprintf(`{"id":4,"hostname":"h4","url":"%s/hosts/4"}`, appCfg.ServerSettings.ServerURL)
+		jsonH1 := fmt.Sprintf(`{"id":1,"hostname":"h1","url":"%s/hosts/1","platform":"%s","os_version":"%s"}`, appCfg.ServerSettings.ServerURL, hosts[0].Platform, hosts[0].OSVersion)
+		jsonH2 := fmt.Sprintf(`{"id":2,"hostname":"h2","url":"%s/hosts/2","platform":"%s","os_version":"%s"}`, appCfg.ServerSettings.ServerURL, hosts[1].Platform, hosts[1].OSVersion)
+		jsonH3 := fmt.Sprintf(`{"id":3,"hostname":"h3","url":"%s/hosts/3","platform":"%s","os_version":"%s"}`, appCfg.ServerSettings.ServerURL, hosts[2].Platform, hosts[2].OSVersion)
+		jsonH4 := fmt.Sprintf(`{"id":4,"hostname":"h4","url":"%s/hosts/4","platform":"%s","os_version":"%s"}`, appCfg.ServerSettings.ServerURL, hosts[3].Platform, hosts[3].OSVersion)
 
 		cves := []string{
 			"CVE-2012-1234",
