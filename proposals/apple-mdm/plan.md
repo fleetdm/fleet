@@ -25,6 +25,11 @@ This document describes the plan for the "Dogfood-MVP" deliverable.
 
 The PoC can be found in: https://github.com/fleetdm/fleet/tree/apple-mdm.
 
+## Dependencies
+
+- MySQL >= 8.0.19 (because nanoMDM modules require it)
+- S3 object storage (for Munki).
+
 ## High-level architecture
 
 ### MDM functionality and services
@@ -80,7 +85,7 @@ nanoMDM --> mdmAppleDB;
 
 ### Setup
 
-See [Fleet MDM setup](./Fleet-MDM-Setup.md).
+See [Fleet MDM setup](./setup.md).
 
 ### Authority
 
@@ -166,18 +171,4 @@ Fleetctl commands (and APIs) to:
 
 ### Application deployment
 
-#### Default applications to deploy
-
-In the current PoC, after MDM enrollment of a device, Fleet will auto-push the following commands:
-- "InstallApplication" to install Vanilla Munki
-- "InstallProfile" to configure Munki to connect to Fleet for software
-
-TODO(Lucas): Should Fleet check if the device has Munki installed and is configured correctly and then send commands when necessary?
-
-##### Osquery
-
-TODO(Lucas): There's the goal of pushing the orbit/osquery package to the instance right after MDM enroll (either via Munki or as a command).
-
-### Admin-defined applications
-
-TODO(Lucas): Munki...
+See [Application deployment](./application-deployment.md).
