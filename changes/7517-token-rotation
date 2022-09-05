@@ -1,0 +1,2 @@
+- Added functionality to consider device tokens as expired after one hour.
+  This change is not compatible with older versions of Fleet Desktop, If you're managing your own TUF server we recommend to increment Fleet Desktop to > v1.0.0 in addition to upgrading the server.
