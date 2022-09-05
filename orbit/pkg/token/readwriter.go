@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/google/uuid"
@@ -46,6 +47,13 @@ func (rw *ReadWriter) Rotate() error {
 	err = os.WriteFile(rw.Path, []byte(id.String()), constant.DefaultSystemdUnitMode)
 	if err != nil {
 		return fmt.Errorf("write identifier file %q: %w", rw.Path, err)
+	}
+
+	// ensure the `mtime` is updated, we have seen tests fail in some versions of
+	// Ubuntu because this value is not update when the file is written
+	err = os.Chtimes(rw.Path, time.Now(), time.Now())
+	if err != nil {
+		return fmt.Errorf("set mtime of identifier file %q: %w", rw.Path, err)
 	}
 
 	return nil
