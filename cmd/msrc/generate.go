@@ -27,7 +27,7 @@ func main() {
 	httpC := http.DefaultClient
 
 	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
-	msrcAPI := io.NewMSRCClient(httpC, wd, nil)
+	msrcAPI := io.NewMSRCClient(httpC, wd, io.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
 	eBulletins, err := ghAPI.Bulletins()

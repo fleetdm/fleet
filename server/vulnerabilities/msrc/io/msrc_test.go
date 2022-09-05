@@ -18,7 +18,7 @@ func TestMSRCClient(t *testing.T) {
 
 	t.Run("#GetFeed", func(t *testing.T) {
 		t.Run("with invalid args", func(t *testing.T) {
-			sut := NewMSRCClient(nil, "", nil)
+			sut := NewMSRCClient(nil, "", "")
 			now := time.Now()
 
 			t.Run("year is below min allowed", func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestMSRCClient(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			sut := NewMSRCClient(server.Client(), dir, &server.URL)
+			sut := NewMSRCClient(server.Client(), dir, server.URL)
 			result, err := sut.GetFeed(date.Month(), date.Year())
 			require.NoError(t, err)
 

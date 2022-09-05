@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
 	// Pre 2020 there are some weirdness around the way the 'Supersedes' field is defined for Vulnerabilities, sometimes
 	// it does not reference a KBID.
 	MSRCMinYear = 2020
-	mSRCBaseURL = `https://api.msrc.microsoft.com`
+	MSRCBaseURL = `https://api.msrc.microsoft.com`
 )
 
 // MSRCAPI allows users to interact with MSRC resources
@@ -27,21 +26,17 @@ type MSRCAPI interface {
 type MSRCClient struct {
 	client  *http.Client
 	workDir string
-	baseURL *string
+	baseURL string
 }
 
 // NewMSRCClient returns a new MSRCClient that will store all downloaded files in 'workDir' and will
-// use 'baseURL' for doing http requests. If no 'baseURL' is provided then 'MSRCBaseURL' will be used.
+// use 'baseURL' for doing http requests.
 func NewMSRCClient(
 	client *http.Client,
 	workDir string,
-	baseURL *string,
+	baseURL string,
 ) MSRCClient {
-	c := MSRCClient{client: client, workDir: workDir, baseURL: baseURL}
-	if c.baseURL == nil {
-		c.baseURL = ptr.String(mSRCBaseURL)
-	}
-	return c
+	return MSRCClient{client: client, workDir: workDir, baseURL: baseURL}
 }
 
 func feedName(date time.Time) string {
@@ -49,10 +44,7 @@ func feedName(date time.Time) string {
 }
 
 func (msrc MSRCClient) getURL(date time.Time) (*url.URL, error) {
-	if msrc.baseURL == nil {
-		return nil, errors.New("invalid base URL")
-	}
-	return url.Parse(*msrc.baseURL + "/cvrf/v2.0/document/" + feedName(date))
+	return url.Parse(msrc.baseURL + "/cvrf/v2.0/document/" + feedName(date))
 }
 
 // GetFeed downloads the MSRC security feed for 'month' and 'year' into 'workDir', returning the
