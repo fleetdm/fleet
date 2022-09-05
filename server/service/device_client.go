@@ -44,18 +44,18 @@ func (dc *DeviceClient) SetToken(token string) {
 	dc.token = token
 }
 
-func (dc *DeviceClient) GetToken() string {
+func (dc *DeviceClient) getToken() string {
 	dc.mu.Lock()
 	defer dc.mu.Unlock()
 	return dc.token
 }
 
 func (dc *DeviceClient) DeviceURL() string {
-	return dc.baseClient.url("/device/"+dc.GetToken(), "").String()
+	return dc.baseClient.url("/device/"+dc.getToken(), "").String()
 }
 
 func (dc *DeviceClient) TransparencyURL() string {
-	return dc.baseClient.url("/api/latest/fleet/device/"+dc.GetToken()+"/transparency", "").String()
+	return dc.baseClient.url("/api/latest/fleet/device/"+dc.getToken()+"/transparency", "").String()
 }
 
 // NewDeviceClient instantiates a new client to perform requests against device endpoints
@@ -73,7 +73,7 @@ func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string)
 
 // ListDevicePolicies fetches all policies for the device with the provided token
 func (dc *DeviceClient) ListDevicePolicies() ([]*fleet.HostPolicy, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+dc.GetToken()+"/policies"
+	verb, path := "GET", "/api/latest/fleet/device/"+dc.getToken()+"/policies"
 	var responseBody listDevicePoliciesResponse
 	err := dc.request(verb, path, "", &responseBody)
 	if err != nil {
