@@ -20,16 +20,23 @@ const PreviewPayloadModal = ({
     vulnerability: {
       cve: "CVE-2014-9471",
       details_link: "https://nvd.nist.gov/vuln/detail/CVE-2014-9471",
+      epss_probability: 0.7, // Premium feature only
+      cvss_score: 5.7, // Premium feature only
+      cisa_known_exploit: true, // Premium feature only
       hosts_affected: [
         {
           id: 1,
           hostname: "macbook-1",
           url: "https://fleet.example.com/hosts/1",
+          platform: "darwin",
+          os_version: "10.1.1",
         },
         {
           id: 2,
           hostname: "macbook-2",
           url: "https://fleet.example.com/hosts/2",
+          platform: "darwin",
+          os_version: "10.1.1",
         },
       ],
     },
