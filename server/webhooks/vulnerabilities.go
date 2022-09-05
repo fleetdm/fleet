@@ -57,7 +57,10 @@ func TriggerVulnerabilitiesWebhook(
 				limit = batchSize
 			}
 
-			if err := sendVulnerabilityHostBatch(ctx, targetURL, v.CVE, serverURL, hosts[:limit], args.Time); err != nil {
+			hostsPayload := getHostPayloadPart(serverURL, hosts[:limit])
+			payload := getVulnPayload(v, args.Meta[v.CVE], args.IsPremium, hostsPayload)
+
+			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time); err != nil {
 				return ctxerr.Wrap(ctx, err, "send vulnerability host batch")
 			}
 
@@ -68,31 +71,55 @@ func TriggerVulnerabilitiesWebhook(
 	return nil
 }
 
-type vulnHostPayload struct {
+type hostPayloadPart struct {
 	ID       uint   `json:"id"`
 	Hostname string `json:"hostname"`
 	URL      string `json:"url"`
 }
 
-func sendVulnerabilityHostBatch(ctx context.Context, targetURL, cve string, hostBaseURL *url.URL, hosts []*fleet.HostShort, now time.Time) error {
-	shortHosts := make([]*vulnHostPayload, len(hosts))
+func getHostPayloadPart(hostBaseURL *url.URL, hosts []*fleet.HostShort) []*hostPayloadPart {
+	shortHosts := make([]*hostPayloadPart, len(hosts))
 	for i, h := range hosts {
 		hostURL := *hostBaseURL
 		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
-		shortHosts[i] = &vulnHostPayload{
+		shortHosts[i] = &hostPayloadPart{
 			ID:       h.ID,
 			Hostname: h.Hostname,
 			URL:      hostURL.String(),
 		}
 	}
+	return shortHosts
+}
 
+type payload struct {
+	CVE              string             `json:"cve"`
+	Link             string             `json:"details_link"`
+	EPSSProbability  *float64           `json:"epss_probability,omitempty"`
+	CVSSScore        *float64           `json:"cvss_score,omitempty"`
+	CISAKnownExploit *bool              `json:"cisa_known_exploit,omitempty"`
+	Hosts            []*hostPayloadPart `json:"hosts_affected"`
+}
+
+func getVulnPayload(vuln fleet.SoftwareVulnerability, meta fleet.CVEMeta, isPremium bool, hosts []*hostPayloadPart) payload {
+	r := payload{
+		CVE:   vuln.CVE,
+		Link:  fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE),
+		Hosts: hosts,
+	}
+
+	if isPremium {
+		r.EPSSProbability = meta.EPSSProbability
+		r.CVSSScore = meta.CVSSScore
+		r.CISAKnownExploit = meta.CISAKnownExploit
+	}
+
+	return r
+}
+
+func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln payload, now time.Time) error {
 	payload := map[string]interface{}{
-		"timestamp": now,
-		"vulnerability": map[string]interface{}{
-			"cve":            cve,
-			"details_link":   fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
-			"hosts_affected": shortHosts,
-		},
+		"timestamp":     now,
+		"vulnerability": vuln,
 	}
 
 	if err := server.PostJSONWithTimeout(ctx, targetURL, &payload); err != nil {

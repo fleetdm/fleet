@@ -12,10 +12,36 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
+
+func TestGetVulnPayload(t *testing.T) {
+	t.Run("only contains scores if license is premium", func(t *testing.T) {
+		vuln := fleet.SoftwareVulnerability{
+			CVE:        "cve-1",
+			SoftwareID: 1,
+		}
+		meta := fleet.CVEMeta{
+			CVE:              "cve-1",
+			CVSSScore:        ptr.Float64(1),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+		}
+
+		result := getVulnPayload(vuln, meta, false, nil)
+		require.Empty(t, result.CISAKnownExploit)
+		require.Empty(t, result.EPSSProbability)
+		require.Empty(t, result.CVSSScore)
+
+		result = getVulnPayload(vuln, meta, true, nil)
+		require.Equal(t, *meta.CISAKnownExploit, *result.CISAKnownExploit)
+		require.Equal(t, *meta.EPSSProbability, *result.EPSSProbability)
+		require.Equal(t, *meta.CVSSScore, *result.CVSSScore)
+	})
+}
 
 func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	ctx := context.Background()
@@ -99,40 +125,62 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			now.Format(time.RFC3339Nano), cves[0])
 		jsonCVE2 := fmt.Sprintf(`{"timestamp":"%s","vulnerability":{"cve":%q,"details_link":"https://nvd.nist.gov/vuln/detail/%[2]s","hosts_affected":`,
 			now.Format(time.RFC3339Nano), cves[1])
+		jsonCVE3 := fmt.Sprintf(`{"timestamp":"%s","vulnerability":{"cve":%q,"details_link":"https://nvd.nist.gov/vuln/detail/%[2]s","epss_probability":1,"cvss_score":9.4,"hosts_affected":`,
+			now.Format(time.RFC3339Nano), cves[0])
 
 		cases := []struct {
-			name  string
-			vulns []fleet.SoftwareVulnerability
-			hosts []*fleet.HostShort
-			want  string
+			name    string
+			vulns   []fleet.SoftwareVulnerability
+			meta    map[string]fleet.CVEMeta
+			premium bool
+			hosts   []*fleet.HostShort
+			want    string
 		}{
 			{
 				"1 vuln, 1 host",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
+				false,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
 			},
 			{
 				"1 vuln, 2 hosts",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
+				false,
 				hosts[:2],
 				fmt.Sprintf("%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2),
 			},
 			{
+				"1 vuln, 2 hosts (premium)",
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				map[string]fleet.CVEMeta{cves[0]: {EPSSProbability: ptr.Float64(1), CVSSScore: ptr.Float64(9.4)}},
+				true,
+				hosts[:2],
+				fmt.Sprintf("%s[%s,%s]}}", jsonCVE3, jsonH1, jsonH2),
+			},
+			{
 				"1 vuln, 3 hosts",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
+				false,
 				hosts[:3],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3), // 2 requests, batch of 2 max
 			},
 			{
 				"1 vuln, 4 hosts",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
+				false,
 				hosts[:4],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3, jsonH4), // 2 requests, batch of 2 max
 			},
 			{
 				"2 vulns, 1 host each",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[1], SoftwareID: 2}},
+				nil,
+				false,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonCVE2, jsonH1),
 			},
@@ -158,7 +206,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				appCfg.WebhookSettings.VulnerabilitiesWebhook.DestinationURL = srv.URL
 				args := VulnArgs{
 					Vulnerablities: c.vulns,
-					Meta:           nil,
+					Meta:           c.meta,
+					IsPremium:      c.premium,
 					AppConfig:      &appCfg,
 					Time:           now,
 				}
