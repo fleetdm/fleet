@@ -488,7 +488,7 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		client, err := service.NewDeviceClient(fleetURL, "", c.Bool("insecure"), c.String("fleet-certificate"))
+		client, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
 		if err != nil {
 			return fmt.Errorf("initializing client: %w", err)
 		}

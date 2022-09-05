@@ -70,7 +70,6 @@ func main() {
 
 		client, err := service.NewDeviceClient(
 			fleetURL,
-			tokenReader.GetCached(),
 			insecureSkipVerify,
 			rootCA,
 		)
@@ -79,11 +78,9 @@ func main() {
 		}
 
 		refetchToken := func() {
-			deviceToken, err := tokenReader.Read()
-			if err != nil {
+			if _, err := tokenReader.Read(); err != nil {
 				log.Error().Err(err).Msg("refetch token")
 			}
-			client.SetToken(deviceToken)
 			log.Debug().Msg("successfully refetched the token from disk")
 		}
 
@@ -106,7 +103,7 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.ListDevicePolicies()
+					_, err := client.ListDevicePolicies(tokenReader.GetCached())
 					log.Error().Msgf("checking device policies, err: %e", err)
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
@@ -161,7 +158,7 @@ func main() {
 			defer tic.Stop()
 
 			for {
-				policies, err := client.ListDevicePolicies()
+				policies, err := client.ListDevicePolicies(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
@@ -201,13 +198,11 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					refetchToken()
-					if err := open.Browser(client.DeviceURL()); err != nil {
+					if err := open.Browser(client.DeviceURL(tokenReader.GetCached())); err != nil {
 						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					refetchToken()
-					if err := open.Browser(client.TransparencyURL()); err != nil {
+					if err := open.Browser(client.TransparencyURL(tokenReader.GetCached())); err != nil {
 						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}
