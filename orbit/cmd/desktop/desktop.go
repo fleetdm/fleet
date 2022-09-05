@@ -67,7 +67,7 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDesktopClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
@@ -83,7 +83,7 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.GetPayload()
+					_, err := client.GetDesktopPayload()
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
@@ -112,7 +112,7 @@ func main() {
 			for {
 				<-tic.C
 
-				res, err := client.GetPayload()
+				res, err := client.GetDesktopPayload()
 				switch {
 				case err == nil:
 					// OK
