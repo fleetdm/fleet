@@ -147,9 +147,7 @@ func main() {
 				switch {
 				case err != nil:
 					log.Error().Err(err).Msg("check token file")
-				case !expired:
-					continue
-				default:
+				case expired:
 					log.Info().Msg("token file changed, rechecking")
 					disableTray()
 					<-checkToken()
