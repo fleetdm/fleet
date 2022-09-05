@@ -80,10 +80,9 @@ func TestTokenHasChanged(t *testing.T) {
 	require.False(t, changed)
 
 	// change the value of the token
-	_, err = tokenFile.WriteAt([]byte("new-value"), 0)
+	err = os.Chtimes(tokenFile.Name(), time.Now(), time.Now())
 	require.NoError(t, err)
 
-	// function should return true
 	changed, err = tr.HasChanged()
 	require.NoError(t, err)
 	require.True(t, changed)
