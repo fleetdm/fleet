@@ -7,8 +7,6 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 // @ts-ignore
 import { stringToClipboard } from "utilities/copy_text";
-import { ITeam } from "interfaces/team";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import configAPI from "services/entities/config";
 
@@ -67,8 +65,8 @@ const PlatformWrapper = ({
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
-  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(true);
-  const [showPlainOsquery, setShowPlainOsquery] = useState<boolean>(false);
+  const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
+  const [showPlainOsquery, setShowPlainOsquery] = useState(false);
 
   const {
     data: certificate,
@@ -278,10 +276,10 @@ const PlatformWrapper = ({
           <span className={`${baseClass}__cta`}>
             With the{" "}
             <a
+              className={`${baseClass}__command-line-tool`}
               href="https://fleetdm.com/get-started"
               target="_blank"
               rel="noopener noreferrer"
-              className={`${baseClass}__command-line-tool`}
             >
               Fleet command-line tool
             </a>{" "}

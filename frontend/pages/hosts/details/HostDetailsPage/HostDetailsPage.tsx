@@ -44,6 +44,7 @@ import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
+import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
@@ -611,6 +612,13 @@ const HostDetailsPage = ({
                 softwareInventoryEnabled={features?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
+              {macadmins && (
+                <MunkiIssuesCard
+                  isLoading={isLoadingHost}
+                  munkiIssues={macadmins.munki_issues}
+                  deviceType={host?.platform === "darwin" ? "macos" : ""}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <ScheduleCard

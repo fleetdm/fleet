@@ -422,11 +422,17 @@ type AggregatedMunkiVersion struct {
 	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
+// MunkiIssue represents a single munki issue, as returned by the list hosts
+// endpoint when a muniki issue ID is provided as filter.
+type MunkiIssue struct {
+	ID        uint   `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
+	IssueType string `json:"type" db:"issue_type"`
+}
+
 type AggregatedMunkiIssue struct {
-	ID         uint   `json:"id" db:"id"`
-	Name       string `json:"name" db:"name"`
-	IssueType  string `json:"type" db:"issue_type"`
-	HostsCount int    `json:"hosts_count" db:"hosts_count"`
+	MunkiIssue
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
 type AggregatedMDMStatus struct {
@@ -436,11 +442,17 @@ type AggregatedMDMStatus struct {
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
 
+// MDMSolution represents a single MDM solution, as returned by the list hosts
+// endpoint when an MDM Solution ID is provided as filter.
+type MDMSolution struct {
+	ID        uint   `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
+	ServerURL string `json:"server_url" db:"server_url"`
+}
+
 type AggregatedMDMSolutions struct {
-	ID         uint   `json:"id,omitempty" db:"id"`
-	Name       string `json:"name,omitempty" db:"name"`
-	HostsCount int    `json:"hosts_count" db:"hosts_count"`
-	ServerURL  string `json:"server_url" db:"server_url"`
+	MDMSolution
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
 type AggregatedMacadminsData struct {

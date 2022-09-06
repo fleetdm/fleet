@@ -5,7 +5,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 
 import Modal from "components/Modal";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 import {
   IAppConfigFormProps,
   IFormField,
@@ -19,10 +19,9 @@ const Statistics = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [
-    showUsageStatsPreviewModal,
-    setShowUsageStatsPreviewModal,
-  ] = useState<boolean>(false);
+  const [showUsageStatsPreviewModal, setShowUsageStatsPreviewModal] = useState(
+    false
+  );
   const [formData, setFormData] = useState<any>({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
@@ -98,12 +97,15 @@ const Statistics = ({
             <br />
             <a
               href="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
-              className={`${baseClass}__learn-more`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Learn more about usage statistics&nbsp;
-              <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              Learn more about usage statistics
+              <img
+                className="icon"
+                src={ExternalLinkIcon}
+                alt="Open external link"
+              />
             </a>
           </p>
           <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>

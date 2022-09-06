@@ -38,20 +38,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   // STATES
-  const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
-    false
-  );
-  const [showEditUserModal, setShowEditUserModal] = useState<boolean>(false);
-  const [showDeleteUserModal, setShowDeleteUserModal] = useState<boolean>(
-    false
-  );
-  const [showResetPasswordModal, setShowResetPasswordModal] = useState<boolean>(
-    false
-  );
-  const [showResetSessionsModal, setShowResetSessionsModal] = useState<boolean>(
-    false
-  );
-  const [isUpdatingUsers, setIsUpdatingUsers] = useState<boolean>(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [showResetSessionsModal, setShowResetSessionsModal] = useState(false);
+  const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<any>(null);
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
@@ -59,7 +51,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
-  const [querySearchText, setQuerySearchText] = useState<string>("");
+  const [querySearchText, setQuerySearchText] = useState("");
 
   // API CALLS
   const {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import { noop, size } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
@@ -12,16 +12,19 @@ import InputField from "components/forms/fields/InputField";
 import FleetAce from "components/FleetAce";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
+import InfoIcon from "../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 interface ILabelFormProps {
   baseError: string;
   selectedLabel?: ILabel;
   isEdit?: boolean;
+  isUpdatingLabel?: boolean;
   onCancel: () => void;
   handleSubmit: (formData: ILabelFormData) => void;
-  onOsqueryTableSelect?: (tableName: string) => void;
+  onOpenSchemaSidebar: () => void;
+  onOsqueryTableSelect: (tableName: string) => void;
+  showOpenSchemaActionText: boolean;
   backendValidators: { [key: string]: string };
-  isUpdatingLabel?: boolean;
 }
 
 const baseClass = "label-form";
@@ -57,23 +60,23 @@ const LabelForm = ({
   baseError,
   selectedLabel,
   isEdit,
+  isUpdatingLabel,
   onCancel,
   handleSubmit,
+  onOpenSchemaSidebar,
   onOsqueryTableSelect,
+  showOpenSchemaActionText,
   backendValidators,
-  isUpdatingLabel,
 }: ILabelFormProps): JSX.Element => {
-  const [name, setName] = useState<string>(selectedLabel?.name || "");
-  const [nameError, setNameError] = useState<string>("");
-  const [description, setDescription] = useState<string>(
+  const [name, setName] = useState(selectedLabel?.name || "");
+  const [nameError, setNameError] = useState("");
+  const [description, setDescription] = useState(
     selectedLabel?.description || ""
   );
-  const [descriptionError, setDescriptionError] = useState<string>("");
-  const [query, setQuery] = useState<string>(selectedLabel?.query || "");
-  const [queryError, setQueryError] = useState<string>("");
-  const [platform, setPlatform] = useState<string>(
-    selectedLabel?.platform || ""
-  );
+  const [descriptionError, setDescriptionError] = useState("");
+  const [query, setQuery] = useState(selectedLabel?.query || "");
+  const [queryError, setQueryError] = useState("");
+  const [platform, setPlatform] = useState(selectedLabel?.platform || "");
 
   const debounceSQL = useDebouncedCallback((queryString: string) => {
     let valid = true;
@@ -158,6 +161,21 @@ const LabelForm = ({
     });
   };
 
+  const renderLabelComponent = (): JSX.Element | null => {
+    if (!showOpenSchemaActionText) {
+      return null;
+    }
+
+    return (
+      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+        <>
+          <img alt="" src={InfoIcon} />
+          Show schema
+        </>
+      </Button>
+    );
+  };
+
   const isBuiltin =
     selectedLabel &&
     (selectedLabel.label_type === "builtin" || selectedLabel.type === "status");
@@ -192,6 +210,7 @@ const LabelForm = ({
           onChange={onQueryChange}
           value={query}
           label="SQL"
+          labelActionComponent={renderLabelComponent()}
           onLoad={onLoad}
           readOnly={isEdit}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}

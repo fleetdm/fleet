@@ -1,12 +1,6 @@
 .policies-queries-table {
   border-collapse: collapse;
 
-  a {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    text-decoration: none;
-  }
-
   &__wrapper {
     border: 1px solid $ui-fleet-blue-15;
     border-radius: 4px;
@@ -75,12 +69,6 @@
   align-items: center;
   text-align: center;
   padding-top: $pad-xxxlarge;
-
-  a {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    text-decoration: none;
-  }
 
   h1 {
     font-size: $large;

@@ -1,6 +1,6 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useContext, useEffect } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { pull } from "lodash";
 import { AppContext } from "context/app";
 
@@ -15,7 +15,6 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Spinner from "components/Spinner";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
@@ -24,6 +23,7 @@ import {
 } from "utilities/constants";
 
 import PreviewDataModal from "../PreviewDataModal";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "schedule-editor-modal";
 
@@ -100,27 +100,24 @@ const ScheduleEditorModal = ({
 
   const loggingConfig = config?.logging.result.plugin || "unknown";
 
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
-    false
-  );
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<
     IEditScheduledQuery | INoQueryOption
   >();
-  const [selectedFrequency, setSelectedFrequency] = useState<number>(
+  const [selectedFrequency, setSelectedFrequency] = useState(
     editQuery ? editQuery.interval : 86400
   );
-  const [
-    selectedPlatformOptions,
-    setSelectedPlatformOptions,
-  ] = useState<string>(editQuery?.platform || "");
-  const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
+  const [selectedPlatformOptions, setSelectedPlatformOptions] = useState(
+    editQuery?.platform || ""
+  );
+  const [selectedLoggingType, setSelectedLoggingType] = useState(
     editQuery ? generateLoggingType(editQuery) : "snapshot"
   );
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState<string>(editQuery?.version || "");
-  const [selectedShard, setSelectedShard] = useState<string>(
+  ] = useState(editQuery?.version || "");
+  const [selectedShard, setSelectedShard] = useState(
     editQuery?.shard ? editQuery?.shard.toString() : ""
   );
 
@@ -272,6 +269,7 @@ const ScheduleEditorModal = ({
               rel="noopener noreferrer"
             >
               how to configure a different log destination
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
             .
           </p>

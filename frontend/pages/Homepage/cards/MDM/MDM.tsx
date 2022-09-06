@@ -67,7 +67,7 @@ const MDM = ({
   setShowMDMUI,
   setTitleDetail,
 }: IMDMCardProps): JSX.Element => {
-  const [navTabIndex, setNavTabIndex] = useState<number>(0);
+  const [navTabIndex, setNavTabIndex] = useState(0);
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
   >([]);
