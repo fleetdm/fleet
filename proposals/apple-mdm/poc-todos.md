@@ -1,5 +1,6 @@
 # POC TODOs
 
+- Remove `FLEET_MDM_APPLE_SERVER_ADDRESS` and instead use the existing public ServerURL with https://github.com/fleetdm/fleet/blob/8efd0a47e0de4d26e8d0c2287c47980c626fecc9/server/fleet/app.go#L250.
 - Add authentication to all MDM endpoints
 - Decide whether to stick to >= 8.0.19. If so:
 	- Add check to fail `prepare db` command if `config.MDMApple.Enable and the MySQL version is < 8.0.19.
