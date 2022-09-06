@@ -196,7 +196,9 @@ TODO(mna): document the team-specific configuration options (webhooks and integr
 
 ## Organization settings
 
-The following file describes organization settings applied to the Fleet server. A detailed explanation of all supported fields is given after the example YAML file, which does not show all possible options.
+The `config` YAML file controls Fleet's organization settings.
+
+The following example file, shows the default organization settings.
 
 ```yaml
 apiVersion: v1
@@ -213,98 +215,72 @@ spec:
         distributed_interval: 10
         distributed_plugin: tls
         distributed_tls_max_attempts: 3
-        distributed_tls_read_endpoint: /api/osquery/distributed/read
-        distributed_tls_write_endpoint: /api/osquery/distributed/write
         logger_plugin: tls
         logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
         pack_delimiter: /
     overrides: {}
-  host_expiry_settings:
-    host_expiry_enabled: true
-    host_expiry_window: 10
   features:
-    additional_queries:
-      time: SELECT * FROM time
-      macs: SELECT mac FROM interface_details
+    enable_host_users: true
+    enable_software_inventory: true
+  fleet_desktop:
+    transparency_url: https://fleetdm.com/transparency
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  integrations:
+    jira: null
+    zendesk: null
   org_info:
-    org_logo_url: "https://example.org/logo.png"
-    org_name: Example Org
+    org_logo_url: ""
+    org_name: Fleet
   server_settings:
-    server_url: https://fleet.example.org:8080
+    deferred_save_host: false
+    enable_analytics: true
+    live_query_disabled: false
+    server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
     authentication_type: authtype_username_password
-    domain: example.org
-    enable_smtp: true
+    domain: ""
+    enable_smtp: false
     enable_ssl_tls: true
     enable_start_tls: true
-    password: supersekretsmtppass
+    password: ""
     port: 587
-    sender_address: fleet@example.org
-    server: mail.example.org
-    user_name: test_user
+    sender_address: ""
+    server: ""
+    user_name: ""
     verify_ssl_certs: true
   sso_settings:
+    enable_jit_provisioning: false
     enable_sso: false
-    entity_id: 1234567890
-    idp_image_url: https://idp.example.org/logo.png
-    idp_name: IDP Vendor 1
-    issuer_uri: https://idp.example.org/SAML2/SSO/POST
-    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
-    metadata_url: https://idp.example.org/idp-meta.xml
+    enable_sso_idp_login: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
   vulnerability_settings:
     databases_path: ""
   webhook_settings:
-    host_status_webhook:
-      enable_host_status_webhook: true
-      destination_url: https://server.com
-      host_percentage: 5
-      days_count: 7
     failing_policies_webhook:
-      enable_failing_policies_webhook: true
-      destination_url: https://server.com
-      policy_ids:
-        - 1
-        - 2
-        - 3
+      destination_url: ""
+      enable_failing_policies_webhook: false
       host_batch_size: 0
-    interval: 1m0s
+      policy_ids: null
+    host_status_webhook:
+      days_count: 0
+      destination_url: ""
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 24h
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
 ```
-
-### Host Expiry Settings
-
-The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
-
-#### host_expiry_settings.host_expiry_enabled
-
-<!-- This section used to be named Host Expiry Enabled, this ensures links with the #host-expiry-enabled hash still work -->
-<span id="host-expiry-enabled" name="host-expiry-enabled"></span>
-
-Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
-
-- Optional setting (boolean).
-- Default value: `false`.
-- Config file format:
-  ```
-  host_expiry_settings:
-  	host_expiry_enabled: true
-  ```
-
-#### host_expiry_settings.host_expiry_window
-
-<!-- This section used to be named Host Expiry Window, this ensures links with the #host-expiry-window hash still work -->
-<span id="host-expiry-window" name="host-expiry-window"></span>
-
-If a host has not communicated with Fleet in the specified number of days, it will be removed.
-
-- Optional setting (integer).
-- Default value: `0` (must be > 0 when enabling host expiry).
-- Config file format:
-  ```
-  host_expiry_settings:
-  	host_expiry_window: 10
-  ```
 
 ### Features
 
@@ -380,11 +356,45 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](..
 _Available in Fleet Premium_. Sets a custom transparency URL page to take users of Fleet Desktop to.
 
 - Optional setting (string).
-- Default value: Fleet's default transparency URL.
+- Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency").
 - Config file format:
   ```
   fleet_desktop:
     transparency_url: "https://example.org/transparency"
+  ```
+
+### Host Expiry Settings
+
+The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
+
+#### host_expiry_settings.host_expiry_enabled
+
+<!-- This section used to be named Host Expiry Enabled, this ensures links with the #host-expiry-enabled hash still work -->
+<span id="host-expiry-enabled" name="host-expiry-enabled"></span>
+
+Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  host_expiry_settings:
+  	host_expiry_enabled: true
+  ```
+
+#### host_expiry_settings.host_expiry_window
+
+<!-- This section used to be named Host Expiry Window, this ensures links with the #host-expiry-window hash still work -->
+<span id="host-expiry-window" name="host-expiry-window"></span>
+
+If a host has not communicated with Fleet in the specified number of days, it will be removed.
+
+- Optional setting (integer).
+- Default value: `0` (must be > 0 when enabling host expiry).
+- Config file format:
+  ```
+  host_expiry_settings:
+  	host_expiry_window: 10
   ```
 
 ### Integrations
@@ -633,42 +643,6 @@ The URL of the logo of the organization.
 
 ### Server Settings
 
-#### server_settings.server_url
-
-The base URL of the fleet server, including the scheme (e.g. "https://").
-
-- Required setting (string).
-- Default value: none (provided during Fleet setup).
-- Config file format:
-  ```
-  server_settings:
-    server_url: https://fleet.example.org:8080
-  ```
-
-#### server_settings.live_query_disabled
-
-If the live query feature is disabled or not.
-
-- Optional setting (boolean).
-- Default value: `false`.
-- Config file format:
-  ```
-  server_settings:
-    live_query_disabled: true
-  ```
-
-#### server_settings.enable_analytics
-
-If sending usage analytics is enabled or not.
-
-- Optional setting (boolean).
-- Default value: `true`.
-- Config file format:
-  ```
-  server_settings:
-    enable_analytics: false
-  ```
-
 #### server_settings.debug_host_ids
 
 <!-- This section used to be named Debug host, this ensures links with the #debug-host hash still work -->
@@ -725,6 +699,42 @@ Whether saving host-related information is done synchronously in the HTTP handle
   ```
   server_settings:
     deferred_save_host: true
+  ```
+
+#### server_settings.enable_analytics
+
+If sending usage analytics is enabled or not.
+
+- Optional setting (boolean).
+- Default value: `true`.
+- Config file format:
+  ```
+  server_settings:
+    enable_analytics: false
+  ```
+
+#### server_settings.live_query_disabled
+
+If the live query feature is disabled or not.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  server_settings:
+    live_query_disabled: true
+  ```
+
+#### server_settings.server_url
+
+The base URL of the fleet server, including the scheme (e.g. "https://").
+
+- Required setting (string).
+- Default value: none (provided during Fleet setup).
+- Config file format:
+  ```
+  server_settings:
+    server_url: https://fleet.example.org:8080
   ```
 
 ### SMTP Settings
@@ -819,7 +829,7 @@ Whether to detect if TLS is used by the SMTP server and start using it if so.
 The password to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
 
 - Optional setting (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   smtp_settings:
@@ -843,7 +853,7 @@ The port to use to connect to the SMTP server.
 The email address to use as sender for emails sent by Fleet.
 
 - Optional setting (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   smtp_settings:
@@ -855,7 +865,7 @@ The email address to use as sender for emails sent by Fleet.
 The server hostname for SMTP.
 
 - Optional setting, required to properly configue SMTP (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   smtp_settings:
@@ -869,7 +879,7 @@ The server hostname for SMTP.
 The username to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
 
 - Optional setting (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   smtp_settings:
@@ -891,6 +901,18 @@ Whether the SMTP server's SSL certificates should be verified. Can be turned off
 ### SSO Settings
 
 For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
+
+#### sso_settings.enable_jit_provisioning
+
+_Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+
+- Optional setting (boolean).
+- Default value: `false`
+- Config file format:
+  ```
+  sso_settings:
+    enable_jit_provisioning: true
+  ```
 
 #### sso_settings.enable_sso
 
@@ -916,24 +938,12 @@ Allow single sign-on login initiated by identity provider.
     enable_sso_idp_login: true
   ```
 
-#### sso_settings.enable_jit_provisioning
-
-_Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
-
-- Optional setting (boolean).
-- Default value: `false`
-- Config file format:
-  ```
-  sso_settings:
-    enable_jit_provisioning: true
-  ```
-
 #### sso_settings.entity_id
 
 The required entity ID is a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration.
 
 - Required setting if SSO is enabled, must have at least 5 characters (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   sso_settings:
@@ -945,7 +955,7 @@ The required entity ID is a Uniform Resource Identifier (URI) that you use to id
 An optional link to an image such as a logo for the identity provider.
 
 - Optional setting (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   sso_settings:
@@ -957,7 +967,7 @@ An optional link to an image such as a logo for the identity provider.
 A required human-friendly name for the identity provider that will provide single sign-on authentication.
 
 - Required setting if SSO is enabled (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   sso_settings:
@@ -969,7 +979,7 @@ A required human-friendly name for the identity provider that will provide singl
 The issuer URI supplied by the identity provider. TODO(mna): is this used? The field does not appear used anywhere. We do request it on the frontend.
 
 - Optional setting (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   sso_settings:
@@ -981,7 +991,7 @@ The issuer URI supplied by the identity provider. TODO(mna): is this used? The f
 Metadata (in XML format) provided by the identity provider.
 
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   sso_settings:
@@ -993,7 +1003,7 @@ Metadata (in XML format) provided by the identity provider.
 A URL that references the identity provider metadata.
 
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   sso_settings:
@@ -1007,7 +1017,7 @@ A URL that references the identity provider metadata.
 Path to a directory on the local filesystem (accessible to the Fleet server) where the various vulnerability databases will be stored.
 
 - Optional setting, must be set to enable vulnerability detection (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   vulnerability_settings:
@@ -1033,65 +1043,22 @@ The interval at which to check for webhook conditions. This value currently conf
     interval: "12h"
   ```
 
-#### Host Status
+#### Failing Policies
 
-The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts are offline for the specified amount of time.
+The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
-##### webhook_settings.host_status_webhook.enable_host_status_webhook
-
-Defines whether the webhook check for host status will run or not.
-
-- Optional setting (boolean).
-- Default value: `false`.
-- Config file format:
-  ```
-  webhook_settings:
-    host_status_webhook:
-      enable_host_status_webhook: true
-  ```
-
-##### webhook_settings.host_status_webhook.destination_url
+##### webhook_settings.failing_policies_webhook.destination_url
 
 The URL to `POST` to when the condition for the webhook triggers.
 
 - Optional setting, required if webhook is enabled (string).
-- Default value: none.
+- Default value: "".
 - Config file format:
   ```
   webhook_settings:
-    host_status_webhook:
+    failing_policies_webhook:
       destination_url: "https://example.org/webhook_handler"
   ```
-
-##### webhook_settings.host_status_webhook.host_percentage
-
-The percentage of hosts that need to be offline to trigger the webhook.
-
-- Optional setting, required if webhook is enabled (float).
-- Default value: `0`.
-- Config file format:
-  ```
-  webhook_settings:
-    host_status_webhook:
-      host_percentage: 10
-  ```
-
-##### webhook_settings.host_status_webhook.days_count
-
-Number of days that hosts need to be offline for to count as part of the percentage.
-
-- Optional setting, required if webhook is enabled (integer).
-- Default value: `0`.
-- Config file format:
-  ```
-  webhook_settings:
-    host_status_webhook:
-      days_count: 5
-  ```
-
-#### Failing Policies
-
-The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
 ##### webhook_settings.failing_policies_webhook.enable_failing_policies_webhook
 
@@ -1106,17 +1073,17 @@ Defines whether to enable the failing policies webhook. Note that currently, if 
       enable_failing_policies_webhook: true
   ```
 
-##### webhook_settings.failing_policies_webhook.destination_url
+##### webhook_settings.failing_policies_webhook.host_batch_size
 
-The URL to `POST` to when the condition for the webhook triggers.
+Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one `POST` request.
 
-- Optional setting, required if webhook is enabled (string).
-- Default value: none.
+- Optional setting (integer).
+- Default value: `0`.
 - Config file format:
   ```
   webhook_settings:
     failing_policies_webhook:
-      destination_url: "https://example.org/webhook_handler"
+      host_batch_size: 100
   ```
 
 ##### webhook_settings.failing_policies_webhook.policy_ids
@@ -1135,17 +1102,60 @@ The IDs of the policies for which the webhook will be enabled.
         - 3
   ```
 
-##### webhook_settings.failing_policies_webhook.host_batch_size
+#### Host Status
 
-Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one `POST` request.
+The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts are offline for the specified amount of time.
 
-- Optional setting (integer).
+##### webhook_settings.host_status_webhook.days_count
+
+Number of days that hosts need to be offline for to count as part of the percentage.
+
+- Optional setting, required if webhook is enabled (integer).
 - Default value: `0`.
 - Config file format:
   ```
   webhook_settings:
-    failing_policies_webhook:
-      host_batch_size: 100
+    host_status_webhook:
+      days_count: 5
+  ```
+
+##### webhook_settings.host_status_webhook.destination_url
+
+The URL to `POST` to when the condition for the webhook triggers.
+
+- Optional setting, required if webhook is enabled (string).
+- Default value: "".
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      destination_url: "https://example.org/webhook_handler"
+  ```
+
+##### webhook_settings.host_status_webhook.enable_host_status_webhook
+
+Defines whether the webhook check for host status will run or not.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+  ```
+
+##### webhook_settings.host_status_webhook.host_percentage
+
+The percentage of hosts that need to be offline to trigger the webhook.
+
+- Optional setting, required if webhook is enabled (float).
+- Default value: `0`.
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      host_percentage: 10
   ```
 
 #### Recent vulnerabilities
@@ -1153,6 +1163,19 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
 
 Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
+
+##### webhook_settings.vulnerabilities_webhook.destination_url
+
+The URL to `POST` to when the condition for the webhook triggers.
+
+- Optional setting, required if webhook is enabled (string).
+- Default value: "".
+- Config file format:
+  ```
+  webhook_settings:
+    vulnerabilities_webhook:
+      destination_url: "https://example.org/webhook_handler"
+  ```
 
 ##### webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook
 
@@ -1165,19 +1188,6 @@ Defines whether to enable the vulnerabilities webhook.
   webhook_settings:
     vulnerabilities_webhook:
       enable_vulnerabilities_webhook: true
-  ```
-
-##### webhook_settings.vulnerabilities_webhook.destination_url
-
-The URL to `POST` to when the condition for the webhook triggers.
-
-- Optional setting, required if webhook is enabled (string).
-- Default value: none.
-- Config file format:
-  ```
-  webhook_settings:
-    vulnerabilities_webhook:
-      destination_url: "https://example.org/webhook_handler"
   ```
 
 ##### webhook_settings.vulnerabilities_webhook.host_batch_size
