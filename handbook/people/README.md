@@ -355,6 +355,12 @@ In Gusto, click **How to review your notice** to help you understand what kind o
 
 For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
 
+### State quarterly payroll and tax filings
+
+Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review. 
+
+You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. 
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -545,8 +551,9 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
-| Calendar audit | audit of CEO's calendar | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie |
+| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
+| Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
+| TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
 
 
 ## Slack channels
