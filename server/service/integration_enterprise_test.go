@@ -1173,7 +1173,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	json.NewDecoder(res.Body).Decode(&getDesktopResp)
 	res.Body.Close()
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, getDesktopResp.FailingPolicies, uint(1))
+	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
