@@ -192,7 +192,7 @@ We have excluded anyone with an email domain from @cooley.com or @formationfinan
 
 Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
 
-It is highly encouraged that anyone using Gong go through the Gong Academy training for the appropriate role at [https://academy.gong.io/](https://academy.gong.io/).
+If you need help using Gong, please check out Gong Acaedmy at [https://academy.gong.io/](https://academy.gong.io/).
 
 ## Slack
 
