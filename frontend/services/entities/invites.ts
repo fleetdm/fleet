@@ -2,6 +2,8 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import {
   IInvite,
   ICreateInviteFormData,
@@ -40,25 +42,14 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  loadAll: ({ globalFilter = "", sortBy = [] }: IInviteSearchOptions) => {
-    const { INVITES } = endpoints;
+  loadAll: ({ globalFilter = "" }: IInviteSearchOptions) => {
+    const queryParams = {
+      query: globalFilter,
+    };
 
-    let orderKeyParam = "";
-    let orderDirection = "";
-    if (sortBy.length !== 0) {
-      const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.id}`;
-      orderDirection = sortItem.desc
-        ? "&order_direction=desc"
-        : "&order_direction=asc";
-    }
-
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `query=${globalFilter}`;
-    }
-
-    const path = `${INVITES}?${searchQuery}${orderKeyParam}${orderDirection}`;
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.INVITES;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path).then((response) => {
       const { invites } = response;

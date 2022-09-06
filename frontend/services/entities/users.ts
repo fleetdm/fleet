@@ -2,6 +2,8 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import {
   ICreateUserFormData,
   IUpdateUserFormData,
@@ -92,34 +94,15 @@ export default {
 
     return sendRequest("POST", FORGOT_PASSWORD, { email });
   },
-  loadAll: ({
-    globalFilter = "",
-    sortBy = [],
-    teamId,
-  }: IUserSearchOptions = {}) => {
-    const { USERS } = endpoints;
+  loadAll: ({ globalFilter = "", teamId }: IUserSearchOptions = {}) => {
+    const queryParams = {
+      query: globalFilter,
+      team_id: teamId,
+    };
 
-    let orderKeyParam = "";
-    let orderDirection = "";
-    if (sortBy.length !== 0) {
-      const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.id}`;
-      orderDirection = sortItem.desc
-        ? "&order_direction=desc"
-        : "&order_direction=asc";
-    }
-
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
-    }
-
-    let teamQuery = "";
-    if (teamId !== undefined) {
-      teamQuery = `&team_id=${teamId}`;
-    }
-
-    const path = `${USERS}?${searchQuery}${orderKeyParam}${orderDirection}${teamQuery}`;
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.USERS;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path).then((response) => {
       const { users } = response;
