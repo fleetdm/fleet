@@ -1683,7 +1683,7 @@ func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL strin
 	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
 }
 
-func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
 	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id = ?`, hostID)
 	if err != nil {
@@ -1696,7 +1696,7 @@ func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, 
 	return version, nil
 }
 
-func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
@@ -1716,7 +1716,26 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, e
 	return &hmdm, nil
 }
 
-func (ds *Datastore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+func (ds *Datastore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
+	var solution fleet.MDMSolution
+	err := sqlx.GetContext(ctx, ds.reader, &solution, `
+    SELECT
+      id,
+      name,
+      server_url
+    FROM
+      mobile_device_management_solutions
+    WHERE id = ?`, mdmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMSolution").WithID(mdmID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select mobile_device_management_solutions for id %d", mdmID)
+	}
+	return &solution, nil
+}
+
+func (ds *Datastore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
 	var issues []*fleet.HostMunkiIssue
 	err := sqlx.SelectContext(ctx, ds.reader, &issues, `
     SELECT
@@ -1736,6 +1755,25 @@ func (ds *Datastore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.
 		return nil, ctxerr.Wrapf(ctx, err, "select host_munki_issues for host_id %d", hostID)
 	}
 	return issues, nil
+}
+
+func (ds *Datastore) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
+	var issue fleet.MunkiIssue
+	err := sqlx.GetContext(ctx, ds.reader, &issue, `
+    SELECT
+      id,
+      name,
+      issue_type
+    FROM
+      munki_issues
+    WHERE id = ?`, munkiIssueID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MunkiIssue").WithID(munkiIssueID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select munki_issues for id %d", munkiIssueID)
+	}
+	return &issue, nil
 }
 
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
