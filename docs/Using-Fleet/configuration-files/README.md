@@ -161,7 +161,7 @@ spec:
 
 ## Teams
 
-`Applies only to Fleet Premium`
+_Applies only to Fleet Premium_.
 
 The following is an example configuration file for a Team.
 
@@ -192,7 +192,38 @@ spec:
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
 ```
 
-TODO(mna): document the team-specific configuration options (webhooks and integrations can probably link to the same configs in the organization settings, same for agent options with a mention that those apply only for this team, and then there's just enroll secrets).
+### Team settings
+
+#### Team agent options
+
+The team agent options specifies options that apply only to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
+
+The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the yaml section where it is set must be as follows (note the `kind: team` key, and the location of the `agent_options` key under `team`, which must have a `name` key to identify the team to configure):
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    agent_options:
+      # the team-specific options go here
+```
+
+#### Secrets
+
+The `secrets` section provides the list of enroll secrets that will be valid for this team. If the section is missing, the existing secrets are left unmodified, otherwise they are replaced with this list of secrets for this team.
+
+- Optional setting (array of dictionaries).
+- Default value: none (empty).
+- Config file format:
+  ```
+  team:
+    name: Client Platform Engineering
+    secrets:
+      - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+      - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+  ```
 
 ## Organization settings
 
