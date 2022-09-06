@@ -25,7 +25,7 @@ How to create a query:
 
 ## Run a query
 
-Run a query as a live query to get answers for all of your online hosts.
+Run a live query to get answers for all of your online hosts.
 
 > Offline hosts won’t respond to a live query because they may be shut down, asleep, or not connected to the internet.
 
