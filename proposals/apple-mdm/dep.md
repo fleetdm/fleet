@@ -2,11 +2,9 @@
 
 ## Commands
 
-- List DEP devices: DEP devices of that enrollment and their status (using the "DEP proxy API").
-	`fleetctl apple-mdm dep list`
-- Sync DEP profiles: makes sure to set the enroll profile config for new devices in a DEP enrollment. (Fleet would still sync all DEP enrollments automatically every 5m.)
-	`fleetctl apple-mdm dep sync-profiles`
+`fleetctl apple-mdm dep list`
+Fetches a list of all devices that are assigned to the ABM's "MDM server" at the time of the request (via [get_a_list_of_devices](https://developer.apple.com/documentation/devicemanagement/get_a_list_of_devices)).
 
 ## DEP syncer
 
-Fleet runs a "DEP syncer" routine to fetch newly added devices to business.apple.com and automatically apply DEP enroll configuration to them.
+Fleet runs a "DEP syncer" routine to fetch newly added devices from ABM (via [get_a_list_of_devices](https://developer.apple.com/documentation/devicemanagement/get_a_list_of_devices)) and automatically apply the configured DEP profile to them (via [assign_a_profile](https://developer.apple.com/documentation/devicemanagement/assign_a_profile)).

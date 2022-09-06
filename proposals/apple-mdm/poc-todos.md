@@ -1,0 +1,18 @@
+# POC TODOs
+
+- Add authentication to all MDM endpoints
+- Decide whether to stick to >= 8.0.19. If so:
+	- Add check to fail `prepare db` command if `config.MDMApple.Enable and the MySQL version is < 8.0.19.
+- Apple MDM schema is currently allocated in a separate database `mdm_apple`. Currently the case because of table name collisions. Revisit whether we want to merge schema into `fleet`'s database and discuss solutions.
+- Define the workflow when SCEP CA certificate expires.
+- DEP init command: Check encryption public key "validity days" default value.
+- Do cleanup as last step of "DEP finalize"? (i.e. delete pemCertPath, pemKeyPath and encryptedTokenPath files?)
+- Add yaml struct tags to Fleet MDM configuration.
+- Define proper default values for all the new Apple MDM configuration.
+- Fleet MDM PoC exposes many raw nanoMDM endpoints, check which ones are necessary to expose and which ones aren't (/mdm/apple/mdm/api/v1/pushcert, /mdm/apple/mdm/api/v1/push/, /mdm/apple/mdm/api/v1/enqueue/, etc.).
+- Revisit how Fleet determines a device has just enrolled (to automatically send default commands to configure and install Munki).
+- Revisit the way to send Munki config, maybe it can be sent as part of the InstallApplication command (and not require an extra InstallProfile command)
+- Currently, Munki's HTTP basic auth is stored in `/Library/Preferences/ManagedInstalls` which is world-readable. We should store under root preferences, see https://github.com/munki/munki/wiki/Using-Basic-Authentication#protecting-the-password-from-local-users.
+- The enroll profile must be protected by SSO. Currently the endpoint is unauthenticated.
+- Discuss if `enrollments create-* --config` is necessary for MVP-Dogfood/MVP
+- Discuss how to do enroll profile signing (probably not necessary for MVP-Dogfood).
