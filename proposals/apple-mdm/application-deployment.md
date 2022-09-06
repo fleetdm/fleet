@@ -44,7 +44,8 @@ In the current PoC, after MDM enrollment of a device, Fleet will auto-push the f
 - `"InstallApplication"` to install a signed vanilla Munki.
 - `"InstallProfile"` to:
   - Configure Munki to connect to Fleet for software deployment.
-  - Set `ClientIdentifier` (to `hosts.id`?) in the Munki profile, to allow fleet to identify the Munki client.
+  - Set `ClientIdentifier` (to a random UUID) in the Munki profile, to allow fleet to identify the Munki client.
+- We will use HTTP Basic Authentication + the assigned random `ClientIdentifier` to authenticate Munki clients to Fleet.
 
 Once Munki is up and running, then it can be used to install practically any kind of application.
 

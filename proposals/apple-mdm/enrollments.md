@@ -53,14 +53,14 @@ Here's a sample `dep_profile.json`:
 ```
 
 Create manual enrollment:
-- `fleetctl apple-mdm enrollments create-manual --name=Bar --config=<config.json>`
+`fleetctl apple-mdm enrollments create-manual --name=Bar --config=<config.json>`
 Returns the ID of the created enrollment.
 
-- Show enrollment settings:
-    `fleetctl apple-mdm enrollments get --id=<ENROLLMENT_ID>`
+Show enrollment settings:
+`fleetctl apple-mdm enrollments get --id=<ENROLLMENT_ID>`
 
-- List enrollments:
-	`fleetctl apple-mdm enrollments list`
+List enrollments:
+`fleetctl apple-mdm enrollments list`
 
-- Delete enrollments:
-    `fleetctl apple-mdm enrollments delete --id=<ID> --config=<config.json>`
+Delete enrollments:
+`fleetctl apple-mdm enrollments delete --id=<ENROLLMENT_ID>`
