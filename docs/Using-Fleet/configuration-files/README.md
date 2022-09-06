@@ -282,7 +282,22 @@ spec:
       host_batch_size: 0
 ```
 
-### Features
+### Settings
+
+All possible settings are organized below by section.
+
+Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` charaters) as required by the YAML format.
+
+For example, when adding the `host_expiry_settings.host_expiry_enabled` setting, you'd specify the `host_expiry_settings` section one level below the `spec` key:
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  host_expiry_settings:
+    host_expiry_enabled: true
+```
+
+#### Features
 
 <!-- This section used to be named Host Settings, this ensures links with the #host-settings hash still work -->
 <span id="host-settings" name="host-settings"></span>
@@ -292,7 +307,7 @@ The `features` section of the configuration YAML lets you define what predefined
 > Note: this section used to be named `host_settings`, but was renamed in Fleet v4.20.0,
 > `host_settings` is still supported for backwards compatibility.
 
-#### features.additional_queries
+##### features.additional_queries
 
 Additional information to collect from hosts along with the host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. Users must take care to keep the data returned by these queries small in order to mitigate potential performance impacts on the Fleet server.
 
@@ -313,7 +328,7 @@ Additional information to collect from hosts along with the host details. This i
       macs: SELECT mac FROM interface_details
   ```
 
-#### features.enable_host_users
+##### features.enable_host_users
 
 Whether or not Fleet sends the query needed to gather user-related data from hosts.
 
@@ -330,7 +345,7 @@ Whether or not Fleet sends the query needed to gather user-related data from hos
   	enable_host_users: false
   ```
 
-#### features.enable_software_inventory
+##### features.enable_software_inventory
 
 Whether or not Fleet sends the query needed to gather the list of software installed on hosts, along with other metadata.
 
@@ -347,11 +362,11 @@ Whether or not Fleet sends the query needed to gather the list of software insta
   	enable_software_inventory: false
   ```
 
-### Fleet Desktop Settings
+#### Fleet Desktop Settings
 
 For more information about Fleet Desktop, see [Fleet Desktop's documentation](../../Using-Fleet/Fleet-desktop.md).
 
-#### fleet_desktop.transparency_url
+##### fleet_desktop.transparency_url
 
 _Available in Fleet Premium_. Sets a custom transparency URL page to take users of Fleet Desktop to.
 
@@ -363,11 +378,11 @@ _Available in Fleet Premium_. Sets a custom transparency URL page to take users 
     transparency_url: "https://example.org/transparency"
   ```
 
-### Host Expiry Settings
+#### Host Expiry Settings
 
 The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
 
-#### host_expiry_settings.host_expiry_enabled
+##### host_expiry_settings.host_expiry_enabled
 
 <!-- This section used to be named Host Expiry Enabled, this ensures links with the #host-expiry-enabled hash still work -->
 <span id="host-expiry-enabled" name="host-expiry-enabled"></span>
@@ -382,7 +397,7 @@ Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to
   	host_expiry_enabled: true
   ```
 
-#### host_expiry_settings.host_expiry_window
+##### host_expiry_settings.host_expiry_window
 
 <!-- This section used to be named Host Expiry Window, this ensures links with the #host-expiry-window hash still work -->
 <span id="host-expiry-window" name="host-expiry-window"></span>
@@ -397,17 +412,17 @@ If a host has not communicated with Fleet in the specified number of days, it wi
   	host_expiry_window: 10
   ```
 
-### Integrations
+#### Integrations
 
 For more information about integrations and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md). Only one automation can be enabled for a given automation type (e.g. for Failing Policies, only one of the webhook, the Jira integration or the Zendesk automation can be enabled).
 
 It is recommended to use the Fleet UI to configure integrations, as secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
 
-#### Jira
+##### Jira
 
 Jira integrations are configured under the `integrations.jira` field, which is an array of dictionaries.
 
-##### integrations.jira[].url
+###### integrations.jira[].url
 
 The URL of the Jira server to use, including the scheme (e.g. "https://").
 
@@ -423,7 +438,7 @@ The URL of the Jira server to use, including the scheme (e.g. "https://").
         project_key: "PJ1"
   ```
 
-##### integrations.jira[].username
+###### integrations.jira[].username
 
 > **Warning:** Be careful not to store your Jira credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
 
@@ -441,7 +456,7 @@ The username to use to authenticate with the Jira server for API requests.
         project_key: "PJ1"
   ```
 
-##### integrations.jira[].api_token
+###### integrations.jira[].api_token
 
 > **Warning:** Be careful not to store your Jira credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
 
@@ -459,7 +474,7 @@ The API token to use to authenticate with the Jira server for API requests.
         project_key: "PJ1"
   ```
 
-##### integrations.jira[].project_key
+###### integrations.jira[].project_key
 
 The Jira project key to use to create tickets.
 
@@ -475,7 +490,7 @@ The Jira project key to use to create tickets.
         project_key: "PJ1"
   ```
 
-##### integrations.jira[].enable_failing_policies
+###### integrations.jira[].enable_failing_policies
 
 Whether the integration is configured to create Jira tickets for failing policies.
 
@@ -492,7 +507,7 @@ Whether the integration is configured to create Jira tickets for failing policie
         enable_failing_policies: true
   ```
 
-##### integrations.jira[].enable_software_vulnerabilities
+###### integrations.jira[].enable_software_vulnerabilities
 
 Whether the integration is configured to create Jira tickets for recent software vulnerabilities.
 
@@ -509,11 +524,11 @@ Whether the integration is configured to create Jira tickets for recent software
         enable_software_vulnerabilities: true
   ```
 
-#### Zendesk
+##### Zendesk
 
 Zendesk integrations are configured under the `integrations.zendesk` field, which is an array of dictionaries.
 
-##### integrations.zendesk[].url
+###### integrations.zendesk[].url
 
 The URL of the Zendesk server to use, including the scheme (e.g. "https://").
 
@@ -529,7 +544,7 @@ The URL of the Zendesk server to use, including the scheme (e.g. "https://").
         group_id: 1234
   ```
 
-##### integrations.zendesk[].email
+###### integrations.zendesk[].email
 
 > **Warning:** Be careful not to store your Zendesk credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
 
@@ -547,7 +562,7 @@ The email address to use to authenticate with the Zendesk server for API request
         group_id: 1234
   ```
 
-##### integrations.zendesk[].api_token
+###### integrations.zendesk[].api_token
 
 > **Warning:** Be careful not to store your Zendesk credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
 
@@ -565,7 +580,7 @@ The API token to use to authenticate with the Zendesk server for API requests.
         group_id: 1234
   ```
 
-##### integrations.zendesk[].group_id
+###### integrations.zendesk[].group_id
 
 The group ID to use to create tickets.
 
@@ -581,7 +596,7 @@ The group ID to use to create tickets.
         group_id: 1234
   ```
 
-##### integrations.zendesk[].enable_failing_policies
+###### integrations.zendesk[].enable_failing_policies
 
 Whether the integration is configured to create Zendesk tickets for failing policies.
 
@@ -598,7 +613,7 @@ Whether the integration is configured to create Zendesk tickets for failing poli
         enable_failing_policies: true
   ```
 
-##### integrations.zendesk[].enable_software_vulnerabilities
+###### integrations.zendesk[].enable_software_vulnerabilities
 
 Whether the integration is configured to create Zendesk tickets for recent software vulnerabilities.
 
@@ -615,9 +630,9 @@ Whether the integration is configured to create Zendesk tickets for recent softw
         enable_software_vulnerabilities: true
   ```
 
-### Organization Information
+#### Organization Information
 
-#### org_info.org_name
+##### org_info.org_name
 
 The name of the organization.
 
@@ -629,7 +644,7 @@ The name of the organization.
   	org_name: Fleet
   ```
 
-#### org_info.org_logo_url
+##### org_info.org_logo_url
 
 The URL of the logo of the organization.
 
@@ -641,9 +656,9 @@ The URL of the logo of the organization.
   	org_logo_url: https://example.com/logo.png
   ```
 
-### Server Settings
+#### Server Settings
 
-#### server_settings.debug_host_ids
+##### server_settings.debug_host_ids
 
 <!-- This section used to be named Debug host, this ensures links with the #debug-host hash still work -->
 <span id="debug-host" name="debug-host"></span>
@@ -689,7 +704,7 @@ in a public channel or a GitHub issue.
       - 98
   ```
 
-#### server_settings.deferred_save_host
+##### server_settings.deferred_save_host
 
 Whether saving host-related information is done synchronously in the HTTP handler of the host's request, or asynchronously. This can provide better performance in deployments with many hosts. Note that this is an **experimental feature** (TODO(mna): is it?).
 
@@ -701,7 +716,7 @@ Whether saving host-related information is done synchronously in the HTTP handle
     deferred_save_host: true
   ```
 
-#### server_settings.enable_analytics
+##### server_settings.enable_analytics
 
 If sending usage analytics is enabled or not.
 
@@ -713,7 +728,7 @@ If sending usage analytics is enabled or not.
     enable_analytics: false
   ```
 
-#### server_settings.live_query_disabled
+##### server_settings.live_query_disabled
 
 If the live query feature is disabled or not.
 
@@ -725,7 +740,7 @@ If the live query feature is disabled or not.
     live_query_disabled: true
   ```
 
-#### server_settings.server_url
+##### server_settings.server_url
 
 The base URL of the fleet server, including the scheme (e.g. "https://").
 
@@ -737,12 +752,12 @@ The base URL of the fleet server, including the scheme (e.g. "https://").
     server_url: https://fleet.example.org:8080
   ```
 
-### SMTP Settings
+#### SMTP Settings
 
 <!-- This section replaced a section named SMTP authentication, this ensures links with the #smtp-authentication hash still work -->
 <span id="smtp-authentication" name="smtp-authentication"></span>
 
-#### smtp_settings.authentication_method
+##### smtp_settings.authentication_method
 
 The authentication method to use when the authentication type is `authtype_username_password`.
 
@@ -758,7 +773,7 @@ The authentication method to use when the authentication type is `authtype_usern
     authentication_method: authmethod_cram_md5
   ```
 
-#### smtp_settings.authentication_type
+##### smtp_settings.authentication_type
 
 The type of authentication for the configured SMTP server.
 
@@ -773,7 +788,7 @@ The type of authentication for the configured SMTP server.
     authentication_type: authtype_none
   ```
 
-#### smtp_settings.domain
+##### smtp_settings.domain
 
 The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as there's also smtp server? Doesn't appear to be used?)
 
@@ -785,7 +800,7 @@ The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as ther
     domain: example.org
   ```
 
-#### smtp_settings.enable_smtp
+##### smtp_settings.enable_smtp
 
 Whether SMTP support is enabled or not to send emails from Fleet.
 
@@ -797,7 +812,7 @@ Whether SMTP support is enabled or not to send emails from Fleet.
     enable_smtp: true
   ```
 
-#### smtp_settings.enable_ssl_tls
+##### smtp_settings.enable_ssl_tls
 
 TODO(mna): doesn't seem to be used?
 Whether to enable SSL/TLS for the SMTP connection.
@@ -810,7 +825,7 @@ Whether to enable SSL/TLS for the SMTP connection.
     enable_ssl_tls: false
   ```
 
-#### smtp_settings.enable_start_tls
+##### smtp_settings.enable_start_tls
 
 Whether to detect if TLS is used by the SMTP server and start using it if so.
 
@@ -822,7 +837,7 @@ Whether to detect if TLS is used by the SMTP server and start using it if so.
     enable_start_tls: false
   ```
 
-#### smtp_settings.password
+##### smtp_settings.password
 
 > **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
 
@@ -836,7 +851,7 @@ The password to use for the SMTP authentication, when `authentication_type` is s
     password: supersekretsmtppass
   ```
 
-#### smtp_settings.port
+##### smtp_settings.port
 
 The port to use to connect to the SMTP server.
 
@@ -848,7 +863,7 @@ The port to use to connect to the SMTP server.
     port: 5870
   ```
 
-#### smtp_settings.sender_address
+##### smtp_settings.sender_address
 
 The email address to use as sender for emails sent by Fleet.
 
@@ -860,7 +875,7 @@ The email address to use as sender for emails sent by Fleet.
     sender_address: fleet@example.org
   ```
 
-#### smtp_settings.server
+##### smtp_settings.server
 
 The server hostname for SMTP.
 
@@ -872,7 +887,7 @@ The server hostname for SMTP.
     server: mail.example.org
   ```
 
-#### smtp_settings.user_name
+##### smtp_settings.user_name
 
 > **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
 
@@ -886,7 +901,7 @@ The username to use for the SMTP authentication, when `authentication_type` is s
     user_name: test_user
   ```
 
-#### smtp_settings.verify_ssl_certs
+##### smtp_settings.verify_ssl_certs
 
 Whether the SMTP server's SSL certificates should be verified. Can be turned off if self-signed certificates are used by the SMTP server.
 
@@ -898,11 +913,11 @@ Whether the SMTP server's SSL certificates should be verified. Can be turned off
     verify_ssl_certs: false
   ```
 
-### SSO Settings
+#### SSO Settings
 
 For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
 
-#### sso_settings.enable_jit_provisioning
+##### sso_settings.enable_jit_provisioning
 
 _Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
 
@@ -914,7 +929,7 @@ _Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Dep
     enable_jit_provisioning: true
   ```
 
-#### sso_settings.enable_sso
+##### sso_settings.enable_sso
 
 Configures if single sign-on is enabled.
 
@@ -926,7 +941,7 @@ Configures if single sign-on is enabled.
     enable_sso: true
   ```
 
-#### sso_settings.enable_sso_idp_login
+##### sso_settings.enable_sso_idp_login
 
 Allow single sign-on login initiated by identity provider.
 
@@ -938,7 +953,7 @@ Allow single sign-on login initiated by identity provider.
     enable_sso_idp_login: true
   ```
 
-#### sso_settings.entity_id
+##### sso_settings.entity_id
 
 The required entity ID is a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration.
 
@@ -950,7 +965,7 @@ The required entity ID is a Uniform Resource Identifier (URI) that you use to id
     entity_id: "https://example.com"
   ```
 
-#### sso_settings.idp_image_url
+##### sso_settings.idp_image_url
 
 An optional link to an image such as a logo for the identity provider.
 
@@ -962,7 +977,7 @@ An optional link to an image such as a logo for the identity provider.
     idp_image_url: "https://example.com/logo"
   ```
 
-#### sso_settings.idp_name
+##### sso_settings.idp_name
 
 A required human-friendly name for the identity provider that will provide single sign-on authentication.
 
@@ -974,7 +989,7 @@ A required human-friendly name for the identity provider that will provide singl
     idp_name: "SimpleSAML"
   ```
 
-#### sso_settings.issuer_uri
+##### sso_settings.issuer_uri
 
 The issuer URI supplied by the identity provider. TODO(mna): is this used? The field does not appear used anywhere. We do request it on the frontend.
 
@@ -986,7 +1001,7 @@ The issuer URI supplied by the identity provider. TODO(mna): is this used? The f
     issuer_uri: "https://example.com/saml2/sso-service"
   ```
 
-#### sso_settings.metadata
+##### sso_settings.metadata
 
 Metadata (in XML format) provided by the identity provider.
 
@@ -998,7 +1013,7 @@ Metadata (in XML format) provided by the identity provider.
     metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
   ```
 
-#### sso_settings.metadata_url
+##### sso_settings.metadata_url
 
 A URL that references the identity provider metadata.
 
@@ -1010,9 +1025,9 @@ A URL that references the identity provider metadata.
     metadata_url: https://idp.example.org/idp-meta.xml
   ```
 
-### Vulnerability Settings
+#### Vulnerability Settings
 
-#### vulnerability_settings.databases_path
+##### vulnerability_settings.databases_path
 
 Path to a directory on the local filesystem (accessible to the Fleet server) where the various vulnerability databases will be stored.
 
@@ -1024,14 +1039,14 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
     databases_path: "/path/to/dir"
   ```
 
-### Webhook Settings
+#### Webhook Settings
 
 <!-- This section used to be named Webhooks, this ensures links with the #webhooks hash still work -->
 <span id="webhooks" name="webhooks"></span>
 
 For more information about webhooks and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md).
 
-#### webhook_settings.interval
+##### webhook_settings.interval
 
 The interval at which to check for webhook conditions. This value currently configures both the host status and failing policies webhooks (not the recent vulnerabilities webhook, see the [Recent vulnerabilities section](#recent-vulnerabilities) for details).
 
@@ -1043,11 +1058,11 @@ The interval at which to check for webhook conditions. This value currently conf
     interval: "12h"
   ```
 
-#### Failing Policies
+##### Failing Policies
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
-##### webhook_settings.failing_policies_webhook.destination_url
+###### webhook_settings.failing_policies_webhook.destination_url
 
 The URL to `POST` to when the condition for the webhook triggers.
 
@@ -1060,7 +1075,7 @@ The URL to `POST` to when the condition for the webhook triggers.
       destination_url: "https://example.org/webhook_handler"
   ```
 
-##### webhook_settings.failing_policies_webhook.enable_failing_policies_webhook
+###### webhook_settings.failing_policies_webhook.enable_failing_policies_webhook
 
 Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook *and* the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1073,7 +1088,7 @@ Defines whether to enable the failing policies webhook. Note that currently, if 
       enable_failing_policies_webhook: true
   ```
 
-##### webhook_settings.failing_policies_webhook.host_batch_size
+###### webhook_settings.failing_policies_webhook.host_batch_size
 
 Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one `POST` request.
 
@@ -1086,7 +1101,7 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
       host_batch_size: 100
   ```
 
-##### webhook_settings.failing_policies_webhook.policy_ids
+###### webhook_settings.failing_policies_webhook.policy_ids
 
 The IDs of the policies for which the webhook will be enabled.
 
@@ -1102,11 +1117,11 @@ The IDs of the policies for which the webhook will be enabled.
         - 3
   ```
 
-#### Host Status
+##### Host Status
 
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts are offline for the specified amount of time.
 
-##### webhook_settings.host_status_webhook.days_count
+###### webhook_settings.host_status_webhook.days_count
 
 Number of days that hosts need to be offline for to count as part of the percentage.
 
@@ -1119,7 +1134,7 @@ Number of days that hosts need to be offline for to count as part of the percent
       days_count: 5
   ```
 
-##### webhook_settings.host_status_webhook.destination_url
+###### webhook_settings.host_status_webhook.destination_url
 
 The URL to `POST` to when the condition for the webhook triggers.
 
@@ -1132,7 +1147,7 @@ The URL to `POST` to when the condition for the webhook triggers.
       destination_url: "https://example.org/webhook_handler"
   ```
 
-##### webhook_settings.host_status_webhook.enable_host_status_webhook
+###### webhook_settings.host_status_webhook.enable_host_status_webhook
 
 Defines whether the webhook check for host status will run or not.
 
@@ -1145,7 +1160,7 @@ Defines whether the webhook check for host status will run or not.
       enable_host_status_webhook: true
   ```
 
-##### webhook_settings.host_status_webhook.host_percentage
+###### webhook_settings.host_status_webhook.host_percentage
 
 The percentage of hosts that need to be offline to trigger the webhook.
 
@@ -1158,13 +1173,13 @@ The percentage of hosts that need to be offline to trigger the webhook.
       host_percentage: 10
   ```
 
-#### Recent vulnerabilities
+##### Recent vulnerabilities
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
 
 Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
 
-##### webhook_settings.vulnerabilities_webhook.destination_url
+###### webhook_settings.vulnerabilities_webhook.destination_url
 
 The URL to `POST` to when the condition for the webhook triggers.
 
@@ -1177,7 +1192,7 @@ The URL to `POST` to when the condition for the webhook triggers.
       destination_url: "https://example.org/webhook_handler"
   ```
 
-##### webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook
+###### webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook
 
 Defines whether to enable the vulnerabilities webhook.
 
@@ -1190,7 +1205,7 @@ Defines whether to enable the vulnerabilities webhook.
       enable_vulnerabilities_webhook: true
   ```
 
-##### webhook_settings.vulnerabilities_webhook.host_batch_size
+###### webhook_settings.vulnerabilities_webhook.host_batch_size
 
 Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts affected will be sent on one `POST` request.
 
@@ -1203,13 +1218,13 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
       host_batch_size: 100
   ```
 
-### Agent options
+#### Agent options
 
 The `agent_options` key describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
 
 > In Fleet v4.0.0, "osquery options" are renamed to "agent options" and are now configured using the organization settings (config) configuration file. [Check out out the Fleet v3 documentation](https://github.com/fleetdm/fleet/blob/3.13.0/docs/1-Using-Fleet/2-fleetctl-CLI.md#update-osquery-options) if you're using an older version of Fleet.
 
-#### Overrides option
+##### Overrides option
 
 The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
 
@@ -1291,7 +1306,7 @@ spec:
     # ...
 ```
 
-### Auto table construction
+##### Auto table construction
 
 You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
 
@@ -1320,7 +1335,7 @@ spec:
                 - "last_modified"
 ```
 
-### YARA configuration
+##### YARA configuration
 
 You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
 
