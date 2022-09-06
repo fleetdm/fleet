@@ -445,8 +445,8 @@ type AggregatedMDMStatus struct {
 // MDMSolution represents a single MDM solution, as returned by the list hosts
 // endpoint when an MDM Solution ID is provided as filter.
 type MDMSolution struct {
-	ID        uint   `json:"id,omitempty" db:"id"`
-	Name      string `json:"name,omitempty" db:"name"`
+	ID        uint   `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
 	ServerURL string `json:"server_url" db:"server_url"`
 }
 

@@ -100,7 +100,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.MDMIDFilter != nil {
 		var err error
 		mdmSolution, err = svc.GetMDMSolution(ctx, *req.Opts.MDMIDFilter)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the MDM solution in that case
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -109,7 +109,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.MunkiIssueIDFilter != nil {
 		var err error
 		munkiIssue, err = svc.GetMunkiIssue(ctx, *req.Opts.MunkiIssueIDFilter)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the munki issue in that case
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -141,13 +141,7 @@ func (svc *Service) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMS
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
-	sol, err := svc.ds.GetMDMSolution(ctx, mdmID)
-	if err != nil && fleet.IsNotFound(err) {
-		// ignore not found, just return nil (we don't want the caller - e.g. List
-		// Hosts - to return 404 because of that)
-		return nil, nil
-	}
-	return sol, err
+	return svc.ds.GetMDMSolution(ctx, mdmID)
 }
 
 func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
@@ -155,13 +149,7 @@ func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*flee
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
-	iss, err := svc.ds.GetMunkiIssue(ctx, munkiIssueID)
-	if err != nil && fleet.IsNotFound(err) {
-		// ignore not found, just return nil (we don't want the caller - e.g. List
-		// Hosts - to return 404 because of that)
-		return nil, nil
-	}
-	return iss, err
+	return svc.ds.GetMunkiIssue(ctx, munkiIssueID)
 }
 
 func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
