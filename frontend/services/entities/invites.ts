@@ -40,17 +40,8 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  loadAll: ({
-    page = 0,
-    perPage = 20,
-    globalFilter = "",
-    sortBy = [],
-  }: IInviteSearchOptions) => {
+  loadAll: ({ globalFilter = "", sortBy = [] }: IInviteSearchOptions) => {
     const { INVITES } = endpoints;
-
-    // NOTE: this code is duplicated from /entities/users.js
-    // we should pull this out into shared utility at some point.
-    const pagination = `page=${page}&per_page=${perPage}`;
 
     let orderKeyParam = "";
     let orderDirection = "";
@@ -64,10 +55,10 @@ export default {
 
     let searchQuery = "";
     if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
+      searchQuery = `query=${globalFilter}`;
     }
 
-    const path = `${INVITES}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+    const path = `${INVITES}?${searchQuery}${orderKeyParam}${orderDirection}`;
 
     return sendRequest("GET", path).then((response) => {
       const { invites } = response;

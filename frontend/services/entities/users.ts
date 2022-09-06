@@ -93,16 +93,11 @@ export default {
     return sendRequest("POST", FORGOT_PASSWORD, { email });
   },
   loadAll: ({
-    page = 0,
-    perPage = 20,
     globalFilter = "",
     sortBy = [],
     teamId,
   }: IUserSearchOptions = {}) => {
     const { USERS } = endpoints;
-
-    // TODO: add this query param logic to client class
-    const pagination = `page=${page}&per_page=${perPage}`;
 
     let orderKeyParam = "";
     let orderDirection = "";
@@ -124,7 +119,7 @@ export default {
       teamQuery = `&team_id=${teamId}`;
     }
 
-    const path = `${USERS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}${teamQuery}`;
+    const path = `${USERS}?${searchQuery}${orderKeyParam}${orderDirection}${teamQuery}`;
 
     return sendRequest("GET", path).then((response) => {
       const { users } = response;
