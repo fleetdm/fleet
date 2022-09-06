@@ -20,6 +20,7 @@ This proposal aims to document the plan to make Fleet an MDM server for Apple de
 Agreed upon simplifications:
 - We will not make use of the "teams" feature for MDM. In other words, all MDM settings and entities will be applied globally.
 - All MDM interface will be through `fleetctl` commands: `fleetctl apple-mdm <commands>`.
+- We will use https://mdmcert.download as MDM vendor to get a APNs certificate. (Instead of blocking on "Fleet DM" becoming an "MDM Vendor")
 
 This document describes the plan for the "Dogfood-MVP" deliverable. 
 
