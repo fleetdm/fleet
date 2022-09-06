@@ -104,10 +104,8 @@ func main() {
 				for {
 					refetchToken()
 					_, err := client.ListDevicePolicies(tokenReader.GetCached())
-					log.Error().Msgf("checking device policies, err: %e", err)
-
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
-						log.Info().Msg("enabling tray items")
+						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")

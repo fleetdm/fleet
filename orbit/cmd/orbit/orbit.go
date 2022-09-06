@@ -506,10 +506,10 @@ func main() {
 			// least one hour has passed since the last modification of the token
 			// file.
 			//
-			// This is better than using a ticker that rotates the token every hour
-			// because the we can't ensure the tick actually runs every hour (eg: the
-			// computer is asleep).
-			rotationDuration := 1 * time.Minute
+			// This is better than using a ticker that ticks every hour because the
+			// we can't ensure the tick actually runs every hour (eg: the computer is
+			// asleep).
+			rotationDuration := 30 * time.Second
 			rotationTicker := time.NewTicker(rotationDuration)
 			defer rotationTicker.Stop()
 
