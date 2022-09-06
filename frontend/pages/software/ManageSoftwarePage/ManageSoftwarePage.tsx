@@ -399,7 +399,13 @@ const ManageSoftwarePage = ({
     }
 
     return null;
-  }, [isFetchingCount, software, softwareCountError, softwareCount]);
+  }, [
+    isFetchingCount,
+    software,
+    softwareCountError,
+    softwareCount,
+    isSoftwareEnabled,
+  ]);
 
   // TODO: retool this with react-router location descriptor objects
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
