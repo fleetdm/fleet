@@ -63,7 +63,7 @@ documentation](./Adding-hosts.md#automatically-adding-hosts-to-a-team).
 > secret will not cause the host to be transferred to the desired team. You must delete the
 > `osquery/osquery.db` file on the host, which forces the host to re-enroll
 > using the new team enroll secret. Alternatively, you can transfer the host via the Fleet UI, the
-> Fleet CLI using `fleetctl hosts transfer`, or the [transfer host API endpoint](https://fleetdm.com/docs/using-fleet/rest-api#transfer-hosts-to-a-team).
+> fleetctl CLI using `fleetctl hosts transfer`, or the [transfer host API endpoint](https://fleetdm.com/docs/using-fleet/rest-api#transfer-hosts-to-a-team).
 
 ## Transfer hosts to a team
 
