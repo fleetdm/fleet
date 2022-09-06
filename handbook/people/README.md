@@ -185,6 +185,24 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
+### Gong
+
+Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry.
+
+At Fleet, we use Gong to capture Zoom meetings and share them company-wide if a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
+
+While some other Fleeties may have a Gong seat if it becomes necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." If the call has external participants and is recorded, this call is stored in Gong for future use. In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  You cannot use Gong to record calls hosted by external parties.
+
+To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong. To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
+
+Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, words and phrases in the Zoom call title will disable the Gong recording for the call. 1 on 1, 1:1, confidential, interview, internal and no shadows are some commonly used words that will disable Gong. A complete list can be found [here](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).  If you need words added to the list of exlusionary words, please reach out to Nathan Holliday.
+
+We have excluded anyone with an email domain from @cooley.com or @formationfinancial.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal.  
+
+Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
+
+If you need help using Gong, please check out Gong Acaedmy at [https://academy.gong.io/](https://academy.gong.io/).
+
 ## Slack
 
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
