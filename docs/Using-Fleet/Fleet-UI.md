@@ -37,7 +37,7 @@ How to run a query:
 
 3. Select **Run query** to navigate to the target picker. Select **All hosts** and select **Run**. This will run the query against all your hosts.
 
-The query may take several seconds to complete, because Fleet has to wait for the hosts to respond with results.
+The query may take several seconds to complete because Fleet has to wait for the hosts to respond with results.
 
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
