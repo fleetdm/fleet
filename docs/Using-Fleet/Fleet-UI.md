@@ -57,7 +57,7 @@ How to schedule a query:
 
 5. Select **Schedule**.
 
-To see instructions which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
+To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
 
 <meta name="title" value="Fleet UI">
 
