@@ -1,3 +1,7 @@
+## Orbit 1.1.0 (Aug 19, 2022)
+
+* Rename `unified_log` table to `macadmins_unified_log` to avoid collision with osquery core. This allows Orbit to support osquery 5.5.0.
+
 ## Orbit 1.0.0 (July 14, 2022)
 
 - Update the dropdown in Fleet Desktop to show the number of failing policies along with the status.

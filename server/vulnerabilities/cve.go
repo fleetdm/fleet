@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -112,19 +110,13 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	// Skip entries from platforms supported by OVAL
-	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
+	CPEs, err := ds.ListSoftwareCPEs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var parsed []softwareCPEWithNVDMeta
 	for _, CPE := range CPEs {
-		// Skip dummy CPEs
-		if strings.HasPrefix(CPE.CPE, "none") {
-			continue
-		}
-
 		attr, err := wfn.Parse(CPE.CPE)
 		if err != nil {
 			return nil, err
@@ -206,7 +198,6 @@ func checkCVEs(
 							}
 							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
 								SoftwareID: softwareCPE.SoftwareID,
-								CPEID:      softwareCPE.ID,
 								CVE:        cveID,
 							})
 						}

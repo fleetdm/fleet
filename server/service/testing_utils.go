@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -286,7 +286,7 @@ func testUnrecognizedPluginConfig() config.FleetConfig {
 }
 
 func assertBodyContains(t *testing.T, resp *http.Response, expected string) {
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	require.Nil(t, err)
 	bodyString := string(bodyBytes)
 	assert.Contains(t, bodyString, expected)

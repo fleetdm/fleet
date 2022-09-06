@@ -1034,7 +1034,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, and hosts' last seen timestamp. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, hosts' last seen timestamp and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1043,6 +1043,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
 * `label_membership` for updating the hosts' label query execution;
 * `policy_membership` for updating the hosts' policy membership results;
 * `host_last_seen` for updating the hosts' last seen timestamp.
+* `scheduled_query_stats` for saving the hosts' scheduled query statistics.
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
@@ -2055,7 +2056,10 @@ How often vulnerabilities are checked. This is also the interval at which the co
 
 ##### cpe_database_url
 
-URL to fetch the CPE dictionary database from. Some users want to control where Fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+You can fetch the CPE dictionary database from this URL. Some users want to control where Fleet gets its database.
+When Fleet sees this value defined, it downloads the file directly.
+It expects a file in the same format that can be found in https://github.com/fleetdm/nvd/releases.
+If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
@@ -2065,16 +2069,35 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
   	cpe_database_url: ""
   ```
 
+##### cpe_translations_url
+
+You can fetch the CPE translations from this URL.
+Translations are used when matching software to CPE entries in the CPE database that would otherwise be missed for various reasons.
+When Fleet sees this value defined, it downloads the file directly.
+It expects a file in the same format that can be found in https://github.com/fleetdm/nvd/releases.
+If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+
+- Default value: `""`
+- Environment variable: `FLEET_VULNERABILITIES_CPE_TRANSLATIONS_URL`
+- Config file format:
+  ```
+  vulnerabilities:
+  	cpe_translations_url: ""
+  ```
+
 ##### cve_feed_prefix_url
 
-Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
+Like the CPE dictionary, we allow users to define where to get the CVE feeds.
+In this case, the URL should be a host that serves the files in the path /feeds/json/cve/1.1/.
+Fleet expects to find all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds.
+When not defined, Fleet downloads from the nvd.nist.gov host.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
 - Config file format:
   ```
   vulnerabilities:
-  	cve_database_url: ""
+  	cve_feed_prefix_url: ""
   ```
 
 ##### current_instance_checks
@@ -2116,6 +2139,21 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
   vulnerabilities:
        recent_vulnerability_max_age: 48h
   ```
+
+### disable_win_os_vulnerabilities 
+
+If using osquery 5.4 or later, Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
+vulnerabilities — which might be a writing-intensive process (depending on the number of Windows hosts
+in your Fleet). Setting this to true will cause Fleet to skip both processes.
+
+- Default value: false
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_WIN_OS_VULNERABILITIES`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_win_os_vulnerabilities: true
+  ```
+
 
 ##### Example YAML
 
@@ -2231,7 +2269,101 @@ Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet.**_
+_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**_
+
+##### sso_settings.enable_sso
+
+Configures if single sign-on is enabled.
+
+- default value: false
+- config file format:
+  ```
+  sso_settings:
+    enable_sso: true
+  ```
+
+##### sso_settings.enable_sso_idp_login
+
+Allow single sign-on login initiated by identity provider.
+
+- default value: false
+- config file format:
+  ```
+  sso_settings:
+    enable_sso_idp_login: true
+  ```
+
+##### sso_settings.enable_jit_provisioning
+
+Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning)
+
+- default value: false
+- config file format:
+  ```
+  sso_settings:
+    enable_jit_provisioning: true
+  ```
+
+##### sso_settings.entity_id
+
+The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    entity_id: "https://example.com"
+
+##### sso_settings.idp_image_url
+
+An optional link to an image such as a logo for the identity provider.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    idp_image_url: "https://example.com/logo"
+
+##### sso_settings.idp_name
+
+A required human friendly name for the identity provider that will provide single sign-on authentication.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    idp_name: "SimpleSAML"
+
+##### sso_settings.issuer_uri
+
+The issuer URI supplied by the identity provider.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    issuer_uri: "https://example.com/saml2/sso-service"
+
+##### sso_settings.metadata
+
+Metadata provided by the identity provider. Either metadata or a metadata url must be provided.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    metadata: ""
+
+##### sso_settings.metadata_url
+
+A URL that references the identity provider metadata.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    metadata: "https://example.com/saml2/metadata"
+
 
 ### Identity provider (IDP) configuration
 
@@ -2286,8 +2418,28 @@ It is strongly recommended that at least one admin user is set up to use the tra
 configuration problems.
 
 > Individual users must also be set up on the IDP before signing in to Fleet.
+
 ### Enabling SSO for existing users in Fleet
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+
+### Just-in-time (JIT) user provisioning
+
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
+
+Accounts created via JIT provisioning are assigned the (Observer role)[https://fleetdm.com/docs/using-fleet/permissions]. The new account's email and full name are copied from the user data in the SSO response.
+
+To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+
+For this to work correctly make sure that:
+
+- Your IDP is configured to send the user email as the Name ID (instructions for configuring different providers are detailed below)
+- Your IDP sends the full name of the user as an attribute with any of the following names (if this value is not provided Fleet will fallback to the user email)
+  - `name`
+  - `displayname`
+  - `cn`
+  - `urn:oid:2.5.4.3`
+  - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
+
 
 #### Okta IDP configuration
 
@@ -2412,7 +2564,7 @@ If not set then the Prometheus `/metrics` endpoint is disabled.
 
 Configurations used to control how Fleet interacts with the (coming soon)
 packaging server.  These features are currently only intended to be used within
-Fleet Sandbox, but this is subject to change.
+Fleet sandbox, but this is subject to change.
 
 ##### packaging_global_enroll_secret
 

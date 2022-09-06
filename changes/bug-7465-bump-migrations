@@ -1,0 +1,4 @@
+Bumped up the following migrations:
+
+- 20220711104651_RemoveCpeIDColumnFromSoftwareCve
+- 20220809091020_AddWindowsUpdatesTable

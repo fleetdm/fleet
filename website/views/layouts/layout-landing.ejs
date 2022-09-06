@@ -7,16 +7,21 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %></title>
-    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <%// Twitter meta tags%>
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %>" />
-    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <%// Meta tags for other social previews %>
+    <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -107,8 +112,8 @@
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
           </a>
           <div class="d-sm-flex d-none flex-row align-items-center">
-            <a style="padding: 4px 16px; line-height: 24px; color: #000; font-weight: 700; text-decoration: none;" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=landing+demo+topnav">Schedule a demo</a>
-            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary d-flex" href="/get-started?tryitnow" >Try it out</a>
+            <a style="padding: 4px 16px; line-height: 24px; color: #000; font-weight: 700; text-decoration: none;" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=landing+demo+topnav">Talk to an expert</a>
+            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
           </div>
         </div>
       </div>
@@ -227,6 +232,10 @@
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
+    <script src="/js/pages/try-fleet/register.page.js"></script>
+    <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
+    <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
+    <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

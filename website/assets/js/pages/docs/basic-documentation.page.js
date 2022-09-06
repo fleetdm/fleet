@@ -109,7 +109,7 @@ parasails.registerPage('basic-documentation', {
     // console.log(subtopics);
 
     this.subtopics = (() => {
-      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
+      let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
@@ -251,7 +251,6 @@ parasails.registerPage('basic-documentation', {
 
     scrollSideNavigationWithHeader: function () {
       var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       if(rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
@@ -261,17 +260,6 @@ parasails.registerPage('basic-documentation', {
             rightNavBar.classList.remove('header-hidden', 'scrolled');
           } else {
             rightNavBar.classList.remove('header-hidden');
-          }
-        }
-      }
-      if(leftNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
-          leftNavBar.classList.add('header-hidden', 'scrolled');
-        } else {
-          if(scrollTop === 0) {
-            leftNavBar.classList.remove('header-hidden', 'scrolled');
-          } else {
-            leftNavBar.classList.remove('header-hidden');
           }
         }
       }

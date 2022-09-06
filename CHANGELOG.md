@@ -1,5 +1,102 @@
+## Fleet 4.19.1 (Sep 1, 2022)
 
-## Fleet 4.17.0 (July 8, 2022)
+* Fix a migration error that may occur when upgrading to Fleet 4.19.0.
+
+* Fix a bug in which the incorrect operating system was displayed for Windows hosts on the **Hosts** page and **Host details** page.
+
+## Fleet 4.19.0 (Aug 22, 2022)
+
+* Warning: Please upgrade to 4.19.1 instead of 4.19.0 due to a migration error included in 4.19.0. Like all releases, Fleet 4.19.1 includes all changes included in 4.19.0.
+
+* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+
+* Fleet Premium: Added support for Just-in-time (JIT) user provisioning via SSO. This adds the ability to
+automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
+Fleet accounts are given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
+
+* Improved performance for aggregating software inventory. Aggregate software inventory is displayed on the **Software page** in the Fleet UI.
+
+* Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software).
+
+* Added a **Mobile device management (MDM) solutions** table to the **Home > macOS** page. This table allows users to see a list of all MDM solutions their hosts are enrolled to and drill down to see which hosts are enrolled to each solution. Note that MDM solutions data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a **Operating systems** table to the **Home > Windows** page. This table allows users to see a list of all Windows operating systems (ex. Windows 10 Pro 21H2) their hosts are running and drill down to see which hosts are running which version. Note that Windows operating system data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a message in `fleetctl` to that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
+
+* Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
+individual host's **Host details** page.
+
+* Improved the Fleet UI by adding consistent styling for **Cancel** buttons.
+
+* Improved the **Queries**, **Schedule**, and **Policies** pages in the Fleet UI by page size to 20
+  items. 
+
+* Improve the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
+
+* Added support for asynchronous saving of the hosts' scheduled query statistics. This is an
+experimental feature and should only be used if you're seeing performance issues. Documentation
+for this feature can be found [here on fleetdm.com](https://fleetdm.com/docs/deploying/configuration#osquery-enable-async-host-processing).
+
+* Fixed a bug in which the **Operating system** and **Munki versions** cards on the **Home > macOS**
+page would not stack vertically at smaller screen widths.
+
+* Fixed a bug in which multiple Fleet Desktop icons would appear on macOS computers.
+
+* Fixed a bug that prevented Windows (`.msi`) installers from being generated on Windows machines.
+
+## Fleet 4.18.0 (Aug 1, 2022)
+
+* Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
+
+* Introduced rate limiting for device authorized endpoints to improve the security of Fleet Desktop. 
+
+* Improved styling for tooltips, dropdowns, copied text, checkboxes and buttons. 
+
+* Fixed a bug in the Fleet UI causing text to be truncated in tables. 
+
+* Fixed a bug affecting software vulnerabilities count in Host Details.
+
+* Fixed "Select Targets" search box and updated to reflect currently supported search values: hostname, UUID, serial number, or IPv4.
+
+* Improved disk space reporting in Host Details. 
+
+* Updated frequency formatting for Packs to match Schedules. 
+
+* Replaced "hosts" count with "results" count for live queries.
+
+* Replaced "Uptime" with "Last restarted" column in Host Details.
+
+* Removed vulnerabilities that do not correspond to a CVE in Fleet UI and API.
+
+* Added standard password requirements when users are created by an admin.
+
+* Updated the regexp we use for detecting the major/minor version on OS platforms.
+
+* Improved calculation of battery health based on cycle count. “Normal” corresponds to cycle count < 1000 and “Replacement recommended” corresponds to cycle count >= 1000.
+
+* Fixed an issue with double quotes usage in SQL query, caused by enabling `ANSI_QUOTES` in MySQL.
+
+* Added automated tests for Fleet upgrades.
+
+## Fleet 4.17.1 (Jul 22, 2022)
+
+* Fixed a bug causing an error when converting users to SSO login. 
+
+* Fixed a bug causing the **Edit User** modal to hang when editing multiple users.
+
+* Fixed a bug that caused Ubuntu hosts to display an inaccurate OS version. 
+
+* Fixed a bug affecting exporting live query results.
+
+* Fixed a bug in the Fleet UI affecting live query result counts.
+
+* Improved **Battery Health** processing to better reflect the health of batteries for M1 Macs.
+
+## Fleet 4.17.0 (Jul 8, 2022)
+
+* Added the number of hosts enrolled by operating system (OS) and its version to usage statistics. Also added the weekly active users count to usage statistics.
+Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
 
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
@@ -29,11 +126,7 @@
 
 * Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
-* Fixed SQL generated for operating system version policies to reduce false negatives
-
-* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
-
-* Added the weekly active users count to anonymous usage statistics.
+* Fixed SQL generated for operating system version policies to reduce false negatives.
 
 ## Fleet 4.16.0 (Jun 20, 2022)
 

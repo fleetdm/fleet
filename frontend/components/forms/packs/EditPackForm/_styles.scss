@@ -1,6 +1,6 @@
 .edit-pack-form {
   h1 {
-    margin: 0 0 20px;
+    margin: $pad-medium 0;
   }
 
   &__pack-title {
@@ -24,11 +24,9 @@
   }
 
   &__pack-buttons {
-    margin: $pad-large 0;
-    text-align: right;
-
-    .button {
-      margin-left: 15px;
-    }
+    display: flex;
+    justify-content: flex-end;
+    margin-top: $pad-large;
+    gap: $pad-medium;
   }
 }

@@ -8,7 +8,7 @@
 
   &__logo {
     @include position(absolute, 24px null null 24px);
-    width: 120px;
+    width: 20px;
 
     @include breakpoint(tablet) {
       width: 125px;
@@ -16,5 +16,9 @@
       display: block;
       margin: 15px 0 0 15px;
     }
+  }
+
+  &__flash-message {
+    top: 180px;
   }
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -118,6 +119,7 @@ func TestGetTeams(t *testing.T) {
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+			additionalQueries := json.RawMessage(`{"foo":"bar"}`)
 			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 				created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 				require.NoError(t, err)
@@ -128,6 +130,12 @@ func TestGetTeams(t *testing.T) {
 						Name:        "team1",
 						Description: "team1 description",
 						UserCount:   99,
+						Config: fleet.TeamConfig{
+							Features: fleet.Features{
+								EnableHostUsers:         true,
+								EnableSoftwareInventory: true,
+							},
+						},
 					},
 					{
 						ID:          43,
@@ -137,6 +145,9 @@ func TestGetTeams(t *testing.T) {
 						UserCount:   87,
 						Config: fleet.TeamConfig{
 							AgentOptions: &agentOpts,
+							Features: fleet.Features{
+								AdditionalQueries: &additionalQueries,
+							},
 						},
 					},
 				}, nil
@@ -157,6 +168,9 @@ spec:
   team:
     created_at: "1999-03-10T02:45:06.371Z"
     description: team1 description
+    features:
+      enable_host_users: true
+      enable_software_inventory: true
     host_count: 0
     id: 42
     integrations:
@@ -184,6 +198,11 @@ spec:
             foo: override
     created_at: "1999-03-10T02:45:06.371Z"
     description: team2 description
+    features:
+      additional_queries:
+        foo: bar
+      enable_host_users: false
+      enable_software_inventory: false
     host_count: 0
     id: 43
     integrations:
@@ -198,8 +217,8 @@ spec:
         host_batch_size: 0
         policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
@@ -406,7 +425,7 @@ func TestGetHosts(t *testing.T) {
 			name:       "get hosts --yaml test_host",
 			goldenFile: "expectedHostDetailResponseYaml.yml",
 			scanner: func(s string) []string {
-				return splitYaml(s)
+				return spec.SplitYaml(s)
 			},
 			args:       []string{"get", "hosts", "--yaml", "test_host"},
 			prettifier: yamlPrettify,
@@ -433,7 +452,7 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings:          fleet.HostSettings{EnableHostUsers: true},
+			Features:              fleet.Features{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 		}, nil
 	}
@@ -448,7 +467,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  host_settings:
+  features:
     enable_host_users: true
     enable_software_inventory: false
   integrations:
@@ -477,6 +496,7 @@ spec:
     user_name: ""
     verify_ssl_certs: false
   sso_settings:
+    enable_jit_provisioning: false
     enable_sso: false
     enable_sso_idp_login: false
     entity_id: ""
@@ -504,16 +524,86 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"fleet_desktop":{"transparency_url":"https://fleetdm.com/transparency"},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null,"zendesk":null}}}
+		expectedJson := `
+{
+  "kind": "config",
+  "apiVersion": "v1",
+  "spec": {
+    "org_info": { "org_name": "", "org_logo_url": "" },
+    "server_settings": {
+      "server_url": "",
+      "live_query_disabled": false,
+      "enable_analytics": false,
+      "deferred_save_host": false
+    },
+    "smtp_settings": {
+      "enable_smtp": false,
+      "configured": false,
+      "sender_address": "",
+      "server": "",
+      "port": 0,
+      "authentication_type": "",
+      "user_name": "",
+      "password": "",
+      "enable_ssl_tls": false,
+      "authentication_method": "",
+      "domain": "",
+      "verify_ssl_certs": false,
+      "enable_start_tls": false
+    },
+    "host_expiry_settings": {
+      "host_expiry_enabled": false,
+      "host_expiry_window": 0
+    },
+    "features": {
+      "enable_host_users": true,
+      "enable_software_inventory": false
+    },
+    "sso_settings": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "idp_image_url": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": "",
+      "enable_jit_provisioning": false,
+      "enable_sso": false,
+      "enable_sso_idp_login": false
+    },
+    "fleet_desktop": { "transparency_url": "https://fleetdm.com/transparency" },
+    "vulnerability_settings": { "databases_path": "/some/path" },
+    "webhook_settings": {
+      "host_status_webhook": {
+        "enable_host_status_webhook": false,
+        "destination_url": "",
+        "host_percentage": 0,
+        "days_count": 0
+      },
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      },
+      "vulnerabilities_webhook": {
+        "enable_vulnerabilities_webhook": false,
+        "destination_url": "",
+        "host_batch_size": 0
+      },
+      "interval": "0s"
+    },
+    "integrations": { "jira": null, "zendesk": null }
+  }
+}
 `
 
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
-		expectedYaml := `---
+		expectedYAML := `---
 apiVersion: v1
 kind: config
 spec:
@@ -522,7 +612,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  host_settings:
+  features:
     enable_host_users: true
     enable_software_inventory: false
   integrations:
@@ -571,6 +661,7 @@ spec:
     user_name: ""
     verify_ssl_certs: false
   sso_settings:
+    enable_jit_provisioning: false
     enable_sso: false
     enable_sso_idp_login: false
     entity_id: ""
@@ -584,10 +675,12 @@ spec:
     osquery_policy: 1h0m0s
   vulnerabilities:
     cpe_database_url: ""
+    cpe_translations_url: ""
     current_instance_checks: ""
     cve_feed_prefix_url: ""
     databases_path: ""
     disable_data_sync: false
+    disable_win_os_vulnerabilities: false
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:
@@ -609,12 +702,133 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"fleet_desktop":{"transparency_url":"https://fleetdm.com/transparency"},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null,"zendesk":null},"update_interval":{"osquery_detail":"1h0m0s","osquery_policy":"1h0m0s"},"vulnerabilities":{"databases_path":"","periodicity":"0s","cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false,"recent_vulnerability_max_age":"0s"},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
+		expectedJSON := `
+{
+  "kind": "config",
+  "apiVersion": "v1",
+  "spec": {
+    "org_info": {
+      "org_name": "",
+      "org_logo_url": ""
+    },
+    "server_settings": {
+      "server_url": "",
+      "live_query_disabled": false,
+      "enable_analytics": false,
+      "deferred_save_host": false
+    },
+    "smtp_settings": {
+      "enable_smtp": false,
+      "configured": false,
+      "sender_address": "",
+      "server": "",
+      "port": 0,
+      "authentication_type": "",
+      "user_name": "",
+      "password": "",
+      "enable_ssl_tls": false,
+      "authentication_method": "",
+      "domain": "",
+      "verify_ssl_certs": false,
+      "enable_start_tls": false
+    },
+    "host_expiry_settings": {
+      "host_expiry_enabled": false,
+      "host_expiry_window": 0
+    },
+    "features": {
+      "enable_host_users": true,
+      "enable_software_inventory": false
+    },
+    "sso_settings": {
+      "enable_jit_provisioning": false,
+      "entity_id": "",
+      "issuer_uri": "",
+      "idp_image_url": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": "",
+      "enable_sso": false,
+      "enable_sso_idp_login": false
+    },
+    "fleet_desktop": {
+      "transparency_url": "https://fleetdm.com/transparency"
+    },
+    "vulnerability_settings": {
+      "databases_path": "/some/path"
+    },
+    "webhook_settings": {
+      "host_status_webhook": {
+        "enable_host_status_webhook": false,
+        "destination_url": "",
+        "host_percentage": 0,
+        "days_count": 0
+      },
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      },
+      "vulnerabilities_webhook": {
+        "enable_vulnerabilities_webhook": false,
+        "destination_url": "",
+        "host_batch_size": 0
+      },
+      "interval": "0s"
+    },
+    "integrations": {
+      "jira": null,
+      "zendesk": null
+    },
+    "update_interval": {
+      "osquery_detail": "1h0m0s",
+      "osquery_policy": "1h0m0s"
+    },
+    "vulnerabilities": {
+      "databases_path": "",
+      "periodicity": "0s",
+      "cpe_database_url": "",
+      "cpe_translations_url": "",
+      "cve_feed_prefix_url": "",
+      "current_instance_checks": "",
+      "disable_data_sync": false,
+      "recent_vulnerability_max_age": "0s",
+      "disable_win_os_vulnerabilities": false
+    },
+    "license": {
+      "tier": "free",
+      "expiration": "0001-01-01T00:00:00Z"
+    },
+    "logging": {
+      "debug": true,
+      "json": false,
+      "result": {
+        "plugin": "filesystem",
+        "config": {
+          "enable_log_compression": false,
+          "enable_log_rotation": false,
+          "result_log_file": "/dev/null",
+          "status_log_file": "/dev/null"
+        }
+      },
+      "status": {
+        "plugin": "filesystem",
+        "config": {
+          "enable_log_compression": false,
+          "enable_log_rotation": false,
+          "result_log_file": "/dev/null",
+          "status_log_file": "/dev/null"
+        }
+      }
+    }
+  }
+}
 `
 
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
-		require.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
+		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
+		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
+		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
 }
 
@@ -1084,4 +1298,156 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "query1"}))
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "query1"}))
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
+}
+
+func TestEnrichedAppConfig(t *testing.T) {
+	t.Run("deprecated fields", func(t *testing.T) {
+		resp := []byte(`
+      {
+        "org_info": {
+          "org_name": "Fleet for osquery",
+          "org_logo_url": ""
+        },
+        "server_settings": {
+          "server_url": "https://localhost:8412",
+          "live_query_disabled": false,
+          "enable_analytics": false,
+          "deferred_save_host": false
+        },
+        "smtp_settings": {
+          "enable_smtp": false,
+          "configured": false,
+          "sender_address": "",
+          "server": "",
+          "port": 587,
+          "authentication_type": "authtype_username_password",
+          "user_name": "",
+          "password": "",
+          "enable_ssl_tls": true,
+          "authentication_method": "authmethod_plain",
+          "domain": "",
+          "verify_ssl_certs": true,
+          "enable_start_tls": true
+        },
+        "host_expiry_settings": {
+          "host_expiry_enabled": false,
+          "host_expiry_window": 0
+        },
+        "host_settings": {
+          "enable_host_users": true,
+          "enable_software_inventory": true
+        },
+        "agent_options": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
+          },
+          "overrides": {}
+        },
+        "sso_settings": {
+          "entity_id": "",
+          "issuer_uri": "",
+          "idp_image_url": "",
+          "metadata": "",
+          "metadata_url": "",
+          "idp_name": "",
+          "enable_sso": false,
+          "enable_sso_idp_login": false,
+          "enable_jit_provisioning": false
+        },
+        "fleet_desktop": {
+          "transparency_url": "https://fleetdm.com/transparency"
+        },
+        "vulnerability_settings": {
+          "databases_path": ""
+        },
+        "webhook_settings": {
+          "host_status_webhook": {
+            "enable_host_status_webhook": false,
+            "destination_url": "",
+            "host_percentage": 0,
+            "days_count": 0
+          },
+          "failing_policies_webhook": {
+            "enable_failing_policies_webhook": false,
+            "destination_url": "",
+            "policy_ids": null,
+            "host_batch_size": 0
+          },
+          "vulnerabilities_webhook": {
+            "enable_vulnerabilities_webhook": false,
+            "destination_url": "",
+            "host_batch_size": 0
+          },
+          "interval": "24h0m0s"
+        },
+        "integrations": {
+          "jira": null,
+          "zendesk": null
+        },
+        "update_interval": {
+          "osquery_detail": 3600000000000,
+          "osquery_policy": 3600000000000
+        },
+        "vulnerabilities": {
+          "databases_path": "/vulndb",
+          "periodicity": 300000000000,
+          "cpe_database_url": "",
+          "cve_feed_prefix_url": "",
+          "current_instance_checks": "yes",
+          "disable_data_sync": false,
+          "recent_vulnerability_max_age": 2592000000000000
+        },
+        "license": {
+          "tier": "free",
+          "expiration": "0001-01-01T00:00:00Z"
+        },
+        "logging": {
+          "debug": true,
+          "json": true,
+          "result": {
+            "plugin": "filesystem",
+            "config": {
+              "status_log_file": "/logs/osqueryd.status.log",
+              "result_log_file": "/logs/osqueryd.results.log",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+            }
+          },
+          "status": {
+            "plugin": "filesystem",
+            "config": {
+              "status_log_file": "/logs/osqueryd.status.log",
+              "result_log_file": "/logs/osqueryd.results.log",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+            }
+          }
+        }
+      }
+    `)
+
+		var enriched fleet.EnrichedAppConfig
+		err := json.Unmarshal(resp, &enriched)
+		require.NoError(t, err)
+		require.NotNil(t, enriched.Vulnerabilities)
+		require.Equal(t, "yes", enriched.Vulnerabilities.CurrentInstanceChecks)
+		require.True(t, enriched.Features.EnableSoftwareInventory)
+		require.Equal(t, "free", enriched.License.Tier)
+		require.Equal(t, "filesystem", enriched.Logging.Status.Plugin)
+	})
 }

@@ -1,0 +1,2 @@
+* This updates the manage host page for better usability on smaller screen widths. It remover the
+labels sidebar and adds them into a table filter select dropdown.

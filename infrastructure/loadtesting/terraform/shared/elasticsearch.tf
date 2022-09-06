@@ -159,6 +159,11 @@ resource "aws_iam_role_policy_attachment" "role_attachment_es" {
   role       = aws_iam_role.elasticstack.name
 }
 
+resource "aws_iam_role_policy_attachment" "role_attachment_cloudwatch" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = aws_iam_role.elasticstack.name
+}
+
 resource "aws_iam_policy" "elasticstack" {
   name   = "fleet-es-iam-policy"
   policy = data.aws_iam_policy_document.elasticstack.json
@@ -182,8 +187,8 @@ data "aws_ami" "amazonlinux" {
 resource "aws_launch_template" "elasticstack" {
   name_prefix            = "${local.prefix}-elasticstack"
   image_id               = data.aws_ami.amazonlinux.image_id
-  instance_type          = "t3.large"
-  key_name               = "zwinnerman"
+  instance_type          = "m6a.4xlarge"
+  key_name               = "robert"
   vpc_security_group_ids = [aws_security_group.elasticsearch.id]
 
   metadata_options {

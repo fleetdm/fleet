@@ -25,7 +25,6 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
 
-    let GitHub = require('machinepack-github');
 
     // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
     // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
@@ -53,13 +52,11 @@ module.exports = {
       'mikermcneil',
       'lukeheath',
       'zwass',
-      'martavis',
       'rachelelysia',
       'gillespi314',
       'chiiph',
       'mna',
       'edwardsb',
-      'alphabrevity',
       'eashaw',
       'drewbakerfdm',
       'vercel[bot]',
@@ -67,10 +64,8 @@ module.exports = {
       'tgauda',
       'ksatter',
       'guillaumeross',
-      'dominuskelvin',
       'sharvilshah',
       'michalnicp',
-      'desmi-dizney',
       'charlottechance',
       'timmy-k',
       'zwinnerman-fleetdm',
@@ -81,6 +76,7 @@ module.exports = {
       'ghernandez345',
       'chris-mcgillicuddy',
       'rfairburn',
+      'artemist-work',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -105,7 +101,6 @@ module.exports = {
     if (!sails.config.custom.githubAccessToken) {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
-    let credentials = { accessToken: sails.config.custom.githubAccessToken };
 
     let issueOrPr = (pr || issue || undefined);
 
@@ -161,7 +156,13 @@ module.exports = {
       //   } else {
       //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
       //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-      //       await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+      //       await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //         {},
+      //         {
+      //           'User-Agent': 'Fleetie pie',
+      //           'Authorization': 'token '+sails.config.custom.githubAccessToken
+      //         }
+      //       );
       //     });//∞ß
       //     newBotComment =
       //     `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
@@ -172,10 +173,12 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // }
-
       // // Now that we know what to say, add our comment.
       // if (newBotComment) {
-      //   await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
+      //   await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
+      //     {'body': newBotComment},
+      //     {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+      //   );
       // }//ﬁ
 
     } else if (
@@ -238,6 +241,8 @@ module.exports = {
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
 
+        let isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
         let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
@@ -248,6 +253,14 @@ module.exports = {
           // reports that the repo is not frozen, when it actually is frozen.
           Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
         );
+
+        // Add the #handbook label to PRs that only make changes to the handbook.
+        if(isHandbookPR) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#handbook']
+          }, baseHeaders);
+        }
 
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
@@ -334,7 +347,13 @@ module.exports = {
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-          await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+          await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+            {},
+            {
+              'User-Agent': 'Fleetie Pie',
+              'Authorization': 'token '+sails.config.custom.githubAccessToken
+            }
+          );
         });//∞ß
       }//ﬁ
     } else if (

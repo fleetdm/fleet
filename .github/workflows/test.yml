@@ -44,7 +44,7 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
@@ -53,7 +53,7 @@ jobs:
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
+      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
       with:
         path: |
           **/node_modules
@@ -66,7 +66,7 @@ jobs:
 
     - name: Go Cache
       id: go-cache
-      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
+      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
       with:
         # In order:
         # * Module download cache
@@ -124,11 +124,11 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
+      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
       with:
         path: |
           **/node_modules
@@ -154,11 +154,11 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@661fd3eb7f2f20d8c7c84bc2b0509efd7a826628 # v2
+      uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # v2
       with:
         path: |
           **/node_modules

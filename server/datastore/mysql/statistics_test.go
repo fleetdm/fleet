@@ -115,8 +115,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 
 	require.NoError(t, err)
-	config.HostSettings.EnableSoftwareInventory = false
-	config.HostSettings.EnableHostUsers = false
+	config.Features.EnableSoftwareInventory = false
+	config.Features.EnableHostUsers = false
 	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
 
@@ -125,15 +125,17 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
-	license := &fleet.LicenseInfo{Tier: "premium"}
+	premiumLicense := &fleet.LicenseInfo{Tier: "premium", Organization: "Fleet"}
+	freeLicense := &fleet.LicenseInfo{Tier: "free"}
 
 	// First time running, we send statistics
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
 	assert.NotEmpty(t, stats.FleetVersion)
 	assert.Equal(t, stats.LicenseTier, "premium")
+	assert.Equal(t, stats.Organization, "Fleet")
 	assert.Equal(t, stats.NumHostsEnrolled, 1)
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumTeams, 1)
@@ -152,7 +154,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// If we try right away, it shouldn't ask to send
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 
@@ -224,10 +226,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Lower the frequency to trigger an "outdated" sent
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
+	assert.Equal(t, stats.LicenseTier, "premium")
+	assert.Equal(t, stats.Organization, "Fleet")
 	assert.Equal(t, stats.NumHostsEnrolled, 5)
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 0)          // no active user since last stats were sent
@@ -255,10 +259,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// wait a bit and resend statistics
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
+	assert.Equal(t, stats.LicenseTier, "premium")
+	assert.Equal(t, stats.Organization, "Fleet")
 	assert.Equal(t, stats.NumHostsEnrolled, 5)
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
@@ -279,10 +285,21 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
+	assert.Equal(t, stats.LicenseTier, "premium")
+	assert.Equal(t, stats.Organization, "Fleet")
 	assert.Equal(t, 6, stats.NumHostsEnrolled)
 	assert.Equal(t, 1, stats.NumHostsNotResponding)
+
+	// trigger again with a free license, organization should be "unknown"
+	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, freeLicense)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
+	assert.Equal(t, stats.LicenseTier, "free")
+	assert.Equal(t, stats.Organization, "unknown")
 }

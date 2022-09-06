@@ -15,7 +15,7 @@ const baseClass = "host-summary";
 
 interface IHostSummaryProps {
   statusClassName: string;
-  titleData: any;
+  titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;

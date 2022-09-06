@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/spf13/cast"
@@ -33,7 +35,12 @@ type DetailQuery struct {
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
+	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
+	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
+	// ingest the results. This is for ingestion that can be either sync or async.
+	// DirectIngestFunc must not be set if this is set.
+	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -122,7 +129,10 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version": {
-		Query: "select * from os_version limit 1",
+		// Collect operating system information for the `hosts` table.
+		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
+		// the `os_unix_like` extra detail query below.
+		Query: "SELECT * FROM os_version LIMIT 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
@@ -130,40 +140,13 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if strings.Contains(strings.ToLower(rows[0]["name"]), "ubuntu") {
-				// Ubuntu takes a different approach to updating patch IDs so we instead use
-				// the version string provided after removing the code name
-				regx := regexp.MustCompile(`\(.*\)`)
-				vers := regx.ReplaceAllString(rows[0]["version"], "")
-				host.OSVersion = fmt.Sprintf(
-					"%s %s",
-					rows[0]["name"],
-					strings.TrimSpace(vers),
-				)
-			} else if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
-				host.OSVersion = fmt.Sprintf(
-					"%s %s.%s.%s",
-					rows[0]["name"],
-					rows[0]["major"],
-					rows[0]["minor"],
-					rows[0]["patch"],
-				)
-			} else {
-				host.OSVersion = fmt.Sprintf(
-					"%s %s",
-					rows[0]["name"],
-					rows[0]["build"],
-				)
-			}
-			host.OSVersion = strings.Trim(host.OSVersion, ".")
-
 			if build, ok := rows[0]["build"]; ok {
 				host.Build = build
 			}
 
 			host.Platform = rows[0]["platform"]
 			host.PlatformLike = rows[0]["platform_like"]
-			host.CodeName = rows[0]["code_name"]
+			host.CodeName = rows[0]["codename"]
 
 			// On centos6 there is an osquery bug that leaves
 			// platform empty. Here we workaround.
@@ -171,6 +154,51 @@ var hostDetailQueries = map[string]DetailQuery{
 				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
 				host.Platform = "centos"
 			}
+
+			if host.Platform != "windows" {
+				// Populate `host.OSVersion` for non-Windows hosts.
+				// Note Windows-specific registry query is required to populate `host.OSVersion` for
+				// Windows that is handled in `os_version_windows` detail query below.
+				host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
+					rows[0]["name"],
+					rows[0]["version"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+					rows[0]["build"],
+				))
+			}
+
+			return nil
+		},
+	},
+	"os_version_windows": {
+		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
+		Query: `SELECT
+			os.name,
+			r.data
+		FROM
+			os_version os,
+			(
+				SELECT
+					data
+				FROM
+					registry
+				WHERE
+					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r
+		LIMIT 1`,
+		Platforms: []string{"windows"},
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)))
+				return nil
+			}
+
+			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["data"])
+			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
+			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			host.OSVersion = s
 
 			return nil
 		},
@@ -334,7 +362,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("mdm"),
 	},
 	"munki_info": {
-		Query:            `select version from munki_info;`,
+		Query:            `select version, errors, warnings from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
@@ -351,6 +379,51 @@ var extraDetailQueries = map[string]DetailQuery{
 		// the "battery" table doesn't need a Discovery query as it is an official
 		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
 		// always present.
+	},
+	"os_windows": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, the `hosts` table is populated via the `os_version` and
+		// `os_version_windows` detail queries above.
+		Query: `
+	SELECT
+		os.name,
+		os.arch,
+		os.platform,
+		r.version AS version,
+		k.version AS kernel_version
+	FROM
+		os_version os,
+		kernel_info k,
+		(
+			SELECT
+				data AS version
+			FROM
+				registry
+			WHERE
+				path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestOSWindows,
+	},
+	"os_unix_like": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, the `hosts` table is populated via the `os_version` detail
+		// query above.
+		Query: `
+	SELECT
+		os.name,
+		os.major,
+		os.minor,
+		os.patch,
+		os.build,
+		os.arch,
+		os.platform,
+		os.version AS version,
+		k.version AS kernel_version
+	FROM
+		os_version os,
+		kernel_info k`,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		DirectIngestFunc: directIngestOSUnixLike,
 	},
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
@@ -377,6 +450,13 @@ const usersQueryStr = `WITH cached_groups AS (select * from groups)
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
+}
+
+var windowsUpdateHistory = DetailQuery{
+	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
+	Platforms:        []string{"windows"},
+	Discovery:        discoveryTable("windows_update_history"),
+	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
 var softwareMacOS = DetailQuery{
@@ -458,7 +538,7 @@ var scheduledQueryStats = DetailQuery{
 			SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
-	DirectIngestFunc: directIngestScheduledQueryStats,
+	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 }
 
 var softwareLinux = DetailQuery{
@@ -553,57 +633,57 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
-  'programs' AS source
+  'programs' AS source,
+  publisher AS vendor
 FROM programs
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS vendor
 FROM python_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
-  'ie_extensions' AS source
+  'ie_extensions' AS source,
+  '' AS vendor
 FROM ie_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
-  'chocolatey_packages' AS source
+  'chocolatey_packages' AS source,
+  '' AS vendor
 FROM chocolatey_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Atom)' AS type,
-  'atom_packages' AS source
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Python)' AS type,
-  'python_packages' AS source
-FROM python_packages;
+  'atom_packages' AS source,
+  '' AS vendor
+FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
@@ -616,6 +696,78 @@ var usersQuery = DetailQuery{
 	// was generated once for each user.
 	Query:            usersQueryStr,
 	DirectIngestFunc: directIngestUsers,
+}
+
+// directIngestOSWindows ingests selected operating system data from a host on a Windows platform
+func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOSWindows", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOSWindows invalid number of rows: %d", len(rows))
+	}
+
+	hostOS := fleet.OperatingSystem{
+		Name:          rows[0]["name"],
+		Version:       rows[0]["version"],
+		Arch:          rows[0]["arch"],
+		KernelVersion: rows[0]["kernel_version"],
+		Platform:      rows[0]["platform"],
+	}
+
+	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
+	}
+	return nil
+}
+
+// directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform
+// (e.g., darwin or linux operating systems)
+func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOSUnixLike", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
+	}
+	name := rows[0]["name"]
+	version := rows[0]["version"]
+	major := rows[0]["major"]
+	minor := rows[0]["minor"]
+	patch := rows[0]["patch"]
+	build := rows[0]["build"]
+	arch := rows[0]["arch"]
+	kernelVersion := rows[0]["kernel_version"]
+	platform := rows[0]["platform"]
+
+	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
+	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build)
+
+	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
+	}
+	return nil
+}
+
+// parseOSVersion returns a point release string for an operating system. Parsing rules
+// depend on available data, which varies between operating systems.
+func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
+	var osVersion string
+	if strings.Contains(strings.ToLower(name), "ubuntu") {
+		// Ubuntu takes a different approach to updating patch IDs so we instead use
+		// the version string provided after removing the code name.
+		regx := regexp.MustCompile(`\(.*\)`)
+		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
+	} else if major != "0" || minor != "0" || patch != "0" {
+		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
+	} else {
+		osVersion = build
+	}
+	osVersion = strings.Trim(osVersion, ".")
+
+	return osVersion
 }
 
 func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -660,6 +812,46 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
+func directIngestWindowsUpdateHistory(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+	failed bool,
+) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed")
+		return nil
+	}
+
+	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
+	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
+	// Since each antivirus update will have the same KB ID, but different 'dates', to
+	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
+	// date' update in each group.
+
+	uniq := make(map[uint]fleet.WindowsUpdate)
+	for _, row := range rows {
+		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
+		if err != nil {
+			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			continue
+		}
+
+		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
+			uniq[u.KBID] = u
+		}
+	}
+
+	var updates []fleet.WindowsUpdate
+	for _, v := range uniq {
+		updates = append(updates, v)
+	}
+
+	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
+}
+
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
@@ -674,7 +866,7 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return nil
 }
 
-func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
 	if failed {
 		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
 		return nil
@@ -742,8 +934,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	if err := ds.SaveHostPackStats(ctx, host.ID, packStats); err != nil {
-		return ctxerr.Wrap(ctx, err, "save host pack stats")
+	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 
 	return nil
@@ -761,6 +953,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		version := row["version"]
 		source := row["source"]
 		bundleIdentifier := row["bundle_identifier"]
+		vendor := row["vendor"]
+
 		if name == "" {
 			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
@@ -795,6 +989,11 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 		}
 
+		// Check whether the vendor is longer than the max allowed width and if so, truncate it.
+		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
+			vendor = fmt.Sprintf(fleet.SoftwareVendorMaxLengthFmt, vendor)
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
@@ -802,7 +1001,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			BundleIdentifier: bundleIdentifier,
 
 			Release: row["release"],
-			Vendor:  row["vendor"],
+			Vendor:  vendor,
 			Arch:    row["arch"],
 		}
 		if !lastOpenedAt.IsZero() {
@@ -902,10 +1101,12 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
 	}
 
-	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
+	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
+	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
+	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
-func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
+func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -914,14 +1115,18 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 		generatedMap[key] = query
 	}
 
-	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
+	if features != nil && features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.HostSettings.EnableHostUsers {
+	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
+		generatedMap["windows_update_history"] = windowsUpdateHistory
 	}
 
 	if fleetConfig.App.EnableScheduledQueryStats {
@@ -943,4 +1148,16 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 	}
 
 	return generatedMap
+}
+
+func splitCleanSemicolonSeparated(s string) []string {
+	parts := strings.Split(s, ";")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			cleaned = append(cleaned, part)
+		}
+	}
+	return cleaned
 }

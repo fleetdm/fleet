@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
@@ -8,6 +8,7 @@ interface IDeleteSecretModal {
   teams: ITeam[];
   onDeleteSecret: () => void;
   toggleDeleteSecretModal: () => void;
+  isUpdatingSecret: boolean;
 }
 
 const baseClass = "delete-secret-modal";
@@ -17,6 +18,7 @@ const DeleteSecretModal = ({
   teams,
   onDeleteSecret,
   toggleDeleteSecretModal,
+  isUpdatingSecret,
 }: IDeleteSecretModal): JSX.Element => {
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
@@ -29,23 +31,10 @@ const DeleteSecretModal = ({
     return teams.find((team) => team.id === selectedTeam);
   };
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onDeleteSecret();
-      }
-    };
-
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   return (
     <Modal
       onExit={toggleDeleteSecretModal}
+      onEnter={onDeleteSecret}
       title={"Delete secret"}
       className={baseClass}
     >
@@ -63,19 +52,16 @@ const DeleteSecretModal = ({
         </div>
         <div className="modal-cta-wrap">
           <Button
-            className={`${baseClass}__btn`}
-            onClick={toggleDeleteSecretModal}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
             type="button"
             variant="alert"
             onClick={onDeleteSecret}
+            className="delete-loading"
+            isLoading={isUpdatingSecret}
           >
             Delete
+          </Button>
+          <Button onClick={toggleDeleteSecretModal} variant="inverse-alert">
+            Cancel
           </Button>
         </div>
       </div>

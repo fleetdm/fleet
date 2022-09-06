@@ -1,0 +1,27 @@
+.section--munki-issues {
+  .data-table-block {
+    .issue_tooltip,
+    .time_tooltip {
+      text-align: center;
+    }
+
+    .data-table__table {
+      thead {
+        .type__header {
+          width: $col-sm;
+        }
+
+        .time__header {
+          width: $col-md;
+        }
+      }
+
+      tbody {
+        .name__cell {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+  }
+}

@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -395,7 +396,14 @@ the way that the Fleet server works.
 				}
 			}
 
-			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, redisWrapperDS)
+			instanceID, err := server.GenerateRandomText(64)
+			if err != nil {
+				initFatal(errors.New("Error generating random instance identifier"), "")
+			}
+			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
+			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, instanceID); err != nil {
+				initFatal(err, "failed to register schedules")
+			}
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -437,7 +445,10 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = service.PrometheusMetricsHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				frontendHandler = service.PrometheusMetricsHandler(
+					"get_frontend",
+					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
+				)
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
@@ -642,37 +653,13 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 }
 
 const (
-	lockKeyLeader                  = "leader"
 	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
 	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
 	lockKeyWorker                  = "worker"
 )
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config configpkg.FleetConfig, license *fleet.LicenseInfo) error {
-	ac, err := ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if !ac.ServerSettings.EnableAnalytics {
-		return nil
-	}
-
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
-	if err != nil {
-		return err
-	}
-	if !shouldSend {
-		return nil
-	}
-
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
-		return err
-	}
-	return ds.RecordStatisticsSent(ctx)
-}
-
+// runCrons runs cron jobs not yet ported to use the schedule package (startSchedules)
 func runCrons(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -681,21 +668,30 @@ func runCrons(
 	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
-	enrollHostLimiter fleet.EnrollHostLimiter,
+	ourIdentifier string,
 ) {
-	ourIdentifier, err := server.GenerateRandomText(64)
-	if err != nil {
-		initFatal(ctxerr.New(ctx, "generating random instance identifier"), "")
-	}
-
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, &config, license, enrollHostLimiter)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, &config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
+}
+
+func startSchedules(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config config.FleetConfig,
+	license *fleet.LicenseInfo,
+	enrollHostLimiter fleet.EnrollHostLimiter,
+	instanceID string,
+) error {
+	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
+	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+
+	return nil
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

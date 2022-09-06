@@ -1,0 +1,3 @@
+- We now ingest and store installed Windows updates in a new table, `windows_updates`.
+- Added a new configuration option used for disabling the ingestion of Windows updates and also
+  disabling Windows vulnerability scans.

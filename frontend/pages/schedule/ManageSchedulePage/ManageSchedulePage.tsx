@@ -29,9 +29,10 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
-import ScheduleListWrapper from "./components/ScheduleListWrapper";
+import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
+import ShowQueryModal from "./components/ShowQueryModal";
 
 const baseClass = "manage-schedule-page";
 
@@ -43,27 +44,29 @@ const renderTable = (
   router: InjectedRouter,
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
   onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
+  onShowQueryClick: (selectedQuery: IEditScheduledQuery) => void,
   allScheduledQueriesList: IScheduledQuery[],
   allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
-  isFetchingGlobalScheduledQueries: boolean,
+  isLoadingGlobalScheduledQueries: boolean,
   isLoadingTeamScheduledQueries: boolean,
   errorQueries: Error | null
 ): JSX.Element => {
   return allScheduledQueriesError || errorQueries ? (
     <TableDataError />
   ) : (
-    <ScheduleListWrapper
+    <ScheduleTable
       router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
+      onShowQueryClick={onShowQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       isOnGlobalTeam={isOnGlobalTeam}
       selectedTeamData={selectedTeamData}
-      loadingInheritedQueriesTableData={isFetchingGlobalScheduledQueries}
+      loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
       loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
     />
   );
@@ -75,32 +78,26 @@ const renderAllTeamsTable = (
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
-  isFetchingGlobalScheduledQueries: boolean,
+  isLoadingGlobalScheduledQueries: boolean,
   isLoadingTeamScheduledQueries: boolean
 ): JSX.Element => {
   return allTeamsScheduledQueriesError ? (
     <TableDataError />
   ) : (
     <div className={`${baseClass}__all-teams-table`}>
-      <ScheduleListWrapper
+      <ScheduleTable
         router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
         selectedTeamData={selectedTeamData}
-        loadingInheritedQueriesTableData={isFetchingGlobalScheduledQueries}
+        loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
         loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
       />
     </div>
   );
 };
 
-interface ITeamSchedulesPageProps {
-  params: {
-    team_id: string;
-  };
-  router: InjectedRouter; // v3
-}
 interface IFormData {
   interval: number;
   name?: string;
@@ -111,6 +108,13 @@ interface IFormData {
   platform: string;
   version: string;
   team_id?: number;
+}
+
+interface ITeamSchedulesPageProps {
+  params: {
+    team_id: string;
+  };
+  router: InjectedRouter; // v3
 }
 
 const ManageSchedulePage = ({
@@ -180,7 +184,7 @@ const ManageSchedulePage = ({
   const {
     data: globalScheduledQueries,
     error: globalScheduledQueriesError,
-    isFetching: isFetchingGlobalScheduledQueries,
+    isLoading: isLoadingGlobalScheduledQueries,
     refetch: refetchGlobalScheduledQueries,
   } = useQuery<
     ILoadAllGlobalScheduledQueriesResponse,
@@ -291,12 +295,12 @@ const ManageSchedulePage = ({
   const selectedTeamData =
     teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
 
-  const [scheduleIsLoading, setScheduleIsLoading] = useState<boolean>(false);
-  const [scheduleIsRemoving, setScheduleIsRemoving] = useState<boolean>(false);
-  const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
+  const [isUpdatingScheduledQuery, setIsUpdatingScheduledQuery] = useState(
     false
   );
+  const [showInheritedQueries, setShowInheritedQueries] = useState(false);
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+  const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
@@ -323,7 +327,13 @@ const ManageSchedulePage = ({
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
+  const toggleShowQueryModal = useCallback(() => {
+    setSelectedScheduledQuery(undefined);
+    setShowShowQueryModal(!showShowQueryModal);
+  }, [showShowQueryModal, setShowShowQueryModal]);
+
   const toggleRemoveScheduledQueryModal = useCallback(() => {
+    console.log("toggleRemoveScheduledqueryModal");
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
@@ -334,6 +344,11 @@ const ManageSchedulePage = ({
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
+  const onShowQueryClick = (selectedQuery: IEditScheduledQuery): void => {
+    toggleShowQueryModal();
+    setSelectedScheduledQuery(selectedQuery);
+  };
+
   const onEditScheduledQueryClick = (
     selectedQuery: IEditScheduledQuery
   ): void => {
@@ -342,7 +357,7 @@ const ManageSchedulePage = ({
   };
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
-    setScheduleIsRemoving(true);
+    setIsUpdatingScheduledQuery(true);
     const promises = selectedQueryIds.map((id: number) => {
       return selectedTeamId
         ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
@@ -367,7 +382,7 @@ const ManageSchedulePage = ({
       })
       .finally(() => {
         refetchGlobalScheduledQueries();
-        setScheduleIsRemoving(false);
+        setIsUpdatingScheduledQuery(false);
       });
   }, [
     selectedTeamId,
@@ -378,7 +393,7 @@ const ManageSchedulePage = ({
 
   const onAddScheduledQuerySubmit = useCallback(
     (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
-      setScheduleIsLoading(true);
+      setIsUpdatingScheduledQuery(true);
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
@@ -403,7 +418,7 @@ const ManageSchedulePage = ({
             );
           })
           .finally(() => {
-            setScheduleIsLoading(false);
+            setIsUpdatingScheduledQuery(false);
             refetchGlobalScheduledQueries();
           });
       } else {
@@ -424,7 +439,7 @@ const ManageSchedulePage = ({
             renderFlash("error", "Could not schedule query. Please try again.");
           })
           .finally(() => {
-            setScheduleIsLoading(false);
+            setIsUpdatingScheduledQuery(false);
             refetchGlobalScheduledQueries();
           });
       }
@@ -499,7 +514,7 @@ const ManageSchedulePage = ({
         <div>
           {isLoadingTeams ||
           isLoadingFleetQueries ||
-          isFetchingGlobalScheduledQueries ||
+          isLoadingGlobalScheduledQueries ||
           isLoadingTeamScheduledQueries ? (
             <Spinner />
           ) : (
@@ -507,12 +522,13 @@ const ManageSchedulePage = ({
               router,
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
+              onShowQueryClick,
               allScheduledQueriesList,
               allScheduledQueriesError,
               toggleScheduleEditorModal,
               isOnGlobalTeam || false,
               selectedTeamData,
-              isFetchingGlobalScheduledQueries,
+              isLoadingGlobalScheduledQueries,
               isLoadingTeamScheduledQueries,
               errorQueries
             )
@@ -542,7 +558,7 @@ const ManageSchedulePage = ({
             inheritedScheduledQueriesError,
             isOnGlobalTeam || false,
             selectedTeamData,
-            isFetchingGlobalScheduledQueries,
+            isLoadingGlobalScheduledQueries,
             isLoadingTeamScheduledQueries
           )}
         {showScheduleEditorModal && fleetQueries && (
@@ -554,14 +570,20 @@ const ManageSchedulePage = ({
             teamId={selectedTeamId}
             togglePreviewDataModal={togglePreviewDataModal}
             showPreviewDataModal={showPreviewDataModal}
-            isLoading={scheduleIsLoading}
+            isUpdatingScheduledQuery={isUpdatingScheduledQuery}
           />
         )}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}
             onSubmit={onRemoveScheduledQuerySubmit}
-            isLoading={scheduleIsRemoving}
+            isUpdatingScheduledQuery={isUpdatingScheduledQuery}
+          />
+        )}
+        {showShowQueryModal && (
+          <ShowQueryModal
+            query={selectedScheduledQuery?.query}
+            onCancel={toggleShowQueryModal}
           />
         )}
       </div>

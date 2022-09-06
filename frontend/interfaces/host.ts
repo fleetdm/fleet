@@ -80,10 +80,18 @@ export interface IMDMData {
   server_url: string;
 }
 
+export interface IMunkiIssue {
+  id: number;
+  name: string;
+  type: "error" | "warning";
+  created_at: string;
+}
+
 export interface IMacadminsResponse {
   macadmins: null | {
     munki: null | IMunkiData;
     mobile_device_management: null | IMDMData;
+    munki_issues: IMunkiIssue[];
   };
 }
 

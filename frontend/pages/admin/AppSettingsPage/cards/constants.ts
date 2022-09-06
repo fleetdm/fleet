@@ -5,6 +5,7 @@ export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
 export interface IAppConfigFormProps {
   appConfig: IConfig;
   isPremiumTier?: boolean;
+  isUpdatingSettings?: boolean;
   handleSubmit: any;
 }
 
@@ -70,6 +71,7 @@ export const usageStatsPreview = {
   anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
   fleetVersion: "x.x.x",
   licenseTier: "free",
+  organization: "Fleet",
   numHostsEnrolled: 999,
   numUsers: 999,
   numTeams: 999,

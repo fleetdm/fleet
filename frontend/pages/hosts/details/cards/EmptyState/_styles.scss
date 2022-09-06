@@ -1,15 +1,16 @@
 .empty-state {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   margin: 0;
 
   &__inner {
     display: flex;
     flex-direction: row;
+    width: 350px;
 
-    h1 {
-      font-size: $x-small;
+    h2 {
+      font-size: $small;
       font-weight: $bold;
       margin-bottom: $pad-medium;
     }
@@ -30,34 +31,10 @@
       margin-top: $pad-medium;
     }
 
-    a {
-      color: $core-vibrant-blue;
-      font-size: $x-small;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-
     img {
       width: 12px;
       height: 12px;
       margin-left: 4px;
     }
   }
-
-  &__empty-list {
-    h1 {
-      font-size: $small;
-    }
-  }
-
-  &__empty-filter-results {
-    display: flex;
-    flex-direction: column;
-    width: 350px;
-  }
-}
-
-.empty-search {
-  margin-top: $pad-small;
-  align-items: center;
 }

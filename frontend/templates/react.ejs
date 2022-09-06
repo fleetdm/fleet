@@ -1,24 +1,58 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- isProduction comes from build time webpack config -->
+    <% if (isProduction) { %>
+    <!-- ServerType comes from runtime server -->
+    {{ if (eq .ServerType "sandbox") }}
+    <!-- these scripts are to add google analytics on production sandbox instances -->
+    <script
+      async
+      type="text/javascript"
+      src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"
+    ></script>
+    <script type="text/javascript">
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-JC3DRNY1GV");
+    </script>
+    {{
+      end
+    }}
+    <% } %>
 
-    <meta name="robots" content="noindex">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <link rel="stylesheet" type="text/css" href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>">
-    <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico">
+    <meta name="robots" content="noindex" />
+
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>"
+    />
+    <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
 
     <title>Fleet for osquery</title>
     <script type="text/javascript">
-        var urlPrefix = "{{.URLPrefix}}";
+      var urlPrefix = "{{.URLPrefix}}";
     </script>
   </head>
   <body>
     <div id="app"></div>
-    <script async defer src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>" onload="this.parentElement.removeChild(this)"></script>
+    <script
+      async
+      defer
+      src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>"
+      onload="this.parentElement.removeChild(this)"
+    ></script>
     <!-- Because iOS hates interactive stuff, we have to kill it with fire -->
-    <script>document.addEventListener("touchstart", function() {},false);</script>
+    <script>
+      document.addEventListener("touchstart", function () {}, false);
+    </script>
     <!-- End Apple Hate -->
   </body>
 </html>

@@ -293,7 +293,7 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
   host_expiry_settings:
     host_expiry_enabled: true
     host_expiry_window: 0
-  host_settings:
+  features:
     additional_queries:
       time: SELECT * FROM time
     enable_host_users: true
@@ -301,14 +301,14 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	s.applyConfig(spec)
 
 	spec = []byte(`
-  host_settings:
+  features:
     enable_host_users: true
     additional_queries: null
 `)
 	s.applyConfig(spec)
 
 	config := s.getConfig()
-	assert.Nil(t, config.HostSettings.AdditionalQueries)
+	assert.Nil(t, config.Features.AdditionalQueries)
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
@@ -321,6 +321,64 @@ func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	s.Run("has logging", func() {
 		require.NotNil(s.T(), config.Logging)
 	})
+}
+
+func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
+	t := s.T()
+
+	spec := []byte(`
+  host_settings:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+	s.applyConfig(spec)
+	config := s.getConfig()
+	require.NotNil(t, config.Features.AdditionalQueries)
+	require.True(t, config.Features.EnableHostUsers)
+	require.True(t, config.Features.EnableSoftwareInventory)
+
+	spec = []byte(`
+  host_settings:
+    additional_queries: null
+    enable_host_users: false
+    enable_software_inventory: false
+`)
+	s.applyConfig(spec)
+	config = s.getConfig()
+	require.Nil(t, config.Features.AdditionalQueries)
+	require.False(t, config.Features.EnableHostUsers)
+	require.False(t, config.Features.EnableSoftwareInventory)
+
+	// Test raw API interactions
+	appConfigSpec := map[string]map[string]bool{
+		"host_settings":   {"enable_software_inventory": true},
+		"server_settings": {"enable_analytics": false},
+	}
+	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.Features.EnableSoftwareInventory)
+
+	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, `
+    {
+      "host_settings": {
+        "enable_host_users": false,
+        "enable_software_inventory": true,
+        "additional_queries": { "foo": "bar" }
+      }
+    }`)
+		return err
+	})
+
+	var resp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	require.False(t, resp.Features.EnableHostUsers)
+	require.True(t, resp.Features.EnableSoftwareInventory)
+	require.NotNil(t, resp.Features.AdditionalQueries)
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -489,7 +547,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		context.Background(), []fleet.SoftwareVulnerability{
 			{
 				SoftwareID: soft1.ID,
-				CPEID:      soft1.GeneratedCPEID,
 				CVE:        "cve-123-123-132",
 			},
 		}, fleet.NVDSource,
@@ -521,11 +578,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 
-	countReq := countSoftwareRequest{}
-	countResp := countSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
-	assert.Equal(t, 3, countResp.Count)
-
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -537,14 +589,19 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 0)
 	assert.Nil(t, lsResp.CountsUpdatedAt)
 
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+
+	countReq := countSoftwareRequest{}
+	countResp := countSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
+	assert.Equal(t, 3, countResp.Count)
+
 	// the software/count endpoint is different, it doesn't care about hosts counts
 	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
-
-	// calculate hosts counts
-	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
@@ -850,6 +907,31 @@ func (s *integrationTestSuite) TestCountSoftware() {
 		"label_id", fmt.Sprint(label.ID),
 	)
 	assert.Equal(t, 1, resp.Count)
+
+	// filter by MDM criteria without any host having such information
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Equal(t, 0, resp.Count)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, true, "https://simplemdm.com", false))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
+	require.Equal(t, 1, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Equal(t, 1, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual", "mdm_id", fmt.Sprint(mdmID))
+	require.Equal(t, 1, resp.Count)
 }
 
 func (s *integrationTestSuite) TestPacks() {
@@ -933,10 +1015,14 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, len(hosts))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
@@ -947,6 +1033,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host.ID, resp.Hosts[0].ID)
@@ -962,15 +1049,151 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID), "disable_failing_policies", "true")
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
+
+	// filter by MDM criteria without any host having such information
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+	// and same by munki issue id
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
+	require.NotNil(t, resp.MDMSolution)
+	assert.Equal(t, mdmID, resp.MDMSolution.ID)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, resp.MDMSolution.Name)
+	assert.Equal(t, "https://simplemdm.com", resp.MDMSolution.ServerURL)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID), "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.Equal(t, mdmID, resp.MDMSolution.ID)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+
+	// set munki information on a host
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
+	var errMunkiID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &errMunkiID,
+			`SELECT id FROM munki_issues WHERE name = 'err' AND issue_type = 'error'`)
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	require.NotNil(t, resp.MunkiIssue)
+	assert.Equal(t, fleet.MunkiIssue{
+		ID:        errMunkiID,
+		Name:      "err",
+		IssueType: "error",
+	}, *resp.MunkiIssue)
+
+	// filters can be combined, no problem
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID), "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.NotNil(t, resp.MunkiIssue)
+
+	// set operating system information on a host
+	testOS := fleet.OperatingSystem{Name: "fooOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "bar"}
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ?`, "fooOS", "4.2")
+	})
+	require.Greater(t, osID, uint(0))
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", "unknownOS", "os_version", "4.2")
+	require.Len(t, resp.Hosts, 0)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
+	require.Len(t, resp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -2238,6 +2461,19 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	require.Len(t, dm, testSize)
 }
 
+type macadminsDataResponse struct {
+	Macadmins *struct {
+		Munki       *fleet.HostMunkiInfo    `json:"munki"`
+		MunkiIssues []*fleet.HostMunkiIssue `json:"munki_issues"`
+		MDM         *struct {
+			EnrollmentStatus string  `json:"enrollment_status"`
+			ServerURL        string  `json:"server_url"`
+			Name             *string `json:"name"`
+			ID               *uint   `json:"id"`
+		} `json:"mobile_device_management"`
+	} `json:"macadmins"`
+}
+
 func (s *integrationTestSuite) TestGetMacadminsData() {
 	t := s.T()
 
@@ -2303,52 +2539,122 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, err)
 	require.NotNil(t, hostOnlyMDM)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.3.0"))
+	hostMDMNoID, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "5",
+		UUID:            t.Name() + "5",
+		Hostname:        t.Name() + "foo.local5",
+		PrimaryIP:       "192.168.1.5",
+		PrimaryMac:      "30-65-EC-6F-D5-5A",
+		OsqueryHostID:   "5",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostMDMNoID)
 
-	macadminsData := getMacadminsDataResponse{}
+	// insert a host_mdm row for hostMDMNoID without any mdm_id
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep) VALUES (?, ?, ?, ?)`,
+			hostMDMNoID.ID, true, "https://simplemdm.com", true)
+		return err
+	})
+
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
+
+	macadminsData := macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url2", true))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.5.0"))
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+	sort.Slice(macadminsData.Macadmins.MunkiIssues, func(i, j int) bool {
+		l, r := macadminsData.Macadmins.MunkiIssues[i], macadminsData.Macadmins.MunkiIssues[j]
+		return l.Name < r.Name
+	})
+	assert.NotZero(t, macadminsData.Macadmins.MunkiIssues[0].MunkiIssueID)
+	assert.False(t, macadminsData.Macadmins.MunkiIssues[0].HostIssueCreatedAt.IsZero())
+	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
+	assert.Equal(t, "error", macadminsData.Macadmins.MunkiIssues[0].IssueType)
+	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[1].Name)
+	assert.NotZero(t, macadminsData.Macadmins.MunkiIssues[1].MunkiIssueID)
+	assert.False(t, macadminsData.Macadmins.MunkiIssues[1].HostIssueCreatedAt.IsZero())
+	assert.Equal(t, "warning", macadminsData.Macadmins.MunkiIssues[1].IssueType)
 
-	macadminsData = getMacadminsDataResponse{}
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, nil))
+
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
-	assert.Equal(t, "url2", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "https://simplemdm.com", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, *macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	assert.Equal(t, "1.5.0", macadminsData.Macadmins.Munki.Version)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
+	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false))
 
-	macadminsData = getMacadminsDataResponse{}
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	assert.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
 
 	// nothing returns null
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostNothing.ID), nil, http.StatusOK, &macadminsData)
 	require.Nil(t, macadminsData.Macadmins)
 
 	// only munki info returns null on mdm
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostOnlyMunki.ID, "3.2.0"))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "3.2.0", nil, []string{"warning1"}))
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.Nil(t, macadminsData.Macadmins.MDM)
 	require.NotNil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "3.2.0", macadminsData.Macadmins.Munki.Version)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
+	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "AAA", true))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "https://kandji.io", true))
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.NotNil(t, macadminsData.Macadmins.MDM)
+	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMKandji, *macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
-	assert.Equal(t, "AAA", macadminsData.Macadmins.MDM.ServerURL)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 0)
+	assert.Equal(t, "https://kandji.io", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// host without mdm_id still works, returns nil id and unknown name
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostMDMNoID.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	require.NotNil(t, macadminsData.Macadmins.MDM)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	assert.Nil(t, macadminsData.Macadmins.MDM.ID)
+	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
 	// generate aggregated data
@@ -2369,10 +2675,43 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			HostsCount:    1,
 		},
 	})
+	require.Len(t, agg.Macadmins.MunkiIssues, 2)
+	// ignore ids
+	agg.Macadmins.MunkiIssues[0].ID = 0
+	agg.Macadmins.MunkiIssues[1].ID = 0
+	assert.ElementsMatch(t, agg.Macadmins.MunkiIssues, []fleet.AggregatedMunkiIssue{
+		{
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "error1",
+				IssueType: "error",
+			},
+			HostsCount: 1,
+		},
+		{
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "warning1",
+				IssueType: "warning",
+			},
+			HostsCount: 1,
+		},
+	})
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
-	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
-	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
+	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 3)
+	require.Len(t, agg.Macadmins.MDMSolutions, 2)
+	for _, sol := range agg.Macadmins.MDMSolutions {
+		switch sol.ServerURL {
+		case "url2":
+			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+		case "https://kandji.io":
+			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+		default:
+			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
+		}
+	}
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
@@ -2384,7 +2723,9 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MunkiIssues)
 	require.Empty(t, agg.Macadmins.MDMStatus)
+	require.Empty(t, agg.Macadmins.MDMSolutions)
 
 	agg = getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
@@ -3922,6 +4263,25 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 
+	// the global agent options were not modified by the last call, so the
+	// corresponding activity should not have been created.
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	if !assert.Len(t, listActivities.Activities, 0) {
+		// if there is an activity, make sure it is not edited_agent_options
+		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	}
+
+	// test a change that does modify the agent options.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "agent_options": { "foo": 1 }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)
@@ -4079,7 +4439,6 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	for i, sw := range hosts[0].Software[:10] {
 		vulns = append(vulns, fleet.SoftwareVulnerability{
 			SoftwareID: sw.ID,
-			CPEID:      sw.GeneratedCPEID,
 			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
 		})
 	}
@@ -4947,8 +5306,8 @@ func (s *integrationTestSuite) TestSandboxEndpoints() {
 	require.NotEqual(t, http.StatusOK, res.StatusCode)
 
 	// installers endpoint is not enabled
-	validURL := installerURL(enrollSecret, "pkg", false)
-	s.Do("GET", validURL, nil, http.StatusInternalServerError)
+	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
+	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
 }
 
 func (s *integrationTestSuite) TestGetHostBatteries() {
@@ -4990,6 +5349,46 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		{CycleCount: 1, Health: "Normal"},
 		{CycleCount: 1002, Health: "Replacement recommended"},
 	}, *getHostResp.Host.Batteries)
+}
+
+func (s *integrationTestSuite) TestOSVersions() {
+	t := s.T()
+
+	testOS := fleet.OperatingSystem{Name: "barOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "foo"}
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	// set operating system information on a host
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
+	})
+	require.Greater(t, osID, uint(0))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	var osVersionsResp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
 }
 
 // this test can be deleted once the "v1" version is removed.

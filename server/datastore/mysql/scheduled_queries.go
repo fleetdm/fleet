@@ -3,6 +3,9 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 
@@ -212,4 +215,148 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 	}
 
 	return sq, nil
+}
+
+func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error) {
+	const (
+		stmt = `
+    SELECT sqn.idx, sq.id
+      FROM scheduled_queries sq
+      INNER JOIN packs p ON sq.pack_id = p.id
+      INNER JOIN (
+        SELECT ? as idx, ? as pack_name, ? as scheduled_query_name
+        %s
+      ) AS sqn ON (p.name, sq.name) = (sqn.pack_name, sqn.scheduled_query_name)
+`
+		additionalRows = `UNION SELECT ?, ?, ? `
+	)
+
+	type idxAndID struct {
+		IDX int  `db:"idx"`
+		ID  uint `db:"id"`
+	}
+
+	if batchSize <= 0 {
+		batchSize = fleet.DefaultScheduledQueryIDsByNameBatchSize
+	}
+
+	// all provided names have a corresponding scheduled query ID in the result,
+	// even if it doesn't exist for some reason (in which case it will be 0).
+	result := make([]uint, len(packAndSchedQueryNames))
+
+	var indexOffset int
+	for len(packAndSchedQueryNames) > 0 {
+		max := len(packAndSchedQueryNames)
+		if max > batchSize {
+			max = batchSize
+		}
+
+		args := make([]interface{}, 0, max*3)
+		for i, psn := range packAndSchedQueryNames[:max] {
+			args = append(args, indexOffset+i, psn[0], psn[1])
+		}
+		packAndSchedQueryNames = packAndSchedQueryNames[max:]
+		indexOffset += max
+
+		stmt := fmt.Sprintf(stmt, strings.Repeat(additionalRows, max-1))
+		var rows []idxAndID
+		if err := ds.writer.SelectContext(ctx, &rows, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select scheduled query IDs by name")
+		}
+		for _, row := range rows {
+			result[row.IDX] = row.ID
+		}
+	}
+	return result, nil
+}
+
+func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
+	// NOTE: this implementation must be kept in sync with the non-async version
+	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must
+	// be the same.
+
+	const (
+		stmt = `
+			INSERT INTO scheduled_query_stats (
+				host_id,
+				scheduled_query_id,
+				average_memory,
+				denylisted,
+				executions,
+				schedule_interval,
+				last_executed,
+				output_size,
+				system_time,
+				user_time,
+				wall_time
+			)
+			VALUES %s
+      ON DUPLICATE KEY UPDATE
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)
+`
+
+		values = `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),`
+	)
+
+	var countExecs int
+
+	// inserting sorted by host id (the first key in the PK) apparently helps
+	// mysql with locking
+	hostIDs := make([]uint, 0, len(stats))
+	for k := range stats {
+		hostIDs = append(hostIDs, k)
+	}
+	sort.Slice(hostIDs, func(i, j int) bool {
+		return hostIDs[i] < hostIDs[j]
+	})
+
+	var batchArgs []interface{}
+	var batchCount int
+	for _, hostID := range hostIDs {
+		hostStats := stats[hostID]
+
+		for _, stat := range hostStats {
+			batchArgs = append(batchArgs,
+				hostID,
+				stat.ScheduledQueryID,
+				stat.AverageMemory,
+				stat.Denylisted,
+				stat.Executions,
+				stat.Interval,
+				stat.LastExecuted,
+				stat.OutputSize,
+				stat.SystemTime,
+				stat.UserTime,
+				stat.WallTime)
+			batchCount++
+
+			if batchCount >= batchSize {
+				stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
+				if _, err := ds.writer.ExecContext(ctx, stmt, batchArgs...); err != nil {
+					return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
+				}
+				countExecs++
+				batchArgs = batchArgs[:0]
+				batchCount = 0
+			}
+		}
+	}
+
+	if batchCount > 0 {
+		stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
+		if _, err := ds.writer.ExecContext(ctx, stmt, batchArgs...); err != nil {
+			return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
+		}
+		countExecs++
+	}
+
+	return countExecs, nil
 }
