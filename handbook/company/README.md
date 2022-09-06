@@ -106,7 +106,7 @@ Empathy leads to better understanding, better communication, and better decision
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- Iterate your work.
+- [Iterate](https://youtu.be/BW6TWwNZzIQ) your work.
   - Look for ways to make frequent, small changes.  Small changes provide faster feedback.  They are easier to reason about when debugging.
   - Pick low-hanging fruit (deliver value quickly where you can).
   - Think ahead, then make the right decision for now.
