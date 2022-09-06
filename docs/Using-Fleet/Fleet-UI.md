@@ -1,7 +1,7 @@
 # Fleet UI
-- [Create a query](#schedule-a-query)
+- [Create a query](#create-a-query)
 - [Run a query](#run-a-query)
-- [Schedule a query](#configuring-agent-options)
+- [Schedule a query](#schedule-a-query)
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
