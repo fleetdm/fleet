@@ -2,10 +2,7 @@ package webhooks
 
 import (
 	"context"
-	"fmt"
 	"net/url"
-	"path"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -21,6 +18,7 @@ func TriggerVulnerabilitiesWebhook(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	args VulnArgs,
+	mapper WebhookMapper,
 ) error {
 	vulnConfig := args.AppConfig.WebhookSettings.VulnerabilitiesWebhook
 
@@ -56,14 +54,10 @@ func TriggerVulnerabilitiesWebhook(
 			if batchSize > 0 && len(hosts) > batchSize {
 				limit = batchSize
 			}
-
-			hostsPayload := getHostPayloadPart(serverURL, hosts[:limit])
-			payload := getVulnPayload(v, args.Meta[v.CVE], args.IsPremium, hostsPayload)
-
+			payload := mapper.GetPayload(serverURL, hosts[:limit], v, args.Meta[v.CVE])
 			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time); err != nil {
 				return ctxerr.Wrap(ctx, err, "send vulnerability host batch")
 			}
-
 			hosts = hosts[limit:]
 		}
 	}
@@ -71,56 +65,7 @@ func TriggerVulnerabilitiesWebhook(
 	return nil
 }
 
-type hostPayloadPart struct {
-	ID        uint   `json:"id"`
-	Hostname  string `json:"hostname"`
-	URL       string `json:"url"`
-	Platform  string `json:"platform"`
-	OSVersion string `json:"os_version"`
-}
-
-func getHostPayloadPart(hostBaseURL *url.URL, hosts []*fleet.HostShort) []*hostPayloadPart {
-	shortHosts := make([]*hostPayloadPart, len(hosts))
-	for i, h := range hosts {
-		hostURL := *hostBaseURL
-		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
-		shortHosts[i] = &hostPayloadPart{
-			ID:        h.ID,
-			Hostname:  h.Hostname,
-			URL:       hostURL.String(),
-			Platform:  h.Platform,
-			OSVersion: h.OSVersion,
-		}
-	}
-	return shortHosts
-}
-
-type payload struct {
-	CVE              string             `json:"cve"`
-	Link             string             `json:"details_link"`
-	EPSSProbability  *float64           `json:"epss_probability,omitempty"`
-	CVSSScore        *float64           `json:"cvss_score,omitempty"`
-	CISAKnownExploit *bool              `json:"cisa_known_exploit,omitempty"`
-	Hosts            []*hostPayloadPart `json:"hosts_affected"`
-}
-
-func getVulnPayload(vuln fleet.SoftwareVulnerability, meta fleet.CVEMeta, isPremium bool, hosts []*hostPayloadPart) payload {
-	r := payload{
-		CVE:   vuln.CVE,
-		Link:  fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE),
-		Hosts: hosts,
-	}
-
-	if isPremium {
-		r.EPSSProbability = meta.EPSSProbability
-		r.CVSSScore = meta.CVSSScore
-		r.CISAKnownExploit = meta.CISAKnownExploit
-	}
-
-	return r
-}
-
-func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln payload, now time.Time) error {
+func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time) error {
 	payload := map[string]interface{}{
 		"timestamp":     now,
 		"vulnerability": vuln,

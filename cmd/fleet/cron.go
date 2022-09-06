@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -185,7 +186,10 @@ func scanVulnerabilities(
 				Meta:           meta,
 				AppConfig:      appConfig,
 				Time:           time.Now(),
-				IsPremium:      license.IsPremium(),
+			}
+			mapper := webhooks.NewWebhookFreeMapper()
+			if license.IsPremium() {
+				mapper = eewebhooks.NewWebhookEEMapper()
 			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
@@ -193,6 +197,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "webhook", "vulnerabilities"),
 				args,
+				mapper,
 			); err != nil {
 				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 			}

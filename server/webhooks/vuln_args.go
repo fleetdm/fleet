@@ -11,5 +11,4 @@ type VulnArgs struct {
 	Meta           map[string]fleet.CVEMeta
 	AppConfig      *fleet.AppConfig
 	Time           time.Time
-	IsPremium      bool
 }
