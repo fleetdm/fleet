@@ -14,7 +14,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 type getFleetDesktopResponse struct {
 	Err             error `json:"error,omitempty"`
-	FailingPolicies uint  `json:"failing_policies_count"`
+	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
 }
 
 type getFleetDesktopRequest struct {
@@ -40,7 +40,7 @@ func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getFleetDesktopResponse{Err: err}, nil
 	}
 
-	return getFleetDesktopResponse{FailingPolicies: r}, nil
+	return getFleetDesktopResponse{FailingPolicies: &r}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
