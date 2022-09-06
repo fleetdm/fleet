@@ -2,10 +2,7 @@ package webhooks
 
 import (
 	"context"
-	"fmt"
 	"net/url"
-	"path"
-	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -20,18 +17,18 @@ func TriggerVulnerabilitiesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	recentVulns []fleet.SoftwareVulnerability,
-	appConfig *fleet.AppConfig,
-	now time.Time,
+	args VulnArgs,
+	mapper VulnMapper,
 ) error {
-	vulnConfig := appConfig.WebhookSettings.VulnerabilitiesWebhook
+	vulnConfig := args.AppConfig.WebhookSettings.VulnerabilitiesWebhook
+
 	if !vulnConfig.Enable {
 		return nil
 	}
 
-	level.Debug(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+	level.Debug(logger).Log("enabled", "true", "recentVulns", len(args.Vulnerablities))
 
-	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	serverURL, err := url.Parse(args.AppConfig.ServerSettings.ServerURL)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "invalid server url")
 	}
@@ -40,11 +37,11 @@ func TriggerVulnerabilitiesWebhook(
 	batchSize := vulnConfig.HostBatchSize
 
 	softwareIDsGroupedByCVE := make(map[string][]uint)
-	for _, v := range recentVulns {
+	for _, v := range args.Vulnerablities {
 		softwareIDsGroupedByCVE[v.CVE] = append(softwareIDsGroupedByCVE[v.CVE], v.SoftwareID)
 	}
 
-	for _, v := range recentVulns {
+	for _, v := range args.Vulnerablities {
 		softwareIDs := softwareIDsGroupedByCVE[v.CVE]
 
 		hosts, err := ds.HostsBySoftwareIDs(ctx, softwareIDs)
@@ -57,7 +54,8 @@ func TriggerVulnerabilitiesWebhook(
 			if batchSize > 0 && len(hosts) > batchSize {
 				limit = batchSize
 			}
-			if err := sendVulnerabilityHostBatch(ctx, targetURL, v.CVE, serverURL, hosts[:limit], now); err != nil {
+			payload := mapper.GetPayload(serverURL, hosts[:limit], v, args.Meta[v.CVE])
+			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time); err != nil {
 				return ctxerr.Wrap(ctx, err, "send vulnerability host batch")
 			}
 			hosts = hosts[limit:]
@@ -67,31 +65,10 @@ func TriggerVulnerabilitiesWebhook(
 	return nil
 }
 
-type vulnHostPayload struct {
-	ID       uint   `json:"id"`
-	Hostname string `json:"hostname"`
-	URL      string `json:"url"`
-}
-
-func sendVulnerabilityHostBatch(ctx context.Context, targetURL, cve string, hostBaseURL *url.URL, hosts []*fleet.HostShort, now time.Time) error {
-	shortHosts := make([]*vulnHostPayload, len(hosts))
-	for i, h := range hosts {
-		hostURL := *hostBaseURL
-		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
-		shortHosts[i] = &vulnHostPayload{
-			ID:       h.ID,
-			Hostname: h.Hostname,
-			URL:      hostURL.String(),
-		}
-	}
-
+func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time) error {
 	payload := map[string]interface{}{
-		"timestamp": now,
-		"vulnerability": map[string]interface{}{
-			"cve":            cve,
-			"details_link":   fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
-			"hosts_affected": shortHosts,
-		},
+		"timestamp":     now,
+		"vulnerability": vuln,
 	}
 
 	if err := server.PostJSONWithTimeout(ctx, targetURL, &payload); err != nil {
