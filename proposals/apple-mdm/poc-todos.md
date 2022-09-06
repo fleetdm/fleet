@@ -4,7 +4,10 @@
 - Decide whether to stick to >= 8.0.19. If so:
 	- Add check to fail `prepare db` command if `config.MDMApple.Enable and the MySQL version is < 8.0.19.
 - Apple MDM schema is currently allocated in a separate database `mdm_apple`. Currently the case because of table name collisions. Revisit whether we want to merge schema into `fleet`'s database and discuss solutions.
-- Define the workflow when SCEP CA certificate expires.
+- Define the workflow and support when:
+  - SCEP CA certificate expires.
+  - DEP token expires.
+  - Push certificate expires.
 - DEP init command: Check encryption public key "validity days" default value.
 - Do cleanup as last step of "DEP finalize"? (i.e. delete pemCertPath, pemKeyPath and encryptedTokenPath files?)
 - Add yaml struct tags to Fleet MDM configuration.
