@@ -160,22 +160,60 @@ We like to regularly share updates about how Fleet is growing with our investors
 
 ## Calendar audit
 
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. In the notes document include:
-- LinkedIn profile link of all outside participants
-- Company profile link 
-- Context that helps the CEO to understand purpose of meeting at a glance
-- Share document with meeting participants
+As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+
+In the notes document include:
+  1. LinkedIn profile link of all outside participants
+  2. Company profile link 
+  3. Context that helps the CEO to understand purpose of meeting at a glance
+  4. Share document with meeting participants
 
 **Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
 
 ## Gong
-TODO: Gong process
+
+How to file videos from Gong recordings (**marking as "private" in gong is not appropriate. Never use it- instead, use this process**):
+  1. Move to ¶¶ recording in google drive.
+  2. Download video from Gong, then delete it from Gong (promptly) and instead upload mp4 to appropriate ¶¶ folder in google drive.
+  3. Move generated transcript doc in google drive (promptly) instead into appropriate ¶¶ folder in google drive.
+  4. **For both video and transcript**: Double-checked permissions to make sure they are only ¶¶ viewers.
+  5. Include the links to ¶¶ video and transcript here in this doc:
+    - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
+    - Include in the doc "link to video:"
+    - Include in the doc "link to transcript:"
 
 ## Private whiteboard
-TODO: Create process
+
+From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+  1. Start with a new doc.
+  2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
+  3. Use CMD+SHFT+V to paste the Slack convo into the doc.
+  4. Reapply formatting manually (be mindful of quotes, links, and images).
+      - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
 
 ## New IT conversations
-TODO: Create process
+
+From time to time the CEO will ask Charlie to complete some data entry for him. 
+  1. Collect the CEO's tag info (usually a LinkedIn link).
+  2. CMD+F the spreadsheet for prior entries.
+  3. Paste info into [📒 IT leader & practitioner conversations](https://docs.google.com/spreadsheets/d/1zrQVeeu3rc4LVkp2CboDGMSfXzG8pBPz6gEfQPNSRRk/edit?usp=sharing) (private doc).
+  4. Fill in their name.
+  5. Fill in the last touch column with the date (this is either the date Mike shares the info, or the date that a call is taking place - Last touch point should be updated to the call date).
+  6. Fill in the point of contact if known (usually CEO, unless specified).
+
+## All Hands prep
+
+Every month Charlie will create do the prep work for the month "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+  1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
+  2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
+  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreasheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
+  4. **If applicable** Update "🦉 Welcome!" slide to reflect new investors or advisors using "**name** <em>(pronoun)</em>, position, company".
+  5. **If applicable** Update "🤝 Welcome!" slide to reflect new customers.
+  6. Update slides that contain dates to reflect current All Hands date.
+  7. Update slides that contain metrics to reflect current information using the [🌈 Weekly updates](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1#gid=0).
+  8. **If applicable** Update Quarterly OKRs to reflect current OKR goals for the current quarter.
+  9. Test that the transition on the last slides continue to work.
+  10. **If applicable** Add new customer's logo to final slide.
 
 <meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="CEO handbook">

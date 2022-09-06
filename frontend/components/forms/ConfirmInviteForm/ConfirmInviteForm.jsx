@@ -52,11 +52,7 @@ class ConfirmInviteForm extends Component {
           />
         </div>
         <div className="confirm-invite-button-wrap">
-          <Button
-            onClick={handleSubmit}
-            type="Submit"
-            className="button button--brand"
-          >
+          <Button onClick={handleSubmit} type="Submit" variant="brand">
             Submit
           </Button>
         </div>

@@ -1,17 +1,4 @@
 .create-user-form {
-  a {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
-  img {
-    width: 12px;
-    height: 12px;
-    margin-left: 6px;
-  }
-
   &__new-user-container {
     margin-top: $pad-large;
     margin-bottom: $pad-large;
@@ -82,15 +69,6 @@
         font-style: italic;
       }
     }
-  }
-
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-  }
-
-  &__btn {
-    margin-left: 12px;
   }
 
   &__invite-admin {

@@ -8,6 +8,7 @@ interface IDeleteHostModal {
   onSubmit: (team: ITeam) => void;
   onCancel: () => void;
   hostName?: string;
+  isUpdatingHost: boolean;
 }
 
 const baseClass = "delete-host-modal";
@@ -16,6 +17,7 @@ const DeleteHostModal = ({
   onCancel,
   onSubmit,
   hostName,
+  isUpdatingHost,
 }: IDeleteHostModal): JSX.Element => {
   return (
     <Modal
@@ -36,11 +38,16 @@ const DeleteHostModal = ({
           revoke the host&apos;s enroll secret.
         </p>
         <div className="modal-cta-wrap">
+          <Button
+            onClick={onSubmit}
+            variant="alert"
+            className="delete-loading"
+            isLoading={isUpdatingHost}
+          >
+            Delete
+          </Button>
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
-          </Button>
-          <Button onClick={onSubmit} variant="alert">
-            Delete
           </Button>
         </div>
       </>

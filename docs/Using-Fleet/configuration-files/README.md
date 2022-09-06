@@ -171,6 +171,12 @@ kind: team
 spec:
   team:
     name: Client Platform Engineering
+    features:
+      enable_host_users: false
+      enable_software_inventory: true
+      additional_queries:
+        time: SELECT * FROM time
+        macs: SELECT mac FROM interface_details
     agent_options:
       config:
         decorators:

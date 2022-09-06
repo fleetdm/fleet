@@ -61,15 +61,35 @@
 {{ define "fleet_detail_query_os_version" -}}
 [
   {
-    "name":"Ubuntu 20.4.0",
-    "version":"Ubuntu 20.4.0",
-    "major":"",
-    "minor":"",
-    "patch":"",
+    "name":"Ubuntu",
+    "version":"20.04.2 LTS (Focal Fossa)",
+    "major":"20",
+    "minor":"4",
+    "patch":"0",
     "build":"",
     "platform":"ubuntu",
-    "platform_like":"ubuntu",
-    "codename":""
+    "platform_like":"debian",
+    "codename":"focal",
+    "arch":"x86_64"
+  }
+]
+{{- end }}
+
+
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Ubuntu",
+    "version":"20.04.2 LTS (Focal Fossa)",
+    "major":"20",
+    "minor":"4",
+    "patch":"0",
+    "build":"",
+    "platform":"ubuntu",
+    "platform_like":"debian",
+    "codename":"focal",
+    "arch":"x86_64",
+    "kernel_version":"5.10.76-linuxkit"
   }
 ]
 {{- end }}
@@ -90,42 +110,5 @@
     "watcher":"11286",
     "platform_mask":"21"
   }
-]
-{{- end }}
-
-
-{{ define "fleet_detail_query_users" -}}
-[
-  {{ range $index, $item := .HostUsersMacOS }}
-  {{if $index}},{{end}}
-  {
-    "uid": "{{ .Uid }}",
-    "username": "{{ .Username }}",
-    "type": "{{ .Type }}",
-    "groupname": "{{ .GroupName }}",
-    "shell": "{{ .Shell }}"
-  }
-  {{- end }}
-]
-{{- end }}
-
-{{ define "fleet_detail_query_software_linux" -}}
-[
-  {{ range $index, $item := .SoftwareUbuntu2004 }}
-  {{if $index}},{{end}}
-  {
-    "name": "{{ .Name }}",
-    "version": "{{ .Version }}",
-    "type": "Application",
-    "bundle_identifier": "{{ .BundleIdentifier }}",
-    "source": "apps",
-    {{/* Note that in Go < 1.18, `{{ or (and .LastOpendedAt .LastOpenedAt.Unix) "" }}` won't work as expected because "and" and "or" don't short circuit. This was changed in Go 1.18 */}}
-    {{if .LastOpenedAt}}
-    "last_opened_at": "{{ .LastOpenedAt.Unix }}"
-    {{else}}
-    "last_opened_at": "-1"
-    {{end}}
-  }
-  {{- end }}
 ]
 {{- end }}

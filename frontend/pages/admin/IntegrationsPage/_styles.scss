@@ -14,16 +14,12 @@
   align-items: center;
   margin-top: $pad-xxxlarge;
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-
-    img {
-      width: 12px;
-      margin-left: 2px;
-    }
+  h1 {
+    font-size: $large;
+    font-weight: $regular;
+    line-height: normal;
+    letter-spacing: normal;
+    color: $core-fleet-black;
   }
 
   h2 {

@@ -10,6 +10,7 @@ import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
 import { INotification } from "interfaces/notification";
 import { licenseExpirationWarning } from "utilities/helpers";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
 
@@ -28,8 +29,8 @@ const expirationMessage = (
       rel="noopener noreferrer"
     >
       please head to the Fleet documentation
+      <img src={ExternalLinkIcon} alt="Open external link" id="new-tab-icon" />
     </a>
-    .
   </>
 );
 
@@ -37,10 +38,9 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
-  const [
-    showExpirationFlashMessage,
-    setShowExpirationFlashMessage,
-  ] = useState<boolean>(false);
+  const [showExpirationFlashMessage, setShowExpirationFlashMessage] = useState(
+    false
+  );
 
   // on success of an action, the table will reset its checkboxes.
   // setTimeout is to help with race conditions as table reloads

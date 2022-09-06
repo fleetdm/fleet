@@ -17,6 +17,8 @@ parasails.registerPage('register', {
     syncing: false,
     // Server error state
     cloudError: '',
+    // Modal
+    modal: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -50,6 +52,14 @@ parasails.registerPage('register', {
     submittedRegisterForm: async function() {
       this.syncing = true;
       window.location = '/try-fleet/sandbox';
-    }
+    },
+
+    clickOpenVideoModal: function() {
+      this.modal = 'video';
+    },
+
+    closeModal: function() {
+      this.modal = '';
+    },
   }
 });

@@ -1020,6 +1020,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
@@ -1066,11 +1067,20 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+	// and same by munki issue id
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
@@ -1087,26 +1097,29 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
 	require.NotNil(t, resp.MDMSolution)
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
-	assert.Equal(t, 1, resp.MDMSolution.HostsCount)
 	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, resp.MDMSolution.Name)
 	assert.Equal(t, "https://simplemdm.com", resp.MDMSolution.ServerURL)
 
@@ -1114,11 +1127,42 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID), "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
 	assert.NotNil(t, resp.MDMSolution)
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+
+	// set munki information on a host
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
+	var errMunkiID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &errMunkiID,
+			`SELECT id FROM munki_issues WHERE name = 'err' AND issue_type = 'error'`)
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	require.NotNil(t, resp.MunkiIssue)
+	assert.Equal(t, fleet.MunkiIssue{
+		ID:        errMunkiID,
+		Name:      "err",
+		IssueType: "error",
+	}, *resp.MunkiIssue)
+
+	// filters can be combined, no problem
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID), "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.NotNil(t, resp.MunkiIssue)
 
 	// set operating system information on a host
 	testOS := fleet.OperatingSystem{Name: "fooOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "bar"}
@@ -2419,8 +2463,9 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 
 type macadminsDataResponse struct {
 	Macadmins *struct {
-		Munki *fleet.HostMunkiInfo `json:"munki"`
-		MDM   *struct {
+		Munki       *fleet.HostMunkiInfo    `json:"munki"`
+		MunkiIssues []*fleet.HostMunkiIssue `json:"munki_issues"`
+		MDM         *struct {
 			EnrollmentStatus string  `json:"enrollment_status"`
 			ServerURL        string  `json:"server_url"`
 			Name             *string `json:"name"`
@@ -2518,7 +2563,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	})
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.3.0"))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
 
 	macadminsData := macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -2530,8 +2575,22 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
 
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+	sort.Slice(macadminsData.Macadmins.MunkiIssues, func(i, j int) bool {
+		l, r := macadminsData.Macadmins.MunkiIssues[i], macadminsData.Macadmins.MunkiIssues[j]
+		return l.Name < r.Name
+	})
+	assert.NotZero(t, macadminsData.Macadmins.MunkiIssues[0].MunkiIssueID)
+	assert.False(t, macadminsData.Macadmins.MunkiIssues[0].HostIssueCreatedAt.IsZero())
+	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
+	assert.Equal(t, "error", macadminsData.Macadmins.MunkiIssues[0].IssueType)
+	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[1].Name)
+	assert.NotZero(t, macadminsData.Macadmins.MunkiIssues[1].MunkiIssueID)
+	assert.False(t, macadminsData.Macadmins.MunkiIssues[1].HostIssueCreatedAt.IsZero())
+	assert.Equal(t, "warning", macadminsData.Macadmins.MunkiIssues[1].IssueType)
+
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.5.0"))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, nil))
 
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -2543,6 +2602,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	assert.Equal(t, "1.5.0", macadminsData.Macadmins.Munki.Version)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
+	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false))
 
@@ -2553,6 +2614,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	assert.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
 
 	// nothing returns null
 	macadminsData = macadminsDataResponse{}
@@ -2560,13 +2622,15 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Nil(t, macadminsData.Macadmins)
 
 	// only munki info returns null on mdm
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostOnlyMunki.ID, "3.2.0"))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "3.2.0", nil, []string{"warning1"}))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.Nil(t, macadminsData.Macadmins.MDM)
 	require.NotNil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "3.2.0", macadminsData.Macadmins.Munki.Version)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
+	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "https://kandji.io", true))
@@ -2579,6 +2643,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 0)
 	assert.Equal(t, "https://kandji.io", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
@@ -2610,6 +2675,26 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			HostsCount:    1,
 		},
 	})
+	require.Len(t, agg.Macadmins.MunkiIssues, 2)
+	// ignore ids
+	agg.Macadmins.MunkiIssues[0].ID = 0
+	agg.Macadmins.MunkiIssues[1].ID = 0
+	assert.ElementsMatch(t, agg.Macadmins.MunkiIssues, []fleet.AggregatedMunkiIssue{
+		{
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "error1",
+				IssueType: "error",
+			},
+			HostsCount: 1,
+		},
+		{
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "warning1",
+				IssueType: "warning",
+			},
+			HostsCount: 1,
+		},
+	})
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
@@ -2638,6 +2723,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MunkiIssues)
 	require.Empty(t, agg.Macadmins.MDMStatus)
 	require.Empty(t, agg.Macadmins.MDMSolutions)
 

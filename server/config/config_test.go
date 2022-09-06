@@ -79,7 +79,8 @@ func TestConfigRoundtrip(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure the read config is the same as the original
-	assert.Equal(t, *original, man.LoadConfig())
+	actual := man.LoadConfig()
+	assert.Equal(t, *original, actual)
 }
 
 func TestConfigOsqueryAsync(t *testing.T) {

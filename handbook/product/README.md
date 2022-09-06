@@ -546,9 +546,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |
-
-
-
+| `#g-mdm`                            | Noah Talerman                                                       |
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="⚗️ Product">

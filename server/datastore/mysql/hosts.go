@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
@@ -290,6 +291,7 @@ var hostRefs = []string{
 	"host_device_auth",
 	"host_batteries",
 	"host_operating_system",
+	"host_munki_issues",
 	"windows_updates",
 }
 
@@ -511,6 +513,14 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
 	}
 
+	munkiFilter := "TRUE"
+	munkiJoin := ""
+	if opt.MunkiIssueIDFilter != nil {
+		munkiJoin = ` JOIN host_munki_issues hmi ON h.id = hmi.host_id `
+		munkiFilter = "hmi.munki_issue_id = ?"
+		params = append(params, opt.MunkiIssueIDFilter)
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
@@ -519,8 +529,10 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		%s
 		%s
 		%s
-		WHERE TRUE AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+		%s
+		WHERE TRUE AND %s AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter, munkiFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
@@ -1382,7 +1394,23 @@ func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, ins
 	return ctxerr.Wrap(ctx, err, "insert")
 }
 
-func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
+func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error {
+	// NOTE(mna): if we lose too many saves due to some errors, we could continue
+	// processing even when part of the ingestion fails (e.g. process version if
+	// issues fail or vice-versa, ignore issues that failed to be created, etc.).
+	// Currently, taking a strict approach as a point that was mentioned in the
+	// ticket was to care about data accuracy, so instead of allowing to save
+	// only a subset of issues, we fail if we can't save the complete set.
+
+	msgToID, err := ds.getOrInsertMunkiIssues(ctx, errors, warnings, fleet.DefaultMunkiIssuesBatchSize)
+	if err != nil {
+		return err
+	}
+
+	if err := ds.replaceHostMunkiIssues(ctx, hostID, msgToID); err != nil {
+		return err
+	}
+
 	if version == "" {
 		// Only update deleted_at if there wasn't any deleted at for this host
 		updateQuery := `UPDATE host_munki_info SET deleted_at = NOW() WHERE host_id = ? AND deleted_at is NULL`
@@ -1398,6 +1426,220 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 		`INSERT INTO host_munki_info (version, host_id) VALUES (?, ?)`,
 		version, hostID,
 	)
+}
+
+func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, msgToID map[[2]string]uint) error {
+	// This needs an efficient way to check if the batch of messages are the same
+	// as existing ones, as this should be a common case (i.e. Munki does not run
+	// *that* often, so it is likely that the host reports the same messages for
+	// some time, or none at all). The approach is as follows:
+	//
+	// * Read a COUNT of new IDs (those to be saved) and a COUNT of old IDs
+	//   (those to be removed) from the read replica.
+	// * If COUNT(new) == len(newIDs) and COUNT(old) == 0, no write is required.
+	// * If COUNT(old) > 0, delete those obsolete ids.
+	// * If COUNT(new) < len(newIDs), insert those missing ids.
+	//
+	// In the best scenario, a single statement is executed on the read replica,
+	// and in the worst case, 3 statements are executed, 2 on the primary.
+	//
+	// Of course this is racy, as the check is done in the replica and the write
+	// is not transactional, but this is not an issue here as host-reported data
+	// is eventually consistent in nature and that data is reported at regular
+	// intervals.
+
+	newIDs := make([]uint, 0, len(msgToID))
+	for _, id := range msgToID {
+		newIDs = append(newIDs, id)
+	}
+
+	const countStmt = `SELECT
+    (SELECT COUNT(*) FROM host_munki_issues WHERE host_id = ? AND munki_issue_id IN (?)) as count_new,
+    (SELECT COUNT(*) FROM host_munki_issues WHERE host_id = ? AND munki_issue_id NOT IN (?)) as count_old`
+
+	var counts struct {
+		CountNew int `db:"count_new"`
+		CountOld int `db:"count_old"`
+	}
+
+	// required to get the old count if the new is empty
+	idsForIN := newIDs
+	if len(idsForIN) == 0 {
+		// must have at least one for the IN/NOT IN to work, add an impossible one
+		idsForIN = []uint{0}
+	}
+	stmt, args, err := sqlx.In(countStmt, hostID, idsForIN, hostID, idsForIN)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare read host_munki_issues counts arguments")
+	}
+	if err := sqlx.GetContext(ctx, ds.reader, &counts, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "read host_munki_issues counts")
+	}
+	if counts.CountNew == len(newIDs) && counts.CountOld == 0 {
+		return nil
+	}
+
+	if counts.CountOld > 0 {
+		// must delete those IDs
+		const delStmt = `DELETE FROM host_munki_issues WHERE host_id = ? AND munki_issue_id NOT IN (?)`
+		stmt, args, err := sqlx.In(delStmt, hostID, idsForIN)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare delete host_munki_issues arguments")
+		}
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host_munki_issues")
+		}
+	}
+
+	if counts.CountNew < len(newIDs) {
+		// must insert missing IDs
+		const (
+			insStmt  = `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES %s ON DUPLICATE KEY UPDATE host_id = host_id`
+			stmtPart = `(?, ?),`
+		)
+
+		stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtPart, len(newIDs)), ","))
+		args := make([]interface{}, 0, 2*len(newIDs))
+		for _, id := range newIDs {
+			args = append(args, hostID, id)
+		}
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host_munki_issues")
+		}
+	}
+
+	return nil
+}
+
+const maxMunkiIssueNameLen = 255
+
+func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (msgToID map[[2]string]uint, err error) {
+	for i, e := range errors {
+		if n := utf8.RuneCountInString(e); n > maxMunkiIssueNameLen {
+			runes := []rune(e)
+			errors[i] = string(runes[:maxMunkiIssueNameLen])
+		}
+	}
+	for i, w := range warnings {
+		if n := utf8.RuneCountInString(w); n > maxMunkiIssueNameLen {
+			runes := []rune(w)
+			warnings[i] = string(runes[:maxMunkiIssueNameLen])
+		}
+	}
+
+	// get list of unique messages+type to load ids and create if necessary
+	msgToID = make(map[[2]string]uint, len(errors)+len(warnings))
+	for _, e := range errors {
+		msgToID[[2]string{e, "error"}] = 0
+	}
+	for _, w := range warnings {
+		msgToID[[2]string{w, "warning"}] = 0
+	}
+
+	type munkiIssue struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}
+
+	readIDs := func(q sqlx.QueryerContext, msgs [][2]string, typ string) error {
+		const readStmt = `SELECT id, name FROM munki_issues WHERE issue_type = ? AND name IN (?)`
+
+		names := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			if msg[1] == typ {
+				names = append(names, msg[0])
+			}
+		}
+
+		for len(names) > 0 {
+			batch := names
+			if len(batch) > batchSize {
+				batch = names[:batchSize]
+			}
+			names = names[len(batch):]
+
+			var issues []*munkiIssue
+			stmt, args, err := sqlx.In(readStmt, typ, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate munki issues read batch statement")
+			}
+			if err := sqlx.SelectContext(ctx, q, &issues, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "read munki issues batch")
+			}
+
+			for _, issue := range issues {
+				msgToID[[2]string{issue.Name, typ}] = issue.ID
+			}
+		}
+		return nil
+	}
+
+	missingIDs := func() [][2]string {
+		var missing [][2]string
+		for msg, id := range msgToID {
+			if id == 0 {
+				missing = append(missing, msg)
+			}
+		}
+		return missing
+	}
+
+	allMsgs := make([][2]string, 0, len(msgToID))
+	for k := range msgToID {
+		allMsgs = append(allMsgs, k)
+	}
+
+	// get the IDs for existing munki issues (from the read replica)
+	if err := readIDs(ds.reader, allMsgs, "error"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load error message IDs from reader")
+	}
+	if err := readIDs(ds.reader, allMsgs, "warning"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load warning message IDs from reader")
+	}
+
+	// create any missing munki issues (using the primary)
+	if missing := missingIDs(); len(missing) > 0 {
+		const (
+			// UPDATE issue_type = issue_type results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
+			insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE issue_type = issue_type`
+			stmtParts = `(?, ?),`
+		)
+
+		msgsToReload := missing
+
+		args := make([]interface{}, 0, batchSize*2)
+		for len(missing) > 0 {
+			batch := missing
+			if len(batch) > batchSize {
+				batch = missing[:batchSize]
+			}
+			missing = missing[len(batch):]
+
+			args = args[:0]
+			for _, msg := range batch {
+				args = append(args, msg[0], msg[1])
+			}
+			stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtParts, len(batch)), ","))
+			if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "batch-insert munki issues")
+			}
+		}
+
+		// load the IDs for the missing munki issues, from the primary as we just
+		// inserted them
+		if err := readIDs(ds.writer, msgsToReload, "error"); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load error message IDs from writer")
+		}
+		if err := readIDs(ds.writer, msgsToReload, "warning"); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load warning message IDs from writer")
+		}
+		if missing := missingIDs(); len(missing) > 0 {
+			// some messages still have no IDs
+			return nil, ctxerr.New(ctx, "found munki issues without id after batch-insert")
+		}
+	}
+
+	return msgToID, nil
 }
 
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
@@ -1417,40 +1659,18 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string) (mdmID uint, err error) {
 	mdmName := fleet.MDMNameFromServerURL(serverURL)
 
-	readID := func(q sqlx.QueryerContext) (uint, error) {
-		var id uint
-		err := sqlx.GetContext(ctx, q, &id,
-			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, mdmName, serverURL)
-		return id, err
+	readStmt := &parameterizedStmt{
+		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
+		Args:      []interface{}{mdmName, serverURL},
 	}
-
-	// optimistic approach, as mdm solutions will already exist the vast majority of the time
-	id, err := readID(ds.reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// this mdm solution does not exist yet, try to insert it
-			res, err := ds.writer.ExecContext(ctx, `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`, mdmName, serverURL)
-			if err != nil {
-				if isDuplicate(err) {
-					// it might've been created between the select and the insert, read
-					// again this time from the writer database connection.
-					id, err := readID(ds.writer)
-					if err != nil {
-						return 0, ctxerr.Wrap(ctx, err, "get mdm id from writer")
-					}
-					return id, nil
-				}
-				return 0, ctxerr.Wrap(ctx, err, "insert mdm solution")
-			}
-			id, _ := res.LastInsertId()
-			return uint(id), nil
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get mdm id from reader")
+	insStmt := &parameterizedStmt{
+		Statement: `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`,
+		Args:      []interface{}{mdmName, serverURL},
 	}
-	return id, nil
+	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
 }
 
-func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
 	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id = ?`, hostID)
 	if err != nil {
@@ -1463,7 +1683,7 @@ func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, 
 	return version, nil
 }
 
-func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
@@ -1481,6 +1701,66 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, e
 		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
 	return &hmdm, nil
+}
+
+func (ds *Datastore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
+	var solution fleet.MDMSolution
+	err := sqlx.GetContext(ctx, ds.reader, &solution, `
+    SELECT
+      id,
+      name,
+      server_url
+    FROM
+      mobile_device_management_solutions
+    WHERE id = ?`, mdmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMSolution").WithID(mdmID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select mobile_device_management_solutions for id %d", mdmID)
+	}
+	return &solution, nil
+}
+
+func (ds *Datastore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	var issues []*fleet.HostMunkiIssue
+	err := sqlx.SelectContext(ctx, ds.reader, &issues, `
+    SELECT
+      hmi.munki_issue_id,
+      mi.name,
+      mi.issue_type,
+      hmi.created_at
+	  FROM
+      host_munki_issues hmi
+    INNER JOIN
+      munki_issues mi
+    ON
+      hmi.munki_issue_id = mi.id
+    WHERE host_id = ?
+`, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "select host_munki_issues for host_id %d", hostID)
+	}
+	return issues, nil
+}
+
+func (ds *Datastore) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
+	var issue fleet.MunkiIssue
+	err := sqlx.GetContext(ctx, ds.reader, &issue, `
+    SELECT
+      id,
+      name,
+      issue_type
+    FROM
+      munki_issues
+    WHERE id = ?`, munkiIssueID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MunkiIssue").WithID(munkiIssueID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select munki_issues for id %d", munkiIssueID)
+	}
+	return &issue, nil
 }
 
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
@@ -1510,6 +1790,36 @@ func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) (
 		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling munki versions")
 	}
 	return versions, versionsJson.UpdatedAt, nil
+}
+
+func (ds *Datastore) AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error) {
+	id := uint(0)
+
+	if teamID != nil {
+		id = *teamID
+	}
+
+	var result []fleet.AggregatedMunkiIssue
+	var resultJSON struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &resultJSON,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'munki_issues'`,
+		id,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// not having stats is not an error
+			return nil, time.Time{}, nil
+		}
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting munki issues")
+	}
+	if err := json.Unmarshal(resultJSON.JsonValue, &result); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling munki issues")
+	}
+	return result, resultJSON.UpdatedAt, nil
 }
 
 func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
@@ -1582,6 +1892,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		if err := ds.generateAggregatedMunkiVersion(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 		}
+		if err := ds.generateAggregatedMunkiIssues(ctx, &id); err != nil {
+			return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
+		}
 		if err := ds.generateAggregatedMDMStatus(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
 		}
@@ -1592,6 +1905,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 
 	if err := ds.generateAggregatedMunkiVersion(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
+	}
+	if err := ds.generateAggregatedMunkiIssues(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
 	}
 	if err := ds.generateAggregatedMDMStatus(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
@@ -1637,6 +1953,54 @@ ON DUPLICATE KEY UPDATE
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_versions id %d", id)
+	}
+	return nil
+}
+
+func (ds *Datastore) generateAggregatedMunkiIssues(ctx context.Context, teamID *uint) error {
+	id := uint(0)
+
+	var issues []fleet.AggregatedMunkiIssue
+	query := `
+  SELECT
+    COUNT(*) as hosts_count,
+    hmi.munki_issue_id as id,
+		mi.name,
+		mi.issue_type
+  FROM
+    host_munki_issues hmi
+  INNER JOIN
+    munki_issues mi
+  ON
+    hmi.munki_issue_id = mi.id
+`
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		query += ` JOIN hosts h ON (h.id = hmi.host_id) WHERE h.team_id = ? `
+		id = *teamID
+	}
+	query += `GROUP BY hmi.munki_issue_id, mi.name, mi.issue_type`
+
+	err := sqlx.SelectContext(ctx, ds.reader, &issues, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki_issues")
+	}
+
+	issuesJSON, err := json.Marshal(issues)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
+	}
+
+	_, err = ds.writer.ExecContext(ctx, `
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`, id, "munki_issues", issuesJSON)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_issues id %d", id)
 	}
 	return nil
 }

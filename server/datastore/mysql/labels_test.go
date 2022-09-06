@@ -61,6 +61,7 @@ func TestLabels(t *testing.T) {
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"DeleteLabel", testDeleteLabel},
 		{"LabelsSummary", testLabelsSummary},
+		{"ListHostsInLabelFailingPolicies", testListHostsInLabelFailingPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -838,4 +839,102 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	ls, err = db.LabelsSummary(context.Background())
 	require.NoError(t, err)
 	require.Len(t, ls, 5)
+}
+
+func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	for i := 0; i < 10; i++ {
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	q := test.NewQuery(t, ds, "query1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, "query2", "select 1", 0, true)
+	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q.ID,
+	})
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+		QueryID: &q2.ID,
+	})
+	require.NoError(t, err)
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	err = ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{l1})
+	require.Nil(t, err)
+
+	for _, h := range hosts {
+		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	hosts = listHostsInLabelCheckCount(t, ds, filter, l1.ID, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	h1 := hosts[0]
+	h2 := hosts[1]
+
+	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
+	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1)
+
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
+}
+
+func checkLabelHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected int) {
+	hosts = listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
+	foundH2 := false
+	var foundHost *fleet.Host
+	for _, host := range hosts {
+		if host.ID == hid {
+			foundH2 = true
+			foundHost = host
+			break
+		}
+	}
+	require.True(t, foundH2)
+	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
+
+	if opts.DisableFailingPolicies {
+		return
+	}
+
+	hostById, err := ds.Host(context.Background(), hid)
+	require.NoError(t, err)
+	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
 }

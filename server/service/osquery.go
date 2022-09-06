@@ -144,8 +144,13 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", osqueryError{message: "app config load failed: " + err.Error(), nodeInvalid: true}
 	}
 
+	features, err := svc.HostFeatures(ctx, host)
+	if err != nil {
+		return "", osqueryError{message: "host features load failed: " + err.Error(), nodeInvalid: true}
+	}
+
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(appConfig, svc.config)
+	detailQueries := osquery_utils.GetDetailQueries(svc.config, features)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -598,15 +603,15 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, nil, nil
 	}
 
-	config, err := svc.ds.AppConfig(ctx)
+	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "read app config")
+		return nil, nil, ctxerr.Wrap(ctx, err, "read host features")
 	}
 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	detailQueries := osquery_utils.GetDetailQueries(svc.config, features)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
@@ -619,13 +624,13 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	if config.Features.AdditionalQueries == nil {
+	if features.AdditionalQueries == nil {
 		// No additional queries set
 		return queries, discovery, nil
 	}
 
 	var additionalQueries map[string]string
-	if err := json.Unmarshal(*config.Features.AdditionalQueries, &additionalQueries); err != nil {
+	if err := json.Unmarshal(*features.AdditionalQueries, &additionalQueries); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
@@ -684,10 +689,12 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 // inconsistent, so we use this shim and massage into a consistent
 // schema. For example (simplified from actual osqueryd 1.8.2 output):
 // {
-// "queries": {
-//   "query_with_no_results": "", // <- Note string instead of array
-//   "query_with_results": [{"foo":"bar","baz":"bang"}]
-//  },
+//
+//	"queries": {
+//	  "query_with_no_results": "", // <- Note string instead of array
+//	  "query_with_results": [{"foo":"bar","baz":"bang"}]
+//	 },
+//
 // "node_key":"IGXCXknWQ1baTa8TZ6rF3kAPZ4\/aTsui"
 // }
 type submitDistributedQueryResultsRequestShim struct {
@@ -948,12 +955,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
 func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
-	config, err := svc.ds.AppConfig(ctx)
+	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	detailQueries := osquery_utils.GetDetailQueries(svc.config, features)
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, osqueryError{message: "unknown detail query " + name}
@@ -1073,12 +1080,12 @@ func ingestMembershipQuery(
 // ingestDetailQuery takes the results of a detail query and modifies the
 // provided fleet.Host appropriately.
 func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) error {
-	config, err := svc.ds.AppConfig(ctx)
+	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
 		return osqueryError{message: "ingest detail query: " + err.Error()}
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
+	detailQueries := osquery_utils.GetDetailQueries(svc.config, features)
 	query, ok := detailQueries[name]
 	if !ok {
 		return osqueryError{message: "unknown detail query " + name}

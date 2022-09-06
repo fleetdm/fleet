@@ -605,3 +605,15 @@ func encodePEMCertificate(buf io.Writer, cert *x509.Certificate) error {
 	}
 	return pem.Encode(buf, block)
 }
+
+func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.Features, error) {
+	if svc.EnterpriseOverrides != nil {
+		return svc.EnterpriseOverrides.HostFeatures(ctx, host)
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &appConfig.Features, nil
+}

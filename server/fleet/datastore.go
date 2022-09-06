@@ -240,13 +240,18 @@ type Datastore interface {
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
-	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
-	GetMDM(ctx context.Context, hostID uint) (*HostMDM, error)
+	GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error)
+	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
+	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
+	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
+
+	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
+	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error
@@ -524,6 +529,9 @@ type Datastore interface {
 	// TeamAgentOptions loads the agents options of a team.
 	TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
+	// TeamFeatures loads the features enabled for a team.
+	TeamFeatures(ctx context.Context, teamID uint) (*Features, error)
+
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
@@ -571,7 +579,7 @@ type Datastore interface {
 	// SaveHostAdditional updates the additional queries results of a host.
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
-	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
+	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
@@ -616,6 +624,8 @@ type Datastore interface {
 const (
 	// Default batch size to use for ScheduledQueryIDsByName.
 	DefaultScheduledQueryIDsByNameBatchSize = 1000
+	// Default batch size for loading IDs of or inserting new munki issues.
+	DefaultMunkiIssuesBatchSize = 100
 )
 
 type MySQLProcess struct {
