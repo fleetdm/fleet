@@ -62,7 +62,7 @@ const SelectRoleForm = ({
   onFormChange,
   label,
 }: ISelectRoleFormProps): JSX.Element => {
-  const [selectedRole, setSelectedRole] = useState<string>(
+  const [selectedRole, setSelectedRole] = useState(
     defaultTeamRole.toLowerCase()
   );
 

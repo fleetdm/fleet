@@ -73,15 +73,14 @@ const ManageAutomationsModal = ({
   currentDestinationUrl,
   recentVulnerabilityMaxAge,
 }: IManageAutomationsModalProps): JSX.Element => {
-  const [destinationUrl, setDestinationUrl] = useState<string>(
+  const [destinationUrl, setDestinationUrl] = useState(
     currentDestinationUrl || ""
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [
-    softwareAutomationsEnabled,
-    setSoftwareAutomationsEnabled,
-  ] = useState<boolean>(softwareVulnerabilityAutomationEnabled || false);
-  const [integrationEnabled, setIntegrationEnabled] = useState<boolean>(
+  const [softwareAutomationsEnabled, setSoftwareAutomationsEnabled] = useState(
+    softwareVulnerabilityAutomationEnabled || false
+  );
+  const [integrationEnabled, setIntegrationEnabled] = useState(
     !softwareVulnerabilityWebhookEnabled
   );
   const [jiraIntegrationsIndexed, setJiraIntegrationsIndexed] = useState<
@@ -346,7 +345,7 @@ const ManageAutomationsModal = ({
                 to={PATHS.ADMIN_INTEGRATIONS}
                 className={`${baseClass}__add-integration-link`}
               >
-                <span>Add integration</span>
+                Add integration
               </Link>
             </div>
           </div>

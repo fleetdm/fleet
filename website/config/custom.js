@@ -118,6 +118,7 @@ module.exports.custom = {
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+    'website/package.json': 'eashaw',
 
     'docs': ['desmi-dizney', 'chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],

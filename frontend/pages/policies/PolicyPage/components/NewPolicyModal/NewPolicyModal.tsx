@@ -12,7 +12,6 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
-import Spinner from "components/Spinner";
 
 export interface INewPolicyModalProps {
   baseClass: string;
@@ -51,13 +50,9 @@ const NewPolicyModal = ({
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
-  const [name, setName] = useState<string>(lastEditedQueryName);
-  const [description, setDescription] = useState<string>(
-    lastEditedQueryDescription
-  );
-  const [resolution, setResolution] = useState<string>(
-    lastEditedQueryResolution
-  );
+  const [name, setName] = useState(lastEditedQueryName);
+  const [description, setDescription] = useState(lastEditedQueryDescription);
+  const [resolution, setResolution] = useState(lastEditedQueryResolution);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );

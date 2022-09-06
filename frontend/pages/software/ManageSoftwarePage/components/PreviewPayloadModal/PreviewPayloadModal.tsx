@@ -3,8 +3,7 @@ import { syntaxHighlight } from "utilities/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "preview-data-modal";
 
@@ -45,8 +44,8 @@ const PreviewPayloadModal = ({
             target="_blank"
             rel="noopener noreferrer"
           >
-            Check out the Fleet documentation&nbsp;
-            <FleetIcon name="external-link" />
+            Check out the Fleet documentation
+            <img src={ExternalLinkIcon} alt="Open external link" />
           </a>
         </p>
         <div className={`${baseClass}__payload-request-preview`}>

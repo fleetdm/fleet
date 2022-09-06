@@ -33,7 +33,7 @@ import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "homepage";
 
@@ -52,24 +52,20 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("");
+  const [selectedPlatform, setSelectedPlatform] = useState("");
   const [labels, setLabels] = useState<ILabelSummary[]>();
-  const [macCount, setMacCount] = useState<number>(0);
-  const [windowsCount, setWindowsCount] = useState<number>(0);
-  const [linuxCount, setLinuxCount] = useState<number>(0);
-  const [onlineCount, setOnlineCount] = useState<number>(0);
-  const [offlineCount, setOfflineCount] = useState<number>(0);
-  const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
-    false
-  );
-  const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
-  const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
-  const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
-  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
-  const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
-    false
-  );
-  const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
+  const [macCount, setMacCount] = useState(0);
+  const [windowsCount, setWindowsCount] = useState(0);
+  const [linuxCount, setLinuxCount] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [offlineCount, setOfflineCount] = useState(0);
+  const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
+  const [showSoftwareUI, setShowSoftwareUI] = useState(false);
+  const [showMunkiUI, setShowMunkiUI] = useState(false);
+  const [showMDMUI, setShowMDMUI] = useState(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
+  const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -124,24 +120,20 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const {
-    isLoading: isGlobalSecretsLoading,
-    data: globalSecrets,
-    refetch: refetchGlobalSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["global secrets"],
-    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
-    {
-      enabled: !!canEnrollGlobalHosts,
-      select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
-  );
+  const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: !!canEnrollGlobalHosts,
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
 
-  const {
-    isLoading: isTeamSecretsLoading,
-    data: teamSecrets,
-    refetch: refetchTeamSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+  const { data: teamSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(
     ["team secrets", currentTeam],
     () => {
       if (currentTeam) {
@@ -256,11 +248,12 @@ const Homepage = (): JSX.Element => {
       <p>
         Munki is a tool for managing software on macOS devices.{" "}
         <a
-          target="_blank"
-          rel="noreferrer noopener"
           href="https://www.munki.org/munki/"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Learn about Munki <img src={ExternalURLIcon} alt="" />
+          Learn about Munki
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </p>
     ),
@@ -280,11 +273,12 @@ const Homepage = (): JSX.Element => {
       <p>
         MDM is used to manage configuration on macOS devices.{" "}
         <a
-          target="_blank"
-          rel="noreferrer noopener"
           href="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Learn about MDM <img src={ExternalURLIcon} alt="" />
+          Learn about MDM
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </p>
     ),
@@ -329,11 +323,11 @@ const Homepage = (): JSX.Element => {
   };
 
   const macOSLayout = () => (
-    <div className={`${baseClass}__section`}>
-      {OperatingSystemsCard}
-      {MunkiCard}
-      {MDMCard}
-    </div>
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      <div className={`${baseClass}__section`}>{MunkiCard}</div>
+      <div className={`${baseClass}__section`}>{MDMCard}</div>
+    </>
   );
 
   const windowsLayout = () => (

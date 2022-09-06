@@ -32,7 +32,7 @@ const PacksTable = ({
   const [filteredPacks, setFilteredPacks] = useState<IPack[] | undefined>(
     packs
   );
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
 
   useEffect(() => {
     setFilteredPacks(packs);

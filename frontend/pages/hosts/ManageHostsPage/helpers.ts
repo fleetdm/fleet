@@ -1,4 +1,3 @@
-import { ILabel } from "interfaces/label";
 import { isEmpty, reduce, trim, union } from "lodash";
 import { buildQueryStringFromParams } from "utilities/url";
 

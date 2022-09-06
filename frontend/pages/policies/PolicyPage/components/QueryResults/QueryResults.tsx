@@ -56,7 +56,7 @@ const QueryResults = ({
 
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
 
-  const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
+  const [pageTitle, setPageTitle] = useState(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [
     targetsRespondedPercent,

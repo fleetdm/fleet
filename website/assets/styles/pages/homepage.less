@@ -233,6 +233,41 @@
     background: linear-gradient(180deg, rgba(244, 246, 250, 0) 0%, #F4F6FA 100%);
   }
 
+  [purpose='newsletter-banner'] {
+    background-color: #FFF;
+    padding: 80px;
+    [purpose='newletter-form-text'] {
+      max-width: 470px;
+      h3 {
+        margin-bottom: 8px;
+      }
+      p {
+        line-height: 24px;
+        margin-bottom: 0px;
+      }
+    }
+    [purpose='newsletter-form'] {
+      flex: 0 1 470px;
+      [purpose='newsletter-form-input'] {
+        border-radius: 6px;
+        height: 48px;
+        font-size: 16px;
+      }
+      [purpose='newsletter-form-input']::placeholder {
+        font-size: 16px;
+      }
+      [purpose='subscribe-button'] {
+        border-radius: 6px;
+        height: 48px;
+        span {
+          font-weight: 400;
+          font-size: 16px;
+          line-height: 24px;
+        }
+      }
+    }
+  }
+
   [parasails-component='modal'] {
     [purpose='modal-content'] {
       margin-top: 0px;
@@ -365,6 +400,14 @@
     [purpose='log-destination'] {
       flex: 1 0 200px;
     }
+    [purpose='newsletter-banner'] {
+      [purpose='newletter-form-text'] {
+        max-width: 100%;
+      }
+      [purpose='newsletter-form'] {
+        flex: auto;
+      }
+    }
   }
 
   @media (max-width: 767px) {
@@ -400,6 +443,9 @@
       [purpose='features-text'] {
         padding-top: 40px;
       }
+    }
+    [purpose='newsletter-banner'] {
+      padding: 60px 40px;
     }
     [parasails-component='modal'] {
       [purpose='modal-content'] {
