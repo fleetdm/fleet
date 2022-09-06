@@ -1971,8 +1971,8 @@ If set then `fleet serve` will run even if there are database migrations missing
 - Environment variable: `FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS`
 - Config file format:
   ```
-	upgrades:
-	  allow_missing_migrations: true
+  upgrades:
+    allow_missing_migrations: true
   ```
 
 #### Vulnerabilities
@@ -2104,8 +2104,8 @@ on the Fleet web server.
 - Environment variable: `FLEET_GEOIP_DATABASE_PATH`
 - Config file format:
   ```yaml
-	geoip:
-	  database_path: /some/path
+  geoip:
+    database_path: /some/path
   ```
 
 
