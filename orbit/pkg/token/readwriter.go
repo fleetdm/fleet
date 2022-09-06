@@ -56,5 +56,10 @@ func (rw *ReadWriter) Rotate() error {
 		return fmt.Errorf("set mtime of identifier file %q: %w", rw.Path, err)
 	}
 
+	// make sure we can read the token, and cache the value
+	if _, err = rw.Read(); err != nil {
+		return fmt.Errorf("read identifier file %q: %w", rw.Path, err)
+	}
+
 	return nil
 }

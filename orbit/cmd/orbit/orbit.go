@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -541,7 +542,7 @@ func main() {
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), trw)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, trw.Path, c.String("fleet-certificate"), c.Bool("insecure"))
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, trw.Path, c.String("fleet-certificate"), c.Bool("insecure"), trw)
 			g.Add(desktopRunner.actor())
 		}
 
@@ -575,17 +576,19 @@ type desktopRunner struct {
 	identifierPath string
 	fleetRootCA    string
 	insecure       bool
+	trw            *token.ReadWriter
 	interruptCh    chan struct{} // closed when interrupt is triggered
 	executeDoneCh  chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, identifierPath, fleetRootCA string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, identifierPath, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:    desktopPath,
 		fleetURL:       fleetURL,
 		identifierPath: identifierPath,
 		fleetRootCA:    fleetRootCA,
 		insecure:       insecure,
+		trw:            trw,
 		interruptCh:    make(chan struct{}),
 		executeDoneCh:  make(chan struct{}),
 	}
@@ -615,6 +618,9 @@ func (d *desktopRunner) execute() error {
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.identifierPath),
+		// TODO(roperzh): this env var is keept only for backwards compatibility,
+		// we should remove it once we think is safe
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", path.Join(url.String(), "device", d.trw.GetCached())),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
