@@ -187,9 +187,9 @@ func scanVulnerabilities(
 				AppConfig:      appConfig,
 				Time:           time.Now(),
 			}
-			mapper := webhooks.NewWebhookFreeMapper()
+			mapper := webhooks.NewMapper()
 			if license.IsPremium() {
-				mapper = eewebhooks.NewWebhookEEMapper()
+				mapper = eewebhooks.NewMapper()
 			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(

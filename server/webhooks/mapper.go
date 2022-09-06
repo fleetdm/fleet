@@ -9,9 +9,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// WebhookMapper used for mapping vulnerabilities and their associated data into the payload that
+// VulnMapper used for mapping vulnerabilities and their associated data into the payload that
 // will be sent via thrid party webhooks.
-type WebhookMapper interface {
+type VulnMapper interface {
 	GetPayload(*url.URL, []*fleet.HostShort, fleet.SoftwareVulnerability, fleet.CVEMeta) WebhookPayload
 }
 
@@ -30,13 +30,13 @@ type WebhookPayload struct {
 	Hosts            []*hostPayloadPart `json:"hosts_affected"`
 }
 
-type FreeMapper struct{}
+type Mapper struct{}
 
-func NewWebhookFreeMapper() WebhookMapper {
-	return &FreeMapper{}
+func NewMapper() VulnMapper {
+	return &Mapper{}
 }
 
-func (m *FreeMapper) getHostPayloadPart(
+func (m *Mapper) getHostPayloadPart(
 	hostBaseURL *url.URL,
 	hosts []*fleet.HostShort,
 ) []*hostPayloadPart {
@@ -53,7 +53,7 @@ func (m *FreeMapper) getHostPayloadPart(
 	return shortHosts
 }
 
-func (m *FreeMapper) GetPayload(
+func (m *Mapper) GetPayload(
 	hostBaseURL *url.URL,
 	hosts []*fleet.HostShort,
 	vuln fleet.SoftwareVulnerability,

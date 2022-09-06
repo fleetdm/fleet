@@ -21,7 +21,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	logger := kitlog.NewNopLogger()
-	mapper := FreeMapper{}
+	mapper := Mapper{}
 
 	appCfg := &fleet.AppConfig{
 		WebhookSettings: fleet.WebhookSettings{

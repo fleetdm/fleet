@@ -7,21 +7,21 @@ import (
 	fleetwebhooks "github.com/fleetdm/fleet/v4/server/webhooks"
 )
 
-type EEMapper struct {
-	fleetwebhooks.FreeMapper
+type Mapper struct {
+	fleetwebhooks.Mapper
 }
 
-func NewWebhookEEMapper() fleetwebhooks.WebhookMapper {
-	return &EEMapper{}
+func NewMapper() fleetwebhooks.VulnMapper {
+	return &Mapper{}
 }
 
-func (m *EEMapper) GetPayload(
+func (m *Mapper) GetPayload(
 	hostBaseURL *url.URL,
 	hosts []*fleet.HostShort,
 	vuln fleet.SoftwareVulnerability,
 	meta fleet.CVEMeta,
 ) fleetwebhooks.WebhookPayload {
-	r := m.FreeMapper.GetPayload(hostBaseURL,
+	r := m.Mapper.GetPayload(hostBaseURL,
 		hosts,
 		vuln,
 		meta,

@@ -18,7 +18,7 @@ func TriggerVulnerabilitiesWebhook(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	args VulnArgs,
-	mapper WebhookMapper,
+	mapper VulnMapper,
 ) error {
 	vulnConfig := args.AppConfig.WebhookSettings.VulnerabilitiesWebhook
 

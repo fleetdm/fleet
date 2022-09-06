@@ -24,7 +24,7 @@ func TestGetPaylaod(t *testing.T) {
 		CISAKnownExploit: ptr.Bool(true),
 	}
 
-	sut := FreeMapper{}
+	sut := Mapper{}
 
 	result := sut.GetPayload(serverURL, nil, vuln, meta)
 	require.Empty(t, result.CISAKnownExploit)

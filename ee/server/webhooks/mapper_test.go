@@ -24,7 +24,7 @@ func TestGetPayload(t *testing.T) {
 		CISAKnownExploit: ptr.Bool(true),
 	}
 
-	sut := EEMapper{}
+	sut := Mapper{}
 
 	result := sut.GetPayload(serverURL, nil, vuln, meta)
 	require.Equal(t, *meta.CISAKnownExploit, *result.CISAKnownExploit)
