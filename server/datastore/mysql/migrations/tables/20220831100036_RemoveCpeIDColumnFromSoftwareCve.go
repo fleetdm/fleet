@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220711104651, Down_20220711104651)
+	MigrationClient.AddMigration(Up_20220831100036, Down_20220831100036)
 }
 
-func Up_20220711104651(tx *sql.Tx) error {
+func Up_20220831100036(tx *sql.Tx) error {
 	logger.Info.Println("Deleting dummy software_cpe entries...")
 	// Remove in batches
 	const deleteStmt = `DELETE FROM software_cpe WHERE cpe LIKE 'none:%' LIMIT 10000`
@@ -63,6 +63,6 @@ ALTER TABLE software_cve DROP COLUMN cpe_id, ALGORITHM=INPLACE, LOCK=NONE;
 	return nil
 }
 
-func Down_20220711104651(tx *sql.Tx) error {
+func Down_20220831100036(tx *sql.Tx) error {
 	return nil
 }

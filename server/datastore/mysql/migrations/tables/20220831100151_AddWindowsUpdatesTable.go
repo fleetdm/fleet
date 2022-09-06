@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220809091020, Down_20220809091020)
+	MigrationClient.AddMigration(Up_20220831100151, Down_20220831100151)
 }
 
-func Up_20220809091020(tx *sql.Tx) error {
+func Up_20220831100151(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE windows_updates (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -26,6 +26,6 @@ CREATE TABLE windows_updates (
 	return nil
 }
 
-func Down_20220809091020(tx *sql.Tx) error {
+func Down_20220831100151(tx *sql.Tx) error {
 	return nil
 }
