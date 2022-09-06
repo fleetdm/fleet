@@ -43,7 +43,7 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 ## Schedule a query
 
-Fleet allows you to schedule queries. This way these queries will run and send results to your log destination automatically.
+Fleet allows you to schedule queries. Scheduled queries will run and send results to your log destination automatically.
 
 How to schedule a query:
 
