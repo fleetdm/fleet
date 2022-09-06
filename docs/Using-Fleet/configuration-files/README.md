@@ -520,7 +520,7 @@ in a public channel or a GitHub issue.
 
 ##### server_settings.deferred_save_host
 
-Whether saving host-related information is done synchronously in the HTTP handler of the host's request, or asynchronously. This can provide better performance in deployments with many hosts. Note that this is an **experimental feature** (TODO(mna): is it?).
+Whether saving host-related information is done synchronously in the HTTP handler of the host's request, or asynchronously. This can provide better performance in deployments with many hosts. Note that this is an **experimental feature**.
 
 - Optional setting (boolean).
 - Default value: `false`.
@@ -648,7 +648,7 @@ A required human-friendly name for the identity provider that will provide singl
 
 ##### sso_settings.issuer_uri
 
-The issuer URI supplied by the identity provider. TODO(mna): is this used? The field does not appear used anywhere. We do request it on the frontend.
+The issuer URI supplied by the identity provider.
 
 - Optional setting (string).
 - Default value: "".

@@ -249,18 +249,6 @@ The type of authentication for the configured SMTP server.
     authentication_type: authtype_none
   ```
 
-### smtp_settings.domain
-
-The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as there's also smtp server? Doesn't appear to be used?)
-
-- Optional setting (string).
-- Default value: none.
-- Config file format:
-  ```
-  smtp_settings:
-    domain: example.org
-  ```
-
 ### smtp_settings.enable_smtp
 
 Whether SMTP support is enabled or not to send emails from Fleet.
@@ -275,7 +263,6 @@ Whether SMTP support is enabled or not to send emails from Fleet.
 
 ### smtp_settings.enable_ssl_tls
 
-TODO(mna): doesn't seem to be used?
 Whether to enable SSL/TLS for the SMTP connection.
 
 - Optional setting (boolean).
