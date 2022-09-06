@@ -331,9 +331,6 @@ spec:
 
 #### Features
 
-<!-- This section used to be named Host Settings, this ensures links with the #host-settings hash still work -->
-<span id="host-settings" name="host-settings"></span>
-
 The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
 
 > Note: this section used to be named `host_settings`, but was renamed in Fleet v4.20.0,
@@ -416,9 +413,6 @@ The `host_expiry` section lets you define if and when hosts should be removed fr
 
 ##### host_expiry_settings.host_expiry_enabled
 
-<!-- This section used to be named Host Expiry Enabled, this ensures links with the #host-expiry-enabled hash still work -->
-<span id="host-expiry-enabled" name="host-expiry-enabled"></span>
-
 Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
 
 - Optional setting (boolean).
@@ -430,9 +424,6 @@ Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to
   ```
 
 ##### host_expiry_settings.host_expiry_window
-
-<!-- This section used to be named Host Expiry Window, this ensures links with the #host-expiry-window hash still work -->
-<span id="host-expiry-window" name="host-expiry-window"></span>
 
 If a host has not communicated with Fleet in the specified number of days, it will be removed.
 
@@ -479,9 +470,6 @@ The URL of the logo of the organization.
 #### Server Settings
 
 ##### server_settings.debug_host_ids
-
-<!-- This section used to be named Debug host, this ensures links with the #debug-host hash still work -->
-<span id="debug-host" name="debug-host"></span>
 
 There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
 to debug different scenarios.
@@ -573,9 +561,6 @@ The base URL of the fleet server, including the scheme (e.g. "https://").
   ```
 
 #### SMTP Settings
-
-<!-- This section replaced a section named SMTP authentication, this ensures links with the #smtp-authentication hash still work -->
-<span id="smtp-authentication" name="smtp-authentication"></span>
 
 It is recommended to use the Fleet UI to configure SMTP, as a secret password must be provided. Navigate to **Settings -> Organization settings -> SMTP Options** to proceed with this configuration.
 
@@ -706,9 +691,6 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
   ```
 
 #### Webhook Settings
-
-<!-- This section used to be named Webhooks, this ensures links with the #webhooks hash still work -->
-<span id="webhooks" name="webhooks"></span>
 
 For more information about webhooks and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md).
 

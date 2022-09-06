@@ -374,5 +374,4 @@ Whether the SMTP server's SSL certificates should be verified. Can be turned off
     verify_ssl_certs: false
   ```
 
-
 <meta name="pageOrderInSection" value="1100">

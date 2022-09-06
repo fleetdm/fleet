@@ -2192,17 +2192,6 @@ Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
 _**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**_
 
-<!-- Some subsections were renamed, but heading are kept so that link fragments still work -->
-<span id="sso-settings-enable-sso" name="sso-settings-enable-sso"></span>
-<span id="sso-settings-enable-sso-idp-login" name="sso-settings-enable-sso-idp-login"></span>
-<span id="sso-settings-enable-jit-provisioning" name="sso-settings-enable-jit-provisioning"></span>
-<span id="sso-settings-entity-id" name="sso-settings-entity-id"></span>
-<span id="sso-settings-idp-image-url" name="sso-settings-idp-image-url"></span>
-<span id="sso-settings-idp-name" name="sso-settings-idp-name"></span>
-<span id="sso-settings-issuer-uri" name="sso-settings-issuer-uri"></span>
-<span id="sso-settings-metadata" name="sso-settings-metadata"></span>
-<span id="sso-settings-metadata-url" name="sso-settings-metadata-url"></span>
-
 For details on the SSO settings that can be set via a YAML file, see the [SSO Settings](../Using-Fleet/configuration-files/README.md#sso-settings) section of the Configuration files page.
 
 ### Identity provider (IDP) configuration
