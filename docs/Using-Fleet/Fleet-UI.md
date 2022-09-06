@@ -53,7 +53,7 @@ How to schedule a query:
 
 3. Select the **Select query** dropdown and choose the query that you'd like to run on a schedule. 
 
-4. Select the **Frequency** dropdown and choose how often you'd like the query to run and send results to your log destination. If you're just starting out and unsure of how often you'd like the query to run, **Every hour** is a good frequency to start. You can change this later.
+4. Select the **Frequency** dropdown and choose how often you'd like the query to run and send results to your log destination. **Every hour** is a good frequency to start. You can change this later.
 
 5. Select **Schedule**.
 
