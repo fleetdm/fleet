@@ -1,0 +1,1 @@
+* Removed the `hosts_count` field from the `mobile_device_management_solution` and `munki_issue` top-level objects in the `GET /hosts` API endpoint response, as it was a pre-computed count that is updated at intervals, not a live count, and it could be confusing when it did not match the number of hosts returned.
