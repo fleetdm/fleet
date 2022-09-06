@@ -16,11 +16,9 @@ type WebhookMapper interface {
 }
 
 type hostPayloadPart struct {
-	ID        uint   `json:"id"`
-	Hostname  string `json:"hostname"`
-	URL       string `json:"url"`
-	Platform  string `json:"platform"`
-	OSVersion string `json:"os_version"`
+	ID       uint   `json:"id"`
+	Hostname string `json:"hostname"`
+	URL      string `json:"url"`
 }
 
 type WebhookPayload struct {
@@ -47,11 +45,9 @@ func (m *FreeMapper) getHostPayloadPart(
 		hostURL := *hostBaseURL
 		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
 		shortHosts[i] = &hostPayloadPart{
-			ID:        h.ID,
-			Hostname:  h.Hostname,
-			URL:       hostURL.String(),
-			Platform:  h.Platform,
-			OSVersion: h.OSVersion,
+			ID:       h.ID,
+			Hostname: h.Hostname,
+			URL:      hostURL.String(),
 		}
 	}
 	return shortHosts

@@ -957,9 +957,7 @@ func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint)
 	queryStmt := `
     SELECT 
       h.id,
-      h.hostname,
-      h.os_version,
-      h.platform
+      h.hostname
     FROM
       hosts h
     INNER JOIN
