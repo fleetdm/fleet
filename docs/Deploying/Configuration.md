@@ -311,12 +311,12 @@ This setting should not usually be used.
 
 ```yaml
 msyql:
-	address: localhost:3306
-	database: fleet
-	password: fleet
-	max_open_conns: 50
-	max_idle_conns: 50
-	conn_max_lifetime: 50
+  address: localhost:3306
+  database: fleet
+  password: fleet
+  max_open_conns: 50
+  max_idle_conns: 50
+  conn_max_lifetime: 50
 ```
 
 #### Redis
@@ -611,11 +611,11 @@ A value of 0 means no timeout.
 
 ```yaml
 redis:
-	address: localhost:7369
-	password: foobar
-	database: 14
-	connect_timeout: 10s
-	connect_retry_attempts: 2
+  address: localhost:7369
+  password: foobar
+  database: 14
+  connect_timeout: 10s
+  connect_retry_attempts: 2
 ```
 
 ### Server
@@ -714,11 +714,11 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 
 ```yaml
 server:
-	address: 0.0.0.0:443
-	password: foobar
-	cert: /tmp/fleet.crt
-	key: /tmp/fleet.key
-	invite_token_validity_period: 1d
+  address: 0.0.0.0:443
+  password: foobar
+  cert: /tmp/fleet.crt
+  key: /tmp/fleet.key
+  invite_token_validity_period: 1d
 ```
 
 #### Auth
@@ -751,8 +751,8 @@ The key size of the salt which is generated when hashing user passwords.
 
 ```yaml
 auth:
-	bcrypt_cost: 14
-	salt_key_size: 36
+  bcrypt_cost: 14
+  salt_key_size: 36
 ```
 
 #### App
@@ -797,9 +797,9 @@ Determines whether Fleet gets scheduled query statistics from hosts or not.
 
 ```yaml
 app:
-	token_key_size: 36
-	salt_key_size: 36
-	invite_token_validity_period: 1d
+  token_key_size: 36
+  salt_key_size: 36
+  invite_token_validity_period: 1d
 ```
 
 #### License
@@ -832,8 +832,8 @@ Whether Fleet should enforce the host limit of the license, if true, attempting 
 
 ```yaml
 license:
-	key: foobar
-	enforce_host_limit: false
+  key: foobar
+  enforce_host_limit: false
 ```
 
 #### Session
@@ -868,7 +868,7 @@ Valid time units are `s`, `m`, `h`.
 
 ```yaml
 session:
-	duration: 4h
+  duration: 4h
 ```
 
 #### Osquery
@@ -1160,11 +1160,11 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ```yaml
 osquery:
-	host_identifier: uuid
-	policy_update_interval: 30m
-	duration: 4h
-	status_log_plugin: firehose
-	result_log_plugin: firehose
+  host_identifier: uuid
+  policy_update_interval: 30m
+  duration: 4h
+  status_log_plugin: firehose
+  result_log_plugin: firehose
 ```
 
 #### Logging (Fleet server logging)
@@ -1223,9 +1223,9 @@ and a negative value to disable storage of errors in Redis.
 
 ```yaml
 logging:
-	disable_banner: true
-	policy_update_interval: 30m
-	error_retention_period: 1h
+  disable_banner: true
+  policy_update_interval: 30m
+  error_retention_period: 1h
 ```
 #### Filesystem
 
@@ -1290,12 +1290,12 @@ This flag will cause the rotated logs to be compressed with gzip.
 
 ```yaml
 osquery:
-	osquery_status_log_plugin: filesystem
-	osquery_result_log_plugin: filesystem
+  osquery_status_log_plugin: filesystem
+  osquery_result_log_plugin: filesystem
 filesystem:
-	status_log_file: /var/log/osquery/status.log
-	result_log_file: /var/log/osquery/result.log
-	enable_log_rotation: true
+  status_log_file: /var/log/osquery/status.log
+  result_log_file: /var/log/osquery/result.log
+  enable_log_rotation: true
 ```
 
 #### Firehose
@@ -1403,15 +1403,15 @@ the stream listed:
 
 ```yaml
 osquery:
-	osquery_status_log_plugin: firehose
-	osquery_result_log_plugin: firehose
+  osquery_status_log_plugin: firehose
+  osquery_result_log_plugin: firehose
 firehose:
-	region: ca-central-1
-	access_key_id: AKIAIOSFODNN7EXAMPLE
-	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-	status_stream: osquery_status
-	result_stream: osquery_result
+  region: ca-central-1
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_stream: osquery_status
+  result_stream: osquery_result
 ```
 
 #### Kinesis
@@ -1524,16 +1524,16 @@ the stream listed:
 
 ```yaml
 osquery:
-	osquery_status_log_plugin: kinesis
-	osquery_result_log_plugin: kinesis
+  osquery_status_log_plugin: kinesis
+  osquery_result_log_plugin: kinesis
 kinesis:
-	region: ca-central-1
-	result_log_file: /var/log/osquery/result.log
-	access_key_id: AKIAIOSFODNN7EXAMPLE
-	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-	status_stream: osquery_status
-	result_stream: osquery_result
+  region: ca-central-1
+  result_log_file: /var/log/osquery/result.log
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_stream: osquery_status
+  result_stream: osquery_result
 ```
 
 
@@ -1614,7 +1614,7 @@ Name of the Lambda function to write osquery status logs received from clients.
 - Config file format:
   ```
   lambda:
-  	status_function: statusFunction
+    status_function: statusFunction
   ```
 
 The IAM role used to send to Lambda must allow the following permissions on
@@ -1645,15 +1645,15 @@ the function listed:
 
 ```yaml
 osquery:
-	osquery_status_log_plugin: lamda
-	osquery_result_log_plugin: lamda
-lamda:
-	region: ca-central-1
-	access_key_id: AKIAIOSFODNN7EXAMPLE
-	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-	status_function: statusFunction
-	result_function: resultFunction
+  osquery_status_log_plugin: lambda
+  osquery_result_log_plugin: lambda
+lambda:
+  region: ca-central-1
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_function: statusFunction
+  result_function: resultFunction
 ```
 
 #### PubSub
@@ -1729,15 +1729,15 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 
 ```yaml
 osquery:
-	osquery_status_log_plugin: pubsub
-	osquery_result_log_plugin: pubsub
+  osquery_status_log_plugin: pubsub
+  osquery_result_log_plugin: pubsub
 pubsub:
-	project: my-gcp-project
-	result_topic: osquery_result
-	status_topic: osquery_status
-	sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-	status_function: statusFunction
-	result_function: resultFunction
+  project: my-gcp-project
+  result_topic: osquery_result
+  status_topic: osquery_status
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_function: statusFunction
+  result_function: resultFunction
 ```
 
 #### Kafka REST Proxy logging
@@ -1817,12 +1817,12 @@ can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.ht
 
 ```yaml
 osquery:
-	osquery_status_log_plugin: kafkarest
-	osquery_result_log_plugin: kafkarest
+  osquery_status_log_plugin: kafkarest
+  osquery_result_log_plugin: kafkarest
 kafkarest:
-	proxyhost: "https://localhost:8443"
-	result_topic: osquery_result
-	status_topic: osquery_status
+  proxyhost: "https://localhost:8443"
+  result_topic: osquery_result
+  status_topic: osquery_status
 ```
 #### S3 file carving backend
 
@@ -1953,12 +1953,12 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 
 ```yaml
 s3:
-	bucket: some-carve-bucket
-	prefix: carves-go-here/
-	access_key_id: AKIAIOSFODNN7EXAMPLE
-	secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-	sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-	region: us-east-1
+  bucket: some-carve-bucket
+  prefix: carves-go-here/
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  region: us-east-1
 ```
 
 #### Upgrades
@@ -1972,7 +1972,7 @@ If set then `fleet serve` will run even if there are database migrations missing
 - Config file format:
   ```
 	upgrades:
-		allow_missing_migrations: true
+	  allow_missing_migrations: true
   ```
 
 #### Vulnerabilities
@@ -2086,9 +2086,9 @@ in your Fleet). Setting this to true will cause Fleet to skip both processes.
 
 ```yaml
 vulnerabilities:
-	databases_path: /some/path
-	current_instance_checks: yes
-	disable_data_sync: true
+  databases_path: /some/path
+  current_instance_checks: yes
+  disable_data_sync: true
 ```
 
 #### GeoIP
@@ -2105,7 +2105,7 @@ on the Fleet web server.
 - Config file format:
   ```yaml
 	geoip:
-		database_path: /some/path
+	  database_path: /some/path
   ```
 
 
@@ -2565,11 +2565,11 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 ```yaml
 packaging:
-	s3:
-		bucket: some-bucket
-		prefix: installers-go-here/
-		access_key_id: AKIAIOSFODNN7EXAMPLE
-		secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-		sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-		region: us-east-1
+  s3:
+    bucket: some-bucket
+    prefix: installers-go-here/
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    region: us-east-1
 ```
