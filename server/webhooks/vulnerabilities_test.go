@@ -21,6 +21,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	logger := kitlog.NewNopLogger()
+	mapper := Mapper{}
 
 	appCfg := &fleet.AppConfig{
 		WebhookSettings: fleet.WebhookSettings{
@@ -42,20 +43,38 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		appCfg := *appCfg
 		appCfg.WebhookSettings.VulnerabilitiesWebhook.Enable = false
-		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, recentVulns, &appCfg, time.Now())
+		args := VulnArgs{
+			Vulnerablities: recentVulns,
+			Meta:           nil,
+			AppConfig:      &appCfg,
+			Time:           time.Now(),
+		}
+		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args, &mapper)
 		require.NoError(t, err)
 	})
 
 	t.Run("invalid server url", func(t *testing.T) {
 		appCfg := *appCfg
 		appCfg.ServerSettings.ServerURL = ":nope:"
-		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, recentVulns, &appCfg, time.Now())
+		args := VulnArgs{
+			Vulnerablities: recentVulns,
+			Meta:           nil,
+			AppConfig:      &appCfg,
+			Time:           time.Now(),
+		}
+		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args, &mapper)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid server")
 	})
 
 	t.Run("empty recent vulns", func(t *testing.T) {
-		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, nil, appCfg, time.Now())
+		args := VulnArgs{
+			Vulnerablities: nil,
+			Meta:           nil,
+			AppConfig:      appCfg,
+			Time:           time.Now(),
+		}
+		err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args, &mapper)
 		require.NoError(t, err)
 	})
 
@@ -85,36 +104,42 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		cases := []struct {
 			name  string
 			vulns []fleet.SoftwareVulnerability
+			meta  map[string]fleet.CVEMeta
 			hosts []*fleet.HostShort
 			want  string
 		}{
 			{
 				"1 vuln, 1 host",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
 			},
 			{
 				"1 vuln, 2 hosts",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
 				hosts[:2],
 				fmt.Sprintf("%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2),
 			},
 			{
 				"1 vuln, 3 hosts",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
 				hosts[:3],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3), // 2 requests, batch of 2 max
 			},
 			{
 				"1 vuln, 4 hosts",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				nil,
 				hosts[:4],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3, jsonH4), // 2 requests, batch of 2 max
 			},
 			{
 				"2 vulns, 1 host each",
 				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[1], SoftwareID: 2}},
+				nil,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonCVE2, jsonH1),
 			},
@@ -138,7 +163,14 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 
 				appCfg := *appCfg
 				appCfg.WebhookSettings.VulnerabilitiesWebhook.DestinationURL = srv.URL
-				err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, c.vulns, &appCfg, now)
+				args := VulnArgs{
+					Vulnerablities: c.vulns,
+					Meta:           c.meta,
+					AppConfig:      &appCfg,
+					Time:           now,
+				}
+
+				err := TriggerVulnerabilitiesWebhook(ctx, ds, logger, args, &mapper)
 				require.NoError(t, err)
 
 				assert.True(t, ds.HostsBySoftwareIDsFuncInvoked)

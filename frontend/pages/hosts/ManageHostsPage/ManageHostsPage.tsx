@@ -1871,7 +1871,8 @@ const ManageHostsPage = ({
                 ) &&
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
-                  filteredHostCount === 0
+                  filteredHostCount === 0 &&
+                  searchQuery === ""
                 ) && (
                   <Button
                     onClick={toggleAddHostsModal}

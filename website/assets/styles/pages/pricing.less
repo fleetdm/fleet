@@ -2,6 +2,12 @@
   h1, p {
     color: #192147;
   }
+  a {
+    color: @core-vibrant-blue;
+  }
+  .btn {
+    color: #fff;
+  }
   .faq-question {
     font-weight: @bold;
   }
@@ -22,6 +28,14 @@
   [purpose='animated-arrow-button'] {
     color: #192147;
     .btn-animated-arrow-red();
+  }
+
+  @media (max-width: 575px) {
+    .contact-msg {
+      max-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+    }
   }
 
 }
