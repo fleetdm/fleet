@@ -22,7 +22,7 @@ const PreviewPayloadModal = ({
 }: IPreviewPayloadModalProps): JSX.Element => {
   const { isFreeTier } = useContext(AppContext);
 
-  let json: IJsonPayload = {
+  const json: IJsonPayload = {
     timestamp: "0000-00-00T00:00:00Z",
     vulnerability: {
       cve: "CVE-2014-9471",
