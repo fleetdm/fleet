@@ -9,7 +9,7 @@ type AgentOptions struct {
 	Config json.RawMessage `json:"config"`
 	// Overrides includes any platform-based overrides.
 	Overrides               AgentOptionsOverrides `json:"overrides,omitempty"`
-	CommandLineStartUpFlags json.RawMessage       `json:"command_line_flags"`
+	CommandLineStartUpFlags json.RawMessage       `json:"command_line_startup_flags,omitempty"`
 }
 
 type AgentOptionsOverrides struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -30,6 +31,26 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return enrollOrbitResponse{Err: err}, nil
 	}
 	return enrollOrbitResponse{OrbitNodeKey: nodeKey}, nil
+}
+
+func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey string) (*fleet.Host, bool, error) {
+	svc.authz.SkipAuthorization(ctx)
+
+	if orbitNodeKey == "" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing orbit node key"))
+	}
+
+	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: invalid orbit node key"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "authentication error orbit")
+	}
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
 // EnrollOrbit returns an orbit nodeKey on successful enroll
@@ -66,7 +87,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 }
 
 func getOrbitFlagsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*orbitRequest)
+	req := request.(*orbitGetConfigRequest)
 	opts, err := svc.GetOrbitFlags(ctx, req.OrbitNodeKey)
 	if err != nil {
 		return enrollOrbitResponse{Err: err}, nil

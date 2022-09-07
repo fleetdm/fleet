@@ -79,10 +79,11 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	}
 
 	// next GetFlags from Fleet API
-	flagsJSON, err := r.orbitClient.GetFlags(r.opt.OrbitNodeKey)
+	flagsJSON, err := r.orbitClient.GetConfig(r.opt.OrbitNodeKey)
 	if err != nil {
 		return false, fmt.Errorf("error getting flags from fleet %w", err)
 	}
+
 	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
 	if err != nil {
 		return false, fmt.Errorf("error parsing flags %w", err)

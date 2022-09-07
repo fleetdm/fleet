@@ -17,8 +17,16 @@ type enrollOrbitResponse struct {
 	Err          error  `json:"error,omitempty"`
 }
 
-type orbitRequest struct {
+type orbitGetConfigRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetConfigResponse struct {
+	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
 }
 
 func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool) (*Client, error) {
@@ -36,45 +44,43 @@ func (c *Client) DoEnroll(enrollSecret string, hardwareUUID string) (string, err
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return "", orbitError{
-			message:     err.Error(),
-			nodeInvalid: true,
-		}
+		return "", fmt.Errorf("Error POST /api/latest/fleet/orbit/enroll: %w", err)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Error POST /api/latest/fleet/orbit/enroll: %w", err)
 	}
 
 	var resp enrollOrbitResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return "", orbitError{
-			message:     err.Error(),
-			nodeInvalid: true,
-		}
+		return "", fmt.Errorf("Error POST /api/latest/fleet/orbit/enroll: %w", err)
 	}
 	return resp.OrbitNodeKey, nil
 }
 
-func (c *Client) GetFlags(orbitNodeKey string) (json.RawMessage, error) {
+func (c *Client) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 	verb, path := "POST", "/api/latest/fleet/orbit/flags"
-	params := orbitRequest{OrbitNodeKey: orbitNodeKey}
+	params := orbitGetConfigRequest{OrbitNodeKey: orbitNodeKey}
 	response, err := c.Do(verb, path, "", params)
 
 	if err != nil {
-		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/enroll: %w", err)
+		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, err
+		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", err)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", err)
 	}
 
-	return body, nil
+	resp := &orbitGetConfigResponse{
+		Flags: body,
+	}
+
+	return resp.Flags, nil
 }

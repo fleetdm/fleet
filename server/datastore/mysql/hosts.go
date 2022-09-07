@@ -746,8 +746,12 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE uuid = ?`, hardwareUUID)
 		switch {
-		case err != nil && !errors.Is(err, sql.ErrNoRows):
-			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
+		case err == nil:
+			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE uuid = ? `
+			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
+			}
 		case errors.Is(err, sql.ErrNoRows):
 			sqlInsert := `INSERT INTO hosts (osquery_host_id, uuid, orbit_node_key) VALUES (?, ?, ?)`
 			_, err := tx.ExecContext(ctx, sqlInsert, hardwareUUID, hardwareUUID, orbitNodeKey)
@@ -755,12 +759,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
 		default:
-			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE uuid = ? `
-			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
-			}
-
+			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
 		}
 		return nil
 	})

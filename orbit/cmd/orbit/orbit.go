@@ -764,7 +764,6 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enroll
 	retries := 0
 	enrollSuccess := false
 	for !enrollSuccess && retries < constant.OrbitEnrollMaxRetries {
-		log.Info().Msg("retrying enroll")
 		switch {
 		case err == nil:
 			enrollSuccess = true
