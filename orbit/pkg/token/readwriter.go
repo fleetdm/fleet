@@ -26,11 +26,7 @@ func (rw *ReadWriter) LoadOrGenerate() error {
 	_, err := rw.Read()
 	switch {
 	case err == nil:
-		// ensure the file is readable by other processes, old versions of Orbit
-		// used to chmod this file with 0o600
-		if err := rw.setChmod(); err != nil {
-			return fmt.Errorf("loading token file, chmod %q: %w", rw.Path, err)
-		}
+		// OK
 	case errors.Is(err, os.ErrNotExist):
 		if err := rw.Rotate(); err != nil {
 			return fmt.Errorf("rotating token on generation: %w", err)
@@ -48,20 +44,15 @@ func (rw *ReadWriter) Rotate() error {
 		return fmt.Errorf("generate identifier: %w", err)
 	}
 
-	err = os.WriteFile(rw.Path, []byte(id.String()), constant.DefaultWorldReadableFileMode)
+	err = os.WriteFile(rw.Path, []byte(id.String()), constant.DefaultSystemdUnitMode)
 	if err != nil {
 		return fmt.Errorf("write identifier file %q: %w", rw.Path, err)
 	}
 
-	// ensure the file is readable by other processes, os.WriteFile does not
-	// modify permissions if the file already exists
-	if err := rw.setChmod(); err != nil {
-		return fmt.Errorf("write identifier file, chmod %q: %w", rw.Path, err)
-	}
-
 	// ensure the `mtime` is updated, we have seen tests fail in some versions of
 	// Ubuntu because this value is not update when the file is written
-	if err = os.Chtimes(rw.Path, time.Now(), time.Now()); err != nil {
+	err = os.Chtimes(rw.Path, time.Now(), time.Now())
+	if err != nil {
 		return fmt.Errorf("set mtime of identifier file %q: %w", rw.Path, err)
 	}
 
@@ -71,8 +62,4 @@ func (rw *ReadWriter) Rotate() error {
 	}
 
 	return nil
-}
-
-func (rw *ReadWriter) setChmod() error {
-	return os.Chmod(rw.Path, constant.DefaultWorldReadableFileMode)
 }
