@@ -13,6 +13,7 @@ values as appropriate.
 3. Install the cf-cli - https://cloud.gov/docs/getting-started/setup/
 
 4. From your local fleetdm source directory.
+
 ```
 git clone https://github.com/fleetdm/fleet
 cd fleet
@@ -20,12 +21,15 @@ cf login -a api.fr.cloud.gov  --sso
 
 # Follow the link to copy the Temporary Authentication Code when prompted
 ```
+
 5. Setup a demo application space
+
 ```
 cf target -o sandbox-gsa create-space fleetdm-rename
 ```
 
 6. Create database(s)
+
 ```
 # Update manifest.yml file to rename application and database key names to match commands below.
 
@@ -39,6 +43,7 @@ cf push
 **You will be returned the URL for your new test instance to navigate to.**
 
 > Note: This is only for demonstration purposes, in order to run a production level federal/FISMA system. You will need to contact the [cloud.gov program](https://cloud.gov) and consult your organization's security team (for risk assessment and an Authority to Operate).
+
 
 ## Using jq to map service credentials
 
@@ -105,4 +110,5 @@ variables](https://fleetdm.com/docs/deploying/configuration#using-only-environme
 }
 ```
 
+<meta name="title" value="Cloud.gov">
 <meta name="pageOrderInSection" value="700">
