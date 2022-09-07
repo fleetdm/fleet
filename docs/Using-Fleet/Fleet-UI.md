@@ -1,7 +1,8 @@
 # Fleet UI
-- [Create a query](#create-a-query)
-- [Run a query](#run-a-query)
-- [Schedule a query](#schedule-a-query)
+- [Creating a query](#create-a-query)
+- [Running a query](#run-a-query)
+- [Scheduling a query](#schedule-a-query)
+- [Update agent options](#update-agent-options)
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
@@ -45,6 +46,8 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 Fleet allows you to schedule queries. Scheduled queries will run and send results to your log destination automatically.
 
+The default log destination, **filesystem**, is good to start. With this set, results are sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
+
 How to schedule a query:
 
 1. In the top navigation, select **Schedule**.
@@ -57,7 +60,28 @@ How to schedule a query:
 
 5. Select **Schedule**.
 
-To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
+## Update agent options
+
+<!-- Heading is kept so that the link from the Fleet UI still works -->
+<span id="configuring-agent-options" name="configuring-agent-options"></span>
+
+Fleet allows you to update the settings of the agent installed on all your hosts, at once. In Fleet, these settings are called "agent options."
+
+The default agent options are good to start. 
+
+How to update agent options:
+
+1. In the top navigation, select your avatar and select **Settings**. Only users with the [admin role](./Permissions.md) can access the pages in **Settings**.
+
+2. On the Organization settings page, select **Agent options** on the left side of the page.
+
+3. To see all agent options, head to the [agent options documentation](./configuration-files/README.md#agent-options).
+
+4. Place your new setting one level below the `options` key. The new setting's key should be below and one tab to the right of `options`.
+
+5. Select **Save**.
+
+The agents may take several seconds to update because Fleet has to wait for the hosts to check in.
 
 <meta name="title" value="Fleet UI">
 
