@@ -65,7 +65,7 @@ How to schedule a query:
 <!-- Heading is kept so that the link from the Fleet UI still works -->
 <span id="configuring-agent-options" name="configuring-agent-options"></span>
 
-Fleet allows you to update the settings of the agent installed on all your hosts, at once. In Fleet, these settings are called "agent options."
+Fleet allows you to update the settings of the agent installed on all your hosts at once. In Fleet, these settings are called "agent options."
 
 The default agent options are good to start. 
 
