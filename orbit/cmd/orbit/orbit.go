@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -525,9 +524,6 @@ func main() {
 			return fmt.Errorf("create osquery runner: %w", err)
 		}
 		g.Add(r.Execute, r.Interrupt)
-
-		//registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
-
 
 		client, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
 		if err != nil {
