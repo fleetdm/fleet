@@ -92,6 +92,7 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 	// Agent Options payload, the top-level "config" key defines a set, and each
 	// of the platform overrides defines other sets. They all have the same
 	// validation rules.
+	panic("unimplemented")
 }
 
 // ValidateYAMLAgentOptions validates the given raw YAML bytes as an Agent
