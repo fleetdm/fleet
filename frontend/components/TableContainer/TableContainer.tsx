@@ -143,7 +143,7 @@ const TableContainer = ({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
+  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   const prevPageIndex = useRef(0);

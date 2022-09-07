@@ -24,7 +24,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil, config.FleetConfig{})["network_interface"].IngestFunc
+	ingest := GetDetailQueries(config.FleetConfig{}, nil)["network_interface"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -118,7 +118,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(nil, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectTaskIngestFunc
+	ingest := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
 
 	ctx := context.Background()
 	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil, false))
@@ -296,12 +296,13 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 16)
+	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
+	require.Len(t, queriesNoConfig, 17)
 
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
+		"os_version_windows",
 		"osquery_flags",
 		"osquery_info",
 		"system_info",
@@ -319,24 +320,24 @@ func TestGetDetailQueries(t *testing.T) {
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithoutWinOSVuln := GetDetailQueries(nil, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}})
-	require.Len(t, queriesWithoutWinOSVuln, 15)
+	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
+	require.Len(t, queriesWithoutWinOSVuln, 16)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 18)
+	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
+	require.Len(t, queriesWithUsers, 19)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 21)
+	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
+	require.Len(t, queriesWithUsersAndSoftware, 22)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
 
-func TestDetailQueriesOSVersion(t *testing.T) {
+func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
+	ingest := GetDetailQueries(config.FleetConfig{}, nil)["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -384,7 +385,7 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
 
-	// Simulate Ubuntu host with incorrect `patch`` number
+	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -404,6 +405,38 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Ubuntu 18.04.5 LTS", host.OSVersion)
+}
+
+func TestDetailQueriesOSVersionWindows(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(config.FleetConfig{}, nil)["os_version_windows"].IngestFunc
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "WinBox",
+    "arch": "64-bit",
+    "build": "22000",
+    "codename": "Microsoft Windows 11 Enterprise",
+    "major": "10",
+    "minor": "0",
+    "name": "Microsoft Windows 11 Enterprise",
+    "patch": "",
+    "platform": "windows",
+    "platform_like": "windows",
+    "version": "10.0.22000",
+	"data": "21H2"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {
@@ -651,15 +684,15 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 }
 
 func TestDangerousReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
+	queries := GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
 	originalQuery := queries["users"].Query
 
 	t.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah")
-	queries = GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
+	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 
 	require.NoError(t, os.Unsetenv("FLEET_DANGEROUS_REPLACE_USERS"))
-	queries = GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
+	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
 	assert.Equal(t, originalQuery, queries["users"].Query)
 }
 

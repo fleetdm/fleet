@@ -119,6 +119,7 @@ func TestGetTeams(t *testing.T) {
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+			additionalQueries := json.RawMessage(`{"foo":"bar"}`)
 			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 				created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 				require.NoError(t, err)
@@ -129,6 +130,12 @@ func TestGetTeams(t *testing.T) {
 						Name:        "team1",
 						Description: "team1 description",
 						UserCount:   99,
+						Config: fleet.TeamConfig{
+							Features: fleet.Features{
+								EnableHostUsers:         true,
+								EnableSoftwareInventory: true,
+							},
+						},
 					},
 					{
 						ID:          43,
@@ -138,6 +145,9 @@ func TestGetTeams(t *testing.T) {
 						UserCount:   87,
 						Config: fleet.TeamConfig{
 							AgentOptions: &agentOpts,
+							Features: fleet.Features{
+								AdditionalQueries: &additionalQueries,
+							},
 						},
 					},
 				}, nil
@@ -158,6 +168,9 @@ spec:
   team:
     created_at: "1999-03-10T02:45:06.371Z"
     description: team1 description
+    features:
+      enable_host_users: true
+      enable_software_inventory: true
     host_count: 0
     id: 42
     integrations:
@@ -185,6 +198,11 @@ spec:
             foo: override
     created_at: "1999-03-10T02:45:06.371Z"
     description: team2 description
+    features:
+      additional_queries:
+        foo: bar
+      enable_host_users: false
+      enable_software_inventory: false
     host_count: 0
     id: 43
     integrations:
@@ -199,8 +217,8 @@ spec:
         host_batch_size: 0
         policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
@@ -585,7 +603,7 @@ spec:
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
-		expectedYaml := `---
+		expectedYAML := `---
 apiVersion: v1
 kind: config
 spec:
@@ -657,6 +675,7 @@ spec:
     osquery_policy: 1h0m0s
   vulnerabilities:
     cpe_database_url: ""
+    cpe_translations_url: ""
     current_instance_checks: ""
     cve_feed_prefix_url: ""
     databases_path: ""
@@ -770,6 +789,7 @@ spec:
       "databases_path": "",
       "periodicity": "0s",
       "cpe_database_url": "",
+      "cpe_translations_url": "",
       "cve_feed_prefix_url": "",
       "current_instance_checks": "",
       "disable_data_sync": false,
@@ -806,8 +826,8 @@ spec:
 }
 `
 
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
+		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
+		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
 		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
 }

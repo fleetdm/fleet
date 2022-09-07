@@ -1,14 +1,21 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import macadminsAPI from "services/entities/macadmins";
-import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
+import {
+  IMacadminAggregate,
+  IMunkiIssuesAggregate,
+  IMunkiVersionsAggregate,
+} from "interfaces/macadmins";
 
+import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
-import generateTableHeaders from "./MunkiTableConfig";
+import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
+import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
 
 interface IMunkiCardProps {
   showMunkiUI: boolean;
@@ -22,9 +29,19 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "home-munki";
 
-const EmptyMunki = (): JSX.Element => (
+const EmptyMunkiIssues = (): JSX.Element => (
   <div className={`${baseClass}__empty-munki`}>
-    <h1>Unable to detect Munki versions.</h1>
+    <h2>No Munki issues detected</h2>
+    <p>
+      This report is updated every hour to protect the performance of your
+      devices.
+    </p>
+  </div>
+);
+
+const EmptyMunkiVersions = (): JSX.Element => (
+  <div className={`${baseClass}__empty-munki`}>
+    <h2>Unable to detect Munki versions</h2>
     <p>
       To see Munki versions, deploy&nbsp;
       <a
@@ -45,7 +62,14 @@ const Munki = ({
   setShowMunkiUI,
   setTitleDetail,
 }: IMunkiCardProps): JSX.Element => {
-  const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
+  const [navTabIndex, setNavTabIndex] = useState<number>(0);
+  const [pageIndex, setPageIndex] = useState<number>(0);
+  const [munkiIssuesData, setMunkiIssuesData] = useState<
+    IMunkiIssuesAggregate[]
+  >([]);
+  const [munkiVersionsData, setMunkiVersionsData] = useState<
+    IMunkiVersionsAggregate[]
+  >([]);
 
   const { isFetching: isMunkiFetching, error: errorMunki } = useQuery<
     IMacadminAggregate,
@@ -53,9 +77,14 @@ const Munki = ({
   >(["munki", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
     keepPreviousData: true,
     onSuccess: (data) => {
-      const { counts_updated_at, munki_versions } = data.macadmins;
+      const {
+        counts_updated_at,
+        munki_versions,
+        munki_issues,
+      } = data.macadmins;
 
-      setMunkiData(munki_versions);
+      setMunkiVersionsData(munki_versions);
+      setMunkiIssuesData(munki_issues);
       setShowMunkiUI(true);
       setTitleDetail &&
         setTitleDetail(
@@ -70,7 +99,9 @@ const Munki = ({
     },
   });
 
-  const tableHeaders = generateTableHeaders();
+  const onTabChange = (index: number) => {
+    setNavTabIndex(index);
+  };
 
   // Renders opaque information as host information is loading
   const opacity = showMunkiUI ? { opacity: 1 } : { opacity: 0 };
@@ -83,26 +114,60 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        {errorMunki ? (
-          <TableDataError card />
-        ) : (
-          <TableContainer
-            columns={tableHeaders}
-            data={munkiData || []}
-            isLoading={isMunkiFetching}
-            defaultSortHeader={DEFAULT_SORT_HEADER}
-            defaultSortDirection={DEFAULT_SORT_DIRECTION}
-            hideActionButton
-            resultsTitle={"Munki"}
-            emptyComponent={EmptyMunki}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableCount
-            disableActionButton
-            disablePagination
-            pageSize={PAGE_SIZE}
-          />
-        )}
+        <TabsWrapper>
+          <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
+            <TabList>
+              <Tab>Issues</Tab>
+              <Tab>Versions</Tab>
+            </TabList>
+            <TabPanel>
+              {errorMunki ? (
+                <TableDataError card />
+              ) : (
+                <TableContainer
+                  columns={munkiIssuesTableHeaders}
+                  data={munkiIssuesData || []}
+                  isLoading={isMunkiFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"Munki"}
+                  emptyComponent={EmptyMunkiIssues}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  isClientSidePagination
+                  disableCount
+                  disableActionButton
+                  disablePagination
+                  pageSize={PAGE_SIZE}
+                />
+              )}
+            </TabPanel>
+            <TabPanel>
+              {errorMunki ? (
+                <TableDataError card />
+              ) : (
+                <TableContainer
+                  columns={munkiVersionsTableHeaders}
+                  data={munkiVersionsData || []}
+                  isLoading={isMunkiFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"Munki"}
+                  emptyComponent={EmptyMunkiVersions}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  isClientSidePagination
+                  disableCount
+                  disableActionButton
+                  disablePagination
+                  pageSize={PAGE_SIZE}
+                />
+              )}
+            </TabPanel>
+          </Tabs>
+        </TabsWrapper>
       </div>
     </div>
   );

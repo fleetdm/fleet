@@ -16,17 +16,11 @@ func Up_20220818101352(tx *sql.Tx) error {
 	//-----------------
 	// Add temp column.
 	//-----------------
-	if _, err := tx.Exec(
-		`ALTER TABLE software ADD COLUMN vendor_wide varchar(114) DEFAULT '' NOT NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
-		return errors.Wrapf(err, "creating temp column for vendor")
-	}
-
-	//---------------------
-	// Add uniq constraint
-	//---------------------
-	if _, err := tx.Exec(
-		"ALTER TABLE software ADD constraint unq_name UNIQUE (name, version, source, `release`, vendor_wide, arch)"); err != nil {
-		return errors.Wrapf(err, "adding new uniquess constraint")
+	if !columnExists(tx, "software", "vendor_wide") {
+		if _, err := tx.Exec(
+			`ALTER TABLE software ADD COLUMN vendor_wide varchar(114) DEFAULT '' NOT NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
+			return errors.Wrapf(err, "creating temp column for vendor")
+		}
 	}
 
 	//------------------
@@ -36,6 +30,14 @@ func Up_20220818101352(tx *sql.Tx) error {
 	_, err := tx.Exec(updateStmt)
 	if err != nil {
 		return errors.Wrapf(err, "updating temp vendor column")
+	}
+
+	//---------------------
+	// Add uniq constraint
+	//---------------------
+	if _, err := tx.Exec(
+		"ALTER TABLE software ADD constraint unq_name UNIQUE (name, version, source, `release`, vendor_wide, arch)"); err != nil {
+		return errors.Wrapf(err, "adding new uniquess constraint")
 	}
 
 	//----------------

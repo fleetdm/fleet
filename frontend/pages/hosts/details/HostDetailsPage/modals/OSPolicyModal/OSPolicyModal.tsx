@@ -30,7 +30,7 @@ const RenderOSPolicyModal = ({
   osPolicy,
   osPolicyLabel,
 }: IRenderOSPolicyModal): JSX.Element => {
-  const [copyMessage, setCopyMessage] = useState<string>("");
+  const [copyMessage, setCopyMessage] = useState("");
 
   const renderOsPolicyLabel = () => {
     const onCopyOsPolicy = (evt: React.MouseEvent) => {

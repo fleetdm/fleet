@@ -1120,7 +1120,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 	require.NotNil(t, resp.MDMSolution)
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
-	assert.Equal(t, 1, resp.MDMSolution.HostsCount)
 	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, resp.MDMSolution.Name)
 	assert.Equal(t, "https://simplemdm.com", resp.MDMSolution.ServerURL)
 
@@ -1151,11 +1150,10 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
 	require.NotNil(t, resp.MunkiIssue)
-	assert.Equal(t, fleet.AggregatedMunkiIssue{
-		ID:         errMunkiID,
-		Name:       "err",
-		IssueType:  "error",
-		HostsCount: 1,
+	assert.Equal(t, fleet.MunkiIssue{
+		ID:        errMunkiID,
+		Name:      "err",
+		IssueType: "error",
 	}, *resp.MunkiIssue)
 
 	// filters can be combined, no problem
@@ -2683,13 +2681,17 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	agg.Macadmins.MunkiIssues[1].ID = 0
 	assert.ElementsMatch(t, agg.Macadmins.MunkiIssues, []fleet.AggregatedMunkiIssue{
 		{
-			Name:       "error1",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "error1",
+				IssueType: "error",
+			},
 			HostsCount: 1,
 		},
 		{
-			Name:       "warning1",
-			IssueType:  "warning",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "warning1",
+				IssueType: "warning",
+			},
 			HostsCount: 1,
 		},
 	})

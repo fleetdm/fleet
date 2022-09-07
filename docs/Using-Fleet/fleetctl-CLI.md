@@ -28,6 +28,10 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 You can use `fleetctl` to accomplish many tasks you would typically need to do through the Fleet UI. You can even set up or apply configuration files to the Fleet server.
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/ERbknt6w8eg" allowfullscreen></iframe>
+</div>
+
 ### Available commands
 
 Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate osquery installers to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:

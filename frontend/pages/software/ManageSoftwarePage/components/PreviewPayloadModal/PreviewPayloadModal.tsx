@@ -3,8 +3,7 @@ import { syntaxHighlight } from "utilities/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "preview-data-modal";
 
@@ -20,6 +19,9 @@ const PreviewPayloadModal = ({
     vulnerability: {
       cve: "CVE-2014-9471",
       details_link: "https://nvd.nist.gov/vuln/detail/CVE-2014-9471",
+      epss_probability: 0.7, // Premium feature only
+      cvss_score: 5.7, // Premium feature only
+      cisa_known_exploit: true, // Premium feature only
       hosts_affected: [
         {
           id: 1,
@@ -45,8 +47,8 @@ const PreviewPayloadModal = ({
             target="_blank"
             rel="noopener noreferrer"
           >
-            Check out the Fleet documentation&nbsp;
-            <FleetIcon name="external-link" />
+            Check out the Fleet documentation
+            <img src={ExternalLinkIcon} alt="Open external link" />
           </a>
         </p>
         <div className={`${baseClass}__payload-request-preview`}>

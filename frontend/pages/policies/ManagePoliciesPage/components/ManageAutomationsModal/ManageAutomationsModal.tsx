@@ -19,7 +19,6 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 
-import Spinner from "components/Spinner";
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
 
@@ -112,10 +111,7 @@ const ManageAutomationsModal = ({
     automationsConfig.integrations
   );
 
-  const [
-    isPolicyAutomationsEnabled,
-    setIsPolicyAutomationsEnabled,
-  ] = useState<boolean>(
+  const [isPolicyAutomationsEnabled, setIsPolicyAutomationsEnabled] = useState(
     !!webhook.enable_failing_policies_webhook || !!serverEnabledIntegration
   );
 
@@ -123,7 +119,7 @@ const ManageAutomationsModal = ({
     !isPolicyAutomationsEnabled || webhook.enable_failing_policies_webhook
   );
 
-  const [destinationUrl, setDestinationUrl] = useState<string>(
+  const [destinationUrl, setDestinationUrl] = useState(
     webhook.destination_url || ""
   );
 

@@ -6,7 +6,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
-import ExternalURLIcon from "../../../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "create-integration-modal";
 
@@ -37,7 +37,7 @@ const CreateIntegrationModal = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
-  const [destination, setDestination] = useState<string>("jira");
+  const [destination, setDestination] = useState("jira");
 
   const onDestinationChange = (value: string) => {
     setDestination(value);
@@ -71,8 +71,8 @@ const CreateIntegrationModal = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Suggest a new destination&nbsp;
-              <img alt="Open external link" src={ExternalURLIcon} />
+              Suggest a new destination
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </div>
           <IntegrationForm

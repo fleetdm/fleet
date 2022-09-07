@@ -1,7 +1,7 @@
 import classnames from "classnames";
 import React from "react";
 
-import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface ISandboxDemoMessageProps {
   /** message to display in the sandbox error */
@@ -31,12 +31,8 @@ const SandboxDemoMessage = ({
           rel="noreferrer"
         >
           Schedule a demo
+          <img alt="Open external link" src={ExternalLinkIcon} />
         </a>
-        <img
-          alt="Open external link"
-          className="icon-external"
-          src={ExternalURLIcon}
-        />
       </p>
     </div>
   );

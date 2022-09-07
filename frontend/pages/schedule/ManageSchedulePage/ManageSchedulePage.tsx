@@ -295,13 +295,10 @@ const ManageSchedulePage = ({
   const selectedTeamData =
     teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
 
-  const [
-    isUpdatingScheduledQuery,
-    setIsUpdatingScheduledQuery,
-  ] = useState<boolean>(false);
-  const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
+  const [isUpdatingScheduledQuery, setIsUpdatingScheduledQuery] = useState(
     false
   );
+  const [showInheritedQueries, setShowInheritedQueries] = useState(false);
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);

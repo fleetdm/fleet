@@ -2,7 +2,12 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost } from "interfaces/host";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  getLabelParam,
+  reconcileMutuallyExclusiveHostParams,
+  getStatusParam,
+} from "utilities/url";
 
 export interface ISortOption {
   key: string;
@@ -21,9 +26,10 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  os_id?: number;
-  os_name?: string;
-  os_version?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
+  munkiIssueId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -40,10 +46,11 @@ export interface IExportHostsOptions {
   policyResponse?: string;
   softwareId?: number;
   mdmId?: number;
+  munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
-  os_id?: number;
-  os_name?: string;
-  os_version?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -60,7 +67,7 @@ const getLabel = (selectedLabels?: string[]) => {
 
 const getHostEndpoint = (selectedLabels?: string[]) => {
   const { HOSTS, LABEL_HOSTS } = endpoints;
-  if (selectedLabels === undefined) return endpoints.HOSTS;
+  if (selectedLabels === undefined) return HOSTS;
 
   const label = getLabel(selectedLabels);
   if (label) {
@@ -81,84 +88,6 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
     order_key: sortItem.key,
     order_direction: sortItem.direction,
   };
-};
-
-const getStatusParam = (selectedLabels?: string[]) => {
-  if (selectedLabels === undefined) return undefined;
-
-  const status = selectedLabels.find((f) => !f.includes(LABEL_PREFIX));
-  if (status === undefined) return undefined;
-
-  const statusFilterList = ["new", "online", "offline"];
-  return statusFilterList.includes(status) ? status : undefined;
-};
-
-const getPolicyParams = (
-  label?: string,
-  policyId?: number,
-  policyResponse?: string
-) => {
-  if (label !== undefined || policyId === undefined) return {};
-
-  return {
-    policy_id: policyId,
-    policy_response: policyResponse,
-  };
-};
-
-const getSoftwareParam = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string
-) => {
-  return !label && !policyId && !mdmId && !mdmEnrollmentStatus
-    ? softwareId
-    : undefined;
-};
-
-const getMDMSolutionParam = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string
-) => {
-  return !label && !policyId && !softwareId && !mdmEnrollmentStatus
-    ? mdmId
-    : undefined;
-};
-
-const getMDMEnrollmentStatusParam = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string
-) => {
-  return !label && !policyId && !softwareId && !mdmId
-    ? mdmEnrollmentStatus
-    : undefined;
-};
-
-const getOperatingSystemParams = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string,
-  os_id?: number,
-  os_name?: string,
-  os_version?: string
-) => {
-  if (label || policyId || softwareId || mdmId || mdmEnrollmentStatus) {
-    return {};
-  }
-  if (os_id) {
-    return { os_id };
-  }
-  return os_name && os_version ? { os_name, os_version } : {};
 };
 
 export default {
@@ -190,85 +119,46 @@ export default {
     });
   },
   exportHosts: (options: IExportHostsOptions) => {
-    const { HOSTS_REPORT } = endpoints;
     const sortBy = options.sortBy;
     const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
-    const teamId = options?.teamId || null;
-    const policyId = options?.policyId || null;
+    const teamId = options?.teamId;
+    const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
-    const softwareId = options?.softwareId || null;
-    const mdmId = options?.mdmId || null;
-    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
-    const visibleColumns = options?.visibleColumns || null;
-    const { os_id, os_name, os_version } = options;
+    const softwareId = options?.softwareId;
+    const mdmId = options?.mdmId;
+    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
+    const visibleColumns = options?.visibleColumns;
+    const label = getLabelParam(selectedLabels);
+    const munkiIssueId = options?.munkiIssueId;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
 
-    const orderKeyParam = `?order_key=${sortBy[0].key}`;
-    const orderDirection = `&order_direction=${sortBy[0].direction}`;
+    const queryParams = {
+      order_key: sortBy[0].key,
+      order_direction: sortBy[0].direction,
+      query: globalFilter,
+      team_id: teamId,
+      ...reconcileMutuallyExclusiveHostParams(
+        label,
+        policyId,
+        policyResponse,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        softwareId
+      ),
+      status: getStatusParam(selectedLabels),
+      label_id: label,
+      columns: visibleColumns,
+      format: "csv",
+    };
 
-    let path = `${HOSTS_REPORT}${orderKeyParam}${orderDirection}`;
-
-    if (globalFilter !== "") {
-      path += `&query=${globalFilter}`;
-    }
-    const labelPrefix = "labels/";
-
-    // Handle multiple filters
-    const label = selectedLabels.find((f) => f.includes(labelPrefix)) || "";
-    const status = selectedLabels.find((f) => !f.includes(labelPrefix)) || "";
-    const statusFilterList = ["new", "online", "offline"];
-    const isStatusFilter = statusFilterList.includes(status);
-
-    if (isStatusFilter) {
-      path += `&status=${status}`;
-    }
-
-    if (teamId) {
-      path += `&team_id=${teamId}`;
-    }
-
-    // label OR policy_id OR software_id OR mdm_id OR mdm_enrollment_status are valid filters.
-    if (label) {
-      const lid = label.substr(labelPrefix.length);
-      path += `&label_id=${parseInt(lid, 10)}`;
-    }
-
-    if (!label && policyId) {
-      path += `&policy_id=${policyId}`;
-      path += `&policy_response=${policyResponse}`;
-    }
-
-    if (!label && !policyId && !mdmId && !mdmEnrollmentStatus && softwareId) {
-      path += `&software_id=${softwareId}`;
-    }
-
-    if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && mdmId) {
-      path += `&mdm_id=${mdmId}`;
-    }
-
-    if (!label && !policyId && !softwareId && !mdmId && mdmEnrollmentStatus) {
-      path += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
-    }
-
-    if (!label && !policyId && !softwareId && !mdmId && !mdmEnrollmentStatus) {
-      if (os_id) {
-        path += `&os_id=${os_id}`;
-      } else if (os_name && os_version) {
-        path += `&os_name=${encodeURIComponent(
-          os_name
-        )}&os_version=${encodeURIComponent(os_version)}`;
-      }
-    }
-
-    if (visibleColumns) {
-      path += `&columns=${visibleColumns}`;
-    }
-
-    path += "&format=csv";
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.HOSTS_REPORT;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
@@ -282,16 +172,16 @@ export default {
     softwareId,
     mdmId,
     mdmEnrollmentStatus,
-    os_id,
-    os_name,
-    os_version,
+    munkiIssueId,
+    osId,
+    osName,
+    osVersion,
     device_mapping,
     selectedLabels,
     sortBy,
   }: ILoadHostsOptions) => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
-    const policyParams = getPolicyParams(label, policyId, policyResponse);
 
     const queryParams = {
       page,
@@ -301,34 +191,18 @@ export default {
       device_mapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
-      policy_id: policyParams.policy_id,
-      policy_response: policyParams.policy_response,
-      software_id: getSoftwareParam(label, policyId, softwareId),
-      mdm_id: getMDMSolutionParam(
+      ...reconcileMutuallyExclusiveHostParams(
         label,
         policyId,
-        softwareId,
-        mdmId,
-        mdmEnrollmentStatus
-      ),
-      mdm_enrollment_status: getMDMEnrollmentStatusParam(
-        label,
-        policyId,
-        softwareId,
-        mdmId,
-        mdmEnrollmentStatus
-      ),
-      ...getOperatingSystemParams(
-        label,
-        policyId,
-        softwareId,
+        policyResponse,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version
+        munkiIssueId,
+        softwareId,
+        osId,
+        osName,
+        osVersion
       ),
-
       status: getStatusParam(selectedLabels),
     };
 
