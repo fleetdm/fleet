@@ -2426,9 +2426,9 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
-Accounts created via JIT provisioning are assigned the (Observer role)[https://fleetdm.com/docs/using-fleet/permissions]. The new account's email and full name are copied from the user data in the SSO response.
+Accounts created via JIT provisioning are assigned the [Observer role](https://fleetdm.com/docs/using-fleet/permissions). The new account's email and full name are copied from the user data in the SSO response.
 
-To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
