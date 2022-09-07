@@ -540,4 +540,8 @@ type KafkaRESTConfig struct {
 // DeviceAPIFeatures specifies a list of features supported
 // by the current API version. Each field in the struct is
 // meant to be a boolean value.
-type DeviceAPIFeatures struct{}
+type DeviceAPIFeatures struct {
+	// EnableTokenRotation indicates that the server supports token
+	// rotation for Orbit and Fleet Desktop.
+	EnableTokenRotation bool
+}

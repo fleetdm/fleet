@@ -69,3 +69,13 @@ func (dc *DeviceClient) Check(token string) error {
 	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
 	return dc.request(verb, path, "", &listDevicePoliciesResponse{})
 }
+
+func (dc *DeviceClient) APIFeatures(token string) (*fleet.DeviceAPIFeatures, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/api_features"
+	var responseBody deviceAPIFeaturesResponse
+	err := dc.request(verb, path, "", &responseBody)
+	if err != nil {
+		return nil, err
+	}
+	return &responseBody.Features, nil
+}

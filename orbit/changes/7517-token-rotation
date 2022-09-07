@@ -1,1 +1,1 @@
-- Added functionality to rotate device tokens every one hour
+- Added functionality to rotate device tokens every one hour. This functionality is only enabled if the client is communicating with a Fleet server which version is >= v4.20.0

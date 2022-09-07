@@ -239,7 +239,11 @@ type deviceAPIFeaturesResponse struct {
 func (r deviceAPIFeaturesResponse) error() error { return r.Err }
 
 func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
+	return deviceAPIFeaturesResponse{
+		Features: fleet.DeviceAPIFeatures{
+			EnableTokenRotation: true,
+		},
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

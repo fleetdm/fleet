@@ -497,47 +497,58 @@ func main() {
 		if err := trw.LoadOrGenerate(); err != nil {
 			return fmt.Errorf("initializing token read writer: %w", err)
 		}
-		// perform an initial check to see if the token
-		// has not been revoked by the server
-		if err := client.Check(trw.GetCached()); err != nil {
-			trw.Rotate()
+		token, err := trw.Read()
+		if err != nil {
+			return fmt.Errorf("reading token: %w", err)
 		}
-		go func() {
-			// This timer is used to check if the token should be rotated if  at
-			// least one hour has passed since the last modification of the token
-			// file.
-			//
-			// This is better than using a ticker that ticks every hour because the
-			// we can't ensure the tick actually runs every hour (eg: the computer is
-			// asleep).
-			rotationDuration := 30 * time.Second
-			rotationTicker := time.NewTicker(rotationDuration)
-			defer rotationTicker.Stop()
+		features, err := client.APIFeatures(token)
+		if err != nil {
+			return fmt.Errorf("getting API features: %w", err)
+		}
 
-			// This timer is used to periodically check if the token is valid. The
-			// server might deem a toked as invalid for reasons out of our control,
-			// for example if the database is restored to a back-up or if somebody
-			// manually invalidates the token in the db.
-			remoteCheckDuration := 5 * time.Minute
-			remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-			defer remoteCheckTicker.Stop()
+		if features.EnableTokenRotation {
+			// perform an initial check to see if the token
+			// has not been revoked by the server
+			if err := client.Check(trw.GetCached()); err != nil {
+				trw.Rotate()
+			}
+			go func() {
+				// This timer is used to check if the token should be rotated if  at
+				// least one hour has passed since the last modification of the token
+				// file.
+				//
+				// This is better than using a ticker that ticks every hour because the
+				// we can't ensure the tick actually runs every hour (eg: the computer is
+				// asleep).
+				rotationDuration := 30 * time.Second
+				rotationTicker := time.NewTicker(rotationDuration)
+				defer rotationTicker.Stop()
 
-			for {
-				select {
-				case <-rotationTicker.C:
-					if trw.HasExpired() {
-						log.Info().Msg("token TTL expired, rotating token")
-						trw.Rotate()
-					}
-				case <-remoteCheckTicker.C:
-					log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
-					if err := client.Check(trw.GetCached()); err != nil {
-						log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-						trw.Rotate()
+				// This timer is used to periodically check if the token is valid. The
+				// server might deem a toked as invalid for reasons out of our control,
+				// for example if the database is restored to a back-up or if somebody
+				// manually invalidates the token in the db.
+				remoteCheckDuration := 5 * time.Minute
+				remoteCheckTicker := time.NewTicker(remoteCheckDuration)
+				defer remoteCheckTicker.Stop()
+
+				for {
+					select {
+					case <-rotationTicker.C:
+						if trw.HasExpired() {
+							log.Info().Msg("token TTL expired, rotating token")
+							trw.Rotate()
+						}
+					case <-remoteCheckTicker.C:
+						log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
+						if err := client.Check(trw.GetCached()); err != nil {
+							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
+							trw.Rotate()
+						}
 					}
 				}
-			}
-		}()
+			}()
+		}
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), trw)
 
