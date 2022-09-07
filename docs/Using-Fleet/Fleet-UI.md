@@ -20,7 +20,7 @@ How to create a query:
 
 2. Select **Create new query** to navigate to the query console.
 
-3. In the **Query** field, enter your query. If you're just starting out and unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries) of common queries.
+3. In the **Query** field, enter your query. Remember, you can find common queries in [Fleet's library](https://fleetdm.com/queries).
 
 4. Select **Save**, enter a name an description for your query, and select **Save query**.
 
