@@ -543,5 +543,5 @@ type KafkaRESTConfig struct {
 type DeviceAPIFeatures struct {
 	// EnableTokenRotation indicates that the server supports token
 	// rotation for Orbit and Fleet Desktop.
-	EnableTokenRotation bool
+	EnableTokenRotation bool `json:"enable_token_rotation"`
 }
