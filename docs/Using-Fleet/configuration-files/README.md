@@ -1021,4 +1021,4 @@ spec:
 
 #### Advanced configuration
 
-> **Note:** More settings are included in the [contributor documentation](../../Contributing/Advanced-Configuration.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+> **Note:** More settings are included in the [contributor documentation](../../Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
