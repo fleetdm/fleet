@@ -615,12 +615,17 @@ func (d *desktopRunner) execute() error {
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
+	deviceURL, err := url.Parse(d.fleetURL)
+	if err != nil {
+		return fmt.Errorf("invalid fleet-url: %w", err)
+	}
+	deviceURL.Path = path.Join(url.Path, "device", d.trw.GetCached())
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.identifierPath),
 		// TODO(roperzh): this env var is keept only for backwards compatibility,
 		// we should remove it once we think is safe
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", path.Join(url.String(), "device", d.trw.GetCached())),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
