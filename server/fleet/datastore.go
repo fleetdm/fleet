@@ -232,8 +232,8 @@ type Datastore interface {
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
-	// If the token is invalid it returns a NotFoundError.
-	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+	// If the token is invalid or expired it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*Host, error)
 	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
@@ -243,15 +243,18 @@ type Datastore interface {
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
-	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
-	GetMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
-	GetMDM(ctx context.Context, hostID uint) (*HostMDM, error)
+	GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error)
+	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
+	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
+
+	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
+	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error

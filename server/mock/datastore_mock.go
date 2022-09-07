@@ -183,7 +183,7 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
-type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
+type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
 
@@ -191,11 +191,11 @@ type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (uint,
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
-type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
+type GetHostMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
-type GetMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error)
+type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error)
 
-type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
+type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
@@ -206,6 +206,10 @@ type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.Aggr
 type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error)
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
+
+type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error)
+
+type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error)
 
 type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
 
@@ -713,14 +717,14 @@ type DataStore struct {
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
 
-	GetMunkiVersionFunc        GetMunkiVersionFunc
-	GetMunkiVersionFuncInvoked bool
+	GetHostMunkiVersionFunc        GetHostMunkiVersionFunc
+	GetHostMunkiVersionFuncInvoked bool
 
-	GetMunkiIssuesFunc        GetMunkiIssuesFunc
-	GetMunkiIssuesFuncInvoked bool
+	GetHostMunkiIssuesFunc        GetHostMunkiIssuesFunc
+	GetHostMunkiIssuesFuncInvoked bool
 
-	GetMDMFunc        GetMDMFunc
-	GetMDMFuncInvoked bool
+	GetHostMDMFunc        GetHostMDMFunc
+	GetHostMDMFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -736,6 +740,12 @@ type DataStore struct {
 
 	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
 	GenerateAggregatedMunkiAndMDMFuncInvoked bool
+
+	GetMunkiIssueFunc        GetMunkiIssueFunc
+	GetMunkiIssueFuncInvoked bool
+
+	GetMDMSolutionFunc        GetMDMSolutionFunc
+	GetMDMSolutionFuncInvoked bool
 
 	OSVersionsFunc        OSVersionsFunc
 	OSVersionsFuncInvoked bool
@@ -1520,9 +1530,9 @@ func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.Ho
 	return s.ListHostBatteriesFunc(ctx, id)
 }
 
-func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
 	s.LoadHostByDeviceAuthTokenFuncInvoked = true
-	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
+	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken, tokenTTL)
 }
 
 func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
@@ -1540,19 +1550,19 @@ func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) (
 	return s.ListPoliciesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
-	s.GetMunkiVersionFuncInvoked = true
-	return s.GetMunkiVersionFunc(ctx, hostID)
+func (s *DataStore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+	s.GetHostMunkiVersionFuncInvoked = true
+	return s.GetHostMunkiVersionFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
-	s.GetMunkiIssuesFuncInvoked = true
-	return s.GetMunkiIssuesFunc(ctx, hostID)
+func (s *DataStore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	s.GetHostMunkiIssuesFuncInvoked = true
+	return s.GetHostMunkiIssuesFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-	s.GetMDMFuncInvoked = true
-	return s.GetMDMFunc(ctx, hostID)
+func (s *DataStore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+	s.GetHostMDMFuncInvoked = true
+	return s.GetHostMDMFunc(ctx, hostID)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
@@ -1578,6 +1588,16 @@ func (s *DataStore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([
 func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	s.GenerateAggregatedMunkiAndMDMFuncInvoked = true
 	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
+}
+
+func (s *DataStore) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
+	s.GetMunkiIssueFuncInvoked = true
+	return s.GetMunkiIssueFunc(ctx, munkiIssueID)
+}
+
+func (s *DataStore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
+	s.GetMDMSolutionFuncInvoked = true
+	return s.GetMDMSolutionFunc(ctx, mdmID)
 }
 
 func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {

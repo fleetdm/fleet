@@ -3,7 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 export interface IInfoModalProps {
   onCancel: () => void;
@@ -28,12 +28,18 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
           Want to know what your organization can see?&nbsp;
           <a
             href="https://fleetdm.com/transparency"
-            className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Read about transparency&nbsp;
-            <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+            Read about{" "}
+            <span className="no-wrap">
+              transparency
+              <img
+                className="icon"
+                src={ExternalLinkIcon}
+                alt="Open external link"
+              />
+            </span>
           </a>
         </p>
         <div className="modal-cta-wrap">

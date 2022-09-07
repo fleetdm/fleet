@@ -19,7 +19,7 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 
-import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -90,11 +90,15 @@ const OperatingSystems = ({
         {OS_VENDOR_BY_PLATFORM[selectedPlatform]} releases updates and fixes for
         supported operating systems.{" "}
         <a
+          href={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
           target="_blank"
           rel="noreferrer noopener"
-          href={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
         >
-          See supported operating systems <img src={ExternalURLIcon} alt="" />
+          See supported operating{" "}
+          <span className="no-wrap">
+            systems
+            <img alt="Open external link" src={ExternalLinkIcon} />
+          </span>
         </a>
       </p>
     ) : null;

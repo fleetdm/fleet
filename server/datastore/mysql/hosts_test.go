@@ -949,7 +949,7 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{strings.Repeat("Z", maxMunkiIssueNameLen)}, []string{strings.Repeat("💞", maxMunkiIssueNameLen)})
 	require.NoError(t, err)
 
-	issues, err := ds.GetMunkiIssues(ctx, hostIDs[0])
+	issues, err := ds.GetHostMunkiIssues(ctx, hostIDs[0])
 	require.NoError(t, err)
 	require.Len(t, issues, 2)
 	names := []string{issues[0].Name, issues[1].Name}
@@ -962,7 +962,7 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{strings.Repeat("A", maxMunkiIssueNameLen+1)}, []string{strings.Repeat("☺", maxMunkiIssueNameLen+1)})
 	require.NoError(t, err)
 
-	issues, err = ds.GetMunkiIssues(ctx, hostIDs[0])
+	issues, err = ds.GetHostMunkiIssues(ctx, hostIDs[0])
 	require.NoError(t, err)
 	require.Len(t, issues, 2)
 	names = []string{issues[0].Name, issues[1].Name}
@@ -3796,25 +3796,39 @@ func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping)
 }
 
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
-	_, err := ds.GetMunkiVersion(context.Background(), 123)
+	_, err := ds.GetHostMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
 
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", nil, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", nil, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.3.0", []string{"a", "b"}, []string{"c"}))
 
-	version, err := ds.GetMunkiVersion(context.Background(), 123)
+	version, err := ds.GetHostMunkiVersion(context.Background(), 123)
 	require.NoError(t, err)
 	require.Equal(t, "1.3.0", version)
 
-	issues, err := ds.GetMunkiIssues(context.Background(), 123)
+	issues, err := ds.GetHostMunkiIssues(context.Background(), 123)
 	require.NoError(t, err)
 	require.Len(t, issues, 3)
 
+	var aMunkiIssueID uint
 	for _, iss := range issues {
 		assert.NotZero(t, iss.MunkiIssueID)
+		if iss.Name == "a" {
+			aMunkiIssueID = iss.MunkiIssueID
+		}
 		assert.False(t, iss.HostIssueCreatedAt.IsZero())
 	}
+
+	// get a Munki Issue
+	miss, err := ds.GetMunkiIssue(context.Background(), aMunkiIssueID)
+	require.NoError(t, err)
+	require.Equal(t, "a", miss.Name)
+
+	// get an invalid munki issue
+	_, err = ds.GetMunkiIssue(context.Background(), aMunkiIssueID+1000)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// ignore IDs and timestamps in slice comparison
 	issues[0].MunkiIssueID, issues[0].HostIssueCreatedAt = 0, time.Time{}
@@ -3826,29 +3840,29 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		{Name: "c", IssueType: "warning"},
 	}, issues)
 
-	version, err = ds.GetMunkiVersion(context.Background(), 999)
+	version, err = ds.GetHostMunkiVersion(context.Background(), 999)
 	require.NoError(t, err)
 	require.Equal(t, "9.0", version)
 
-	issues, err = ds.GetMunkiIssues(context.Background(), 999)
+	issues, err = ds.GetHostMunkiIssues(context.Background(), 999)
 	require.NoError(t, err)
 	require.Len(t, issues, 0)
 
 	// simulate uninstall
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "", nil, nil))
 
-	_, err = ds.GetMunkiVersion(context.Background(), 123)
+	_, err = ds.GetHostMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
-	issues, err = ds.GetMunkiIssues(context.Background(), 123)
+	issues, err = ds.GetHostMunkiIssues(context.Background(), 123)
 	require.NoError(t, err)
 	require.Len(t, issues, 0)
 
-	_, err = ds.GetMDM(context.Background(), 432)
+	_, err = ds.GetHostMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
 
-	hmdm, err := ds.GetMDM(context.Background(), 432)
+	hmdm, err := ds.GetHostMDM(context.Background(), 432)
 	require.NoError(t, err)
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "url", hmdm.ServerURL)
@@ -3861,7 +3875,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
 
-	hmdm, err = ds.GetMDM(context.Background(), 432)
+	hmdm, err = ds.GetHostMDM(context.Background(), 432)
 	require.NoError(t, err)
 	assert.False(t, hmdm.Enrolled)
 	assert.Equal(t, "url3", hmdm.ServerURL)
@@ -3871,7 +3885,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.NotEqual(t, urlMDMID, *hmdm.MDMID)
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
-	hmdm, err = ds.GetMDM(context.Background(), 455)
+	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "https://kandji.io", hmdm.ServerURL)
@@ -3881,10 +3895,21 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	kandjiID1 := *hmdm.MDMID
 	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
 
+	// get mdm solution
+	mdmSol, err := ds.GetMDMSolution(context.Background(), kandjiID1)
+	require.NoError(t, err)
+	require.Equal(t, "https://kandji.io", mdmSol.ServerURL)
+	require.Equal(t, fleet.WellKnownMDMKandji, mdmSol.Name)
+
+	// get unknown mdm solution
+	_, err = ds.GetMDMSolution(context.Background(), kandjiID1+1000)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
 	// switch to simplemdm in an update
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", false)) // now simplemdm name
 
-	hmdm, err = ds.GetMDM(context.Background(), 455)
+	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "https://simplemdm.com", hmdm.ServerURL)
@@ -3896,7 +3921,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	// switch back to "url"
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "url", false))
 
-	hmdm, err = ds.GetMDM(context.Background(), 455)
+	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.False(t, hmdm.Enrolled)
 	assert.Equal(t, "url", hmdm.ServerURL)
@@ -3909,7 +3934,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	// even though this is another Kandji, the URL is different.
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io/2", false))
 
-	hmdm, err = ds.GetMDM(context.Background(), 455)
+	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "https://kandji.io/2", hmdm.ServerURL)
@@ -3962,7 +3987,7 @@ func testMunkiIssuesBatchSize(t *testing.T, ds *Datastore) {
 
 	// try those errors/warning with some hosts
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"a", "b"}, []string{"C"}))
-	issues, err := ds.GetMunkiIssues(ctx, 123)
+	issues, err := ds.GetHostMunkiIssues(ctx, 123)
 	require.NoError(t, err)
 	require.Len(t, issues, 3)
 	for _, iss := range issues {
@@ -3970,7 +3995,7 @@ func testMunkiIssuesBatchSize(t *testing.T, ds *Datastore) {
 	}
 
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"c", "z"}, []string{"D", "E", "Z"}))
-	issues, err = ds.GetMunkiIssues(ctx, 123)
+	issues, err = ds.GetHostMunkiIssues(ctx, 123)
 	require.NoError(t, err)
 	require.Len(t, issues, 5)
 	for _, iss := range issues {
@@ -4055,18 +4080,24 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	issues[2].ID = 0
 	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
 		{
-			Name:       "a",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "a",
+				IssueType: "error",
+			},
 			HostsCount: 2,
 		},
 		{
-			Name:       "b",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "b",
+				IssueType: "error",
+			},
 			HostsCount: 1,
 		},
 		{
-			Name:       "c",
-			IssueType:  "warning",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "c",
+				IssueType: "warning",
+			},
 			HostsCount: 2,
 		},
 	})
@@ -4158,13 +4189,17 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	issues[1].ID = 0
 	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
 		{
-			Name:       "d",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "d",
+				IssueType: "error",
+			},
 			HostsCount: 2,
 		},
 		{
-			Name:       "f",
-			IssueType:  "warning",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "f",
+				IssueType: "warning",
+			},
 			HostsCount: 1,
 		},
 	})
@@ -4371,13 +4406,19 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, validToken)
 	require.NoError(t, err)
 
-	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken")
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken", time.Hour)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 
-	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken)
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
+
+	time.Sleep(2 * time.Second) // make sure the token expires
+
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Second) // 1s TTL
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
@@ -4408,6 +4449,14 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	loadUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &ts, `SELECT updated_at FROM host_device_auth WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+
 	token1 := "token1"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
@@ -4415,30 +4464,43 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	token2 := "token2"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
 	require.NoError(t, err)
+	h2T1 := loadUpdatedAt(host2.ID)
 
-	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
+
+	time.Sleep(time.Second) // ensure the mysql timestamp is different
 
 	token2Updated := "token2_updated"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
 	require.NoError(t, err)
+	h2T2 := loadUpdatedAt(host2.ID)
+	require.True(t, h2T2.After(h2T1))
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
-	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	time.Sleep(time.Second) // ensure the mysql timestamp is different
+
+	// update with the same token, should not change the updated_at timestamp
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
+	require.NoError(t, err)
+	h2T3 := loadUpdatedAt(host2.ID)
+	require.True(t, h2T2.Equal(h2T3))
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {

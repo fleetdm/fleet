@@ -33,7 +33,7 @@ import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "homepage";
 
@@ -248,11 +248,12 @@ const Homepage = (): JSX.Element => {
       <p>
         Munki is a tool for managing software on macOS devices.{" "}
         <a
-          target="_blank"
-          rel="noreferrer noopener"
           href="https://www.munki.org/munki/"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Learn about Munki <img src={ExternalURLIcon} alt="" />
+          Learn about Munki
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </p>
     ),
@@ -272,11 +273,12 @@ const Homepage = (): JSX.Element => {
       <p>
         MDM is used to manage configuration on macOS devices.{" "}
         <a
-          target="_blank"
-          rel="noreferrer noopener"
           href="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          Learn about MDM <img src={ExternalURLIcon} alt="" />
+          Learn about MDM
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </p>
     ),
@@ -321,11 +323,11 @@ const Homepage = (): JSX.Element => {
   };
 
   const macOSLayout = () => (
-    <div className={`${baseClass}__section`}>
-      {OperatingSystemsCard}
-      {MunkiCard}
-      {MDMCard}
-    </div>
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      <div className={`${baseClass}__section`}>{MDMCard}</div>
+      <div className={`${baseClass}__section`}>{MunkiCard}</div>
+    </>
   );
 
   const windowsLayout = () => (

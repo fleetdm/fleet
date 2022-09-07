@@ -1,8 +1,4 @@
 .manage-software-page {
-  &__vibrant-blue {
-    color: $core-vibrant-blue;
-  }
-
   &__header-wrap {
     display: flex;
     align-items: center;
@@ -80,20 +76,6 @@
         color: $core-fleet-black;
         font-weight: $regular;
         font-size: $x-small;
-        margin: 0;
-      }
-
-      a {
-        color: $core-vibrant-blue;
-        font-size: $x-small;
-        font-weight: $bold;
-        text-decoration: none;
-        margin-left: 0;
-      }
-
-      img {
-        height: 12px;
-        width: 12px;
         margin: 0;
       }
     }

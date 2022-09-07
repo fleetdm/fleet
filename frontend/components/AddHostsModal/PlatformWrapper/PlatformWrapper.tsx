@@ -276,10 +276,10 @@ const PlatformWrapper = ({
           <span className={`${baseClass}__cta`}>
             With the{" "}
             <a
+              className={`${baseClass}__command-line-tool`}
               href="https://fleetdm.com/get-started"
               target="_blank"
               rel="noopener noreferrer"
-              className={`${baseClass}__command-line-tool`}
             >
               Fleet command-line tool
             </a>{" "}

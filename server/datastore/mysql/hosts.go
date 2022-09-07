@@ -851,8 +851,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 }
 
 // LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
-// If the token is invalid it returns a NotFoundError.
-func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+// If the token is invalid or expired it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
 	const query = `
     SELECT
       h.*
@@ -862,10 +862,11 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hosts h
     ON
       hda.host_id = h.id
-    WHERE hda.token = ?`
+    WHERE hda.token = ? AND
+        hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -877,12 +878,24 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_device_auth SET token = ? WHERE host_id = ?`,
-		`INSERT INTO host_device_auth (token, host_id) VALUES (?, ?)`,
-		authToken, hostID,
-	)
+	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
+	// of the statement, it inherits the default behaviour which is that the updated_at
+	// timestamp will NOT be changed if the new token is the same as the old token
+	// (which is exactly what we want). The updated_at timestamp WILL be updated if the
+	// new token is different.
+	const stmt = `
+		INSERT INTO
+			host_device_auth ( host_id, token )
+		VALUES
+			(?, ?)
+		ON DUPLICATE KEY UPDATE
+			token = VALUES(token)
+`
+	_, err := ds.writer.ExecContext(ctx, stmt, hostID, authToken)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
+	}
+	return nil
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -918,9 +931,9 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 }
 
 // SearchHosts performs a search on the hosts table using the following criteria:
-//	- Use the provided team filter.
-//	- Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
-//	- An optional list of IDs to omit from the search.
+//   - Use the provided team filter.
+//   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
+//   - An optional list of IDs to omit from the search.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
 		h.*,
@@ -1693,7 +1706,7 @@ func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL strin
 	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
 }
 
-func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
 	err := sqlx.GetContext(ctx, ds.reader, &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id = ?`, hostID)
 	if err != nil {
@@ -1706,7 +1719,7 @@ func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, 
 	return version, nil
 }
 
-func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
@@ -1726,7 +1739,26 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, e
 	return &hmdm, nil
 }
 
-func (ds *Datastore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+func (ds *Datastore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
+	var solution fleet.MDMSolution
+	err := sqlx.GetContext(ctx, ds.reader, &solution, `
+    SELECT
+      id,
+      name,
+      server_url
+    FROM
+      mobile_device_management_solutions
+    WHERE id = ?`, mdmID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMSolution").WithID(mdmID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select mobile_device_management_solutions for id %d", mdmID)
+	}
+	return &solution, nil
+}
+
+func (ds *Datastore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
 	var issues []*fleet.HostMunkiIssue
 	err := sqlx.SelectContext(ctx, ds.reader, &issues, `
     SELECT
@@ -1746,6 +1778,25 @@ func (ds *Datastore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.
 		return nil, ctxerr.Wrapf(ctx, err, "select host_munki_issues for host_id %d", hostID)
 	}
 	return issues, nil
+}
+
+func (ds *Datastore) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
+	var issue fleet.MunkiIssue
+	err := sqlx.GetContext(ctx, ds.reader, &issue, `
+    SELECT
+      id,
+      name,
+      issue_type
+    FROM
+      munki_issues
+    WHERE id = ?`, munkiIssueID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MunkiIssue").WithID(munkiIssueID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "select munki_issues for id %d", munkiIssueID)
+	}
+	return &issue, nil
 }
 
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
@@ -2514,8 +2565,8 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 // Notes:
 //   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
 //   - Default values for:
-//     - host.DistributedInterval is usually 10s.
-//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+//   - host.DistributedInterval is usually 10s.
+//   - svc.config.Osquery.DetailUpdateInterval is usually 1h.
 //   - Count only includes hosts seen during the last 7 days.
 func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
 ) {

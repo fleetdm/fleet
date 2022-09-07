@@ -345,7 +345,7 @@ const ManageAutomationsModal = ({
                 to={PATHS.ADMIN_INTEGRATIONS}
                 className={`${baseClass}__add-integration-link`}
               >
-                <span>Add integration</span>
+                Add integration
               </Link>
             </div>
           </div>

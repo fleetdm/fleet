@@ -23,6 +23,7 @@ import {
 } from "utilities/constants";
 
 import PreviewDataModal from "../PreviewDataModal";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "schedule-editor-modal";
 
@@ -268,6 +269,7 @@ const ScheduleEditorModal = ({
               rel="noopener noreferrer"
             >
               how to configure a different log destination
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
             .
           </p>

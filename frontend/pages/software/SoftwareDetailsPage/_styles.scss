@@ -6,13 +6,6 @@
     gap: $pad-medium;
   }
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
   .header {
     flex: 100%;
     display: flex;
@@ -98,6 +91,7 @@
 
   #back-chevron {
     width: 16px;
+    height: 16px;
     margin-right: $pad-small;
   }
 }
