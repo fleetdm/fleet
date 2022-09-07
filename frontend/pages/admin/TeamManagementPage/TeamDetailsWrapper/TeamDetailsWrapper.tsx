@@ -414,7 +414,7 @@ const TeamDetailsWrapper = ({
                   selectedTeamId={toNumber(routeParams.team_id)}
                   currentUserTeams={adminTeams || []}
                   isDisabled={isLoadingTeams}
-                  disableAll
+                  includeAll={false}
                   onChange={(newSelectedValue: number) =>
                     handleTeamSelect(newSelectedValue)
                   }
