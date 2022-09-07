@@ -29,7 +29,7 @@ func (rw *ReadWriter) LoadOrGenerate() error {
 		// ensure the file is readable by other processes, old versions of Orbit
 		// used to chmod this file with 0o600
 		if err := rw.setChmod(); err != nil {
-			return fmt.Errorf("write identifier file, chmod %q: %w", rw.Path, err)
+			return fmt.Errorf("loading token file, chmod %q: %w", rw.Path, err)
 		}
 	case errors.Is(err, os.ErrNotExist):
 		if err := rw.Rotate(); err != nil {
