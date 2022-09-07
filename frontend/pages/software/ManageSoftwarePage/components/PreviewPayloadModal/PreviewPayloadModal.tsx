@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { syntaxHighlight } from "utilities/helpers";
 
 import { AppContext } from "context/app";
+import { IVulnerability } from "interfaces/vulnerability";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
@@ -11,22 +12,9 @@ const baseClass = "preview-data-modal";
 interface IPreviewPayloadModalProps {
   onCancel: () => void;
 }
-
-interface IHostsAffectedProps {
-  id: number;
-  hostname: string;
-  url: string;
-}
 interface IJsonPayload {
   timestamp: string;
-  vulnerability: {
-    cve: string;
-    details_link: string;
-    epss_probability?: number;
-    cvss_score?: number;
-    cisa_known_exploit?: boolean;
-    hosts_affected: IHostsAffectedProps[];
-  };
+  vulnerability: IVulnerability;
 }
 
 const PreviewPayloadModal = ({
