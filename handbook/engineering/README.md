@@ -133,12 +133,12 @@ Release blocking bugs are exempt from the freeze period and are defined by the s
 2. Security concerns
 3. Issues with features targeted for current release
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](https://fleetdm.com/handbook/product) and Engineering teams.
 
 ### Release day
 
 Documentation on completing the release process can be found
-[here](../docs/Contributing/Releasing-Fleet.md).
+[here](https://fleetdm.com/docs/contributing/releasing-fleet).
 
 ## Deploying to dogfood
 
