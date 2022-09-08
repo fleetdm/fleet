@@ -13,8 +13,8 @@ func (ds *Datastore) NewMDMAppleEnrollment(
 	ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload,
 ) (*fleet.MDMAppleEnrollment, error) {
 	res, err := ds.appleMDMWriter.ExecContext(ctx,
-		`INSERT INTO mdm_apple_enrollments (name, config, dep_config) VALUES (?, ?, ?)`,
-		enrollment.Name, enrollment.Config, enrollment.DEPConfig,
+		`INSERT INTO mdm_apple_enrollments (name, dep_config) VALUES (?, ?)`,
+		enrollment.Name, enrollment.DEPConfig,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -23,7 +23,6 @@ func (ds *Datastore) NewMDMAppleEnrollment(
 	return &fleet.MDMAppleEnrollment{
 		ID:        uint(id),
 		Name:      enrollment.Name,
-		Config:    enrollment.Config,
 		DEPConfig: enrollment.DEPConfig,
 	}, nil
 }
@@ -32,7 +31,7 @@ func (ds *Datastore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) 
 	var enrollment fleet.MDMAppleEnrollment
 	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
 		&enrollment,
-		`SELECT id, name, config, dep_config FROM mdm_apple_enrollments WHERE id = ?`,
+		`SELECT id, name, dep_config FROM mdm_apple_enrollments WHERE id = ?`,
 		enrollmentID,
 	); err != nil {
 		if err == sql.ErrNoRows {

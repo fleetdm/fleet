@@ -122,7 +122,6 @@ func appleMDMSetupAPNSInitCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			// TODO(lucas): Implement command.
 			fmt.Println("Not implemented yet.")
-			fmt.Printf("TODO(lucas): Add environment variables to set with these generated files.\n")
 			return nil
 		},
 	}
@@ -268,6 +267,8 @@ func appleMDMEnrollmentsCommand() *cli.Command {
 		Subcommands: []*cli.Command{
 			appleMDMEnrollmentsCreateAutomaticCommand(),
 			appleMDMEnrollmentsCreateManualCommand(),
+			appleMDMEnrollmentsDeleteCommand(),
+			appleMDMEnrollmentsListCommand(),
 		},
 	}
 }
@@ -275,7 +276,6 @@ func appleMDMEnrollmentsCommand() *cli.Command {
 func appleMDMEnrollmentsCreateAutomaticCommand() *cli.Command {
 	var (
 		enrollmentName string
-		configPath     string
 		depConfigPath  string
 	)
 	return &cli.Command{
@@ -289,12 +289,6 @@ func appleMDMEnrollmentsCreateAutomaticCommand() *cli.Command {
 				Required:    true,
 			},
 			&cli.StringFlag{
-				Name:        "enroll-config",
-				Usage:       "JSON file with enrollment config",
-				Destination: &configPath,
-				Required:    true,
-			},
-			&cli.StringFlag{
 				Name:        "profile",
 				Usage:       "JSON file with fields defined in https://developer.apple.com/documentation/devicemanagement/profile",
 				Destination: &depConfigPath,
@@ -302,12 +296,6 @@ func appleMDMEnrollmentsCreateAutomaticCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			// TODO(lucas): Document behavior: For MVP-Dogfood, we will only support one
-			// automatic enrollment per team (or global).
-			config, err := os.ReadFile(configPath)
-			if err != nil {
-				return fmt.Errorf("read enrollment config: %w", err)
-			}
 			profile, err := os.ReadFile(depConfigPath)
 			if err != nil {
 				return fmt.Errorf("read dep profile: %w", err)
@@ -317,21 +305,18 @@ func appleMDMEnrollmentsCreateAutomaticCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 			depProfile := json.RawMessage(profile)
-			enrollment, err := fleet.CreateEnrollment(enrollmentName, config, &depProfile)
+			enrollment, url, err := fleet.CreateEnrollment(enrollmentName, &depProfile)
 			if err != nil {
 				return fmt.Errorf("create enrollment: %w", err)
 			}
-			fmt.Printf("Automatic enrollment created, id: %d\n", enrollment.ID)
+			fmt.Printf("Automatic enrollment created, URL: %s, id: %d\n", url, enrollment.ID)
 			return nil
 		},
 	}
 }
 
 func appleMDMEnrollmentsCreateManualCommand() *cli.Command {
-	var (
-		enrollmentName string
-		configPath     string
-	)
+	var enrollmentName string
 	return &cli.Command{
 		Name:  "create-manual",
 		Usage: "Create a new manual enrollment",
@@ -342,27 +327,50 @@ func appleMDMEnrollmentsCreateManualCommand() *cli.Command {
 				Destination: &enrollmentName,
 				Required:    true,
 			},
-			&cli.StringFlag{
-				Name:        "enroll-config",
-				Usage:       "JSON file with enrollment config",
-				Destination: &configPath,
-				Required:    true,
-			},
 		},
 		Action: func(c *cli.Context) error {
-			config, err := os.ReadFile(configPath)
-			if err != nil {
-				return fmt.Errorf("read enrollment config: %w", err)
-			}
 			fleet, err := clientFromCLI(c)
 			if err != nil {
 				return fmt.Errorf("create client: %w", err)
 			}
-			enrollment, err := fleet.CreateEnrollment(enrollmentName, config, nil)
+			enrollment, url, err := fleet.CreateEnrollment(enrollmentName, nil)
 			if err != nil {
 				return fmt.Errorf("create enrollment: %w", err)
 			}
-			fmt.Printf("Manual enrollment created, id: %d\n", enrollment.ID)
+			fmt.Printf("Manual enrollment created, URL: %s, id: %d\n", url, enrollment.ID)
+			return nil
+		},
+	}
+}
+
+func appleMDMEnrollmentsDeleteCommand() *cli.Command {
+	var enrollmentID uint
+	return &cli.Command{
+		Name:  "delete",
+		Usage: "Delete an enrollment",
+		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:        "id",
+				Usage:       "Identifier of the enrollment",
+				Destination: &enrollmentID,
+				Required:    true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			// TODO(lucas): Implement command.
+			fmt.Println("Not implemented yet.")
+			return nil
+		},
+	}
+}
+
+func appleMDMEnrollmentsListCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "list",
+		Usage: "List all enrollments",
+		Action: func(c *cli.Context) error {
+			// TODO(lucas): Implement command.
+			fmt.Println("Not implemented yet.")
 			return nil
 		},
 	}

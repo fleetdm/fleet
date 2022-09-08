@@ -483,5 +483,5 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
-	NewMDMAppleEnrollment(ctx context.Context, enrollment MDMAppleEnrollmentPayload) (*MDMAppleEnrollment, error)
+	NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload MDMAppleEnrollmentPayload) (enrollment *MDMAppleEnrollment, url string, err error)
 }

@@ -35,7 +35,6 @@ func Up_20220725165245(tx *sql.Tx) error {
 	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS mdm_apple_enrollments(
 		id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 		name VARCHAR(255) NOT NULL DEFAULT '',
-		config JSON DEFAULT NULL,
 		-- dep_config is NULL for manual enrollments
 		dep_config JSON DEFAULT NULL,
 

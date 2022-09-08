@@ -17,22 +17,21 @@ import (
 
 type createMDMAppleEnrollmentRequest struct {
 	Name      string           `json:"name"`
-	Config    json.RawMessage  `json:"config"`
 	DEPConfig *json.RawMessage `json:"dep_config"`
 }
 
 type createMDMAppleEnrollmentResponse struct {
-	ID  uint  `json:"enrollment_id"`
-	Err error `json:"error,omitempty"`
+	ID  uint   `json:"enrollment_id"`
+	URL string `json:"url"`
+	Err error  `json:"error,omitempty"`
 }
 
 func (r createMDMAppleEnrollmentResponse) error() error { return r.Err }
 
 func createMDMAppleEnrollmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*createMDMAppleEnrollmentRequest)
-	enrollment, err := svc.NewMDMAppleEnrollment(ctx, fleet.MDMAppleEnrollmentPayload{
+	enrollment, url, err := svc.NewMDMAppleEnrollment(ctx, fleet.MDMAppleEnrollmentPayload{
 		Name:      req.Name,
-		Config:    req.Config,
 		DEPConfig: req.DEPConfig,
 	})
 	if err != nil {
@@ -41,25 +40,31 @@ func createMDMAppleEnrollmentEndpoint(ctx context.Context, request interface{}, 
 		}, nil
 	}
 	return createMDMAppleEnrollmentResponse{
-		ID: enrollment.ID,
+		ID:  enrollment.ID,
+		URL: url,
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error) {
+func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, "", ctxerr.Wrap(ctx, err)
 	}
 
 	enrollment, err := svc.ds.NewMDMAppleEnrollment(ctx, enrollmentPayload)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, "", ctxerr.Wrap(ctx, err)
 	}
 	if enrollment.DEPConfig != nil {
 		if err := svc.setDEPProfile(ctx, enrollment); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
+			return nil, "", ctxerr.Wrap(ctx, err)
 		}
 	}
-	return enrollment, nil
+	return enrollment, svc.mdmAppleEnrollURL(enrollment.ID), nil
+}
+
+func (svc *Service) mdmAppleEnrollURL(enrollmentID uint) string {
+	// TODO(lucas): Define /mdm/apple/api/enroll path somewhere else.
+	return fmt.Sprintf("https://%s/mdm/apple/api/enroll?id=%d", svc.config.MDMApple.ServerAddress, enrollmentID)
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
@@ -75,7 +80,7 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 	if err := json.Unmarshal(*enrollment.DEPConfig, &depProfileRequest); err != nil {
 		return fmt.Errorf("invalid DEP profile: %w", err)
 	}
-	enrollURL := fmt.Sprintf("https://%s/mdm/apple/api/enroll?id=%d", svc.config.MDMApple.ServerAddress, enrollment.ID)
+	enrollURL := svc.mdmAppleEnrollURL(enrollment.ID)
 	depProfileRequest["url"] = enrollURL
 	depProfileRequest["configuration_web_url"] = enrollURL
 	depProfile, err := json.Marshal(depProfileRequest)
