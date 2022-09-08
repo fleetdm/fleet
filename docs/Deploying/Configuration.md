@@ -310,7 +310,7 @@ This setting should not usually be used.
 ##### Example YAML
 
 ```yaml
-msyql:
+mysql:
   address: localhost:3306
   database: fleet
   password: fleet
