@@ -851,8 +851,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 }
 
 // LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
-// If the token is invalid or expired it returns a NotFoundError.
-func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+// If the token is invalid it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
 	const query = `
     SELECT
       h.*
@@ -862,11 +862,10 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hosts h
     ON
       hda.host_id = h.id
-    WHERE hda.token = ? AND
-        hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+    WHERE hda.token = ?`
 
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -878,24 +877,12 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
-	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
-	// of the statement, it inherits the default behaviour which is that the updated_at
-	// timestamp will NOT be changed if the new token is the same as the old token
-	// (which is exactly what we want). The updated_at timestamp WILL be updated if the
-	// new token is different.
-	const stmt = `
-		INSERT INTO
-			host_device_auth ( host_id, token )
-		VALUES
-			(?, ?)
-		ON DUPLICATE KEY UPDATE
-			token = VALUES(token)
-`
-	_, err := ds.writer.ExecContext(ctx, stmt, hostID, authToken)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
-	}
-	return nil
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_device_auth SET token = ? WHERE host_id = ?`,
+		`INSERT INTO host_device_auth (token, host_id) VALUES (?, ?)`,
+		authToken, hostID,
+	)
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -931,9 +918,9 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 }
 
 // SearchHosts performs a search on the hosts table using the following criteria:
-//   - Use the provided team filter.
-//   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
-//   - An optional list of IDs to omit from the search.
+//	- Use the provided team filter.
+//	- Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
+//	- An optional list of IDs to omit from the search.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
 		h.*,
@@ -2542,8 +2529,8 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 // Notes:
 //   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
 //   - Default values for:
-//   - host.DistributedInterval is usually 10s.
-//   - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+//     - host.DistributedInterval is usually 10s.
+//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
 //   - Count only includes hosts seen during the last 7 days.
 func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
 ) {
