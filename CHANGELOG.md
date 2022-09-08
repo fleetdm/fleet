@@ -1,3 +1,49 @@
+## Fleet 4.20.0 (Sep 8, 2022)
+
+* Improved vulnerability detection for macOS hosts by improving detection of Zoom, Ruby, and Node.js vulnerabilities. Warning: For users that download and sync Fleet's vulnerability feeds manually, there are [required adjustments](https://github.com/fleetdm/fleet/issues/6628) or else vulnerability processing will stop working. Users with the default vulnerability processing settings can safely upgrade without adjustments.
+
+* Fleet Premium: Improved the vulnerability automations by adding vulnerability scores (EPSS probability, CVSS score, and known exploit) to the webhook payload. Read more about vulnerability automations [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
+
+* Add ability to know how many hosts, and which hosts, have Munki issues. This information is presented on the **Home > macOS** page and **Host details** page. This information is also available in the [`GET /api/v1/fleet/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) and [`GET /api/v1/fleet/hosts/{id}/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-mobile-device-management-mdm-and-munki-information) and API routes.
+
+* Fleet Premium: Added ability to test features, like software inventory, on canary teams by adding a [`features` section](https://fleetdm.com/docs/using-fleet/configuration-files#features) to the `teams` YAML document.
+
+* Added functionality to rotate the `token` in the `/device/{token}` URL used by Fleet Desktop every hour. Warning: This change is not compatible with older versions of Fleet Desktop. For users that manage Fleet Desktop updates, disable auto-updates, or pinned Fleet Desktop to an older version, we recommend manually updating Fleet Desktop and Orbit to a version greater than v1.0.0. Also, users with a `distributed_interval` higher than 10 minutes may experience a degraded experience. Users with the default settings can safely upgrade.
+
+* Renamed the `host_settings` section to `features` in the the [`config` YAML file](https://fleetdm.com/docs/using-fleet/configuration-files#features). `host_settings` is still supported for backwards compatibility.
+
+* Improved the activity feed by adding the ability to see when, and by who, agent options are modified. This information is available on the Home page in the Fleet UI and the [`GET /activites` API route](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+
+* Improved the [documentation for the `config` YAML document](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
+
+* Improved the **Hosts** page for smaller screen widths.
+
+* Improved the building of osquery installers for Windows (`.msi` packages).
+
+* Added a **Show query** button on the **Schedule** page which adds the ability to quickly see a query's SQL.
+
+* Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (ex. users).
+
+* Fix a bug in which a user could not reach some teams in the UI via pagination if there were more than 20 teams.
+
+* Fix a bug in which a user could not reach some users in the UI via pagination if there were more than 20 users.
+
+* Fix a bug in which duplicate vulnerabilities (CVEs) sometimes appeared on **Software details** page.
+
+* Fix a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
+
+* Fix a bug in which no error message would appear if there was an issue while setting up Fleet.
+
+* Fix a bug in which no error message would appear if creating or editing a label with a name or description that is too long.
+
+* Fix a big in which the example payload for usage statistics included incorrect key names.
+
+* Fix a bug in which the count above the **Software** table would sometimes not appear.
+
+* Fix a bug in which the **Add hosts** button would not be displayed shown when search returns 0 hosts.
+
+* Fix a bug in which modifying filters on the **Hosts** page would not return the user to the first page of the **Hosts** table. 
+
 ## Fleet 4.19.1 (Sep 1, 2022)
 
 * Fix a migration error that may occur when upgrading to Fleet 4.19.0.
