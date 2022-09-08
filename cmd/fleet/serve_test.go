@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -228,8 +229,8 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
 	}
-
-	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
+	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -301,7 +302,8 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		CurrentInstanceChecks: "1",
 	}
 
-	go cronVulnerabilities(ctx, ds, logger, "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
+	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, log.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
