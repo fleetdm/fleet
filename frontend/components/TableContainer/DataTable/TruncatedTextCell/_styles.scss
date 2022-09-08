@@ -1,0 +1,14 @@
+.data-table__truncated-text {
+  &--cell {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 101%;
+  }
+
+  .truncated {
+    display: inline-block;
+    max-width: 100%;
+  }
+}

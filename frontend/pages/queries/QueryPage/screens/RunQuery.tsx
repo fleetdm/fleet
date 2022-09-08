@@ -37,7 +37,7 @@ const RunQuery = ({
   const { lastEditedQueryBody } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isQueryFinished, setIsQueryFinished] = useState<boolean>(false);
+  const [isQueryFinished, setIsQueryFinished] = useState(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );

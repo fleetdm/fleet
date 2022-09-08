@@ -133,12 +133,12 @@ Release blocking bugs are exempt from the freeze period and are defined by the s
 2. Security concerns
 3. Issues with features targeted for current release
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](https://fleetdm.com/handbook/product) and Engineering teams.
 
 ### Release day
 
 Documentation on completing the release process can be found
-[here](../docs/Contributing/Releasing-Fleet.md).
+[here](https://fleetdm.com/docs/contributing/releasing-fleet).
 
 ## Deploying to dogfood
 
@@ -392,7 +392,7 @@ Fleet documentation explains how to use, deploy, and contribute to Fleet as simp
 
 ### How to request a review for Markdown changes to the docs
 
-When creating a pull request for Markdown changes in the docs, request a review from Desmi Dizney, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
+When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
 
 ### Writing documentation
 

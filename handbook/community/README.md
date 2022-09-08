@@ -177,7 +177,7 @@ When someone asks a question in a public channel, it's pretty safe to assume tha
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
 
-> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Chris McGillicuddy, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
 
 ### Tracking
 

@@ -61,8 +61,8 @@ const QueryEditor = ({
     lastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
-  const [isQuerySaving, setIsQuerySaving] = useState<boolean>(false);
-  const [isQueryUpdating, setIsQueryUpdating] = useState<boolean>(false);
+  const [isQuerySaving, setIsQuerySaving] = useState(false);
+  const [isQueryUpdating, setIsQueryUpdating] = useState(false);
 
   useEffect(() => {
     if (storedQueryError) {

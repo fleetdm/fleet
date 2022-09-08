@@ -17,7 +17,6 @@ import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blu
 import IconDisabled from "../../../../../assets/images/icon-action-disable-red-16x16@2x.png";
 import IconPassed from "../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
 import IconError from "../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
-import IconChevron from "../../../../../assets/images/icon-chevron-purple-9x6@2x.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
 interface IHostResponse {
@@ -31,8 +30,8 @@ interface IWelcomeHostCardProps {
 
 const baseClass = "welcome-host";
 const HOST_ID = 1;
-const policyPass = "pass";
-const policyFail = "fail";
+const POLICY_PASS = "pass";
+const POLICY_FAIL = "fail";
 
 const WelcomeHost = ({
   totalsHostsCount,
@@ -41,12 +40,11 @@ const WelcomeHost = ({
   const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
-  const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
-  const [isPoliciesEmpty, setIsPoliciesEmpty] = useState<boolean>(false);
-  const [
-    showRefetchLoadingSpinner,
-    setShowRefetchLoadingSpinner,
-  ] = useState<boolean>(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [isPoliciesEmpty, setIsPoliciesEmpty] = useState(false);
+  const [showRefetchLoadingSpinner, setShowRefetchLoadingSpinner] = useState(
+    false
+  );
 
   const {
     isLoading: isLoadingHost,
@@ -63,7 +61,7 @@ const WelcomeHost = ({
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
 
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
-          (p) => p.response === policyPass || p.response === policyFail
+          (p) => p.response === POLICY_PASS || p.response === POLICY_FAIL
         );
         setIsPoliciesEmpty(typeof anyPassingOrFailingPolicy === "undefined");
 
@@ -247,18 +245,15 @@ const WelcomeHost = ({
             if (p.response) {
               return (
                 <Button
-                  variant="text-icon"
+                  variant="unstyled"
                   onClick={() => handlePolicyModal(p.id)}
                 >
                   <div className="policy-block">
-                    <div className="info">
-                      <img
-                        alt={p.response}
-                        src={p.response === policyPass ? IconPassed : IconError}
-                      />
-                      {p.name}
-                    </div>
-                    <img alt="" src={IconChevron} />
+                    <img
+                      alt={p.response}
+                      src={p.response === POLICY_PASS ? IconPassed : IconError}
+                    />
+                    <span className="info">{p.name}</span>
                   </div>
                 </Button>
               );

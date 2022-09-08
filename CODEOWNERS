@@ -44,7 +44,7 @@ go.mod @fleetdm/go
 /website/api/ @mikermcneil
 /website/config/ @mikermcneil
 /website/scripts/ @mikermcneil
-/website/package.json @mikermcneil
+/website/package.json @eashaw
 
 # GitHub brandfront
 /README.md @chris-mcgillicuddy

@@ -27,7 +27,7 @@ const HostStatusWebhook = ({
   const [
     showHostStatusWebhookPreviewModal,
     setShowHostStatusWebhookPreviewModal,
-  ] = useState<boolean>(false);
+  ] = useState(false);
   const [formData, setFormData] = useState<any>({
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook

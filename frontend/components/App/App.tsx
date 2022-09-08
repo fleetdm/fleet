@@ -48,7 +48,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setSandboxExpiry,
   } = useContext(AppContext);
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchConfig = async () => {
     try {

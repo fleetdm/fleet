@@ -13,14 +13,18 @@ import (
 )
 
 const (
-	appConfigKey                      = "AppConfig:%s"
-	defaultAppConfigExpiration        = 1 * time.Second
-	packsHostKey                      = "Packs:host:%d"
-	defaultPacksExpiration            = 1 * time.Minute
-	scheduledQueriesKey               = "ScheduledQueries:pack:%d"
-	defaultScheduledQueriesExpiration = 1 * time.Minute
-	teamAgentOptionsKey               = "TeamAgentOptions:team:%d"
-	defaultTeamAgentOptionsExpiration = 1 * time.Minute
+	appConfigKey                         = "AppConfig:%s"
+	defaultAppConfigExpiration           = 1 * time.Second
+	packsHostKey                         = "Packs:host:%d"
+	defaultPacksExpiration               = 1 * time.Minute
+	scheduledQueriesKey                  = "ScheduledQueries:pack:%d"
+	defaultScheduledQueriesExpiration    = 1 * time.Minute
+	teamAgentOptionsKey                  = "TeamAgentOptions:team:%d"
+	defaultTeamAgentOptionsExpiration    = 1 * time.Minute
+	teamFeaturesKey                      = "TeamFeatures:team:%d"
+	defaultTeamFeaturesExpiration        = 1 * time.Minute
+	hostDeviceAuthTokenKey               = "HostDeviceAuthToken:%d"
+	defaultHostDeviceAuthTokenExpiration = 10 * time.Minute
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -93,9 +97,11 @@ type cachedMysql struct {
 
 	c *cloneCache
 
-	packsExp            time.Duration
-	scheduledQueriesExp time.Duration
-	teamAgentOptionsExp time.Duration
+	packsExp               time.Duration
+	scheduledQueriesExp    time.Duration
+	teamAgentOptionsExp    time.Duration
+	teamFeaturesExp        time.Duration
+	hostDeviceAuthTokenExp time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -118,13 +124,27 @@ func WithTeamAgentOptionsExpiration(d time.Duration) Option {
 	}
 }
 
+func WithTeamFeaturesExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.teamFeaturesExp = d
+	}
+}
+
+func WithHostDeviceAuthTokenExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.hostDeviceAuthTokenExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
-		Datastore:           ds,
-		c:                   &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
-		packsExp:            defaultPacksExpiration,
-		scheduledQueriesExp: defaultScheduledQueriesExpiration,
-		teamAgentOptionsExp: defaultTeamAgentOptionsExpiration,
+		Datastore:              ds,
+		c:                      &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
+		packsExp:               defaultPacksExpiration,
+		scheduledQueriesExp:    defaultScheduledQueriesExpiration,
+		teamAgentOptionsExp:    defaultTeamAgentOptionsExpiration,
+		teamFeaturesExp:        defaultTeamFeaturesExpiration,
+		hostDeviceAuthTokenExp: defaultHostDeviceAuthTokenExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -228,15 +248,35 @@ func (ds *cachedMysql) TeamAgentOptions(ctx context.Context, teamID uint) (*json
 	return agentOptions, nil
 }
 
+func (ds *cachedMysql) TeamFeatures(ctx context.Context, teamID uint) (*fleet.Features, error) {
+	key := fmt.Sprintf(teamFeaturesKey, teamID)
+	if x, found := ds.c.Get(key); found {
+		if features, ok := x.(*fleet.Features); ok {
+			return features, nil
+		}
+	}
+
+	features, err := ds.Datastore.TeamFeatures(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(key, features, ds.teamFeaturesExp)
+
+	return features, nil
+}
+
 func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	team, err := ds.Datastore.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
 	}
 
-	key := fmt.Sprintf(teamAgentOptionsKey, team.ID)
+	agentOptionsKey := fmt.Sprintf(teamAgentOptionsKey, team.ID)
+	featuresKey := fmt.Sprintf(teamFeaturesKey, team.ID)
 
-	ds.c.Set(key, team.Config.AgentOptions, ds.teamAgentOptionsExp)
+	ds.c.Set(agentOptionsKey, team.Config.AgentOptions, ds.teamAgentOptionsExp)
+	ds.c.Set(featuresKey, &team.Config.Features, ds.teamFeaturesExp)
 
 	return team, nil
 }
@@ -247,9 +287,32 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	key := fmt.Sprintf(teamAgentOptionsKey, teamID)
+	agentOptionsKey := fmt.Sprintf(teamAgentOptionsKey, teamID)
+	featuresKey := fmt.Sprintf(teamFeaturesKey, teamID)
 
-	ds.c.Delete(key)
+	ds.c.Delete(agentOptionsKey)
+	ds.c.Delete(featuresKey)
 
+	return nil
+}
+
+func (ds *cachedMysql) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	key := fmt.Sprintf(hostDeviceAuthTokenKey, hostID)
+	if x, found := ds.c.Get(key); found {
+		if tok, ok := x.(string); ok {
+			if tok == authToken {
+				// token did not change, no need to update it
+				return nil
+			}
+		}
+	}
+
+	// token changed or not in cache, update it
+	if err := ds.Datastore.SetOrUpdateDeviceAuthToken(ctx, hostID, authToken); err != nil {
+		return err
+	}
+
+	// store it in cache
+	ds.c.Set(key, authToken, ds.hostDeviceAuthTokenExp)
 	return nil
 }

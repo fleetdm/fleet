@@ -28,8 +28,8 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [selectedTargetsCount, setSelectedTargetsCount] = useState<number>(0);
-  const [isUpdatingPack, setIsUpdatingPack] = useState<boolean>(false);
+  const [selectedTargetsCount, setSelectedTargetsCount] = useState(0);
+  const [isUpdatingPack, setIsUpdatingPack] = useState(false);
 
   const onFetchTargets = (
     query: IQuery,
