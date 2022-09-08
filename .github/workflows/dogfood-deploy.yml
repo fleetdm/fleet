@@ -65,9 +65,10 @@ jobs:
         id: refresh
         run: terraform refresh -no-color
         continue-on-error: true
-        # first we'll scale everything down and create the new task definitions
+      # first create snapshot of current database before migrations run
       - name: Create DB Snapshot
         run: aws rds create-db-snapshot --db-snapshot-identifier fleet-backup-prior-to-$(git rev-parse --short "$GITHUB_SHA") --db-instance-identifier $(terraform output -raw rds_instance_identifier)
+      # scale fleet webserver down
       - name: Terraform Apply Scale Down
         id: apply_scale_down
         run: terraform apply -auto-approve
@@ -83,7 +84,8 @@ jobs:
           SUBNET=$(terraform output -raw private_subnet)
           SECURITY_GROUP=$(terraform output -raw backend_security_group_id)
           echo $CLUSTER_NAME $FAMILY $REVISION $SUBNET $SECURITY_GROUP
-          aws ecs run-task --cluster "${CLUSTER_NAME}" --task-definition "${FAMILY}":"${REVISION}" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=["${SUBNET}"],securityGroups=["${SECURITY_GROUP}"]}"
+          TASK_ARN=$( aws ecs run-task --cluster "${CLUSTER_NAME}" --task-definition "${FAMILY}":"${REVISION}" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=["${SUBNET}"],securityGroups=["${SECURITY_GROUP}"]}" | jq '.tasks[0].taskArn' | sed -e 's/^"//' -e 's/"$//')
+          aws ecs wait tasks-stopped --tasks "$TASK_ARN" --cluster $CLUSTER_NAME 2>/dev/null
       - name: Terraform Apply Scale Up
         id: apply_scale_up
         run: terraform apply -auto-approve
