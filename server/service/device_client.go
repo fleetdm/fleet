@@ -74,8 +74,15 @@ func (dc *DeviceClient) APIFeatures(token string) (*fleet.DeviceAPIFeatures, err
 	verb, path := "GET", "/api/latest/fleet/device/"+token+"/api_features"
 	var responseBody deviceAPIFeaturesResponse
 	err := dc.request(verb, path, "", &responseBody)
-	if err != nil {
+
+	switch err.(type) {
+	case nil:
+		// OK
+	case notFoundErrorInterface: // old Fleet server versions without the endpoint
+		return &fleet.DeviceAPIFeatures{}, nil
+	default:
 		return nil, err
 	}
+
 	return &responseBody.Features, nil
 }

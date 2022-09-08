@@ -548,6 +548,10 @@ func main() {
 					}
 				}
 			}()
+		} else {
+			log.Info().Msg("token rotation is disabled")
+			featuresChecker := newFeaturesChecker(client, token)
+			g.Add(featuresChecker.actor())
 		}
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), trw)
@@ -745,6 +749,54 @@ func getProcessByName(name string) (*gopsutil_process.Process, error) {
 		return nil, errProcessNotFound
 	}
 	return foundProcess, nil
+}
+
+type featuresChecker struct {
+	client        *service.DeviceClient
+	token         string
+	interruptCh   chan struct{} // closed when interrupt is triggered
+	executeDoneCh chan struct{} // closed when execute returns
+}
+
+func newFeaturesChecker(client *service.DeviceClient, token string) *featuresChecker {
+	return &featuresChecker{
+		client:        client,
+		token:         token,
+		interruptCh:   make(chan struct{}),
+		executeDoneCh: make(chan struct{}),
+	}
+}
+
+func (f *featuresChecker) actor() (func() error, func(error)) {
+	return f.execute, f.interrupt
+}
+
+func (f *featuresChecker) execute() error {
+	defer close(f.executeDoneCh)
+	featuresCheckTicker := time.NewTicker(5 * time.Minute)
+
+	for {
+		select {
+		case <-featuresCheckTicker.C:
+			features, err := f.client.APIFeatures(f.token)
+			if err != nil {
+				log.Error().Err(err).Msg("fetching API features from server")
+				continue
+			}
+			if features.EnableTokenRotation {
+				log.Info().Msg("token rotation feature enabled, restarting")
+				return nil
+			}
+		case <-f.interruptCh:
+			return nil
+		}
+	}
+}
+
+func (f *featuresChecker) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt featuresChecker")
+	close(f.interruptCh) // Signal execute to return.
+	<-f.executeDoneCh    // Wait for execute to return.
 }
 
 var versionCommand = &cli.Command{
