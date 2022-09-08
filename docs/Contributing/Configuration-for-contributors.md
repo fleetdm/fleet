@@ -1,6 +1,6 @@
 # Configuration for contributors
 
-This document includes the configuration files, and their settings, that are helpful when developing or contributing to Fleet.
+This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
 
 Unlike the [configuration files documentation](../Using-Fleet/configuration-files/README.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
@@ -16,10 +16,10 @@ Jira integrations are configured under the `integrations.jira` field, which is a
 
 #### integrations.jira[].url
 
-The URL of the Jira server to use, including the scheme (e.g. "https://").
+This is the URL of the Jira server to use, including the scheme (e.g. "https://").
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -32,10 +32,10 @@ The URL of the Jira server to use, including the scheme (e.g. "https://").
 
 #### integrations.jira[].username
 
-The username to use to authenticate with the Jira server for API requests.
+Use this username to authenticate API requests with the Jira server.
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -48,10 +48,10 @@ The username to use to authenticate with the Jira server for API requests.
 
 #### integrations.jira[].api_token
 
-The API token to use to authenticate with the Jira server for API requests.
+Use this API token to authenticate API requests with the Jira server.
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -64,10 +64,10 @@ The API token to use to authenticate with the Jira server for API requests.
 
 #### integrations.jira[].project_key
 
-The Jira project key to use to create tickets.
+Use this Jira project key to create tickets.
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -82,8 +82,8 @@ The Jira project key to use to create tickets.
 
 Whether the integration is configured to create Jira tickets for failing policies.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   integrations:
@@ -99,8 +99,8 @@ Whether the integration is configured to create Jira tickets for failing policie
 
 Whether the integration is configured to create Jira tickets for recent software vulnerabilities.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   integrations:
@@ -118,10 +118,10 @@ Zendesk integrations are configured under the `integrations.zendesk` field, whic
 
 #### integrations.zendesk[].url
 
-The URL of the Zendesk server to use, including the scheme (e.g. "https://").
+This is the URL of the Zendesk server to use, including the scheme (e.g. "https://").
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -134,10 +134,10 @@ The URL of the Zendesk server to use, including the scheme (e.g. "https://").
 
 #### integrations.zendesk[].email
 
-The email address to use to authenticate with the Zendesk server for API requests.
+Use this email address to authenticate API requests with the Zendesk server.
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -150,10 +150,10 @@ The email address to use to authenticate with the Zendesk server for API request
 
 #### integrations.zendesk[].api_token
 
-The API token to use to authenticate with the Zendesk server for API requests.
+Use this API token to authenticate API requests with the Zendesk server.
 
-- Required setting (string).
-- Default value: none.
+- Required setting (string)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -166,10 +166,10 @@ The API token to use to authenticate with the Zendesk server for API requests.
 
 #### integrations.zendesk[].group_id
 
-The group ID to use to create tickets.
+Use this group ID to create tickets.
 
-- Required setting (integer).
-- Default value: none.
+- Required setting (integer)
+- Default value: none
 - Config file format:
   ```
   integrations:
@@ -184,8 +184,8 @@ The group ID to use to create tickets.
 
 Whether the integration is configured to create Zendesk tickets for failing policies.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   integrations:
@@ -201,8 +201,8 @@ Whether the integration is configured to create Zendesk tickets for failing poli
 
 Whether the integration is configured to create Zendesk tickets for recent software vulnerabilities.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   integrations:
@@ -218,14 +218,14 @@ Whether the integration is configured to create Zendesk tickets for recent softw
 
 SMTP settings in Fleet can be configured using the `smtp_settings` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](../Using-Fleet/configuration-files/README.md#organization-settings).
 
-> **Warning:** Be careful not to store your SMTP credentials in source control. The best practice to configure SMTP [via the Fleet UI](../Deploying/Configuration.md#configuring-single-sign-on-sso).
+> **Warning:** Be careful not to store your SMTP credentials in source control. The best practice is to configure SMTP [via the Fleet UI](../Deploying/Configuration.md#configuring-single-sign-on-sso).
 
 ### smtp_settings.authentication_method
 
-The authentication method to use when the authentication type is `authtype_username_password`.
+Use this authentication method when the authentication type is `authtype_username_password`.
 
-- Optional setting (string).
-- Default value: `authmethod_plain`.
+- Optional setting (string)
+- Default value: `authmethod_plain`
 - Possible values:
   - `authmethod_cram_md5`
   - `authmethod_login`
@@ -238,10 +238,10 @@ The authentication method to use when the authentication type is `authtype_usern
 
 ### smtp_settings.authentication_type
 
-The type of authentication for the configured SMTP server.
+This is the type of authentication for the configured SMTP server.
 
-- Optional setting (string).
-- Default value: `authtype_username_password`.
+- Optional setting (string)
+- Default value: `authtype_username_password`
 - Possible values:
   - `authtype_none` - use this if your SMTP server is open
   - `authtype_username_password` - use this if your SMTP server requires authentication with a username and password
@@ -255,8 +255,8 @@ The type of authentication for the configured SMTP server.
 
 Whether SMTP support is enabled or not to send emails from Fleet.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   smtp_settings:
@@ -267,8 +267,8 @@ Whether SMTP support is enabled or not to send emails from Fleet.
 
 Whether to enable SSL/TLS for the SMTP connection.
 
-- Optional setting (boolean).
-- Default value: `true`.
+- Optional setting (boolean)
+- Default value: `true`
 - Config file format:
   ```
   smtp_settings:
@@ -279,8 +279,8 @@ Whether to enable SSL/TLS for the SMTP connection.
 
 Whether to detect if TLS is used by the SMTP server and start using it if so.
 
-- Optional setting (boolean).
-- Default value: `true`.
+- Optional setting (boolean)
+- Default value: `true`
 - Config file format:
   ```
   smtp_settings:
@@ -289,10 +289,10 @@ Whether to detect if TLS is used by the SMTP server and start using it if so.
 
 ### smtp_settings.password
 
-The password to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
+Use this password for SMTP authentication when the `authentication_type` is set to `authtype_username_password`.
 
-- Optional setting (string).
-- Default value: "".
+- Optional setting (string)
+- Default value: ""
 - Config file format:
   ```
   smtp_settings:
@@ -301,10 +301,10 @@ The password to use for the SMTP authentication, when `authentication_type` is s
 
 ### smtp_settings.port
 
-The port to use to connect to the SMTP server.
+Use this port to connect to the SMTP server.
 
-- Optional setting (integer).
-- Default value: `587` (the standard SMTP port).
+- Optional setting (integer)
+- Default value: `587` (the standard SMTP port)
 - Config file format:
   ```
   smtp_settings:
@@ -313,10 +313,10 @@ The port to use to connect to the SMTP server.
 
 ### smtp_settings.sender_address
 
-The email address to use as sender for emails sent by Fleet.
+Use this email address as the sender for emails sent by Fleet.
 
-- Optional setting (string).
-- Default value: "".
+- Optional setting (string)
+- Default value: ""
 - Config file format:
   ```
   smtp_settings:
@@ -325,10 +325,10 @@ The email address to use as sender for emails sent by Fleet.
 
 ### smtp_settings.server
 
-The server hostname for SMTP.
+This is the server hostname for SMTP.
 
-- Optional setting, required to properly configue SMTP (string).
-- Default value: "".
+- Optional setting, required to properly configue SMTP (string)
+- Default value: ""
 - Config file format:
   ```
   smtp_settings:
@@ -337,10 +337,10 @@ The server hostname for SMTP.
 
 ### smtp_settings.user_name
 
-The username to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
+Use this username for SMTP authentication when the `authentication_type` is set to `authtype_username_password`.
 
-- Optional setting (string).
-- Default value: "".
+- Optional setting (string)
+- Default value: ""
 - Config file format:
   ```
   smtp_settings:
@@ -349,10 +349,10 @@ The username to use for the SMTP authentication, when `authentication_type` is s
 
 ### smtp_settings.verify_ssl_certs
 
-Whether the SMTP server's SSL certificates should be verified. Can be turned off if self-signed certificates are used by the SMTP server.
+Whether the SMTP server's SSL certificates should be verified. This can be turned off if self-signed certificates are used by the SMTP server.
 
-- Optional setting (boolean).
-- Default value: `true`.
+- Optional setting (boolean)
+- Default value: `true`
 - Config file format:
   ```
   smtp_settings:
