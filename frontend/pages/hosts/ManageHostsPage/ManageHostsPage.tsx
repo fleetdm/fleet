@@ -34,7 +34,7 @@ import {
 } from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IMDMSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { IMdmSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
@@ -225,7 +225,7 @@ const ManageHostsPage = ({
   const [
     mdmSolutionDetails,
     setMDMSolutionDetails,
-  ] = useState<IMDMSolution | null>(null);
+  ] = useState<IMdmSolution | null>(null);
   const [
     munkiIssueDetails,
     setMunkiIssueDetails,
