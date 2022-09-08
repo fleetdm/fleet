@@ -2295,6 +2295,8 @@ Allow single sign-on login initiated by identity provider.
 
 ##### sso_settings.enable_jit_provisioning
 
+`Applies only to Fleet Premium`
+
 Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning)
 
 - default value: false
@@ -2423,6 +2425,8 @@ configuration problems.
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
 
 ### Just-in-time (JIT) user provisioning
+
+`Applies only to Fleet Premium`
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
