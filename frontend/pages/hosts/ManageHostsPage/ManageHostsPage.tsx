@@ -35,7 +35,10 @@ import {
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMDMSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IOperatingSystemVersion } from "interfaces/operating_system";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -1224,14 +1227,15 @@ const ManageHostsPage = ({
     if (!os) return null;
 
     const { name, name_only, version } = os;
-    const label =
+    const label = formatOperatingSystemDisplayName(
       name_only || version
         ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`;
-
+        : `${name || ""}`
+    );
     const TooltipDescription = (
       <span className={`tooltip__tooltip-text`}>
-        {`Hosts with ${name_only || name}`},<br />
+        {`Hosts with ${formatOperatingSystemDisplayName(name_only || name)}`},
+        <br />
         {version && `${version} installed`}
       </span>
     );
