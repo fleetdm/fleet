@@ -18,9 +18,9 @@ USAGE:
    fleetctl setup scep
    
 SUBCOMMANDS:
-  apple-mdm  Instructions for enabling MDM for Apple devices
-  apns       Apple Push Notification Service to enable MDM for Apple devices
-  scep       Simple Certificate Enrollment Protocol to enable MDM for Apple devices
+  apple-mdm  Instructions for enabling MDM for MacOS devices
+  apns       Apple Push Notification Service to enable MDM for MacOS devices
+  scep       Simple Certificate Enrollment Protocol to enable MDM for MacOS devices
 
 OPTIONS:
 	... // remains same
@@ -29,10 +29,12 @@ OPTIONS:
 ```
 $ fleetctl setup apple-mdm
 NAME:
-  fleetctl setup apple-mdm - Instructions for enabling MDM for Apple devices
+  fleetctl setup apple-mdm - Instructions for enabling MDM for MacOS devices
 
 INSTRUCTIONS:
-  Welcome! Here are instructions for enabling MDM for Apple devices in Fleet.
+  Note: Apple requires Fleet to verify contact info for MDM cert users. We intend to automate this process soon, but for now, if you are interested in trying out MacOS MDM via Fleet, please schedule a quick friendly 15-min with us to get set up: https://calendly.com/fleetmo/fleet-mdm-intro-and-setup.
+
+  Welcome! Here are instructions for enabling MDM for MacOS devices in Fleet.
 
   1. Run and complete the instructions in the `fleetctl setup apns` set of commands
   2. Run and complete the instructions in the `fleetctl setup scep` set of commands
@@ -46,7 +48,7 @@ INSTRUCTIONS:
 ```
 $ fleetctl setup apns
 NAME:
-  fleetctl setup apns - Set up Apple Push Notification Service to enable MDM for Apple devices
+  fleetctl setup apns - Set up Apple Push Notification Service to enable MDM for MacOS devices
 
 USAGE:
   fleetctl setup apns command
@@ -65,9 +67,9 @@ Generating APNS keys at ./
   fleet-apns-push.key ... done
   fleet-apns-push.csr ... done
 
-Send the .csr and .crt files to your friendly Fleet representative. Apple requires Fleet to collect contact info for MDM cert users. We intend to automate this process soon, but for now, if you are interested in trying out Apple MDM via Fleet, please reach out to us at https://fleetdm.com/company/contact to get set up.
+Apple requires Fleet to verify contact info for MDM cert users. We intend to automate this process soon, but for now to complete this setup, please schedule a quick friendly 15-min with us to get set up: https://calendly.com/fleetmo/fleet-mdm-intro-and-setup.
 
-Keep the .key files. You will need them to complete this process.
+Bring the .csr and .crt files to that meeting and keep the .key files. You will need them later to complete this process.
 
 Fleet will return a .p7m file to you. Use that file and he other generated files in the `fleetctl setup apns gen-req` command.
 ```
@@ -77,7 +79,7 @@ Fleet will return a .p7m file to you. Use that file and he other generated files
 ```
 $ fleetctl setup apns gen-req
 NAME:
-  fleetctl setup apns gen-req - Generate a .req file from a .p7m file provided by FleetDM, Inc.
+  fleetctl setup apns gen-req - Generate a .req file from a .p7m file provided by Fleet
 
 USAGE:
   fleetctl setup apns gen-req [options]
@@ -121,7 +123,6 @@ Re-run your Fleet server with new environment variables as follows:
 For more information on how to change your environment variables in Fleet, visit https://fleetdm.com/docs/deploying/configuration#options
 
 WARNING: If you change the SCEP CA in the Fleet server, existing managed devices will no longer report to Fleet. You must un-enroll and re-enroll all devices.
-
 ```
 
 ## Misc
