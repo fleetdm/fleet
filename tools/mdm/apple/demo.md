@@ -158,18 +158,9 @@ Sending usage statistics from your Fleet instance is optional and can be disable
 ## 10. Create manual enrollment
 
 ```sh
-cat foo.json
-{"TODO": "TODO"}
-
 fleetctl apple-mdm enrollments create-manual \
     --name foo \
-    --enroll-config foo.json
-Manual enrollment created, id: 1
-```
-
-You can download profile from `/mdm/apple/api/enroll` and install on macOS.
-```sh
-https://ab51-181-228-157-44.ngrok.io/mdm/apple/api/enroll?id=1
+Manual enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/mdm/apple/api/enroll?id=1, id: 1
 ```
 
 ## 11. Create automatic (DEP) enrollment
@@ -204,7 +195,6 @@ cat ./tools/mdm/apple/dep_sample_profile.json
 
 fleetctl apple-mdm enrollments create-automatic \
     --name foo \
-    --enroll-config foo.json \
     --profile ./tools/mdm/apple/dep_sample_profile.json
 ```
 
