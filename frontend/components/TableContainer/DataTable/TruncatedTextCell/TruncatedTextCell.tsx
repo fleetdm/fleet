@@ -37,7 +37,7 @@ const TruncatedTextCell = ({
       >
         <span
           className={`data-table__truncated-text--cell ${
-            !tooltipDisabled && "truncated"
+            tooltipDisabled ? "" : "truncated"
           }`}
         >
           {value}

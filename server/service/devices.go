@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -111,8 +110,6 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 // token, along with a boolean indicating if debug logging is enabled for that
 // host.
 func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*fleet.Host, bool, error) {
-	const deviceAuthTokenTTL = time.Hour
-
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -120,7 +117,7 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing device authentication token"))
 	}
 
-	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL)
+	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken)
 	switch {
 	case err == nil:
 		// OK

@@ -308,9 +308,13 @@ func (ds *Datastore) TeamFeatures(ctx context.Context, tid uint) (*fleet.Feature
 	if err := sqlx.GetContext(ctx, ds.reader, &raw, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get team config features")
 	}
+
 	var features fleet.Features
-	if err := json.Unmarshal(*raw, &features); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal team config features")
+	features.ApplyDefaultsForNewInstalls()
+	if raw != nil {
+		if err := json.Unmarshal(*raw, &features); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal team config features")
+		}
 	}
 	return &features, nil
 }
