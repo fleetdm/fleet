@@ -2435,7 +2435,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	// nothing to do so return early
 	if len(statsByTeamID) < 1 {
 		// log to help troubleshooting in case this happens
-		level.Info(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
+		level.Debug(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
 		return nil
 	}
 
