@@ -878,7 +878,7 @@ The `agent_options` key controls the settings applied to the agent on all your h
 
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
 
-Existing options will be over-written by the application of this file.
+Existing options will be overwritten by the application of this file.
 
 ##### Overrides option
 

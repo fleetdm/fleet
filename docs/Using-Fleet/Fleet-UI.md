@@ -20,9 +20,9 @@ How to create a query:
 
 2. Select **Create new query** to navigate to the query console.
 
-3. In the **Query** field, enter your query. If you're just starting out and unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries) of common queries.
+3. In the **Query** field, enter your query. Remember, you can find common queries in [Fleet's library](https://fleetdm.com/queries).
 
-4. Select **Save**, enter a name an description for your query, and select **Save query**.
+4. Select **Save**, enter a name and description for your query, and select **Save query**.
 
 ## Run a query
 
@@ -65,7 +65,7 @@ How to schedule a query:
 <!-- Heading is kept so that the link from the Fleet UI still works -->
 <span id="configuring-agent-options" name="configuring-agent-options"></span>
 
-Fleet allows you to update the settings of the agent installed on all your hosts, at once. In Fleet, these settings are called "agent options."
+Fleet allows you to update the settings of the agent installed on all your hosts at once. In Fleet, these settings are called "agent options."
 
 The default agent options are good to start. 
 
