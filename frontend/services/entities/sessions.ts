@@ -11,7 +11,7 @@ export default {
   create: ({ email, password }: ICreateSessionProps) => {
     const { LOGIN } = endpoints;
 
-    return sendRequest("POST", LOGIN, JSON.stringify({ email, password })).then(
+    return sendRequest("POST", LOGIN, { email, password }).then(
       (response) => {
         const { user, available_teams } = response;
         const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
