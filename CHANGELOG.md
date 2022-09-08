@@ -8,8 +8,6 @@
 
 * Fleet Premium: Added ability to test features, like software inventory, on canary teams by adding a [`features` section](https://fleetdm.com/docs/using-fleet/configuration-files#features) to the `teams` YAML document.
 
-* Added functionality to rotate the `token` in the `/device/{token}` URL used by Fleet Desktop every hour. Warning: This change is not compatible with older versions of Fleet Desktop. For users that manage Fleet Desktop updates, disable auto-updates, or pinned Fleet Desktop to an older version, we recommend manually updating Fleet Desktop and Orbit to a version greater than v1.0.0. Also, users with a `distributed_interval` higher than 10 minutes may experience a degraded experience. Users with the default settings can safely upgrade.
-
 * Renamed the `host_settings` section to `features` in the the [`config` YAML file](https://fleetdm.com/docs/using-fleet/configuration-files#features). `host_settings` is still supported for backwards compatibility.
 
 * Improved the activity feed by adding the ability to see when, and by who, agent options are modified. This information is available on the Home page in the Fleet UI and the [`GET /activites` API route](https://fleetdm.com/docs/using-fleet/rest-api#activities).
