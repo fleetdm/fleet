@@ -2297,7 +2297,7 @@ Allow single sign-on login initiated by identity provider.
 
 `Applies only to Fleet Premium`
 
-Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning)
+Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning).
 
 - default value: false
 - config file format:
