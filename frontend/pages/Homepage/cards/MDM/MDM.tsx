@@ -1,13 +1,7 @@
 import React, { useState } from "react";
-import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import macadminsAPI from "services/entities/macadmins";
-import {
-  IMacadminAggregate,
-  IDataTableMDMFormat,
-  IMDMSolution,
-} from "interfaces/macadmins";
+import { IDataTableMdmFormat, IMdmSolution } from "interfaces/macadmins";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
@@ -20,11 +14,11 @@ import {
 } from "./MDMSolutionsTableConfig";
 import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
 
-interface IMDMCardProps {
-  showMDMUI: boolean;
-  currentTeamId: number | undefined;
-  setShowMDMUI: (showMDMTitle: boolean) => void;
-  setTitleDetail?: (content: JSX.Element | string | null) => void;
+interface IMdmCardProps {
+  errorMacAdmins: Error | null;
+  isMacAdminsFetching: boolean;
+  formattedMdmData: IDataTableMdmFormat[];
+  mdmSolutions: IMdmSolution[] | null;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -34,7 +28,7 @@ const ENROLLMENT_DEFAULT_SORT_HEADER = "status";
 const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
-const EmptyMDMEnrollment = (): JSX.Element => (
+const EmptyMdmEnrollment = (): JSX.Element => (
   <div className={`${baseClass}__empty-mdm`}>
     <h1>Unable to detect MDM enrollment</h1>
     <p>
@@ -51,7 +45,7 @@ const EmptyMDMEnrollment = (): JSX.Element => (
   </div>
 );
 
-const EmptyMDMSolutions = (): JSX.Element => (
+const EmptyMdmSolutions = (): JSX.Element => (
   <div className={`${baseClass}__empty-mdm`}>
     <h1>No MDM solutions detected</h1>
     <p>
@@ -61,60 +55,13 @@ const EmptyMDMSolutions = (): JSX.Element => (
   </div>
 );
 
-const MDM = ({
-  showMDMUI,
-  currentTeamId,
-  setShowMDMUI,
-  setTitleDetail,
-}: IMDMCardProps): JSX.Element => {
+const Mdm = ({
+  isMacAdminsFetching,
+  errorMacAdmins,
+  formattedMdmData,
+  mdmSolutions,
+}: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
-  const [formattedMDMData, setFormattedMDMData] = useState<
-    IDataTableMDMFormat[]
-  >([]);
-  const [solutions, setSolutions] = useState<IMDMSolution[] | null>([]);
-
-  const { isFetching: isMDMFetching, error: errorMDM } = useQuery<
-    IMacadminAggregate,
-    Error
-  >(["MDM", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
-    keepPreviousData: true,
-    onSuccess: (data) => {
-      const {
-        counts_updated_at,
-        mobile_device_management_enrollment_status,
-        mobile_device_management_solution,
-      } = data.macadmins;
-      const {
-        enrolled_manual_hosts_count,
-        enrolled_automated_hosts_count,
-        unenrolled_hosts_count,
-      } = mobile_device_management_enrollment_status;
-
-      setShowMDMUI(true);
-      setTitleDetail &&
-        setTitleDetail(
-          <LastUpdatedText
-            lastUpdatedAt={counts_updated_at}
-            whatToRetrieve={"MDM enrollment"}
-          />
-        );
-      setFormattedMDMData([
-        {
-          status: "Enrolled (manual)",
-          hosts: enrolled_manual_hosts_count,
-        },
-        {
-          status: "Enrolled (automatic)",
-          hosts: enrolled_automated_hosts_count,
-        },
-        { status: "Unenrolled", hosts: unenrolled_hosts_count },
-      ]);
-      setSolutions(mobile_device_management_solution);
-    },
-    onError: () => {
-      setShowMDMUI(true);
-    },
-  });
 
   const onTabChange = (index: number) => {
     setNavTabIndex(index);
@@ -122,14 +69,14 @@ const MDM = ({
 
   const solutionsTableHeaders = generateSolutionsTableHeaders();
   const enrollmentTableHeaders = generateEnrollmentTableHeaders();
-  const solutionsDataSet = generateSolutionsDataSet(solutions);
+  const solutionsDataSet = generateSolutionsDataSet(mdmSolutions);
 
   // Renders opaque information as host information is loading
-  const opacity = showMDMUI ? { opacity: 1 } : { opacity: 0 };
+  const opacity = isMacAdminsFetching ? { opacity: 1 } : { opacity: 0 };
 
   return (
     <div className={baseClass}>
-      {!showMDMUI && (
+      {isMacAdminsFetching && (
         <div className="spinner">
           <Spinner />
         </div>
@@ -142,18 +89,18 @@ const MDM = ({
               <Tab>Enrollment</Tab>
             </TabList>
             <TabPanel>
-              {errorMDM ? (
+              {errorMacAdmins ? (
                 <TableDataError card />
               ) : (
                 <TableContainer
                   columns={solutionsTableHeaders}
                   data={solutionsDataSet}
-                  isLoading={isMDMFetching}
+                  isLoading={isMacAdminsFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"MDM"}
-                  emptyComponent={EmptyMDMSolutions}
+                  emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
@@ -164,18 +111,18 @@ const MDM = ({
               )}
             </TabPanel>
             <TabPanel>
-              {errorMDM ? (
+              {errorMacAdmins ? (
                 <TableDataError card />
               ) : (
                 <TableContainer
                   columns={enrollmentTableHeaders}
-                  data={formattedMDMData}
-                  isLoading={isMDMFetching}
+                  data={formattedMdmData}
+                  isLoading={isMacAdminsFetching}
                   defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
                   defaultSortDirection={ENROLLMENT_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"MDM"}
-                  emptyComponent={EmptyMDMEnrollment}
+                  emptyComponent={EmptyMdmEnrollment}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
@@ -192,4 +139,4 @@ const MDM = ({
   );
 };
 
-export default MDM;
+export default Mdm;
