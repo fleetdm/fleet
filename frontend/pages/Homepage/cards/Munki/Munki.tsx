@@ -21,6 +21,7 @@ interface IMunkiCardProps {
   showMunkiUI: boolean;
   currentTeamId: number | undefined;
   setShowMunkiUI: (showMunkiTitle: boolean) => void;
+  setShowMunkiCard: (showMunkiCard: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
 
@@ -60,6 +61,7 @@ const Munki = ({
   showMunkiUI,
   currentTeamId,
   setShowMunkiUI,
+  setShowMunkiCard,
   setTitleDetail,
 }: IMunkiCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
@@ -75,7 +77,6 @@ const Munki = ({
     IMacadminAggregate,
     Error
   >(["munki", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
-    keepPreviousData: true,
     onSuccess: (data) => {
       const {
         counts_updated_at,
@@ -86,11 +87,12 @@ const Munki = ({
       setMunkiVersionsData(munki_versions);
       setMunkiIssuesData(munki_issues);
       setShowMunkiUI(true);
+      setShowMunkiCard(!!munki_versions);
       setTitleDetail &&
         setTitleDetail(
           <LastUpdatedText
             lastUpdatedAt={counts_updated_at}
-            whatToRetrieve={"Munki versions"}
+            whatToRetrieve={"Munki"}
           />
         );
     },

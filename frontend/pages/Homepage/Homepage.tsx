@@ -62,6 +62,7 @@ const Homepage = (): JSX.Element => {
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [showSoftwareUI, setShowSoftwareUI] = useState(false);
   const [showMunkiUI, setShowMunkiUI] = useState(false);
+  const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMDMUI, setShowMDMUI] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
@@ -260,6 +261,7 @@ const Homepage = (): JSX.Element => {
     children: (
       <Munki
         setShowMunkiUI={setShowMunkiUI}
+        setShowMunkiCard={setShowMunkiCard}
         showMunkiUI={showMunkiUI}
         currentTeamId={currentTeam?.id}
       />
@@ -326,7 +328,9 @@ const Homepage = (): JSX.Element => {
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       <div className={`${baseClass}__section`}>{MDMCard}</div>
-      <div className={`${baseClass}__section`}>{MunkiCard}</div>
+      {showMunkiCard && (
+        <div className={`${baseClass}__section`}>{MunkiCard}</div>
+      )}
     </>
   );
 
