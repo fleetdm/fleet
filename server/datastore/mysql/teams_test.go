@@ -449,6 +449,23 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 		assert.Equal(t, &defaultFeatures, features)
 	})
 
+	t.Run("NULL config.features in the database", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config_features"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE teams SET config = '{}' WHERE id = ?",
+				team.ID,
+			)
+			return err
+		})
+		features, err := ds.TeamFeatures(ctx, team.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, &defaultFeatures, features)
+	})
+
 	t.Run("saves and retrieves configs", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{
 			Name: "team1",
