@@ -12,15 +12,15 @@ Security teams must use proactive threat detection strategies and reactive incid
 
 ## Introducing osquery
 
-Osquery was born out of Facebook, where engineers needed a way to look inside heterogeneous device inventories. Osquery provides visibility to organizations, allowing security engineers to glean detailed system information across workstations and servers.
+Osquery was built by Facebook engineers who needed a way to look inside heterogeneous device inventories. This open-source agent helps security engineers collect detailed system data from workstations and servers across organizations of all sizes.
 
-It’s a single-agent solution that can effectively detect non-compliant and high-risk endpoints in IT. It can also provide immense value to security teams for incident response. Osquery makes it easy to monitor operating system internals for computers. As a quick and cost-effective endpoint monitoring tool, osquery extracts a rich data set from a system that you can easily query to uncover specific artifacts linked to that system.
+Osquery makes it easy to monitor operating system internals for computers. As a quick and cost-effective endpoint monitoring tool, osquery extracts a rich data set from a system that you can easily query to uncover specific artifacts linked to that system.
 
-The osquery framework is unrivaled in the breadth of visibility it provides. It helps security teams identify, investigate, and proactively track multiple threats on the hundreds and even thousands of devices used by an organization — making it a powerful tool for triage.
+Collecting quality data wasn’t the only reason behind the creation of osquery. Imagine how many endpoints an organization like Facebook has. Inspecting all these devices could strain systems and diminish performance if not lead to downtime. That’s why osquery was designed to be lightweight. Security teams can identify, investigate, and proactively track threats on hundreds of thousands of devices — making osquery a powerful tool for triage.
 
-Simply put, osquery acts as a single source of truth, a threat hunting platform for monitoring and large-scale detection of Indicators of Compromise (IoC) and Tactics, Techniques, and Procedures (TTP).
+Simply put, osquery acts as a single source of truth, a threat hunting platform for large-scale monitoring and detection of Indicators of Compromise (IoC) and Tactics, Techniques, and Procedures (TTP).
 
-This provides a crucial link between the analyst and the operating system internals. They can query running processes, changes in the file system, logged-in users, loaded kernel modules, installed packages, and Syslog messages — all from a database-like structure.
+This provides an important link between analysts and operating system internals. Analysts can query running processes, changes in the file system, logged-in users, loaded kernel modules, installed packages, and Syslog messages — all from a database-like structure.
 
 ## Osquery for incident response
 
