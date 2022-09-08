@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,6 +31,7 @@ func TestTeams(t *testing.T) {
 		{"TeamAgentOptions", testTeamsAgentOptions},
 		{"TeamsDeleteRename", testTeamsDeleteRename},
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
+		{"TeamsFeatures", testTeamsFeatures},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -423,4 +425,49 @@ func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	assertIntgURLs([]string{urld}, []string{urle, urlf}, []string{urle, urlf})
+}
+
+func testTeamsFeatures(t *testing.T, ds *Datastore) {
+	defaultFeatures := fleet.Features{}
+	defaultFeatures.ApplyDefaultsForNewInstalls()
+	ctx := context.Background()
+
+	t.Run("NULL config in the database", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE teams SET config = NULL WHERE id = ?",
+				team.ID,
+			)
+			return err
+		})
+		features, err := ds.TeamFeatures(ctx, team.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, &defaultFeatures, features)
+	})
+
+	t.Run("saves and retrieves configs", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{
+			Name: "team1",
+			Config: fleet.TeamConfig{
+				Features: fleet.Features{
+					EnableHostUsers:         false,
+					EnableSoftwareInventory: false,
+					AdditionalQueries:       nil,
+				},
+			},
+		})
+		require.NoError(t, err)
+		features, err := ds.TeamFeatures(ctx, team.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, &fleet.Features{
+			EnableHostUsers:         false,
+			EnableSoftwareInventory: false,
+			AdditionalQueries:       nil,
+		}, features)
+	})
 }
