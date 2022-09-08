@@ -114,7 +114,9 @@
     }
 
     // table header content responsive styles
-    @media (max-width: $break-990) {
+    // NOTE: 1100px is a custom breakpoint to deal with responsiveness of the
+    // form controls. 990px doesnt work for us in this case.
+    @media (max-width: 1100px) {
       &__header {
         flex-direction: column;
       }
