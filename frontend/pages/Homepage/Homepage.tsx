@@ -9,10 +9,18 @@ import {
 } from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
+import {
+  IDataTableMdmFormat,
+  IMdmSolution,
+  IMacadminAggregate,
+  IMunkiIssuesAggregate,
+  IMunkiVersionsAggregate,
+} from "interfaces/macadmins";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
+import macadminsAPI from "services/entities/macadmins";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
@@ -22,6 +30,7 @@ import Spinner from "components/Spinner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
+import LastUpdatedText from "components/LastUpdatedText";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -29,7 +38,7 @@ import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
 import WelcomeHost from "./cards/WelcomeHost";
-import MDM from "./cards/MDM";
+import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
@@ -62,10 +71,28 @@ const Homepage = (): JSX.Element => {
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [showSoftwareUI, setShowSoftwareUI] = useState(false);
   const [showMunkiUI, setShowMunkiUI] = useState(false);
+  const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMDMUI, setShowMDMUI] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
+  const [formattedMdmData, setFormattedMdmData] = useState<
+    IDataTableMdmFormat[]
+  >([]);
+  const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
+
+  const [munkiIssuesData, setMunkiIssuesData] = useState<
+    IMunkiIssuesAggregate[]
+  >([]);
+  const [munkiVersionsData, setMunkiVersionsData] = useState<
+    IMunkiVersionsAggregate[]
+  >([]);
+  const [mdmTitleDetail, setMdmTitleDetail] = useState<
+    JSX.Element | string | null
+  >();
+  const [munkiTitleDetail, setMunkiTitleDetail] = useState<
+    JSX.Element | string | null
+  >();
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -144,6 +171,68 @@ const Homepage = (): JSX.Element => {
     {
       enabled: !!currentTeam?.id && !!canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
+    IMacadminAggregate,
+    Error
+  >(
+    ["macAdmins", currentTeam?.id],
+    () => macadminsAPI.loadAll(currentTeam?.id),
+    {
+      keepPreviousData: true,
+      enabled: selectedPlatform === "darwin",
+      onSuccess: (data) => {
+        const {
+          counts_updated_at: macadmins_counts_updated_at,
+          mobile_device_management_enrollment_status,
+          mobile_device_management_solution,
+        } = data.macadmins;
+        const {
+          enrolled_manual_hosts_count,
+          enrolled_automated_hosts_count,
+          unenrolled_hosts_count,
+        } = mobile_device_management_enrollment_status;
+
+        const {
+          counts_updated_at: munki_counts_updated_at,
+          munki_versions,
+          munki_issues,
+        } = data.macadmins;
+
+        setMdmTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={macadmins_counts_updated_at}
+            whatToRetrieve={"MDM enrollment"}
+          />
+        );
+        setFormattedMdmData([
+          {
+            status: "Enrolled (manual)",
+            hosts: enrolled_manual_hosts_count,
+          },
+          {
+            status: "Enrolled (automatic)",
+            hosts: enrolled_automated_hosts_count,
+          },
+          { status: "Unenrolled", hosts: unenrolled_hosts_count },
+        ]);
+        setMdmSolutions(mobile_device_management_solution);
+        setMunkiVersionsData(munki_versions);
+        setMunkiIssuesData(munki_issues);
+        setShowMunkiCard(!!munki_versions);
+        setMunkiTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={munki_counts_updated_at}
+            whatToRetrieve={"Munki"}
+          />
+        );
+      },
+      onError: () => {
+        setShowMDMUI(true);
+        setShowMunkiUI(true);
+      },
     }
   );
 
@@ -242,8 +331,9 @@ const Homepage = (): JSX.Element => {
   });
 
   const MunkiCard = useInfoCard({
-    title: "Munki versions",
-    showTitle: showMunkiUI,
+    title: "Munki",
+    titleDetail: munkiTitleDetail,
+    showTitle: !isMacAdminsFetching,
     description: (
       <p>
         Munki is a tool for managing software on macOS devices.{" "}
@@ -259,16 +349,18 @@ const Homepage = (): JSX.Element => {
     ),
     children: (
       <Munki
-        setShowMunkiUI={setShowMunkiUI}
-        showMunkiUI={showMunkiUI}
-        currentTeamId={currentTeam?.id}
+        errorMacAdmins={errorMacAdmins}
+        isMacAdminsFetching={isMacAdminsFetching}
+        munkiIssuesData={munkiIssuesData}
+        munkiVersionsData={munkiVersionsData}
       />
     ),
   });
 
   const MDMCard = useInfoCard({
     title: "Mobile device management (MDM)",
-    showTitle: showMDMUI,
+    titleDetail: mdmTitleDetail,
+    showTitle: !isMacAdminsFetching,
     description: (
       <p>
         MDM is used to manage configuration on macOS devices.{" "}
@@ -283,10 +375,11 @@ const Homepage = (): JSX.Element => {
       </p>
     ),
     children: (
-      <MDM
-        setShowMDMUI={setShowMDMUI}
-        showMDMUI={showMDMUI}
-        currentTeamId={currentTeam?.id}
+      <Mdm
+        isMacAdminsFetching={isMacAdminsFetching}
+        errorMacAdmins={errorMacAdmins}
+        formattedMdmData={formattedMdmData}
+        mdmSolutions={mdmSolutions}
       />
     ),
   });
@@ -325,8 +418,10 @@ const Homepage = (): JSX.Element => {
   const macOSLayout = () => (
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
-      <div className={`${baseClass}__section`}>{MunkiCard}</div>
       <div className={`${baseClass}__section`}>{MDMCard}</div>
+      {showMunkiCard && (
+        <div className={`${baseClass}__section`}>{MunkiCard}</div>
+      )}
     </>
   );
 

@@ -511,6 +511,7 @@ const DataTable = ({
 
                   return (
                     <th
+                      key={column.id}
                       className={column.id ? `${column.id}__header` : ""}
                       {...thProps}
                     >
@@ -544,6 +545,7 @@ const DataTable = ({
                   {row.cells.map((cell: any) => {
                     return (
                       <td
+                        key={cell.column.id}
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }
