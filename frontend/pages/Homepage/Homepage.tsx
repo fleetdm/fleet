@@ -30,6 +30,7 @@ import Spinner from "components/Spinner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
+import LastUpdatedText from "components/LastUpdatedText";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -86,6 +87,12 @@ const Homepage = (): JSX.Element => {
   const [munkiVersionsData, setMunkiVersionsData] = useState<
     IMunkiVersionsAggregate[]
   >([]);
+  const [mdmTitleDetail, setMdmTitleDetail] = useState<
+    JSX.Element | string | null
+  >();
+  const [munkiTitleDetail, setMunkiTitleDetail] = useState<
+    JSX.Element | string | null
+  >();
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -194,13 +201,12 @@ const Homepage = (): JSX.Element => {
           munki_issues,
         } = data.macadmins;
 
-        // setTitleDetail &&
-        //   setTitleDetail(
-        //     <LastUpdatedText
-        //       lastUpdatedAt={macadmins_counts_updated_at}
-        //       whatToRetrieve={"MDM enrollment"}
-        //     />
-        //   );
+        setMdmTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={macadmins_counts_updated_at}
+            whatToRetrieve={"MDM enrollment"}
+          />
+        );
         setFormattedMdmData([
           {
             status: "Enrolled (manual)",
@@ -216,13 +222,12 @@ const Homepage = (): JSX.Element => {
         setMunkiVersionsData(munki_versions);
         setMunkiIssuesData(munki_issues);
         setShowMunkiCard(!!munki_versions);
-        // setTitleDetail &&
-        //   setTitleDetail(
-        //     <LastUpdatedText
-        //       lastUpdatedAt={munki_counts_updated_at}
-        //       whatToRetrieve={"Munki"}
-        //     />
-        //   );
+        setMunkiTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={munki_counts_updated_at}
+            whatToRetrieve={"Munki"}
+          />
+        );
       },
       onError: () => {
         setShowMDMUI(true);
@@ -327,6 +332,7 @@ const Homepage = (): JSX.Element => {
 
   const MunkiCard = useInfoCard({
     title: "Munki",
+    titleDetail: munkiTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
       <p>
@@ -353,6 +359,7 @@ const Homepage = (): JSX.Element => {
 
   const MDMCard = useInfoCard({
     title: "Mobile device management (MDM)",
+    titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
       <p>

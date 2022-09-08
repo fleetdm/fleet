@@ -7,7 +7,6 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import LastUpdatedText from "components/LastUpdatedText";
 import {
   generateSolutionsTableHeaders,
   generateSolutionsDataSet,
