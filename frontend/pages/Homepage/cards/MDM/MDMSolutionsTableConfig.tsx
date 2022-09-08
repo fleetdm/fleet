@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 
-import { IMDMSolution } from "interfaces/macadmins";
+import { IMdmSolution } from "interfaces/macadmins";
 
 import PATHS from "router/paths";
 import { greyCell } from "utilities/helpers";
@@ -16,7 +16,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IMDMSolution;
+    original: IMdmSolution;
   };
 }
 
@@ -98,7 +98,7 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => {
   return solutionsTableHeaders;
 };
 
-const enhanceSolutionsData = (solutions: IMDMSolution[]): IMDMSolution[] => {
+const enhanceSolutionsData = (solutions: IMdmSolution[]): IMdmSolution[] => {
   return Object.values(solutions).map((solution) => {
     return {
       id: solution.id,
@@ -110,8 +110,8 @@ const enhanceSolutionsData = (solutions: IMDMSolution[]): IMDMSolution[] => {
 };
 
 export const generateSolutionsDataSet = (
-  solutions: IMDMSolution[] | null
-): IMDMSolution[] => {
+  solutions: IMdmSolution[] | null
+): IMdmSolution[] => {
   if (!solutions) {
     return [];
   }

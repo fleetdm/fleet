@@ -194,13 +194,13 @@ const Homepage = (): JSX.Element => {
           munki_issues,
         } = data.macadmins;
 
-        setTitleDetail &&
-          setTitleDetail(
-            <LastUpdatedText
-              lastUpdatedAt={macadmins_counts_updated_at}
-              whatToRetrieve={"MDM enrollment"}
-            />
-          );
+        // setTitleDetail &&
+        //   setTitleDetail(
+        //     <LastUpdatedText
+        //       lastUpdatedAt={macadmins_counts_updated_at}
+        //       whatToRetrieve={"MDM enrollment"}
+        //     />
+        //   );
         setFormattedMdmData([
           {
             status: "Enrolled (manual)",
@@ -216,13 +216,13 @@ const Homepage = (): JSX.Element => {
         setMunkiVersionsData(munki_versions);
         setMunkiIssuesData(munki_issues);
         setShowMunkiCard(!!munki_versions);
-        setTitleDetail &&
-          setTitleDetail(
-            <LastUpdatedText
-              lastUpdatedAt={munki_counts_updated_at}
-              whatToRetrieve={"Munki"}
-            />
-          );
+        // setTitleDetail &&
+        //   setTitleDetail(
+        //     <LastUpdatedText
+        //       lastUpdatedAt={munki_counts_updated_at}
+        //       whatToRetrieve={"Munki"}
+        //     />
+        //   );
       },
       onError: () => {
         setShowMDMUI(true);
@@ -326,8 +326,8 @@ const Homepage = (): JSX.Element => {
   });
 
   const MunkiCard = useInfoCard({
-    title: "Munki versions",
-    showTitle: showMunkiUI,
+    title: "Munki",
+    showTitle: !isMacAdminsFetching,
     description: (
       <p>
         Munki is a tool for managing software on macOS devices.{" "}
@@ -353,7 +353,7 @@ const Homepage = (): JSX.Element => {
 
   const MDMCard = useInfoCard({
     title: "Mobile device management (MDM)",
-    showTitle: showMDMUI,
+    showTitle: !isMacAdminsFetching,
     description: (
       <p>
         MDM is used to manage configuration on macOS devices.{" "}

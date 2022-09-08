@@ -66,7 +66,7 @@ const Munki = ({
   };
 
   // Renders opaque information as host information is loading
-  const opacity = isMacAdminsFetching ? { opacity: 1 } : { opacity: 0 };
+  const opacity = isMacAdminsFetching ? { opacity: 0 } : { opacity: 1 };
 
   return (
     <div className={baseClass}>
