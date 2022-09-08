@@ -85,7 +85,6 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText(/apples/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-munki").should("exist");
           cy.getAttached(".home-mdm").should("exist");
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
