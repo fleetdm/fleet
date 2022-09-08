@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 
-import { IDataTableMDMFormat } from "interfaces/macadmins";
+import { IDataTableMdmFormat } from "interfaces/macadmins";
 
 import PATHS from "router/paths";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -15,7 +15,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IDataTableMDMFormat;
+    original: IDataTableMdmFormat;
   };
 }
 
