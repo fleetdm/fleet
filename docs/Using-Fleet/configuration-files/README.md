@@ -161,7 +161,7 @@ spec:
 
 ## Teams
 
-_Applies only to Fleet Premium_.
+**Applies only to Fleet Premium**.
 
 The following is an example configuration file for a Team.
 
@@ -202,9 +202,9 @@ spec:
 
 #### Team agent options
 
-The team agent options specifies options that apply only to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
+The team agent options specify options that only apply to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
 
-The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the yaml section where it is set must be as follows (note the `kind: team` key, and the location of the `agent_options` key under `team`, which must have a `name` key to identify the team to configure):
+The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `agent_options` key under `team` must have a `name` key to identify the team to configure.)
 
 ```yaml
 apiVersion: v1
@@ -218,10 +218,10 @@ spec:
 
 #### Secrets
 
-The `secrets` section provides the list of enroll secrets that will be valid for this team. If the section is missing, the existing secrets are left unmodified, otherwise they are replaced with this list of secrets for this team.
+The `secrets` section provides the list of enroll secrets that will be valid for this team. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
 
-- Optional setting (array of dictionaries).
-- Default value: none (empty).
+- Optional setting (array of dictionaries)
+- Default value: none (empty)
 - Config file format:
   ```
   team:
@@ -235,7 +235,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
 
 The `config` YAML file controls Fleet's organization settings.
 
-The following example file, shows the default organization settings.
+The following example file shows the default organization settings.
 
 ```yaml
 apiVersion: v1
@@ -344,10 +344,10 @@ The `features` section of the configuration YAML lets you define what predefined
 
 ##### features.additional_queries
 
-Additional information to collect from hosts along with the host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. Users must take care to keep the data returned by these queries small in order to mitigate potential performance impacts on the Fleet server.
+This is the additional information to collect from hosts along with the host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. Users must take care to keep the data returned by these queries small in order to mitigate potential performance impacts on the Fleet server.
 
-- Optional setting (dictionary of key-value strings).
-- Default value: none (empty).
+- Optional setting (dictionary of key-value strings)
+- Default value: none (empty)
 - Config file format:
   ```
   features:
@@ -367,8 +367,8 @@ Additional information to collect from hosts along with the host details. This i
 
 Whether or not Fleet sends the query needed to gather user-related data from hosts.
 
-- Optional setting (boolean).
-- Default value: `true`.
+- Optional setting (boolean)
+- Default value: `true`
 - Config file format:
   ```
   features:
@@ -384,8 +384,8 @@ Whether or not Fleet sends the query needed to gather user-related data from hos
 
 Whether or not Fleet sends the query needed to gather the list of software installed on hosts, along with other metadata.
 
-- Optional setting (boolean).
-- Default value: `true`.
+- Optional setting (boolean)
+- Default value: `true`
 - Config file format:
   ```
   features:
@@ -397,23 +397,23 @@ Whether or not Fleet sends the query needed to gather the list of software insta
   	enable_software_inventory: false
   ```
 
-#### Fleet Desktop Settings
+#### Fleet Desktop settings
 
 For more information about Fleet Desktop, see [Fleet Desktop's documentation](../../Using-Fleet/Fleet-desktop.md).
 
 ##### fleet_desktop.transparency_url
 
-_Available in Fleet Premium_. Sets a custom transparency URL page to take users of Fleet Desktop to.
+**Available in Fleet Premium**. Direct users of Fleet Desktop to a custom transparency URL page.
 
-- Optional setting (string).
-- Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency").
+- Optional setting (string)
+- Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency")
 - Config file format:
   ```
   fleet_desktop:
     transparency_url: "https://example.org/transparency"
   ```
 
-#### Host Expiry Settings
+#### Host Expiry settings
 
 The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
 
@@ -421,8 +421,8 @@ The `host_expiry` section lets you define if and when hosts should be removed fr
 
 Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   host_expiry_settings:
@@ -433,8 +433,8 @@ Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to
 
 If a host has not communicated with Fleet in the specified number of days, it will be removed.
 
-- Optional setting (integer).
-- Default value: `0` (must be > 0 when enabling host expiry).
+- Optional setting (integer)
+- Default value: `0` (must be > 0 when enabling host expiry)
 - Config file format:
   ```
   host_expiry_settings:
@@ -443,18 +443,18 @@ If a host has not communicated with Fleet in the specified number of days, it wi
 
 #### Integrations
 
-For more information about integrations and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md). Only one automation can be enabled for a given automation type (e.g. for Failing Policies, only one of the webhook, the Jira integration or the Zendesk automation can be enabled).
+For more information about integrations and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md). Only one automation can be enabled for a given automation type (e.g., for failing policies, only one of the webhooks, the Jira integration, or the Zendesk automation can be enabled).
 
-It is recommended to use the Fleet UI to configure integrations, as secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
+It's recommended to use the Fleet UI to configure integrations since secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
 
-#### Organization Information
+#### Organization information
 
 ##### org_info.org_name
 
 The name of the organization.
 
-- Required setting (string).
-- Default value: none (provided during Fleet setup).
+- Required setting (string)
+- Default value: none (provided during Fleet setup)
 - Config file format:
   ```
   org_info:
@@ -465,22 +465,22 @@ The name of the organization.
 
 The URL of the logo of the organization.
 
-- Optional setting (string).
-- Default value: none (uses Fleet's logo).
+- Optional setting (string)
+- Default value: none (uses Fleet's logo)
 - Config file format:
   ```
   org_info:
   	org_logo_url: https://example.com/logo.png
   ```
 
-#### Server Settings
+#### Server settings
 
 ##### server_settings.debug_host_ids
 
 There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
 to debug different scenarios.
 
-So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose
+For example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet. You can enable verbose
 logging with the following configuration:
 
 ```yaml
@@ -505,11 +505,11 @@ spec:
     debug_host_ids: []
 ```
 
-> **Warning:** This will potentially log a lot of data. Some of that data might be private. Please verify it before posting it.
+> **Warning:** This will potentially log a lot of data. Some of that data might be private. Please verify it before posting it
 in a public channel or a GitHub issue.
 
-- Optional setting (array of integers).
-- Default value: empty.
+- Optional setting (array of integers)
+- Default value: empty
 - Config file format:
   ```
   server_settings:
@@ -522,8 +522,8 @@ in a public channel or a GitHub issue.
 
 Whether saving host-related information is done synchronously in the HTTP handler of the host's request, or asynchronously. This can provide better performance in deployments with many hosts. Note that this is an **experimental feature**.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   server_settings:
@@ -534,8 +534,8 @@ Whether saving host-related information is done synchronously in the HTTP handle
 
 If sending usage analytics is enabled or not.
 
-- Optional setting (boolean).
-- Default value: `true`.
+- Optional setting (boolean)
+- Default value: `true`
 - Config file format:
   ```
   server_settings:
@@ -546,8 +546,8 @@ If sending usage analytics is enabled or not.
 
 If the live query feature is disabled or not.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   server_settings:
@@ -558,27 +558,27 @@ If the live query feature is disabled or not.
 
 The base URL of the fleet server, including the scheme (e.g. "https://").
 
-- Required setting (string).
-- Default value: none (provided during Fleet setup).
+- Required setting (string)
+- Default value: none (provided during Fleet setup)
 - Config file format:
   ```
   server_settings:
     server_url: https://fleet.example.org:8080
   ```
 
-#### SMTP Settings
+#### SMTP settings
 
-It is recommended to use the Fleet UI to configure SMTP, as a secret password must be provided. Navigate to **Settings -> Organization settings -> SMTP Options** to proceed with this configuration.
+It's recommended to use the Fleet UI to configure SMTP since a secret password must be provided. Navigate to **Settings -> Organization settings -> SMTP Options** to proceed with this configuration.
 
 #### SSO Settings
 
-For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
+For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet, and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
 
 ##### sso_settings.enable_jit_provisioning
 
-_Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+**Available in Fleet Premium**. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
 
-- Optional setting (boolean).
+- Optional setting (boolean)
 - Default value: `false`
 - Config file format:
   ```
@@ -590,8 +590,8 @@ _Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Dep
 
 Configures if single sign-on is enabled.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   sso_settings:
@@ -602,8 +602,8 @@ Configures if single sign-on is enabled.
 
 Allow single sign-on login initiated by identity provider.
 
-- Optional setting (boolean).
-- Default value: `false`.
+- Optional setting (boolean)
+- Default value: `false`
 - Config file format:
   ```
   sso_settings:
@@ -614,8 +614,8 @@ Allow single sign-on login initiated by identity provider.
 
 The required entity ID is a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration.
 
-- Required setting if SSO is enabled, must have at least 5 characters (string).
-- Default value: "".
+- Required setting if SSO is enabled, must have at least 5 characters (string)
+- Default value: ""
 - Config file format:
   ```
   sso_settings:
@@ -626,8 +626,8 @@ The required entity ID is a Uniform Resource Identifier (URI) that you use to id
 
 An optional link to an image such as a logo for the identity provider.
 
-- Optional setting (string).
-- Default value: "".
+- Optional setting (string)
+- Default value: ""
 - Config file format:
   ```
   sso_settings:
@@ -638,8 +638,8 @@ An optional link to an image such as a logo for the identity provider.
 
 A required human-friendly name for the identity provider that will provide single sign-on authentication.
 
-- Required setting if SSO is enabled (string).
-- Default value: "".
+- Required setting if SSO is enabled (string)
+- Default value: ""
 - Config file format:
   ```
   sso_settings:
@@ -650,8 +650,8 @@ A required human-friendly name for the identity provider that will provide singl
 
 The issuer URI supplied by the identity provider.
 
-- Optional setting (string).
-- Default value: "".
+- Optional setting (string)
+- Default value: ""
 - Config file format:
   ```
   sso_settings:
@@ -682,7 +682,7 @@ A URL that references the identity provider metadata.
     metadata_url: https://idp.example.org/idp-meta.xml
   ```
 
-#### Vulnerability Settings
+#### Vulnerability settings
 
 ##### vulnerability_settings.databases_path
 
@@ -696,23 +696,23 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
     databases_path: "/path/to/dir"
   ```
 
-#### Webhook Settings
+#### Webhook settings
 
 For more information about webhooks and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md).
 
 ##### webhook_settings.interval
 
-The interval at which to check for webhook conditions. This value currently configures both the host status and failing policies webhooks (not the recent vulnerabilities webhook, see the [Recent vulnerabilities section](#recent-vulnerabilities) for details).
+The interval at which to check for webhook conditions. This value currently configures both the host status and failing policies webhooks, but not the recent vulnerabilities webhook. (See the [Recent vulnerabilities section](#recent-vulnerabilities) for details.)
 
-- Optional setting (time duration as a string).
-- Default value: `24h`.
+- Optional setting (time duration as a string)
+- Default value: `24h`
 - Config file format:
   ```
   webhook_settings:
     interval: "12h"
   ```
 
-##### Failing Policies
+##### Failing policies
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
@@ -731,7 +731,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 
 ###### webhook_settings.failing_policies_webhook.enable_failing_policies_webhook
 
-Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook *and* the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
+Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook and the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing. Some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request.
 
 - Optional setting (boolean).
 - Default value: `false`.
@@ -744,7 +744,7 @@ Defines whether to enable the failing policies webhook. Note that currently, if 
 
 ###### webhook_settings.failing_policies_webhook.host_batch_size
 
-Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one `POST` request.
+Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching. All hosts failing a policy will be sent on one `POST` request.
 
 - Optional setting (integer).
 - Default value: `0`.
@@ -771,7 +771,7 @@ The IDs of the policies for which the webhook will be enabled.
         - 3
   ```
 
-##### Host Status
+##### Host status
 
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts are offline for the specified amount of time.
 
@@ -831,7 +831,7 @@ The percentage of hosts that need to be offline to trigger the webhook.
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 30 days (based on the National Vulnerability Database, NVD).
 
-Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
+Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks. It is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
 
 ###### webhook_settings.vulnerabilities_webhook.destination_url
 
@@ -861,7 +861,7 @@ Defines whether to enable the vulnerabilities webhook.
 
 ###### webhook_settings.vulnerabilities_webhook.host_batch_size
 
-Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts affected will be sent on one `POST` request.
+Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching. All hosts affected will be sent on one `POST` request.
 
 - Optional setting (integer).
 - Default value: `0`.
