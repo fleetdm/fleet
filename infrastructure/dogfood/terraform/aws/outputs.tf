@@ -30,6 +30,10 @@ output "acm_certificate_arn" {
   value = aws_acm_certificate.dogfood_fleetdm_com.arn
 }
 
+output "rds_instance_identifier" {
+  value = module.aurora_mysql.rds_cluster_id
+}
+
 output "load_balancer_arn_suffix" {
   value = aws_alb.main.arn_suffix
 }

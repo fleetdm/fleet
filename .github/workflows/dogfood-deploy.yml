@@ -61,7 +61,13 @@ jobs:
         id: plan
         run: terraform plan -no-color
         continue-on-error: true
+      - name: Terraform Refresh
+        id: refresh
+        run: terraform refresh -no-color
+        continue-on-error: true
         # first we'll scale everything down and create the new task definitions
+      - name: Create DB Snapshot
+        run: aws rds create-db-snapshot --db-snapshot-identifier fleet-backup-prior-to-$(git rev-parse --short "$GITHUB_SHA") --db-instance-identifier $(terraform output -raw rds_instance_identifier)
       - name: Terraform Apply Scale Down
         id: apply_scale_down
         run: terraform apply -auto-approve
