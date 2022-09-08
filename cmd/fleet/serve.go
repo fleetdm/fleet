@@ -653,7 +653,6 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 }
 
 const (
-	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
 	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
 	lockKeyWorker                  = "worker"
