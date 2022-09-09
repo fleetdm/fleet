@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import classnames from "classnames";
 import { ITeamSummary } from "interfaces/team";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { AppContext } from "context/app";
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
@@ -50,9 +51,12 @@ const TeamsDropdown = ({
   onOpen,
   onClose,
 }: ITeamsDropdownProps): JSX.Element => {
+  const { isOnGlobalTeam = false } = useContext(AppContext);
+
   const teamOptions = useMemo(
-    () => generateDropdownOptions(currentUserTeams, includeAll),
-    [currentUserTeams]
+    () =>
+      generateDropdownOptions(currentUserTeams, includeAll && isOnGlobalTeam),
+    [currentUserTeams, includeAll, isOnGlobalTeam]
   );
 
   const selectedValue = teamOptions.find(
