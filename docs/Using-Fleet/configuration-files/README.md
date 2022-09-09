@@ -7,7 +7,7 @@
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
 
-Fleet can be managed with configuration files (YAML syntax) and the fleetctl command-line tool.
+Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool.
 
 This page tells you how to write the configuration file(s) used to manage Fleet.
 
