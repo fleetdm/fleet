@@ -874,9 +874,11 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 
 #### Agent options
 
-The `agent_options` key describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
+The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in. 
 
-> In Fleet v4.0.0, "osquery options" are renamed to "agent options" and are now configured using the organization settings (config) configuration file. [Check out out the Fleet v3 documentation](https://github.com/fleetdm/fleet/blob/3.13.0/docs/1-Using-Fleet/2-fleetctl-CLI.md#update-osquery-options) if you're using an older version of Fleet.
+See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
+
+Existing options will be overwritten by the application of this file.
 
 ##### Overrides option
 

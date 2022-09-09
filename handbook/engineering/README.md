@@ -148,10 +148,12 @@ How to deploy a new release to dogfood:
 
 1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
 2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
-3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0."
+3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
 4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
 6. Select **Run workflow**. **main** should be selected under the **Use workflow from** field.
+
+> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 
 ## On-call rotation
 
@@ -592,7 +594,7 @@ When adding images to the Fleet documentation, follow these guidelines:
 - Minimize images per doc page. For doc maintainers and users, more than one or two per page can get overwhelming.
 - The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure it is easily readable at all widths.
 
-Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
+Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/add-new-host-modal.png)`
 The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
