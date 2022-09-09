@@ -96,7 +96,7 @@ In 4.20.0, we also:
 
 * Fixed a big in which the example payload for usage statistics included incorrect key names.
 
-* Fix a bug in which the count above the **Software** table would sometimes not appear.
+* Fixed a bug in which the count above the **Software** table would sometimes not appear.
 
 * Fix a bug in which the **Add hosts** button would not be displayed shown when search returns 0 hosts.
 
