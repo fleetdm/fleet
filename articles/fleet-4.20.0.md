@@ -25,7 +25,7 @@ To see this in action, head to the **Home > macOS** page and view the **Munki** 
 
 You can now test features like software inventory on a subset of your hosts.
 
-The best practice is to first create a team with test (canary) hosts and then turn on software inventory for only this team.
+The best practice is to create a team with test (canary) hosts first and then turn on software inventory for only this team.
 
 How to turn on the software inventory feature for only your 🐣 Servers (canaries) team: 
 
