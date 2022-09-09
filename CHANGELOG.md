@@ -1,3 +1,47 @@
+## Fleet 4.20.0 (Sep 9, 2022)
+
+* Add ability to know how many hosts, and which hosts, have Munki issues. This information is presented on the **Home > macOS** page and **Host details** page. This information is also available in the [`GET /api/v1/fleet/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) and [`GET /api/v1/fleet/hosts/{id}/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-mobile-device-management-mdm-and-munki-information) and API routes.
+
+* Fleet Premium: Added ability to test features, like software inventory, on canary teams by adding a [`features` section](https://fleetdm.com/docs/using-fleet/configuration-files#features) to the `teams` YAML document.
+
+* Improved vulnerability detection for macOS hosts by improving detection of Zoom, Ruby, and Node.js vulnerabilities. Warning: For users that download and sync Fleet's vulnerability feeds manually, there are [required adjustments](https://github.com/fleetdm/fleet/issues/6628) or else vulnerability processing will stop working. Users with the default vulnerability processing settings can safely upgrade without adjustments.
+
+* Fleet Premium: Improved the vulnerability automations by adding vulnerability scores (EPSS probability, CVSS scores, and CISA-known exploits) to the webhook payload. Read more about vulnerability automations on [fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
+
+* Renamed the `host_settings` section to `features` in the the [`config` YAML file](https://fleetdm.com/docs/using-fleet/configuration-files#features). But `host_settings` is still supported for backwards compatibility.
+
+* Improved the activity feed by adding the ability to see who modified agent options and when modifications occurred. This information is available on the Home page in the Fleet UI and the [`GET /activites` API route](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+
+* Improved the [`config` YAML documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
+
+* Improved the **Hosts** page for smaller screen widths.
+
+* Improved the building of osquery installers for Windows (`.msi` packages).
+
+* Added a **Show query** button on the **Schedule** page, which adds the ability to quickly see a query's SQL.
+
+* Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (e.g., users).
+
+* Fixed a bug in which a user could not reach some teams in the UI via pagination if there were more than 20 teams.
+
+* Fixed a bug in which a user could not reach some users in the UI via pagination if there were more than 20 users.
+
+* Fixed a bug in which duplicate vulnerabilities (CVEs) sometimes appeared on **Software details** page.
+
+* Fixed a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
+
+* Fixed a bug in which no error message would appear if there was an issue while setting up Fleet.
+
+* Fixed a bug in which no error message would appear if users were creating or editing a label with a name or description that was too long.
+
+* Fixed a big in which the example payload for usage statistics included incorrect key names.
+
+* Fixed a bug in which the count above the **Software** table would sometimes not appear.
+
+* Fixed a bug in which the **Add hosts** button would not be displayed when search returned 0 hosts.
+
+* Fixed a bug in which modifying filters on the **Hosts** page would not return the user to the first page of the **Hosts** table. 
+
 ## Fleet 4.19.1 (Sep 1, 2022)
 
 * Fix a migration error that may occur when upgrading to Fleet 4.19.0.
