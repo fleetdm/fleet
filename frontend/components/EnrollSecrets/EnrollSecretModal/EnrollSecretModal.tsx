@@ -5,7 +5,7 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import EnrollSecretTable from "components/EnrollSecrets/EnrollSecretTable";
+import EnrollSecretTable from "../EnrollSecretTable";
 
 import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
