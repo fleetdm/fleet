@@ -218,6 +218,7 @@
                 width: auto;
                 .hosts-cell__wrapper {
                   display: flex;
+                  align-items: center;
                   justify-content: space-between;
                   .hosts-cell__link {
                     display: flex;
