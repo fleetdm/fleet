@@ -92,7 +92,7 @@ In 4.20.0, we also:
 
 * Fix a bug in which no error message would appear if there was an issue while setting up Fleet.
 
-* Fix a bug in which no error message would appear if creating or editing a label with a name or description that is too long.
+* Fixed a bug in which no error message would appear if users were creating or editing a label with a name or description that was too long.
 
 * Fix a big in which the example payload for usage statistics included incorrect key names.
 
