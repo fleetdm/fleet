@@ -148,10 +148,12 @@ How to deploy a new release to dogfood:
 
 1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
 2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
-3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0."
+3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
 4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
 6. Select **Run workflow**. **main** should be selected under the **Use workflow from** field.
+
+> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 
 ## On-call rotation
 
