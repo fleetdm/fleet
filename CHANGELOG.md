@@ -1,4 +1,4 @@
-## Fleet 4.20.0 (Sep 8, 2022)
+## Fleet 4.20.0 (Sep 9, 2022)
 
 * Improved vulnerability detection for macOS hosts by improving detection of Zoom, Ruby, and Node.js vulnerabilities. Warning: For users that download and sync Fleet's vulnerability feeds manually, there are [required adjustments](https://github.com/fleetdm/fleet/issues/6628) or else vulnerability processing will stop working. Users with the default vulnerability processing settings can safely upgrade without adjustments.
 
@@ -12,7 +12,7 @@
 
 * Improved the activity feed by adding the ability to see when, and by who, agent options are modified. This information is available on the Home page in the Fleet UI and the [`GET /activites` API route](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
-* Improved the [documentation for the `config` YAML document](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
+* Improved the [documentation for organization settings]((https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)). These setting can be modified on the **Settings > Organization settings** page the Fleet UI or by applying the `config` YAML document.
 
 * Improved the **Hosts** page for smaller screen widths.
 
