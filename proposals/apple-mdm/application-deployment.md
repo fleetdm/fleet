@@ -65,7 +65,7 @@ If `hosted=true` then an entry in `apple_installers` will map to the following S
 > NOTE: We will have to generate `icons/_icon_hashes.plist` on-the-fly (used by Munki client)...
 > With a combination of caching and the `ListObjectsV2` API.
 
-New table `apple_installments` that represents allocation of installers into teams:
+New table `team_apple_installers` that represents allocation of installers into teams:
 - `id`
 - `installer_id` (reference to `apple_installers.id`)
 - `managed BOOLEAN` (if `true`, then the app is automatically installed, if `false` then it will show up as optional in "Managed Software Center")
@@ -76,11 +76,11 @@ New table `apple_installments` that represents allocation of installers into tea
 Example of creating a hosted installer:
 ```sh
 # User uploads installer item
-fleetctl apple-mdm installer upload --installer=some-app.pkg
+fleetctl apple-mdm installers upload --installer=some-app.pkg
 Installer uploaded with id=1, hash=c3e9e2ec300d231ee6e9cdfe1dd8fc03d62ac6c23d8ddfcc9358e430dca73ea4.
 
 # User fetches the uploaded item
-fleetctl apple-mdm installer get --id=1
+fleetctl apple-mdm installers get --id=1
 <Output installer `apple_installers` entry, including `pkginfo` to stdout>
 
 #
@@ -89,10 +89,10 @@ fleetctl apple-mdm installer get --id=1
 vim some-app.plist
 
 # User overrides default pkginfo with custom `some-app.plist`
-fleetctl apple-mdm installer set-pkginfo --id=1 --pkginfo=some-app.plist
+fleetctl apple-mdm installers set-pkginfo --id=1 --pkginfo=some-app.plist
 
 # User adds installer item to a Team (or Globally)
-fleetctl apple-mdm installments add --id=1 --optional={true|false} --team=Foo
+fleetctl apple-mdm installers add --id=1 --optional={true|false} --team=Foo
 ```
 
 Example of creating a not-hosted installer (using `PackageCompleteURL`):
@@ -105,55 +105,50 @@ Example of creating a not-hosted installer (using `PackageCompleteURL`):
 vim osquery-5.5.1.plist
 
 # User imports application using pkginfo.
-fleetctl apple-mdm installer import --pkginfo=osquery-5.5.1.plist
+fleetctl apple-mdm installers import --pkginfo=osquery-5.5.1.plist
 Installer imported with id=2, hash=c3e9e2ec300d231ee6e9cdfe1dd8fc03d62ac6c23d8ddfcc9358e430dca73ea4.
 
 # User adds installer item to a Team (or Globally)
-fleetctl apple-mdm installments add --id=2 --optional={true|false} --team=Foo
+fleetctl apple-mdm installers add --id=2 --optional={true|false} --team=Foo
 ```
-
-### Installers and Installments
-
-- "Installer" is an installer item.
-- "Installment" represents the addition of an installer item to a Team.
 
 ### Installers
 
-`fleetctl apple-mdm installer upload --installer=*` (via API `POST */upload`):
+`fleetctl apple-mdm installers upload --installer=*` (via API `POST */upload`):
 1. Uploads pkg to storage.
 2. Generates a pkginfo.
 3. Stores entry in `apple_installers` with `hosted=true`.
 4. Outputs <INSTALLER_ID>.
 
-`fleetctl apple-mdm installer import --pkginfo=*`:
+`fleetctl apple-mdm installers import --pkginfo=*`:
 Stores entry in `apple_installers` with `hosted=false`.
 
-`fleetctl apple-mdm installer get --id=<INSTALLER_ID>`:
+`fleetctl apple-mdm installers get --id=<INSTALLER_ID>`:
 Returns info of entry in `apple_installers`
 
-`fleetctl apple-mdm installer list`
+`fleetctl apple-mdm installers list`
 Lists entries in `apple_installers`.
 
-`fleetctl apple-mdm installer set-pkginfo --id=<INSTALLER_ID> --pkginfo=some-app.plist`
+`fleetctl apple-mdm installers set-pkginfo --id=<INSTALLER_ID> --pkginfo=some-app.plist`
 Updates `pkginfo` of entry in `apple_installers`.
 
-`fleetctl apple-mdm installer delete --id=<INSTALLER_ID>`
+`fleetctl apple-mdm installers delete --id=<INSTALLER_ID>`
 Remove entry from `apple_installers`
 
-### Installments
+### Installers on teams
 
-`fleetctl apple-mdm installments add --id=<INSTALLER_ID> --team=<TEAM_ID>`:
-1. Stores entry in `apple_installments`.
-2. Returns <INSTALLMENT_ID>
+`fleetctl apple-mdm installers add --id=<INSTALLER_ID> --team=<TEAM_ID>`:
+1. Stores entry in `team_apple_installers`.
+2. Returns <TEAM_INSTALLER_ID>
 
-`fleetctl apple-mdm installments get --id=<INSTALLMENT_ID>`
-List entries in `apple_installments`
+`fleetctl apple-mdm installers get --team=Foo --id=<TEAM_INSTALLER_ID>`
+List entries in `team_apple_installers`
 
-`fleetctl apple-mdm installments list --team=Foo`
-List entries in `apple_installments`
+`fleetctl apple-mdm installers list --team=Foo`
+List entries in `team_apple_installers`
 
-`fleetctl apple-mdm installments delete --id=<INSTALLMENT_ID>`
-Remove entry from `apple_installments`
+`fleetctl apple-mdm installers delete --team=Foo --id=<TEAM_INSTALLER_ID>`
+Remove entry from `team_apple_installers`
 
 ## Catalogs and Manifests in Fleet
 
@@ -164,5 +159,5 @@ From https://github.com/munki/munki/wiki/Pkginfo-Files:
 > require rebuilding the catalogs using the makecatalogs tool.
 
 - Fleet will generate only one `catalog`, called `"fleet"` on-the-fly from entries in `apple_installers`. (We will need to mimick the `makecatalogs` tool.)
-- Fleet will generate `manifests` for each client on-the-fly from entries in `apple_installments` (Munki clients request for manifests using `<REPO_PATH>/manifests/<ClientIdentifier>`).
-Fleet will determine what software needs to be installed (as managed or optional) on each client by looking at the host's team and entries in `apple_installments`. (We will need to mimick the `manifestutil` tool.)
+- Fleet will generate `manifests` for each client on-the-fly from entries in `team_apple_installers` (Munki clients request for manifests using `<REPO_PATH>/manifests/<ClientIdentifier>`).
+Fleet will determine what software needs to be installed (as managed or optional) on each client by looking at the host's team and entries in `team_apple_installers`. (We will need to mimick the `manifestutil` tool.)
