@@ -27,7 +27,7 @@ You can now test features like software inventory on a subset of your hosts.
 
 The best practice is to create a team with test (canary) hosts first and then turn on software inventory for only this team.
 
-How to turn on the software inventory feature for only your 🐣 Servers (canaries) team: 
+Here's how to turn on the software inventory feature for only your 🐣 Servers (canaries) team: 
 
 1. Log in to Fleet with `fleetctl login`. If you us single-sign on (SSO) to log in to Fleet, check out the [documentation for logging in with SSO](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication).
 
