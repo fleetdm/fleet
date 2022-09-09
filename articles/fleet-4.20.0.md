@@ -94,7 +94,7 @@ In 4.20.0, we also:
 
 * Fixed a bug in which no error message would appear if users were creating or editing a label with a name or description that was too long.
 
-* Fix a big in which the example payload for usage statistics included incorrect key names.
+* Fixed a big in which the example payload for usage statistics included incorrect key names.
 
 * Fix a bug in which the count above the **Software** table would sometimes not appear.
 
