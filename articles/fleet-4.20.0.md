@@ -80,7 +80,7 @@ In 4.20.0, we also:
 
 * Added a **Show query** button on the **Schedule** page, which adds the ability to quickly see a query's SQL.
 
-* Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (ex. users).
+* Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (e.g., users).
 
 * Fix a bug in which a user could not reach some teams in the UI via pagination if there were more than 20 teams.
 
