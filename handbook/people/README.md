@@ -88,7 +88,7 @@ We highly recommend you order a physical Brex card if you do not have one before
 
 ### Coworking
 
-Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the CEO via direct message in Slack.
+Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the Charlie Chance via direct message in Slack.
 
 Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
 
