@@ -88,7 +88,7 @@ In 4.20.0, we also:
 
 * Fixed a bug in which duplicate vulnerabilities (CVEs) sometimes appeared on **Software details** page.
 
-* Fix a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
+* Fixed a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
 
 * Fixed a bug in which no error message would appear if there was an issue while setting up Fleet.
 
