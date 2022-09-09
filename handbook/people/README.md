@@ -456,6 +456,8 @@ Then hit send!  After all of the signatures are there, the completed document wi
 | Ramp                         | "Off-cycle" payroll          | Charlie 
 | Accelerations                | "Off-cycle" payroll          | Charlie
 
+Add the amount to be paid to the "Gross" line.
+
 For Fleet's US contractors, running payroll is a manual process. 
 The steps for doing this are highlighted in this loom, TODO. 
 1. Time tools
