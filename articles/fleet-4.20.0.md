@@ -23,7 +23,7 @@ To see this in action, head to the **Home > macOS** page and view the **Munki** 
 
 ![Aggregate Munki issues](../website/assets/images/articles/canaries-1600x900.jpg)
 
-You can now test features, like software inventory, on only a subset of your hosts.
+You can now test features like software inventory on a subset of your hosts.
 
 The best practice is to first create a team with test (canary) hosts and then turn on software inventory for only this team.
 
