@@ -9,7 +9,7 @@
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command-line tool.
 
-This page tells you how to write your configuration file(s) to manage Fleet.
+This page tells you how to write the configuration file(s) used to manage Fleet.
 
 In Fleet, changes are applied when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](../../Using-Fleet/fleetctl-CLI.md#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
 
