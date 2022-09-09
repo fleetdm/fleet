@@ -5,7 +5,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -106,19 +105,25 @@ func NewUpdater(opt Options) (*Updater, error) {
 	}
 
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
-	var rootKeys []*data.PublicKey
-	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
-		return nil, fmt.Errorf("unmarshal root keys: %w", err)
-	}
 
+	// First try initializing via stored local metadata. Older Orbit packages were distributed with
+	// only the root *key* metadata and not the full root metadata (see
+	// https://github.com/theupdateframework/go-tuf/issues/379), so it's important that we try using
+	// the fully loaded root metadata in the local store before we try using what is provided via
+	// configuration.
 	meta, err := opt.LocalStore.GetMeta()
-	if err != nil || meta["root.json"] == nil {
-		var rootKeys []*data.PublicKey
-		if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
-			return nil, fmt.Errorf("unmarshal root keys: %w", err)
+	if err == nil && meta["root.json"] != nil {
+		if err := tufClient.Init(meta["root.json"]); err != nil {
+			return nil, fmt.Errorf("client init with local root metadata: %w", err)
 		}
-		if err := tufClient.Init(rootKeys, 1); err != nil {
-			return nil, fmt.Errorf("init tuf client: %w", err)
+	} else {
+		// If that didn't work (because the metadata doesn't exist due to this being the first
+		// init), try using the metadata that is provided via configuration. If we reach this line,
+		// we *should* have the full root metadata, because any older clients that were distributed
+		// with the limited metadata should have downloaded the full metadata before updating and
+		// should use the first branch of the if statement.
+		if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
+			return nil, fmt.Errorf("client init with configuration metadata: %w", err)
 		}
 	}
 
