@@ -66,7 +66,7 @@ Previous releases of Fleet did not flag some vulnerable versions of Zoom as vuln
 
 In 4.20.0, we also:
 
-* Fleet Premium: Improved the vulnerability automations by adding vulnerability scores (EPSS probability, CVSS score, and known exploit) to the webhook payload. Read more about vulnerability automations [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
+* Fleet Premium: Improved the vulnerability automations by adding vulnerability scores (EPSS probability, CVSS scores, and CISA-known exploits) to the webhook payload. Read more about vulnerability automations on [fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
 
 * Renamed the `host_settings` section to `features` in the the [`config` YAML file](https://fleetdm.com/docs/using-fleet/configuration-files#features). `host_settings` is still supported for backwards compatibility.
 
