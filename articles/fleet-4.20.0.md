@@ -82,7 +82,7 @@ In 4.20.0, we also:
 
 * Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (e.g., users).
 
-* Fix a bug in which a user could not reach some teams in the UI via pagination if there were more than 20 teams.
+* Fixed a bug in which a user could not reach some teams in the UI via pagination if there were more than 20 teams.
 
 * Fix a bug in which a user could not reach some users in the UI via pagination if there were more than 20 users.
 
