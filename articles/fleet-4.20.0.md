@@ -47,7 +47,7 @@ spec:
 
 3. Run the `fleetctl apply -f "🐣 Servers (canaries)".yaml` command. This will turn on software inventory for only your 🐣 Servers (canaries) team.  
 
-> The best practice for modifying configuration files in Fleet is to store these files in a version control tool (ex. GitHub) so that folks at your organization can review changes before they're applied.
+> The best practice for modifying configuration files in Fleet is to store these files in a version control tool (e.g., GitHub) so that people at your organization can review changes before they're applied.
 
 4. In the Fleet UI, head to the **Hosts** page, select **🐣 Servers (canaries)** in the team filter, and select a host's name. 
 
