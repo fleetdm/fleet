@@ -100,7 +100,7 @@ In 4.20.0, we also:
 
 * Fixed a bug in which the **Add hosts** button would not be displayed when search returned 0 hosts.
 
-* Fix a bug in which modifying filters on the **Hosts** page would not return the user to the first page of the **Hosts** table. 
+* Fixed a bug in which modifying filters on the **Hosts** page would not return the user to the first page of the **Hosts** table. 
 
 
 ### Ready to update?
