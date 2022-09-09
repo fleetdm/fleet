@@ -10,13 +10,11 @@ import EmptySoftware from "../../../software/components/EmptySoftware";
 
 interface ISoftwareCardProps {
   errorSoftware: Error | null;
-  showSoftwareUI: boolean;
   isCollectingInventory: boolean;
   isSoftwareFetching: boolean;
   isSoftwareEnabled: boolean;
   software: any;
   pageIndex: number;
-  setActionURL?: (url: string) => void;
   navTabIndex: any;
   onTabChange: any;
   onQueryChange: any;
@@ -30,7 +28,6 @@ const baseClass = "home-software";
 
 const Software = ({
   errorSoftware,
-  showSoftwareUI,
   isCollectingInventory,
   isSoftwareFetching,
   isSoftwareEnabled,
@@ -38,7 +35,6 @@ const Software = ({
   navTabIndex,
   onTabChange,
   onQueryChange,
-  setActionURL,
   software,
 }: ISoftwareCardProps): JSX.Element => {
   const tableHeaders = generateTableHeaders();
@@ -48,7 +44,7 @@ const Software = ({
 
   return (
     <div className={baseClass}>
-      {!showSoftwareUI && (
+      {isSoftwareFetching && (
         <div className="spinner">
           <Spinner />
         </div>
