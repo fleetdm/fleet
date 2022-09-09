@@ -90,7 +90,7 @@ In 4.20.0, we also:
 
 * Fix a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
 
-* Fix a bug in which no error message would appear if there was an issue while setting up Fleet.
+* Fixed a bug in which no error message would appear if there was an issue while setting up Fleet.
 
 * Fixed a bug in which no error message would appear if users were creating or editing a label with a name or description that was too long.
 
