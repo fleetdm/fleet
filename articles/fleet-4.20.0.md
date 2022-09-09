@@ -16,7 +16,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 
 Fleet 4.20.0 adds the ability to see a list of all Munki warnings and errors (issues) across all your hosts. 
 
-To see this in action, head to the **Home > macOS** page and view the **Munki** table. Hover over a row in this table and select **View all hosts** to navigate to a list of hosts with a specific Munki issue. Then, dive deeper and view all Munki issues on a specific host by selecting the host's name and then **Software** on the host's **Host details** page. Scroll down below the **Software** table to find the **Munki issues** table.
+To see this in action, head to the **Home > macOS** page and view the **Munki** table. Hover over a row in this table and select **View all hosts** to navigate to a list of hosts with a specific Munki issue. View all Munki issues on a specific host by selecting the host's name and then **Software** on the host's **Host details** page. Scroll down below the **Software** table to find the **Munki issues** table.
 
 ## Test features on canary teams
 **Available in Fleet Premium**
