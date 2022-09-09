@@ -78,7 +78,7 @@ In 4.20.0, we also:
 
 * Improved the building of osquery installers for Windows (`.msi` packages).
 
-* Added a **Show query** button on the **Schedule** page which adds the ability to quickly see a query's SQL.
+* Added a **Show query** button on the **Schedule** page, which adds the ability to quickly see a query's SQL.
 
 * Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (ex. users).
 
