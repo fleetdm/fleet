@@ -86,7 +86,7 @@ In 4.20.0, we also:
 
 * Fixed a bug in which a user could not reach some users in the UI via pagination if there were more than 20 users.
 
-* Fix a bug in which duplicate vulnerabilities (CVEs) sometimes appeared on **Software details** page.
+* Fixed a bug in which duplicate vulnerabilities (CVEs) sometimes appeared on **Software details** page.
 
 * Fix a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
 
