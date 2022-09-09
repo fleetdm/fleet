@@ -72,7 +72,7 @@ In 4.20.0, we also:
 
 * Improved the activity feed by adding the ability to see who modified agent options and when modifications occurred. This information is available on the Home page in the Fleet UI and the [`GET /activites` API route](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
-* Improved the [documentation for the `config` YAML document](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
+* Improved the [`config` YAML documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
 
 * Improved the **Hosts** page for smaller screen widths.
 
