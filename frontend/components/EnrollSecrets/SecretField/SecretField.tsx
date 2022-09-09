@@ -6,8 +6,8 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
-import EyeIcon from "../../../assets/images/icon-eye-16x16@2x.png";
-import ClipboardIcon from "../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
+import EyeIcon from "../../../../assets/images/icon-eye-16x16@2x.png";
+import ClipboardIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
 
 const baseClass = "secret-field";
 

@@ -7,7 +7,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import EnrollSecretTable from "components/EnrollSecrets/EnrollSecretTable";
 
-import PlusIcon from "../../../assets/images/icon-plus-16x16@2x.png";
+import PlusIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 interface IEnrollSecretModal {
   selectedTeam: number;
