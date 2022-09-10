@@ -67,7 +67,7 @@ parasails.registerPage('osquery-tables', {
       });
     })();
     (function adjustSideBarHeight(){
-      let tablePartialHeight = $('[purpose="table"]').height();
+      let tablePartialHeight = $('[purpose="schema-table"]').height();
       $('[purpose="table-of-contents"]').css({'min-height': tablePartialHeight + 160});
     })();
   },
