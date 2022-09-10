@@ -517,6 +517,127 @@ module.exports = {
         builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
 
       },
+      async()=>{
+
+        builtStaticContent.schemaTables = [];
+
+        let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
+        let urlOfOsquerySchemaJson = 'https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/5.4.0.json';
+        let osquerySchemaJson = await sails.helpers.http.get(urlOfOsquerySchemaJson);
+        let fleetSchemaJson = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
+
+        let mergedSchema = []; // create an empty array for the merged schema.
+
+        osquerySchemaJson.forEach((osquerySchemaTable)=> {
+          let schemaToPush = osquerySchemaTable; // Set the initial value for the table in the merged JSON
+          fleetSchemaJson.forEach((fleetTable)=>{ // iterate through the tables in the Fleet schema JSON
+            if(fleetTable.name === osquerySchemaTable.name) { // If a table name matches, we'll iterate though the columns in the table.
+              if(fleetTable.platforms) { // If this table has an array of platforms in the Fleet schema JSON, we'll overwrite platforms in the merged schema
+                osquerySchemaTable.platforms = fleetTable.platforms;
+              }
+              osquerySchemaTable.columns.forEach((osquerySchemaColumn, i)=>{ // iterate through the columns in the osquery schema table
+                let columnToMerge = {}; // Set an empty object to keep track of any columns that will need to be merged.
+                if(fleetTable.columns) { // If the fleet schema JSON has columns data for this table, we'll iterate though them to merge the values
+                  fleetTable.columns.forEach((fleetSchemaColumn)=>{ // Iterate through the array of column objects
+                    if(osquerySchemaColumn.name === fleetSchemaColumn.name) { // If the name is the same, we'll merge the columns in the final schema
+                      columnToMerge = _.merge(osquerySchemaColumn, fleetSchemaColumn); //
+                      osquerySchemaTable.columns[i] = columnToMerge; //
+                    }
+                  });
+                }
+              });
+              schemaToPush = _.merge(osquerySchemaTable, fleetTable); // Merges a table in the JSON
+            }
+          });//Ò
+          mergedSchema.push(schemaToPush);
+        });
+        // After we've gone through the tables in the Osquery schema, we'll go through the tables in the Fleet schema JSON, and add any tables that don't exist in the osquery schema.
+        fleetSchemaJson.forEach((fleetTable)=>{
+          let fleetSchemaTableExistsInOsquerySchema = _.find(osquerySchemaJson, (table)=>{
+            return fleetTable.name === table.name;
+          });
+          if(!fleetSchemaTableExistsInOsquerySchema) { // If a table in the Fleet schema does not exist in the osquery schema, we'll add it to the final schema.
+            mergedSchema.push(fleetTable);
+          }
+        });
+
+        // Once we have our merged schema, we'll create ejs partials for each table.
+        for(let table of mergedSchema) {
+          if(!table.hidden) { // If a table has `"hidden": true` the table won't be shown in the final schema, and we'll ignore it
+            // Start building the markdown string for this table.
+            let tableMdString = '\n## '+table.name;
+            if(_.endsWith(table.name, '_events') || table.evented){
+              // If the table name ends in `_events` or has `"evented": true`, we'll add an evented table label (in html)
+              tableMdString += '   <div purpose="evented-table-label"><span>EVENTED TABLE</span></div>\n';
+            }
+            // Add the tables description to the markdown string and start building the table in the markdown string
+            tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
+
+            // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
+            for(let column of table.columns) {
+              if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
+                let columnDescriptionForTable = column.description; // Set the initial value of the description that will be added to the table for this column.
+                if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
+                  columnDescriptionForTable += '<br> **Required in WHERE clause** ';
+                }
+                if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
+                  columnDescriptionForTable += '<br> **Defaults to root** ';
+                }
+                if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
+
+                  let platformString = '<br> **Only available on '; // start building a string to add to the column's description
+
+                  if(column.platforms.length === 2) { // Because there are only three options for platform, we can safely assume that there will be at most 2 platforms, so we'll just handle this one of two ways
+                    // If there are two values in the platforms array, we'll add the capitalized version of each to the columns description
+                    platformString += _.capitalize(column.platforms[0]).replace('Darwin', 'macOS') +' and '+ _.capitalize(column.platforms[1]).replace('Darwin', 'macOS');
+                  } else {
+                    // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
+                    platformString += _.capitalize(column.platforms[0]).replace('Darwin', 'macOS');
+                  }
+                  platformString += ' devices.** ';
+                  columnDescriptionForTable += platformString; // Add the platform string to the column's description.
+                }
+                // if(!column.type || !column.description){
+                //   // If any columns are missing a type or description, we'll throw an error.
+                //   throw new Error(`Could not merge osquery schema with Fleet schema JSON, a column is missing a description. to resolve, add a column description to the column in the fleet_schema.JSON file. Column that caused this error: ${column.name} in the ${table.name} table`);
+                // }
+                // Add the table row for this column to the markdown string.
+                tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
+              }
+            }
+            if(table.examples) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
+              tableMdString += '\n### Example\n\n'+table.examples+'\n';
+            }
+            if(table.notes) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
+              tableMdString += '\n### Notes\n\n'+table.notes+'\n';
+            }
+            // Determine the htmlId for table
+            let htmlId = (
+              _.last(table.name.split(/\//)).slice(0,20)+
+              '--'+
+              sails.helpers.strings.random.with({len:10})
+            ).replace(/[^a-z0-9\-]/ig,'');
+
+            // Convert the markdown string to HTML.
+            let htmlString = await sails.helpers.strings.toHtml(tableMdString);
+            // htmlString = htmlString.replace(/(<code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3')
+            // Determine the path of the folder where the built HTML partials will live.
+            let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
+            if (dry) {
+              sails.log('Dry run: Would have generated file:', htmlOutputPath);
+            } else {
+              await sails.helpers.fs.write(htmlOutputPath, htmlString);
+            }
+            // Add this table to the array of schemaTables in builtStaticContent.
+            builtStaticContent.schemaTables.push({
+              url: '/tables/'+table.name,
+              title: table.name,
+              htmlId: htmlId,
+              platforms: table.platforms,
+            });
+          }
+        }
+      },
     ]);
 
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
