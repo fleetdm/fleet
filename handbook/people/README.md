@@ -88,7 +88,7 @@ We highly recommend you order a physical Brex card if you do not have one before
 
 ### Coworking
 
-Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the CEO via direct message in Slack.
+Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the Charlie Chance via direct message in Slack.
 
 Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
 
@@ -184,6 +184,24 @@ Settings that have a lock icon next to them have been locked by an administrator
 We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
 
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
+
+### Gong
+
+Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry.
+
+At Fleet, we use Gong to capture Zoom meetings and share them company-wide if a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
+
+While some other Fleeties may have a Gong seat if it becomes necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." If the call has external participants and is recorded, this call is stored in Gong for future use. In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  You cannot use Gong to record calls hosted by external parties.
+
+To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong. To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
+
+Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, words and phrases in the Zoom call title will disable the Gong recording for the call. 1 on 1, 1:1, confidential, interview, internal and no shadows are some commonly used words that will disable Gong. A complete list can be found [here](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).  If you need words added to the list of exlusionary words, please reach out to Nathan Holliday.
+
+We have excluded anyone with an email domain from @cooley.com or @formationfinancial.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal.  
+
+Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
+
+If you need help using Gong, please check out Gong Acaedmy at [https://academy.gong.io/](https://academy.gong.io/).
 
 ## Slack
 
@@ -355,6 +373,12 @@ In Gusto, click **How to review your notice** to help you understand what kind o
 
 For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
 
+### State quarterly payroll and tax filings
+
+Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review. 
+
+You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. 
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -431,6 +455,8 @@ Then hit send!  After all of the signatures are there, the completed document wi
 | Performance bonus            | "Bonus" payroll              | Charlie                     
 | Ramp                         | "Off-cycle" payroll          | Charlie 
 | Accelerations                | "Off-cycle" payroll          | Charlie
+
+Add the amount to be paid to the "Gross" line.
 
 For Fleet's US contractors, running payroll is a manual process. 
 The steps for doing this are highlighted in this loom, TODO. 
@@ -545,8 +571,9 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
-| Calendar audit | audit of CEO's calendar | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie |
+| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
+| Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
+| TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
 
 
 ## Slack channels

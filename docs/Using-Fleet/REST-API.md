@@ -1743,9 +1743,9 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
 
-If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the aggregated statistics corresponding to the `mdm_id` (and, if provided, `team_id`). See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object. Note that the statistics are for the corresponding `mdm_id` (and `team_id` if provided) only, and do not take into account other potential filters such as `mdm_enrollment_status`.
+If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
 
-If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the aggregated statistics corresponding to the `munki_issue_id` (and, if provided, `team_id`). See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object.
+If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the information corresponding to the `munki_issue_id`.
 
 #### Example
 
@@ -1825,6 +1825,32 @@ If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is
 ```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+
+Response payload with the `mdm_id` filter provided:
+
+```json
+{
+  "hosts": [...],
+  "mobile_device_management_solution": {
+    "server_url": "http://some.url/mdm",
+    "name": "MDM Vendor Name",
+    "id": 999
+  }
+}
+```
+
+Response payload with the `munki_issue_id` filter provided:
+
+```json
+{
+  "hosts": [...],
+  "munki_issue": {
+    "id": 1,
+    "name": "Could not retrieve managed install primary manifest",
+    "type": "error"
+  }
+}
+```
 
 ### Count hosts
 

@@ -227,7 +227,7 @@ const DeviceUserPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const renderDeviceUserPage = () => {
-    const failing_policies_count = titleData?.issues;
+    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -251,10 +251,8 @@ const DeviceUserPage = ({
                   {isPremiumTier && (
                     <Tab>
                       <div>
-                        {failing_policies_count > 0 && (
-                          <span className="count">
-                            {failing_policies_count}
-                          </span>
+                        {failingPoliciesCount > 0 && (
+                          <span className="count">{failingPoliciesCount}</span>
                         )}
                         Policies
                       </div>

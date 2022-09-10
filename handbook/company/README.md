@@ -8,7 +8,7 @@ We are dedicated to
 
 - 🧑‍🚀 automating IT and security.
 - 🪟 privacy, transparency, and trust through open source software.
-- 💻 building a better way to manage computers.
+- 💻 a different way to manage computers.
 
 > 5 things is too many.  But we also care deeply about
 > - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
@@ -67,7 +67,6 @@ Empathy leads to better understanding, better communication, and better decision
   - Be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - Apply customer service principles to all users, even if they never buy Fleet.
   - Treat everyone as our guests.
-  - Better humanity.
 
 
 ### 🟠 Ownership
@@ -102,14 +101,13 @@ Empathy leads to better understanding, better communication, and better decision
   - Think for yourself (from first principles).
   - Use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of its popularity).
   - You are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care).
-  - Better your results.
 
 
 ### 🟢 Balance
 Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- Iterate your work.
-  - Work in baby steps. <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
+- [Iterate](https://youtu.be/BW6TWwNZzIQ) your work.
+  - Look for ways to make frequent, small changes.  Small changes provide faster feedback.  They are easier to reason about when debugging.
   - Pick low-hanging fruit (deliver value quickly where you can).
   - Think ahead, then make the right decision for now.
   - Look before you leap (when facing a non-trivial problem, get perspective before diving in; there may be a simpler solution). <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
@@ -119,7 +117,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Aim to deliver results daily.
   - Move faster than 90% of the humans you know.
   - Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).
-- Remember, less is more.
+- Remember, less is more.  Focus.
   - Focus on fewer tasks at one time.  <!-- TODO: (By focusing on fewer tasks at once, we are able to get more done, and to a higher standard, while feeling more positive about our work in the process.) -->
   - Go with "boring solutions."
   - Finish what you start, or at least throw it away loudly in case someone else wants it.
@@ -131,7 +129,6 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Consider taking a break or going for a walk.
   - Take time off (it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time).
   - Think about how to organize your day/work hours to best fit your life and maximize your focus.
-- Better focus.
 
 
 ### 🔵 Objectivity
@@ -153,13 +150,12 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Be fair to competitors ("may the best product win.").
   - Give credit where credit is due; don't show favoritism. <!-- as it breeds resentment, destroys employee morale, and creates disincentives for good performance.  Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
   - Hold facts, over commentary.
-- Speak computer to computers
-  - A lucky fix without understanding does more harm than good.
+- Be rigorous.
+  - Speak computer to computers. A lucky fix without understanding does more harm than good.
   - When something isn't working, use the scientific method.
   - Especially think like a computer when there is a bug, or when something is slow, or when a customer experiences a problem.
   - Assume it's your fault.
   - Assume nothing else.
-- Better  your rigor.
 
 ### 🟣 Openness
 <!-- TODO: preamble -->
@@ -171,7 +167,6 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Avoid acronyms and idioms which might not translate.
   - Welcome contributions to your team's work from people inside or outside the company.
   - Get comfortable letting others contribute to your domain.
-  - Believe in everyone.
 - Write everything down.
   - Use the "handbook first" strategy.
   - Writing your work down makes it real and allows others to read on their own time (and in their own timezone).
@@ -182,12 +177,12 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Give pointed and respectful feedback. <!-- (in the same way you would want to receive it) -->
   - Take initiative in trying to improve things (no need to wait [for a consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12)).
   - Communicate openly (if you think you should send a message to communicate something, send it, but keep comments brief and relevant).
+  - Be positive, and assume positive intent.
 - Be transparent.
   - Everything we do is "public by default."
   - We build in the open.
   - Declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go).
   - [Open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674).
-- Better your collaboration.
 
 ## Why this way?
 

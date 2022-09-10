@@ -12,7 +12,7 @@ import {
   IAppConfigFormErrors,
 } from "../constants";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "app-config-form";
 
@@ -221,18 +221,14 @@ const Sso = ({
               parseTarget
             >
               <>
-                Automatically create Observer user on Login{" "}
+                Automatically create Observer user on login{" "}
                 <a
                   href="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   Learn more
-                  <img
-                    src={OpenNewTabIcon}
-                    alt="open new tab"
-                    className="learn-more-icon"
-                  />
+                  <img alt="Open external link" src={ExternalLinkIcon} />
                 </a>
               </>
             </Checkbox>

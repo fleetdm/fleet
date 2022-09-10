@@ -1,20 +1,23 @@
 import React, { useState } from "react";
-import { useQuery } from "react-query";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import macadminsAPI from "services/entities/macadmins";
-import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
+import {
+  IMunkiIssuesAggregate,
+  IMunkiVersionsAggregate,
+} from "interfaces/macadmins";
 
+import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import LastUpdatedText from "components/LastUpdatedText";
-import generateTableHeaders from "./MunkiTableConfig";
+import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
+import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
 
 interface IMunkiCardProps {
-  showMunkiUI: boolean;
-  currentTeamId: number | undefined;
-  setShowMunkiUI: (showMunkiTitle: boolean) => void;
-  setTitleDetail?: (content: JSX.Element | string | null) => void;
+  errorMacAdmins: Error | null;
+  isMacAdminsFetching: boolean;
+  munkiIssuesData: IMunkiIssuesAggregate[];
+  munkiVersionsData: IMunkiVersionsAggregate[];
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -22,9 +25,19 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "home-munki";
 
-const EmptyMunki = (): JSX.Element => (
+const EmptyMunkiIssues = (): JSX.Element => (
   <div className={`${baseClass}__empty-munki`}>
-    <h1>Unable to detect Munki versions.</h1>
+    <h2>No Munki issues detected</h2>
+    <p>
+      This report is updated every hour to protect the performance of your
+      devices.
+    </p>
+  </div>
+);
+
+const EmptyMunkiVersions = (): JSX.Element => (
+  <div className={`${baseClass}__empty-munki`}>
+    <h2>Unable to detect Munki versions</h2>
     <p>
       To see Munki versions, deploy&nbsp;
       <a
@@ -40,69 +53,82 @@ const EmptyMunki = (): JSX.Element => (
 );
 
 const Munki = ({
-  showMunkiUI,
-  currentTeamId,
-  setShowMunkiUI,
-  setTitleDetail,
+  errorMacAdmins,
+  isMacAdminsFetching,
+  munkiIssuesData,
+  munkiVersionsData,
 }: IMunkiCardProps): JSX.Element => {
-  const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
+  const [navTabIndex, setNavTabIndex] = useState<number>(0);
 
-  const { isFetching: isMunkiFetching, error: errorMunki } = useQuery<
-    IMacadminAggregate,
-    Error
-  >(["munki", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
-    keepPreviousData: true,
-    onSuccess: (data) => {
-      const { counts_updated_at, munki_versions } = data.macadmins;
-
-      setMunkiData(munki_versions);
-      setShowMunkiUI(true);
-      setTitleDetail &&
-        setTitleDetail(
-          <LastUpdatedText
-            lastUpdatedAt={counts_updated_at}
-            whatToRetrieve={"Munki versions"}
-          />
-        );
-    },
-    onError: () => {
-      setShowMunkiUI(true);
-    },
-  });
-
-  const tableHeaders = generateTableHeaders();
+  const onTabChange = (index: number) => {
+    setNavTabIndex(index);
+  };
 
   // Renders opaque information as host information is loading
-  const opacity = showMunkiUI ? { opacity: 1 } : { opacity: 0 };
+  const opacity = isMacAdminsFetching ? { opacity: 0 } : { opacity: 1 };
 
   return (
     <div className={baseClass}>
-      {!showMunkiUI && (
+      {isMacAdminsFetching && (
         <div className="spinner">
           <Spinner />
         </div>
       )}
       <div style={opacity}>
-        {errorMunki ? (
-          <TableDataError card />
-        ) : (
-          <TableContainer
-            columns={tableHeaders}
-            data={munkiData || []}
-            isLoading={isMunkiFetching}
-            defaultSortHeader={DEFAULT_SORT_HEADER}
-            defaultSortDirection={DEFAULT_SORT_DIRECTION}
-            hideActionButton
-            resultsTitle={"Munki"}
-            emptyComponent={EmptyMunki}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableCount
-            disableActionButton
-            disablePagination
-            pageSize={PAGE_SIZE}
-          />
-        )}
+        <TabsWrapper>
+          <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
+            <TabList>
+              <Tab>Issues</Tab>
+              <Tab>Versions</Tab>
+            </TabList>
+            <TabPanel>
+              {errorMacAdmins ? (
+                <TableDataError card />
+              ) : (
+                <TableContainer
+                  columns={munkiIssuesTableHeaders}
+                  data={munkiIssuesData || []}
+                  isLoading={isMacAdminsFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"Munki"}
+                  emptyComponent={EmptyMunkiIssues}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  isClientSidePagination
+                  disableCount
+                  disableActionButton
+                  disablePagination
+                  pageSize={PAGE_SIZE}
+                />
+              )}
+            </TabPanel>
+            <TabPanel>
+              {errorMacAdmins ? (
+                <TableDataError card />
+              ) : (
+                <TableContainer
+                  columns={munkiVersionsTableHeaders}
+                  data={munkiVersionsData || []}
+                  isLoading={isMacAdminsFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"Munki"}
+                  emptyComponent={EmptyMunkiVersions}
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  isClientSidePagination
+                  disableCount
+                  disableActionButton
+                  disablePagination
+                  pageSize={PAGE_SIZE}
+                />
+              )}
+            </TabPanel>
+          </Tabs>
+        </TabsWrapper>
       </div>
     </div>
   );

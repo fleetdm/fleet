@@ -11,14 +11,13 @@ import teamsAPI, {
 } from "services/entities/teams";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
@@ -209,8 +208,8 @@ const TeamManagementPage = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Read about teams&nbsp;
-                <FleetIcon name="external-link" />
+                Read about teams
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>
             <Button
@@ -254,7 +253,7 @@ const TeamManagementPage = (): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={teams && teams.length > 0 && searchString !== ""}
-          disablePagination
+          isClientSidePagination
         />
       )}
       {showCreateTeamModal && (

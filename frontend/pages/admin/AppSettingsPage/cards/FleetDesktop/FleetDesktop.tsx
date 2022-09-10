@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 import {
   DEFAULT_TRANSPARENCY_URL,
@@ -85,14 +85,17 @@ const FleetDesktop = ({
             When an end user clicks “Transparency” in the Fleet Desktop menu, by
             default they are taken to{" "}
             <a
-              className={`${baseClass}__transparency`}
+              className="no-wrap"
               href="https://fleetdm.com/transparency"
               target="_blank"
               rel="noopener noreferrer"
             >
-              {" "}
-              https://fleetdm.com/transparency{" "}
-              <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              https://fleetdm.com/transparency
+              <img
+                className="icon"
+                src={ExternalLinkIcon}
+                alt="Open external link"
+              />
             </a>{" "}
             . You can override the URL to take them to a resource of your
             choice.

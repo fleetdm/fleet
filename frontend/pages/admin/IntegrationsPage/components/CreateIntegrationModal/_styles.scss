@@ -1,17 +1,4 @@
 .create-integration-modal {
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-    margin-top: $pad-small;
-
-    img {
-      width: 12px;
-      margin-left: 2px;
-    }
-  }
-
   &__info-header {
     margin-bottom: $pad-xlarge;
   }

@@ -13,11 +13,13 @@
 
   #back-chevron {
     width: 16px;
+    height: 16px;
     margin-right: $pad-small;
   }
 
   #right-chevron {
     width: 16px;
+    height: 16px;
     margin-left: $pad-small;
   }
 
@@ -78,21 +80,6 @@
         color: $core-fleet-black;
         font-weight: $regular;
         font-size: $x-small;
-        margin: 0;
-      }
-
-      a {
-        color: $core-vibrant-blue;
-        font-size: $x-small;
-        font-weight: $bold;
-        text-decoration: none;
-        margin-left: 0;
-      }
-
-      img {
-        height: 12px;
-        width: 12px;
-        // padding-left: $pad-small;
         margin: 0;
       }
     }
