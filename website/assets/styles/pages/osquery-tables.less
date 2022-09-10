@@ -245,6 +245,35 @@
         content: '';
       }
     }
+
+  }
+  [purpose='edit-button'] {
+    margin-top: 40px;
+    color: @core-vibrant-blue;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid @core-vibrant-blue;
+    border-radius: 4px;
+    width: fit-content;
+    padding: 8px 12px;
+    text-decoration: none;
+    a {
+      color: #6A67FE;
+      size: 14px;
+      line-height: 20px;
+      font-weight: 700;
+    }
+    i {
+      height: 16px;
+      margin-left: 5px;
+    }
+    &:hover {
+      background: @core-vibrant-blue;
+      a {
+        text-decoration: none;
+        color: @accent-white;;
+      }
+    }
   }
   [purpose='slack-cta'] {
     h3 {

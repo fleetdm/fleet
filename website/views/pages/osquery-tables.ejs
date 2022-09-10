@@ -21,7 +21,7 @@
       <div class="d-flex">
         <div purpose="search">
           <img style="height: 16px; width: 16px;" class="d-inline mr-2" alt="search" src="/images/icon-search-16x16@2x.png">
-          <input placeholder="Search tables" v-model="search" @input.stop="filterByName(search)">
+          <input placeholder="Search tables" v-model="search">
         </div>
       </div>
     </div>
@@ -72,6 +72,9 @@
             <img class="mx-2" style="height: 25px" src="/images/os-macos-black-31x35@2x.png" alt="macOS logo" v-if="_.includes(tableToDisplay.platforms, 'darwin')">
           </div>
           <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, tableToDisplay.htmlId)))) %>
+        </div>
+        <div purpose="edit-button">
+          <a href="https://github.com/fleetdm/fleet/tree/main/schema/" target="_blank">Edit page<i class="fa fa-pencil"></i></a>
         </div>
 
         <div class="d-block justify-self-end" purpose="slack-cta">

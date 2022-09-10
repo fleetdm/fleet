@@ -1,7 +1,6 @@
 [
   {
     "name": "account_policy_data",
-    "hidden": true,
     "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data\n```"
   },
   {
