@@ -1,5 +1,9 @@
 {{- if .Values.createIngress }}
+{{- if semverCompare ">=1.19.0-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1
+{{- else -}}
 apiVersion: networking.k8s.io/v1beta1
+{{- end }}
 kind: Ingress
 metadata:
 {{- if or .Values.ingressAnnotations .Values.gke.useGKEIngress }}
@@ -28,9 +32,17 @@ spec:
     http:
       paths:
       - path: /*
-        # Next line required in k8s 1.19 and not supported in <=1.17
-        # pathType: Exact
+      # Next block required in k8s =>1.19 and not supported in <=1.17
+      {{- if semverCompare ">=1.19.0-0" .Capabilities.KubeVersion.GitVersion }}
+        pathType: Exact
+        backend:
+          service:
+            name: fleet
+            port:
+              number: fleet
+        {{- else }}
         backend:
           serviceName: fleet
           servicePort: fleet
+        {{- end }}
 {{- end }}
