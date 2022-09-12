@@ -483,13 +483,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", tm1ID+1), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: user.ID}}}}, http.StatusNotFound, &tmResp)
 
-	// modify team agent options (options for orbit/osquery)
+	// modify team agent options (options for orbit/osquery) with invalid options
 	tmResp.Team = nil
 	opts := map[string]string{"x": "y"}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), opts, http.StatusOK, &tmResp)
-	var m map[string]string
-	require.NoError(t, json.Unmarshal(*tmResp.Team.Config.AgentOptions, &m))
-	assert.Equal(t, opts, m)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"x": "y"
+	}`), http.StatusBadRequest, &tmResp)
+
+	// modify team agent options (options for orbit/osquery) with valid options
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": true
+			}
+		}
+	}`), http.StatusOK, &tmResp)
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`)
 
 	// list activities, it should have created one for edited_agent_options
 	var listActivities listActivitiesResponse

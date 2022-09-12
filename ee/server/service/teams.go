@@ -132,7 +132,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	return svc.ds.SaveTeam(ctx, team)
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*fleet.Team, error) {
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -142,12 +142,24 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		return nil, err
 	}
 
-	if options != nil {
-		team.Config.AgentOptions = &options
-		// TODO(mna): validate agent options before saving
+	if teamOptions != nil {
+		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
+			if applyOptions.Force && !applyOptions.DryRun {
+				// TODO: log that it will force-apply a config with errors?
+				//logging.WithExtras(ctx, "sql", queryString, "query_id", queryID, "numHosts", numHosts)
+			}
+			if !applyOptions.Force {
+				return nil, &fleet.BadRequestError{Message: err.Error()}
+			}
+		}
+	}
+	if applyOptions.DryRun {
+		return team, nil
+	}
+
+	if teamOptions != nil {
+		team.Config.AgentOptions = &teamOptions
 	} else {
-		// TODO(mna): in NewTeam, we set AgentOptions to the global config, why
-		// do we allow setting it to nil here?
 		team.Config.AgentOptions = nil
 	}
 

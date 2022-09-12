@@ -212,14 +212,17 @@ type modifyTeamAgentOptionsRequest struct {
 
 func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*modifyTeamAgentOptionsRequest)
-	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage)
+	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage, fleet.ApplySpecOptions{
+		Force:  req.Force,
+		DryRun: req.DryRun,
+	})
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
 	return teamResponse{Team: team}, err
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*fleet.Team, error) {
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

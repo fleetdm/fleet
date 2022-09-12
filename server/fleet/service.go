@@ -414,7 +414,7 @@ type Service interface {
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.
-	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
+	ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions ApplySpecOptions) (*Team, error)
 	// AddTeamUsers adds users to an existing team.
 	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeamUsers deletes users from an existing team.

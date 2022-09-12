@@ -149,7 +149,7 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{Name: ptr.String("othername")})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.ModifyTeamAgentOptions(ctx, 1, nil)
+			_, err = svc.ModifyTeamAgentOptions(ctx, 1, nil, fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			_, err = svc.AddTeamUsers(ctx, 1, []fleet.TeamUser{})
