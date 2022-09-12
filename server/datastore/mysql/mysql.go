@@ -992,9 +992,9 @@ type parameterizedStmt struct {
 // for a unique key that is more likely to already exist (i.e. the insert
 // should be infrequent, the read should succeed most of the time).
 // It proceeds as follows:
-//     1. Try to read the ID from the read replica.
-//     2. If it does not exist, try to insert the row in the primary.
-//     3. If it fails due to a duplicate key, try to read the ID again, this
+//  1. Try to read the ID from the read replica.
+//  2. If it does not exist, try to insert the row in the primary.
+//  3. If it fails due to a duplicate key, try to read the ID again, this
 //     time from the primary.
 //
 // The read statement must only SELECT the id column.
