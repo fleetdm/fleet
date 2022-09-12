@@ -5871,9 +5871,9 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id   | string | body | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                          |
+| ---- | ------  | ---- | ------------------------------------ |
+| id   | integer | path | **Required.** The desired team's ID. |
 
 #### Example
 
