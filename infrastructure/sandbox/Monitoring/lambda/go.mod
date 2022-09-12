@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/infrastructure/demo/Monitoring/lambda
 
-go 1.19.1
+go 1.19
 
 require (
 	github.com/aws/aws-lambda-go v1.32.1
