@@ -21,13 +21,6 @@
       font-size: $x-small;
       margin: 0;
     }
-
-    a {
-      color: $core-vibrant-blue;
-      font-size: $x-small;
-      font-weight: $bold;
-      text-decoration: none;
-    }
   }
   .data-table-block {
     .data-table__table {
@@ -63,6 +56,7 @@
           text-overflow: none;
           img {
             vertical-align: text-top;
+            height: 16px;
             width: 16px;
           }
         }

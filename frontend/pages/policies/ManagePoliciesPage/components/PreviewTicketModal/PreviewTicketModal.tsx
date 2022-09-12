@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 import JiraTicket from "../../../../../../assets/images/ticket-policies-jira-screenshot-400x419@2x.png";
 import ZendeskTicket from "../../../../../../assets/images/ticket-policies-zendesk-screenshot-400x515@2x.png";
 
@@ -29,8 +30,8 @@ const PreviewTicketModal = ({
             target="_blank"
             rel="noopener noreferrer"
           >
-            Check out the Fleet documentation&nbsp;
-            <FleetIcon name="external-link" />
+            Check out the Fleet documentation
+            <img src={ExternalLinkIcon} alt="Open external link" />
           </a>
         </p>
         <div className={`${baseClass}__example`}>

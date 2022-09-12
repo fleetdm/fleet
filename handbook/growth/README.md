@@ -9,7 +9,7 @@ Effective market positioning is crucial to the growth of any software product. F
 
 ## Marketing Qualified Opportunities (MQOs)
 
-Growth's goal is to increase product usage. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up for [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [schedule a demo](https://fleetdm.com/). When these companies attend a demo, Fleet considers them Marketing Qualified Opportunities (MQOs).
+Growth's goal is to increase product usage. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up for [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [talk to an expert](https://fleetdm.com/). When these companies attend this meeting, Fleet considers them Marketing Qualified Opportunities (MQOs).
 
 ## Lead enrichment
 

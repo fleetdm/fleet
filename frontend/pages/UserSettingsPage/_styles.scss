@@ -19,18 +19,6 @@
 
   .modal__modal_container {
     width: 400px;
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-    img.icon-external {
-      width: 12px;
-      padding-left: 2px;
-      position: relative;
-      top: 1px;
-    }
   }
 
   .secret-field__secret-input {

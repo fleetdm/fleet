@@ -10,11 +10,11 @@ import (
 )
 
 /////////////////////////////////////////////////////////////////////////////////
-// Fleet Desktop end points
+// Fleet Desktop endpoints
 /////////////////////////////////////////////////////////////////////////////////
 type FleetDesktopResponse struct {
 	Err             error `json:"error,omitempty"`
-	FailingPolicies uint  `json:"failing_policies_count"`
+	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
 }
 
 type getFleetDesktopRequest struct {

@@ -44,7 +44,7 @@ import MainContent from "components/MainContent";
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -399,7 +399,13 @@ const ManageSoftwarePage = ({
     }
 
     return null;
-  }, [isFetchingCount, software, softwareCountError, softwareCount]);
+  }, [
+    isFetchingCount,
+    software,
+    softwareCountError,
+    softwareCount,
+    isSoftwareEnabled,
+  ]);
 
   // TODO: retool this with react-router location descriptor objects
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
@@ -462,7 +468,7 @@ const ManageSoftwarePage = ({
           rel="noopener noreferrer"
         >
           File an issue on GitHub
-          <img alt="External link" src={ExternalLinkIcon} />
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </div>
     );
