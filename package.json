@@ -19,7 +19,7 @@
   "dependencies": {
     "@types/sockjs-client": "^1.5.1",
     "@types/uuid": "^8.3.3",
-    "ace-builds": "1.4.12",
+    "ace-builds": "1.10.1",
     "autoprefixer": "^9.4.3",
     "axios": "^0.27.2",
     "bourbon": "^5.0.0",
