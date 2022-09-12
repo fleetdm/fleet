@@ -47,16 +47,16 @@ parasails.registerPage('osquery-tables', {
     }
     (function highlightThatSyntax(){
       $('pre code').each((i, block) => {
-        hljs.highlightBlock(block);
+        window.hljs.highlightBlock(block);
       });
-      $('.hljs').each(function(i, el) {
-        for(keyword of keywordsForThisTable) {
+      $('.hljs').each((i, el)=>{
+        for(let keyword of keywordsForThisTable) {
           if(_.includes(el.innerHTML, keyword)) {
             let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
             $(el).html(replacementHMTL);
           }
         }
-      })
+      });
     })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
     (function adjustSideBarHeight(){
