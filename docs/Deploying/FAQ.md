@@ -153,7 +153,7 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 
 ## What MySQL versions are supported?
 
-Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Fleet has been known to run successfully on MariaDB and other MySQL flavors but is not officially supported.
+Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. MariaDB and other MySQL variants are not recommended or officially supported.
 
 ## What are the MySQL user requirements?
 
