@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '.github/workflows/golangci-lint.yml'
   workflow_dispatch: # Manual
 
 permissions:

@@ -15,7 +15,6 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
-      - 'golangci-lint.yml'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
