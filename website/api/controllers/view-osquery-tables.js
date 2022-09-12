@@ -35,7 +35,7 @@ module.exports = {
     let tableToDisplay = _.find(sails.config.builtStaticContent.schemaTables, { url: '/tables/' + selectedTableSlug });
 
     if (!tableToDisplay) {// If there's no EXACTLY matching content page, throw a 404.
-      throw 'notFound';
+      tableToDisplay = sails.config.builtStaticContent.schemaTables[0];
     }
 
     let pageTitleForMeta = tableToDisplay.title + ' table | Fleet schema';
