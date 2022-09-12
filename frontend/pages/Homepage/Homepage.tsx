@@ -35,7 +35,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 import useInfoCard from "./components/InfoCard";
-import HostsStatus from "./cards/HostsStatus";
+import MissingHosts from "./cards/MissingHosts";
+import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
 import HostsSummary from "./cards/HostsSummary";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
@@ -70,8 +71,8 @@ const Homepage = (): JSX.Element => {
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
-  const [onlineCount, setOnlineCount] = useState(0);
-  const [offlineCount, setOfflineCount] = useState(0);
+  const [missingCount, setMissingCount] = useState(0);
+  const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [softwareTitleDetail, setSoftwareTitleDetail] = useState<
     JSX.Element | string | null
@@ -135,8 +136,7 @@ const Homepage = (): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
-        setOnlineCount(data.online_count);
-        setOfflineCount(data.offline_count);
+        setMissingCount(data.mia_count); // TODO: change to missing_10_days_count when backend is merged
 
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
@@ -357,9 +357,19 @@ const Homepage = (): JSX.Element => {
   const HostsStatusCard = useInfoCard({
     title: "",
     children: (
-      <HostsStatus
-        onlineCount={onlineCount}
-        offlineCount={offlineCount}
+      <MissingHosts
+        missingCount={missingCount}
+        isLoadingHosts={isHostSummaryFetching}
+        showHostsUI={showHostsUI}
+      />
+    ),
+  });
+
+  const LowDiskSpaceHostsCard = useInfoCard({
+    title: "",
+    children: (
+      <LowDiskSpaceHosts
+        lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
       />
@@ -595,7 +605,10 @@ const Homepage = (): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            <div className={`${baseClass}__section`}>{HostsStatusCard}</div>
+            <div className={`${baseClass}__section`}>{MissingHostsCard}</div>
+            <div className={`${baseClass}__section`}>
+              {LowDiskSpaceHostsCard}
+            </div>
           </>
         </div>
         {renderCards()}
