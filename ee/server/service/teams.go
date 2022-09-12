@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log/level"
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -145,8 +146,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 	if teamOptions != nil {
 		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
 			if applyOptions.Force && !applyOptions.DryRun {
-				// TODO: log that it will force-apply a config with errors?
-				//logging.WithExtras(ctx, "sql", queryString, "query_id", queryID, "numHosts", numHosts)
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
 			}
 			if !applyOptions.Force {
 				return nil, &fleet.BadRequestError{Message: err.Error()}
