@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -509,7 +510,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}`), http.StatusOK, &tmResp)
 	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`)
 
-	// modify team agent options with dry-run
+	// modify team agent using invalid options with dry-run
+	tmResp.Team = nil
+	resp := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": "not-a-bool"
+			}
+		}
+	}`), http.StatusBadRequest, "dry_run", "true")
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "cannot unmarshal string into Go struct field osqueryOptions.options.aws_debug of type bool")
+
+	// modify team agent using valid options with dry-run
 	tmResp.Team = nil
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
 		"config": {
