@@ -41,10 +41,28 @@ parasails.registerPage('osquery-tables', {
         return -1;
       }
     });
+    let keywordsForThisTable = [];
+    if(this.tableToDisplay.keywordsForSyntaxHighlighting){
+      keywordsForThisTable = this.tableToDisplay.keywordsForSyntaxHighlighting;
+    }
+    (function highlightThatSyntax(){
+      $('pre code').each((i, block) => {
+        hljs.highlightBlock(block);
+      });
+      $('.hljs').each(function(i, el) {
+        for(keyword of keywordsForThisTable) {
+          if(_.includes(el.innerHTML, keyword)) {
+            let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
+            $(el).html(replacementHMTL);
+          }
+        }
+      })
+    })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
     (function adjustSideBarHeight(){
-      let tablePartialHeight = $('[purpose="schema-table"]').height();
-      $('[purpose="table-of-contents"]').css({'min-height': tablePartialHeight + 160});
+      let tablePartialHeight = $('[purpose="table-container"]').height();
+      $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
+      // $('[purpose="left-sidebar"]').css({'height': tablePartialHeight});
     })();
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

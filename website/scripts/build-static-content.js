@@ -517,7 +517,7 @@ module.exports = {
         builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
 
       },
-      async()=>{
+      async()=>{// Parse osquery schema JSON, merge it with the Fleet schema, then create EJS partials for each table
 
         builtStaticContent.schemaTables = [];
 
@@ -563,6 +563,8 @@ module.exports = {
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of mergedSchema) {
+          let keywordsForSyntaxHighlighting = [];
+          keywordsForSyntaxHighlighting.push(table.name);
           if(!table.hidden) { // If a table has `"hidden": true` the table won't be shown in the final schema, and we'll ignore it
             // Start building the markdown string for this table.
             let tableMdString = '\n## '+table.name;
@@ -577,6 +579,7 @@ module.exports = {
             for(let column of table.columns) {
               if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
                 let columnDescriptionForTable = column.description; // Set the initial value of the description that will be added to the table for this column.
+                keywordsForSyntaxHighlighting.push(column.name);
                 if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
                   columnDescriptionForTable += '<br> **Required in WHERE clause** ';
                 }
@@ -606,6 +609,8 @@ module.exports = {
               }
             }
             if(table.examples) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
+              // table.examples = table.examples.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+
               tableMdString += '\n### Example\n\n'+table.examples+'\n';
             }
             if(table.notes) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
@@ -620,7 +625,9 @@ module.exports = {
 
             // Convert the markdown string to HTML.
             let htmlString = await sails.helpers.strings.toHtml(tableMdString);
-            // htmlString = htmlString.replace(/(<code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3')
+
+            // Add the language-sql class to codeblocks in generated HTML partial for syntax highlighting.
+            htmlString = htmlString.replace(/(<pre><code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3');
             // Determine the path of the folder where the built HTML partials will live.
             let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
             if (dry) {
@@ -634,6 +641,7 @@ module.exports = {
               title: table.name,
               htmlId: htmlId,
               platforms: table.platforms,
+              keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
             });
           }
         }
