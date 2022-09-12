@@ -5490,9 +5490,9 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id   | string | body | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                          |
+| ---- | ------  | ---- | ------------------------------------ |
+| id   | integer | path | **Required.** The desired team's ID. |
 
 #### Example
 
@@ -5630,7 +5630,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                  |
 | ---                                                     | ---     | ---  | ---                                                                                                                                                          |
-| id                                                      | string  | body | **Required.** The desired team's ID.                                                                                                                         |
+| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                         |
 | name                                                    | string  | body | The team's name.                                                                                                                                             |
 | host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                     |
 | user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                |
@@ -5780,9 +5780,10 @@ _Available in Fleet Premium_
 
 | Name                             | Type    | In    | Description                                                                                                                                                  |
 | ---                              | ---     | ---   | ---                                                                                                                                                          |
-| id                               | string  | body  | **Required.** The desired team's ID.                                                                                                                         |
+| id                               | integer | path  | **Required.** The desired team's ID.                                                                                                                         |
 | force                            | bool    | query | Force apply the options even if there are validation errors.                                                                                                 |
 | dry_run                          | bool    | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
+| _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](./configuration-files/README.md#agent-options) for details.                              |
 
 #### Example
 

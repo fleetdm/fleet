@@ -368,7 +368,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	return newSecrets, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}

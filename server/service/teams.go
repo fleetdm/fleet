@@ -184,14 +184,17 @@ func (r applyTeamSpecsResponse) error() error { return r.Err }
 
 func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*applyTeamSpecsRequest)
-	err := svc.ApplyTeamSpecs(ctx, req.Specs)
+	err := svc.ApplyTeamSpecs(ctx, req.Specs, fleet.ApplySpecOptions{
+		Force:  req.Force,
+		DryRun: req.DryRun,
+	})
 	if err != nil {
 		return applyTeamSpecsResponse{Err: err}, nil
 	}
 	return applyTeamSpecsResponse{}, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
+func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
