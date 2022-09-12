@@ -187,6 +187,8 @@ type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
 
+type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (uint, error)
+
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
 type GetHostMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
@@ -708,6 +710,9 @@ type DataStore struct {
 
 	SetOrUpdateDeviceAuthTokenFunc        SetOrUpdateDeviceAuthTokenFunc
 	SetOrUpdateDeviceAuthTokenFuncInvoked bool
+
+	FailingPoliciesCountFunc        FailingPoliciesCountFunc
+	FailingPoliciesCountFuncInvoked bool
 
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
@@ -1533,6 +1538,11 @@ func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken str
 func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
 	s.SetOrUpdateDeviceAuthTokenFuncInvoked = true
 	return s.SetOrUpdateDeviceAuthTokenFunc(ctx, hostID, authToken)
+}
+
+func (s *DataStore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+	s.FailingPoliciesCountFuncInvoked = true
+	return s.FailingPoliciesCountFunc(ctx, host)
 }
 
 func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
