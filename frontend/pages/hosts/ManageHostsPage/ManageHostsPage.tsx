@@ -338,13 +338,7 @@ const ManageHostsPage = ({
 
   useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
-    () => {
-      const teamId = parseInt(queryParams?.team_id, 10) || 0;
-      const request = teamId
-        ? teamPoliciesAPI.load(teamId, policyId)
-        : globalPoliciesAPI.load(policyId);
-      return request;
-    },
+    () => globalPoliciesAPI.load(policyId),
     {
       enabled: !!policyId,
       onSuccess: ({ policy: policyAPIResponse }) => {
@@ -406,10 +400,6 @@ const ManageHostsPage = ({
     } else {
       setIsAllMatchingHostsSelected(!isAllMatchingHostsSelected);
     }
-  };
-
-  const getLabelSelected = () => {
-    return selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX));
   };
 
   const getStatusSelected = () => {
@@ -714,22 +704,19 @@ const ManageHostsPage = ({
 
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
+
     const teamIdParam = getValidatedTeamId(
       availableTeams || [],
       teamId,
       currentUser,
-      isOnGlobalTeam as boolean
+      isOnGlobalTeam ?? false
     );
 
-    const slimmerParams = omit(queryParams, [
-      "policy_id",
-      "policy_response",
-      "team_id",
-    ]);
+    const slimmerParams = omit(queryParams, ["team_id"]);
 
     const newQueryParams = !teamIdParam
       ? slimmerParams
-      : Object.assign({}, slimmerParams, { team_id: teamIdParam });
+      : Object.assign(slimmerParams, { team_id: teamIdParam });
 
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
@@ -1168,9 +1155,7 @@ const ManageHostsPage = ({
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
       currentUserTeams={availableTeams || []}
-      selectedTeamId={
-        (policyId && policy?.team_id) || (currentTeam?.id as number)
-      }
+      selectedTeamId={currentTeam?.id}
       isDisabled={isHostsLoading || isHostCountLoading}
       onChange={(newSelectedValue: number) =>
         handleTeamSelect(newSelectedValue)
@@ -1257,7 +1242,7 @@ const ManageHostsPage = ({
       />
       <FilterPill
         icon={PolicyIcon}
-        label={policy?.name ?? ""}
+        label={policy?.name ?? "..."}
         onClear={handleClearPoliciesFilter}
         className={`${baseClass}__policies-filter-pill`}
       />
