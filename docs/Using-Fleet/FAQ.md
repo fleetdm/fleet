@@ -1,35 +1,51 @@
 # Using Fleet FAQ
 
-- [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
-- [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
-- [Can I target my hosts using their enroll secrets?](#can-I-target-my-hosts-using-their-enroll-secrets)
-- [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
-- [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
-- [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
-- [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-- [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
-- [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
-- [Where are my query results?](#where-are-my-query-results)
-- [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
-- [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
-- [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
-- [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
-- [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
-- [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
-- [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
-- [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
-- [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-- [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
-- [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
-- [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
-- [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
-- [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
-- [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
-- [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-- [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
-- [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
-- [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
-- [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
+- [Using Fleet FAQ](#using-fleet-faq)
+  - [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
+  - [Has anyone stress tested Fleet? How many hosts can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-hosts-can-the-fleet-server-handle)
+  - [Can I target my hosts using their enroll secrets?](#can-i-target-my-hosts-using-their-enroll-secrets)
+  - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
+  - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
+  - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
+  - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
+  - [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
+  - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
+  - [Where are my query results?](#where-are-my-query-results)
+    - [Live queries](#live-queries)
+    - [Scheduled queries](#scheduled-queries)
+    - [What are my options for storing the osquery logs?](#what-are-my-options-for-storing-the-osquery-logs)
+    - [Troubleshooting](#troubleshooting)
+  - [Why does the same query come back faster sometimes?](#why-does-the-same-query-come-back-faster-sometimes)
+  - [What happens if I have a query on a team policy and I also have it scheduled to run separately?](#what-happens-if-i-have-a-query-on-a-team-policy-and-i-also-have-it-scheduled-to-run-separately)
+  - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
+  - [Why does my query work locally with osquery but not in Fleet?](#why-does-my-query-work-locally-with-osquery-but-not-in-fleet)
+  - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
+  - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-fleet)
+  - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
+  - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
+  - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
+  - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
+  - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
+  - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+  - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
+  - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
+  - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
+  - [Why do I see "Unknown Certificate Error" when adding hosts to my dev server?](#why-do-i-see-unknown-certificate-error-when-adding-hosts-to-my-dev-server)
+  - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
+  - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
+  - [When do I need fleetctl vs the REST API vs the Fleet UI?](#when-do-i-need-fleetctl-vs-the-rest-api-vs-the-fleet-ui)
+  - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
+  - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
+  - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
+  - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
+  - [How do I downgrade from Fleet Premium to Fleet Free?](#how-do-i-downgrade-from-fleet-premium-to-fleet-free)
+  - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
+  - [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbitfleet-desktop)
+    - [MacOS](#macos)
+    - [Windows](#windows)
+    - [Ubuntu](#ubuntu)
+    - [CentOS](#centos)
+  - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
 
 ## How can I switch to Fleet from Kolide Fleet?
 
@@ -302,7 +318,7 @@ Lastly, remove your Fleet Premium license key:
 
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
-No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
+No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
 ## How can I uninstall Orbit/Fleet Desktop?
 To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
@@ -318,3 +334,13 @@ Run `sudo apt remove fleet-osquery -y`
 
 ### CentOS
 Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
+
+## How does Fleet determines online and offline status?
+
+- *Online* hosts are devices that are connected to Fleet and will respond to a live query.
+Fleet considers a host as online if it has connected successfully in the last `distributed_interval` (or `config_tls_refresh`, whichever is smaller) seconds.
+A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
+The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts,
+and in the **Settings > Teams > TEAM NAME > Agent options** for hosts that belong to a team.
+- *Offline* hosts are devices that are not online. These hosts may be devices that are turned off or not connected to the internet.
+A host could also be marked as offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
