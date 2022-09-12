@@ -75,10 +75,10 @@ import {
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
-import DeleteSecretModal from "../../../components/DeleteSecretModal";
-import SecretEditorModal from "../../../components/SecretEditorModal";
+import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
+import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../components/EnrollSecretModal";
+import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
