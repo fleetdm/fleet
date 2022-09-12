@@ -41,7 +41,7 @@
     "nock": "^13.0.5",
     "node-bourbon": "4.2.8",
     "node-sass": "^7.0.0",
-    "normalizr": "2.3.1",
+    "normalizr": "3.6.2",
     "postcss-loader": "^3.0.0",
     "prop-types": "^15.7.4",
     "proxy-middleware": "0.15.0",
