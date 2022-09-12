@@ -60,7 +60,6 @@
     "react-table": "7.7.0",
     "react-tabs": "^3.2.0",
     "react-tooltip": "^4.2.15",
-    "require-hacker": "2.1.4",
     "select": "1.1.2",
     "sockjs-client": "^1.6.1",
     "sqlite-parser": "1.0.1",
