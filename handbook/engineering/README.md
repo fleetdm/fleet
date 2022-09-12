@@ -644,6 +644,36 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
 
+## Fleet Sandbox On Call
+
+On call for Sandbox will happen in shifts of 1 week. The people involved in them will be:
+
+First responders:
+
+- Zachary Winnerman
+- Robert Fairburn
+
+Escalations (in order):
+
+- Tomas Touceda
+- Zach Wasserman
+
+The first responder on call will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
+
+Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
+
+If the issue is non user facing (provisioner/deprovisioner/temporary errors in osquery/etc), we'll proceed to address the issue. If the issue is user facing (as in, the user noticed this error first hand through the Fleet UI), then we'll proceed to identify the user and ping Mike McNeil in #help-p1 with information about the error (see below) so that he can contact them letting them know that we are aware of this issue and working on it.
+
+We should collect both the email for the customer and information for the error. If the error happens in work hours, we should make a best effort to understand where in the app the error might have occurred. For this, the on call engineer will post in #help-engineer the data they know of the issue and see if anybody in the frontend team can help identify what might be causing it. It’s more helpful to say “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”, but sometimes it’s not exactly clear where the API might be used exactly.
+
+Escalation of issues will be done by hand for the moment.
+
+All infrastructure alarms will go to #g-infrastructure.
+
+The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
+
+There will not be updates on the Fleet version running in sandbox on Fridays unless there's a critical issue being fixed.
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
