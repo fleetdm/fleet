@@ -35,9 +35,10 @@ func (t *DpkgInfoTest) Eval(packages []fleet.Software) ([]fleet.Software, error)
 }
 
 // Returns:
-//  nObjects: How many items in the set defined by the OVAL Object set exists in the system.
-//  nStates: How many items in the set defined by the OVAL Object set satisfy the state requirements.
-//  Slice with software matching both the object and state criteria.
+//
+//	nObjects: How many items in the set defined by the OVAL Object set exists in the system.
+//	nStates: How many items in the set defined by the OVAL Object set satisfy the state requirements.
+//	Slice with software matching both the object and state criteria.
 func (t *DpkgInfoTest) matches(software []fleet.Software) (int, int, []fleet.Software, error) {
 	var nObjects int
 	var nState int
