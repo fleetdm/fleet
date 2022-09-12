@@ -54,6 +54,16 @@ const TAGGED_TEMPLATES = {
   userAddedBySSOTempalte: () => {
     return `was added to Fleet by SSO`;
   },
+  editAgentOptions: (activity: IActivity) => {
+    return activity.details?.global ? (
+      "edited agent options"
+    ) : (
+      <span>
+        edited agent options on <b>{activity.details?.team_name}</b> team
+      </span>
+    );
+  },
+
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -136,6 +146,9 @@ const ActivityFeed = ({
       }
       case ActivityType.UserAddedBySSO: {
         return TAGGED_TEMPLATES.userAddedBySSOTempalte();
+      }
+      case ActivityType.EditedAgentOptions: {
+        return TAGGED_TEMPLATES.editAgentOptions(activity);
       }
       default: {
         return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
