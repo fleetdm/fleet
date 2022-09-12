@@ -918,9 +918,9 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 }
 
 // SearchHosts performs a search on the hosts table using the following criteria:
-//	- Use the provided team filter.
-//	- Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
-//	- An optional list of IDs to omit from the search.
+//   - Use the provided team filter.
+//   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
+//   - An optional list of IDs to omit from the search.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
 		h.*,
@@ -2529,8 +2529,8 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 // Notes:
 //   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
 //   - Default values for:
-//     - host.DistributedInterval is usually 10s.
-//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+//   - host.DistributedInterval is usually 10s.
+//   - svc.config.Osquery.DetailUpdateInterval is usually 1h.
 //   - Count only includes hosts seen during the last 7 days.
 func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
 ) {
