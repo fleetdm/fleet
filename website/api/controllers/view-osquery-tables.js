@@ -21,6 +21,7 @@ module.exports = {
     success: {
       viewTemplatePath: 'pages/osquery-tables'
     },
+    badConfig: { responseType: 'badConfig' },
     notFound: { responseType: 'notFound' },
 
   },
