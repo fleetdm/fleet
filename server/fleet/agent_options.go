@@ -1,8 +1,11 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 )
 
 type AgentOptions struct {
@@ -33,16 +36,20 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 // at the time of the Fleet release.
 func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 	var opts AgentOptions
-	if err := json.Unmarshal(rawJSON, &opts); err != nil {
-		return fmt.Errorf("failed to unmarshal raw agent options: %w", err)
+	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
+		return err
 	}
 
-	if err := validateJSONAgentOptionsSet(opts.Config); err != nil {
-		return fmt.Errorf("common config: %w", err)
+	if len(opts.Config) > 0 {
+		if err := validateJSONAgentOptionsSet(opts.Config); err != nil {
+			return fmt.Errorf("common config: %w", err)
+		}
 	}
 	for platform, platformOpts := range opts.Overrides.Platforms {
-		if err := validateJSONAgentOptionsSet(platformOpts); err != nil {
-			return fmt.Errorf("%s platform config: %w", platform, err)
+		if len(platformOpts) > 0 {
+			if err := validateJSONAgentOptionsSet(platformOpts); err != nil {
+				return fmt.Errorf("%s platform config: %w", platform, err)
+			}
 		}
 	}
 	return nil
@@ -52,7 +59,7 @@ func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 // See https://osquery.readthedocs.io/en/stable/deployment/configuration/#configuration-specification
 //
 // NOTE: Update the following line with the version used for validation.
-// Current version: 5.4.0
+//   Current version: 5.4.0
 type osqueryAgentOptions struct {
 	Options osqueryOptions `json:"options"`
 
@@ -260,22 +267,57 @@ type osqueryOptions struct {
 	YaraMallocTrim                      bool   `json:"yara_malloc_trim"`
 }
 
+// while ValidateJSONAgentOptions validates an entire Agent Options payload,
+// this unexported function validates a single set of options. That is, in an
+// Agent Options payload, the top-level "config" key defines a set, and each
+// of the platform overrides defines other sets. They all have the same
+// validation rules.
 func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
-	// while ValidateJSONAgentOptions validates an entire Agent Options payload,
-	// this unexported function validates a single set of options. That is, in an
-	// Agent Options payload, the top-level "config" key defines a set, and each
-	// of the platform overrides defines other sets. They all have the same
-	// validation rules.
-	panic("unimplemented")
+	var opts osqueryAgentOptions
+	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
+		return err
+	}
+
+	// Packs may have a string or struct value, both are supported
+	for packKey, pack := range opts.Packs {
+		if len(pack) == 0 {
+			// should never happen, just to make sure we avoid a panic reading the first byte
+			continue
+		}
+		switch pack[0] {
+		case '"':
+			// a string, this is fine
+		case '{':
+			// an object, must match the pack struct
+			var packStruct osqueryPack
+			if err := jsonStrictDecode(pack, &packStruct); err != nil {
+				return fmt.Errorf("pack %q: %w", packKey, err)
+			}
+		case 't', 'f':
+			return fmt.Errorf("pack %q: invalid bool value, expected string or object", packKey)
+		case 'n':
+			return fmt.Errorf("pack %q: invalid null value, expected string or object", packKey)
+		case '[':
+			return fmt.Errorf("pack %q: invalid array value, expected string or object", packKey)
+		default:
+			return fmt.Errorf("pack %q: invalid number value, expected string or object", packKey)
+		}
+	}
+
+	return nil
 }
 
-// ValidateYAMLAgentOptions validates the given raw YAML bytes as an Agent
-// Options payload. It ensures that all fields are known and have valid values.
-// The validation always uses the most recent Osquery version that is available
-// at the time of the Fleet release.
-func ValidateYAMLAgentOptions(rawYAML []byte) error {
-	// TODO(mna): determine if this is necessary - `fleetctl apply` will marshal
-	// the YAML to JSON so any invalid field will still be sent and validated in
-	// the JSON validation.
-	panic("unimplemented")
+func jsonStrictDecode(rawJSON json.RawMessage, v interface{}) error {
+	dec := json.NewDecoder(bytes.NewReader(rawJSON))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		return err
+	}
+
+	var extra json.RawMessage
+	if dec.Decode(&extra) != io.EOF {
+		return errors.New("json: extra bytes after end of object")
+	}
+
+	return nil
 }
