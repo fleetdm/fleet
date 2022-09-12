@@ -117,7 +117,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			},
 			{
 				"1 vuln in multiple software, 1 host",
-				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[0], SoftwareID: 2}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[0], SoftwareID: 1}, {CVE: cves[0], SoftwareID: 2}},
 				nil,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
