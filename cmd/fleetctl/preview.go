@@ -305,7 +305,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			logf := func(format string, a ...interface{}) {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
-			err = client.ApplyGroup(c.Context, specs, logf)
+			err = client.ApplyGroup(c.Context, specs, logf, nil)
 			if err != nil {
 				return err
 			}
@@ -316,7 +316,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"host_settings":   {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
-			}); err != nil {
+			}, nil); err != nil {
 				return fmt.Errorf("failed to apply updated app config: %w", err)
 			}
 
@@ -332,8 +332,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// disable analytics collection for preview
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"server_settings": {"enable_analytics": false},
-			},
-			); err != nil {
+			}, nil); err != nil {
 				return fmt.Errorf("Error disabling analytics collection in app config: %w", err)
 			}
 

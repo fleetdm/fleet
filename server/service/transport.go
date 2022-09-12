@@ -111,6 +111,19 @@ func stringFromRequest(r *http.Request, name string) (string, error) {
 	return unescaped, nil
 }
 
+func boolFromRequest(r *http.Request, name string) (bool, error) {
+	vars := mux.Vars(r)
+	s, ok := vars[name]
+	if !ok {
+		return false, errBadRoute
+	}
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, ctxerr.Wrap(r.Context(), err, "boolFromRequest")
+	}
+	return b, nil
+}
+
 // default number of items to include per page
 const defaultPerPage = 20
 

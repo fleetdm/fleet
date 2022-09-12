@@ -84,7 +84,7 @@ type osqueryAgentOptions struct {
 
 	YARA struct {
 		Signatures map[string][]string `json:"signatures"`
-		FilePaths  map[string][]string `json:"file_paths"` // TODO(mna): mention in ticket: this could be further validated: keys here must match keys in top-level FilePaths, and values must match keys in Signatures
+		FilePaths  map[string][]string `json:"file_paths"`
 	} `json:"yara"`
 
 	PrometheusTargets struct {
@@ -92,14 +92,12 @@ type osqueryAgentOptions struct {
 		URLs    []string `json:"urls"`
 	} `json:"prometheus_targets"`
 
-	// TODO(mna): mention in ticket: this could be further validated: keys here need to be valid osquery table names,
-	// values must be valid queries.
 	Views map[string]string `json:"views"`
 
 	Decorators struct {
 		Load     []string            `json:"load"`
 		Always   []string            `json:"always"`
-		Interval map[string][]string `json:"interval"` // TODO(mna): further validation possible: key must be integer divisible by 60
+		Interval map[string][]string `json:"interval"`
 	} `json:"decorators"`
 
 	AutoTableConstruction map[string]struct {

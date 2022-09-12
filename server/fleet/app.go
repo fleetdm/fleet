@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -392,6 +393,34 @@ type ListQueryOptions struct {
 	ListOptions
 
 	OnlyObserverCanRun bool
+}
+
+// ApplySpecOptions are the options available when applying a YAML or JSON spec.
+type ApplySpecOptions struct {
+	// Force indicates that any validation error in the incoming payload should
+	// be ignored and the spec should be applied anyway.
+	Force bool
+	// DryRun indicates that the spec should not be applied, but the validation
+	// errors should be returned.
+	DryRun bool
+}
+
+// RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
+// query string parameters. It only sets the parameters that are not the
+// default values.
+func (o *ApplySpecOptions) RawQuery() string {
+	if o == nil {
+		return ""
+	}
+
+	query := make(url.Values)
+	if o.Force {
+		query.Set("force", "true")
+	}
+	if o.DryRun {
+		query.Set("dry_run", "true")
+	}
+	return query.Encode()
 }
 
 // EnrollSecret contains information about an enroll secret, name, and active

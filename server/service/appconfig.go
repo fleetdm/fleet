@@ -173,6 +173,8 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
+	Force  bool `json:"-" url:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool `json:"-" url:"dry_run,optional"` // if true, apply validation but do not save changes
 	json.RawMessage
 }
 
@@ -246,6 +248,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	// correctly, but this could be optimized so that we don't unmarshal the
 	// incoming bytes twice.
 	invalid := &fleet.InvalidArgumentError{}
+	// TODO(mna): unmarshal+validate the incoming appconfig - at this stage
+	// we do not validate the required fields, as they may be missing from
+	// the new appconfig, but present in the old one and so present after we
+	// merge the two.
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
