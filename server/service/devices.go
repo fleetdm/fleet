@@ -40,7 +40,7 @@ func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet
 		return FleetDesktopResponse{Err: err}, nil
 	}
 
-	return FleetDesktopResponse{FailingPolicies: r}, nil
+	return FleetDesktopResponse{FailingPolicies: &r}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
