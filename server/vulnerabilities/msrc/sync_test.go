@@ -25,9 +25,9 @@ func (gh ghMock) Bulletins() (map[io.SecurityBulletinName]string, error) {
 	return gh.testData.remoteList, gh.testData.remoteListError
 }
 
-func (gh ghMock) Download(b io.SecurityBulletinName, url string) error {
+func (gh ghMock) Download(url string) (string, error) {
 	gh.testData.remoteDownloaded = append(gh.testData.remoteDownloaded, url)
-	return gh.testData.remoteDownloadError
+	return "", gh.testData.remoteDownloadError
 }
 
 type fsMock struct{ testData *testData }
