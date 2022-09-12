@@ -53,6 +53,7 @@ const Homepage = (): JSX.Element => {
   const {
     config,
     currentTeam,
+    availableTeams,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
@@ -72,14 +73,12 @@ const Homepage = (): JSX.Element => {
   const [onlineCount, setOnlineCount] = useState(0);
   const [offlineCount, setOfflineCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
-  const [showSoftwareUI, setShowSoftwareUI] = useState(false);
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState(false);
   const [softwareTitleDetail, setSoftwareTitleDetail] = useState<
     JSX.Element | string | null
   >();
   const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
-
+  const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
@@ -182,12 +181,7 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  // const { data: config } = useQuery(["config"], configAPI.loadAll, {
-  //   onSuccess: (data) => {
-  //     setIsSoftwareEnabled(data?.features?.enable_software_inventory);
-  //   },
-  // });
-
+  const isSoftwareEnabled = config?.features?.enable_software_inventory;
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
   const SOFTWARE_DEFAULT_SORT_HEADER = "hosts_count";
   const SOFTWARE_DEFAULT_PAGE_SIZE = 8;
@@ -219,12 +213,12 @@ const Homepage = (): JSX.Element => {
       }),
     {
       enabled:
-        isOnGlobalTeam ||
+        (isSoftwareEnabled && isOnGlobalTeam) ||
         !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        if (isSoftwareEnabled && data.software?.length !== 0) {
+        if (data.software?.length !== 0) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText
@@ -336,7 +330,7 @@ const Homepage = (): JSX.Element => {
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onSoftwareQueryChange = async ({
-    softwarePageIndex: newPageIndex,
+    pageIndex: newPageIndex,
   }: ITableQueryData) => {
     if (softwarePageIndex !== newPageIndex) {
       setSoftwarePageIndex(newPageIndex);
@@ -346,8 +340,8 @@ const Homepage = (): JSX.Element => {
   const onSoftwareTabChange = (index: number) => {
     const { MANAGE_SOFTWARE } = paths;
     setSoftwareNavTabIndex(index);
-    setSoftwareActionURL &&
-      setSoftwareActionURL(
+    setSoftwareActionUrl &&
+      setSoftwareActionUrl(
         index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
       );
   };
@@ -410,8 +404,9 @@ const Homepage = (): JSX.Element => {
       text: "View all software",
       to: "software",
     },
+    actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
-    showTitle: showSoftwareUI,
+    showTitle: !isSoftwareFetching,
     children: (
       <Software
         errorSoftware={errorSoftware}

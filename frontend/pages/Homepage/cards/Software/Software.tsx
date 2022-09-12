@@ -12,7 +12,7 @@ interface ISoftwareCardProps {
   errorSoftware: Error | null;
   isCollectingInventory: boolean;
   isSoftwareFetching: boolean;
-  isSoftwareEnabled: boolean;
+  isSoftwareEnabled?: boolean;
   software: any;
   pageIndex: number;
   navTabIndex: any;
@@ -31,7 +31,6 @@ const Software = ({
   isCollectingInventory,
   isSoftwareFetching,
   isSoftwareEnabled,
-  pageIndex,
   navTabIndex,
   onTabChange,
   onQueryChange,
