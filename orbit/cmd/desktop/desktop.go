@@ -121,7 +121,7 @@ func main() {
 					continue
 				}
 
-				if res.FailingPolicies > 0 {
+				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
 					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
 				} else {
 					myDeviceItem.SetTitle("🟢 My device")
