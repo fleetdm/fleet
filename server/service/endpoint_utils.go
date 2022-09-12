@@ -203,16 +203,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						}
 						field.SetString(v)
 
-					case reflect.Bool:
-						v, err := boolFromRequest(r, urlTagValue)
-						if err != nil {
-							if err == errBadRoute && optional {
-								continue
-							}
-							return nil, err
-						}
-						field.SetBool(v)
-
 					default:
 						return nil, fmt.Errorf("unsupported type for field %s for 'url' decoding: %s", urlTagValue, field.Kind())
 					}

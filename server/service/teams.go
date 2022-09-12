@@ -171,8 +171,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, tid uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyTeamSpecsRequest struct {
-	Force  bool              `json:"-" url:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool              `json:"-" url:"dry_run,optional"` // if true, apply validation but do not save changes
+	Force  bool              `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Specs  []*fleet.TeamSpec `json:"specs"`
 }
 
@@ -205,8 +205,8 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 
 type modifyTeamAgentOptionsRequest struct {
 	ID     uint `json:"-" url:"id"`
-	Force  bool `json:"-" url:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool `json:"-" url:"dry_run,optional"` // if true, apply validation but do not save changes
+	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	json.RawMessage
 }
 

@@ -483,14 +483,22 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", tm1ID+1), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: user.ID}}}}, http.StatusNotFound, &tmResp)
 
-	// modify team agent options (options for orbit/osquery) with invalid options
+	// modify team agent options with invalid options
 	tmResp.Team = nil
-	opts := map[string]string{"x": "y"}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
 		"x": "y"
 	}`), http.StatusBadRequest, &tmResp)
 
-	// modify team agent options (options for orbit/osquery) with valid options
+	// modify team agent options with invalid options, but force-apply them
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"x": "y"
+		}
+	}`), http.StatusOK, &tmResp, "force", "true")
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"x": "y"`)
+
+	// modify team agent options with valid options
 	tmResp.Team = nil
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
 		"config": {
@@ -500,6 +508,17 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		}
 	}`), http.StatusOK, &tmResp)
 	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`)
+
+	// modify team agent options with dry-run
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": false
+			}
+		}
+	}`), http.StatusOK, &tmResp, "dry_run", "true")
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`) // left unchanged
 
 	// list activities, it should have created one for edited_agent_options
 	var listActivities listActivitiesResponse
@@ -511,7 +530,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID+1), opts, http.StatusNotFound, &tmResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID+1), json.RawMessage(`{}`), http.StatusNotFound, &tmResp)
 
 	// get team enroll secrets
 	var secResp teamEnrollSecretsResponse

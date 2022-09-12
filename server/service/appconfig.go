@@ -173,8 +173,8 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
-	Force  bool `json:"-" url:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool `json:"-" url:"dry_run,optional"` // if true, apply validation but do not save changes
+	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	json.RawMessage
 }
 

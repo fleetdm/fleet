@@ -5374,6 +5374,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Get team](#get-team)
 - [Create team](#create-team)
 - [Modify team](#modify-team)
+- [Modify team's agent options](#modify-teams-agent-options)
 - [Delete team](#delete-team)
 
 ### List teams
@@ -5769,37 +5770,47 @@ _Available in Fleet Premium_
 }
 ```
 
-#### Example (edit agent options for a team)
+### Modify team's agent options
 
-`PATCH /api/v1/fleet/teams/1`
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/teams/{id}/agent_options`
+
+#### Parameters
+
+| Name                             | Type    | In    | Description                                                                                                                                                  |
+| ---                              | ---     | ---   | ---                                                                                                                                                          |
+| id                               | string  | body  | **Required.** The desired team's ID.                                                                                                                         |
+| force                            | bool    | query | Force apply the options even if there are validation errors.                                                                                                 |
+| dry_run                          | bool    | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
+
+#### Example
+
+`POST /api/v1/fleet/teams/1/agent_options`
 
 ##### Request body
 
 ```json
 {
-  "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 20,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 60,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {}
-    }
-  }
+	"config": {
+		"options": {
+			"logger_plugin": "tls",
+			"pack_delimiter": "/",
+			"logger_tls_period": 20,
+			"distributed_plugin": "tls",
+			"disable_distributed": false,
+			"logger_tls_endpoint": "/api/v1/osquery/log",
+			"distributed_interval": 60,
+			"distributed_tls_max_attempts": 3
+		},
+		"decorators": {
+			"load": [
+				"SELECT uuid AS host_uuid FROM system_info;",
+				"SELECT hostname AS hostname FROM system_info;"
+			]
+		}
+	},
+	"overrides": {}
 }
 ```
 
