@@ -1571,8 +1571,6 @@ const ManageHostsPage = ({
             return renderLabelFilterPill();
           case !!policyId:
             return renderPoliciesFilterBlock();
-          case showSelectedLabel:
-            return renderLabelFilterPill();
           case !!softwareId:
             return renderSoftwareFilterBlock();
           case !!mdmId:
