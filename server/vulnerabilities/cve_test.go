@@ -120,7 +120,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		byCPE := make(map[uint]int)
 		for _, cpe := range recent {
-			byCPE[cpe.SoftwareID]++
+			byCPE[cpe.Affected()]++
 		}
 
 		// even if it's somewhat far in the past, I've seen the exact numbers

@@ -264,10 +264,11 @@ func recentVulns(
 
 	seen := make(map[string]bool)
 	var r []fleet.Vulnerability
+
 	for _, v := range vulns {
 		if _, ok := recent[v.GetCVE()]; ok && !seen[v.Key()] {
 			seen[v.Key()] = true
-			vulns = append(vulns, v)
+			r = append(r, v)
 		}
 	}
 
