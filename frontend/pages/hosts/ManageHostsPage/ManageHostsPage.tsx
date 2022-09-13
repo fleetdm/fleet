@@ -73,7 +73,6 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
-  omitParams,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
