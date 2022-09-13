@@ -168,6 +168,14 @@ A hyphen is unnecessary when not modifying a noun:
 
 ## For editors
 
+### In this section
+
+- [How to make edits with GitHub](#how-to-make-edits-with-github)
+- [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
+- [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
+- [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
+- [How to edit social media posts](#how-to-edit-social-media-posts)
+
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
 
 The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
@@ -217,18 +225,11 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 ### How to edit articles, release posts, and press releases
 
-This type of content comes in two flavors: draft articles and published articles. 
+Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
 
-For draft articles, please refer to [Publishing articles on fleetdm.com.](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) 
+* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article).
 
-For making edits to published articles:
-
-1. Log in to [Medium](https://fleetdm.com/blog).
-2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
-3. Scan for typos and grammatical errors.
-4. Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
-5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
-6. Hit "Save and publish," and you're all done.
+* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
 
 ### How to edit social media posts
 
