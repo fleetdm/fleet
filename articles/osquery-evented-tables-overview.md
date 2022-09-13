@@ -37,7 +37,7 @@ Running event capture generates performance overhead from both the utility and o
 
 Furthermore, at the osquery level, the number, complexity, and frequency of queries will drive the compute resources required. Queries which utilize `WHERE` clauses will be relatively efficient (and minimize data volume), whereas many `JOIN`s or wildcards (`%`) will use more resources.
 
-Nevertheless, you may find it necessary to allocate a larger  memory footprint to osquery to satisfy your requirements. Osquery's watchdog automatically kills queries if they exceed certain system usage. By default, the watchdog will allow osquery to use 200MB of memory with up to 25% CPU usage for 9 seconds. This can be adjusted with the following flags:
+Nevertheless, you may find it necessary to allocate a larger  memory footprint to osquery to satisfy your requirements. Osquery's watchdog automatically kills queries if they exceed certain system usage. Watchdog's behavior can be adjusted with the following flags:
 * `--watchdog_memory_limit` changes the maximum memory usage (expressed in MBs)
 * `--watchdog_utilization_limit` changes the maximum number of CPU cycles (defined as the `processes` table's `user_time` and `system_time`) for more than the time in seconds set by `--watchdog_latency_limit`.
 * `--watchdog_delay` sets the delay in seconds before CPU and memory usage limits will be enforced. By default, this is 60.
