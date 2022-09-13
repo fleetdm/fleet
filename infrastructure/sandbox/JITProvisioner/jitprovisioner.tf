@@ -100,6 +100,21 @@ data "aws_iam_policy_document" "jitprovisioner" {
     actions   = ["states:DescribeExecution"]
     resources = ["*"]
   }
+
+  statement {
+    actions = [
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:ListSecretVersionIds"
+    ]
+    resources = [var.mysql_secret.arn]
+  }
+
+  statement {
+    actions   = ["secretsmanager:ListSecrets"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "jitprovisioner" {
@@ -131,6 +146,7 @@ resource "aws_lambda_function" "jitprovisioner" {
       LIFECYCLE_SFN            = aws_sfn_state_machine.main.arn
       FLEET_BASE_URL           = "${var.base_domain}"
       AUTHORIZATION_PSK        = random_password.authorization.result
+      MYSQL_SECRET             = var.mysql_secret.arn
     }
   }
 }
