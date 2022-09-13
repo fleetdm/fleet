@@ -58,9 +58,9 @@ const TAGGED_TEMPLATES = {
     return activity.details?.global ? (
       "edited agent options"
     ) : (
-      <span>
+      <>
         edited agent options on <b>{activity.details?.team_name}</b> team
-      </span>
+      </>
     );
   },
 
