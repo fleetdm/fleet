@@ -415,7 +415,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-p1`		      | Mike McNeil
 | `#help-operations-and-contract-reviews`          | Nathan Holliday
 | `#help-travel`              | Nathan Holliday
-| `Help-ceo`                  | Charlie Chance
+| `#help-ceo`                  | Charlie Chance
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
