@@ -32,7 +32,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/golang-jwt/jwt/v4 v4.3.0
-	github.com/gomodule/redigo v1.8.5
+	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.5.8
 	github.com/google/go-github/v37 v37.0.0
 	github.com/google/uuid v1.3.0
