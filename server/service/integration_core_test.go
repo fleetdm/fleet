@@ -4282,6 +4282,34 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
 
+	// try to set invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"nope": true} }
+  }`), http.StatusBadRequest, &acResp)
+	// did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// force-set invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"nope": true} }
+  }`), http.StatusOK, &acResp, "force", "true")
+	require.Contains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// dry-run valid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"views":{"yep": "ok"}} }
+  }`), http.StatusOK, &acResp, "dry_run", "true")
+	require.NotContains(t, string(*acResp.AgentOptions), `"yep"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// dry-run invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"invalid": true} }
+  }`), http.StatusBadRequest, &acResp, "dry_run", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
+
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)
