@@ -200,6 +200,7 @@ Here's why we use a wireframe-first approach at Fleet.
   - the latest reactions from users
   - all of the motivations and discussions from the previous rounds of wireframe revisions that were thrown away
   - how the UI has evolved in previous releases to better serve the people using and building it
+- Wireframing is important for both maintaining the quality of our work and outlining what work needs to be done.
 - With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 
 ### Why do we use one repo?

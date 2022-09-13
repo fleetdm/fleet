@@ -9,6 +9,7 @@ go.mod @fleetdm/go
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
 /.github/ @fleetdm/g-platform

@@ -1,1 +1,0 @@
-- Added issues count to `GET /labels/{id}/hosts` response

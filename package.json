@@ -41,7 +41,7 @@
     "nock": "^13.0.5",
     "node-bourbon": "4.2.8",
     "node-sass": "^7.0.0",
-    "normalizr": "2.3.1",
+    "normalizr": "3.6.2",
     "postcss-loader": "^3.0.0",
     "prop-types": "^15.7.4",
     "proxy-middleware": "0.15.0",
@@ -60,7 +60,6 @@
     "react-table": "7.7.0",
     "react-tabs": "^3.2.0",
     "react-tooltip": "^4.2.15",
-    "require-hacker": "2.1.4",
     "select": "1.1.2",
     "sockjs-client": "^1.6.1",
     "sqlite-parser": "1.0.1",
@@ -150,7 +149,7 @@
     "@testing-library/cypress": "^8.0.2",
     "@testing-library/jest-dom": "^5.16.2",
     "@testing-library/react": "^12.1.4",
-    "@testing-library/user-event": "^13.5.0",
+    "@testing-library/user-event": "^14.4.3",
     "@tsconfig/recommended": "^1.0.1",
     "@types/classnames": "0.0.32",
     "@types/cypress": "^1.1.3",
@@ -242,7 +241,6 @@
     "setupFiles": [
       "trace-unhandled/register"
     ],
-    "testEnvironment": "jest-environment-jsdom-sixteen",
     "clearMocks": true,
     "testURL": "http://localhost:8080"
   },

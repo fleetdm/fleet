@@ -95,11 +95,11 @@ func getLoginUID() (*user, error) {
 
 // parseUsersOutput parses the output of the `users' command.
 //
-// 	`users' command prints on a single line a blank-separated list of user names of
-// 	users currently logged in to the current host. Each user name
-// 	corresponds to a login session, so if a user has more than one login
-// 	session, that user's name will appear the same number of times in the
-// 	output.
+//	`users' command prints on a single line a blank-separated list of user names of
+//	users currently logged in to the current host. Each user name
+//	corresponds to a login session, so if a user has more than one login
+//	session, that user's name will appear the same number of times in the
+//	output.
 //
 // Returns the list of usernames.
 func parseUsersOutput(s string) []string {
