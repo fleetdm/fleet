@@ -26,15 +26,21 @@ set -ex
 # ROOT_KEYS: TUF repository root keys.
 # FLEET_DESKTOP: Whether to build with Fleet Desktop support. 
 # FLEET_CERTIFICATE: Whether to use a custom certificate bundle. If not set, then --insecure mode is used.
+# FLEETCTL_NATIVE_TOOLING: Whether to build with native packaging support.
 
 TLS_FLAG="--insecure"
 if [ -n "$FLEET_CERTIFICATE" ]; then
     TLS_FLAG="--fleet-certificate=./tools/osquery/fleet.crt"
 fi
 
+PACKAGE_COMMAND="./build/fleetctl package"
+if [ -n "$FLEETCTL_NATIVE_TOOLING" ]; then
+  PACKAGE_COMMAND="docker run -v $(pwd):/build -v $(pwd)/tools:/tools --platform=linux/amd64 fleetdm/fleetctl package"
+fi
+
 if [ -n "$GENERATE_PKG" ]; then
     echo "Generating pkg..."
-    ./build/fleetctl package \
+    $PACKAGE_COMMAND \
         --type=pkg \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$PKG_FLEET_URL \
@@ -49,7 +55,7 @@ fi
 
 if [ -n "$GENERATE_DEB" ]; then
     echo "Generating deb..."
-    ./build/fleetctl package \
+    $PACKAGE_COMMAND \
         --type=deb \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
@@ -64,7 +70,7 @@ fi
 
 if [ -n "$GENERATE_RPM" ]; then
     echo "Generating rpm..."
-    ./build/fleetctl package \
+    $PACKAGE_COMMAND \
         --type=rpm \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
@@ -79,7 +85,7 @@ fi
 
 if [ -n "$GENERATE_MSI" ]; then
     echo "Generating msi..."
-    ./build/fleetctl package \
+    $PACKAGE_COMMAND \
         --type=msi \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$MSI_FLEET_URL \
