@@ -17,20 +17,17 @@ module.exports = {
 
     organization: {
       type: 'string',
-      required: false,
-      description: 'The users organization'
+      description: 'The user\'s organization.'
     },
 
     firstName: {
       type: 'string',
-      required: false,
-      description: 'The users first name'
+      description: 'The user\'s first name'
     },
 
     lastName: {
       type: 'string',
-      required: false,
-      description: 'The users last name'
+      description: 'The user\'s last name'
     },
 
     paymentSource: {
