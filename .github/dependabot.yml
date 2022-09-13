@@ -40,6 +40,8 @@ updates:
       - "website"
     schedule:
       interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
     allow:
       - dependency-type: "production"
     reviewers:
@@ -71,6 +73,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
     reviewers:
       - lukeheath
     allow:
