@@ -15,6 +15,7 @@ on:
   pull_request:
     paths:
       - 'orbit/**.go'
+      - '.github/workflows/fleet-and-orbit.yml'
   workflow_dispatch: # Manual
 
 permissions:
