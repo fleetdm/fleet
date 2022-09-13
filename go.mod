@@ -21,7 +21,7 @@ require (
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
-	github.com/elazarl/go-bindata-assetfs v1.0.0
+	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
 	github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77
