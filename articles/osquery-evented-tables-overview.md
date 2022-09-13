@@ -107,10 +107,10 @@ Process auditing refers to recording process executions and network, or socket, 
 On linux, there are two utilities that enable osquery process auditing: [eBPF](https://ebpf.io/what-is-ebpf) and the [audit framework](https://wiki.archlinux.org/title/Audit_framework). 
 
 The choice of utility depends on your situation. Some relevant considerations are:
-Audit has earlier support (>2.6 ) compared to eBPF (>4.18)
-Only one consumer of audit’s logs are allowed at a time. The `--audit_persist=true` flag will set osquery to retry connection to audit logs.
-Audit has limited visibility inside containers
-The audit table and the eBPF table return different data
+- Audit has earlier support (>2.6 ) compared to eBPF (>4.18)
+- Only one consumer of audit’s logs are allowed at a time. The `--audit_persist=true` flag will set osquery to retry connection to audit logs.
+- Audit has limited visibility inside containers
+- The audit table and the eBPF table return slightly different data
 
 Overall, Fleet recommends you try both and compare results for your use case.
 
