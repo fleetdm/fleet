@@ -15,7 +15,7 @@
                 "REDIS_TEST": 1,
                 "NETWORK_TEST": 1
             },
-            "buildFlags": "-tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5,netgo,viper_yaml2'",
             "program": "${fileDirname}"
         },
         {
@@ -29,7 +29,7 @@
                 "REDIS_TEST": 1,
                 "NETWORK_TEST": 1
             },
-            "buildFlags": "-tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5,netgo,viper_yaml2'",
             "program": "${file}"
         },
         {
@@ -37,7 +37,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "buildFlags": "-tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5,netgo,viper_yaml2'",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/cmd/fleet",
             "args": [
@@ -51,7 +51,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "buildFlags": "-tags='full,fts5'",
+            "buildFlags": "-tags='full,fts5,netgo,viper_yaml2'",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/cmd/fleet",
             "args": [

@@ -6,14 +6,14 @@
     "diffEditor.codeLens": true,
     "rewrap.autoWrap.enabled": true,
     "rewrap.wrappingColumn": 100,
-    "go.formatTool": "gofumports",
+    "go.formatTool": "default",
     "go.lintTool": "golangci-lint",
     "go.useLanguageServer": true,
     "gopls": {
         "gofumpt": true,
     },
     "go.autocompleteUnimportedPackages": true,
-    "go.buildTags": "full,fts5",
+    "go.buildTags": "full,fts5,netgo,viper_yaml2",
     "go.delveConfig": {
         "dlvLoadConfig": {
             "followPointers": true,
