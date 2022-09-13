@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -24,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
@@ -214,6 +214,11 @@ func main() {
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
+		}
+
+		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		if err != nil {
+			return fmt.Errorf("load identifier file: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -525,60 +530,10 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		client, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
-		if err != nil {
-			return fmt.Errorf("initializing client: %w", err)
-		}
-		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
-		if err := trw.LoadOrGenerate(); err != nil {
-			return fmt.Errorf("initializing token read writer: %w", err)
-		}
-		// perform an initial check to see if the token
-		// has not been revoked by the server
-		if err := client.Check(trw.GetCached()); err != nil {
-			trw.Rotate()
-		}
-		go func() {
-			// This timer is used to check if the token should be rotated if  at
-			// least one hour has passed since the last modification of the token
-			// file.
-			//
-			// This is better than using a ticker that ticks every hour because the
-			// we can't ensure the tick actually runs every hour (eg: the computer is
-			// asleep).
-			rotationDuration := 30 * time.Second
-			rotationTicker := time.NewTicker(rotationDuration)
-			defer rotationTicker.Stop()
-
-			// This timer is used to periodically check if the token is valid. The
-			// server might deem a toked as invalid for reasons out of our control,
-			// for example if the database is restored to a back-up or if somebody
-			// manually invalidates the token in the db.
-			remoteCheckDuration := 5 * time.Minute
-			remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-			defer remoteCheckTicker.Stop()
-
-			for {
-				select {
-				case <-rotationTicker.C:
-					if trw.HasExpired() {
-						log.Info().Msg("token TTL expired, rotating token")
-						trw.Rotate()
-					}
-				case <-remoteCheckTicker.C:
-					log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
-					if err := client.Check(trw.GetCached()); err != nil {
-						log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-						trw.Rotate()
-					}
-				}
-			}
-		}()
-
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), trw)
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, trw.Path, c.String("fleet-certificate"), c.Bool("insecure"), trw)
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -599,34 +554,32 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath string, trw *token.ReadWriter) {
+func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
 	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
-		trw: trw,
+		deviceAuthToken: deviceAuthToken,
 	}))
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
 type desktopRunner struct {
-	desktopPath    string
-	fleetURL       string
-	identifierPath string
-	fleetRootCA    string
-	insecure       bool
-	trw            *token.ReadWriter
-	interruptCh    chan struct{} // closed when interrupt is triggered
-	executeDoneCh  chan struct{} // closed when execute returns
+	desktopPath     string
+	fleetURL        string
+	deviceAuthToken string
+	fleetRootCA     string
+	insecure        bool
+	interruptCh     chan struct{} // closed when interrupt is triggered
+	executeDoneCh   chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, identifierPath, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string, insecure bool) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:    desktopPath,
-		fleetURL:       fleetURL,
-		identifierPath: identifierPath,
-		fleetRootCA:    fleetRootCA,
-		insecure:       insecure,
-		trw:            trw,
-		interruptCh:    make(chan struct{}),
-		executeDoneCh:  make(chan struct{}),
+		desktopPath:     desktopPath,
+		fleetURL:        fleetURL,
+		deviceAuthToken: deviceAuthToken,
+		fleetRootCA:     fleetRootCA,
+		insecure:        insecure,
+		interruptCh:     make(chan struct{}),
+		executeDoneCh:   make(chan struct{}),
 	}
 }
 
@@ -651,12 +604,9 @@ func (d *desktopRunner) execute() error {
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
+	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.identifierPath),
-		// TODO(roperzh): this env var is keept only for backwards compatibility,
-		// we should remove it once we think is safe
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", path.Join(url.String(), "device", d.trw.GetCached())),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
@@ -782,6 +732,26 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enroll
 		return orbitNodeKey, nil
 	}
 	return "", fmt.Errorf("orbit node key enroll failed: %w", err)
+}
+
+func loadOrGenerateToken(rootDir string) (string, error) {
+	filePath := filepath.Join(rootDir, "identifier")
+	id, err := ioutil.ReadFile(filePath)
+	switch {
+	case err == nil:
+		return string(id), nil
+	case errors.Is(err, os.ErrNotExist):
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return "", fmt.Errorf("generate identifier: %w", err)
+		}
+		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
+		}
+		return id.String(), nil
+	default:
+		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
+	}
 }
 
 func killProcessByName(name string) error {
