@@ -32,7 +32,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/golang-jwt/jwt/v4 v4.3.0
-	github.com/gomodule/redigo v1.8.5
+	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.5.8
 	github.com/google/go-github/v37 v37.0.0
 	github.com/google/uuid v1.3.0
@@ -56,7 +56,7 @@ require (
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.3.2
 	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31
-	github.com/nukosuke/go-zendesk v0.12.0
+	github.com/nukosuke/go-zendesk v0.13.1
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.44.0
