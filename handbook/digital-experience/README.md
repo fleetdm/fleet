@@ -170,7 +170,7 @@ A hyphen is unnecessary when not modifying a noun:
 
 ### In this section
 
-- [How to make edits with GitHub](#how-to-make-edits-with-github)
+- [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
 - [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
 - [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
 - [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
