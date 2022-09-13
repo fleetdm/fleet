@@ -208,7 +208,7 @@ module.exports.routes = {
     },
   },
 
-  'GET /tables/:slug': {
+  'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
   },
 

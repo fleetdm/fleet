@@ -7,7 +7,7 @@ module.exports = {
   description: 'Display "Osquery table details" page.',
 
   inputs: {
-    slug : {
+    tableName : {
       description: 'The slug of the osquery table that this user wants to display',
       example: 'account_policy_data',
       type: 'string',
@@ -25,12 +25,12 @@ module.exports = {
   },
 
 
-  fn: async function ({slug}) {
+  fn: async function ({tableName}) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
-    let tableToDisplay = _.find(sails.config.builtStaticContent.markdownPages, { url: '/tables/' + slug });
+    let tableToDisplay = _.find(sails.config.builtStaticContent.markdownPages, { url: '/tables/' + tableName });
 
     if (!tableToDisplay) {// If there's no EXACTLY matching content page, throw a 404.
       throw 'notFound';
