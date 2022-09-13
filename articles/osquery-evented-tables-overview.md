@@ -79,19 +79,19 @@ However, as discussed above, we recommend getting to know the underlying utility
 ### File integrity monitoring (FIM)
 FIM refers to the monitoring of key files or filepaths. FIM enables organizations to audit the history of critical resources, detect intrusions, and apply remediations. 
 
-On all three OSs, in the osquery configuration, use the `file_paths` key to specify the files and directories for which osquery should collect `file_events` data. Use the `exclude_paths` key to ignore files and directories which generate too much noise. [Wildcards](https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/#matching-wildcard-rules) are are available in these configuration options. On linux, there is a further `file_accesses` option, which specifies the file locations where an "access" event should be recorded in addition to created/modified/deleted. 
+On all three OSs, in the osquery configuration, use the `file_paths` key to specify the files and directories for which osquery should collect `file_events` data. Use the `exclude_paths` key to ignore files and directories which generate too much noise. [Wildcards](https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/#matching-wildcard-rules) are are available in these configuration options. On Linux, there is a further `file_accesses` option, which specifies the file locations where an "access" event should be recorded in addition to created/modified/deleted. 
 
-### FIM on MacOS
-To turn `file_events` on MacOS, use the flag `--enable_file_events=true`. The corresponding utility is [FSEvents](https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/TechnologyOverview/TechnologyOverview.html#//apple_ref/doc/uid/TP40005289-CH3-SW1).     
+### FIM on macOS
+To turn `file_events` on macOS, use the flag `--enable_file_events=true`. The corresponding utility is [FSEvents](https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/TechnologyOverview/TechnologyOverview.html#//apple_ref/doc/uid/TP40005289-CH3-SW1).     
 
 MacOS also has an `es_process_file_events` table which uses the [EndpointSecurity](https://developer.apple.com/documentation/endpointsecurity) API. However, it requires that osquery have Full Disk Access permission, which can be [granted manually or via MDM](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#full-disk-access). To use this, use the flags `--disable_endpointsecurity=false --disable_endpointsecurity_fim=false`. 
 
 `es_process_file_events` records which processes accessed which files whereas `file_events` does not. However, `es_process_file_events` will generate more data volume, as it captures everything by default. Currently, you can configure EndpointSecurity to [ignore certain file paths](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#macos-only-events-control-flags), but as of right now, there is now way to configure it to only watch certain filepaths. 
 
-Due to the data volume, Fleet leans towards using `file_events` for MacOS, but does not recommend against using `es_process_file_events`.
+Due to the data volume, Fleet leans towards using `file_events` for macOS, but does not recommend against using `es_process_file_events`.
 
-#### FIM on linux
-To turn `file_events` on linux, use the flag `--enable_file_events=true`. The corresponding utility is [inotify](https://man7.org/linux/man-pages/man7/inotify.7.html). 
+#### FIM on Linux
+To turn `file_events` on Linux, use the flag `--enable_file_events=true`. The corresponding utility is [inotify](https://man7.org/linux/man-pages/man7/inotify.7.html). 
 
 Linux has a `process_file_events` table which uses the [audit framework](https://wiki.archlinux.org/title/Audit_framework). To use this table, use the flags `--disable_audit=false --audit_allow_fim_events=true`. 
 
@@ -106,8 +106,8 @@ On Windows, use the `--enable_ntfs_event_publisher=true` flag to turn on `ntfs_j
 ### Process auditing
 Process auditing refers to recording process executions and network, or socket, connections. 
 
-#### Process auditing on linux
-On linux, there are two utilities that enable osquery process auditing: [eBPF](https://ebpf.io/what-is-ebpf) and the [audit framework](https://wiki.archlinux.org/title/Audit_framework). 
+#### Process auditing on Linux
+On Linux, there are two utilities that enable osquery process auditing: [eBPF](https://ebpf.io/what-is-ebpf) and the [audit framework](https://wiki.archlinux.org/title/Audit_framework). 
 
 The choice of utility depends on your situation. Some relevant considerations are:
 - Audit has earlier support (>2.6 ) compared to eBPF (>4.18)
@@ -121,8 +121,8 @@ To use the `bpf_process_events` and `bpf_socket_events` tables, use the flag `--
 
 To use `process_events` and `socket_events` with the audit framework, use the flags `--disable_audit=false --audit_allow_process_events=true --audit_allow_socket_events=true`. See [these instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#linux-process-auditing-using-audit) for more information. 
 
-#### Process auditing on MacOS
-On MacOS, there are two utilities that enable osquery process auditing: [OpenBSM](https://github.com/openbsm/openbsm) and the [EndpointSecurity](https://developer.apple.com/documentation/endpointsecurity). Fleet recommends using the EndpointSecurity implementation because it is intended to replace OpenBSM. EndpointSecurity is available starting MacOS 10.15.
+#### Process auditing on macOS
+On macOS, there are two utilities that enable osquery process auditing: [OpenBSM](https://github.com/openbsm/openbsm) and the [EndpointSecurity](https://developer.apple.com/documentation/endpointsecurity). Fleet recommends using the EndpointSecurity implementation because it is intended to replace OpenBSM. EndpointSecurity is available starting macOS 10.15.
 
 To use the `es_process_events` tables, use the flag `--disable_endpointsecurity=false` see [these instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-endpointsecurity). To use `process_events` and `socket_events` with OpenBSM, see [these instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-openbsm). 
 
@@ -130,7 +130,7 @@ To use the `es_process_events` tables, use the flag `--disable_endpointsecurity=
 Currently, osquery does not support process auditing for Windows. To learn more about process auditing on Windows, visit [here](https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/security-auditing-overview). Fleet is tracking work to build process auditing for Windows in osquery [here](https://github.com/fleetdm/fleet/issues/7732).
 
 ### YARA scanning
-[YARA](https://virustotal.github.io/yara/) is a malware research and detection tool available on linux and MacOS that allows users to create descriptions of malware families based on patterns of text or binary code. Each potential piece of malware is matched against a YARA rule and triggers if the specified conditions are met. 
+[YARA](https://virustotal.github.io/yara/) is a malware research and detection tool available on Linux and macOS that allows users to create descriptions of malware families based on patterns of text or binary code. Each potential piece of malware is matched against a YARA rule and triggers if the specified conditions are met. 
 
 Osquery applies pre-specified YARA rules to incoming events in the `file_events` table to populate the `yara_events` table. As such, it requires the following flags:
 * `--disable_events=false`
@@ -150,13 +150,13 @@ These other event tables are also available in osquery. We will provide more inf
 
 | Table name | OS | Flags |
 | :- | :-- | :-- |
-| apparmor_events | linux | --audit_allow_apparmor_events=true |
-| disk_events | MacOS | no additional flags needed |
-| hardware_events | MacOS, linux | no additional flags needed |
-| seccomp_events | linux | --audit_allow_seccomp_events |
-| selinux_events | linux | --audit_allow_selinux_events=true |
-| syslog_events | linux | no additional flags needed |
-| user_interaction_events | MacOS |
+| apparmor_events | Linux | --audit_allow_apparmor_events=true |
+| disk_events | macOS | no additional flags needed |
+| hardware_events | macOS, Linux | no additional flags needed |
+| seccomp_events | Linux | --audit_allow_seccomp_events |
+| selinux_events | Linux | --audit_allow_selinux_events=true |
+| syslog_events | Linux | no additional flags needed |
+| user_interaction_events | macOS |
 | user_events | Linux | --audit_allow_user_events=true |
 | windows_events | Windows | --enable_windows_events_publisher=true |
 | powershell_events | Windows | --enable_powershell_events_subscriber=true |
