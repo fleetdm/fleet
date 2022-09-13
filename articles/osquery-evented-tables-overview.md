@@ -68,13 +68,12 @@ The `osquery_schedule` table will list all scheduled queries and recent informat
 ## How do I turn on an evented table?
 To turn on osquery's eventing system, set the flag `--disable_events=false`. Eventing is disabled by default. 
 
-Thereafter, each evented table is turned on by its own flag. The full list can be found [here](https://osquery.readthedocs.io/en/latest/installation/cli-flags/#windows-only-events-control-flags). For most evented tables, when you turn them on in osquery, osquery will use the default configuration of the utility. The defaults are good enough for most situations.
+Thereafter, each evented table is turned on by its own flag. For most evented tables, when you turn them on in osquery, osquery will use the default configuration of the utility. The defaults are good enough for most situations.
 
 However, as discussed above, we recommend getting to know the underlying utility to optimize it for your use case. Below, we cover the following specific topics:
 1. File Integrity Monitoring
 2. Process Auditing
 3. YARA Scanning
-4. User events (linux)
 
 ### File integrity monitoring (FIM)
 FIM refers to the monitoring of key files or filepaths. FIM enables organizations to audit the history of critical resources, detect intrusions, and apply remediations. 
