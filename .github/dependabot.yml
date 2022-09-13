@@ -58,6 +58,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
     reviewers:
       - lucasmrod
     pull-request-branch-name:
