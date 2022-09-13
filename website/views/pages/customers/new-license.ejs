@@ -42,7 +42,17 @@
         <div class="card card-body mt-3" v-if="showBillingForm">
           <h3 class="pb-3">Billing information</h3>
           <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="billingFormRules" @submitted="submittedPaymentForm()" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo'">
+            <div class="form-group">
+              <label for="card">Billing Card</label>
+              <stripe-card-element class="mb-3" id="card" busy.sync="syncing" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
+              v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
+            </div>
             <div v-if="showAdditionalBillingFormInputs">
+              <div class="form-group">
+                <label for="organization">Organization</label>
+                <input class="form-control" id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : formErrors.organization === '' ]" focus-first v-model.trim="formData.organization">
+                <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
+              </div>
               <div class="row">
                 <div class="col-12 col-sm-6 pr-sm-2">
                   <div class="form-group">
@@ -59,16 +69,6 @@
                   </div>
                 </div>
               </div>
-              <div class="form-group">
-                <label for="organization">Organization</label>
-                <input class="form-control" id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : formErrors.organization === '' ]" focus-first v-model.trim="formData.organization">
-                <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="card">Billing Card</label>
-              <stripe-card-element class="mb-3" id="card" busy.sync="syncing" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
-              v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
             </div>
             <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">
               <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a></p>
