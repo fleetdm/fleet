@@ -87,6 +87,8 @@ MacOS also has an `es_process_file_events` table which uses the [EndpointSecurit
 
 `es_process_file_events` records which processes accessed which files whereas `file_events` does not. However, `es_process_file_events` will generate more data volume, as it captures everything by default. Currently, you can configure EndpointSecurity to [ignore certain file paths](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#macos-only-events-control-flags), but as of right now, there is now way to configure it to only watch certain filepaths. 
 
+Due to the data volume, Fleet leans towards using `file_events` for MacOS, but does not recommend against using `es_process_file_events`.
+
 #### FIM on linux
 To turn `file_events` on linux, use the flag `--enable_file_events=true`. The corresponding utility is [inotify](https://man7.org/linux/man-pages/man7/inotify.7.html). 
 
