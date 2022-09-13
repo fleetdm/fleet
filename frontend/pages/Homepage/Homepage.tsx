@@ -75,7 +75,7 @@ const Homepage = (): JSX.Element => {
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [softwareTitleDetail, setSoftwareTitleDetail] = useState<
     JSX.Element | string | null
-  >();
+  >("");
   const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
@@ -353,10 +353,6 @@ const Homepage = (): JSX.Element => {
     !softwarePageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
-
-  if (isCollectingInventory) {
-    setSoftwareTitleDetail("");
-  }
 
   const HostsStatusCard = useInfoCard({
     title: "",
