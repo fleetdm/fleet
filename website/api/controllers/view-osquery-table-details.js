@@ -1,16 +1,14 @@
 module.exports = {
 
 
-  friendlyName: 'View osquery tables',
+  friendlyName: 'View osquery table details',
 
 
-  description: 'Display "Osquery tables" page.',
-
-  urlWildcardSuffix: 'selectedTableSlug',
+  description: 'Display "Osquery table details" page.',
 
   inputs: {
-    selectedTableSlug : {
-      description: 'The name of the osquery table that this user wants to display',
+    slug : {
+      description: 'The slug of the osquery table that this user wants to display',
       example: 'account_policy_data',
       type: 'string',
     }
@@ -19,7 +17,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/osquery-tables'
+      viewTemplatePath: 'pages/osquery-table-details'
     },
     badConfig: { responseType: 'badConfig' },
     notFound: { responseType: 'notFound' },
@@ -27,19 +25,19 @@ module.exports = {
   },
 
 
-  fn: async function ({selectedTableSlug}) {
+  fn: async function ({slug}) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.schemaTables) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.schemaTables'};
     }
-    let tableToDisplay = _.find(sails.config.builtStaticContent.schemaTables, { url: '/tables/' + selectedTableSlug });
+    let tableToDisplay = _.find(sails.config.builtStaticContent.schemaTables, { url: '/tables/' + slug });
 
     if (!tableToDisplay) {// If there's no EXACTLY matching content page, throw a 404.
-      tableToDisplay = sails.config.builtStaticContent.schemaTables[0];
+      throw 'notFound';
     }
 
-    let pageTitleForMeta = tableToDisplay.title + ' table | Fleet schema';
-    let pageDescriptionForMeta = 'View information about the '+tableToDisplay.title+' table on Fleets Schema tables';
+    let pageTitleForMeta = '"'+tableToDisplay.title +'" in osquery | Fleet documentation';
+    let pageDescriptionForMeta = 'Read about how to use the "'+tableToDisplay.title+'" table with osquery and Fleet.';
 
 
     let allTables = sails.config.builtStaticContent.schemaTables.filter((page)=>{
@@ -49,7 +47,6 @@ module.exports = {
     return {
       path: require('path'),
       allTables,
-      compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath +'/tables',
       tableToDisplay,
       pageTitleForMeta,
       pageDescriptionForMeta,

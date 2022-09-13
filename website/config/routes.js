@@ -208,8 +208,8 @@ module.exports.routes = {
     },
   },
 
-  'GET /tables/?*': {
-    action: 'view-osquery-tables',
+  'GET /tables/:slug': {
+    action: 'view-osquery-table-details',
   },
 
 

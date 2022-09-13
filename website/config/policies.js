@@ -42,6 +42,6 @@ module.exports.policies = {
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired': true,
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
-  'view-osquery-tables': true,
+  'view-osquery-table-details': true,
 
 };

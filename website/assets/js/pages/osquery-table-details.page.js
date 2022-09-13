@@ -1,4 +1,4 @@
-parasails.registerPage('osquery-tables', {
+parasails.registerPage('osquery-table-details', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
@@ -45,7 +45,7 @@ parasails.registerPage('osquery-tables', {
     if(this.tableToDisplay.keywordsForSyntaxHighlighting){
       keywordsForThisTable = this.tableToDisplay.keywordsForSyntaxHighlighting;
     }
-    (function highlightThatSyntax(){
+    (()=>{
       $('pre code').each((i, block) => {
         window.hljs.highlightBlock(block);
       });
@@ -59,10 +59,9 @@ parasails.registerPage('osquery-tables', {
       });
     })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
-    (function adjustSideBarHeight(){
+    (()=>{
       let tablePartialHeight = $('[purpose="table-container"]').height();
       $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
-      // $('[purpose="left-sidebar"]').css({'height': tablePartialHeight});
     })();
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -72,6 +71,10 @@ parasails.registerPage('osquery-tables', {
     //…
     clickFilterByPlatform: async function(platform) {
       this.selectedPlatform = platform;
+    },
+
+    clickToggleTableNav: function() {
+      this.showTableNav = !this.showTableNav;
     },
 
     _isIncluded: function (data, selectedOption) {
@@ -84,10 +87,6 @@ parasails.registerPage('osquery-tables', {
       return (
         _.isString(data) && data.toLowerCase().includes(selectedOption.toLowerCase())
       );
-    },
-
-    toggleTableNav: function() {
-      this.showTableNav = !this.showTableNav;
     },
   }
 });
