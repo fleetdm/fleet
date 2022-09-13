@@ -512,25 +512,17 @@ module.exports = {
           }//∞ </each source file>
         }//∞ </each section repo path>
 
-        // Attach partials dir path in what will become configuration for the Sails app.
-        // (This is for easier access later, without defining this constant in more than one place.)
-        builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
+        // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
 
-      },
-      async()=>{// Parse osquery schema JSON, merge it with the Fleet schema, then create EJS partials for each table
-
-        builtStaticContent.schemaTables = [];
-
-        let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
         let urlOfOsquerySchemaJson = 'https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/5.4.0.json';
-        let osquerySchemaJson = await sails.helpers.http.get(urlOfOsquerySchemaJson);
-        let fleetSchemaJson = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
+        let rawOsqueryTables = await sails.helpers.http.get(urlOfOsquerySchemaJson);
+        let fleetOverridesForTables = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
 
-        let mergedSchema = []; // create an empty array for the merged schema.
+        let expandedTables = []; // create an empty array for the merged schema.
 
-        osquerySchemaJson.forEach((osquerySchemaTable)=> {
-          let schemaToPush = osquerySchemaTable; // Set the initial value for the table in the merged JSON
-          fleetSchemaJson.forEach((fleetTable)=>{ // iterate through the tables in the Fleet schema JSON
+        for(let osquerySchemaTable of rawOsqueryTables) {
+          let expandedTableToPush = osquerySchemaTable; // Set the initial value for the table in the merged JSON
+          for(let fleetTable of fleetOverridesForTables){
             if(fleetTable.name === osquerySchemaTable.name) { // If a table name matches, we'll iterate though the columns in the table.
               if(fleetTable.platforms) { // If this table has an array of platforms in the Fleet schema JSON, we'll overwrite platforms in the merged schema
                 osquerySchemaTable.platforms = fleetTable.platforms;
@@ -538,31 +530,33 @@ module.exports = {
               osquerySchemaTable.columns.forEach((osquerySchemaColumn, i)=>{ // iterate through the columns in the osquery schema table
                 let columnToMerge = {}; // Set an empty object to keep track of any columns that will need to be merged.
                 if(fleetTable.columns) { // If the fleet schema JSON has columns data for this table, we'll iterate though them to merge the values
-                  fleetTable.columns.forEach((fleetSchemaColumn)=>{ // Iterate through the array of column objects
+                  for(let fleetSchemaColumn of fleetTable.columns) {// Iterate through the array of column objects
                     if(osquerySchemaColumn.name === fleetSchemaColumn.name) { // If the name is the same, we'll merge the columns in the final schema
                       columnToMerge = _.merge(osquerySchemaColumn, fleetSchemaColumn); //
                       osquerySchemaTable.columns[i] = columnToMerge; //
                     }
-                  });
+                  }
                 }
               });
-              schemaToPush = _.merge(osquerySchemaTable, fleetTable); // Merges a table in the JSON
+              expandedTableToPush = _.merge(osquerySchemaTable, fleetTable); // Merges a table in the JSON
             }
-          });//Ò
-          mergedSchema.push(schemaToPush);
-        });
+
+          }
+          expandedTables.push(expandedTableToPush);
+        }
+
         // After we've gone through the tables in the Osquery schema, we'll go through the tables in the Fleet schema JSON, and add any tables that don't exist in the osquery schema.
-        fleetSchemaJson.forEach((fleetTable)=>{
-          let fleetSchemaTableExistsInOsquerySchema = _.find(osquerySchemaJson, (table)=>{
+        for (let fleetTable of fleetOverridesForTables) {
+          let fleetSchemaTableExistsInOsquerySchema = _.find(rawOsqueryTables, (table)=>{
             return fleetTable.name === table.name;
           });
           if(!fleetSchemaTableExistsInOsquerySchema) { // If a table in the Fleet schema does not exist in the osquery schema, we'll add it to the final schema.
-            mergedSchema.push(fleetTable);
+            expandedTables.push(fleetTable);
           }
-        });
+        }
 
         // Once we have our merged schema, we'll create ejs partials for each table.
-        for(let table of mergedSchema) {
+        for(let table of expandedTables) {
           let keywordsForSyntaxHighlighting = [];
           keywordsForSyntaxHighlighting.push(table.name);
           if(!table.hidden) { // If a table has `"hidden": true` the table won't be shown in the final schema, and we'll ignore it
@@ -636,15 +630,21 @@ module.exports = {
               await sails.helpers.fs.write(htmlOutputPath, htmlString);
             }
             // Add this table to the array of schemaTables in builtStaticContent.
-            builtStaticContent.schemaTables.push({
-              url: '/tables/'+table.name,
+            builtStaticContent.markdownPages.push({
+              url: '/tables/'+encodeURIComponent(table.name),
               title: table.name,
               htmlId: htmlId,
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
+              sectionRelativeRepoPath: table.name // Setting the sectionRelativeRepoPath to an arbitratry string to work with existing pages.
             });
           }
         }
+
+        // Attach partials dir path in what will become configuration for the Sails app.
+        // (This is for easier access later, without defining this constant in more than one place.)
+        builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
+
       },
     ]);
 

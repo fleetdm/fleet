@@ -27,10 +27,10 @@ module.exports = {
 
   fn: async function ({slug}) {
 
-    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.schemaTables) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
-      throw {badConfig: 'builtStaticContent.schemaTables'};
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
+      throw {badConfig: 'builtStaticContent.markdownPages'};
     }
-    let tableToDisplay = _.find(sails.config.builtStaticContent.schemaTables, { url: '/tables/' + slug });
+    let tableToDisplay = _.find(sails.config.builtStaticContent.markdownPages, { url: '/tables/' + slug });
 
     if (!tableToDisplay) {// If there's no EXACTLY matching content page, throw a 404.
       throw 'notFound';
@@ -40,7 +40,7 @@ module.exports = {
     let pageDescriptionForMeta = 'Read about how to use the "'+tableToDisplay.title+'" table with osquery and Fleet.';
 
 
-    let allTables = sails.config.builtStaticContent.schemaTables.filter((page)=>{
+    let allTables = sails.config.builtStaticContent.markdownPages.filter((page)=>{
       return !! _.startsWith(page.url, '/tables/');
     });
     // Respond with view.
