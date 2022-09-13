@@ -287,6 +287,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// required fields must be set, ensure they haven't been removed by applying
+	// the new config
+	if appConfig.OrgInfo.OrgName == "" {
+		invalid.Append("org_name", "organization name must be present")
+	}
+	if appConfig.ServerSettings.ServerURL == "" {
+		invalid.Append("server_url", "Fleet server URL must be present")
+	}
+
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.

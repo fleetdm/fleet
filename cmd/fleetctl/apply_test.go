@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/assert"
@@ -629,4 +630,391 @@ spec:
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.Equal(t, savedAppConfig.WebhookSettings.Interval.Duration, 30*time.Second)
+}
+
+func TestApplySpecs(t *testing.T) {
+	setupDS := func(ds *mock.Store) {
+		// labels
+		ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+			return nil
+		}
+
+		// teams - team ID 1 already exists
+		teamsByName := map[string]*fleet.Team{
+			"team1": {
+				ID:          1,
+				Name:        "team1",
+				Description: "team1 description",
+			},
+		}
+
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			team, ok := teamsByName[name]
+			if !ok {
+				return nil, sql.ErrNoRows
+			}
+			return team, nil
+		}
+
+		i := 1 // new teams will start at 2
+		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			i++
+			team.ID = uint(i)
+			teamsByName[team.Name] = team
+			return team, nil
+		}
+
+		agentOpts := json.RawMessage(`{"config":{}}`)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
+		}
+
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			teamsByName[team.Name] = team
+			return team, nil
+		}
+
+		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+			return nil
+		}
+
+		// activities
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+			return nil
+		}
+
+		// app config
+		ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+			return userRoleSpecList, nil
+		}
+
+		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+			if email == "admin1@example.com" {
+				return userRoleSpecList[0], nil
+			}
+			return userRoleSpecList[1], nil
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}, nil
+		}
+
+		ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+			return nil
+		}
+	}
+
+	cases := []struct {
+		desc       string
+		flags      []string
+		spec       string
+		wantOutput string
+		wantErr    string
+	}{
+		{
+			desc: "empty team spec",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+`,
+			wantOutput: "[+] applied 1 teams",
+		},
+		{
+			desc: "empty team name",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: ""
+`,
+			wantErr: `422 Validation Failed: name may not be empty`,
+		},
+		{
+			desc: "invalid agent options for existing team",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    agent_options:
+      config:
+        blah: nope
+`,
+			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+		},
+		{
+			desc: "invalid top-level key for team",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    blah: nope
+`,
+			wantOutput: `[+] applied 1 teams`, // TODO(mna): currently, only agent options is validated, other unknown keys are ignored
+		},
+		{
+			desc: "invalid agent options for new team",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      config:
+        blah: nope
+`,
+			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+		},
+		{
+			desc: "invalid agent options dry-run",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      config:
+        blah: nope
+`,
+			flags:   []string{"--dry-run"},
+			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+		},
+		{
+			desc: "invalid agent options force",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      config:
+        blah: nope
+`,
+			flags:      []string{"--force"},
+			wantOutput: `[+] applied 1 teams`,
+		},
+		{
+			desc: "invalid agent options field type",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      config:
+        options:
+          aws_debug: 123
+`,
+			flags:   []string{"--dry-run"},
+			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+		},
+		{
+			desc: "invalid agent options field type in overrides",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      config:
+        options:
+          aws_debug: true
+      overrides:
+        platforms:
+          darwin:
+            options:
+              aws_debug: 123
+`,
+			wantErr: `400 Bad request: darwin platform config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+		},
+		{
+			desc: "empty config",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+`,
+			wantOutput: ``, // no output for empty config
+		},
+		{
+			desc: "config with blank required org name",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: ""
+`,
+			wantErr: `422 Validation Failed: organization name must be present`,
+		},
+		{
+			desc: "config with blank required server url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    server_url: ""
+`,
+			wantErr: `422 Validation Failed: Fleet server URL must be present`,
+		},
+		{
+			desc: "config with unknown key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    foo: bar
+`,
+			wantErr: `400 Bad request: json: unknown field "foo"`,
+		},
+		{
+			desc: "config with invalid key type",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    server_url: 123
+`,
+			wantErr: `400 Bad request: json: cannot unmarshal number into Go struct field ServerSettings.server_settings.server_url of type string`,
+		},
+		{
+			desc: "config with invalid agent options in dry-run",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    foo: bar
+`,
+			flags:   []string{"--dry-run"},
+			wantErr: `400 Bad request: json: unknown field "foo"`,
+		},
+		{
+			desc: "config with invalid agent options data type in dry-run",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        aws_debug: 123
+`,
+			flags:   []string{"--dry-run"},
+			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+		},
+		{
+			desc: "config with invalid agent options data type with force",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        aws_debug: 123
+`,
+			flags:      []string{"--force"},
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "dry-run set with unsupported spec",
+			spec: `
+apiVersion: v1
+kind: label
+spec:
+  name: label1
+  query: SELECT 1
+`,
+			flags:      []string{"--dry-run"},
+			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs`,
+		},
+		{
+			desc: "dry-run set with various specs, appconfig warning for legacy",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+---
+apiVersion: v1
+kind: label
+spec:
+  name: label1
+  query: SELECT 1
+---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_software_inventory: true
+`,
+			flags:      []string{"--dry-run"},
+			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration`,
+			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' spec`,
+		},
+		{
+			desc: "dry-run set with various specs, no errors",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+---
+apiVersion: v1
+kind: label
+spec:
+  name: label1
+  query: SELECT 1
+---
+apiVersion: v1
+kind: config
+spec:
+  features:
+    enable_software_inventory: true
+`,
+			flags: []string{"--dry-run"},
+			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs
+[+] applied fleet config
+[+] applied 1 teams`,
+		},
+	}
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+			setupDS(ds)
+			filename := writeTmpYml(t, c.spec)
+
+			var got string
+			if c.wantErr == "" {
+				got = runAppForTest(t, append([]string{"apply", "-f", filename}, c.flags...))
+			} else {
+				buf, err := runAppNoChecks(append([]string{"apply", "-f", filename}, c.flags...))
+				require.ErrorContains(t, err, c.wantErr)
+				got = buf.String()
+			}
+			if c.wantOutput == "" {
+				require.Empty(t, got)
+			} else {
+				require.Contains(t, got, c.wantOutput)
+			}
+		})
+	}
 }

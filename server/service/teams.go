@@ -184,7 +184,17 @@ func (r applyTeamSpecsResponse) error() error { return r.Err }
 
 func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*applyTeamSpecsRequest)
-	err := svc.ApplyTeamSpecs(ctx, req.Specs, fleet.ApplySpecOptions{
+
+	// remove any nil spec (may happen in conversion from YAML to JSON with fleetctl, but also
+	// with the API should someone send such JSON)
+	actualSpecs := make([]*fleet.TeamSpec, 0, len(req.Specs))
+	for _, spec := range req.Specs {
+		if spec != nil {
+			actualSpecs = append(actualSpecs, spec)
+		}
+	}
+
+	err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
 	})

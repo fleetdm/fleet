@@ -419,6 +419,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		case err == nil:
 			// OK
 		case ctxerr.Cause(err) == sql.ErrNoRows:
+			if spec.Name == "" {
+				return fleet.NewInvalidArgumentError("name", "name may not be empty")
+			}
 			create = true
 		default:
 			return err

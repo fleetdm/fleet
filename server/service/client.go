@@ -226,7 +226,7 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
-			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs")
+			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyQueries(specs.Queries); err != nil {
 				return fmt.Errorf("applying queries: %w", err)
@@ -237,7 +237,7 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 
 	if len(specs.Labels) > 0 {
 		if opts.DryRun {
-			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs")
+			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyLabels(specs.Labels); err != nil {
 				return fmt.Errorf("applying labels: %w", err)
@@ -248,7 +248,7 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 
 	if len(specs.Policies) > 0 {
 		if opts.DryRun {
-			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs")
+			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyPolicies(specs.Policies); err != nil {
 				return fmt.Errorf("applying policies: %w", err)
@@ -259,7 +259,7 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 
 	if len(specs.Packs) > 0 {
 		if opts.DryRun {
-			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'team' specs")
+			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyPacks(specs.Packs); err != nil {
 				return fmt.Errorf("applying packs: %w", err)
@@ -278,7 +278,7 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 
 	if specs.EnrollSecret != nil {
 		if opts.DryRun {
-			logfn("[!] ignoring enroll secrets, dry run mode only supported for 'config' and 'team' specs")
+			logfn("[!] ignoring enroll secrets, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
 				return fmt.Errorf("applying enroll secrets: %w", err)
@@ -296,7 +296,7 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 
 	if specs.UsersRoles != nil {
 		if opts.DryRun {
-			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'team' specs")
+			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
 				return fmt.Errorf("applying user roles: %w", err)
