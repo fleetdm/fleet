@@ -46,6 +46,6 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 		mockRequestDoer.resBody = `{"failing_policies_count": 1}`
 		res, err := client.GetDesktopPayload()
 		require.NoError(t, err)
-		require.Equal(t, uint(1), res.FailingPolicies)
+		require.Equal(t, uint(1), *res.FailingPolicies)
 	})
 }
