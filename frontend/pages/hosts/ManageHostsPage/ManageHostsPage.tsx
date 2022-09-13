@@ -73,6 +73,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
+  omitParams,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
@@ -621,7 +622,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleClearPoliciesFilter = () => {
+  const handleClearFilter = (omitParams: string[]) => {
     handleResetPageIndex();
 
     router.replace(
@@ -629,77 +630,33 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, ["policy_id", "policy_response"]),
+        queryParams: omit(queryParams, omitParams),
       })
     );
+  };
+
+  const handleClearPoliciesFilter = () => {
+    handleClearFilter(["policy_id", "policy_response"]);
   };
 
   const handleClearOSFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["os_id", "os_name", "os_version"]),
-      })
-    );
+    handleClearFilter(["os_id", "os_name", "os_version"]);
   };
 
   const handleClearSoftwareFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["software_id"]),
-      })
-    );
-    setSoftwareDetails(null);
+    handleClearFilter(["software_id"]);
   };
 
   const handleClearMDMSolutionFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["mdm_id"]),
-      })
-    );
-    setMDMSolutionDetails(null);
+    handleClearFilter(["mdm_id"]);
   };
 
   const handleClearMDMEnrollmentFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["mdm_enrollment_status"]),
-      })
-    );
+    handleClearFilter(["mdm_enrollment_status"]);
   };
 
   const handleClearMunkiIssueFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["munki_issue_id"]),
-      })
-    );
-    setMunkiIssueDetails(null);
+    handleClearFilter(["munki_issue_id"]);
   };
 
   const handleTeamSelect = (teamId: number) => {
