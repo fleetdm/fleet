@@ -79,6 +79,7 @@ module "aurora_mysql" {
   database_name                       = var.database_name
   enable_http_endpoint                = false
   backup_retention_period             = var.rds_backup_retention_period
+  snapshot_identifier                 = "arn:aws:rds:us-east-2:160035666661:cluster-snapshot:zwinnerman-2022-09-12-pre-mysql8"
   #performance_insights_enabled       = true
 
   vpc_id                = module.vpc.vpc_id
@@ -108,12 +109,12 @@ module "aurora_mysql" {
 
 resource "aws_db_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-db-mysql-parameter-group"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-db-mysql-parameter-group"
 }
 
 resource "aws_rds_cluster_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-mysql-cluster-parameter-group"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-mysql-cluster-parameter-group"
 }
