@@ -781,6 +781,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 
 		var hostID int64
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at, team_id FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
+		level.Info(ds.logger).Log("enroll host", err.Error())
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -801,9 +802,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
+				level.Info(ds.logger).Log("hostIDError", err.Error())
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			hostID, _ = result.LastInsertId()
+			level.Info(ds.logger).Log("hostID", hostID)
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
@@ -2278,7 +2281,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			public_ip = ?,
 			refetch_requested = ?,
 			gigs_disk_space_available = ?,
-			percent_disk_space_available = ?
+			percent_disk_space_available = ?,
+		    orbit_node_key = ?
 		WHERE id = ?
 	`
 	_, err := ds.writer.ExecContext(ctx, sqlStatement,
@@ -2316,6 +2320,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.RefetchRequested,
 		host.GigsDiskSpaceAvailable,
 		host.PercentDiskSpaceAvailable,
+		host.OrbitNodeKey,
 		host.ID,
 	)
 	if err != nil {
