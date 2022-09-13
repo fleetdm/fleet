@@ -151,14 +151,12 @@ These other event tables are also available in osquery. We will provide more inf
 | Table name | OS | Flags |
 | :- | :-- | :-- |
 | apparmor_events | linux | --audit_allow_apparmor_events=true |
-| disk_events | MacOS
-| hardware_events | MacOS, linux | 
-| seccomp_events | linux |
+| disk_events | MacOS | no additional flags needed |
+| hardware_events | MacOS, linux | no additional flags needed |
+| seccomp_events | linux | --audit_allow_seccomp_events |
 | selinux_events | linux | --audit_allow_selinux_events=true |
-| syslog_events | linux | 
+| syslog_events | linux | no additional flags needed |
 | user_interaction_events | MacOS |
 | user_events | Linux | --audit_allow_user_events=true |
-| ??? | ??? | --audit_allow_fork_process_events=true |
-| ??? | ??? | --audit_allow_kill_process_events=true |
 | windows_events | Windows | --enable_windows_events_publisher=true |
 | powershell_events | Windows | --enable_powershell_events_subscriber=true |
