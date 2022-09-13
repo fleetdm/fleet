@@ -1,156 +1,166 @@
-# Frontend Testing Strategy & Plan
+# Front-end testing strategy and plan
 
 This document contains the testing strategy and plan for the frontend codebase. The testing
-strategy is a high level overview of the **Who**, **What**, **When** and **Why** when it comes to testing.
-The testing plan primarily outlines the **How** of testing and covers the different practices and
+strategy is a high-level overview of the **who**, **what**, **when** and **why** when it comes to testing.
+The testing plan primarily outlines the **how** of testing and covers the different practices and
 toolings used in testing.
 
-**Table Of Contents**
+For instructions on using our testings tools, check out our [testing docs](../Contributing/Testing-and-local-development.md)
 
-- [Testing Strategy](#testing-strategy)
-  - [Testing Philosophy](#testing-philosophy)
-  - [Who Tests](#who-tests)
-  - [What We Test](#what-we-test)
-    - [Shared Utilities](#shared-utilities)
-    - [UI Building Blocks](#ui-building-blocks-resusable-components-and-hooks)
-    - [App Widgets](#app-widgets)
-    - [User Journyes](#user-journeys)
-- [Testing Plan](#testing-plan)
-  - [Types of Test](#types-of-tests)
-    - [Testing Cheat Sheet](#testing-cheat-sheet)
-    - [Manual Testing](#manual-testing)
-    - [Static Analysis](#static-analysis)
-    - [Unit Testing](#unit-testing)
-      - [Shared Utilities Testing](#shared-utilities-testing)
-      - [UI Building Block Testing](#ui-building-block-testing)
-      - [Reusable Hook Testing](#reusable-hooks-testing)
-    - [Integration Testing](#integration-testing)
-      - [App Widgets Testing](#app-widget-testing)
-    - [E2E Testing](#e2e-testing)
+**Table of contents**
+
+- [Testing strategy](#testing-strategy)
+  - [Testing philosophy](#testing-philosophy)
+  - [Who tests](#who-tests)
+  - [What we test](#what-we-test)
+    - [Shared utilities](#shared-utilities)
+    - [UI building blocks](#ui-building-blocks-resusable-components-and-hooks)
+    - [App widgets](#app-widgets)
+    - [User journeys](#user-journeys)
+- [Testing plan](#testing-plan)
+  - [Types of tests](#types-of-tests)
+    - [Testing cheat sheet](#testing-cheat-sheet)
+    - [Manual testing](#manual-testing)
+    - [Static analysis](#static-analysis)
+    - [Unit testing](#unit-testing)
+      - [Shared utilities testing](#shared-utilities-testing)
+      - [UI building block testing](#ui-building-block-testing)
+      - [Reusable hook testing](#reusable-hooks-testing)
+    - [Integration testing](#integration-testing)
+      - [App widgets testing](#app-widget-testing)
+    - [E2E testing](#e2e-testing)
   - [Tooling](#tooling)
-    - [Eslint and Typescript](#eslint-and-typescript)
+    - [ESLint and TypeScript](#eslint-and-typescript)
     - [Jest](#jest)
     - [Testing-Library](#testing-library)
     - [Cypress](#cypress)
-  - [More Specific Examples](#more-sepcific-exampels)
-    - [Roles and Permissions](#roles-and-permissions)
-    - [Mac and Windows Hosts](#mac-and-windows-hosts)
-    - [Error States](#error-states)
+  - [Additional examples](#additional-examples)
+    - [Roles and permissions](#roles-and-permissions)
+    - [Mac and Windows hosts](#mac-and-windows-hosts)
+    - [Error states](#error-states)
 
 ---
 
-## Testing Strategy
+## Testing strategy
 
-### Testing Philosophy
+### Testing philosophy
 
-When we create tests, we keep in mind how an end user will be using this software. This idea influences all other decisions when it comes to testing. Sometimes the end user is a company admin using the fleet UI, or a devops using fleetctl in the terminal, or a developer using a reusable UI component or utility or class; In any case we should first think about the end user when building our testing plan. Testing software from this perspective has many advantages including:
+When we create tests, we keep in mind how an end user will be using this software. This idea
+influences all other decisions when it comes to testing. Sometimes the end user is a company admin
+using the Fleet UI, or a DevOps engineer using fleetctl in the terminal, or a developer using a
+reusable UI component or utility or class. In any case, we should first think about the end user
+when building our testing plan. Testing software from this perspective has many advantages,
+including:
 
-- A focus on functionality and behavior over implementation details. This leads to better maintainability of the testing suite which does not have to change as the implementation changes.
-- Gives a clear idea of what type of tests are useful and should be prioritised.
-- Gives higher confidence that the software behaves as intended in a real world scenario
+- A focus on functionality and behavior over implementation details. This leads to better
+  maintainability of the testing suite which does not have to change as the implementation changes.
+- A clear idea of what type of tests are useful and should be prioritized.
+- A higher level of confidence that the software behaves as intended in real world scenarios.
 
-### Who Tests
+### Who tests
 
 The **developer** is responsible for writing and maintaining tests as part of their work. They can get
 help from QA when trying to decide what tests are sufficient for the feature.
 
-### What We Test
+### What we test
 
-We break down our application into different type of systems that we can test in ways that best fit
+We break down our application into different types of systems that we can test in ways that best fit
 their use cases.
 
-#### Shared Utilities
+#### Shared utilities
 
-Shared utilities are generally simple JS functions used throught the app. This includes code like
-utils in `utilites/url` and `utilities/string`.
+Shared utilities are generally simple JS functions used throught the app. This includes code in the
+`utilities` directory such as `utilites/url` and `utilities/string`.
 
-#### UI Building Blocks (resusable components and hooks)
+#### UI building blocks (reusable components and hooks)
 
-UI Building blocks is code that is reusable and primarialy props or argument driven. These include
+UI building blocks is code that is reusable and primarily props or argument driven. This includes
 components in the `components` directory like `Radio`, `FlashMessage`, and `Button` or reusable
 hooks like `useDeepEffect`.
 
 
-#### App Widgets
+#### App widgets
 
-App widgets are larger chunks of the application that are more more specific (therefore not
-reused) and are made up the UI building blocks. They tend to have more context and dependencies
+App widgets are larger chunks of the application that are more specific (therefore not
+reused) and are made up of the UI building blocks. They tend to have more context and dependencies
 within them and therefore are tested differently than the
-building blocks. Examples include forms like `LoginForm`, and `ResetPasswordForm` or even some
+building blocks. Examples include forms like `LoginForm` and `ResetPasswordForm` or even some
 simpler pages including `Registration Page` or `LoginPage`
 
-#### User Journeys
+#### User journeys
 
-User Journeys are the flows users take through the application to accomplish their goal. These are
+User journeys are the flows users take through the application to accomplish their goals. These are
 typically the widest and can include navigating through multiple pages or working with multiple app
-widgets on a page. This would include things like **Creating a new user or team** or **filtering
-hosts by software vulnerabilities or set policies**.
+widgets on a page. This would include things like **creating a new user or team** or **filtering
+hosts by software vulnerabilities or policy results**.
 
 ---
 
-## Testing Plan
+## Testing plan
 
-This section answers how we are testing our code. We cover tools and practices to writing tests. We
-like to test the software at different layers (unit, integration, e2e) all of which have their
+This section answers **how** we are testing our code by covering our testing tools and best practices. We
+like to test the software at different layers (unit, integration, E2E), all of which have their
 own usefulness and testing practices.
 
 > NOTE: Architecture plays a huge role in testing practices and tools. In our current landscape
-(__as of 31/08/2022__) we do not have the best seperation of concerns between our systems. As a
-result, the most reliable way to test our software is as a whole with e2e tests. While this is ok
-at some level, we still are missing a large chunk of important testing that would be better written
-and maintained at the integration/unit level. We'd like to utilise seperation of concerns more
-between our systems as this will allow us to test more in the integration and unit layers which are
+(__as of 31/08/2022__), we do not have the best separation of concerns between our systems. As a
+result, the most reliable way to test our software is as a whole with E2E tests. While this is ok
+at some level, we are still missing a large chunk of important testing that would be better written
+and maintained at the integration/unit level. We'd like to utilize separation of concerns more
+between our systems as this will allow us to test more in the integration and unit layers, which are
 quicker to run and generally easier to work with.
 
-### Types of Tests
+### Types of tests
 
 We use a variety of testing to ensure that our software is working as intended. This includes:
 
-- End-to-end (e2e)
+- End-to-end (E2E)
 - Integration
 - Unit
 - Static
 - Manual
 
-#### Testing Cheat Sheet
+#### Testing cheat sheet
 
 | Systems | Type of Test | Who is the User | Example | Notes |
 | ------- | ------------ | --------------- | ------- | ----- |
-| Reusuable utilites | unit w/jest | devs | string util, url util | no/few dependencies. function argument based |
-| Reusable hooks | unit w/jest & react-hooks lib | devs | useToggleDisplayed Hook | no/few dependencies. function argument based |
-| Reusable UI components | unit w/jest & testing-library | devs | Radio, Button, Input components | no/few dependencies. props based |
-| App Widgets | Integration or e2e w/testing-library or cypress | end users | Create User form, Reset Password form | Less reusable code with more complex environment setup and dependencies. Depending on the case can be done with integration or e2e. When integration, mock at the backend level, dont mock other UI systems. When e2e, no mocking of other systems. |
-| User Journeys | e2e w/cypress | end users | filtering a host by software, creating a team as admin | Full business flows. No/minimal mocking of systems, except for common error states from network. |
-| N/A | Manual | N/A | // TODO | Manual testing can be used for all types of code. Examples would be for one offs or states that would require extreamly difficult testing setups. |
+| Reusable utilities | unit w/Jest | devs | string util, url util | no/few dependencies. function argument based |
+| Reusable hooks | unit w/Jest & react-hooks lib | devs | useToggleDisplayed Hook | no/few dependencies. function argument based |
+| Reusable UI components | unit w/Jest & testing-library | devs | Radio, Button, Input components | no/few dependencies. props based |
+| App Widgets | Integration or E2E w/testing-library or Cypress | end users | Create User form, Reset Password form | Less reusable code with more complex environment setup and dependencies. Depending on the case can be done with integration or E2E. When integration, mock at the backend level, don't mock other UI systems. When E2E, no mocking of other systems except for common network error states. |
+| User Journeys | E2E w/Cypress | end users | filtering a host by software, creating a team as admin | Full business flows. No/minimal mocking of systems, except for common error states from network. |
+| N/A | Manual | N/A | // TODO | Manual testing can be used for all types of code. Examples would be for one-offs or states that would require extremely difficult testing setups. |
 
-#### Manual Testing
+#### Manual testing
 
-There will always be a space for manual testing and we utilise it for testing states that do not
-occur very often in the application or are not worth the effort to set up to test for an  unlikely edge case.
+There will always be a space for manual testing. We utilize it for testing states that do not
+occur very often in the application or are not worth the effort to test for unlikely edge case.
 
-#### Static Analysis
+#### Static analysis
 
-This includes typing and linting to quickly ensure proper typings of data flowing through the application and that we are following coding conventions and styling rules. This give us a first of defense against writing buggy code.
+This includes typing and linting to quickly ensure proper typings of data flowing through the
+application and that we are following coding conventions and styling rules. This give us a first
+line of defense against writing buggy code.
 
-#### Unit Testing
+#### Unit testing
 
-We unit test smaller reusable components that have no/few  dependencies within them. These
+We unit test smaller reusable components that have little to no dependencies within them. These
 components are primarily parametric based and require no or minimal mocking to be tested
-effectively. They tend to be small building blocks of our application (e.g. reusable UI components,
-common utilities, reusable hooks. The end user in this case tends to be other developers so we want
-to ensure these components work as expected when used as building blocks.
+effectively. They tend to be small building blocks of our application (e.g., reusable UI components,
+common utilities, reusable hooks.) With unit testing, the end user tends to be other developers so
+we ensure these components work as expected when used as building blocks.
 
-##### Shared Utilities Testing
+##### Shared utilities testing
 
-We can test these purely with jest and dont have to worry about rendering components with
-react-testing-library. Only jest is needed with minimal mocking.
+We can test utility functions purely with Jest and don't have to worry about rendering components with
+React Testing Library. Only Jest is needed with minimal mocking.
 
-[source here](https://github.com/fleetdm/fleet/blob/main/frontend/utilities/url/url.tests.ts)
+[View the full url utility testing source.](https://github.com/fleetdm/fleet/blob/main/frontend/utilities/url/url.tests.ts)
 
 ```tsx
 import { buildQueryStringFromParams } from ".";
 
-describe("url utilites", () => {
+describe("url utilities", () => {
   it("creates a query string from a params object", () => {
     const params = {
       query: "test",
@@ -173,12 +183,12 @@ describe("url utilites", () => {
   });
 });
 ```
-##### UI Building Block Testing
+##### UI building block testing
 
 We test the component to ensure it works how a developer would want to use it. There is minimal
-mocking and we utilize react-testing-library and jest spies to test.
+mocking and we utilize react-testing-library and Jest spies to test.
 
-[source here](https://github.com/fleetdm/fleet/blob/main/frontend/components/forms/fields/Radio/Radio.tests.tsx)
+[View the full Radio component testing source.](https://github.com/fleetdm/fleet/blob/main/frontend/components/forms/fields/Radio/Radio.tests.tsx)
 
 ```tsx
 import React from "react";
@@ -226,22 +236,22 @@ describe("Radio - component", () => {
 });
 ```
 
-##### Reusable Hooks Testing
+##### Reusable hooks testing
 
 // TODO
 
-#### Integration Testing
+#### Integration testing
 
 We use integration testing to strike a balance between speed and expense to write our tests. We use
-them to test multiple reusable components that come together into less reusable App Widgets. We also try to use
+them to test multiple reusable components that come together into less reusable app widgets. We also try to use
 minimal mocking, but can mock at the backend level if required.
 
-##### App widget Testing
+##### App widget testing
 
 This layer of tests is great for testing difficult to obtain states and edge cases as the test setup
-is simpler than e2e tests. We highly utilise react-testing-library to interface with these components.
+is simpler than E2E tests. We highly utilize react-testing-library to interface with these components.
 
-[source here](https://github.com/fleetdm/fleet/blob/main/frontend/components/forms/ResetPasswordForm/ResetPasswordForm.tests.jsx)
+[View the full ResetPasswordForm app widget testing source.](https://github.com/fleetdm/fleet/blob/main/frontend/components/forms/ResetPasswordForm/ResetPasswordForm.tests.jsx)
 
 ```tsx
 import React from "react";
@@ -276,12 +286,12 @@ describe("ResetPasswordForm - component", () => {
 
 #### E2E testing
 
-Our e2e layer tests all the systems of the software (frontend and backend) together to
-ensure the application works as intended. To support this we do not often mock API responses at this
-layer of testing (with an exception for mocking network error responses). We want to test the
-software as an actual user would at this level.
+Our E2E layer tests all the systems of the software (frontend and backend) together to
+ensure the application works as intended. To support this, we rarely mock API responses at this
+layer of testing. Exceptions include mocking network error responses and mocking external APIs such
+as Jira or Zendesk integration responses. At this level we want to test the software as an actual user.
 
-[source here](https://github.com/fleetdm/fleet/blob/main/cypress/integration/all/app/labelflow.spec.ts)
+[View the full labels flow user journey testing source.](https://github.com/fleetdm/fleet/blob/main/cypress/integration/all/app/labelflow.spec.ts)
 
 ```ts
 describe("Labels flow", () => {
@@ -324,39 +334,41 @@ Here is a quick reference of the current tooling we are using at each layer of t
 
 <img src="https://miro.medium.com/max/1400/1*iBBcTAf4zvn7yZq4K4MShA.png" width="400">
 
-#### Eslint and Typescript
+#### ESLint and TypeScript
 
-We use these for our static analyisis testing. The linting and typing rules have been setup so
+We use these for our static analysis testing. These tools have been setup so
 errors should appear in your editor if they are broken.
 
 #### Jest
 
-We use jest our our frontend test runner, assertion library, and spy and mock utilities for unit and
+We use Jest as our frontend test runner, assertion library, and spy and mock utilities for unit and
 integration testing.
 
 #### Testing-Library
 
-We rely heavily on the different libraries that are part of the testing-library ecosystem for out
+We rely heavily on the different libraries that are part of the testing-library ecosystem for our
 unit and integration testing. These including react-testing-library, cypress-testing-library,
-react-hooks, and user-events. The guiding principles of testing-libary align with our own in that we
-believe tests should resemble real world usage as closely as possible.
+react-hooks, and user-events. The guiding principles of the testing-library tools align with our own
+in that we believe tests should resemble real world usage as closely as possible.
 
 #### Cypress
 
-We use cypress with cypress-testing-library as our e2e testing framework. We primarialy rely on full e2e software testing and do
-not often mock API responses, but we make an exception for mocking a failed network response when
-testing error states of the application.
+We use Cypress with Cypress Testing Library as our E2E testing framework. We primarily rely on full
+E2E software testing and rarely mock API responses, but we make exceptions for mocking common
+network error responses and testing app integrations with external APIs.
 
-### More Specific Examples
+For more details on our E2E testing, check out our [Cypress documentation](../../cypress/README.md).
 
-#### Roles and Permissions
+### Additional examples
 
-// TODO
-
-#### Mac and Windows Hosts
+#### Roles and permissions
 
 // TODO
 
-#### Error States
+#### Mac and Windows hosts
+
+// TODO
+
+#### Error states
 
 // TODO
