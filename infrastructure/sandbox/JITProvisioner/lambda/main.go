@@ -99,7 +99,7 @@ func clearActivitiesTable(c *gin.Context, id string) (err error) {
         return
     }
     // truncate activities table
-    _, err := db.ExecContext(c, "truncate activities;")
+    _, err = db.ExecContext(c, "truncate activities;")
     if err != nil {
         log.Print(err)
         return
