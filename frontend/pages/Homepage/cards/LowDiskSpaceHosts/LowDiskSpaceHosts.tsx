@@ -1,6 +1,10 @@
 import React from "react";
+import paths from "router/paths";
 
-const baseClass = "low-disk-space-hosts";
+import SummaryTile from "../HostsSummary/SummaryTile";
+import LowDiskSpaceIcon from "../../../../../assets/images/icon-low-disk-space-32x19@2x.png";
+
+const baseClass = "low-disk-space";
 
 interface IHostSummaryProps {
   lowDiskSpaceCount: number;
@@ -21,16 +25,15 @@ const LowDiskSpaceHosts = ({
 
   return (
     <div className={baseClass} style={opacity}>
-      <div className={`${baseClass}__tile low-disk-space-tile`}>
-        <div>
-          <div
-            className={`${baseClass}__tile-count ${baseClass}__tile-count--low-disk-space`}
-          >
-            {lowDiskSpaceCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>Missing hosts</div>
-        </div>
-      </div>
+      <SummaryTile
+        icon={LowDiskSpaceIcon}
+        count={lowDiskSpaceCount}
+        isLoading={isLoadingHosts}
+        showUI={showHostsUI}
+        title="Low disk space hosts"
+        tooltip="Hosts that have 32 GB or less disk space available."
+        path={paths.MANAGE_HOSTS}
+      />
     </div>
   );
 };

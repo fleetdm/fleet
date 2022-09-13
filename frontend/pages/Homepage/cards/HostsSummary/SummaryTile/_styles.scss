@@ -43,6 +43,7 @@
   &__count {
     font-size: $large;
     white-space: nowrap;
+<<<<<<< HEAD
 
     &--online-hosts:before {
       border-radius: 100%;
@@ -65,6 +66,8 @@
       margin-bottom: 5px;
       background-color: $ui-offline;
     }
+=======
+>>>>>>> 9ad3da00b (Missing and low disk space cards complete, need manage host page)
   }
 
   &__description {

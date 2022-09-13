@@ -605,10 +605,12 @@ const Homepage = (): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            <div className={`${baseClass}__section`}>{MissingHostsCard}</div>
-            <div className={`${baseClass}__section`}>
-              {LowDiskSpaceHostsCard}
-            </div>
+            {isPremiumTier && (
+              <div className={`${baseClass}__section`}>
+                {MissingHostsCard}
+                {LowDiskSpaceHostsCard}
+              </div>
+            )}
           </>
         </div>
         {renderCards()}

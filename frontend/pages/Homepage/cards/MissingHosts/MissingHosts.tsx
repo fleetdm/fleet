@@ -1,5 +1,9 @@
 import React from "react";
 
+import SummaryTile from "../HostsSummary/SummaryTile";
+import MissingHostsIcon from "../../../../../assets/images/icon-missing-hosts-28x24@2x.png";
+import paths from "router/paths";
+
 const baseClass = "missing-hosts";
 
 interface IHostSummaryProps {
@@ -21,16 +25,15 @@ const MissingHosts = ({
 
   return (
     <div className={baseClass} style={opacity}>
-      <div className={`${baseClass}__tile missing-tile`}>
-        <div>
-          <div
-            className={`${baseClass}__tile-count ${baseClass}__tile-count--missing`}
-          >
-            {missingCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>Missing hosts</div>
-        </div>
-      </div>
+      <SummaryTile
+        icon={MissingHostsIcon}
+        count={missingCount}
+        isLoading={isLoadingHosts}
+        showUI={showHostsUI}
+        title="Missing hosts"
+        tooltip="Hosts that have not been online in 10 days or more."
+        path={paths.MANAGE_HOSTS}
+      />
     </div>
   );
 };
