@@ -331,7 +331,7 @@ func TestModifyAppConfigPatches(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(t, ds, nil, nil)
 
-	storedConfig := &fleet.AppConfig{}
+	storedConfig := &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "FleetTest"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return storedConfig, nil

@@ -32,6 +32,9 @@ func TestAppConfigAuth(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Test",
+			},
 			ServerSettings: fleet.ServerSettings{
 				ServerURL: srv.URL,
 			},
@@ -420,6 +423,12 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 
 	// SMTP is initially enabled and configured.
 	dsAppConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://example.org",
+		},
 		SMTPSettings: fleet.SMTPSettings{
 			SMTPEnabled:    true,
 			SMTPConfigured: true,
@@ -441,8 +450,9 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 			SMTPConfigured: true,
 		},
 	}
-	b, err := json.Marshal(newAppConfig)
+	b, err := json.Marshal(newAppConfig.SMTPSettings) // marshaling appconfig sets all fields, resetting e.g. OrgName to empty
 	require.NoError(t, err)
+	b = []byte(`{"smtp_settings":` + string(b) + `}`)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
@@ -518,7 +528,15 @@ func TestTransparencyURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
 
-			dsAppConfig := &fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL}}
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo: fleet.OrgInfo{
+					OrgName: "Test",
+				},
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://example.org",
+				},
+				FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL},
+			}
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return dsAppConfig, nil
@@ -533,8 +551,9 @@ func TestTransparencyURL(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
 
-			raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.newURL}})
+			raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: tt.newURL})
 			require.NoError(t, err)
+			raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 			checkLicenseErr(t, tt.shouldFailModify, err)
 
@@ -558,7 +577,15 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 	svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
 
-	dsAppConfig := &fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://example.com/transparency"}}
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "Test",
+		},
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://example.org",
+		},
+		FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://example.com/transparency"},
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return dsAppConfig, nil
@@ -574,15 +601,17 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
 
 	// setting transparency url fails
-	raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"}})
+	raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"})
 	require.NoError(t, err)
+	raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 	_, err = svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "missing or invalid license")
 
 	// setting unrelated config value does not fail and resets transparency url to ""
-	raw, err = json.Marshal(fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "f1337"}})
+	raw, err = json.Marshal(fleet.OrgInfo{OrgName: "f1337"})
 	require.NoError(t, err)
+	raw = []byte(`{"org_info":` + string(raw) + `}`)
 	modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, modified)

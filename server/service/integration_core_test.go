@@ -44,6 +44,17 @@ func (s *integrationTestSuite) SetupSuite() {
 	s.withServer.SetupSuite("integrationTestSuite")
 }
 
+/*
+func (s *integrationTestSuite) SetupTest() {
+	t := s.T()
+	ctx := context.Background()
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, appConf.OrgInfo.OrgName)
+	require.NotEmpty(t, appConf.ServerSettings.ServerURL)
+}
+*/
+
 func (s *integrationTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
@@ -361,9 +372,14 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.True(t, config.Features.EnableSoftwareInventory)
 
 	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
+	var previousRawConfig string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(context.Background(), q, &previousRawConfig, "SELECT json_value FROM app_config_json")
+		if err != nil {
+			return err
+		}
 		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, `
+		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, `
     {
       "host_settings": {
         "enable_host_users": false,
@@ -379,6 +395,13 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.False(t, resp.Features.EnableHostUsers)
 	require.True(t, resp.Features.EnableSoftwareInventory)
 	require.NotNil(t, resp.Features.AdditionalQueries)
+
+	// restore the previous appconfig so that other tests are not impacted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, previousRawConfig)
+		return err
+	})
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -4251,7 +4274,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.Equal(t, "free", acResp.License.Tier)
-	assert.Equal(t, "", acResp.OrgInfo.OrgName)
+	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint

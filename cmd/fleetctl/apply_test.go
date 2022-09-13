@@ -234,7 +234,7 @@ func TestApplyAppConfig(t *testing.T) {
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig
@@ -325,7 +325,7 @@ func TestApplyAppConfigDeprecatedFields(t *testing.T) {
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig
@@ -576,7 +576,7 @@ func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig
@@ -611,7 +611,7 @@ func TestCanApplyIntervalsUsingDurations(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig

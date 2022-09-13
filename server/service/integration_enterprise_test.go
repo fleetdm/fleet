@@ -1274,7 +1274,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 
 	// set custom url
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": "customURL"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, "customURL", acResp.FleetDesktop.TransparencyURL)
 
@@ -1288,7 +1288,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": ""}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
@@ -1309,19 +1309,17 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
-	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
-			EnableSSO:             true,
-			EntityID:              "https://localhost:8080",
-			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			IDPName:               "SimpleSAML",
-			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			EnableJITProvisioning: false,
-		},
-	}
-
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": false
+		}
+	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -1334,9 +1332,17 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.ErrorAs(t, err, &nfe)
 
 	// enable JIT provisioning
-	config.SSOSettings.EnableJITProvisioning = true
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": true
+		}
+	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
 
