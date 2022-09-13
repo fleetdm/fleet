@@ -95,6 +95,7 @@ func clearActivitiesTable(c *gin.Context, id string) (err error) {
     // Connect to db
     db, err := sql.Open("mysql", connectionString)
     if err != nil {
+        log.Print(err)
         return
     }
     // truncate activities table
