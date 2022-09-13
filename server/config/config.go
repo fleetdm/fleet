@@ -347,31 +347,6 @@ type MDMAppleConfig struct {
 	MDM MDMAppleMDMConfig
 	// DEP holds the MDM DEP configuration.
 	DEP MDMAppleDEP
-
-	// Munki holds the Munki configuration.
-	Munki MDMMunkiConfig
-}
-
-// MDMMunkiConfig holds the Munki configuration.
-type MDMMunkiConfig struct {
-	// RepoPath is the location of the Munki repository in the file system.
-	//
-	// TODO(lucas): Using file system for PoC. The plan is to support
-	// storing the Munki repository on a S3 bucket.
-	RepoPath string
-	// HTTPBasicAuth holds the config for basic authentication of the Munki server.
-	HTTPBasicAuth HTTPBasicAuthConfig
-	// MunkiPkg holds the config for the Munki package to install on apple devices.
-	MunkiPkg MunkiPkgConfig
-}
-
-// MunkiPkgConfig holds the configuration for the Munki package to install on apple devices.
-//
-// TODO(lucas): Using file system for PoC. The plan is to support
-// storing the Munki Package on a S3 bucket.
-type MunkiPkgConfig struct {
-	// FilePath is the file system path of the pkg file.
-	FilePath string
 }
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
@@ -810,12 +785,6 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple.dep.token", "", "MDM DEP Auth Token")
 	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 5*time.Minute, "How much time to wait between device fetching + assigning of DEP profile")
 	man.addConfigInt("mdm.apple.dep.sync_device_limit", 0, "Maximum number of devices to return on DEP sync/fetch requests (0 uses Apple default)")
-	// TODO(lucas): Using file system for PoC. The plan is to support storing the Munki repository on a S3 bucket.
-	man.addConfigString("mdm.apple.munki.repo_path", "", "Local path where the Munki repository is stored")
-	man.addConfigString("mdm.apple.munki.http_basic_auth.username", "", "HTTP Basic username to use for the Munki server")
-	man.addConfigString("mdm.apple.munki.http_basic_auth.password", "", "HTTP Basic password to use for the Munki server")
-	man.addConfigString("mdm.apple.munki.pkg.file_path", "", "Local path of the Munki pkg file")
-	man.addConfigString("mdm.apple.munki.pkg.server_url", "", "URL of the Fleet server to use for the Munki pkg manifest")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -1051,16 +1020,6 @@ func (man Manager) LoadConfig() FleetConfig {
 				Token:           []byte(man.getConfigString("mdm.apple.dep.token")),
 				SyncPeriodicity: man.getConfigDuration("mdm.apple.dep.sync_periodicity"),
 				SyncDeviceLimit: man.getConfigInt("mdm.apple.dep.sync_device_limit"),
-			},
-			Munki: MDMMunkiConfig{
-				RepoPath: man.getConfigString("mdm.apple.munki.repo_path"),
-				HTTPBasicAuth: HTTPBasicAuthConfig{
-					Username: man.getConfigString("mdm.apple.munki.http_basic_auth.username"),
-					Password: man.getConfigString("mdm.apple.munki.http_basic_auth.password"),
-				},
-				MunkiPkg: MunkiPkgConfig{
-					FilePath: man.getConfigString("mdm.apple.munki.pkg.file_path"),
-				},
 			},
 		},
 	}

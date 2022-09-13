@@ -16,11 +16,6 @@ subgraph Fleet [Fleet Server]
         nanoMDM["nanoMDM<br>/mdm/apple/mdm"];
         nanoDEP["nanoDEP<br>/mdm/apple/dep/proxy"];
     end
-    MunkiRepo["Munki Repository<br>/mdm/apple/munki/repo"];
-    subgraph MunkiPkg [Munki Package Server];
-        manifest["manifest<br>/mdm/apple/munki/manifest"]
-        munkitools["munkitools-*.pkg<br>(signed)<br>/mdm/apple/munki/pkg"]
-    end
     subgraph MySQL
         direction LR;
         mdmAppleDB[(nanoMDM<br>Schemas)];
@@ -111,34 +106,12 @@ Fleet needs to run behind TLS with valid certificates (otherwise Apple devices w
 ngrok http https://localhost:8080
 ```
 
-## 7. Setup Munki repository
-
-```sh
-REPO_DIR=~/munki_repo ./tools/mdm/apple/setup-test-munki.sh
-```
-
-## 8. Download and Sign Vanilla Munki Pkg
-
-```sh
-curl -O -L https://github.com/munki/munki/releases/download/v5.7.3/munkitools-5.7.3.4444.pkg
-```
-
-```sh
-productsign \
-    --sign "Developer ID Installer: Some Developer (12ABCDE3FG)" \
-    munkitools-5.7.3.4444.pkg ~/munki_pkg/munkitools-5.7.3.4444-signed.pkg
-```
-
-## 9. Run Fleet
+## 7. Run Fleet
 
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
 FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
 FLEET_MDM_APPLE_SERVER_ADDRESS=ab51-181-228-157-44.ngrok.io \
-FLEET_MDM_APPLE_MUNKI_REPO_PATH=~/munki_repo \
-FLEET_MDM_APPLE_MUNKI_HTTP_BASIC_AUTH_USERNAME=fleetmunki \
-FLEET_MDM_APPLE_MUNKI_HTTP_BASIC_AUTH_PASSWORD=munkipass \
-FLEET_MDM_APPLE_MUNKI_PKG_FILE_PATH=~/munki_pkg/munkitools-5.7.3.4444-signed.pkg \
 FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) \
 FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) \
 FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) \
@@ -155,7 +128,7 @@ Sending usage statistics from your Fleet instance is optional and can be disable
 [+] Fleet setup successful and context configured!
 ```
 
-## 10. Create manual enrollment
+## 8. Create manual enrollment
 
 ```sh
 fleetctl apple-mdm enrollments create-manual \
@@ -163,7 +136,7 @@ fleetctl apple-mdm enrollments create-manual \
 Manual enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/mdm/apple/api/enroll?id=1, id: 1
 ```
 
-## 11. Create automatic (DEP) enrollment
+## 9. Create automatic (DEP) enrollment
 
 ```sh
 cat ./tools/mdm/apple/dep_sample_profile.json
@@ -198,20 +171,20 @@ fleetctl apple-mdm enrollments create-automatic \
     --profile ./tools/mdm/apple/dep_sample_profile.json
 ```
 
-## 11. Inspect MDM tables
+## 10. Inspect MDM tables
 
 ```sh
 mysql --host=127.0.0.1 --port=3306 --user=fleet --password
 select id from devices;
 ```
 
-## 12. Trigger a device restart
+## 11. Trigger a device restart
 
 ```sh
 ./tools/mdm/apple/cmdr.py RestartDevice | curl -k -T - 'https://127.0.0.1:8080/mdm/apple/mdm/api/v1/enqueue/<ID_FROM_PREVIOUS_STEP>'
 ```
 
-## 13. DEP test
+## 12. DEP test
 
 1. Assign the device to our MDM server in https://business.apple.com
 2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must either trigger a sync or wait for ~1h).
