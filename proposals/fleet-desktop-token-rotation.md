@@ -6,8 +6,8 @@ This file is based on the original proposal described at [#6348](https://github.
 
 |                | Fleet Desktop < v1.0.0            | Fleet Destkop >= v1.0.0 |
 | -------------- | --------------------------------- | ----------------------- |
-| Server < 4.20  | OK/Rotation disabled              | OK/Rotation disabled    |
-| Server >= 4.20 | Fleet Destkop breaks after 1 hour | OK/Rotation enabled     |
+| Server < 4.21  | OK/Rotation disabled              | OK/Rotation disabled    |
+| Server >= 4.21 | Fleet Destkop breaks after 1 hour | OK/Rotation enabled     |
 
 
 ## Fleet Server
