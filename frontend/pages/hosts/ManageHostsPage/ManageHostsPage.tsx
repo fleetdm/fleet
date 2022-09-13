@@ -1597,7 +1597,9 @@ const ManageHostsPage = ({
       selectedLabel &&
       selectedLabel.type !== "all" &&
       selectedLabel.type !== "status";
+
     if (
+      showSelectedLabel ||
       policyId ||
       softwareId ||
       showSelectedLabel ||
@@ -1607,56 +1609,35 @@ const ManageHostsPage = ({
       (osName && osVersion) ||
       munkiIssueId
     ) {
+      const renderFilterPill = () => {
+        switch (true) {
+          case showSelectedLabel:
+            return renderLabelFilterPill();
+          case !!policyId:
+            return renderPoliciesFilterBlock();
+          case showSelectedLabel:
+            return renderLabelFilterPill();
+          case !!softwareId:
+            return renderSoftwareFilterBlock();
+          case !!mdmId:
+            return renderMDMSolutionFilterBlock();
+          case !!mdmEnrollmentStatus:
+            return renderMDMEnrollmentFilterBlock();
+          case !!osId || (!!osName && !!osVersion):
+            return renderOSFilterBlock();
+          case !!munkiIssueId:
+            return renderMunkiIssueFilterBlock();
+          default:
+            return null;
+        }
+      };
+
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {showSelectedLabel && renderLabelFilterPill()}
-          {!!policyId &&
-            !softwareId &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderPoliciesFilterBlock()}
-          {!!softwareId &&
-            !policyId &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderSoftwareFilterBlock()}
-          {!!mdmId &&
-            !policyId &&
-            !softwareId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderMDMSolutionFilterBlock()}
-          {!!mdmEnrollmentStatus &&
-            !policyId &&
-            !softwareId &&
-            !mdmId &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderMDMEnrollmentFilterBlock()}
-          {(!!osId || (!!osName && !!osVersion)) &&
-            !policyId &&
-            !softwareId &&
-            !showSelectedLabel &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            renderOSFilterBlock()}
-          {!!munkiIssueId &&
-            !policyId &&
-            !softwareId &&
-            !showSelectedLabel &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            renderMunkiIssueFilterBlock()}
+          {renderFilterPill()}
         </div>
       );
     }
-    return null;
   };
 
   const renderCustomControls = () => {
