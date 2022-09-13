@@ -12,13 +12,6 @@
   background-color: $ui-off-white;
   gap: $pad-medium;
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
   .header {
     flex: 100%;
     display: flex;
@@ -223,6 +216,10 @@
     }
   }
 
+  .tooltip {
+    color: $ui-fleet-black-50;
+  }
+
   .button img {
     transform: scale(0.5);
   }
@@ -291,25 +288,6 @@
     flex-direction: column;
     align-items: center;
     margin: $pad-xlarge 0;
-
-    #error-icon {
-      height: 12px;
-      width: 12px;
-      margin-right: 8px;
-    }
-
-    #new-tab-icon {
-      height: 12px;
-      width: 12px;
-      margin-left: 6px;
-    }
-
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
 
     &__inner {
       display: flex;

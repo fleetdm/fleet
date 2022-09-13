@@ -51,15 +51,8 @@
   &__section-description {
     font-size: $x-small;
 
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none !important;
-    }
-    img {
-      width: 12px;
-      margin-left: 2px;
+    p {
+      margin: 8px 0 0 0;
     }
   }
 
@@ -76,6 +69,8 @@
   }
 
   #link-arrow {
-    transform: scale(0.5);
+    height: 10px;
+    width: 18px;
+    margin-left: $pad-small;
   }
 }

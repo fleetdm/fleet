@@ -13,6 +13,7 @@ interface ITransferHostModal {
   teams: ITeam[];
   onSubmit: (team: ITeam) => void;
   onCancel: () => void;
+  isUpdatingHost: boolean;
 }
 
 interface INoTeamOption {
@@ -31,6 +32,7 @@ const TransferHostModal = ({
   onSubmit,
   teams,
   isGlobalAdmin,
+  isUpdatingHost,
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
@@ -81,16 +83,18 @@ const TransferHostModal = ({
           </p>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
           <Button
             disabled={selectedTeam === undefined}
             type="button"
             variant="brand"
             onClick={onSubmitTransferHost}
+            className="transfer-loading"
+            isLoading={isUpdatingHost}
           >
             Transfer
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
           </Button>
         </div>
       </form>

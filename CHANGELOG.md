@@ -1,3 +1,94 @@
+## Fleet 4.20.0 (Sep 9, 2022)
+
+* Add ability to know how many hosts, and which hosts, have Munki issues. This information is presented on the **Home > macOS** page and **Host details** page. This information is also available in the [`GET /api/v1/fleet/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) and [`GET /api/v1/fleet/hosts/{id}/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-mobile-device-management-mdm-and-munki-information) and API routes.
+
+* Fleet Premium: Added ability to test features, like software inventory, on canary teams by adding a [`features` section](https://fleetdm.com/docs/using-fleet/configuration-files#features) to the `teams` YAML document.
+
+* Improved vulnerability detection for macOS hosts by improving detection of Zoom, Ruby, and Node.js vulnerabilities. Warning: For users that download and sync Fleet's vulnerability feeds manually, there are [required adjustments](https://github.com/fleetdm/fleet/issues/6628) or else vulnerability processing will stop working. Users with the default vulnerability processing settings can safely upgrade without adjustments.
+
+* Fleet Premium: Improved the vulnerability automations by adding vulnerability scores (EPSS probability, CVSS scores, and CISA-known exploits) to the webhook payload. Read more about vulnerability automations on [fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations).
+
+* Renamed the `host_settings` section to `features` in the the [`config` YAML file](https://fleetdm.com/docs/using-fleet/configuration-files#features). But `host_settings` is still supported for backwards compatibility.
+
+* Improved the activity feed by adding the ability to see who modified agent options and when modifications occurred. This information is available on the Home page in the Fleet UI and the [`GET /activites` API route](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+
+* Improved the [`config` YAML documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
+
+* Improved the **Hosts** page for smaller screen widths.
+
+* Improved the building of osquery installers for Windows (`.msi` packages).
+
+* Added a **Show query** button on the **Schedule** page, which adds the ability to quickly see a query's SQL.
+
+* Improved the Fleet UI by adding loading spinners to all buttons that create or update entities in Fleet (e.g., users).
+
+* Fixed a bug in which a user could not reach some teams in the UI via pagination if there were more than 20 teams.
+
+* Fixed a bug in which a user could not reach some users in the UI via pagination if there were more than 20 users.
+
+* Fixed a bug in which duplicate vulnerabilities (CVEs) sometimes appeared on **Software details** page.
+
+* Fixed a bug in which the count in the **Issues** column (exclamation tooltip) in the **Hosts** table would sometimes not appear.
+
+* Fixed a bug in which no error message would appear if there was an issue while setting up Fleet.
+
+* Fixed a bug in which no error message would appear if users were creating or editing a label with a name or description that was too long.
+
+* Fixed a big in which the example payload for usage statistics included incorrect key names.
+
+* Fixed a bug in which the count above the **Software** table would sometimes not appear.
+
+* Fixed a bug in which the **Add hosts** button would not be displayed when search returned 0 hosts.
+
+* Fixed a bug in which modifying filters on the **Hosts** page would not return the user to the first page of the **Hosts** table. 
+
+## Fleet 4.19.1 (Sep 1, 2022)
+
+* Fix a migration error that may occur when upgrading to Fleet 4.19.0.
+
+* Fix a bug in which the incorrect operating system was displayed for Windows hosts on the **Hosts** page and **Host details** page.
+
+## Fleet 4.19.0 (Aug 22, 2022)
+
+* Warning: Please upgrade to 4.19.1 instead of 4.19.0 due to a migration error included in 4.19.0. Like all releases, Fleet 4.19.1 includes all changes included in 4.19.0.
+
+* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+
+* Fleet Premium: Added support for Just-in-time (JIT) user provisioning via SSO. This adds the ability to
+automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
+Fleet accounts are given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
+
+* Improved performance for aggregating software inventory. Aggregate software inventory is displayed on the **Software page** in the Fleet UI.
+
+* Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software).
+
+* Added a **Mobile device management (MDM) solutions** table to the **Home > macOS** page. This table allows users to see a list of all MDM solutions their hosts are enrolled to and drill down to see which hosts are enrolled to each solution. Note that MDM solutions data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a **Operating systems** table to the **Home > Windows** page. This table allows users to see a list of all Windows operating systems (ex. Windows 10 Pro 21H2) their hosts are running and drill down to see which hosts are running which version. Note that Windows operating system data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a message in `fleetctl` to that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
+
+* Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
+individual host's **Host details** page.
+
+* Improved the Fleet UI by adding consistent styling for **Cancel** buttons.
+
+* Improved the **Queries**, **Schedule**, and **Policies** pages in the Fleet UI by page size to 20
+  items. 
+
+* Improve the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
+
+* Added support for asynchronous saving of the hosts' scheduled query statistics. This is an
+experimental feature and should only be used if you're seeing performance issues. Documentation
+for this feature can be found [here on fleetdm.com](https://fleetdm.com/docs/deploying/configuration#osquery-enable-async-host-processing).
+
+* Fixed a bug in which the **Operating system** and **Munki versions** cards on the **Home > macOS**
+page would not stack vertically at smaller screen widths.
+
+* Fixed a bug in which multiple Fleet Desktop icons would appear on macOS computers.
+
+* Fixed a bug that prevented Windows (`.msi`) installers from being generated on Windows machines.
+
 ## Fleet 4.18.0 (Aug 1, 2022)
 
 * Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
@@ -48,6 +139,9 @@
 
 ## Fleet 4.17.0 (Jul 8, 2022)
 
+* Added the number of hosts enrolled by operating system (OS) and its version to usage statistics. Also added the weekly active users count to usage statistics.
+Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
 * Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
@@ -76,11 +170,7 @@
 
 * Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
-* Fixed SQL generated for operating system version policies to reduce false negatives
-
-* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
-
-* Added the weekly active users count to anonymous usage statistics.
+* Fixed SQL generated for operating system version policies to reduce false negatives.
 
 ## Fleet 4.16.0 (Jun 20, 2022)
 

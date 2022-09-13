@@ -8,9 +8,9 @@ This person is accountable for accomplishing goals and making decisions about a 
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
 
-|    Aspect              										| DRI     		|
+|    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
-| Wireframes (Figma)| Noah Talerman	|
+| Wireframes (Figma)| Noah Talerman |
 | How the product works | Noah Talerman |
 | fleetctl CLI interface (and other tools) | Tomás Touceda |
 | REST API interface design | Luke Heath |
@@ -21,7 +21,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | dogfood.fleetdm.com | Ben Edwards |
 | Quality of core product UI | Luke Heath |
 | Ticket movement from product to engineering | Luke Heath |
-| Lead engineering standup and sprint planning | Zach Wasserman* |
+| Lead engineering together and release retrospective | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
 | Quality of core product backend | Tomás Touceda |
@@ -72,20 +72,23 @@ When selecting your new laptop, we ask that you optimize your configuration to h
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
-### Attending conferences
+### Attending conferences or company travel
 
-When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
+When attending a conference or traveling for Fleet, please make a post in [#help-travel](https://fleetdm.slack.com/archives/C03V38WQFLG) on Slack with the following information:
 - The start and end dates for your trip.
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-- The price of your hotel per night.
-- The price of the admission fees for the conference.
+- The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
+- The price of the admission fees if attending a conference.
+- Per diem of $100 for food and beverage **(movies, and mini bars are not allowed)**.
+- Customer/Partner Facing Events:
+  - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
 We highly recommend you order a physical Brex card if you do not have one before attending the conference.
 
 ### Coworking
 
-Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the CEO via direct message in Slack.
+Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the Charlie Chance via direct message in Slack.
 
 Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
 
@@ -182,6 +185,24 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
+### Gong
+
+Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry.
+
+At Fleet, we use Gong to capture Zoom meetings and share them company-wide if a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
+
+While some other Fleeties may have a Gong seat if it becomes necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." If the call has external participants and is recorded, this call is stored in Gong for future use. In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  You cannot use Gong to record calls hosted by external parties.
+
+To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong. To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
+
+Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, words and phrases in the Zoom call title will disable the Gong recording for the call. 1 on 1, 1:1, confidential, interview, internal and no shadows are some commonly used words that will disable Gong. A complete list can be found [here](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).  If you need words added to the list of exlusionary words, please reach out to Nathan Holliday.
+
+We have excluded anyone with an email domain from @cooley.com or @formationfinancial.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal.  
+
+Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
+
+If you need help using Gong, please check out Gong Acaedmy at [https://academy.gong.io/](https://academy.gong.io/).
+
 ## Slack
 
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
@@ -200,6 +221,11 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
+### Slack communications and best practices
+
+In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
+      1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
+      2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
 
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
@@ -347,6 +373,12 @@ In Gusto, click **How to review your notice** to help you understand what kind o
 
 For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
 
+### State quarterly payroll and tax filings
+
+Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review. 
+
+You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. 
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -424,6 +456,8 @@ Then hit send!  After all of the signatures are there, the completed document wi
 | Ramp                         | "Off-cycle" payroll          | Charlie 
 | Accelerations                | "Off-cycle" payroll          | Charlie
 
+Add the amount to be paid to the "Gross" line.
+
 For Fleet's US contractors, running payroll is a manual process. 
 The steps for doing this are highlighted in this loom, TODO. 
 1. Time tools
@@ -466,132 +500,11 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
 
-## Participating in the CEO shadow program
-
-### Eligibility
-TODO: document eligibility qualifications
-
-### How to apply
- 1. TODO: Create a pull request to add yourself to the [rotation schedule](insert link here)TODO: create template for pull request
- 2. Assign your manager and ask them to approve (but not merge) the pull request.
- 3. TODO: Once your manager approves the pull request, assign the pull request to Charlie, link to the pull request in the #ceo-shadow channel, and @mention Charlie in the message.
-
-### Parental participation 
- TODO: (parent-friendly scheduling options)
-
-### Rotation rhythm
- 1. See one, you are trained by the outgoing person.
- 2. Teach one, you train the incoming person.
- The shadow should be available for the full two weeks.
-
-### Rotation schedule 
- TODO: (This is a chart: start date, end date, see one, teach one.)
-
-### Preparing for the program
-
-### Important things to note
- 1. This is not a performance evaluation.
- 2. Plan to observe and ask questions.
- 3. Don't plan to do any of your usual work.
- 4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
- 5. Participating in the shadow program is a privilege that will expose you to confidential information.
- 6. Give feedback to and receive feedback from the CEO.
-
-### What to wear
- Casual
-
-### Pre-program tasks
- 1. Create an onboarding issue 
- TODO:(onboarding and offboarding issues are created for the two-week program)
- 2. Consider creating goals
- For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
- 3. Practice your introduction
- See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
- 4. Coffee chat with co-shadow
-  Try to schedule coffee chats with your co-shadow before you start the program.
- 5. Coffee Chat with CEO shadow alumni
- Feel free to schedule a coffee chat with any of the CEO Shadow Alumni. There's a link to the alumni chart dropped here too. 
- 6. Explore the CEO shadow project
- TODO: private board
- 7. Review the CEO's calendar
- Anticipate your week. Look ahead in the schedule and plan accordingly. 
- 8. Review the CEO handbook (TODO: insert link here)
- TODO: How to communicate and interact with the CEO.
- 9. Review acronyms 
- TODO: add resource link (KPIs, OKRs, xMAU, SpU, ARR, keep a financial dictionary handy)
-
-### What to expect during the program 
- TODO: Broken down by tasks like handbooking and "for meetings."
-
-### Tasks
- 1. Collecting and managing tasks 
- TODO: (There is a project board that is privately linked here.)
-
-### Tweetstorm
-A tweetstorm is a series of Twitter posts usually made as replies in a single thread on a topic. CEO shadows may be asked to draft the tweets related to a public live-streamed video recording or other media content.
-
-### Meetings & events
-
-### CEO's calendar
- 1. Review the CEO's calendar.
- 2. How to update your zoom name to show "CEO shadow."
- 3. How to add CEO calendar to google calendar (we already do this in onboarding).
- 4. Details about invites to events marked private (like interviews).
- 5. Meetings with those outside of GitLab may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
-
-### Types of meetings
- 1. Fleet Meetings
-  - 1:1s with reports.
-  - Interviews with candidates.
-  - Conversations with board members.
- 2. Social calls
- 3. Media Briefings
- 4. Candidate Interviews
- 5. Personal Meetings
-
-### Removing yourself from personal CEO documents
-TODO
-
-### Responsibilities
- TODO: this is a chart outlining responsibilities based on meeting types.
-
-### Email best practices
-TODO: In order to keep continuity across CEO shadow participants. Always, cc (TODO: email group) on emails as part of the program. This makes sure that even after you've left the program, the response and follow-up can be tracked.
-
-### Considerations for other companies starting CEO shadow programs
-GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
-
- 1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
- 2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
- 3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
- 4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
-
-### Alumni 
-TODO: (This is a chart with info on CEO alumni) (Create a slack channel for CEO-shadow-alumni)
-
 ## PeopleOps
 
-### OKR planning
+### CEO handbook
 
-OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
-
-At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
-
-- Review topdown and departmental OKRs as they are turned in.
-- OKRs are finalized one week from when topdown OKRs were initially reviewed.
-- Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
-- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
-
-### 1:1 Mike:Sid document preparation
-
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
-
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
- - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
- - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
- - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+[The CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
 
 ### Workiversaries
 
@@ -608,12 +521,7 @@ We like to celebrate our achievements weekly in `#general`.
 Weekly update principles
    - Each department's update is 20-40 words or less.
    - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
-
-### Investor and advisor updates
-
-We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
-
+ 
 ### Recruiting progress checkup
 
 Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
@@ -628,14 +536,6 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
  - Salary employees are automated in Gusto and Pilot
  - Contractors are a manual process in Gusto and Pilot
-
-### Calendar audit
-
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. In the notes document include:
-- LinkedIn profile link of all outside participants
-- Company profile link 
-- Context that helps the CEO to understand purpose of meeting at a glance
-- Share document with meeting participants
 
 ## BizOps
 
@@ -671,8 +571,9 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
-| Calendar audit | audit of CEO's calendar | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie |
+| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
+| Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
+| TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
 
 
 ## Slack channels

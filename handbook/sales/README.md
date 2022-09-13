@@ -6,7 +6,46 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
 
-## Our cold approach
+## Intro deck
+
+Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+
+## Intro video
+
+Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
+
+## SOC 2
+
+You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
+
+You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+
+## Our lead handling and outreach approach
+
+Fleet's main source for prospects to learn about the company and its offerings is our website, fleetdm.com. There are many places across the website for prospects to ask for more information, request merchandise, try the product and even purchase licenses directly. If the user experience in any of these locations asks for an email address or other contact information, Fleet may use that contact information for follow-up, including sales and marketing purposes. That contact information is for Fleet's sole use, and we do not give or sell that information to any third parties.
+
+In the case of a prospect or customer request, we strive to adhere to the following response times:
+- Web chat: 1 hour response during working hours, 8 hours otherwise
+- Talk to an expert: prospects can schedule chats via our calendar tool
+- All other enquiries: 1-2 days
+
+Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
+
+## Salesforce lead status flow
+
+To track the stage of the sales cycle that a lead is at, we use the following standardized lead statuses to indicate which stage of the sales process a lead is at.
+|Lead status                 | Description                                         |
+|:-----------------------------|:----------------------------------------------------|
+| New | Default status for all new leads when initially entered into Salesforce. We have an email or LinkedIn profile URL for the lead, but no established intent. The lead is just a relevant person to reach out to.|
+| New enriched | Fleet enriched the lead with additional contact info.|
+| New MQL | Lead has been established as a marketing qualified lead, meeting company size criteria.|
+| Working to engage | Fleet (often Sales development representative-SDR) is working to engage the lead. |
+| Engaged | Fleet has successfully made contact with the lead |
+| Meeting scheduled | Fleet has scheduled a meeting with the lead. |
+| Working to convert | Not enough info on Lead's Budget, Authority, Need and Timing (BANT) to be converted into an opportunity. |
+| Closed nurture | Lead does not meet BANT criteria to be converted to an opportunity, but we should maintain contact with the lead as it may be fruitful in the future. |
+| Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
+| SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
 At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [Linkedin post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7?utm_source=linkedin_share&utm_medium=ios_app). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
 
@@ -39,13 +78,7 @@ Being explicit helps people to understand what they are reading and how to use t
 |:----------------------|:---------------------|
 | Do Not Contact (DNC)  | DNC
 
-## Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
-
-## Intro video
-
-Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
 
 ## Salesforce contributor experience checkups
 

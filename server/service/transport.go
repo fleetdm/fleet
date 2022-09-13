@@ -252,14 +252,24 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
-	operatingSystemID := r.URL.Query().Get("operating_system_id")
-	if operatingSystemID != "" {
-		id, err := strconv.Atoi(operatingSystemID)
+	osID := r.URL.Query().Get("os_id")
+	if osID != "" {
+		id, err := strconv.Atoi(osID)
 		if err != nil {
 			return hopt, err
 		}
-		osid := uint(id)
-		hopt.OperatingSystemIDFilter = &osid
+		sid := uint(id)
+		hopt.OSIDFilter = &sid
+	}
+
+	osName := r.URL.Query().Get("os_name")
+	if osName != "" {
+		hopt.OSNameFilter = &osName
+	}
+
+	osVersion := r.URL.Query().Get("os_version")
+	if osVersion != "" {
+		hopt.OSVersionFilter = &osVersion
 	}
 
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
@@ -298,7 +308,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+	}
 
+	munkiIssueID := r.URL.Query().Get("munki_issue_id")
+	if munkiIssueID != "" {
+		id, err := strconv.Atoi(munkiIssueID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MunkiIssueIDFilter = &mid
 	}
 
 	return hopt, nil

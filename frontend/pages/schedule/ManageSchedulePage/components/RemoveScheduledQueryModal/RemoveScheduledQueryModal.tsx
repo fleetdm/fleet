@@ -1,19 +1,18 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 
 const baseClass = "remove-scheduled-query-modal";
 
 interface IRemoveScheduledQueryModalProps {
-  isLoading: boolean;
+  isUpdatingScheduledQuery: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const RemoveScheduledQueryModal = ({
-  isLoading,
+  isUpdatingScheduledQuery,
   onCancel,
   onSubmit,
 }: IRemoveScheduledQueryModalProps): JSX.Element => {
@@ -24,22 +23,23 @@ const RemoveScheduledQueryModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <div className={baseClass}>
-          Are you sure you want to remove the selected queries from the
-          schedule?
-          <div className="modal-cta-wrap">
-            <Button onClick={onCancel} variant="inverse-alert">
-              Cancel
-            </Button>
-            <Button type="button" variant="alert" onClick={onSubmit}>
-              Remove
-            </Button>
-          </div>
+      <div className={baseClass}>
+        Are you sure you want to remove the selected queries from the schedule?
+        <div className="modal-cta-wrap">
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onSubmit}
+            className="remove-loading"
+            isLoading={isUpdatingScheduledQuery}
+          >
+            Remove
+          </Button>
+          <Button onClick={onCancel} variant="inverse-alert">
+            Cancel
+          </Button>
         </div>
-      )}
+      </div>
     </Modal>
   );
 };

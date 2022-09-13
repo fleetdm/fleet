@@ -52,13 +52,11 @@ module.exports = {
       'mikermcneil',
       'lukeheath',
       'zwass',
-      'martavis',
       'rachelelysia',
       'gillespi314',
       'chiiph',
       'mna',
       'edwardsb',
-      'alphabrevity',
       'eashaw',
       'drewbakerfdm',
       'vercel[bot]',
@@ -66,10 +64,8 @@ module.exports = {
       'tgauda',
       'ksatter',
       'guillaumeross',
-      'dominuskelvin',
       'sharvilshah',
       'michalnicp',
-      'desmi-dizney',
       'charlottechance',
       'timmy-k',
       'zwinnerman-fleetdm',
@@ -81,6 +77,7 @@ module.exports = {
       'chris-mcgillicuddy',
       'rfairburn',
       'artemist-work',
+      'fx5',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -160,7 +157,7 @@ module.exports = {
       //   } else {
       //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
       //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-      //       await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //       await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
       //         {},
       //         {
       //           'User-Agent': 'Fleetie pie',
@@ -351,7 +348,7 @@ module.exports = {
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-          await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+          await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
             {},
             {
               'User-Agent': 'Fleetie Pie',

@@ -45,7 +45,7 @@ All Javascript and React files use Typescript, meaning the extensions are `.ts` 
 
 - Local states
 ```typescript
-const [item, setItem] = useState<string>("");
+const [item, setItem] = useState("");
 ```
 
 - Fetch function signatures (i.e. `react-query`)
@@ -112,7 +112,7 @@ of React. Hooks are only allowed in functional components, which are created lik
 import React, { useState, useEffect } from "React";
 
 const PageOrComponent = (props) => {
-  const [item, setItem] = useState<string>("");
+  const [item, setItem] = useState("");
 
   // runs only on first mount (replaces componentDidMount)
   useEffect(() => {

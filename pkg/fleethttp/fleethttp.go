@@ -11,9 +11,10 @@ import (
 )
 
 type clientOpts struct {
-	timeout  time.Duration
-	tlsConf  *tls.Config
-	noFollow bool
+	timeout   time.Duration
+	tlsConf   *tls.Config
+	noFollow  bool
+	cookieJar http.CookieJar
 }
 
 // ClientOpt is the type for the client-specific options.
@@ -42,6 +43,14 @@ func WithFollowRedir(follow bool) ClientOpt {
 	}
 }
 
+// WithCookieJar configures the HTTP client to use the provided
+// cookie jar to manage cookies between requests.
+func WithCookieJar(jar http.CookieJar) ClientOpt {
+	return func(o *clientOpts) {
+		o.cookieJar = jar
+	}
+}
+
 // NewClient returns an HTTP client configured according to the provided
 // options.
 func NewClient(opts ...ClientOpt) *http.Client {
@@ -59,6 +68,9 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	}
 	if co.tlsConf != nil {
 		cli.Transport = NewTransport(WithTLSConfig(co.tlsConf))
+	}
+	if co.cookieJar != nil {
+		cli.Jar = co.cookieJar
 	}
 	return cli
 }

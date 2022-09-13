@@ -4,15 +4,6 @@
     font-style: $regular;
   }
 
-  a {
-    color: $core-vibrant-blue;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
   .primary-header {
     position: absolute;
     top: 0;

@@ -9,6 +9,7 @@ go.mod @fleetdm/go
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
 /.github/ @fleetdm/g-platform
@@ -20,7 +21,7 @@ go.mod @fleetdm/go
 /CHANGELOG.md @noahtalerman
 
 # Fleet documentation
-/docs/ @Desmi-Dizney @chris-mcgillicuddy
+/docs/ @chris-mcgillicuddy
 
 # REST API reference documentation
 /docs/Using-Fleet/REST-API.md @ksatter
@@ -38,13 +39,13 @@ go.mod @fleetdm/go
 /website/assets/ @eashaw
 
 # Website redirects and URLs
-/website/config/routes.js @eashaw @mike-j-thomas
+/website/config/routes.js @eashaw
 
 # Website backend, scripts, deps
 /website/api/ @mikermcneil
 /website/config/ @mikermcneil
 /website/scripts/ @mikermcneil
-/website/package.json @mikermcneil
+/website/package.json @eashaw
 
 # GitHub brandfront
 /README.md @chris-mcgillicuddy
@@ -54,7 +55,7 @@ go.mod @fleetdm/go
 
 # Handbook
 /handbook/company @mikermcneil
-/handbook/people @charlottechance @hollidayn
+/handbook/people @charlottechance
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
 /handbook/product @noahtalerman

@@ -12,15 +12,77 @@ updates:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
       separator: "-"
+    # Add assignees
+    assignees:
+      - "zwass"
+
 # Maintain dependencies for Dockerfiles
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
     reviewers:
-      - "@fleetdm/go"
-      - "@fleetdm/infra"
+      - "fleetdm/go"
+      - "fleetdm/infra"
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
       separator: "-"
+    # Add assignees
+    assignees:
+      - "fleetdm/go"
+      - "fleetdm/infra"
+
+# Maintain dependencies for website NPM
+  - package-ecosystem: "npm"
+    directory: "/website"
+    labels:
+      - "website"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    allow:
+      - dependency-type: "production"
+    reviewers:
+      - "eashaw"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    assignees:
+      - "eashaw"
+
+# Maintain dependencies for Go
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - lucasmrod
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - lucasmrod
+
+# Maintain dependencies for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    reviewers:
+      - lukeheath
+    allow:
+      - dependency-type: "production"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - lukeheath

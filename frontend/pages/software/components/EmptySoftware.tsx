@@ -2,7 +2,7 @@
 
 import React from "react";
 
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "manage-software-page";
 
@@ -22,8 +22,8 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                how to configure software inventory{" "}
-                <img alt="External link" src={ExternalLinkIcon} />
+                how to configure software inventory
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>
           </div>

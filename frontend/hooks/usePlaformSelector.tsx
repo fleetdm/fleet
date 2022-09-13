@@ -16,9 +16,9 @@ const usePlatformSelector = (
   platformContext: IPlatformString | null | undefined,
   baseClass = ""
 ): IPlatformSelector => {
-  const [checkDarwin, setCheckDarwin] = useState<boolean>(false);
-  const [checkWindows, setCheckWindows] = useState<boolean>(false);
-  const [checkLinux, setCheckLinux] = useState<boolean>(false);
+  const [checkDarwin, setCheckDarwin] = useState(false);
+  const [checkWindows, setCheckWindows] = useState(false);
+  const [checkLinux, setCheckLinux] = useState(false);
 
   const checksByPlatform: Record<string, boolean> = {
     darwin: checkDarwin,

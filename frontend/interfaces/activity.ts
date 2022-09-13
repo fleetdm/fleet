@@ -17,6 +17,7 @@ export enum ActivityType {
   AppliedSpecPack = "applied_spec_pack",
   AppliedSpecPolicy = "applied_spec_policy",
   AppliedSpecSavedQuery = "applied_spec_saved_query",
+  UserAddedBySSO = "user_added_by_sso",
 }
 export interface IActivity {
   created_at: string;

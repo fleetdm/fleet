@@ -36,20 +36,118 @@ func TestCPEFromSoftware(t *testing.T) {
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
+	reCache := newRegexpCache()
+
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"})
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
+}
+
+func TestCPETranslations(t *testing.T) {
+	tempDir := t.TempDir()
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+
+	err = GenerateCPEDB(dbPath, items)
+	require.NoError(t, err)
+
+	db, err := sqliteDB(dbPath)
+	require.NoError(t, err)
+
+	tt := []struct {
+		Name         string
+		Translations CPETranslations
+		Software     *fleet.Software
+		Expected     string
+	}{
+		{
+			Name: "simple match",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+		{
+			Name: "match name or",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X", "Y"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "Y",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+		{
+			Name: "match name regexp",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"/^[A-Z]$/"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "Z",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+	}
+
+	reCache := newRegexpCache()
+
+	for _, tc := range tt {
+		t.Run(tc.Name, func(t *testing.T) {
+			cpe, err := CPEFromSoftware(db, tc.Software, tc.Translations, reCache)
+			require.NoError(t, err)
+			require.Equal(t, tc.Expected, cpe)
+		})
+	}
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
@@ -60,7 +158,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// first time, db doesn't exist, so it downloads
-	err := DownloadCPEDatabase(tempDir, client)
+	err := DownloadCPEDB(tempDir, client, "")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
@@ -68,23 +166,29 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// and this works afterwards
-	software := &fleet.Software{Name: "1Password.app", Version: "7.2.3", Source: "apps"}
-	cpe, err := CPEFromSoftware(db, software)
+	reCache := newRegexpCache()
+
+	software := &fleet.Software{Name: "1Password.app",
+		Version:          "7.2.3",
+		BundleIdentifier: "com.1password.1password",
+		Source:           "apps",
+	}
+	cpe, err := CPEFromSoftware(db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 
-	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"})
+	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
 
-	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"})
+	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:-:*:*:*:windows_7:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
-	_, err = CPEFromSoftware(db, software)
+	_, err = CPEFromSoftware(db, software, nil, reCache)
 	require.Error(t, err)
 
 	// and we make the db older than the release
@@ -93,7 +197,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = DownloadCPEDatabase(tempDir, client)
+	err = DownloadCPEDB(tempDir, client, "")
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -106,7 +210,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	cpe, err = CPEFromSoftware(db, software)
+	cpe, err = CPEFromSoftware(db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 
@@ -114,7 +218,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = DownloadCPEDatabase(tempDir, client)
+	err = DownloadCPEDB(tempDir, client, "")
 	require.NoError(t, err)
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
@@ -157,16 +261,18 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	iterator := &fakeSoftwareIterator{
 		softwares: []*fleet.Software{
 			{
-				ID:      1,
-				Name:    "Product",
-				Version: "1.2.3",
-				Source:  "apps",
+				ID:               1,
+				Name:             "Product",
+				Version:          "1.2.3",
+				BundleIdentifier: "vendor",
+				Source:           "apps",
 			},
 			{
-				ID:      2,
-				Name:    "Product2",
-				Version: "0.3",
-				Source:  "apps",
+				ID:               2,
+				Name:             "Product2",
+				Version:          "0.3",
+				BundleIdentifier: "vendor2",
+				Source:           "apps",
 			},
 		},
 	}
@@ -204,11 +310,47 @@ func TestSyncsCPEFromURL(t *testing.T) {
 
 	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
-	err := DownloadCPEDatabase(tempDir, client, WithCPEURL(ts.URL+"/hello-world.gz"))
+	err := DownloadCPEDB(tempDir, client, ts.URL+"/hello-world.gz")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 	stored, err := ioutil.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
+}
+
+func TestLegacyCPEDB(t *testing.T) {
+
+	// Older versions of fleet used "select * ..." when querying from the cpe and cpe_search tables
+	// Ensure that this still works when generating the new cpe database.
+	type IndexedCPEItem struct {
+		ID         int     `json:"id" db:"rowid"`
+		Title      string  `json:"title" db:"title"`
+		Version    *string `json:"version" db:"version"`
+		TargetSW   *string `json:"target_sw" db:"target_sw"`
+		CPE23      string  `json:"cpe23" db:"cpe23"`
+		Deprecated bool    `json:"deprecated" db:"deprecated"`
+	}
+	tempDir := t.TempDir()
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+
+	err = GenerateCPEDB(dbPath, items)
+	require.NoError(t, err)
+
+	db, err := sqliteDB(dbPath)
+	require.NoError(t, err)
+
+	query := `SELECT rowid, * FROM cpe WHERE rowid in (
+				  SELECT rowid FROM cpe_search WHERE title MATCH ?
+				) and version = ? order by deprecated asc`
+
+	var indexedCPEs []IndexedCPEItem
+	err = db.Select(&indexedCPEs, query, "product", "1.2.3")
+	require.NoError(t, err)
+
+	require.Len(t, indexedCPEs, 1)
 }

@@ -78,13 +78,11 @@ const QueryForm = ({
 }: IQueryFormProps): JSX.Element => {
   const isEditMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
-  const [showQueryEditor, setShowQueryEditor] = useState<boolean>(false);
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [isEditingDescription, setIsEditingDescription] = useState<boolean>(
-    false
-  );
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState<boolean>(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [showQueryEditor, setShowQueryEditor] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -417,6 +415,7 @@ const QueryForm = ({
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly
+          wrapEnabled
         />
       )}
       <span className={`${baseClass}__platform-compatibility`}>
@@ -459,6 +458,7 @@ const QueryForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
+          wrapEnabled
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
@@ -488,12 +488,13 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
+                  className="save-as-new-loading"
+                  isLoading={isSaveAsNewLoading}
                 >
-                  {isSaveAsNewLoading ? <Spinner /> : "Save as new"}
+                  Save as new
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">
@@ -508,15 +509,16 @@ const QueryForm = ({
                   }
                 >
                   <Button
-                    className={`${baseClass}__save`}
+                    className="save-loading"
                     variant="brand"
                     onClick={promptSaveQuery()}
                     disabled={
                       isAnyTeamMaintainerOrTeamAdmin &&
                       !hasTeamMaintainerPermissions
                     }
+                    isLoading={isQueryUpdating}
                   >
-                    {isQueryUpdating ? <Spinner /> : "Save"}
+                    Save
                   </Button>
                 </div>{" "}
                 <ReactTooltip
