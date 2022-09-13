@@ -27,9 +27,10 @@ parasails.registerPage('new-license', {
 
     quotedPrice: undefined,
     numberOfHostsQuoted: undefined,
-    // Success state when the billing form has been submitted
     showBillingForm: false,
     showQuotedPrice: false,
+    showAdditionalBillingFormInputs: false,
+    // Success state when the billing form has been submitted
     showSuccessMessage: false,
   },
 
@@ -40,7 +41,14 @@ parasails.registerPage('new-license', {
     //…
   },
   mounted: async function() {
-    //…
+
+    // If this users firstName and lastName are set to be part of the user's email address, they signed up through the Fleet Sandbox signup, and we'll need some additional information to complete this order.
+    if(this.me.firstName === this.me.emailAddress.split('@')[0] && this.me.lastName === this.me.emailAddress.split('@')[1]) {
+      this.showAdditionalBillingFormInputs = true;
+      this.billingFormRules.organization = {required: true};
+      this.billingFormRules.firstName = {required: true};
+      this.billingFormRules.lastName = {required: true};
+    }
 
   },
 

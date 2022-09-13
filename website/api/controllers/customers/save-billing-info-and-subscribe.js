@@ -15,6 +15,24 @@ module.exports = {
       description: 'The quote to use (determines the price and number of hosts.)'
     },
 
+    organization: {
+      type: 'string',
+      required: false,
+      description: 'The users organization'
+    },
+
+    firstName: {
+      type: 'string',
+      required: false,
+      description: 'The users first name'
+    },
+
+    lastName: {
+      type: 'string',
+      required: false,
+      description: 'The users last name'
+    },
+
     paymentSource: {
       required: true,
       description: 'New payment source info to use (instead of the saved default payment source).',
@@ -82,6 +100,9 @@ module.exports = {
       billingCardLast4: inputs.paymentSource.billingCardLast4,
       billingCardExpMonth: inputs.paymentSource.billingCardExpMonth,
       billingCardExpYear: inputs.paymentSource.billingCardExpYear,
+      firstName: inputs.firstName ? inputs.firstName : this.req.me.firstName,
+      lastName: inputs.lastName ? inputs.lastName : this.req.me.lastName,
+      organization: inputs.organization ? inputs.organization : this.req.me.organization
     });
 
     // Create the subscription for this order in Stripe
@@ -98,7 +119,7 @@ module.exports = {
     // Generate the license key for this subscription
     let licenseKey = await sails.helpers.createLicenseKey.with({
       numberOfHosts: quoteRecord.numberOfHosts,
-      organization: this.req.me.organization,
+      organization: inputs.organization ? inputs.organization : this.req.me.organization,
       validTo: subscription.current_period_end
     });
 
@@ -139,8 +160,8 @@ module.exports = {
       subject: 'Your Fleet Premium order',
       template: 'email-order-confirmation',
       templateData: {
-        firstName: this.req.me.firstName,
-        lastName: this.req.me.lastName,
+        firstName: inputs.firstName ? inputs.firstName : this.req.me.firstName,
+        lastName: inputs.lastName ? inputs.lastName : this.req.me.lastName,
       }
     });
 
