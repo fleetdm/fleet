@@ -7,7 +7,7 @@ import (
 )
 
 type VulnArgs struct {
-	Vulnerablities []fleet.SoftwareVulnerability
+	Vulnerablities []fleet.Vulnerability
 	Meta           map[string]fleet.CVEMeta
 	AppConfig      *fleet.AppConfig
 	Time           time.Time

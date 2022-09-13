@@ -17,12 +17,12 @@ func TestFilterRecentVulns(t *testing.T) {
 		ds := new(mock.Store)
 		logger := kitlog.NewNopLogger()
 
-		vulns, meta := recentVulns(ctx, ds, logger, nil, nil, 2*time.Hour)
+		vulns, meta := recentVulns(ctx, ds, logger, nil, 2*time.Hour)
 		require.Empty(t, vulns)
 		require.Empty(t, meta)
 	})
 
-	t.Run("filters both NVD and OVAL vulns based on max age", func(t *testing.T) {
+	t.Run("filters vulnerabilities based on max age", func(t *testing.T) {
 		ctx := context.Background()
 		ds := new(mock.Store)
 		logger := kitlog.NewNopLogger()
@@ -59,10 +59,18 @@ func TestFilterRecentVulns(t *testing.T) {
 			"cve-recent-3",
 		}
 
+		var input []fleet.Vulnerability
+		for _, e := range ovalVulns {
+			input = append(input, e)
+		}
+		for _, e := range nvdVulns {
+			input = append(input, e)
+		}
+
 		var actual []string
-		vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, maxAge)
+		vulns, meta := recentVulns(ctx, ds, logger, input, maxAge)
 		for _, r := range vulns {
-			actual = append(actual, r.CVE)
+			actual = append(actual, r.GetCVE())
 		}
 
 		expectedMeta := map[string]fleet.CVEMeta{

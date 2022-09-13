@@ -101,7 +101,7 @@ func TranslateCPEToCVE(
 	vulnPath string,
 	logger kitlog.Logger,
 	collectVulns bool,
-) ([]fleet.SoftwareVulnerability, error) {
+) ([]fleet.Vulnerability, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return nil, err
@@ -130,13 +130,17 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	var vulns []fleet.SoftwareVulnerability
+	var vulns []fleet.Vulnerability
 	for _, file := range files {
 		r, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
 		if err != nil {
 			return nil, err
 		}
-		vulns = append(vulns, r...)
+
+		for _, e := range r {
+			vulns = append(vulns, e)
+		}
+
 	}
 
 	return vulns, nil

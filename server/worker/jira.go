@@ -324,7 +324,12 @@ func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summary
 
 // QueueJiraVulnJobs queues the Jira vulnerability jobs to process asynchronously
 // via the worker.
-func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
+func QueueJiraVulnJobs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	recentVulns []fleet.Vulnerability,
+) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
@@ -332,14 +337,14 @@ func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	// _before_ we start processing them).
 	cves := make([]string, 0, len(recentVulns))
 	for _, vuln := range recentVulns {
-		cves = append(cves, vuln.CVE)
+		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	uniqCVEs := make(map[string]bool)
 	for _, v := range recentVulns {
-		uniqCVEs[v.CVE] = true
+		uniqCVEs[v.GetCVE()] = true
 	}
 
 	for cve := range uniqCVEs {

@@ -29,7 +29,7 @@ func Analyze(
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
-) ([]fleet.SoftwareVulnerability, error) {
+) ([]fleet.Vulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
 	source := fleet.UbuntuOVALSource
@@ -102,9 +102,9 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.SoftwareVulnerability
+	var inserted []fleet.Vulnerability
 	if collectVulns {
-		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+		inserted = make([]fleet.Vulnerability, 0, len(toInsertSet))
 	}
 
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
@@ -114,7 +114,9 @@ func Analyze(
 		}
 
 		if collectVulns && n > 0 {
-			inserted = append(inserted, v...)
+			for _, e := range v {
+				inserted = append(inserted, e)
+			}
 		}
 
 		return nil
