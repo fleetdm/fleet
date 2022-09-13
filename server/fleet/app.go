@@ -124,7 +124,12 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
 
+	// when true, strictDecoding causes the UnmarshalJSON method to return an
+	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
+	// this field is set to true during UnmarshalJSON if any legacy settings
+	// were set in the raw JSON.
+	didUnmarshalLegacySettings bool
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
@@ -269,6 +274,10 @@ func (c *AppConfig) ApplyDefaults() {
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
 func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
 
+// DidUnmarshalLegacySettings returns true if any legacy setting was set
+// in the JSON used to unmarshal this AppConfig.
+func (c *AppConfig) DidUnmarshalLegacySettings() bool { return c.didUnmarshalLegacySettings }
+
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// Define a new type, this is to prevent infinite recursion when
@@ -297,6 +306,7 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// This has the drawback of legacy fields taking precedence over new fields
 	// if both are defined.
 	if compatConfig.legacyConfig.HostSettings != nil {
+		c.didUnmarshalLegacySettings = true
 		c.Features = *compatConfig.legacyConfig.HostSettings
 	}
 

@@ -4310,6 +4310,21 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
 
+	// dry-run valid appconfig that uses legacy settings (returns error)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"host_settings": { "additional_queries": {"foo": "bar"} }
+  }`), http.StatusBadRequest, &acResp, "dry_run", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Nil(t, acResp.Features.AdditionalQueries)
+
+	// without dry-run, the valid appconfig that uses legacy settings is accepted
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"host_settings": { "additional_queries": {"foo": "bar"} }
+  }`), http.StatusOK, &acResp, "dry_run", "false")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp.Features.AdditionalQueries)
+	require.Contains(t, string(*acResp.Features.AdditionalQueries), `"foo": "bar"`)
+
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)

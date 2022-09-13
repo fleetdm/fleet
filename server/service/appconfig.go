@@ -278,6 +278,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+	var legacyUsedWarning error
+	if appConfig.DidUnmarshalLegacySettings() {
+		// this "warning" is returned only in dry-run mode, and if no other errors
+		// were encountered.
+		legacyUsedWarning = &fleet.BadRequestError{
+			Message: "warning: deprecated settings were used in the configuration; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings",
+		}
+	}
+
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
@@ -301,6 +310,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// (we also delete the removed integrations after that, which we don't want
 	// to do in dry-run mode).
 	if applyOpts.DryRun {
+		if legacyUsedWarning != nil {
+			return nil, legacyUsedWarning
+		}
 		// must reload to get the unchanged app config
 		return svc.AppConfig(ctx)
 	}
