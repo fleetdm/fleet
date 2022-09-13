@@ -285,6 +285,7 @@ module.exports.routes = {
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
+  'GET /tables':                 '/tables/account_policy_data',
 
   // Sitemap
   // =============================================================================================================
@@ -309,6 +310,7 @@ module.exports.routes = {
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /community':              'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
+
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
