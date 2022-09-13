@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/kolide/kit/version"
 )
 
@@ -180,7 +181,10 @@ type modifyAppConfigRequest struct {
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*modifyAppConfigRequest)
-	config, err := svc.ModifyAppConfig(ctx, req.RawMessage)
+	config, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
+		Force:  req.Force,
+		DryRun: req.DryRun,
+	})
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
@@ -211,7 +215,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	return response, nil
 }
 
-func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
+func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -248,10 +252,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	// correctly, but this could be optimized so that we don't unmarshal the
 	// incoming bytes twice.
 	invalid := &fleet.InvalidArgumentError{}
-	// TODO(mna): unmarshal+validate the incoming appconfig - at this stage
-	// we do not validate the required fields, as they may be missing from
-	// the new appconfig, but present in the old one and so present after we
-	// merge the two.
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
@@ -278,11 +278,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+	if newAppConfig.AgentOptions != nil {
+		// if there were Agent Options in the new app config, then it replaced the
+		// agent options in the resulting app config, so validate those.
+		if err := fleet.ValidateJSONAgentOptions(*appConfig.AgentOptions); err != nil {
+			if applyOpts.Force && !applyOpts.DryRun {
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
+			}
+			if !applyOpts.Force {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+			}
+		}
+	}
 
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// do not send a test email in dry-run mode, so this is a good place to stop
+	// (we also delete the removed integrations after that, which we don't want
+	// to do in dry-run mode).
+	if applyOpts.DryRun {
+		// must reload to get the unchanged app config
+		return svc.AppConfig(ctx)
 	}
 
 	// ignore the values for SMTPEnabled and SMTPConfigured
@@ -330,8 +350,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if license.Tier != "premium" && appConfig.FleetDesktop.TransparencyURL != "" {
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
-
-	// TODO(mna): validate app config / agent options before saving
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err

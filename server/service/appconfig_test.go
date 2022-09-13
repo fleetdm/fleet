@@ -97,7 +97,7 @@ func TestAppConfigAuth(t *testing.T) {
 			_, err := svc.AppConfig(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ModifyAppConfig(ctx, []byte(`{}`))
+			_, err = svc.ModifyAppConfig(ctx, []byte(`{}`), fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.Version(ctx)
@@ -446,7 +446,7 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
-	updatedAppConfig, err := svc.ModifyAppConfig(ctx, b)
+	updatedAppConfig, err := svc.ModifyAppConfig(ctx, b, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	// After disabling SMTP, the app config should be "not configured".
@@ -535,7 +535,7 @@ func TestTransparencyURL(t *testing.T) {
 
 			raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.newURL}})
 			require.NoError(t, err)
-			modified, err := svc.ModifyAppConfig(ctx, raw)
+			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 			checkLicenseErr(t, tt.shouldFailModify, err)
 
 			if modified != nil {
@@ -576,14 +576,14 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	// setting transparency url fails
 	raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"}})
 	require.NoError(t, err)
-	_, err = svc.ModifyAppConfig(ctx, raw)
+	_, err = svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "missing or invalid license")
 
 	// setting unrelated config value does not fail and resets transparency url to ""
 	raw, err = json.Marshal(fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "f1337"}})
 	require.NoError(t, err)
-	modified, err := svc.ModifyAppConfig(ctx, raw)
+	modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, modified)
 	require.Equal(t, "", modified.FleetDesktop.TransparencyURL)

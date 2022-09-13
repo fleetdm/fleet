@@ -162,13 +162,14 @@ spec:
   team:
     agent_options:
       config:
-        something: else
+        views:
+          foo: bar
     name: team1
     secrets:
       - secret: AAA
 `)
 
-	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
+	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
@@ -195,13 +196,14 @@ spec:
   team:
     agent_options:
       config:
-        something: other
+        views:
+          foo: qux
     name: team1
     secrets:
       - secret: BBB
 `)
 
-	newAgentOpts = json.RawMessage(`{"config":{"something":"other"}}`)
+	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])

@@ -149,7 +149,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
 			}
 			if !applyOptions.Force {
-				return nil, &fleet.BadRequestError{Message: err.Error()}
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
 			}
 		}
 	}
@@ -430,7 +430,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
 				}
 				if !applyOpts.Force {
-					return &fleet.BadRequestError{Message: err.Error()}
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
 				}
 			}
 		}

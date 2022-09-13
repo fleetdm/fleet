@@ -345,14 +345,14 @@ func TestModifyAppConfigPatches(t *testing.T) {
 	configJSON := []byte(`{"org_info": { "org_name": "Acme", "org_logo_url": "somelogo.jpg" }}`)
 
 	ctx := test.UserContext(test.UserAdmin)
-	_, err := svc.ModifyAppConfig(ctx, configJSON)
+	_, err := svc.ModifyAppConfig(ctx, configJSON, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "Acme", storedConfig.OrgInfo.OrgName)
 
 	configJSON = []byte(`{"server_settings": { "server_url": "http://someurl" }}`)
 
-	_, err = svc.ModifyAppConfig(ctx, configJSON)
+	_, err = svc.ModifyAppConfig(ctx, configJSON, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "Acme", storedConfig.OrgInfo.OrgName)
