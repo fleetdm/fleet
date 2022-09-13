@@ -48,6 +48,7 @@ func (r *FlagRunner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
+			log.Info().Msg("calling flags update")
 			didUpdate, err := r.DoFlagsUpdate()
 			if err != nil {
 				log.Info().Err(err).Msg("flags updates failed " + err.Error())

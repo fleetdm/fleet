@@ -753,8 +753,23 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
 		case errors.Is(err, sql.ErrNoRows):
-			sqlInsert := `INSERT INTO hosts (osquery_host_id, uuid, orbit_node_key) VALUES (?, ?, ?)`
-			_, err := tx.ExecContext(ctx, sqlInsert, hardwareUUID, hardwareUUID, orbitNodeKey)
+			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
+			//sqlInsert := `INSERT INTO hosts (osquery_host_id, uuid, orbit_node_key) VALUES (?, ?, ?)`
+			sqlInsert := `
+				INSERT INTO hosts (
+				    last_enrolled_at,               
+					detail_updated_at,
+					label_updated_at,
+					policy_updated_at,
+					osquery_host_id,
+					node_key,
+					team_id,
+					refetch_requested,
+				    orbit_node_key
+				) VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+			`
+			//_, err := tx.ExecContext(ctx, sqlInsert, hardwareUUID, hardwareUUID, orbitNodeKey)
+			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, "", nil, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
@@ -774,6 +789,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 	if osqueryHostID == "" {
 		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
+	level.Info(ds.logger).Log("osquery host ID", osqueryHostID)
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -781,7 +797,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 
 		var hostID int64
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at, team_id FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
-		level.Info(ds.logger).Log("enroll host", err.Error())
+		//level.Info(ds.logger).Log("enroll host", err.Error())
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
