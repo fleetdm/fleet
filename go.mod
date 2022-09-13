@@ -69,7 +69,7 @@ require (
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.1.0
 	github.com/sethvargo/go-password v0.2.0
-	github.com/shirou/gopsutil/v3 v3.22.2
+	github.com/shirou/gopsutil/v3 v3.22.8
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.5.0
@@ -263,8 +263,8 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
-	github.com/tklauser/go-sysconf v0.3.9 // indirect
-	github.com/tklauser/numcpus v0.3.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.10 // indirect
+	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vartanbeno/go-reddit/v2 v2.0.0 // indirect
