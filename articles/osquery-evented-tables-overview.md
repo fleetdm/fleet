@@ -33,11 +33,12 @@ IMAGE NEEDED HERE
 ## What do I need to consider when configuring evented tables?
 
 ### Performance impact
-Running event capture generates performance overhead from both the utility and osquery. In general, if the utility is configured loosely to generate more events, then the host is performing additional operations matching and generating the events. This further causes osquery to do more work to parse and store the extra generated events. For example, when monitoring processes, there may be frequent but low-value processes such as `awk` and `sed` which can be ignored by the utility, reducing work for the host. Collecting “good enough” data is a key method to mitigate performance impact.
 
-Furthermore, at the osquery level, the number, complexity, and frequency of queries will drive the compute resources required. Queries which utilize `WHERE` clauses will be relatively efficient (and minimize data volume), whereas many `JOIN`s or wildcards (`%`) will use more resources.
+Capturing event data generates performance overhead from both the utility and osquery. If the utility is configured loosely to generate more events, then the utility performs more operations to generate events and osquery parses and stores more events. Capturing only the events you need will cut down on the amount of work the host needs to do. For example, when monitoring processes, there may be frequent but low-value processes such as `awk` and `sed` which can be ignored, reducing work for the host. Collecting “good enough” data is key in managing performance impact.
 
-Nevertheless, you may find it necessary to allocate a larger  memory footprint to osquery to satisfy your requirements. Osquery's watchdog automatically kills queries if they exceed certain system usage. Watchdog's behavior can be adjusted with the following flags:
+Also, consider the impact of the queries you’re using to collect your event data. Queries using `WHERE` clauses will be fairly efficient (and minimize data volume), while many `JOIN`s or wildcards (%) will use more resources. 
+
+Even after considering all of these factors, you may need to give osquery some additional resources. Osquery's watchdog automatically kills queries if they exceed certain system usage. This can be adjusted with the following flags:
 * `--watchdog_memory_limit` changes the maximum memory usage (expressed in MBs)
 * `--watchdog_utilization_limit` changes the maximum number of CPU cycles (defined as the `processes` table's `user_time` and `system_time`) for more than the time in seconds set by `--watchdog_latency_limit`.
 * `--watchdog_delay` sets the delay in seconds before CPU and memory usage limits will be enforced. By default, this is 60.
