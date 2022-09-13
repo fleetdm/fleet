@@ -22,7 +22,7 @@
   - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
   - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-fleet)
   - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
-  - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
+  - [Why is my host not updating a policy's response?](#why-is-my-host-not-updating-a-policys-response)
   - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
   - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
@@ -33,7 +33,7 @@
   - [Why do I see "Unknown Certificate Error" when adding hosts to my dev server?](#why-do-i-see-unknown-certificate-error-when-adding-hosts-to-my-dev-server)
   - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
   - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
-  - [When do I need fleetctl vs the REST API vs the Fleet UI?](#when-do-i-need-fleetctl-vs-the-rest-api-vs-the-fleet-ui)
+  - [When do I need fleetctl vs. the REST API vs. the Fleet UI?](#when-do-i-need-fleetctl-vs-the-rest-api-vs-the-fleet-ui)
   - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
   - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
   - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
@@ -171,7 +171,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 [Team enroll secrets](./Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
-## Why my host is not updating a policy's response.
+## Why is my host not updating a policy's response?
 
 The following are reasons why a host may not be updating a policy's response:
 
@@ -237,7 +237,7 @@ This isn't currently supported, but we're working on it! You can track that issu
 
 Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule. 
 
-## When do I need fleetctl vs the REST API vs the Fleet UI?
+## When do I need fleetctl vs. the REST API vs. the Fleet UI?
 
 [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) is great for users that like to do things in a terminal (like iTerm on a Mac). Lots of tech folks are real power users of the terminal. It is also helpful for automating things like deployments.
 
@@ -337,10 +337,10 @@ Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 ## How does Fleet determines online and offline status?
 
-- *Online* hosts are devices that are connected to Fleet and will respond to a live query.
+- **Online** hosts are devices that are connected to Fleet and will respond to a live query.
 Fleet considers a host as online if it has connected successfully in the last `distributed_interval` (or `config_tls_refresh`, whichever is smaller) seconds.
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
 The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts,
 and in the **Settings > Teams > TEAM NAME > Agent options** for hosts that belong to a team.
-- *Offline* hosts are devices that are not online. These hosts may be devices that are turned off or not connected to the internet.
+- **Offline** hosts are devices that are not online. These hosts may be devices that are turned off or not connected to the internet.
 A host could also be marked as offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
