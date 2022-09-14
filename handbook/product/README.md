@@ -22,7 +22,7 @@ The product team is responsible for sub-OKRs that contribute to organization-wid
 
 ### Q3 OKRs
 
-The following Q3 OKRs Google doc lists the "Product" sub-OKRs under each organization-wide OKR:
+The following Q3 OKRs Google doc lists product's sub-OKRs under each organization-wide OKR. Product's sub-OKRs are those tagged with the names "Noah Talerman" and "Mo Zhu":
 
 [Q3 OKRs](https://docs.google.com/document/d/1i0ovyamy6MqyFDgiMtPO_OkAzetPuNKryAeu12KbMFk/edit?usp=sharing)
 
