@@ -196,7 +196,7 @@ You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the
 
 ## When will the newest version of osquery be available to Orbit?
 
-When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
+When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
 
 ## Can I bundle osquery extensions into Orbit?
 
