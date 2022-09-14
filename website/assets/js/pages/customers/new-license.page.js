@@ -77,9 +77,7 @@ parasails.registerPage('new-license', {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }
-      // When the final submit has been rendered into existence, focus it for our friendly user.
       await this.forceRender();
-      this.$focus('[purpose="submit-button"]');
     },
 
     clickScheduleDemo: async function() {
