@@ -195,7 +195,9 @@ jobs:
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: Install xar
-      run: sudo apt install -y xar
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xar
 
     - name: Build fleetdm/fleetctl
       run: make fleetctl-docker
