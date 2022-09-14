@@ -26,18 +26,24 @@ type HostResponse struct {
 	*fleet.Host
 	Status           fleet.HostStatus   `json:"status" csv:"status"`
 	DisplayText      string             `json:"display_text" csv:"display_text"`
+	DisplayName      string             `json:"display_name" csv:"display_name"`
 	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
 	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
 	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
-	return &HostResponse{
+	hr := HostResponse{
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		DisplayName: host.ComputerName,
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
-	}, nil
+	}
+	if hr.DisplayName == "" {
+		hr.DisplayName = host.Hostname
+	}
+	return &hr, nil
 }
 
 // HostDetailResponse is the response struct that contains the full host information
