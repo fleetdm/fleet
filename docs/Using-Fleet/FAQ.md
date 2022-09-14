@@ -7,7 +7,6 @@
 - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
 - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
 - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-- [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
 - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
 - [Where are my query results?](#where-are-my-query-results)
 - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
@@ -64,12 +63,6 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 ## How do I monitor a Fleet server?
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./Monitoring-Fleet.md) documentation for details.
-
-## Why is the “Add User” button disabled?
-
-The “Add User” button is disabled if SMTP (email) has not been configured for the Fleet server. Currently, there is no way to add new users without email capabilities.
-
-One way to hack around this is to use a simulated mailserver like [Mailhog](https://github.com/mailhog/MailHog). You can retrieve the email that was “sent” in the Mailhog UI, and provide users with the invite URL manually.
 
 ## Can I disable password-based authentication in the Fleet UI?
 
