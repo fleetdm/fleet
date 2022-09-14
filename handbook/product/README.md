@@ -26,6 +26,12 @@ The following Q3 OKRs Google doc lists the "Product" sub-OKRs under each organiz
 
 [Q3 OKRs](https://docs.google.com/document/d/1i0ovyamy6MqyFDgiMtPO_OkAzetPuNKryAeu12KbMFk/edit?usp=sharing)
 
+### Q2 OKRs
+
+The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization-wide OKR:
+
+[Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
+
 ## Q1 2022 product objectives
 
 In Q1 2022, Fleet set company-wide objectives. The product team was responsible for
