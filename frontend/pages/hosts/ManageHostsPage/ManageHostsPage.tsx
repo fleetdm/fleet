@@ -261,6 +261,8 @@ const ManageHostsPage = ({
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams?.munki_issue_id, 10)
       : undefined;
+  const lowDiskSpaceHosts = queryParams?.lowDiskSpace;
+  const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -639,6 +641,32 @@ const ManageHostsPage = ({
 
   const handleClearMunkiIssueFilter = () => {
     handleClearFilter(["munki_issue_id"]);
+  };
+
+  const handleClearMissingFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["status"]),
+      })
+    );
+  };
+
+  const handleClearLowDiskSpaceFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["low_disk_space"]),
+      })
+    );
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -1297,6 +1325,40 @@ const ManageHostsPage = ({
     return null;
   };
 
+  const renderMissingFilterBlock = () => {
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts that have not been online in <br />
+        10 days or more.
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label="Missing"
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMissingFilter}
+      />
+    );
+  };
+
+  const renderLowDiskSpaceFilterBlock = () => {
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts that have 32 GB or less <br />
+        disk space available.
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label="Low disk space"
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearLowDiskSpaceFilter}
+      />
+    );
+  };
+
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1534,6 +1596,8 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
+      lowDiskSpaceHosts ||
+      missingHosts ||
       osId ||
       (osName && osVersion) ||
       munkiIssueId
@@ -1554,6 +1618,10 @@ const ManageHostsPage = ({
             return renderOSFilterBlock();
           case !!munkiIssueId:
             return renderMunkiIssueFilterBlock();
+          case !!missingHosts:
+            return renderMissingFilterBlock();
+          case !!lowDiskSpaceHosts:
+            return renderLowDiskSpaceFilterBlock();
           default:
             return null;
         }
@@ -1621,13 +1689,21 @@ const ManageHostsPage = ({
       teamSync &&
       !labelID
     ) {
-      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
-        queryParams || {};
+      const {
+        software_id,
+        policy_id,
+        mdm_id,
+        mdm_enrollment_status,
+        low_disk_space,
+        status,
+      } = queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
+        low_disk_space ||
+        status === "missing" ||
         osId ||
         osName ||
         osVersion

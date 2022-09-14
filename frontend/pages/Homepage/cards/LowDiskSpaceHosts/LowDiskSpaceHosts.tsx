@@ -1,5 +1,5 @@
 import React from "react";
-import paths from "router/paths";
+import PATHS from "router/paths";
 
 import SummaryTile from "../HostsSummary/SummaryTile";
 import LowDiskSpaceIcon from "../../../../../assets/images/icon-low-disk-space-32x19@2x.png";
@@ -32,7 +32,7 @@ const LowDiskSpaceHosts = ({
         showUI={showHostsUI}
         title="Low disk space hosts"
         tooltip="Hosts that have 32 GB or less disk space available."
-        path={paths.MANAGE_HOSTS}
+        path={`${PATHS.MANAGE_HOSTS}?low_disk_space=true`}
       />
     </div>
   );

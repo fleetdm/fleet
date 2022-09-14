@@ -47,6 +47,8 @@ export const reconcileMutuallyExclusiveHostParams = (
   mdmId?: number,
   mdmEnrollmentStatus?: string,
   munkiIssueId?: number,
+  missingHosts?: boolean,
+  lowDiskSpaceHosts?: boolean,
   softwareId?: number,
   osId?: number,
   osName?: string,
@@ -68,6 +70,10 @@ export const reconcileMutuallyExclusiveHostParams = (
       return { os_id: osId };
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
+    case !!lowDiskSpaceHosts:
+      return { low_disk_space: true };
+    case !!missingHosts:
+      return { status: "missing" };
     default:
       return {};
   }

@@ -2,7 +2,7 @@ import React from "react";
 
 import SummaryTile from "../HostsSummary/SummaryTile";
 import MissingHostsIcon from "../../../../../assets/images/icon-missing-hosts-28x24@2x.png";
-import paths from "router/paths";
+import PATHS from "router/paths";
 
 const baseClass = "missing-hosts";
 
@@ -32,7 +32,7 @@ const MissingHosts = ({
         showUI={showHostsUI}
         title="Missing hosts"
         tooltip="Hosts that have not been online in 10 days or more."
-        path={paths.MANAGE_HOSTS}
+        path={`${PATHS.MANAGE_HOSTS}?status=missing`}
       />
     </div>
   );
