@@ -26,9 +26,7 @@ This separation between osquery and the utility means that some evented tables r
 You can tell that an osquery evented table is evented in two ways:
 
 - The table ends in `_events`.
-- In the (osquery schema)[osquery.io/schema], the table is  marked with an "evented" tag near the table name as shown here:
-
-IMAGE NEEDED HERE
+- In the (osquery schema)[osquery.io/schema], the table is  marked with an "evented" tag near the table name.
 
 ## What do I need to consider when configuring evented tables?
 
