@@ -1,6 +1,6 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
+import { renderWithSetup } from "test/testingUtils";
 
 import Dropdown from "components/forms/fields/Dropdown";
 
@@ -24,11 +24,13 @@ describe("Dropdown - component", () => {
 
   it("selects a value from dropdown", async () => {
     const onChangeSpy = jest.fn();
-    render(<Dropdown {...props} onChange={onChangeSpy} />);
+    const { user } = renderWithSetup(
+      <Dropdown {...props} onChange={onChangeSpy} />
+    );
     const inputNode = screen.getByRole("combobox");
 
-    userEvent.type(inputNode, "users");
-    fireEvent.mouseDown(screen.getByRole("option"));
+    await user.type(inputNode, "users");
+    await user.click(screen.getByRole("option"));
 
     expect(onChangeSpy).toHaveBeenCalledWith("users");
   });

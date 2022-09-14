@@ -15,8 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/sfn"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
 	"github.com/wI2L/fizz/openapi"
@@ -24,9 +24,9 @@ import (
 	_ "go.elastic.co/apm/v2"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
-	"os"
 )
 
 type OptionsStruct struct {
@@ -39,7 +39,7 @@ type OptionsStruct struct {
 
 var options = OptionsStruct{}
 
-func applyConfig(c* gin.Context, url, token string) (err error) {
+func applyConfig(c *gin.Context, url, token string) (err error) {
 	var client *service.Client
 	if client, err = service.NewClient(url, false, "", ""); err != nil {
 		log.Print(err)
@@ -49,9 +49,9 @@ func applyConfig(c* gin.Context, url, token string) (err error) {
 
 	buf, err := os.ReadFile("standard-query-library.yml")
 	if err != nil {
-	    log.Print(err)
-	    return
-    }
+		log.Print(err)
+		return
+	}
 	specs, err := spec.GroupFromBytes(buf)
 	if err != nil {
 		return

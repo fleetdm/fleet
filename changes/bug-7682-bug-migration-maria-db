@@ -1,0 +1,1 @@
+* Under MariaDB the FK from software_cve to software_cpe has a different name which was causing the migration to fail.

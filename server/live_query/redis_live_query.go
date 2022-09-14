@@ -1,7 +1,7 @@
 // Package live_query implements an interface for storing and
 // retrieving live queries.
 //
-// Design
+// # Design
 //
 // This package operates by storing a single redis key for host
 // targeting information. This key has a known prefix, and the data
@@ -21,15 +21,15 @@
 // number of live queries targeting all of them. This was a big
 // factor in choosing this implementation.
 //
-// Implementation
+// # Implementation
 //
 // As mentioned in the Design section, there are three keys for each
 // live query: the bitfield, the SQL of the query and the set containing
 // the IDs of all active live queries:
 //
-//     livequery:<ID> is the bitfield that indicates the hosts
-//     sql:livequery:<ID> is the SQL of the query.
-//     livequery:active is the set containing the active live query IDs
+//	livequery:<ID> is the bitfield that indicates the hosts
+//	sql:livequery:<ID> is the SQL of the query.
+//	livequery:active is the set containing the active live query IDs
 //
 // Both the bitfield and sql keys have an expiration, and <ID> is the campaign
 // ID of the query.  To make efficient use of Redis Cluster (without impacting
@@ -42,7 +42,6 @@
 // live on a single node in cluster mode (a "hot key"), and that node will see
 // increased activity due to that. Should that become a significant problem, an
 // alternative approach will be required.
-//
 package live_query
 
 import (
@@ -84,9 +83,10 @@ func generateKeys(name string) (targetsKey, sqlKey string) {
 }
 
 // returns the base name part of a target key, i.e. so that this is true:
-//     tkey, _ := generateKeys(name)
-//     baseName := extractTargetKeyName(tkey)
-//     baseName == name
+//
+//	tkey, _ := generateKeys(name)
+//	baseName := extractTargetKeyName(tkey)
+//	baseName == name
 func extractTargetKeyName(key string) string {
 	name := strings.TrimPrefix(key, queryKeyPrefix)
 	if len(name) > 0 && name[0] == '{' {

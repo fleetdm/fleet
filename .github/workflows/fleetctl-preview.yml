@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
-        os: [ubuntu-20.04, ubuntu-18.04, macos-11, macos-12]
+        os: [ubuntu-20.04, ubuntu-22.04, macos-11, macos-12]
     runs-on: ${{ matrix.os }}
     steps:
 

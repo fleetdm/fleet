@@ -20,7 +20,7 @@ import Modal from "components/Modal";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
-import SecretField from "components/SecretField";
+import SecretField from "components/EnrollSecrets/SecretField";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import MainContent from "components/MainContent";

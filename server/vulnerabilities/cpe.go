@@ -221,17 +221,17 @@ func (r *regexpCache) Get(pattern string) (*regexp.Regexp, error) {
 //
 // Example:
 //
-//     [
-//       {
-//         "match": {
-//           "bundle_identifier": ["com.1password.1password"]
-//         },
-//         "translation": {
-//           "product": ["1password"],
-//           "vendor": ["agilebits"]
-//         }
-//       }
-//     ]
+//	[
+//	  {
+//	    "match": {
+//	      "bundle_identifier": ["com.1password.1password"]
+//	    },
+//	    "translation": {
+//	      "product": ["1password"],
+//	      "vendor": ["agilebits"]
+//	    }
+//	  }
+//	]
 type CPETranslations []CPETranslationItem
 
 func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslation, bool, error) {

@@ -6,29 +6,29 @@ import (
 	"strings"
 )
 
-type MSRCFSAPI interface {
+type FSAPI interface {
 	Bulletins() ([]SecurityBulletinName, error)
 	Delete(SecurityBulletinName) error
 }
 
-type MSRCFSClient struct {
+type FSClient struct {
 	dir string
 }
 
-func NewMSRCFSClient(dir string) MSRCFSClient {
-	return MSRCFSClient{
+func NewFSClient(dir string) FSClient {
+	return FSClient{
 		dir: dir,
 	}
 }
 
 // Delete deletes the provided security bulletin name from 'dir'.
-func (fs MSRCFSClient) Delete(b SecurityBulletinName) error {
+func (fs FSClient) Delete(b SecurityBulletinName) error {
 	path := filepath.Join(fs.dir, string(b))
 	return os.Remove(path)
 }
 
 // Bulletins walks 'dir' returning all security bulletin names.
-func (fs MSRCFSClient) Bulletins() ([]SecurityBulletinName, error) {
+func (fs FSClient) Bulletins() ([]SecurityBulletinName, error) {
 	var result []SecurityBulletinName
 
 	err := filepath.WalkDir(fs.dir, func(path string, d os.DirEntry, err error) error {
@@ -37,7 +37,7 @@ func (fs MSRCFSClient) Bulletins() ([]SecurityBulletinName, error) {
 		}
 
 		filePath := filepath.Base(path)
-		if strings.HasPrefix(filePath, MSRCFilePrefix) {
+		if strings.HasPrefix(filePath, mSRCFilePrefix) {
 			result = append(result, NewSecurityBulletinName(filePath))
 		}
 
