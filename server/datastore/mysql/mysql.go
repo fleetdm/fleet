@@ -777,7 +777,7 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "<" // DESC
 		}
-		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
+		sql = fmt.Sprintf("%s %s `%s` %s ?", sql, afterSql, orderKey, direction)
 
 		// After existing supersedes Page, so we disable it
 		opts.Page = 0
@@ -789,7 +789,7 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 			direction = "DESC"
 		}
 
-		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
+		sql = fmt.Sprintf("%s ORDER BY `%s` %s", sql, orderKey, direction)
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit of 1000
 	// to insure that an unbounded query with many results doesn't consume too
