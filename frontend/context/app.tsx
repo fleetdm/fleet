@@ -57,32 +57,32 @@ type Props = {
 };
 
 type InitialStateType = {
-  availableTeams: ITeamSummary[] | undefined;
+  availableTeams?: ITeamSummary[];
   config: IConfig | null;
   currentUser: IUser | null;
-  currentTeam: ITeamSummary | undefined;
+  currentTeam?: ITeamSummary;
   enrollSecret: IEnrollSecret[] | null;
-  isPreviewMode: boolean | undefined;
-  isSandboxMode: boolean | undefined;
-  isFreeTier: boolean | undefined;
-  isPremiumTier: boolean | undefined;
-  isGlobalAdmin: boolean | undefined;
-  isGlobalMaintainer: boolean | undefined;
-  isGlobalObserver: boolean | undefined;
-  isOnGlobalTeam: boolean | undefined;
-  isAnyTeamMaintainer: boolean | undefined;
-  isAnyTeamMaintainerOrTeamAdmin: boolean | undefined;
-  isTeamObserver: boolean | undefined;
-  isTeamMaintainer: boolean | undefined;
-  isTeamMaintainerOrTeamAdmin: boolean | undefined;
-  isAnyTeamAdmin: boolean | undefined;
-  isTeamAdmin: boolean | undefined;
-  isOnlyObserver: boolean | undefined;
-  isNoAccess: boolean | undefined;
+  isPreviewMode?: boolean;
+  isSandboxMode?: boolean;
+  isFreeTier?: boolean;
+  isPremiumTier?: boolean;
+  isGlobalAdmin?: boolean;
+  isGlobalMaintainer?: boolean;
+  isGlobalObserver?: boolean;
+  isOnGlobalTeam?: boolean;
+  isAnyTeamMaintainer?: boolean;
+  isAnyTeamMaintainerOrTeamAdmin?: boolean;
+  isTeamObserver?: boolean;
+  isTeamMaintainer?: boolean;
+  isTeamMaintainerOrTeamAdmin?: boolean;
+  isAnyTeamAdmin?: boolean;
+  isTeamAdmin?: boolean;
+  isOnlyObserver?: boolean;
+  isNoAccess?: boolean;
   sandboxExpiry?: string;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
-  setCurrentTeam: (team: ITeamSummary | undefined) => void;
+  setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
@@ -90,7 +90,7 @@ type InitialStateType = {
 
 export type IAppContext = InitialStateType;
 
-const initialState = {
+export const initialState = {
   availableTeams: undefined,
   config: null,
   currentUser: null,

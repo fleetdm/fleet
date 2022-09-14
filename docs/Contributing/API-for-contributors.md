@@ -1619,6 +1619,36 @@ Same as [Get host's mobile device management and Munki information](../Using-Fle
 | --------------- | ------ | ----- | ---------------------------------------|
 | token           | string | path  | The device's authentication token.     |
 
+
+#### Get Fleet Desktop information
+_Available in Fleet Premium_
+
+Gets all information required by Fleet Desktop to notify the user if there are any failing policies.
+
+`GET /api/v1/fleet/device/{token}/desktop`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/desktop`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "failing_policies_count": 3
+}
+```
+
+
+
 #### Get device's policies
 
 _Available in Fleet Premium_
