@@ -46,6 +46,8 @@
     - [Ubuntu](#ubuntu)
     - [CentOS](#centos)
   - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
+    - [Online hosts](#online-hosts)
+    - [Offline hosts](#offline-hosts)
 
 ## How can I switch to Fleet from Kolide Fleet?
 
@@ -337,10 +339,24 @@ Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 ## How does Fleet determines online and offline status?
 
-- **Online** hosts are devices that are connected to Fleet and will respond to a live query.
-Fleet considers a host as online if it has connected successfully in the last `distributed_interval` (or `config_tls_refresh`, whichever is smaller) seconds.
+### Online hosts
+
+**Online** hosts are devices that are connected to Fleet and will respond to a live query.
+
+Fleet considers a device as online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
 The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts,
 and in the **Settings > Teams > TEAM NAME > Agent options** for hosts that belong to a team.
-- **Offline** hosts are devices that are not online. These hosts may be devices that are turned off or not connected to the internet.
+
+For example:
+
+`distributed_interval=10, config_tls_refresh=30`
+A host is considered online if it has connected to Fleet in the last 70 (10+60) seconds.
+
+`distributed_interval=30, config_tls_refresh=20`
+A host is considered online if it has connected to Fleet in the last 80 (20+60) seconds.
+
+### Offline hosts
+
+**Offline** hosts are devices that are not online. These hosts may be devices that are turned off or not connected to the internet.
 A host could also be marked as offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
