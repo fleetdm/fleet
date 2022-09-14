@@ -126,6 +126,8 @@ const ManageHostsPage = ({
 }: IManageHostsProps): JSX.Element => {
   const queryParams = location.query;
 
+  console.log("queryParams", queryParams);
+
   const {
     availableTeams,
     config,
@@ -518,10 +520,12 @@ const ManageHostsPage = ({
       status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      missingHosts,
+      lowDiskSpaceHosts,
       osId,
       osName,
       osVersion,
-      munkiIssueId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -816,6 +820,14 @@ const ManageHostsPage = ({
         newQueryParams.munki_issue_id = munkiIssueId;
       }
 
+      if (missingHosts) {
+        newQueryParams.status = "missing";
+      }
+
+      if (lowDiskSpaceHosts) {
+        newQueryParams.low_disk_space = lowDiskSpaceHosts;
+      }
+
       if (
         (osId || (osName && osVersion)) &&
         !softwareId &&
@@ -848,10 +860,12 @@ const ManageHostsPage = ({
       status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      missingHosts,
+      lowDiskSpaceHosts,
       osId,
       osName,
       osVersion,
-      munkiIssueId,
       sortBy,
     ]
   );
@@ -1035,10 +1049,12 @@ const ManageHostsPage = ({
         status,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
+        missingHosts,
+        lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
-        munkiIssueId,
       });
 
       toggleTransferHostModal();
@@ -1089,10 +1105,12 @@ const ManageHostsPage = ({
         status,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
+        missingHosts,
+        lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
-        munkiIssueId,
       });
 
       refetchLabels();
@@ -1520,10 +1538,12 @@ const ManageHostsPage = ({
       status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      missingHosts,
+      lowDiskSpaceHosts,
       os_id: osId,
       os_name: osName,
       os_version: osVersion,
-      munkiIssueId,
       visibleColumns,
     };
 

@@ -23,6 +23,8 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  missingHosts?: boolean;
+  lowDiskSpaceHosts?: boolean;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
@@ -43,21 +45,31 @@ export default {
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const munkiIssueId = options?.munkiIssueId;
+    const missingHosts = options?.missingHosts;
+    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
 
     const queryParams = {
       query: globalFilter,
       team_id: teamId,
-      ...reconcileMutuallyExclusiveHostParams(
+      ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
+<<<<<<< HEAD
         softwareId
       ),
       status,
+=======
+        missingHosts,
+        lowDiskSpaceHosts,
+        softwareId,
+      }),
+      status: getStatusParam(selectedLabels),
+>>>>>>> 135223629 (Missing hosts and low disk space hosts params added)
       label_id: label,
     };
 

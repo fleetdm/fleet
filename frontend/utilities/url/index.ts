@@ -5,6 +5,21 @@ export type QueryParams = Record<string, QueryValues>;
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
+interface IMutuallyExclusiveHostParams {
+  label?: string;
+  policyId?: number;
+  policyResponse?: string;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  munkiIssueId?: number;
+  missingHosts?: boolean;
+  lowDiskSpaceHosts?: boolean;
+  softwareId?: number;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
+}
+
 const reduceQueryParams = (
   params: string[],
   value: FilteredQueryValues,
@@ -40,20 +55,20 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
   return queryString;
 };
 
-export const reconcileMutuallyExclusiveHostParams = (
-  label?: string,
-  policyId?: number,
-  policyResponse?: string,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string,
-  munkiIssueId?: number,
-  missingHosts?: boolean,
-  lowDiskSpaceHosts?: boolean,
-  softwareId?: number,
-  osId?: number,
-  osName?: string,
-  osVersion?: string
-): Record<string, unknown> => {
+export const reconcileMutuallyExclusiveHostParams = ({
+  label,
+  policyId,
+  policyResponse,
+  mdmId,
+  mdmEnrollmentStatus,
+  munkiIssueId,
+  missingHosts,
+  lowDiskSpaceHosts,
+  softwareId,
+  osId,
+  osName,
+  osVersion,
+}: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     return {};
   }
