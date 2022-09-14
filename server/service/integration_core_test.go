@@ -3145,6 +3145,90 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
+func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
+	t := s.T()
+
+	// enable with valid config
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+     	 		"destination_url": "http://some/url",
+				  "host_percentage": 2,
+					"days_count": 1
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
+
+	// update without a destination url
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+     	 		"destination_url": "",
+				  "host_percentage": 2,
+					"days_count": 1
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// update without a negative days count
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+					"destination_url": "http://other/url",
+				  "host_percentage": 2,
+					"days_count": -123
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// update with 0%
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+					"destination_url": "http://other/url",
+				  "host_percentage": 0,
+					"days_count": 12
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// config left unmodified since last successful call
+	config = s.getConfig()
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
+
+	// disabling ignores the invalid parameters
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": false,
+     	 		"destination_url": "",
+				  "host_percentage": 0
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config = s.getConfig()
+	require.False(t, config.WebhookSettings.HostStatusWebhook.Enable)
+}
+
 func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
 	t := s.T()
 

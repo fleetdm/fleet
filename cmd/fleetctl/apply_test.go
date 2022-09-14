@@ -1055,7 +1055,60 @@ spec:
 `,
 			wantErr: `422 Validation Failed: destination_url is required to enable the vulnerabilities webhook`,
 		},
+		{
+			desc: "missing required host status destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: ""
+      days_count: 10
+      host_percentage: 10
+    interval: 1h
+`,
+			wantErr: `422 Validation Failed: destination_url is required to enable the host status webhook`,
+		},
+		{
+			desc: "missing required host status days_count",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: "http://some/url"
+      days_count: 0
+      host_percentage: 10
+    interval: 1h
+`,
+			wantErr: `422 Validation Failed: days_count must be > 0 to enable the host status webhook`,
+		},
+		{
+			desc: "missing required host status host_percentage",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: "http://some/url"
+      days_count: 10
+      host_percentage: -1
+    interval: 1h
+`,
+			wantErr: `422 Validation Failed: host_percentage must be > 0 to enable the host status webhook`,
+		},
 	}
+	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
+	// they require a complex setup to mock the client that would communicate
+	// with the external API. However, we make a test API call when enabling an
+	// integration, ensuring that any missing configuration field results in an
+	// error. Same for smtp_settings (a test email is sent when enabling).
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	for _, c := range cases {
