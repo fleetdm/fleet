@@ -59,7 +59,7 @@ func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 // See https://osquery.readthedocs.io/en/stable/deployment/configuration/#configuration-specification
 //
 // NOTE: Update the following line with the version used for validation.
-//   Current version: 5.4.0
+// Current version: 5.4.0
 type osqueryAgentOptions struct {
 	Options osqueryOptions `json:"options"`
 
