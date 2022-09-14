@@ -3,17 +3,13 @@ package oval
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
+	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 const (
@@ -200,7 +196,8 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		return nil, fmt.Errorf("platform %q not supported", platform)
 	}
 
-	latest, err := latestOvalDefFor(platform, vulnPath, time.Now())
+	fileName := platform.ToFilename(time.Now(), "json")
+	latest, err := utils.LatestFile(fileName, vulnPath)
 	if err != nil {
 		return nil, err
 	}
@@ -226,43 +223,4 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	}
 
 	return nil, fmt.Errorf("don't know how to parse file %q for %q platform", latest, platform)
-}
-
-// latestOvalDefFor returns the path of the OVAL definition for the given 'platform' in
-// 'vulnPath' for the given 'date'.
-// If not found, returns the most up to date OVAL definition for the given 'platform'
-func latestOvalDefFor(platform Platform, vulnPath string, date time.Time) (string, error) {
-	ext := "json"
-	fileName := platform.ToFilename(date, ext)
-	target := filepath.Join(vulnPath, fileName)
-
-	switch _, err := os.Stat(target); {
-	case err == nil:
-		return target, nil
-	case errors.Is(err, fs.ErrNotExist):
-		files, err := os.ReadDir(vulnPath)
-		if err != nil {
-			return "", err
-		}
-
-		prefix := strings.Split(fileName, "-")[0]
-		var latest os.FileInfo
-		for _, f := range files {
-			if strings.HasPrefix(f.Name(), prefix) && strings.HasSuffix(f.Name(), ext) {
-				info, err := f.Info()
-				if err != nil {
-					continue
-				}
-				if latest == nil || info.ModTime().After(latest.ModTime()) {
-					latest = info
-				}
-			}
-		}
-		if latest == nil {
-			return "", fmt.Errorf("file not found for platform '%s' in '%s'", platform, vulnPath)
-		}
-		return filepath.Join(vulnPath, latest.Name()), nil
-	default:
-		return "", fmt.Errorf("failed to stat %q: %w", target, err)
-	}
 }

@@ -1,6 +1,10 @@
 package parsed
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 // Product abstracts a MS full product name.
 // A full product name includes the name of the product plus its arch
@@ -74,4 +78,8 @@ func (p Product) Name() string {
 	default:
 		return ""
 	}
+}
+
+func (p Product) MatchesOS(os fleet.OperatingSystem) bool {
+	return false
 }

@@ -95,7 +95,7 @@ func (ov OSVulnerability) Affected() uint {
 	return ov.OSID
 }
 
-// Represents a vulnerability, can be either an OS or a Software vulnerability.
+// Represents a vulnerability, e.g. an OS or a Software vulnerability.
 type Vulnerability interface {
 	GetCVE() string
 	Affected() uint

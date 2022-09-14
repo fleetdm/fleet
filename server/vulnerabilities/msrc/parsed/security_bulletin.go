@@ -15,7 +15,7 @@ type SecurityBulletin struct {
 	// We can have many different 'products' under a single name, for example, for 'Windows 10':
 	// - Windows 10 Version 1809 for 32-bit Systems
 	// - Windows 10 Version 1909 for x64-based Systems
-	Products map[string]string
+	Products map[string]Product
 	// All vulnerabilities contained in this bulletin, by CVE
 	Vulnerabities map[string]Vulnerability
 	// All vendor fixes for remediating the vulnerabilities contained in this bulletin, by KBID
@@ -25,7 +25,7 @@ type SecurityBulletin struct {
 func NewSecurityBulletin(pName string) *SecurityBulletin {
 	return &SecurityBulletin{
 		ProductName:   pName,
-		Products:      make(map[string]string),
+		Products:      make(map[string]Product),
 		Vulnerabities: make(map[string]Vulnerability),
 		VendorFixes:   make(map[int]VendorFix),
 	}

@@ -32,9 +32,9 @@ func (sbn SecurityBulletinName) date() (time.Time, error) {
 	return time.Parse(dateLayout, timeRaw)
 }
 
-func FileName(productName string, date time.Time, ext string) string {
+func FileName(productName string, date time.Time) string {
 	pName := strings.Replace(productName, " ", "_", -1)
-	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", mSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), ext)
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", mSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
 }
 
 func (sbn SecurityBulletinName) Before(other SecurityBulletinName) bool {

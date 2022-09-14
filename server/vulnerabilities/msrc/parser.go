@@ -46,7 +46,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 		if bulletins[name] == nil {
 			bulletins[name] = parsed.NewSecurityBulletin(name)
 		}
-		bulletins[name].Products[pID] = p.FullName
+		bulletins[name].Products[pID] = parsed.NewProduct(p.FullName)
 		pIDToPName[pID] = name
 	}
 

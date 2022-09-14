@@ -621,6 +621,7 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows Update History
+	ListWindowsUpdates(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
 	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 }
 

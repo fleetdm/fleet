@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
@@ -137,11 +138,12 @@ func backfill(upToM time.Month, upToY int, client io.MSRCAPI) ([]*parsed.Securit
 	return r, nil
 }
 
-func serialize(b *parsed.SecurityBulletin, d time.Time, wd string) error {
+func serialize(b *parsed.SecurityBulletin, d time.Time, dir string) error {
 	payload, err := json.Marshal(b)
 	if err != nil {
 		return err
 	}
-	filePath := io.FileName(b.ProductName, d, "json")
+	fileName := io.FileName(b.ProductName, d)
+	filePath := filepath.Join(dir, fileName)
 	return os.WriteFile(filePath, payload, 0o644)
 }

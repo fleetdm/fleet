@@ -32,10 +32,10 @@ func TestSecurityBulletin(t *testing.T) {
 
 			a.Merge(b)
 
-			require.Equal(t, a.Products["123"], "Windows 10 A")
-			require.Equal(t, a.Products["456"], "Windows 10 B")
-			require.Equal(t, a.Products["780"], "Windows 10 C")
-			require.Equal(t, a.Products["980"], "Windows 10 D")
+			require.Equal(t, a.Products["123"], NewProduct("Windows 10 A"))
+			require.Equal(t, a.Products["456"], NewProduct("Windows 10 B"))
+			require.Equal(t, a.Products["780"], NewProduct("Windows 10 C"))
+			require.Equal(t, a.Products["980"], NewProduct("Windows 10 D"))
 		})
 
 		t.Run(".Vulnerabities", func(t *testing.T) {
