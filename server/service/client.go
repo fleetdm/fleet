@@ -218,7 +218,7 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 }
 
 // ApplyGroup applies the given spec group to Fleet.
-func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{}), opts *fleet.ApplySpecOptions) error {
+func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{}), opts fleet.ApplySpecOptions) error {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)

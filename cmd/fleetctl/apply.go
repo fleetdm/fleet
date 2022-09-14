@@ -64,7 +64,7 @@ func applyCommand() *cli.Command {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
-			opts := &fleet.ApplySpecOptions{
+			opts := fleet.ApplySpecOptions{
 				Force:  flForce,
 				DryRun: flDryRun,
 			}
