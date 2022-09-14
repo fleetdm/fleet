@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type AgentOptions struct {
@@ -274,6 +275,13 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 	var opts osqueryAgentOptions
 	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
 		return err
+	}
+
+	// logger TLS endpoint must be a path (starting with "/") if provided
+	if opts.Options.LoggerTlsEndpoint != "" {
+		if !strings.HasPrefix(opts.Options.LoggerTlsEndpoint, "/") {
+			return fmt.Errorf("options.logger_tls_endpoint must be a path starting with '/': %q", opts.Options.LoggerTlsEndpoint)
+		}
 	}
 
 	// Packs may have a string or struct value, both are supported

@@ -4397,6 +4397,21 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotContains(t, string(*acResp.AgentOptions), `"nope"`)
 
+	// try to set an invalid agent options logger_tls_endpoint (must start with "/")
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"options": {"logger_tls_endpoint": "not-a-rooted-path"}} }
+  }`), http.StatusBadRequest, &acResp)
+	// did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"not-a-rooted-path"`)
+
+	// try to set a valid agent options logger_tls_endpoint
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"options": {"logger_tls_endpoint": "/rooted-path"}} }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"/rooted-path"`)
+
 	// force-set invalid agent options
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"agent_options": { "config": {"nope": true} }
