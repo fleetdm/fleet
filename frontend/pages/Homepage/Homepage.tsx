@@ -150,7 +150,7 @@ const Homepage = (): JSX.Element => {
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setShowHostsUI(true);
-      };,
+      },
     }
   );
 
