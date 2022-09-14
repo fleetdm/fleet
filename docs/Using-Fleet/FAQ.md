@@ -20,6 +20,7 @@
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
 - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+- -[When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
 - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
 - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
@@ -192,6 +193,10 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 ```
 
 You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
+
+## When will the newest version of osquery be available to Orbit?
+
+When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
 
 ## Can I bundle osquery extensions into Orbit?
 
