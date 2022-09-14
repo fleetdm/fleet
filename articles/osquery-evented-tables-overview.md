@@ -117,7 +117,7 @@ To use the `bpf_process_events` and `bpf_socket_events` tables, use the flag `--
 To use `process_events` and `socket_events` with the audit framework, use the flags `--disable_audit=false --audit_allow_process_events=true --audit_allow_socket_events=true`. See [these instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#linux-process-auditing-using-audit) for more information. 
 
 #### Process auditing on macOS
-On macOS, there are two utilities that enable osquery process auditing: [OpenBSM](https://github.com/openbsm/openbsm) and the [EndpointSecurity](https://developer.apple.com/documentation/endpointsecurity). Fleet recommends using the EndpointSecurity implementation because it is intended to replace OpenBSM. EndpointSecurity is available starting macOS 10.15.
+On macOS, there are two utilities that enable osquery process auditing: [OpenBSM](https://github.com/openbsm/openbsm) and the [EndpointSecurity](https://developer.apple.com/documentation/endpointsecurity). Fleet recommends using the EndpointSecurity implementation because it is intended to replace OpenBSM, which is deprecated. EndpointSecurity is available starting macOS 10.15.
 
 To use the `es_process_events` tables, use the flag `--disable_endpointsecurity=false` see [these instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-endpointsecurity). To use `process_events` and `socket_events` with OpenBSM, see [these instructions](https://osquery.readthedocs.io/en/latest/deployment/process-auditing/#auditing-processes-with-openbsm). 
 
