@@ -423,8 +423,9 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🎨 UI/UX huddle      | Weekly (Wednesdays) | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. We hold  separate times for 🎙 Product huddle so Mike Thomas can make it.    | Noah Talerman |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
-| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Reed Haynes |
-
+| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Noah Talerman |
+| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
+| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
 
 ## Slack channels
 
