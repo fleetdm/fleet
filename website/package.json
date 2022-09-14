@@ -9,11 +9,10 @@
     "@sailshq/lodash": "^3.10.3",
     "@sailshq/socket.io-redis": "^5.2.0",
     "jsonwebtoken": "8.5.1",
-    "machinepack-github": "^5.0.0",
     "sails": "^1.5.2",
     "sails-hook-apianalytics": "^2.0.5",
     "sails-hook-organics": "^2.2.0",
-    "sails-hook-orm": "^3.0.2",
+    "sails-hook-orm": "^4.0.2",
     "sails-hook-sockets": "^2.0.1",
     "sails-postgresql": "^5.0.0"
   },

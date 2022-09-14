@@ -21,17 +21,17 @@ module.exports.routes = {
   'GET /company/contact': {
     action: 'view-contact',
     locals: {
-      pageTitleForMeta: 'Contact us | Fleet for osquery',
+      pageTitleForMeta: 'Contact us | Fleet Device Management',
       pageDescriptionForMeta: 'Get in touch with our team.'
     }
   },
 
-  'GET /get-started': {
-    action: 'view-get-started' ,
+  'GET /fleetctl-preview': {
+    action: 'view-get-started',
     locals: {
       currentPage: 'get started',
-      pageTitleForMeta: 'Get started | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about getting started with Fleet.'
+      pageTitleForMeta: 'fleetctl preview | Fleet Device Management',
+      pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
   },
 
@@ -39,7 +39,7 @@ module.exports.routes = {
     action: 'view-pricing',
     locals: {
       currentPage: 'pricing',
-      pageTitleForMeta: 'Pricing | Fleet for osquery',
+      pageTitleForMeta: 'Pricing | Fleet Device Management',
       pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
   },
@@ -47,7 +47,7 @@ module.exports.routes = {
   'GET /logos': {
     action: 'view-press-kit',
     locals: {
-      pageTitleForMeta: 'Logos | Fleet for osquery',
+      pageTitleForMeta: 'Logos | Fleet Device Management',
       pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },
@@ -56,7 +56,7 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentPage: 'queries',
-      pageTitleForMeta: 'Queries | Fleet for osquery',
+      pageTitleForMeta: 'Queries | Fleet Device Management',
       pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
   },
@@ -100,7 +100,7 @@ module.exports.routes = {
   'GET /transparency': {
     action: 'view-transparency',
     locals: {
-      pageTitleForMeta: 'Transparency | Fleet for osquery',
+      pageTitleForMeta: 'Transparency | Fleet Device Management',
       pageDescriptionForMeta: 'Learn what data osquery can see.',
     }
   },
@@ -108,7 +108,7 @@ module.exports.routes = {
     action: 'customers/view-new-license',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Get Fleet Premium | Fleet for osquery',
+      pageTitleForMeta: 'Get Fleet Premium | Fleet Device Management',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
   },
@@ -116,7 +116,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Sign up | Fleet for osquery',
+      pageTitleForMeta: 'Sign up | Fleet Device Management',
       pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
     }
   },
@@ -124,7 +124,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Log in | Fleet for osquery',
+      pageTitleForMeta: 'Log in | Fleet Device Management',
       pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
     }
   },
@@ -132,7 +132,7 @@ module.exports.routes = {
     action: 'customers/view-dashboard',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Customer dashboard | Fleet for osquery',
+      pageTitleForMeta: 'Customer dashboard | Fleet Device Management',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
@@ -140,7 +140,7 @@ module.exports.routes = {
     action: 'entrance/view-forgot-password',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Forgot password | Fleet for osquery',
+      pageTitleForMeta: 'Forgot password | Fleet Device Management',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
   },
@@ -148,7 +148,7 @@ module.exports.routes = {
     action: 'entrance/view-new-password',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'New password | Fleet for osquery',
+      pageTitleForMeta: 'New password | Fleet Device Management',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
   },
@@ -157,7 +157,7 @@ module.exports.routes = {
     action: 'view-platform',
     locals: {
       currentPage: 'platform',
-      pageTitleForMeta: 'Platform | Fleet for osquery',
+      pageTitleForMeta: 'Platform | Fleet Device Management',
       pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
     }
   },
@@ -165,7 +165,7 @@ module.exports.routes = {
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
-      pageTitleForMeta: 'State of device management | Fleet for osquery',
+      pageTitleForMeta: 'State of device management | Fleet Device Management',
       pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
       headerCTAHidden: true,
     }
@@ -174,12 +174,39 @@ module.exports.routes = {
   'GET /overview': {
     action: 'view-sales-one-pager',
     locals: {
-      pageTitleForMeta: 'Overview | Fleet for osquery',
+      pageTitleForMeta: 'Overview | Fleet Device Management',
       pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
       layout: 'layouts/layout-landing'
     },
   },
 
+  'GET /try-fleet/register': {
+    action: 'try-fleet/view-register',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /try-fleet/login': {
+    action: 'try-fleet/view-sandbox-login',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /try-fleet/sandbox': {
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    },
+  },
+
+  'GET /try-fleet/sandbox-expired': {
+    action: 'try-fleet/view-sandbox-expired',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    },
+  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -203,9 +230,25 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
-  'GET /guides/deploy-fleet-on-hetzner-cloud': '/deploy/deploy-fleet-on-hetzner-cloud',
-  'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
   'GET /handbook/brand': '/handbook/digital-experience',
+  'GET /guides/deploying-fleet-on-aws-with-terraform': '/deploy/deploying-fleet-on-aws-with-terraform',
+  'GET /guides/deploy-fleet-on-hetzner-cloud':'/deploy/deploy-fleet-on-hetzner-cloud',
+  'GET /guides/deploying-fleet-on-render': '/deploy/deploying-fleet-on-render',
+  'GET /use-cases/correlate-network-connections-with-community-id-in-osquery': '/guides/correlate-network-connections-with-community-id-in-osquery',
+  'GET /use-cases/converting-unix-timestamps-with-osquery': '/guides/converting-unix-timestamps-with-osquery',
+  'GET /use-cases/ebpf-the-future-of-osquery-on-linux': '/securing/ebpf-the-future-of-osquery-on-linux',
+  'GET /use-cases/fleet-quick-tips-querying-procdump-eula-has-been-accepted': '/guides/fleet-quick-tips-querying-procdump-eula-has-been-accepted',
+  'GET /use-cases/generate-process-trees-with-osquery': '/guides/generate-process-trees-with-osquery',
+  'GET /use-cases/get-and-stay-compliant-across-your-devices-with-fleet': '/securing/get-and-stay-compliant-across-your-devices-with-fleet',
+  'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
+  'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
+  'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
+  'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
+  'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',
+  'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
+  'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
+  'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
+  'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
 
 
 
@@ -221,7 +264,7 @@ module.exports.routes = {
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
-  'GET /install':                    '/get-started',
+  'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
   'GET /support':                    '/company/contact',
@@ -230,11 +273,14 @@ module.exports.routes = {
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      (_, res) => { res.status(301).redirect('https://osquery.fleetdm.com/c/fleet'); },
+  'GET /slack':                      'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
+  'GET /get-started':            '/try-fleet/register',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
+  'GET /test-fleet-sandbox':     '/try-fleet/register',
+  'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
 
   // Sitemap
   // =============================================================================================================
@@ -256,6 +302,9 @@ module.exports.routes = {
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
   'GET /logout':                 '/api/v1/account/logout',
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
+  'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /community':              'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
@@ -281,5 +330,6 @@ module.exports.routes = {
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
-
+  'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
+  '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' }
 };

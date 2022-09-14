@@ -25,7 +25,7 @@ interface ISoftwareCardProps {
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 const baseClass = "home-software";
 
 const Software = ({
@@ -35,9 +35,9 @@ const Software = ({
   setActionURL,
   setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
-  const [navTabIndex, setNavTabIndex] = useState<number>(0);
-  const [pageIndex, setPageIndex] = useState<number>(0);
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [navTabIndex, setNavTabIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState(false);
 
   const { availableTeams, currentTeam, isOnGlobalTeam } = useContext(
     AppContext
@@ -45,7 +45,7 @@ const Software = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
     },
   });
 
@@ -58,7 +58,7 @@ const Software = ({
       "software",
       {
         pageIndex,
-        pageSize: PAGE_SIZE,
+        pageSize: DEFAULT_PAGE_SIZE,
         sortDirection: DEFAULT_SORT_DIRECTION,
         sortHeader: DEFAULT_SORT_HEADER,
         teamId: currentTeamId,
@@ -68,7 +68,7 @@ const Software = ({
     () =>
       softwareAPI.load({
         page: pageIndex,
-        perPage: PAGE_SIZE,
+        perPage: DEFAULT_PAGE_SIZE,
         orderKey: DEFAULT_SORT_HEADER,
         orderDir: DEFAULT_SORT_DIRECTION,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
@@ -171,7 +171,7 @@ const Software = ({
                   isAllPagesSelected={false}
                   disableCount
                   disableActionButton
-                  pageSize={PAGE_SIZE}
+                  pageSize={DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                 />
               )}
@@ -199,7 +199,7 @@ const Software = ({
                   isAllPagesSelected={false}
                   disableCount
                   disableActionButton
-                  pageSize={PAGE_SIZE}
+                  pageSize={DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                 />
               )}

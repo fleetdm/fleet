@@ -30,7 +30,7 @@ const RenderOSPolicyModal = ({
   osPolicy,
   osPolicyLabel,
 }: IRenderOSPolicyModal): JSX.Element => {
-  const [copyMessage, setCopyMessage] = useState<string>("");
+  const [copyMessage, setCopyMessage] = useState("");
 
   const renderOsPolicyLabel = () => {
     const onCopyOsPolicy = (evt: React.MouseEvent) => {
@@ -51,7 +51,11 @@ const RenderOSPolicyModal = ({
         <span className={`${baseClass}__cta`}>{osPolicyLabel}</span>{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
-            {copyMessage && <span>{`${copyMessage} `}</span>}
+            {copyMessage && (
+              <span
+                className={`${baseClass}__copy-message`}
+              >{`${copyMessage} `}</span>
+            )}
             <Button
               variant="unstyled"
               className={`${baseClass}__os-policy-copy-icon`}

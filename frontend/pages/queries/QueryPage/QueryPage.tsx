@@ -16,10 +16,13 @@ import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
+
+import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
-import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IQueryPageProps {
   router: InjectedRouter;
@@ -62,21 +65,18 @@ const QueryPage = ({
     setLastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
-  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState<boolean>(
-    false
-  );
-  const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
+  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
+  const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
   const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
-  const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
-  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [
-    showOpenSchemaActionText,
-    setShowOpenSchemaActionText,
-  ] = useState<boolean>(false);
+  const [targetsTotalCount, setTargetsTotalCount] = useState(0);
+  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
+    false
+  );
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -172,11 +172,12 @@ const QueryPage = ({
             Fleet is unable to run a live query. Refresh the page or log in
             again. If this keeps happening please{" "}
             <a
+              href="https://github.com/fleetdm/fleet/issues/new/choose"
               target="_blank"
               rel="noopener noreferrer"
-              href="https://github.com/fleetdm/fleet/issues/new/choose"
             >
-              file an issue <img alt="" src={ExternalURLIcon} />
+              file an issue
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
         </div>
@@ -237,23 +238,26 @@ const QueryPage = ({
   };
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
-  const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
   return (
-    <div className={`${baseClass} ${sidebarClass}`}>
-      <div className={`${baseClass}__content`}>{renderScreen()}</div>
+    <>
+      <MainContent className={baseClass}>
+        <div className={`${baseClass}_wrapper`}>{renderScreen()}</div>
+      </MainContent>
       {showSidebar && (
-        <QuerySidePanel
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          selectedOsqueryTable={selectedOsqueryTable}
-          onClose={onCloseSchemaSidebar}
-        />
+        <SidePanelContent>
+          <QuerySidePanel
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            selectedOsqueryTable={selectedOsqueryTable}
+            onClose={onCloseSchemaSidebar}
+          />
+        </SidePanelContent>
       )}
-    </div>
+    </>
   );
 };
 

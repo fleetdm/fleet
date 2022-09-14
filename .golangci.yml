@@ -1,7 +1,6 @@
 linters:
   disable-all: true
   enable:
-    - deadcode
     - depguard
     - gosec
     - gocritic
@@ -11,15 +10,14 @@ linters:
     - revive
     - rowserrcheck
     - sqlclosecheck
-    - structcheck
     - typecheck
     - unconvert
     - unused
 
 linters-settings:
   depguard:
-    list-type: blacklist
-    include-go-root: false
+    list-type: denylist
+    include-go-stdlib: false
     packages-with-error-message:
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
 

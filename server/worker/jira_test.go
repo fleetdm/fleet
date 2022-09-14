@@ -134,6 +134,32 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 	ctx := context.Background()
 	logger := kitlog.NewNopLogger()
 
+	t.Run("same vulnerability on multiple software only queue one job", func(t *testing.T) {
+		var count int
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			count++
+			return job, nil
+		}
+		vulns := []fleet.SoftwareVulnerability{{
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 1,
+		}, {
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 2,
+		}, {
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 2,
+		}, {
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 3,
+		}}
+
+		err := QueueJiraVulnJobs(ctx, ds, logger, vulns)
+		require.NoError(t, err)
+		require.True(t, ds.NewJobFuncInvoked)
+		require.Equal(t, 1, count)
+	})
+
 	t.Run("success", func(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil

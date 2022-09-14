@@ -1,6 +1,5 @@
 .homepage {
   background-color: $ui-off-white;
-  flex: 1;
 
   .homepage__wrapper {
     background-color: $ui-off-white;
@@ -66,14 +65,15 @@
     display: grid;
     row-gap: $pad-medium;
 
-    // if we have an odd number of elements, take
-    // the last one and stretch it across the grid
-    .homepage-info-card:nth-child(odd):last-child {
-      grid-column-start: span 2;
-    }
     @media screen and (min-width: 990px) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       column-gap: $pad-medium;
+
+      // if we have an odd number of elements, take
+      // the last one and stretch it across the grid
+      .homepage-info-card:nth-child(odd):last-child {
+        grid-column-start: span 2;
+      }
     }
   }
 

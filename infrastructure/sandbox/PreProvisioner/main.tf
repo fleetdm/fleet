@@ -138,6 +138,23 @@ data "aws_iam_policy_document" "lambda" {
   }
 
   statement {
+    actions = [
+      "s3:*Object",
+      "s3:ListBucket",
+    ]
+    resources = [
+      var.installer_bucket.arn,
+      "${var.installer_bucket.arn}/*"
+    ]
+  }
+
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.apple-signing-secrets.arn]
+  }
+
+  # TODO: limit this, this is for terraform
+  statement {
     actions   = ["*"]
     resources = ["*"]
   }
@@ -170,6 +187,16 @@ resource "aws_security_group" "lambda" {
 
 data "aws_eks_cluster" "cluster" {
   name = var.eks_cluster.eks_cluster_id
+}
+
+resource "aws_secretsmanager_secret" "apple-signing-secrets" {
+  name                    = "${local.full_name}-apple-signing-secrets"
+  kms_key_id              = var.kms_key.id
+  recovery_window_in_days = 0
+}
+
+data "aws_secretsmanager_secret_version" "apple-signing-secrets" {
+  secret_id = aws_secretsmanager_secret.apple-signing-secrets.id
 }
 
 resource "aws_ecs_task_definition" "main" {
@@ -234,6 +261,56 @@ resource "aws_ecs_task_definition" "main" {
             name  = "TF_VAR_redis_address"
             value = "${var.redis_cluster.primary_endpoint_address}:6379"
           },
+          {
+            name  = "FLEET_BASE_URL"
+            value = var.base_domain
+          },
+          {
+            name  = "INSTALLER_BUCKET"
+            value = var.installer_bucket.id
+          },
+          {
+            name  = "TF_VAR_installer_bucket"
+            value = var.installer_bucket.id
+          },
+          {
+            name  = "TF_VAR_installer_bucket_arn"
+            value = var.installer_bucket.arn
+          },
+          {
+            name  = "TF_VAR_oidc_provider_arn"
+            value = var.oidc_provider_arn
+          },
+          {
+            name  = "TF_VAR_oidc_provider"
+            value = var.oidc_provider
+          },
+          {
+            name  = "TF_VAR_kms_key_arn"
+            value = var.kms_key.arn
+          },
+          {
+            name  = "TF_VAR_ecr_url"
+            value = var.ecr.repository_url
+          },
+        ]),
+        secrets = concat([
+          {
+            name      = "MACOS_DEV_ID_CERTIFICATE_CONTENT"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:MACOS_DEV_ID_CERTIFICATE_CONTENT::"
+          },
+          {
+            name      = "APP_STORE_CONNECT_API_KEY_ID"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_ID::"
+          },
+          {
+            name      = "APP_STORE_CONNECT_API_KEY_ISSUER"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_ISSUER::"
+          },
+          {
+            name      = "APP_STORE_CONNECT_API_KEY_CONTENT"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_CONTENT::"
+          }
         ])
       }
   ])
@@ -292,6 +369,7 @@ resource "docker_registry_image" "main" {
   build {
     context     = "${path.module}/lambda/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
 
   depends_on = [

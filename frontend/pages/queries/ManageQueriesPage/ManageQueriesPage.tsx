@@ -23,8 +23,9 @@ import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import QueriesListWrapper from "./components/QueriesListWrapper";
-import RemoveQueryModal from "./components/RemoveQueryModal";
+import MainContent from "components/MainContent";
+import QueriesTable from "./components/QueriesTable";
+import DeleteQueryModal from "./components/DeleteQueryModal";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -92,14 +93,10 @@ const ManageQueriesPage = ({
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
   );
-  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState<string>(
-    "all"
-  );
+  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
-  const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
-    false
-  );
-  const [queryIsRemoving, setQueryIsRemoving] = useState<boolean>(false);
+  const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
+  const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
 
   const {
     data: fleetQueries,
@@ -132,41 +129,41 @@ const ManageQueriesPage = ({
 
   const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
-  const toggleRemoveQueryModal = useCallback(() => {
-    setShowRemoveQueryModal(!showRemoveQueryModal);
-  }, [showRemoveQueryModal, setShowRemoveQueryModal]);
+  const toggleDeleteQueryModal = useCallback(() => {
+    setShowDeleteQueryModal(!showDeleteQueryModal);
+  }, [showDeleteQueryModal, setShowDeleteQueryModal]);
 
-  const onRemoveQueryClick = (selectedTableQueryIds: number[]) => {
-    toggleRemoveQueryModal();
+  const onDeleteQueryClick = (selectedTableQueryIds: number[]) => {
+    toggleDeleteQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
-  const onRemoveQuerySubmit = useCallback(async () => {
+  const onDeleteQuerySubmit = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
-    setQueryIsRemoving(true);
+    setIsUpdatingQueries(true);
 
-    const removeQueries = selectedQueryIds.map((id) =>
+    const deleteQueries = selectedQueryIds.map((id) =>
       fleetQueriesAPI.destroy(id)
     );
 
     try {
-      await Promise.all(removeQueries).then(() => {
-        renderFlash("success", `Successfully removed ${queryOrQueries}.`);
+      await Promise.all(deleteQueries).then(() => {
+        renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
         setResetSelectedRows(true);
         refetchFleetQueries();
       });
-      renderFlash("success", `Successfully removed ${queryOrQueries}.`);
+      renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error removing your ${queryOrQueries}. Please try again later.`
+        `There was an error deleting your ${queryOrQueries}. Please try again later.`
       );
     } finally {
-      toggleRemoveQueryModal();
-      setQueryIsRemoving(false);
+      toggleDeleteQueryModal();
+      setIsUpdatingQueries(false);
     }
-  }, [refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
+  }, [refetchFleetQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
   const renderPlatformDropdown = () => {
     return (
@@ -183,8 +180,8 @@ const ManageQueriesPage = ({
   const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
@@ -213,27 +210,26 @@ const ManageQueriesPage = ({
           {!isTableDataLoading && fleetQueriesError ? (
             <TableDataError />
           ) : (
-            <QueriesListWrapper
+            <QueriesTable
               queriesList={queriesList}
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
-              onRemoveQueryClick={onRemoveQueryClick}
-              searchable={!!queriesList}
+              onDeleteQueryClick={onDeleteQueryClick}
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
             />
           )}
         </div>
-        {showRemoveQueryModal && (
-          <RemoveQueryModal
-            isLoading={queryIsRemoving}
-            onCancel={toggleRemoveQueryModal}
-            onSubmit={onRemoveQuerySubmit}
+        {showDeleteQueryModal && (
+          <DeleteQueryModal
+            isUpdatingQueries={isUpdatingQueries}
+            onCancel={toggleDeleteQueryModal}
+            onSubmit={onDeleteQuerySubmit}
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

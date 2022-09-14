@@ -11,7 +11,7 @@ import (
 
 type OptionsStruct struct {
 	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-    InstanceID         string `long:"instance-id" env:"INSTANCE_ID" required:"true"`
+	InstanceID         string `long:"instance-id" env:"INSTANCE_ID" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -54,6 +54,22 @@ func runTerraform(workspace string) error {
 		"destroy",
 		"-auto-approve",
 		"-no-color",
+	})
+	if err != nil {
+		return err
+	}
+	err = runCmd([]string{
+		"workspace",
+		"select",
+		"default",
+	})
+	if err != nil {
+		return err
+	}
+	err = runCmd([]string{
+		"workspace",
+		"delete",
+		workspace,
 	})
 	return err
 }

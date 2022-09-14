@@ -29,8 +29,8 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/sandbox"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/fleet-cloud-sandbox-prod/sandbox/terraform.tfstate"
     }
   }
 }
@@ -40,8 +40,8 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/sandbox"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/fleet-cloud-sandbox-prod/sandbox/terraform.tfstate"
     }
   }
 }
@@ -138,20 +138,25 @@ module "shared-infrastructure" {
   allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
   eks_allowed_roles       = [module.pre-provisioner.lambda_role, module.jit-provisioner.deprovisioner_role]
   base_domain             = local.base_domain
+  kms_key                 = aws_kms_key.main
 }
 
 module "pre-provisioner" {
-  source         = "./PreProvisioner"
-  prefix         = local.prefix
-  vpc            = module.vpc
-  kms_key        = aws_kms_key.main
-  dynamodb_table = aws_dynamodb_table.lifecycle-table
-  remote_state   = module.remote_state
-  mysql_secret   = module.shared-infrastructure.mysql_secret
-  eks_cluster    = module.shared-infrastructure.eks_cluster
-  redis_cluster  = module.shared-infrastructure.redis_cluster
-  ecs_cluster    = aws_ecs_cluster.main
-  base_domain    = local.base_domain
+  source            = "./PreProvisioner"
+  prefix            = local.prefix
+  vpc               = module.vpc
+  kms_key           = aws_kms_key.main
+  dynamodb_table    = aws_dynamodb_table.lifecycle-table
+  remote_state      = module.remote_state
+  mysql_secret      = module.shared-infrastructure.mysql_secret
+  eks_cluster       = module.shared-infrastructure.eks_cluster
+  redis_cluster     = module.shared-infrastructure.redis_cluster
+  ecs_cluster       = aws_ecs_cluster.main
+  base_domain       = local.base_domain
+  installer_bucket  = module.shared-infrastructure.installer_bucket
+  oidc_provider_arn = module.shared-infrastructure.oidc_provider_arn
+  oidc_provider     = module.shared-infrastructure.oidc_provider
+  ecr               = module.shared-infrastructure.ecr
 }
 
 module "jit-provisioner" {

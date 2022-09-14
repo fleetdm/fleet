@@ -14,7 +14,9 @@ describe("Teams flow (empty)", () => {
       cy.visit("/settings/teams");
     });
     it("creates a new team", () => {
-      cy.getAttached(".no-teams__create-button").click();
+      cy.getAttached(".no-teams").within(() => {
+        cy.contains("button", /create team/i).click();
+      });
       cy.findByLabelText(/team name/i)
         .click()
         .type("Valor");
@@ -120,7 +122,7 @@ describe("Teams flow (seeded)", () => {
             cy.getAttached(".input-field").click().type("50");
           }
         );
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });

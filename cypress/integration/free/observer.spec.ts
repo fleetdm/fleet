@@ -87,7 +87,6 @@ describe("Free tier - Observer user", () => {
         cy.findByText(/fleet test/i).should("exist");
         cy.getAttached(".hosts-summary").should("exist");
         cy.getAttached(".hosts-status").should("exist");
-        cy.getAttached(".home-munki").should("exist");
         cy.getAttached(".home-mdm").should("exist");
         // "get" because we expect it not to exist
         cy.get(".home-software").should("not.exist");
@@ -96,7 +95,9 @@ describe("Free tier - Observer user", () => {
     });
     it("views all hosts for all platforms", () => {
       cy.findByText(/view all hosts/i).click();
-      cy.get(".manage-hosts__label-block").should("not.exist");
+      cy.findByRole("status", { name: /hosts filtered by/i }).should(
+        "not.exist"
+      );
     });
     it("views all hosts for windows only", () => {
       cy.getAttached(".homepage__platforms").within(() => {
@@ -104,11 +105,9 @@ describe("Free tier - Observer user", () => {
         cy.findByText(/windows/i).click();
       });
       cy.findByText(/view all hosts/i).click();
-      cy.getAttached(".manage-hosts__label-block").within(() => {
-        cy.getAttached(".title").within(() => {
-          cy.findByText(/windows/i).should("exist");
-        });
-      });
+      cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
+        "exist"
+      );
     });
     it("views all hosts for linux only", () => {
       cy.getAttached(".homepage__platforms").within(() => {
@@ -116,11 +115,9 @@ describe("Free tier - Observer user", () => {
         cy.findByText(/linux/i).click();
       });
       cy.findByText(/view all hosts/i).click();
-      cy.getAttached(".manage-hosts__label-block").within(() => {
-        cy.getAttached(".title").within(() => {
-          cy.findByText(/linux/i).should("exist");
-        });
-      });
+      cy.findByRole("status", { name: /hosts filtered by linux/i }).should(
+        "exist"
+      );
     });
     it("views all hosts for macOS only", () => {
       cy.getAttached(".homepage__platforms").within(() => {
@@ -128,11 +125,9 @@ describe("Free tier - Observer user", () => {
         cy.findByText(/macos/i).click();
       });
       cy.findByText(/view all hosts/i).click();
-      cy.getAttached(".manage-hosts__label-block").within(() => {
-        cy.getAttached(".title").within(() => {
-          cy.findByText(/macos/i).should("exist");
-        });
-      });
+      cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
+        "exist"
+      );
     });
   });
   describe("Manage hosts page", () => {
@@ -243,12 +238,12 @@ describe("Free tier - Observer user", () => {
       cy.visit("/profile");
     });
     it("verifies teams is disabled for the Profile page", () => {
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByText(/teams/i).should("not.exist");
       });
     });
     it("renders elements according to role-based access controls", () => {
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByText("Role")
           .next()
           .contains(/observer/i);

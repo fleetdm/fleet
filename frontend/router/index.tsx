@@ -3,7 +3,6 @@ import {
   browserHistory,
   IndexRedirect,
   IndexRoute,
-  InjectedRouter,
   Route,
   RouteComponent,
   Router,
@@ -15,12 +14,6 @@ import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
-import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
-import AuthAnyAdminRoutes from "components/AuthAnyAdminRoutes";
-import AuthenticatedRoutes from "components/AuthenticatedRoutes";
-import UnauthenticatedRoutes from "components/UnauthenticatedRoutes";
-import AuthGlobalAdminMaintainerRoutes from "components/AuthGlobalAdminMaintainerRoutes";
-import AuthAnyMaintainerAnyAdminRoutes from "components/AuthAnyMaintainerAnyAdminRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
@@ -31,6 +24,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
 import Homepage from "pages/Homepage";
+import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
@@ -56,21 +50,26 @@ import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
+import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
+import AuthAnyAdminRoutes from "./components/AuthAnyAdminRoutes";
+import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
+import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
+import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
+import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
+import PremiumRoutes from "./components/PremiumRoutes";
+
 interface IAppWrapperProps {
   children: JSX.Element;
-  router: InjectedRouter;
   location?: {
     pathname: string;
   };
 }
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children, router, location }: IAppWrapperProps) => (
+const AppWrapper = ({ children, location }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      <App router={router} location={location}>
-        {children}
-      </App>
+      <App location={location}>{children}</App>
     </RoutingProvider>
   </AppProvider>
 );
@@ -104,7 +103,7 @@ const routes = (
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to={"/dashboard"} />
             <Route component={SettingsWrapper}>
-              <Route component={AuthenticatedAdminRoutes}>
+              <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={AdminAppSettingsPage} />
                 <Route
                   path="organization/:section"
@@ -112,13 +111,20 @@ const routes = (
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
                 <Route path="users" component={AdminUserManagementPage} />
-                <Route path="teams" component={AdminTeamManagementPage} />
+                <Route component={PremiumRoutes}>
+                  <Route path="teams" component={AdminTeamManagementPage} />
+                </Route>
               </Route>
             </Route>
             <Route path="teams/:team_id" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
             </Route>
+          </Route>
+          <Route path="labels">
+            <IndexRedirect to={"new"} />
+            <Route path=":label_id" component={LabelPage} />
+            <Route path="new" component={LabelPage} />
           </Route>
           <Route path="hosts">
             <IndexRedirect to={"manage"} />

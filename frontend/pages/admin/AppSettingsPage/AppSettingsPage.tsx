@@ -1,7 +1,8 @@
 import React from "react";
 import { Params } from "react-router/lib/Router";
 
-import SandboxGate from "components/SandboxGate";
+import SandboxGate from "components/Sandbox/SandboxGate";
+import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import OrgSettingsForm from "./components/OrgSettingsForm";
 
 interface IAppSettingsPageProps {
@@ -19,8 +20,13 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps): JSX.Element => {
         Set your organization information and configure SSO and SMTP
       </p>
       <SandboxGate
-        message="Organization settings are only available in self-managed Fleet"
-        utmSource="fleet-ui-organization-settings-page"
+        fallbackComponent={() => (
+          <SandboxDemoMessage
+            message="Organization settings are only available in self-managed Fleet"
+            utmSource="fleet-ui-organization-settings-page"
+            className={`${baseClass}__sandbox-demo-message`}
+          />
+        )}
       >
         <OrgSettingsForm section={section} />
       </SandboxGate>

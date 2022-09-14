@@ -30,6 +30,7 @@ type CarveStore interface {
 type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
+	Exists(ctx context.Context, installer Installer) (bool, error)
 }
 
 // Datastore combines all the interfaces in the Fleet DAL
@@ -236,17 +237,26 @@ type Datastore interface {
 	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
+	// FailingPoliciesCount returns the number of failling policies for 'host'
+	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
-	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
-	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+	GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error)
+	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
+	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
+	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
+	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
+
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -336,6 +346,11 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
+	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
+	// query names. It returns a slice of IDs in the same order as
+	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
+	// scheduled query did not exist.
+	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -369,9 +384,9 @@ type Datastore interface {
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
-	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
+	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
-	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
+	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
 	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
 	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
@@ -390,6 +405,26 @@ type Datastore interface {
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// OperatingSystemsStore
+
+	// ListOperationsSystems returns all operating systems (id, name, version)
+	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
+	// UpdateHostOperatingSystem updates the `host_operating_system` table
+	// for the given host ID with the ID of the operating system associated
+	// with the given name, version, arch, and kernel version in the
+	// `operating_systems` table.
+	//
+	// If the `operating_systems` table does not already include a record
+	// associated with the given name, version, arch, and kernel version,
+	// a new record is also created.
+	UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS OperatingSystem) error
+	// CleanupHostOperatingSystems removes records from the host_operating_system table that are
+	// associated with any non-existent host (e.g., expired hosts) and removes records from the
+	// operating_systems table that no longer associated with any host (e.g., all hosts have
+	// upgraded from a prior version).
+	CleanupHostOperatingSystems(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -497,8 +532,16 @@ type Datastore interface {
 	// TeamAgentOptions loads the agents options of a team.
 	TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
+	// TeamFeatures loads the features enabled for a team.
+	TeamFeatures(ctx context.Context, teamID uint) (*Features, error)
+
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
+	// pack stats of scheduled queries. It is the async and batch version of
+	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE
+	// statements that were executed (for reporting purpose) or an error.
+	AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]ScheduledQueryStats, batchSize int) (int, error)
 
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
@@ -539,7 +582,7 @@ type Datastore interface {
 	// SaveHostAdditional updates the additional queries results of a host.
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
-	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
+	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
@@ -575,7 +618,18 @@ type Datastore interface {
 
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Windows Update History
+	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 }
+
+const (
+	// Default batch size to use for ScheduledQueryIDsByName.
+	DefaultScheduledQueryIDsByNameBatchSize = 1000
+	// Default batch size for loading IDs of or inserting new munki issues.
+	DefaultMunkiIssuesBatchSize = 100
+)
 
 type MySQLProcess struct {
 	Id      int     `json:"id" db:"Id"`

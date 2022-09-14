@@ -1,14 +1,9 @@
 .team-details {
-  padding: 25px $pad-xlarge 50px; // different to pad sticky subnav properly
-
-  &.team-settings {
-    padding: $pad-xxlarge;
-  }
 
   &__loading-spinner {
     // NOTE: this value was chosen just cause it looked right. Might want to
     // come back and change it later to be more exact.
-    margin-top: 30vh;
+    margin: 30vh auto 0;
   }
 
   &__back-link {
@@ -24,6 +19,7 @@
 
   #back-chevron {
     width: 16px;
+    height: 16px;
     margin-right: $pad-small;
   }
 

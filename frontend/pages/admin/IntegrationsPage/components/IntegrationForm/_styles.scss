@@ -1,11 +1,4 @@
 .integration-form {
-  a {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
   img {
     width: 12px;
     height: 12px;
@@ -82,15 +75,6 @@
         font-style: italic;
       }
     }
-  }
-
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-  }
-
-  &__btn {
-    margin-left: 12px;
   }
 
   &__invite-admin {

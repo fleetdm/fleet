@@ -138,9 +138,9 @@ const SelectTargets = ({
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
-  const [searchText, setSearchText] = useState<string>("");
-  const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
-  const [isDebouncing, setIsDebouncing] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
+  const [isDebouncing, setIsDebouncing] = useState(false);
 
   const debounceSearch = useDebouncedCallback(
     (search: string) => {
@@ -351,7 +351,7 @@ const SelectTargets = ({
         <span>{total}</span>&nbsp;hosts targeted&nbsp; ({onlinePercentage}
         %&nbsp;
         <TooltipWrapper
-          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet`}
+          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}
         >
           online
         </TooltipWrapper>
@@ -381,7 +381,7 @@ const SelectTargets = ({
   }
 
   return (
-    <div className={`${baseClass}__wrapper body-wrap`}>
+    <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
         {!!labels?.allHosts.length &&

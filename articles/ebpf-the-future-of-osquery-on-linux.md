@@ -8,11 +8,14 @@ This talk discusses the Audit approach to Linux events with osquery, including c
 
 ### Presentation video
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/p3rIRJM2vwo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<div purpose="embedded-content">
+	<iframe src="https://www.youtube.com/embed/p3rIRJM2vwo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
 
-### Slide Deck
-
-<iframe class="speakerdeck-iframe" frameborder="0" src="https://speakerdeck.com/player/a0444dd4b2b24bad8db7908590506699" title="eBPF &amp; the future of osquery on Linux" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true" style="border: 0px; background: padding-box padding-box rgba(0, 0, 0, 0.1); padding: 0px; border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.2) 0px 5px 40px; width: 560px; height: 314px;" data-ratio="1.78343949044586"></iframe>
+### Slide deck
+<div purpose="embedded-content">
+	<iframe frameborder="0" src="https://speakerdeck.com/player/a0444dd4b2b24bad8db7908590506699" title="eBPF &amp; the future of osquery on Linux" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true" data-ratio="1.78343949044586"></iframe>
+</div>
 
 <meta name="category" value="security">
 <meta name="authorGitHubUsername" value="zwass">

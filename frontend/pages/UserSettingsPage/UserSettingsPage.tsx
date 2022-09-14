@@ -1,36 +1,33 @@
-import React, { useState, useContext, useEffect, ReactElement } from "react";
+import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { formatDistanceToNow } from "date-fns";
-import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { IVersionData } from "interfaces/version";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
-import versionAPI from "services/entities/version";
 import { authToken } from "utilities/local";
-import { stringToClipboard } from "utilities/copy_text";
 import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
-import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 
-import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
 // @ts-ignore
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
 // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-// @ts-ignore
 import Modal from "components/Modal";
+
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
-import SecretField from "components/SecretField";
-import SandboxGate from "components/SandboxGate";
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
+import SecretField from "components/EnrollSecrets/SecretField";
+import SandboxGate from "components/Sandbox/SandboxGate";
+import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
+
+import UserSidePanel from "./UserSidePanel";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "user-settings";
 
@@ -41,35 +38,16 @@ interface IUserSettingsPageProps {
 const UserSettingsPage = ({
   router,
 }: IUserSettingsPageProps): JSX.Element | null => {
-  const { config, currentUser, isPremiumTier, isSandboxMode } = useContext(
-    AppContext
-  );
+  const { config, currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [pendingEmail, setPendingEmail] = useState<string>("");
-  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
-  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [updatedUser, setUpdatedUser] = useState<Partial<IUser>>({});
-  const [copyMessage, setCopyMessage] = useState<string>("");
-  const [showApiTokenModal, setShowApiTokenModal] = useState<boolean>(false);
-  const [revealSecret, setRevealSecret] = useState<boolean>(false);
-  const [versionData, setVersionData] = useState<IVersionData>();
+  const [showApiTokenModal, setShowApiTokenModal] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
-
-  useEffect(() => {
-    const getVersionData = async () => {
-      try {
-        const data = await versionAPI.load();
-        setVersionData(data);
-      } catch (response) {
-        console.error(response);
-        return false;
-      }
-    };
-
-    getVersionData();
-  }, []);
 
   const onCancel = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -100,21 +78,6 @@ const UserSettingsPage = ({
   const onToggleApiTokenModal = () => {
     setShowApiTokenModal(!showApiTokenModal);
     return false;
-  };
-
-  // placeholder is needed even though it's not used
-  const onCopySecret = (placeholder: string) => {
-    return (evt: ClipboardEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(authToken())
-        .then(() => setCopyMessage("Copied!"))
-        .catch(() => setCopyMessage("Copy failed"));
-
-      // Clear message after 1 second
-      setTimeout(() => setCopyMessage(""), 1000);
-      return false;
-    };
   };
 
   const handleSubmit = async (formData: any) => {
@@ -209,30 +172,17 @@ const UserSettingsPage = ({
     );
   };
 
-  const renderLabel = () => {
-    return (
-      <span className={`${baseClass}__name`}>
-        <span className="buttons">
-          {copyMessage && <span>{`${copyMessage} `}</span>}
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__secret-copy-icon`}
-            onClick={onCopySecret(`.${baseClass}__secret-input`)}
-          >
-            <FleetIcon name="clipboard" />
-          </Button>
-        </span>
-      </span>
-    );
-  };
-
   const renderApiTokenModal = () => {
     if (!showApiTokenModal) {
       return false;
     }
 
     return (
-      <Modal title="Get API token" onExit={onToggleApiTokenModal}>
+      <Modal
+        title="Get API token"
+        onExit={onToggleApiTokenModal}
+        onEnter={onToggleApiTokenModal}
+      >
         <>
           <InfoBanner>
             <p>
@@ -244,12 +194,8 @@ const UserSettingsPage = ({
                 rel="noopener noreferrer"
               >
                 API-only user
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
-              <img
-                alt="Open external link"
-                className="icon-external"
-                src={ExternalURLIcon}
-              />
               &nbsp;instead.
             </p>
           </InfoBanner>
@@ -265,18 +211,11 @@ const UserSettingsPage = ({
               rel="noopener noreferrer"
             >
               session duration configuration
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
-            <img
-              alt="Open external link"
-              className="icon-external"
-              src={ExternalURLIcon}
-            />
           </p>
-          <div className={`${baseClass}__button-wrap`}>
-            <Button
-              onClick={onToggleApiTokenModal}
-              className="button button--brand"
-            >
+          <div className="modal-cta-wrap">
+            <Button onClick={onToggleApiTokenModal} type="button">
               Done
             </Button>
           </div>
@@ -289,109 +228,44 @@ const UserSettingsPage = ({
     return null;
   }
 
-  const {
-    global_role: globalRole,
-    updated_at: updatedAt,
-    sso_enabled: ssoEnabled,
-    teams,
-  } = currentUser;
-
-  const roleText = generateRole(teams, globalRole);
-  const teamsText = generateTeam(teams, globalRole);
-
-  const lastUpdatedAt =
-    updatedAt &&
-    formatDistanceToNow(new Date(updatedAt), {
-      addSuffix: true,
-    });
-
-  const wrapperStyles = classnames(baseClass, {
-    [`${baseClass}__sandboxMode`]: isSandboxMode,
-  });
-
   return (
-    <div className={wrapperStyles}>
-      <SandboxGate
-        message="Account management is only available in self-managed Fleet"
-        utmSource="fleet-ui-my-account-page"
-      >
-        <div className={`${baseClass}__manage body-wrap`}>
-          <h1>My account</h1>
-          <UserSettingsForm
-            formData={currentUser}
-            handleSubmit={handleSubmit}
-            onCancel={onCancel}
-            pendingEmail={pendingEmail}
-            serverErrors={errors}
-            smtpConfigured={config?.smtp_settings.configured}
-          />
-        </div>
-        <div className={`${baseClass}__additional body-wrap`}>
-          <div className={`${baseClass}__change-avatar`}>
-            <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-            <a href="http://en.gravatar.com/emails/">
-              Change photo at Gravatar
-            </a>
-          </div>
-          {isPremiumTier && (
-            <div className={`${baseClass}__more-info-detail`}>
-              <p className={`${baseClass}__header`}>Teams</p>
-              <p
-                className={`${baseClass}__description ${baseClass}__teams ${greyCell(
-                  teamsText
-                )}`}
-              >
-                {teamsText}
-              </p>
-            </div>
+    <>
+      <MainContent className={baseClass}>
+        <SandboxGate
+          fallbackComponent={() => (
+            <SandboxDemoMessage
+              className={`${baseClass}__sandboxMode`}
+              message="Account management is only available in self-managed Fleet"
+              utmSource="fleet-ui-my-account-page"
+            />
           )}
-          <div className={`${baseClass}__more-info-detail`}>
-            <p className={`${baseClass}__header`}>Role</p>
-            <p
-              className={`${baseClass}__description ${baseClass}__role ${greyCell(
-                roleText
-              )}`}
-            >
-              {roleText}
-            </p>
+        >
+          <div className={`${baseClass}__manage`}>
+            <h1>My account</h1>
+            <UserSettingsForm
+              formData={currentUser}
+              handleSubmit={handleSubmit}
+              onCancel={onCancel}
+              pendingEmail={pendingEmail}
+              serverErrors={errors}
+              smtpConfigured={config?.smtp_settings.configured}
+            />
           </div>
-          <div className={`${baseClass}__more-info-detail`}>
-            <p className={`${baseClass}__header`}>Password</p>
-          </div>
-          <Button
-            onClick={onShowPasswordModal}
-            disabled={ssoEnabled}
-            className={`${baseClass}__button`}
-          >
-            Change password
-          </Button>
-          <p className={`${baseClass}__last-updated`}>
-            Last changed: {lastUpdatedAt}
-          </p>
-          <Button
-            onClick={onShowApiTokenModal}
-            className={`${baseClass}__button`}
-          >
-            Get API token
-          </Button>
-          <span
-            className={`${baseClass}__version`}
-          >{`Fleet ${versionData?.version} • Go ${versionData?.go_version}`}</span>
-          <span className={`${baseClass}__privacy-policy`}>
-            <a
-              href="https://fleetdm.com/legal/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Privacy policy
-            </a>
-          </span>
-        </div>
-        {renderEmailModal()}
-        {renderPasswordModal()}
-        {renderApiTokenModal()}
+          {renderEmailModal()}
+          {renderPasswordModal()}
+          {renderApiTokenModal()}
+        </SandboxGate>
+      </MainContent>
+      <SandboxGate>
+        <SidePanelContent>
+          <UserSidePanel
+            currentUser={currentUser}
+            onChangePassword={onShowPasswordModal}
+            onGetApiToken={onShowApiTokenModal}
+          />
+        </SidePanelContent>
       </SandboxGate>
-    </div>
+    </>
   );
 };
 

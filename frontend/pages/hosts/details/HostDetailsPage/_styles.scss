@@ -1,18 +1,9 @@
 .host-details {
-  display: flex;
-  flex-wrap: wrap;
-  flex-grow: 1;
-  align-content: flex-start;
-  padding-bottom: 50px;
-  min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-medium;
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
+  &__wrapper {
+    display: grid;
+    gap: 1rem;
   }
 
   .header {
@@ -223,6 +214,10 @@
     }
   }
 
+  .tooltip {
+    color: $ui-fleet-black-50;
+  }
+
   .component__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
@@ -353,11 +348,7 @@
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__query-button,
-  &__transfer-button {
-    margin-right: $pad-large;
+    gap: $pad-large;
   }
 
   &__back-link {
@@ -371,25 +362,12 @@
     text-decoration: none;
   }
 
-  #back-chevron {
-    width: 16px;
-    margin-right: $pad-small;
-  }
-
   &__device_mapping {
     .device_mapping--tooltip {
       flex-direction: column;
       justify-content: start;
       text-align: left;
     }
-  }
-
-  &__wrapper {
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 6px;
-    margin-top: $pad-small;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
   .tooltip__tooltip-icon {

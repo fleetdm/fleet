@@ -4,13 +4,6 @@
   width: 100%;
 
   .data-table {
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-
     &__wrapper {
       position: relative;
       border: 1px solid $ui-fleet-blue-15;
@@ -186,6 +179,10 @@
           min-width: 100%;
           text-align: left;
         }
+        .grey-cell {
+          color: $ui-fleet-black-50;
+          font-style: italic;
+        }
       }
       .highlight-on-hover:hover {
         background-color: $ui-off-white;
@@ -265,17 +262,6 @@
 
     display: flex;
     align-items: center;
-
-    a {
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-    img {
-      height: 12px;
-      width: 12px;
-      padding-left: $pad-xsmall;
-    }
   }
   @media screen and (max-width: 1025px) {
     .data-table {

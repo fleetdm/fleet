@@ -13,6 +13,7 @@ enum ACTIONS {
   SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
+  SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
 }
 
 interface ISetAvailableTeamsAction {
@@ -38,50 +39,58 @@ interface ISetEnrollSecretAction {
   enrollSecret: IEnrollSecret[];
 }
 
+interface ISetSandboxExpiryAction {
+  type: ACTIONS.SET_SANDBOX_EXPIRY;
+  sandboxExpiry: string;
+}
+
 type IAction =
   | ISetAvailableTeamsAction
   | ISetConfigAction
   | ISetCurrentTeamAction
   | ISetCurrentUserAction
-  | ISetEnrollSecretAction;
+  | ISetEnrollSecretAction
+  | ISetSandboxExpiryAction;
 
 type Props = {
   children: ReactNode;
 };
 
 type InitialStateType = {
-  availableTeams: ITeamSummary[] | undefined;
+  availableTeams?: ITeamSummary[];
   config: IConfig | null;
   currentUser: IUser | null;
-  currentTeam: ITeamSummary | undefined;
+  currentTeam?: ITeamSummary;
   enrollSecret: IEnrollSecret[] | null;
-  isPreviewMode: boolean | undefined;
-  isSandboxMode: boolean | undefined;
-  isFreeTier: boolean | undefined;
-  isPremiumTier: boolean | undefined;
-  isGlobalAdmin: boolean | undefined;
-  isGlobalMaintainer: boolean | undefined;
-  isGlobalObserver: boolean | undefined;
-  isOnGlobalTeam: boolean | undefined;
-  isAnyTeamMaintainer: boolean | undefined;
-  isAnyTeamMaintainerOrTeamAdmin: boolean | undefined;
-  isTeamObserver: boolean | undefined;
-  isTeamMaintainer: boolean | undefined;
-  isTeamMaintainerOrTeamAdmin: boolean | undefined;
-  isAnyTeamAdmin: boolean | undefined;
-  isTeamAdmin: boolean | undefined;
-  isOnlyObserver: boolean | undefined;
-  isNoAccess: boolean | undefined;
+  isPreviewMode?: boolean;
+  isSandboxMode?: boolean;
+  isFreeTier?: boolean;
+  isPremiumTier?: boolean;
+  isGlobalAdmin?: boolean;
+  isGlobalMaintainer?: boolean;
+  isGlobalObserver?: boolean;
+  isOnGlobalTeam?: boolean;
+  isAnyTeamMaintainer?: boolean;
+  isAnyTeamMaintainerOrTeamAdmin?: boolean;
+  isTeamObserver?: boolean;
+  isTeamMaintainer?: boolean;
+  isTeamMaintainerOrTeamAdmin?: boolean;
+  isAnyTeamAdmin?: boolean;
+  isTeamAdmin?: boolean;
+  isOnlyObserver?: boolean;
+  isNoAccess?: boolean;
+  sandboxExpiry?: string;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
-  setCurrentTeam: (team: ITeamSummary | undefined) => void;
+  setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
+  setSandboxExpiry: (sandboxExpiry: string) => void;
 };
 
 export type IAppContext = InitialStateType;
 
-const initialState = {
+export const initialState = {
   availableTeams: undefined,
   config: null,
   currentUser: null,
@@ -109,6 +118,7 @@ const initialState = {
   setCurrentTeam: () => null,
   setConfig: () => null,
   setEnrollSecret: () => null,
+  setSandboxExpiry: () => null,
 };
 
 const detectPreview = () => {
@@ -198,6 +208,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         enrollSecret,
       };
     }
+    case ACTIONS.SET_SANDBOX_EXPIRY: {
+      const { sandboxExpiry } = action;
+      return {
+        ...state,
+        sandboxExpiry,
+      };
+    }
     default:
       return state;
   }
@@ -214,6 +231,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
+    sandboxExpiry: state.sandboxExpiry,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
@@ -245,6 +263,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
       dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+    },
+    setSandboxExpiry: (sandboxExpiry: string) => {
+      dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
     },
   };
 

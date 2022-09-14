@@ -637,7 +637,7 @@ Google Workspace makes it easy for users to add tools to their workflows while h
 
 This level of security allows users to authenticate to web applications with their Google accounts. This exposes little information beyond what they would provide in a form to create an account, and it protects confidential data while keeping everything managed.
 
->To get an application added to Fleet's Google Workspace security configuration, create an issue assigned to the security team in [this repository](https://github.com/fleetdm/confidential/issues).
+>To get an application added to Fleet's Google Workspace security configuration, create an issue and assign it to the security team in [this repository](https://github.com/fleetdm/confidential/issues). You'll need to include: the client ID in text (not a screenshot) in your issue. This is processed quickly (about 1-2 days) by the Head of Security. The Head of Security will do the research on permissions the app is requesting and determine approval for the app.
 
 We mark every Google Service as *restricted* and recommend that anyone using Google Workspace mark at least the following as restricted in *Security/API Control/Google Services*:
 * Google Drive

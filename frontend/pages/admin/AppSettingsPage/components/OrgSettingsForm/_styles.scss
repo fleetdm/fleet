@@ -1,5 +1,4 @@
 .org-settings-form {
-
   &__settings-form {
     display: flex;
   }
@@ -47,40 +46,6 @@
 .app-config-form {
   width: 100%;
 
-  &__config-docs {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: $pad-medium;
-    border-radius: $border-radius;
-    border: 1px solid #d9d9fe;
-    background-color: $ui-vibrant-blue-10;
-    margin-bottom: $pad-medium;
-    font-size: $x-small;
-
-    p {
-      margin: 0;
-      font-size: $x-small;
-    }
-  }
-
-  &__learn-more {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    font-weight: $bold;
-    text-decoration: none;
-
-    &--inline {
-      margin-left: $pad-medium;
-    }
-
-    img {
-      width: 12px;
-      height: 12px;
-      margin-left: $pad-small;
-    }
-  }
-
   .form-field {
     width: 100%;
 
@@ -123,10 +88,10 @@
       padding-bottom: $pad-small;
       max-width: 65%;
       font-size: $medium;
-        font-weight: $regular;
-        color: $core-fleet-black;
-        border-bottom: solid 1px $ui-fleet-blue-15;
-        margin: 0 0 $pad-xxlarge;
+      font-weight: $regular;
+      color: $core-fleet-black;
+      border-bottom: solid 1px $ui-fleet-blue-15;
+      margin: 0 0 $pad-xxlarge;
     }
 
     .smtp-options {
@@ -280,18 +245,6 @@
 
   &__advanced-options {
     margin-bottom: $pad-large;
-  }
-
-  &__transparency {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    font-weight: $bold;
-    text-decoration: none;
-
-    img {
-      width: 12px;
-      height: 12px;
-    }
   }
 
   .component__tooltip-wrapper {

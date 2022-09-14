@@ -64,6 +64,10 @@ interface IDataTableProps {
   setExportRows?: (rows: Row[]) => void;
 }
 
+interface IHeaderGroup extends HeaderGroup {
+  title?: string;
+}
+
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
 // This data table uses react-table for implementation. The relevant documentation of the library
@@ -316,7 +320,7 @@ const DataTable = ({
     [disableMultiRowSelect, onSelectSingleRow, toggleAllRowsSelected]
   );
 
-  const renderColumnHeader = (column: HeaderGroup) => {
+  const renderColumnHeader = (column: IHeaderGroup) => {
     // if there is a column filter, we want the `onClick` event listener attached
     // just to the child title span so that clicking into the column filter input
     // doesn't also sort the column
@@ -495,7 +499,9 @@ const DataTable = ({
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => {
-                  let thProps = column.getSortByToggleProps();
+                  let thProps = column.getSortByToggleProps({
+                    title: undefined,
+                  });
                   if (column.Filter) {
                     // if there is a column filter, we want the `onClick` event listener attached
                     // just to the child title span so that clicking into the column filter input
@@ -505,6 +511,7 @@ const DataTable = ({
 
                   return (
                     <th
+                      key={column.id}
                       className={column.id ? `${column.id}__header` : ""}
                       {...thProps}
                     >
@@ -538,6 +545,7 @@ const DataTable = ({
                   {row.cells.map((cell: any) => {
                     return (
                       <td
+                        key={cell.column.id}
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }

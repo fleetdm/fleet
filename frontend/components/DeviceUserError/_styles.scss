@@ -1,0 +1,36 @@
+.device-user-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  #error-icon {
+    height: 12px;
+    width: 12px;
+    margin-right: 8px;
+    margin-bottom: -1px;
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: row;
+    margin: $pad-xxxlarge 0;
+  }
+
+  .info {
+    &__header {
+      display: block;
+      color: $core-fleet-black;
+      font-weight: $bold;
+      font-size: $x-small;
+      text-align: center;
+    }
+    &__data {
+      display: block;
+      color: $core-fleet-black;
+      font-weight: normal;
+      font-size: $x-small;
+      text-align: center;
+      margin-top: 10px;
+    }
+  }
+}

@@ -62,14 +62,18 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumTeams = amountTeams
 		stats.NumPolicies = amountPolicies
 		stats.NumLabels = amountLabels
-		stats.SoftwareInventoryEnabled = appConfig.HostSettings.EnableSoftwareInventory
+		stats.SoftwareInventoryEnabled = appConfig.Features.EnableSoftwareInventory
 		stats.VulnDetectionEnabled = appConfig.VulnerabilitySettings.DatabasesPath != ""
-		stats.SystemUsersEnabled = appConfig.HostSettings.EnableHostUsers
+		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
 		stats.StoredErrors = storedErrs
 		stats.NumHostsNotResponding = amountHostsNotResponding
+		stats.Organization = "unknown"
+		if license.IsPremium() {
+			stats.Organization = license.Organization
+		}
 		return nil
 	}
 

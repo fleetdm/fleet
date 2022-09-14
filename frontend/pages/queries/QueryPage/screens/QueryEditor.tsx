@@ -61,8 +61,8 @@ const QueryEditor = ({
     lastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
-  const [isQuerySaving, setIsQuerySaving] = useState<boolean>(false);
-  const [isQueryUpdating, setIsQueryUpdating] = useState<boolean>(false);
+  const [isQuerySaving, setIsQuerySaving] = useState(false);
+  const [isQueryUpdating, setIsQueryUpdating] = useState(false);
 
   useEffect(() => {
     if (storedQueryError) {
@@ -138,7 +138,7 @@ const QueryEditor = ({
   }
 
   return (
-    <div className={`${baseClass}__form body-wrap`}>
+    <div className={`${baseClass}__form`}>
       <Link to={PATHS.MANAGE_QUERIES} className={`${baseClass}__back-link`}>
         <img src={BackChevron} alt="back chevron" id="back-chevron" />
         <span>Back to queries</span>

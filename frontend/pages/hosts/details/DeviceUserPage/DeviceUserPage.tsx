@@ -1,7 +1,6 @@
 import React, { useState, useContext, useCallback } from "react";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
@@ -12,7 +11,7 @@ import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
-import PageError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
@@ -51,21 +50,18 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const { renderFlash } = useContext(NotificationContext);
-  const handlePageError = useErrorHandler();
 
-  const [isPremiumTier, setIsPremiumTier] = useState<boolean>(false);
-  const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
+  const [isPremiumTier, setIsPremiumTier] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [host, setHost] = useState<IHost | null>();
-  const [orgLogoURL, setOrgLogoURL] = useState<string>("");
+  const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState<boolean>(
-    false
-  );
+  const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -150,7 +146,6 @@ const DeviceUserPage = ({
           // exit early because refectch is pending so we can avoid unecessary steps below
         }
       },
-      onError: (error) => handlePageError(error),
     }
   );
 
@@ -232,6 +227,7 @@ const DeviceUserPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const renderDeviceUserPage = () => {
+    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -255,10 +251,8 @@ const DeviceUserPage = ({
                   {isPremiumTier && (
                     <Tab>
                       <div>
-                        {titleData.issues.failing_policies_count > 0 && (
-                          <span className="count">
-                            {titleData.issues.failing_policies_count}
-                          </span>
+                        {failingPoliciesCount > 0 && (
+                          <span className="count">{failingPoliciesCount}</span>
                         )}
                         Policies
                       </div>
@@ -316,7 +310,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {loadingDeviceUserError ? <PageError /> : renderDeviceUserPage()}
+      {loadingDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
     </div>
   );
 };

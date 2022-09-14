@@ -10,6 +10,14 @@ import (
 	"github.com/kolide/kit/version"
 )
 
+// EnterpriseOverrides contains the methods that can be overriden by the
+// enterprise service
+//
+// TODO: find if there's a better way to accomplish this and standardize.
+type EnterpriseOverrides struct {
+	HostFeatures func(context context.Context, host *Host) (*Features, error)
+}
+
 type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
@@ -42,6 +50,12 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// SetEnterpriseOverrides allows the enterprise service to override specific methods
+	// that can't be easily overridden via embedding.
+	//
+	// TODO: find if there's a better way to accomplish this and standardize.
+	SetEnterpriseOverrides(overrides EnterpriseOverrides)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.
 
@@ -57,6 +71,9 @@ type Service interface {
 
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
+
+	// NewUser creates a new user with the given payload
+	NewUser(ctx context.Context, p UserPayload) (*User, error)
 
 	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
 	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a
@@ -107,10 +124,14 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
-	// CallbackSSO handles the IDP response. The original URL the viewer attempted to access is returned from this
-	// function, so we can redirect back to the front end and load the page the viewer originally attempted to access
-	// when prompted for login.
-	CallbackSSO(ctx context.Context, auth Auth) (*SSOSession, error)
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid
+	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// GetSSOUser handles retrieval of an user that is trying to authenticate
+	// via SSO
+	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
+	// LoginSSOUser logs-in the given SSO user
+	LoginSSOUser(ctx context.Context, user *User, redirectURL string) (*SSOSession, error)
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
@@ -272,13 +293,22 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+
+	// FailingPoliciesCount returns the number of failling policies for 'host'
+	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
+	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
+	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	// OSVersions returns a list of operating systems and associated host counts, which may be
+	// filtered using the following optional criteria: team id, platform, or name and version.
+	// Name cannot be used without version, and conversely, version cannot be used without name.
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -475,4 +505,5 @@ type Service interface {
 	// Installers
 
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
+	CheckInstallerExistence(ctx context.Context, installer Installer) error
 }

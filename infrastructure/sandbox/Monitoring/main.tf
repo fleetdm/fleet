@@ -24,7 +24,7 @@ module "notify_slack" {
   sns_topic_name = var.prefix
 
   slack_webhook_url = var.slack_webhook
-  slack_channel     = "#g-infrastructure"
+  slack_channel     = "#help-p1"
   slack_username    = "monitoring"
 }
 
@@ -89,7 +89,7 @@ data "aws_iam_policy_document" "lifecycle-lambda" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.ecr.arn]
+    resources = [aws_kms_key.ecr.arn, var.kms_key.arn]
   }
 
   statement {
@@ -146,6 +146,7 @@ resource "docker_registry_image" "lifecycle-lambda" {
   build {
     context     = "${path.module}/lambda/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
 }
 

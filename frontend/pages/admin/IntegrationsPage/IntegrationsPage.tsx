@@ -23,7 +23,7 @@ import TableDataError from "components/DataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
-import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 import {
   generateTableHeaders,
@@ -54,6 +54,7 @@ const IntegrationsPage = (): JSX.Element => {
     integrationEditing,
     setIntegrationEditing,
   ] = useState<IIntegrationTableData>();
+  const [isUpdatingIntegration, setIsUpdatingIntegration] = useState(false);
   const [jiraIntegrations, setJiraIntegrations] = useState<
     IJiraIntegration[]
   >();
@@ -63,7 +64,7 @@ const IntegrationsPage = (): JSX.Element => {
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const {
     data: integrations,
@@ -233,7 +234,7 @@ const IntegrationsPage = (): JSX.Element => {
           },
         });
       };
-
+      setIsUpdatingIntegration(true);
       deleteIntegrationDestination()
         .then(() => {
           renderFlash(
@@ -264,6 +265,7 @@ const IntegrationsPage = (): JSX.Element => {
           );
         })
         .finally(() => {
+          setIsUpdatingIntegration(false);
           toggleDeleteIntegrationModal();
         });
     }
@@ -364,7 +366,7 @@ const IntegrationsPage = (): JSX.Element => {
       <div className={`${noIntegrationsClass}`}>
         <div className={`${noIntegrationsClass}__inner`}>
           <div className={`${noIntegrationsClass}__inner-text`}>
-            <h1>Set up integrations</h1>
+            <h2>Set up integrations</h2>
             <p>
               Create tickets automatically when Fleet detects new
               vulnerabilities.
@@ -376,8 +378,8 @@ const IntegrationsPage = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Read about automations&nbsp;
-                <img alt="Open external link" src={ExternalURLIcon} />
+                Read about automations
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>
             <Button
@@ -442,6 +444,7 @@ const IntegrationsPage = (): JSX.Element => {
             integrationEditing?.groupId?.toString() ||
             ""
           }
+          isUpdatingIntegration={isUpdatingIntegration}
         />
       )}
       {showEditIntegrationModal && integrations && (

@@ -55,6 +55,8 @@ ln -sf /opt/orbit /var/lib/orbit
 DAEMON_LABEL="com.fleetdm.orbit"
 DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
 
+# Stop the previous desktop agent
+pkill fleet-desktop || true
 # Remove any pre-existing version of the config
 launchctl bootout "system/${DAEMON_LABEL}"
 # Add the daemon to the launchd system
@@ -68,7 +70,7 @@ launchctl kickstart "system/${DAEMON_LABEL}"
 
 // TODO set Nice?
 //
-//Note it's important not to start the orbit binary in
+// Note it's important not to start the orbit binary in
 // `/usr/local/bin/orbit` because this is a path that users usually have write
 // access to, and running that binary with launchd can become a privilege
 // escalation vector.

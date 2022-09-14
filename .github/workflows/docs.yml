@@ -18,7 +18,7 @@ jobs:
       contents: read # to read files to check dead links 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 # master
+    - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # master
     - uses: gaurav-nelson/github-action-markdown-link-check@58f84fd654812d0d8da4e4d4a559eda087daf8ce # v1.0.13
       with:
         use-quiet-mode: 'yes'

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -10,6 +10,7 @@ interface IDeleteHostModalProps {
   onSubmit: () => void;
   onCancel: () => void;
   isAllMatchingHostsSelected: boolean;
+  isUpdatingHosts: boolean;
 }
 
 const DeleteHostModal = ({
@@ -17,22 +18,15 @@ const DeleteHostModal = ({
   onSubmit,
   onCancel,
   isAllMatchingHostsSelected,
+  isUpdatingHosts,
 }: IDeleteHostModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   return (
-    <Modal title={"Delete host"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Delete host"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <form className={`${baseClass}__form`}>
         <p>
           This action will delete{" "}
@@ -48,20 +42,17 @@ const DeleteHostModal = ({
           To prevent re-enrollment, you can disable or uninstall osquery on
           these hosts.
         </p>
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
-            className={`${baseClass}__btn`}
             type="button"
             onClick={onSubmit}
             variant="alert"
+            className="delete-loading"
+            isLoading={isUpdatingHosts}
           >
             Delete
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse-alert"
-          >
+          <Button onClick={onCancel} variant="inverse-alert">
             Cancel
           </Button>
         </div>
