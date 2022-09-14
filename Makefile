@@ -324,9 +324,8 @@ osqueryd-app-tar-gz:
 	xar -xf $(TMP_DIR)/osquery-$(version).pkg -C $(TMP_DIR)/osquery_pkg_expanded
 	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded; \
 	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded; \
-	pushd $(TMP_DIR)/osquery_pkg_payload_expanded; \
-	cat $(TMP_DIR)/osquery_pkg_expanded/Payload | gunzip -dc | cpio -i; \
-	popd
+	cd $(TMP_DIR)/osquery_pkg_payload_expanded; \
+	cat $(TMP_DIR)/osquery_pkg_expanded/Payload | gunzip -dc | cpio -i
 ifeq ($(shell uname), Darwin)
 	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
 endif
