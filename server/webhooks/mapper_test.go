@@ -26,7 +26,7 @@ func TestGetPaylaod(t *testing.T) {
 
 	sut := Mapper{}
 
-	result := sut.GetPayload(serverURL, nil, vuln, meta)
+	result := sut.GetPayload(serverURL, nil, vuln.CVE, meta)
 	require.Empty(t, result.CISAKnownExploit)
 	require.Empty(t, result.EPSSProbability)
 	require.Empty(t, result.CVSSScore)

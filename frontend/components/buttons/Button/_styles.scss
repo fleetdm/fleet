@@ -52,6 +52,16 @@ $base-class: "button";
     outline: none;
   }
 
+  .transparent-text {
+    opacity: 0;
+  }
+
+  .children-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
   &--brand {
     @include button-variant(
       $core-vibrant-blue,
@@ -324,21 +334,32 @@ $base-class: "button";
       background-color: $ui-vibrant-blue-10;
       box-shadow: none;
     }
+
+    .children-wrapper {
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+
+      .info {
+        &__header {
+          display: block;
+          width: 100%;
+          text-align: left;
+        }
+        &__data {
+          display: block;
+          width: 100%;
+          font-weight: normal;
+          text-align: left;
+          margin-top: 10px;
+        }
+      }
+    }
   }
 
   &--contextual-nav-item {
     @include button-variant(transparent, $ui-vibrant-blue-10);
     display: flex;
     justify-content: space-between;
-  }
-
-  .transparent-text {
-    opacity: 0;
-  }
-
-  .children-wrapper {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
   }
 }

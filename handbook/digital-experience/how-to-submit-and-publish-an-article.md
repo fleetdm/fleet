@@ -19,14 +19,14 @@ This guide includes everything you need to know about Fleet’s editorial proces
 
 | Activity | DRI |
 |:---------|:----|
-| Assign & schedule | Tim Kern |
+| Assign & schedule | Chris McGillicuddy |
 | Review | Chris McGillicuddy |
 | Artwork | Mike Thomas |
 | Publication | Tim Kern |
 
 ## Who can publish articles?
 
-Everyone is welcome to suggest article ideas or submit drafts. Reach out to Tim Kern in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack, and include a summary of your idea in the thread.
+Everyone is welcome to suggest article ideas or submit drafts. Reach out to Chris McGillicuddy in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack, and include a summary of your idea in the thread.
 
 ## Communication
 
@@ -34,7 +34,7 @@ Use the [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM)
 
 ## Schedule
 
-Publishing occurs according to our [content calendar](https://docs.google.com/spreadsheets/d/1IzpoIfTc7cqc9g8w20fQfap3GFcrqgOaiPrpCkowcvA/edit?usp=sharing). However, publication dates are subject to change based on the news or information that needs to be posted. For time-sensitive articles, consult with Tim Kern in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack.
+Publishing occurs according to our [content calendar](https://docs.google.com/spreadsheets/d/1IzpoIfTc7cqc9g8w20fQfap3GFcrqgOaiPrpCkowcvA/edit?usp=sharing). However, publication dates are subject to change based on the news or information that needs to be posted. For time-sensitive articles, consult with Chris McGillicuddy in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack.
 
 ## How to submit an article
 
@@ -83,5 +83,5 @@ After your article is published, the Growth team will schedule your post to be p
 - [Markdown guide](./markdown-guide)
 - Writing style guide (todo)
 
-<meta name="maintainedBy" value="timmy-k">
+<meta name="maintainedBy" value="chris-mcgillicuddy">
 <meta name="title" value="How to submit and publish an article">
