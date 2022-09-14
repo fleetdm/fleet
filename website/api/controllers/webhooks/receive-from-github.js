@@ -61,7 +61,6 @@ module.exports = {
       'drewbakerfdm',
       'vercel[bot]',
       'lucasmrod',
-      'tgauda',
       'ksatter',
       'guillaumeross',
       'sharvilshah',
