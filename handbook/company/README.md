@@ -288,12 +288,19 @@ interim product manager):
 - Platform PM: Mo Zhu
 - Agent PM: Mo Zhu
 
-Each group is associated with an engineering manager (EM), who, with their group of engineers, form the engineering members of the group.
-
 Each group's PM works closely with engineers within their group:
 - The PM **prioritizes** work and defines **what** to iteratively build and release next within their group's domain to best serve the group's goals and the company's goals as a whole. The PM communicates **why** this work is prioritized and works with engineering to come up with the best possible **how**.
-- The PM is responsible for epics. Sometimes initiatives require multiple issues that may, or may not, include multiple development groups. These initiatives are tracked as GitHub issues with the "epic" label. One PM is assigned to the epic to make sure that all issues associated with the epic (child issues) make it into a release. It's the PM's responsibility to track progress and close the epic when the initiative is complete.
+- The PM is responsible for the execution of epics that span across multiple groups. One PM is assigned to the epic to make sure that all issues associated with the epic (child issues) make it into a release.
+
+An engineering manager (EM), with their group of engineers, forms the engineering members of the group: 
+
+- Interface EM: Luke Heath
+- Platform EM: Tomás Touceda
+- Agent EM: Zach Wasserman
+
+Each group's EM works closely with the PM and engineers in their group:
 - The EM (along with engineers) defines **how** to implement that definition within the surface area of code, processes, and rituals owned by their group while serving their group’s goals and the company's goals as a whole.
+- The EM is responsible for the execution of initiatives (epics) within their group. These epics are tracked as GitHub issues with the "epic" label. One EM is assigned ot the epic to make sure that all issues associated with the epic (child issues) make it into a release.
 
 ### Interface group
 #### Responsibilities
