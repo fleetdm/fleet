@@ -1,7 +1,7 @@
-- [What are osquery evented tables?](#what-are-osquery-evented-tables?)
-- [How do evented tables work?](#how-do-evented-tables-work?)
-- [What do I need to consider when configuring evented tables?](#what-do-i-need-to-consider-when-configuring-evented-tables?)
-- [How do I turn on an evented table?](#how-do-i-turn-on-an-evented-table?)
+- [What are osquery evented tables?](#what-are-osquery-evented-tables)
+- [How do evented tables work?](#how-do-evented-tables-work)
+- [What do I need to consider when configuring evented tables?](#what-do-i-need-to-consider-when-configuring-evented-tables)
+- [How do I turn on an evented table?](#how-do-i-turn-on-an-evented-table)
 
 # Osquery evented tables
 
