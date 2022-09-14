@@ -372,6 +372,9 @@ func ValidateEnabledVulnerabilitiesIntegrations(webhook VulnerabilitiesWebhookSe
 	if zendeskEnabledCount > 1 {
 		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
 	}
+	if webhookEnabled && webhook.DestinationURL == "" {
+		invalid.Append("destination_url", "destination_url is required to enable the vulnerabilities webhook")
+	}
 }
 
 // ValidateEnabledFailingPoliciesIntegrations checks that a single integration
@@ -404,6 +407,9 @@ func ValidateEnabledFailingPoliciesIntegrations(webhook FailingPoliciesWebhookSe
 	}
 	if zendeskEnabledCount > 1 {
 		invalid.Append("failing policies", "cannot enable more than one zendesk integration")
+	}
+	if webhookEnabled && webhook.DestinationURL == "" {
+		invalid.Append("destination_url", "destination_url is required to enable the failing policies webhook")
 	}
 }
 

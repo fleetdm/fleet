@@ -993,6 +993,68 @@ spec:
 [+] applied fleet config
 [+] applied 1 teams`,
 		},
+		{
+			desc: "missing required sso entity_id",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  sso_settings:
+    enable_sso: true
+    entity_id: ""
+    issuer_uri: "http://localhost:8080/simplesaml/saml2/idp/SSOService.php"
+    idp_name: "SimpleSAML"
+    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+`,
+			wantErr: `422 Validation Failed: required`,
+		},
+		{
+			desc: "missing required sso idp_name",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  sso_settings:
+    enable_sso: true
+    entity_id: "https://localhost:8080"
+    issuer_uri: "http://localhost:8080/simplesaml/saml2/idp/SSOService.php"
+    idp_name: ""
+    metadata_url: "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+`,
+			wantErr: `422 Validation Failed: required`,
+		},
+		{
+			desc: "missing required failing policies destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: ""
+      policy_ids:
+        - 1
+      host_batch_size: 1000
+    interval: 1h
+`,
+			wantErr: `422 Validation Failed: destination_url is required to enable the failing policies webhook`,
+		},
+		{
+			desc: "missing required vulnerabilities destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    vulnerabilities_webhook:
+      enable_vulnerabilities_webhook: true
+      destination_url: ""
+      host_batch_size: 1000
+    interval: 1h
+`,
+			wantErr: `422 Validation Failed: destination_url is required to enable the vulnerabilities webhook`,
+		},
 	}
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
