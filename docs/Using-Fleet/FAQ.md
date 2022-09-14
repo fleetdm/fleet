@@ -345,8 +345,8 @@ Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 Fleet considers a device as online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
-The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts,
-and in the **Settings > Teams > TEAM NAME > Agent options** for hosts that belong to a team.
+The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts
+and in the **Settings > Teams > TEAM NAME > Agent options** page for hosts that belong to a team.
 
 For example:
 
