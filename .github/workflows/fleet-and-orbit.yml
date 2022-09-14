@@ -201,8 +201,16 @@ jobs:
 
     - name: Install xar
       run: |
-        sudo apt-get update
-        sudo apt-get install -y xar
+        cd /tmp
+        wget https://github.com/downloads/mackyle/xar/xar-1.6.1.tar.gz
+        tar -xvzf xar-1.6.1.tar.gz
+        cd xar-1.6.1
+        # OpenSSL_add_all_ciphers was deprecated in OpenSSL 1.1.0, check OPENSSL_init_crypto instead 
+        sed -i 's/OpenSSL_add_all_ciphers/OPENSSL_init_crypto/g' configure.ac
+        ./autogen.sh --noconfigure
+        ./configure
+        make
+        sudo make install
 
     - name: Build fleetdm/fleetctl
       run: make fleetctl-docker

@@ -322,9 +322,11 @@ osqueryd-app-tar-gz:
 	curl -L https://github.com/osquery/osquery/releases/download/$(version)/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
 	mkdir $(TMP_DIR)/osquery_pkg_expanded
 	xar -xf $(TMP_DIR)/osquery-$(version).pkg -C $(TMP_DIR)/osquery_pkg_expanded
-	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
-	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded
-	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
+	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded; \
+	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded; \
+	pushd $(TMP_DIR)/osquery_pkg_payload_expanded; \
+	cat $(TMP_DIR)/osquery_pkg_expanded/Payload | gunzip -dc | cpio -i; \
+	popd
 ifeq ($(shell uname), Darwin)
 	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
 endif
