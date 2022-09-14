@@ -71,20 +71,21 @@ func (sv SoftwareVulnerability) Affected() uint {
 // OSVulnerability is a vulnerability on a OS.
 // Represents an entry in the `os_vulnerabilities` table.
 type OSVulnerability struct {
-	OSID uint
-	CVE  string
+	OSID   uint
+	HostID uint
+	CVE    string
 }
 
 // String implements fmt.Stringer.
 func (ov OSVulnerability) String() string {
-	return fmt.Sprintf("{%d,%s}", ov.OSID, ov.CVE)
+	return fmt.Sprintf("{%d,%d,%s}", ov.OSID, ov.HostID, ov.CVE)
 }
 
 // Key returns a string representation of the os vulnerability.
 // If we have a list of os vulnerabilities, the Key can be used
 // as a discrimator for unique entries.
 func (ov OSVulnerability) Key() string {
-	return fmt.Sprintf("os:%d:%s", ov.OSID, ov.CVE)
+	return fmt.Sprintf("os:%d:%d:%s", ov.OSID, ov.HostID, ov.CVE)
 }
 
 func (ov OSVulnerability) GetCVE() string {
@@ -92,7 +93,7 @@ func (ov OSVulnerability) GetCVE() string {
 }
 
 func (ov OSVulnerability) Affected() uint {
-	return ov.OSID
+	return ov.HostID
 }
 
 // Represents a vulnerability, e.g. an OS or a Software vulnerability.

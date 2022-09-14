@@ -447,6 +447,8 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
+type ListWindowsUpdatesFunc func(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error)
+
 type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
 
 type DataStore struct {
@@ -1100,6 +1102,9 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
+
+	ListWindowsUpdatesFunc        ListWindowsUpdatesFunc
+	ListWindowsUpdatesFuncInvoked bool
 
 	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
 	InsertWindowsUpdatesFuncInvoked bool
@@ -2188,6 +2193,11 @@ func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, error) {
 	s.ProcessListFuncInvoked = true
 	return s.ProcessListFunc(ctx)
+}
+
+func (s *DataStore) ListWindowsUpdates(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
+	s.ListWindowsUpdatesFuncInvoked = true
+	return s.ListWindowsUpdatesFunc(ctx, hostID)
 }
 
 func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {

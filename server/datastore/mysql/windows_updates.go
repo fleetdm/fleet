@@ -11,6 +11,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func (ds *Datastore) ListWindowsUpdates(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
+	stmt := `SELECT kb_id, date_epoch FROM windows_updates WHERE host_id = ?`
+
+	updates := []fleet.WindowsUpdate{}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &updates, stmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list windows updates")
+	}
+
+	return updates, nil
+}
+
 // InsertWindowsUpdates inserts one or more windows updates for the given host.
 func (ds *Datastore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
 	if len(updates) == 0 {
