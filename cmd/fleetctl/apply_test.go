@@ -990,8 +990,8 @@ spec:
 `,
 			flags: []string{"--dry-run"},
 			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs
-[+] applied fleet config
-[+] applied 1 teams`,
+[+] would've applied fleet config
+[+] would've applied 1 teams`,
 		},
 		{
 			desc: "missing required sso entity_id",

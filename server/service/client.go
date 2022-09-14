@@ -272,8 +272,11 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
 		}
-		logfn("[+] applied fleet config\n")
-
+		if opts.DryRun {
+			logfn("[+] would've applied fleet config\n")
+		} else {
+			logfn("[+] applied fleet config\n")
+		}
 	}
 
 	if specs.EnrollSecret != nil {
@@ -291,7 +294,11 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
-		logfn("[+] applied %d teams\n", len(specs.Teams))
+		if opts.DryRun {
+			logfn("[+] would've applied %d teams\n", len(specs.Teams))
+		} else {
+			logfn("[+] applied %d teams\n", len(specs.Teams))
+		}
 	}
 
 	if specs.UsersRoles != nil {
