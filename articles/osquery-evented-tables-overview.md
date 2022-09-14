@@ -3,7 +3,7 @@
 - [What do I need to consider when configuring evented tables?](#what-do-i-need-to-consider-when-configuring-evented-tables)
 - [How do I turn on an evented table?](#how-do-i-turn-on-an-evented-table)
 
-# Osquery evented tables
+# Overview of osquery evented tables
 
 ## What are osquery evented tables? 
 Osquery traditionally allows you to see the state of your computers right now. This point-in-time snapshot, however, requires you to actively watch the table repeatedly. For example, in the security-critical `processes` table, a process might be very short-lived and there is high churn in processes. Actively watching and diffing this table would be challenging even with automation.
@@ -155,3 +155,9 @@ These other event tables are also available in osquery. We will provide more inf
 | user_events | Linux | --audit_allow_user_events=true |
 | windows_events | Windows | --enable_windows_events_publisher=true |
 | powershell_events | Windows | --enable_powershell_events_subscriber=true |
+
+<meta name="articleTitle" value="Overview of osquery evented tables">
+<meta name="authorFullName" value="Mo Zhu">
+<meta name="authorGitHubUsername" value="zhumo">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2022-09-15">
