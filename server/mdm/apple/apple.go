@@ -1,7 +1,5 @@
 package apple
 
-import "github.com/gofrs/uuid"
-
 const DEPName = "fleet"
 
 const EnrollmentProfileID = "com.github.fleetdm.fleet.mdm.enroll"
@@ -33,8 +31,8 @@ type mobileconfig struct {
 	PayloadDisplayName       string
 	PayloadType              string      // Can only be Configuration
 	PayloadContent           interface{} // based on type, can be an array or dict?
-	PayloadIdentifier        uuid.UUID
-	PayloadUUID              uuid.UUID
+	PayloadIdentifier        string
+	PayloadUUID              string
 	PayloadVersion           int
 	PayloadRemovalDisallowed bool
 }

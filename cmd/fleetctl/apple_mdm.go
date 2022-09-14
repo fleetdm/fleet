@@ -7,10 +7,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
+	"github.com/groob/plist"
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
-	"howett.net/plist"
 )
 
 func appleMDMCommand() *cli.Command {
