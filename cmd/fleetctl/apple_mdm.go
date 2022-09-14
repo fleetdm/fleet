@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
+	"howett.net/plist"
 )
 
 func appleMDMCommand() *cli.Command {
@@ -22,6 +25,8 @@ func appleMDMCommand() *cli.Command {
 		Subcommands: []*cli.Command{
 			appleMDMSetupCommand(),
 			appleMDMEnrollmentsCommand(),
+			appleMDMEnqueueCommandCommand(),
+			appleMDMCommandResultsCommand(),
 		},
 	}
 }
@@ -371,6 +376,244 @@ func appleMDMEnrollmentsListCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			// TODO(lucas): Implement command.
 			fmt.Println("Not implemented yet.")
+			return nil
+		},
+	}
+}
+
+func appleMDMEnqueueCommandCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "enqueue-command",
+		Usage: "Enqueue an MDM command.",
+		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:     "device-ids",
+				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:      "command-payload",
+				Usage:     "A plist file containing the raw MDM command payload. Note that a new CommandUUID will be generated automatically. See https://developer.apple.com/documentation/devicemanagement/commands_and_queries for available commands.",
+				TakesFile: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := c.StringSlice("device-ids")
+			if len(deviceIDs) == 0 {
+				return fmt.Errorf("must provide at least one device ID")
+			}
+
+			payloadFilename := c.String("command-payload")
+			payloadBytes, err := os.ReadFile(payloadFilename)
+			if err != nil {
+				return fmt.Errorf("read payload: %w", err)
+			}
+
+			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return err
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
+		Subcommands: []*cli.Command{
+			appleMDMEnqueueCommandInstallProfileCommand(),
+			appleMDMEnqueueCommandRemoveProfileCommand(),
+			appleMDMEnqueueCommandProfileListCommand(),
+		},
+	}
+}
+
+func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
+	return &cli.Command{
+		Name: "InstallProfile",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "mobileconfig",
+				Usage:    "The mobileconfig file containing the profile to install.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := c.StringSlice("device-ids")
+			if len(deviceIDs) == 0 {
+				return fmt.Errorf("must provide at least one device ID")
+			}
+
+			profilePayloadFilename := c.String("mobileconfig")
+			profilePayloadBytes, err := os.ReadFile(profilePayloadFilename)
+			if err != nil {
+				return fmt.Errorf("read payload: %w", err)
+			}
+
+			payload := &apple.CommandPayload{
+				Command: apple.InstallProfile{
+					RequestType: "InstallProfile",
+					Payload:     profilePayloadBytes,
+				},
+			}
+
+			// convert to xml using tabs for indentation
+			payloadBytes, err := plist.MarshalIndent(payload, plist.XMLFormat, "	")
+			if err != nil {
+				return fmt.Errorf("marshal command payload plist: %w", err)
+			}
+
+			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return err
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
+		Subcommands: []*cli.Command{},
+	}
+}
+
+func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
+	return &cli.Command{
+		Name: "RemoveProfile",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "identifier",
+				Usage:    "The PayloadIdentifier value for the profile to remove eg cis.macOSBenchmark.section2.SecureKeyboard.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := c.StringSlice("device-ids")
+			if len(deviceIDs) == 0 {
+				return fmt.Errorf("must provide at least one device ID")
+			}
+
+			identifier := c.String("identifier")
+
+			payload := &apple.CommandPayload{
+				Command: apple.RemoveProfile{
+					RequestType: "RemoveProfile",
+					Identifier:  identifier,
+				},
+			}
+
+			// convert to xml using tabs for indentation
+			payloadBytes, err := plist.MarshalIndent(payload, plist.XMLFormat, "	")
+			if err != nil {
+				return fmt.Errorf("marshal command payload plist: %w", err)
+			}
+			fmt.Println(string(payloadBytes))
+
+			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return err
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
+		Subcommands: []*cli.Command{},
+	}
+}
+
+func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
+	return &cli.Command{
+		Name: "ProfileList",
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := c.StringSlice("device-ids")
+			if len(deviceIDs) == 0 {
+				return fmt.Errorf("must provide at least one device ID")
+			}
+
+			payload := &apple.CommandPayload{
+				Command: apple.ProfileList{
+					RequestType: "ProfileList",
+				},
+			}
+
+			// convert to xml using tabs for indentation
+			payloadBytes, err := plist.MarshalIndent(payload, plist.XMLFormat, "	")
+			if err != nil {
+				return fmt.Errorf("marshal command payload plist: %w", err)
+			}
+
+			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return err
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
+		Subcommands: []*cli.Command{},
+	}
+}
+
+func appleMDMCommandResultsCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "command-results",
+		Usage: "Get MDM command results",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "command-uuid",
+				Usage:    "The command uuid.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			commandUUID := c.String("command-uuid")
+
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			results, err := fleet.MDMAppleGetCommandResults(commandUUID)
+			if err != nil {
+				return err
+			}
+
+			// format output as a table
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetRowLine(true)
+			table.SetHeader([]string{"Device ID", "Status", "Result"})
+			table.SetAutoWrapText(false)
+			table.SetRowLine(true)
+
+			for deviceID, result := range results {
+				table.Append([]string{deviceID, result.Status, string(result.Result)})
+			}
+
+			table.Render()
+
 			return nil
 		},
 	}

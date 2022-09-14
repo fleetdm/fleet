@@ -53,6 +53,7 @@ type Service struct {
 	*fleet.EnterpriseOverrides
 
 	depStorage *mysql.NanoDEPStorage
+	mdmStorage *mysql.NanoMDMStorage
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {

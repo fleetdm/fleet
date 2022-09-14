@@ -453,6 +453,8 @@ type NewMDMAppleEnrollmentFunc func(ctx context.Context, enrollment fleet.MDMApp
 
 type MDMAppleEnrollmentFunc func(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error)
 
+type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1113,6 +1115,9 @@ type DataStore struct {
 
 	MDMAppleEnrollmentFunc        MDMAppleEnrollmentFunc
 	MDMAppleEnrollmentFuncInvoked bool
+
+	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
+	GetMDMAppleCommandResultsFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2213,4 +2218,9 @@ func (s *DataStore) NewMDMAppleEnrollment(ctx context.Context, enrollment fleet.
 func (s *DataStore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error) {
 	s.MDMAppleEnrollmentFuncInvoked = true
 	return s.MDMAppleEnrollmentFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+	s.GetMDMAppleCommandResultsFuncInvoked = true
+	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
 }
