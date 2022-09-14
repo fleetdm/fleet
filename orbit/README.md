@@ -152,7 +152,7 @@ Configure update channels for Orbit and osqueryd with the `--orbit-channel` and 
 | `4.6`   | 4.6.x    |
 | `4.6.0` | 4.6.0    |
 
-Additionally `stable` and `edge` are special channel names. `stable` will always return the version Fleet deems to be stable. When a new version of osquery is released, it is added to the `edge` channel for beta testing. Once that version has been tested with Fleet and declared stable, it is moved to the `stable` channel. 
+Additionally `stable` and `edge` are special channel names. `stable` will always return the version Fleet deems to be stable. When a new version of osquery is released, it is added to the `edge` channel for beta testing. Fleet then provides input to the osquery TSC based on testing. After the version is declared stable by the osquery TSC, Fleet will promote the version to `stable` ASAP.
 
 #### macOS signing & Notarization
 
