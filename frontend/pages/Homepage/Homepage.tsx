@@ -137,7 +137,7 @@ const Homepage = (): JSX.Element => {
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
         setMissingCount(data.mia_count); // TODO: change to missing_10_days_count when backend is merged
-
+        setLowDiskSpaceCount(data.mia_count); // TODO: change to low_disk_space_count when backend is merged
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
@@ -150,7 +150,7 @@ const Homepage = (): JSX.Element => {
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setShowHostsUI(true);
-      },
+      };,
     }
   );
 
