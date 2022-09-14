@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -10,6 +10,7 @@ interface IDeleteIntegrationModalProps {
   projectKey: string;
   onSubmit: () => void;
   onCancel: () => void;
+  isUpdatingIntegration: boolean;
 }
 
 const DeleteIntegrationModal = ({
@@ -17,6 +18,7 @@ const DeleteIntegrationModal = ({
   projectKey,
   onSubmit,
   onCancel,
+  isUpdatingIntegration,
 }: IDeleteIntegrationModalProps): JSX.Element => {
   return (
     <Modal
@@ -35,11 +37,17 @@ const DeleteIntegrationModal = ({
         </p>
         <p>The automations that use this integration will be turned off.</p>
         <div className="modal-cta-wrap">
+          <Button
+            type="button"
+            onClick={onSubmit}
+            variant="alert"
+            className="delete-loading"
+            isLoading={isUpdatingIntegration}
+          >
+            Delete
+          </Button>
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
-          </Button>
-          <Button type="button" onClick={onSubmit} variant="alert">
-            Delete
           </Button>
         </div>
       </form>

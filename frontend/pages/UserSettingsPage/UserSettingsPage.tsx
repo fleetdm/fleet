@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
@@ -20,14 +20,14 @@ import Modal from "components/Modal";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
-import SecretField from "components/SecretField";
+import SecretField from "components/EnrollSecrets/SecretField";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 import UserSidePanel from "./UserSidePanel";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "user-settings";
 
@@ -38,14 +38,14 @@ interface IUserSettingsPageProps {
 const UserSettingsPage = ({
   router,
 }: IUserSettingsPageProps): JSX.Element | null => {
-  const { config, currentUser, isSandboxMode } = useContext(AppContext);
+  const { config, currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [pendingEmail, setPendingEmail] = useState<string>("");
-  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
-  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [updatedUser, setUpdatedUser] = useState<Partial<IUser>>({});
-  const [showApiTokenModal, setShowApiTokenModal] = useState<boolean>(false);
+  const [showApiTokenModal, setShowApiTokenModal] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
 
@@ -194,12 +194,8 @@ const UserSettingsPage = ({
                 rel="noopener noreferrer"
               >
                 API-only user
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
-              <img
-                alt="Open external link"
-                className="icon-external"
-                src={ExternalURLIcon}
-              />
               &nbsp;instead.
             </p>
           </InfoBanner>
@@ -215,18 +211,11 @@ const UserSettingsPage = ({
               rel="noopener noreferrer"
             >
               session duration configuration
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
-            <img
-              alt="Open external link"
-              className="icon-external"
-              src={ExternalURLIcon}
-            />
           </p>
-          <div className={`${baseClass}__button-wrap`}>
-            <Button
-              onClick={onToggleApiTokenModal}
-              className="button button--brand"
-            >
+          <div className="modal-cta-wrap">
+            <Button onClick={onToggleApiTokenModal} type="button">
               Done
             </Button>
           </div>

@@ -27,7 +27,7 @@
             <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/press-kit/press-kit-fleet-logo-white-preview-600x336@2x.png']" alt="Article hero image">
           </a>
           <div purpose="article-card-body" class="card-body d-flex flex-column">
-            <a purpose="category-link" :href="article.url.split('/')[1]" class="pb-2">{{article.meta.category}}</a>
+            <p purpose="category-name" class="pb-2 mb-0">{{article.meta.category}}</p>
             <a purpose="article-title" :href="article.url"><h5>{{article.meta.articleTitle}}</h5></a>
             <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
               <img alt="The author's GitHub profile picture" style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorGitHubUsername+'.png?size=200'">

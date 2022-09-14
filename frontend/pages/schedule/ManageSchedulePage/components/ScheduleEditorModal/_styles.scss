@@ -12,25 +12,8 @@
     }
   }
 
-  a {
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    font-size: $x-small;
-    text-decoration: none;
-  }
-
   &__info-header {
     font-weight: $bold;
-  }
-
-  &__btn-wrap {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .modal-cta-wrap {
-    margin-top: 0;
   }
 
   .Select-value-label {

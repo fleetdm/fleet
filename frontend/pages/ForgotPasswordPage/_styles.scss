@@ -1,16 +1,18 @@
 .forgot-password {
-    p {
-        font-size: 1rem;
+  p,
+  a {
+    font-size: 1rem;
+  }
+
+  &__text {
+    font-size: 1rem;
+    margin-top: 2.5rem;
+    img.icon-external {
+      width: 14px;
+      padding-left: 4px;
     }
-    &__text {
-        font-size: 1rem;
-        margin-top: 2.5rem;
-        img.icon-external {
-            width: 14px;
-            padding-left: 4px;
-        }
-    }
-    &__email {
-        font-weight: bold;
-    }
-}   
+  }
+  &__email {
+    font-weight: bold;
+  }
+}

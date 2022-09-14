@@ -41,6 +41,7 @@ interface IPackQueryEditorModalProps {
   ) => void;
   editQuery?: IScheduledQuery;
   packId: number;
+  isUpdatingPack: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -63,32 +64,32 @@ const PackQueryEditorModal = ({
   allQueries,
   editQuery,
   packId,
+  isUpdatingPack,
 }: IPackQueryEditorModalProps): JSX.Element => {
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
   >();
-  const [selectedFrequency, setSelectedFrequency] = useState<string>(
+  const [selectedFrequency, setSelectedFrequency] = useState(
     editQuery?.interval.toString() || ""
   );
-  const [errorFrequency, setErrorFrequency] = useState<string>("");
-  const [
-    selectedPlatformOptions,
-    setSelectedPlatformOptions,
-  ] = useState<string>(editQuery?.platform || "");
-  const [selectedLoggingType, setSelectedLoggingType] = useState<string>(
+  const [errorFrequency, setErrorFrequency] = useState("");
+  const [selectedPlatformOptions, setSelectedPlatformOptions] = useState(
+    editQuery?.platform || ""
+  );
+  const [selectedLoggingType, setSelectedLoggingType] = useState(
     editQuery ? generateLoggingType(editQuery) : "snapshot"
   );
-  const [selectedSnapshot, setSelectedSnapshot] = useState<boolean>(
+  const [selectedSnapshot, setSelectedSnapshot] = useState(
     selectedLoggingType === "snapshot"
   );
-  const [selectedRemoved, setSelectedRemoved] = useState<boolean>(
+  const [selectedRemoved, setSelectedRemoved] = useState(
     selectedLoggingType === "differential"
   );
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
-  ] = useState<string>(editQuery?.version || "");
-  const [selectedShard, setSelectedShard] = useState<string>(
+  ] = useState(editQuery?.version || "");
+  const [selectedShard, setSelectedShard] = useState(
     editQuery?.shard ? editQuery?.shard.toString() : ""
   );
 
@@ -242,16 +243,18 @@ const PackQueryEditorModal = ({
         />
 
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
           <Button
             type="button"
             variant="brand"
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
+            className={`${editQuery?.name ? "save" : "add-query"}-loading`}
+            isLoading={isUpdatingPack}
           >
             {editQuery?.name ? "Save" : "Add query"}
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
           </Button>
         </div>
       </form>

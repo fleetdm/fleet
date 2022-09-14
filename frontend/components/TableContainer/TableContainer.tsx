@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
 import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
@@ -67,7 +67,9 @@ interface ITableContainerProps {
   highlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange?:
+    | ((queryData: ITableQueryData) => void)
+    | ((queryData: ITableQueryData) => number);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
@@ -76,6 +78,7 @@ interface ITableContainerProps {
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  resetPageIndex?: boolean;
 }
 
 const baseClass = "table-container";
@@ -133,13 +136,14 @@ const TableContainer = ({
   renderCount,
   renderFooter,
   setExportRows,
+  resetPageIndex,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState<number>(DEFAULT_PAGE_INDEX);
+  const [pageIndex, setPageIndex] = useState(DEFAULT_PAGE_INDEX);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   const prevPageIndex = useRef(0);
@@ -175,6 +179,13 @@ const TableContainer = ({
     [hasPageIndexChangedRef]
   );
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    if (pageIndex !== 0 && resetPageIndex) {
+      onPaginationChange(0);
+    }
+  }, [resetPageIndex, pageIndex]);
+
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
   };
@@ -196,7 +207,11 @@ const TableContainer = ({
       setPageIndex(0);
     }
 
-    onQueryChange(queryData);
+    // NOTE: used to reset page number to 0 when modifying filters
+    const newPageIndex = onQueryChange(queryData);
+    if (newPageIndex === 0) {
+      setPageIndex(0);
+    }
 
     prevPageIndex.current = pageIndex;
   }, [

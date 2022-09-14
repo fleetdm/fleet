@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -38,6 +39,7 @@ func cronVulnerabilities(
 	logger kitlog.Logger,
 	identifier string,
 	config *config.VulnerabilitiesConfig,
+	license *fleet.LicenseInfo,
 ) {
 	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
 
@@ -88,7 +90,7 @@ func cronVulnerabilities(
 			continue
 		}
 
-		if !appConfig.HostSettings.EnableSoftwareInventory {
+		if !appConfig.Features.EnableSoftwareInventory {
 			level.Info(logger).Log("msg", "software inventory not configured")
 			continue
 		}
@@ -110,7 +112,7 @@ func cronVulnerabilities(
 		}
 		if vulnPath != "" {
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
-			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
+			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
 				errHandler(ctx, logger, "scanning vulnerabilities", err)
 			}
 		}
@@ -130,6 +132,7 @@ func scanVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
+	license *fleet.LicenseInfo,
 ) error {
 	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
@@ -171,22 +174,31 @@ func scanVulnerabilities(
 
 	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-	collectVulns := vulnAutomationEnabled != ""
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-	recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
 
-	if len(recentVulns) > 0 {
+	if len(vulns) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
+			args := webhooks.VulnArgs{
+				Vulnerablities: vulns,
+				Meta:           meta,
+				AppConfig:      appConfig,
+				Time:           time.Now(),
+			}
+			mapper := webhooks.NewMapper()
+			if license.IsPremium() {
+				mapper = eewebhooks.NewMapper()
+			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
 				ctx,
 				ds,
 				kitlog.With(logger, "webhook", "vulnerabilities"),
-				recentVulns,
-				appConfig,
-				time.Now()); err != nil {
+				args,
+				mapper,
+			); err != nil {
 				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 			}
 
@@ -196,7 +208,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
-				recentVulns,
+				vulns,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -207,7 +219,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
-				recentVulns,
+				vulns,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -221,47 +233,48 @@ func scanVulnerabilities(
 	return nil
 }
 
-func filterRecentVulns(
+// recentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
+// (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
+// and their meta data.
+func recentVulns(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	nvdVulns []fleet.SoftwareVulnerability,
 	ovalVulns []fleet.SoftwareVulnerability,
 	maxAge time.Duration,
-) []fleet.SoftwareVulnerability {
+) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
 	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	recent, err := ds.ListCVEs(ctx, maxAge)
+	meta, err := ds.ListCVEs(ctx, maxAge)
 	if err != nil {
-		errHandler(ctx, logger, "could not fetch recent CVEs", err)
-		return nil
+		errHandler(ctx, logger, "could not fetch CVE meta", err)
+		return nil, nil
 	}
 
-	lookup := make(map[string]bool)
-	for _, r := range recent {
-		lookup[r.CVE] = true
+	recent := make(map[string]fleet.CVEMeta)
+	for _, r := range meta {
+		recent[r.CVE] = r
 	}
 
-	filtered := make(map[string]fleet.SoftwareVulnerability)
+	seen := make(map[string]bool)
+	var vulns []fleet.SoftwareVulnerability
 	for _, v := range nvdVulns {
-		if _, ok := lookup[v.CVE]; ok {
-			filtered[v.Key()] = v
+		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			vulns = append(vulns, v)
 		}
 	}
 	for _, v := range ovalVulns {
-		if _, ok := lookup[v.CVE]; ok {
-			filtered[v.Key()] = v
+		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			vulns = append(vulns, v)
 		}
 	}
 
-	result := make([]fleet.SoftwareVulnerability, 0, len(filtered))
-	for _, v := range filtered {
-		result = append(result, v)
-	}
-
-	return result
+	return vulns, recent
 }
 
 func checkOvalVulnerabilities(
@@ -323,7 +336,13 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		err := vulnerabilities.Sync(vulnPath, config.CPEDatabaseURL)
+		opts := vulnerabilities.SyncOptions{
+			VulnPath:           config.DatabasesPath,
+			CPEDBURL:           config.CPEDatabaseURL,
+			CPETranslationsURL: config.CPETranslationsURL,
+			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
+		}
+		err := vulnerabilities.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			return nil

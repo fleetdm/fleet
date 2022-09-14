@@ -14,6 +14,7 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/test-go.yaml'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
@@ -26,7 +27,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.17.8']
+        go-version: ['^1.19.1']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
@@ -44,7 +45,7 @@ jobs:
       run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@v2.3.2
 
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies

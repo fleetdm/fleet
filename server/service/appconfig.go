@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -25,7 +26,11 @@ import (
 
 type appConfigResponse struct {
 	fleet.AppConfig
+	appConfigResponseFields
+}
 
+// appConfigResponseFields are grouped separately to aid with JSON unmarshaling
+type appConfigResponseFields struct {
 	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
 	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
 
@@ -37,6 +42,23 @@ type appConfigResponse struct {
 	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
 
 	Err error `json:"error,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
+// both AppConfig and appConfigResponseFields properly:
+//
+// - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.UnmarshalJSON doesn't get
+// called.
+func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &r.AppConfig); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &r.appConfigResponseFields); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -86,12 +108,12 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
-	hostSettings := config.HostSettings
+	features := config.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
 			OrgInfo:               config.OrgInfo,
 			ServerSettings:        config.ServerSettings,
-			HostSettings:          hostSettings,
+			Features:              features,
 			VulnerabilitySettings: config.VulnerabilitySettings,
 
 			SMTPSettings:       smtpSettings,
@@ -104,11 +126,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
 		},
-		UpdateInterval:  updateIntervalConfig,
-		Vulnerabilities: vulnConfig,
-		License:         license,
-		Logging:         loggingConfig,
-		SandboxEnabled:  svc.SandboxEnabled(),
+		appConfigResponseFields: appConfigResponseFields{
+			UpdateInterval:  updateIntervalConfig,
+			Vulnerabilities: vulnConfig,
+			License:         license,
+			Logging:         loggingConfig,
+			SandboxEnabled:  svc.SandboxEnabled(),
+		},
 	}
 	return response, nil
 }
@@ -156,7 +180,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	req := request.(*modifyAppConfigRequest)
 	config, err := svc.ModifyAppConfig(ctx, req.RawMessage)
 	if err != nil {
-		return appConfigResponse{Err: err}, nil
+		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -168,8 +192,10 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 	response := appConfigResponse{
 		AppConfig: *config,
-		License:   license,
-		Logging:   loggingConfig,
+		appConfigResponseFields: appConfigResponseFields{
+			License: license,
+			Logging: loggingConfig,
+		},
 	}
 
 	if response.SMTPSettings.SMTPPassword != "" {
@@ -201,6 +227,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
+	oldAgentOptions := ""
+	if appConfig.AgentOptions != nil {
+		oldAgentOptions = string(*appConfig.AgentOptions)
+	}
 
 	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
 	if err != nil {
@@ -218,7 +248,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
 	if newAppConfig.FleetDesktop.TransparencyURL != "" {
@@ -238,9 +268,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	// We apply the config that is incoming to the old one
-	decoder := json.NewDecoder(bytes.NewReader(p))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&appConfig); err != nil {
+	appConfig.EnableStrictDecoding()
+	if err := json.Unmarshal(p, &appConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
@@ -296,6 +325,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
 
+	// TODO(mna): validate app config / agent options before saving
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
@@ -304,6 +335,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	obfuscatedConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// if the agent options changed, create the corresponding activity
+	newAgentOptions := ""
+	if obfuscatedConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	}
+	if oldAgentOptions != newAgentOptions {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedAgentOptions,
+			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	return obfuscatedConfig, nil
@@ -557,4 +604,16 @@ func encodePEMCertificate(buf io.Writer, cert *x509.Certificate) error {
 		Bytes: cert.Raw,
 	}
 	return pem.Encode(buf, block)
+}
+
+func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.Features, error) {
+	if svc.EnterpriseOverrides != nil {
+		return svc.EnterpriseOverrides.HostFeatures(ctx, host)
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &appConfig.Features, nil
 }

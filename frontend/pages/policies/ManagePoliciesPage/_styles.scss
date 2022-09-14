@@ -1,8 +1,4 @@
 .manage-policies-page {
-  &__vibrant-blue {
-    color: $core-vibrant-blue;
-  }
-
   &__header-wrap {
     display: flex;
     align-items: center;
@@ -99,21 +95,6 @@
 
     p:last-child {
       margin-bottom: 0;
-    }
-
-    a {
-      color: $core-vibrant-blue;
-      text-decoration: none;
-    }
-  }
-
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
     }
   }
 

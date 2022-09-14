@@ -11,8 +11,17 @@
   position: relative;
   background-color: $core-white;
   display: flex;
+
   @media (max-width: $break-768 - 1px) {
     display: none;
+  }
+
+  a {
+    img {
+      height: 12px;
+      width: 12px;
+      margin-left: $pad-xsmall;
+    }
   }
 }
 

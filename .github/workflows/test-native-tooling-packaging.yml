@@ -10,7 +10,12 @@ on:
       - patch-*
   pull_request:
     paths:
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
       - 'tools/fleetctl-docker/**'
       - 'tools/wix-docker/**'
       - 'tools/bomutils-docker/**'
@@ -36,7 +41,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: Install Go Dependencies
       run: make deps-go

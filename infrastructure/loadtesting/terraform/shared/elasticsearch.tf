@@ -187,7 +187,7 @@ data "aws_ami" "amazonlinux" {
 resource "aws_launch_template" "elasticstack" {
   name_prefix            = "${local.prefix}-elasticstack"
   image_id               = data.aws_ami.amazonlinux.image_id
-  instance_type          = "m6a.xlarge"
+  instance_type          = "m6a.4xlarge"
   key_name               = "robert"
   vpc_security_group_ids = [aws_security_group.elasticsearch.id]
 

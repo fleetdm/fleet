@@ -25,7 +25,7 @@ interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onAddPolicyClick?: () => void;
-  onDeletePoliciesClick: (selectedTableIds: number[]) => void;
+  onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
@@ -36,7 +36,7 @@ const PoliciesTable = ({
   policiesList,
   isLoading,
   onAddPolicyClick,
-  onDeletePoliciesClick,
+  onDeletePolicyClick,
   canAddOrDeletePolicy,
   tableType,
   currentTeam,
@@ -131,7 +131,7 @@ const PoliciesTable = ({
           manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          onPrimarySelectActionClick={onDeletePoliciesClick}
+          onPrimarySelectActionClick={onDeletePolicyClick}
           primarySelectActionButtonVariant="text-icon"
           primarySelectActionButtonIcon="delete"
           primarySelectActionButtonText={"Delete"}

@@ -1,0 +1,39 @@
+applications:
+- name: fleetdm
+  memory: 512m
+  disk_quota: 2g
+  instances: 1
+  timeout: 120
+  health-check-type: process
+  command: |
+    export FLEET_MYSQL_USERNAME=$( echo $VCAP_SERVICES | jq -r '.["aws-rds"][].credentials.username')  && \
+    export FLEET_MYSQL_ADDRESS=$( echo $VCAP_SERVICES | jq -r '.["aws-rds"][].credentials.host') && \
+    export FLEET_MYSQL_DATABASE=$( echo $VCAP_SERVICES | jq -r '.["aws-rds"][].credentials.db_name') && \
+    export FLEET_MYSQL_PASSWORD=$( echo $VCAP_SERVICES | jq -r '.["aws-rds"][].credentials.password') && \
+    export FLEET_REDIS_ADDRESS=$( echo $VCAP_SERVICES | jq -r '.["aws-elasticache-redis"][].credentials.host + ":" + .["aws-elasticache-redis"][].credentials.port') && \
+    export FLEET_REDIS_PASSWORD$( echo $VCAP_SERVICES | jq -r '.["aws-elasticache-redis"][].credentials.password') && \
+    fleet prepare --no-prompt=true db && \
+    fleet serve
+  docker:
+    image: fleetdm/fleet:latest
+  services:
+    - fleetdm-mysql
+    - fleetdm-redis
+  env:
+    FLEET_LOGGING_JSON: true
+    FLEET_LOGGING_DEBUG: true
+    FLEET_REDIS_USE_TLS: true
+    FLEET_SERVER_TLS: false
+    FLEET_REDIS_CONNECT_RETRY_ATTEMPTS: 3
+    # FLEET_FIREHOSE_STATUS_STREAM: FALSE
+    # FLEET_FIREHOSE_RESULT_STREAM: 
+    # FLEET_FIREHOSE_REGION:
+    # FLEET_OSQUERY_STATUS_LOG_PLUGIN"
+    # FLEET_OSQUERY_RESULT_LOG_PLUGIN"
+    # FLEET_VULNERABILITIES_DATABASES_PATH: 
+    # FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING: 
+    # FLEET_S3_BUCKET: 
+    # FLEET_S3_PREFIX:
+    # FLEET_LICENSE_KEY:
+
+# Add the following to the command if needed     # printenv && \ 

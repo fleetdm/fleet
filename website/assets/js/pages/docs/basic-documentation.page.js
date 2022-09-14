@@ -251,7 +251,6 @@ parasails.registerPage('basic-documentation', {
 
     scrollSideNavigationWithHeader: function () {
       var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       if(rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
@@ -261,17 +260,6 @@ parasails.registerPage('basic-documentation', {
             rightNavBar.classList.remove('header-hidden', 'scrolled');
           } else {
             rightNavBar.classList.remove('header-hidden');
-          }
-        }
-      }
-      if(leftNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
-          leftNavBar.classList.add('header-hidden', 'scrolled');
-        } else {
-          if(scrollTop === 0) {
-            leftNavBar.classList.remove('header-hidden', 'scrolled');
-          } else {
-            leftNavBar.classList.remove('header-hidden');
           }
         }
       }

@@ -59,5 +59,3 @@ export const getNextLocationPath = ({
 
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
-
-export default { getNextLocationPath };

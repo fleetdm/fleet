@@ -9,6 +9,7 @@ go.mod @fleetdm/go
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
 /.github/ @fleetdm/g-platform
@@ -44,7 +45,7 @@ go.mod @fleetdm/go
 /website/api/ @mikermcneil
 /website/config/ @mikermcneil
 /website/scripts/ @mikermcneil
-/website/package.json @mikermcneil
+/website/package.json @eashaw
 
 # GitHub brandfront
 /README.md @chris-mcgillicuddy

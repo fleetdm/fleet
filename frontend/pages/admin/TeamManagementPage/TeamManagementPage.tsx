@@ -11,28 +11,25 @@ import teamsAPI, {
 } from "services/entities/teams";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const [teamIsLoading, setTeamIsLoading] = useState<boolean>(false);
-  const [teamIsEditing, setTeamIsEditing] = useState<boolean>(false);
-  const [teamIsRemoving, setTeamIsRemoving] = useState<boolean>(false);
+  const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -96,7 +93,7 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onCreateSubmit = useCallback(
     (formData: ITeamFormData) => {
-      setTeamIsLoading(true);
+      setIsUpdatingTeams(true);
       teamsAPI
         .create(formData)
         .then(() => {
@@ -116,7 +113,7 @@ const TeamManagementPage = (): JSX.Element => {
           }
         })
         .finally(() => {
-          setTeamIsLoading(false);
+          setIsUpdatingTeams(false);
         });
     },
     [toggleCreateTeamModal]
@@ -124,7 +121,7 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (teamEditing) {
-      setTeamIsRemoving(true);
+      setIsUpdatingTeams(true);
       teamsAPI
         .destroy(teamEditing.id)
         .then(() => {
@@ -137,7 +134,7 @@ const TeamManagementPage = (): JSX.Element => {
           );
         })
         .finally(() => {
-          setTeamIsRemoving(true);
+          setIsUpdatingTeams(false);
           refetchTeams();
           toggleDeleteTeamModal();
         });
@@ -149,7 +146,7 @@ const TeamManagementPage = (): JSX.Element => {
       if (formData.name === teamEditing?.name) {
         toggleEditTeamModal();
       } else if (teamEditing) {
-        setTeamIsEditing(true);
+        setIsUpdatingTeams(true);
         teamsAPI
           .update(formData, teamEditing.id)
           .then(() => {
@@ -175,7 +172,7 @@ const TeamManagementPage = (): JSX.Element => {
             }
           })
           .finally(() => {
-            setTeamIsEditing(false);
+            setIsUpdatingTeams(false);
           });
       }
     },
@@ -211,8 +208,8 @@ const TeamManagementPage = (): JSX.Element => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Read about teams&nbsp;
-                <FleetIcon name="external-link" />
+                Read about teams
+                <img src={ExternalLinkIcon} alt="Open external link" />
               </a>
             </p>
             <Button
@@ -256,7 +253,7 @@ const TeamManagementPage = (): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={teams && teams.length > 0 && searchString !== ""}
-          disablePagination
+          isClientSidePagination
         />
       )}
       {showCreateTeamModal && (
@@ -264,7 +261,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
-          isLoading={teamIsLoading}
+          isUpdatingTeams={isUpdatingTeams}
         />
       )}
       {showDeleteTeamModal && (
@@ -272,7 +269,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={teamEditing?.name || ""}
-          isLoading={teamIsRemoving}
+          isUpdatingTeams={isUpdatingTeams}
         />
       )}
       {showEditTeamModal && (
@@ -281,7 +278,7 @@ const TeamManagementPage = (): JSX.Element => {
           onSubmit={onEditSubmit}
           defaultName={teamEditing?.name || ""}
           backendValidators={backendValidators}
-          isLoading={teamIsEditing}
+          isUpdatingTeams={isUpdatingTeams}
         />
       )}
     </div>

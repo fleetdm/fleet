@@ -197,7 +197,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+			Features: fleet.Features{EnableSoftwareInventory: true},
 		}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -229,7 +229,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config)
+	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -251,7 +251,7 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	defer cancelFunc()
 
 	appConfig := &fleet.AppConfig{
-		HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+		Features: fleet.Features{EnableSoftwareInventory: true},
 	}
 	ds := new(mock.Store)
 
@@ -266,7 +266,7 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
+	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath, &fleet.LicenseInfo{Tier: "premium"})
 	require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
 }
 
@@ -279,7 +279,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		// host_settings.enable_software_inventory is false
+		// features.enable_software_inventory is false
 		return &fleet.AppConfig{}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -301,7 +301,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		CurrentInstanceChecks: "1",
 	}
 
-	go cronVulnerabilities(ctx, ds, logger, "AAA", &config)
+	go cronVulnerabilities(ctx, ds, logger, "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.

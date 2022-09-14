@@ -22,11 +22,12 @@ const baseClass = "app-config-form";
 const HostStatusWebhook = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [
     showHostStatusWebhookPreviewModal,
     setShowHostStatusWebhookPreviewModal,
-  ] = useState<boolean>(false);
+  ] = useState(false);
   const [formData, setFormData] = useState<any>({
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
@@ -206,6 +207,8 @@ const HostStatusWebhook = ({
           type="submit"
           variant="brand"
           disabled={Object.keys(formErrors).length > 0}
+          className="save-loading"
+          isLoading={isUpdatingSettings}
         >
           Save
         </Button>

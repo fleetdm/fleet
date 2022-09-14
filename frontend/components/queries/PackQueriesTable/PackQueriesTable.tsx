@@ -29,7 +29,7 @@ const PackQueriesTable = ({
   scheduledQueries,
   isLoadingPackQueries,
 }: IPackQueriesTableProps): JSX.Element => {
-  const [querySearchText, setQuerySearchText] = useState<string>("");
+  const [querySearchText, setQuerySearchText] = useState("");
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
