@@ -156,7 +156,7 @@ These other event tables are also available in osquery. We will provide more inf
 | seccomp_events | Linux | --audit_allow_seccomp_events |
 | selinux_events | Linux | --audit_allow_selinux_events=true |
 | syslog_events | Linux | no additional flags needed |
-| user_interaction_events | macOS |
+| user_interaction_events | macOS | --enable_keyboard_events=true --enable_mouse_events=true |
 | user_events | Linux | --audit_allow_user_events=true |
 | windows_events | Windows | --enable_windows_events_publisher=true |
 | powershell_events | Windows | --enable_powershell_events_subscriber=true |
