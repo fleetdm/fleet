@@ -1,4 +1,4 @@
-# Front-end testing strategy and plan
+# Fleet UI testing
 
 This document contains the testing strategy and plan for the frontend codebase. The testing
 strategy is a high-level overview of the **who**, **what**, **when** and **why** when it comes to testing.
@@ -372,3 +372,5 @@ For more details on our E2E testing, check out our [Cypress documentation](../..
 #### Error states
 
 // TODO
+
+<meta name="pageOrderInSection" value="250">
