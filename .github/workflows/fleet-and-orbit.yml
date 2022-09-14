@@ -194,6 +194,11 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      with:
+        limit-access-to-actor: true
+
     - name: Install xar
       run: |
         sudo apt-get update
