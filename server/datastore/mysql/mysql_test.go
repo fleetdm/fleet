@@ -343,11 +343,11 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 func TestAppendListOptionsToSQL(t *testing.T) {
 	sql := "SELECT * FROM my_table"
 	opts := fleet.ListOptions{
-		OrderKey: "name",
+		OrderKey: "***name***",
 	}
 
 	actual := appendListOptionsToSQL(sql, opts)
-	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
+	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
@@ -355,7 +355,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
 	actual = appendListOptionsToSQL(sql, opts)
-	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
+	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
 	}
