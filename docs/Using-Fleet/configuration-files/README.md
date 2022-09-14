@@ -419,7 +419,7 @@ For more information about integrations and Fleet automations in general, see th
 
 It's recommended to use the Fleet UI to configure integrations since secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
 
-#### Org info
+#### Organization information
 
 ##### org_info.org_name
 
