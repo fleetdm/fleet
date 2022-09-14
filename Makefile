@@ -339,10 +339,6 @@ endif
 #
 # Output: desktop.app.tar.gz
 desktop-app-tar-gz:
-ifneq ($(shell uname), Darwin)
-	@echo "Makefile target desktop-app-tar-gz is only supported on macOS"
-	@exit 1
-endif
 	go run ./tools/desktop macos
 
 FLEET_DESKTOP_VERSION ?= unknown

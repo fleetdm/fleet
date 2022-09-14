@@ -130,10 +130,6 @@ func createMacOSApp(version, authority string, notarize bool) error {
 `
 	)
 
-	if runtime.GOOS != "darwin" {
-		return errors.New(`the "Fleet Desktop" macOS app can only be created from macOS`)
-	}
-
 	defer os.RemoveAll(appDir)
 
 	contentsDir := filepath.Join(appDir, "Contents")
@@ -194,6 +190,10 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	}
 
 	if authority != "" {
+		if runtime.GOOS != "darwin" {
+			return errors.New(`the "Fleet Desktop" macOS app can only be signed from macOS`)
+		}
+
 		codeSign := exec.Command("codesign", "-s", authority, "-i", bundleIdentifier, "-f", "-v", "--timestamp", "--options", "runtime", appDir)
 
 		zlog.Info().Str("command", codeSign.String()).Msg("Sign Fleet Desktop.app")
