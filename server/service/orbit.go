@@ -96,7 +96,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 	return orbitNodeKey, nil
 }
 
-func getOrbitFlagsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	opts, err := svc.GetOrbitFlags(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil

@@ -65,7 +65,7 @@ func (oc *OrbitClient) DoEnroll() (string, error) {
 }
 
 func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
-	verb, path := "POST", "/api/latest/fleet/orbit/flags"
+	verb, path := "POST", "/api/latest/fleet/orbit/config"
 	params := orbitGetConfigRequest{OrbitNodeKey: orbitNodeKey}
 	var resp orbitGetConfigResponse
 	err := oc.request(verb, path, params, &resp)
