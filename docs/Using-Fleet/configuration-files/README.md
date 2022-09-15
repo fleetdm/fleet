@@ -13,7 +13,7 @@ Changes are applied to Fleet when the configuration file is applied using fleetc
 
 ## Queries
 
-The `query` YAML file controls Fleet's organization settings.
+The `query` YAML file controls queries in Fleet.
 
 You can define one or more queries in the same file with with `---`.
 
@@ -45,7 +45,7 @@ spec:
 
 Continued edits and applications to this file will update the queries. 
 
-If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
+If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
 
 ## Packs
 
