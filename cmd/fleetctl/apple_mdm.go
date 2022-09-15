@@ -30,6 +30,9 @@ func appleMDMCommand() *cli.Command {
 			appleMDMSetupCommand(),
 			appleMDMEnrollmentsCommand(),
 			appleMDMEnqueueCommandCommand(),
+			appleMDMEnqueueCommandInstallProfileCommand(),
+			appleMDMEnqueueCommandRemoveProfileCommand(),
+			appleMDMEnqueueCommandProfileListCommand(),
 			appleMDMCommandResultsCommand(),
 			appleMDMInstallersCommand(),
 		},
@@ -390,7 +393,7 @@ func appleMDMEnrollmentsListCommand() *cli.Command {
 func appleMDMEnqueueCommandCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "enqueue-command",
-		Usage: "Enqueue an MDM command.",
+		Usage: "Enqueue an MDM command. See the results using the command-results command and passing the command UUID that is returned from this command..",
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
 				Name:     "device-ids",
@@ -430,18 +433,19 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 
 			return nil
 		},
-		Subcommands: []*cli.Command{
-			appleMDMEnqueueCommandInstallProfileCommand(),
-			appleMDMEnqueueCommandRemoveProfileCommand(),
-			appleMDMEnqueueCommandProfileListCommand(),
-		},
 	}
 }
 
 func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 	return &cli.Command{
-		Name: "InstallProfile",
+		Name:  "enqueue-command-install-profile",
+		Usage: "Enqueue the InstallProfile MDM command.",
 		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:     "device-ids",
+				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Required: true,
+			},
 			&cli.StringFlag{
 				Name:     "mobileconfig",
 				Usage:    "The mobileconfig file containing the profile to install.",
@@ -488,14 +492,19 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 
 			return nil
 		},
-		Subcommands: []*cli.Command{},
 	}
 }
 
 func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 	return &cli.Command{
-		Name: "RemoveProfile",
+		Name:  "enqueue-command-remove-profile",
+		Usage: "Enqueue the RemoveProfile MDM command.",
 		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:     "device-ids",
+				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Required: true,
+			},
 			&cli.StringFlag{
 				Name:     "identifier",
 				Usage:    "The PayloadIdentifier value for the profile to remove eg cis.macOSBenchmark.section2.SecureKeyboard.",
@@ -545,7 +554,15 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 
 func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 	return &cli.Command{
-		Name: "ProfileList",
+		Name:  "enqueue-command-profile-list",
+		Usage: "Enqueue the ProfileList MDM command.",
+		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:     "device-ids",
+				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Required: true,
+			},
+		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
 			if err != nil {
