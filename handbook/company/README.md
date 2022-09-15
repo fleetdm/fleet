@@ -184,14 +184,6 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Declassify with care (easier to overlook confidential info when declassifying vs. when changing something that is already public from the get-go).
   - [Open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674).
 
-## Why this way?
-
-TODO: Preamble + link to [See here](./why-this-way.md)
-
-## Development groups
-
-TODO: Preamble + link to [See here](./development-groups.md)
-
 ## History
 
 ### 2014: Origins of osquery
@@ -205,6 +197,14 @@ When Kolide's attention shifted away from Fleet, and towards their separate, use
 
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+
+## Why this way?
+
+Fleet has a unique way of organizing work. For more information, check out this page [Why this way](./why-this-way.md).
+
+## Development groups
+
+Fleet organizes development groups by their goals. These include members from Design, Engineering, and Product. For more information, check out this page [Development groups](./development-groups.md).
 
 ## Levels of confidentiality
 
