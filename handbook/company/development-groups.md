@@ -130,3 +130,6 @@ These humans might be working within the "Interface" group itself insofar as the
 - Every table works intuitively with user-friendly docs and empathetic caveats, warnings, and error messages
   - Every table is documented within the Fleet UI and in fleetdm.com/docs, with GOTCHAS, deprecation notices, and the version when the table was added
 - **Make Fleet’s agents easy to operate and contribute to**
+
+<meta name="maintainedBy" value="mikermcneil">
+<meta name="title" value="Development groups">
