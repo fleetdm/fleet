@@ -11,12 +11,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListWindowsUpdates(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
-	stmt := `SELECT kb_id, date_epoch FROM windows_updates WHERE host_id = ?`
-
+func (ds *Datastore) ListWindowsUpdatesByOSID(
+	ctx context.Context,
+	osID uint,
+	offset uint,
+	limit uint,
+) ([]fleet.WindowsUpdate, error) {
+	stmt := `
+	SELECT wu.host_id, wu.kb_id, wu.date_epoch
+	FROM windows_updates wu
+	INNER JOIN host_operating_system hos ON hos.host_id = wu.host_id AND hos.os_id = ?
+	`
 	updates := []fleet.WindowsUpdate{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &updates, stmt, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &updates, stmt, osID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list windows updates")
 	}
 

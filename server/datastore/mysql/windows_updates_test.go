@@ -18,7 +18,7 @@ func TestWindowsUpdates(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"InsertWindowsUpdates", testInsertWindowsUpdates},
-		{"ListWindowsUpdates", testListWindowsUpdates},
+		{"ListWindowsUpdatesByOSID", testListWindowsUpdatesByOSID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -28,12 +28,12 @@ func TestWindowsUpdates(t *testing.T) {
 	}
 }
 
-func testListWindowsUpdates(t *testing.T, ds *Datastore) {
+func testListWindowsUpdatesByOSID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	now := uint(time.Now().Unix())
 
 	t.Run("with no stored updates", func(t *testing.T) {
-		actual, err := ds.ListWindowsUpdates(ctx, 1)
+		actual, err := ds.ListWindowsUpdatesByOSID(ctx, 1)
 		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
@@ -47,7 +47,7 @@ func testListWindowsUpdates(t *testing.T, ds *Datastore) {
 		err := ds.InsertWindowsUpdates(ctx, 1, updates)
 		require.NoError(t, err)
 
-		actual, err := ds.ListWindowsUpdates(ctx, 2)
+		actual, err := ds.ListWindowsUpdatesByOSID(ctx, 2)
 		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
@@ -61,7 +61,7 @@ func testListWindowsUpdates(t *testing.T, ds *Datastore) {
 		err := ds.InsertWindowsUpdates(ctx, 1, expected)
 		require.NoError(t, err)
 
-		actual, err := ds.ListWindowsUpdates(ctx, 1)
+		actual, err := ds.ListWindowsUpdatesByOSID(ctx, 1)
 		require.NoError(t, err)
 		require.ElementsMatch(t, expected, actual)
 	})
