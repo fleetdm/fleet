@@ -104,7 +104,7 @@ type Host struct {
 	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
 	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
 	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
-	OrbitNodeKey     string    `json:"-" db:"orbit_node_key" csv:"-"`
+	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
 	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
 	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
