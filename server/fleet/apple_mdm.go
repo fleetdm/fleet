@@ -48,3 +48,13 @@ type MDMAppleInstaller struct {
 func (m MDMAppleInstaller) AuthzType() string {
 	return "mdm_apple_installer"
 }
+
+type MDMAppleDevice struct {
+	ID           string `json:"id" db:"id"`
+	SerialNumber string `json:"serial_number" db:"serial_number"`
+	Enabled      bool   `json:"enabled" db:"enabled"`
+}
+
+func (m MDMAppleDevice) AuthzType() string {
+	return "mdm_apple_device"
+}

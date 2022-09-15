@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
@@ -41,6 +42,7 @@ func appleMDMCommand() *cli.Command {
 			appleMDMEnqueueCommandProfileListCommand(),
 			appleMDMEnqueueCommandInstallEnterpriseApplicationCommand(),
 
+			appleMDMDevicesCommand(),
 			appleMDMCommandResultsCommand(),
 			appleMDMInstallersCommand(),
 		},
@@ -668,6 +670,53 @@ func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 
 			commandUUID := result.CommandUUID
 			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
+	}
+}
+
+func appleMDMDevicesCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "devices",
+		Usage: "Inspect enrolled devices",
+		Subcommands: []*cli.Command{
+			appleMDMDevicesListCommand(),
+		},
+	}
+}
+
+func appleMDMDevicesListCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "list",
+		Usage: "List all devices",
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			devices, err := fleet.MDMAppleListDevices()
+			if err != nil {
+				return err
+			}
+
+			// format output as a table
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetRowLine(true)
+			table.SetHeader([]string{"Device ID", "Serial Number", "Enabled"})
+			table.SetAutoWrapText(false)
+			table.SetRowLine(true)
+
+			for _, device := range devices {
+				table.Append([]string{
+					device.ID,
+					device.SerialNumber,
+					strconv.FormatBool(device.Enabled),
+				})
+			}
+
+			table.Render()
 
 			return nil
 		},

@@ -284,3 +284,30 @@ func (svc *Service) GetMDMAppleInstallerByID(ctx context.Context, id uint) (*fle
 	}
 	return inst, nil
 }
+
+type listMDMAppleDevicesRequest struct{}
+
+type listMDMAppleDevicesResponse struct {
+	Devices []fleet.MDMAppleDevice `json:"devices"`
+	Err     error                  `json:"error,omitempty"`
+}
+
+func (r listMDMAppleDevicesResponse) error() error { return r.Err }
+
+func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	devices, err := svc.ListMDMAppleDevices(ctx)
+	if err != nil {
+		return listMDMAppleDevicesResponse{Err: err}, nil
+	}
+	return &listMDMAppleDevicesResponse{
+		Devices: devices,
+	}, nil
+}
+
+func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDevice{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return svc.ds.MDMAppleListDevices(ctx)
+}

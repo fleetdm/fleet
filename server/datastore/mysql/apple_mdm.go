@@ -119,7 +119,20 @@ func (ds *Datastore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) 
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("AppleInstaller").WithID(id))
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get installer by id")
+		return nil, ctxerr.Wrap(ctx, err, "get installer details by id")
 	}
 	return &installer, nil
+}
+
+func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
+	var devices []fleet.MDMAppleDevice
+	if err := sqlx.SelectContext(ctx, ds.appleMDMWriter,
+		&devices,
+		`SELECT d.id, d.serial_number, e.enabled
+		FROM devices d
+		JOIN enrollments e`,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list devices")
+	}
+	return devices, nil
 }
