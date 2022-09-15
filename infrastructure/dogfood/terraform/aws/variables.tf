@@ -113,7 +113,7 @@ variable "cloudwatch_log_retention" {
 
 variable "rds_backup_retention_period" {
   description = "number of days to keep snapshot backups"
-  default     = 7
+  default     = 30
 }
 
 variable "extra_security_group_cidrs" {
