@@ -582,6 +582,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
 | Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
+| OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
 
 
 ## Slack channels
