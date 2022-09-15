@@ -183,7 +183,7 @@ func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken 
 // Leaving this unimplemented as APNS certificate and key are not stored in MySQL storage,
 // instead they are loaded to memory at startup.
 func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
-	return fmt.Errorf("unimplemented")
+	return errors.New("unimplemented")
 }
 
 // NewMDMAppleDEPStorage returns a *nanodep_mysql.MySQLStorage that uses the Datastore

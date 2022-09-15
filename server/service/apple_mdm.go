@@ -120,3 +120,41 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 	}
 	return nil
 }
+
+type getMDMAppleCommandResultsRequest struct {
+	CommandUUID string `query:"command_uuid,optional"`
+}
+
+type getMDMAppleCommandResultsResponse struct {
+	Results map[string]*fleet.MDMAppleCommandResult `json:"results,omitempty"`
+	Err     error                                   `json:"error,omitempty"`
+}
+
+func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
+
+func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getMDMAppleCommandResultsRequest)
+	results, err := svc.GetMDMAppleCommandResults(ctx, req.CommandUUID)
+	if err != nil {
+		return getMDMAppleCommandResultsResponse{
+			Err: err,
+		}, nil
+	}
+
+	return getMDMAppleCommandResultsResponse{
+		Results: results,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleCommandResult{}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}

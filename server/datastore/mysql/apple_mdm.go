@@ -41,3 +41,36 @@ func (ds *Datastore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) 
 	}
 	return &enrollment, nil
 }
+
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+	query := `
+SELECT
+    id,
+    command_uuid,
+    status,
+    result
+FROM
+    command_results
+WHERE
+    command_uuid = ?
+`
+
+	var results []*fleet.MDMAppleCommandResult
+	err := sqlx.SelectContext(
+		ctx,
+		ds.appleMDMWriter,
+		&results,
+		query,
+		commandUUID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get command results")
+	}
+
+	resultsMap := make(map[string]*fleet.MDMAppleCommandResult, len(results))
+	for _, result := range results {
+		resultsMap[result.ID] = result
+	}
+
+	return resultsMap, nil
+}

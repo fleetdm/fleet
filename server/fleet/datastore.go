@@ -627,6 +627,7 @@ type Datastore interface {
 
 	NewMDMAppleEnrollment(ctx context.Context, enrollment MDMAppleEnrollmentPayload) (*MDMAppleEnrollment, error)
 	MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*MDMAppleEnrollment, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 }
 
 const (

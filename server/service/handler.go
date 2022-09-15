@@ -405,6 +405,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Currently defined here to reuse functionality present in this package only (authEndpointer, etc.).
 	if config.MDMApple.Enable {
 		ue.POST("/api/_version_/fleet/mdm/apple/enrollments", createMDMAppleEnrollmentEndpoint, createMDMAppleEnrollmentRequest{})
+		ue.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 	}
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
