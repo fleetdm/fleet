@@ -11,13 +11,13 @@
  * did not result in an accompanying certificate. I.e. some problem with
  * signing that certificate. The timestamp here could be used to look at
  * the logs for that case. */
-CREATE TABLE scep_serials (
+CREATE TABLE IF NOT EXISTS scep_serials (
     serial BIGINT NOT NULL AUTO_INCREMENT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (serial)
 );
 
-CREATE TABLE scep_certificates (
+CREATE TABLE IF NOT EXISTS scep_certificates (
     serial BIGINT NOT NULL,
 
     -- the name field should contain either the common name of the

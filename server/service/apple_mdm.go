@@ -6,12 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/google/uuid"
+	"github.com/groob/plist"
+	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/client"
 )
 
@@ -157,4 +161,92 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	}
 
 	return results, nil
+}
+
+type uploadMacOSInstallerRequest struct {
+	Installer *multipart.FileHeader
+}
+
+type uploadMacOSInstallerResponse struct {
+	ID  uint  `json:"installer_id"`
+	Err error `json:"error,omitempty"`
+}
+
+func (uploadMacOSInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseMultipartForm(32 << 20) // 32Mb
+	if err != nil {
+		// Check if badRequestError makes sense here.
+		return nil, &badRequestError{message: err.Error()}
+	}
+	installer := r.MultipartForm.File["installer"][0]
+	return &uploadMacOSInstallerRequest{
+		Installer: installer,
+	}, nil
+}
+
+func (r uploadMacOSInstallerResponse) error() error { return r.Err }
+
+func uploadMacOSInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*uploadMacOSInstallerRequest)
+	ff, err := req.Installer.Open()
+	if err != nil {
+		return uploadMacOSInstallerResponse{Err: err}, nil
+	}
+	defer ff.Close()
+	installer, err := svc.UploadMDMAppleInstaller(ctx, req.Installer.Filename, req.Installer.Size, ff)
+	if err != nil {
+		return uploadMacOSInstallerResponse{Err: err}, nil
+	}
+	return &uploadMacOSInstallerResponse{
+		ID: installer.ID,
+	}, nil
+}
+
+func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	urlToken, err := uuid.NewRandom()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	var installerBuf bytes.Buffer
+	// TODO(lucas): Define proper path for endpoint.
+	url := "https://" + svc.config.MDMApple.ServerAddress + "/mdm/apple/installer?token=" + urlToken.String()
+	manifest, err := createManifest(size, io.TeeReader(installer, &installerBuf), url)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	inst, err := svc.ds.NewMDMAppleInstaller(ctx, name, size, manifest, installerBuf.Bytes(), urlToken.String())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return inst, nil
+}
+
+func createManifest(size int64, installer io.Reader, url string) (string, error) {
+	manifest, err := appmanifest.Create(&readerWithSize{
+		Reader: installer,
+		size:   size,
+	}, url)
+	if err != nil {
+		return "", fmt.Errorf("create manifest file: %w", err)
+	}
+	var buf bytes.Buffer
+	enc := plist.NewEncoder(&buf)
+	enc.Indent("  ")
+	if err := enc.Encode(manifest); err != nil {
+		return "", fmt.Errorf("encode manifest: %w", err)
+	}
+	return buf.String(), nil
+}
+
+type readerWithSize struct {
+	io.Reader
+	size int64
+}
+
+func (r *readerWithSize) Size() int64 {
+	return r.size
 }

@@ -455,6 +455,10 @@ type MDMAppleEnrollmentFunc func(ctx context.Context, enrollmentID uint) (*fleet
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error)
 
+type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
+
+type MDMAppleInstallerFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1118,6 +1122,12 @@ type DataStore struct {
 
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
+
+	NewMDMAppleInstallerFunc        NewMDMAppleInstallerFunc
+	NewMDMAppleInstallerFuncInvoked bool
+
+	MDMAppleInstallerFunc        MDMAppleInstallerFunc
+	MDMAppleInstallerFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2223,4 +2233,14 @@ func (s *DataStore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
 	s.GetMDMAppleCommandResultsFuncInvoked = true
 	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
+	s.NewMDMAppleInstallerFuncInvoked = true
+	return s.NewMDMAppleInstallerFunc(ctx, name, size, manifest, installer, urlToken)
+}
+
+func (s *DataStore) MDMAppleInstaller(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
+	s.MDMAppleInstallerFuncInvoked = true
+	return s.MDMAppleInstallerFunc(ctx, token)
 }

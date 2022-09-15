@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
@@ -18,6 +19,8 @@ func appleMDMCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "apple-mdm",
 		Usage: "Apple MDM functionality",
+		// Apple MDM functionality will be merged but hidden until we release MVP publicly.
+		Hidden: true,
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -28,6 +31,7 @@ func appleMDMCommand() *cli.Command {
 			appleMDMEnrollmentsCommand(),
 			appleMDMEnqueueCommandCommand(),
 			appleMDMCommandResultsCommand(),
+			appleMDMInstallersCommand(),
 		},
 	}
 }
@@ -616,6 +620,49 @@ func appleMDMCommandResultsCommand() *cli.Command {
 
 			table.Render()
 
+			return nil
+		},
+	}
+}
+
+func appleMDMInstallersCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "installers",
+		Usage: "Commands to manage macOS installers",
+		Subcommands: []*cli.Command{
+			appleMDMInstallersUploadCommand(),
+		},
+	}
+}
+
+func appleMDMInstallersUploadCommand() *cli.Command {
+	var path string
+	return &cli.Command{
+		Name:  "upload",
+		Usage: "Upload a macOS installer to Fleet",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "path",
+				Usage:       "Path to the installer",
+				Destination: &path,
+				Required:    true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+			fp, err := os.Open(path)
+			if err != nil {
+				return fmt.Errorf("open path %q: %w", path, err)
+			}
+			defer fp.Close()
+			installerID, err := fleet.UploadMDMAppleInstaller(c.Context, filepath.Base(path), fp)
+			if err != nil {
+				return fmt.Errorf("upload installer: %w", err)
+			}
+			fmt.Printf("Installer uploaded successfully, id=%d", installerID)
 			return nil
 		},
 	}

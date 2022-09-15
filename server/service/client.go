@@ -84,16 +84,7 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 	}
 }
 
-func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
-	var bodyBytes []byte
-	var err error
-	if params != nil {
-		bodyBytes, err = json.Marshal(params)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
-		}
-	}
-
+func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
@@ -123,6 +114,18 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	}
 
 	return resp, nil
+}
+
+func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
+	var bodyBytes []byte
+	var err error
+	if params != nil {
+		bodyBytes, err = json.Marshal(params)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+		}
+	}
+	return c.doContextWithBodyAndHeaders(ctx, verb, path, rawQuery, bodyBytes, headers)
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {

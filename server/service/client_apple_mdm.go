@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -110,4 +113,44 @@ func (c *Client) MDMAppleGetCommandResults(commandUUID string) (map[string]*flee
 	}
 
 	return responseBody.Results, nil
+}
+
+func (c *Client) UploadMDMAppleInstaller(ctx context.Context, name string, installer io.Reader) (uint, error) {
+	if c.token == "" {
+		return 0, errors.New("authentication token is empty")
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	fw, err := writer.CreateFormFile("installer", name)
+	if err != nil {
+		return 0, fmt.Errorf("create form file: %w", err)
+	}
+	_, err = io.Copy(fw, installer)
+	if err != nil {
+		return 0, fmt.Errorf("write form file: %w", err)
+	}
+	writer.Close()
+
+	var (
+		verb = "POST"
+		path = "/api/latest/fleet/mdm/apple/installers"
+	)
+	response, err := c.doContextWithBodyAndHeaders(ctx, verb, path, "",
+		body.Bytes(),
+		map[string]string{
+			"Content-Type":  writer.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", c.token),
+		},
+	)
+	if err != nil {
+		return 0, fmt.Errorf("do multipart request: %w", err)
+	}
+
+	var installerResponse uploadMacOSInstallerResponse
+	if err := c.parseResponse(verb, path, response, &installerResponse); err != nil {
+		return 0, fmt.Errorf("parse response: %w", err)
+	}
+	return installerResponse.ID, nil
 }

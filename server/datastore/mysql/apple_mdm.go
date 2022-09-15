@@ -74,3 +74,37 @@ WHERE
 
 	return resultsMap, nil
 }
+
+func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
+	res, err := ds.appleMDMWriter.ExecContext(ctx,
+		`INSERT INTO mdm_apple_installers (name, size, manifest, installer, url_token) VALUES (?, ?, ?, ?, ?)`,
+		name, size, manifest, installer, urlToken,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	id, _ := res.LastInsertId()
+	return &fleet.MDMAppleInstaller{
+		ID:        uint(id),
+		Size:      size,
+		Name:      name,
+		Manifest:  manifest,
+		Installer: installer,
+		URLToken:  urlToken,
+	}, nil
+}
+
+func (ds *Datastore) MDMAppleInstaller(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
+	var installer fleet.MDMAppleInstaller
+	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
+		&installer,
+		`SELECT id, name, size, manifest, installer, url_token FROM mdm_apple_installers WHERE url_token = ?`,
+		token,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AppleInstaller").WithName(token))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get installer by token")
+	}
+	return &installer, nil
+}

@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -75,6 +76,9 @@ func registerServices(ctx context.Context, mux *http.ServeMux, config SetupConfi
 	}
 	if err := registerEnroll(ctx, mux, config); err != nil {
 		return fmt.Errorf("enroll endpoint: %w", err)
+	}
+	if err := registerInstaller(ctx, mux, config); err != nil {
+		return fmt.Errorf("installer endpoint: %w", err)
 	}
 	registerDEPProxy(mux, config)
 	return nil
@@ -400,4 +404,46 @@ func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic stri
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return contents.Bytes(), nil
+}
+
+func registerInstaller(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
+	installerLogger := kitlog.With(config.Logger, "handler", "enroll-profile")
+	mux.HandleFunc("/mdm/apple/installer", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			installerLogger.Log("err", "invalid method")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		values := r.URL.Query()
+		tv, ok := values["token"]
+		if !ok || len(tv) != 1 || tv[0] == "" {
+			installerLogger.Log("err", "invalid token", "value", tv)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		token := tv[0]
+		installer, err := config.Datastore.MDMAppleInstaller(ctx, token)
+		if err != nil {
+			installerLogger.Log("err", err, "token", token)
+			status := http.StatusInternalServerError
+			if fleet.IsNotFound(err) {
+				status = http.StatusNotFound
+			}
+			w.WriteHeader(status)
+			return
+		}
+		w.Header().Set("Content-Length", strconv.FormatInt(installer.Size, 10))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, installer.Name))
+
+		// OK to just log the error here as writing anything on
+		// `http.ResponseWriter` sets the status code to 200 (and it can't be
+		// changed.) Clients should rely on matching content-length with the
+		// header provided
+		if n, err := w.Write(installer.Installer); err != nil {
+			logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+		}
+	})
+	return nil
 }

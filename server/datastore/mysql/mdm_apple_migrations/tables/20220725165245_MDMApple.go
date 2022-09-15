@@ -29,7 +29,7 @@ func Up_20220725165245(tx *sql.Tx) error {
 	// (3) Apply extra tables.
 	//
 	// TODO(lucas): Adding them here now, but these are Fleet Apple MDM related tables.
-	//
+
 	// TODO(lucas): Does it make sense to have two tables? `mdm_apple_automatic_enrollments`
 	// and `mdm_apple_manual_enrollments`
 	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS mdm_apple_enrollments(
@@ -37,6 +37,20 @@ func Up_20220725165245(tx *sql.Tx) error {
 		name VARCHAR(255) NOT NULL DEFAULT '',
 		-- dep_config is NULL for manual enrollments
 		dep_config JSON DEFAULT NULL,
+
+		PRIMARY KEY (id)
+	);`)
+	if err != nil {
+		return fmt.Errorf("failed to create apple_enrollments: %w", err)
+	}
+
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS mdm_apple_installers(
+		id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+		name VARCHAR(255) NOT NULL DEFAULT '',
+		size BIGINT NOT NULL,
+		manifest TEXT NOT NULL,
+		installer LONGBLOB DEFAULT NULL,
+		url_token VARCHAR(36) DEFAULT NULL,
 
 		PRIMARY KEY (id)
 	);`)

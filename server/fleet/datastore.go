@@ -628,6 +628,8 @@ type Datastore interface {
 	NewMDMAppleEnrollment(ctx context.Context, enrollment MDMAppleEnrollmentPayload) (*MDMAppleEnrollment, error)
 	MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*MDMAppleEnrollment, error)
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
+	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
 }
 
 const (

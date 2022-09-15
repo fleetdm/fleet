@@ -34,3 +34,17 @@ type MDMAppleCommandResult struct {
 func (m MDMAppleCommandResult) AuthzType() string {
 	return "mdm_apple_command_result"
 }
+
+type MDMAppleInstaller struct {
+	// TODO(lucas): Add UpdateCreateTimestamps
+	ID        uint   `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
+	Size      int64  `json:"size" db:"size"`
+	Manifest  string `json:"manifest" db:"manifest"`
+	Installer []byte `json:"-" db:"installer"`
+	URLToken  string `json:"url_token" db:"url_token"`
+}
+
+func (m MDMAppleInstaller) AuthzType() string {
+	return "mdm_apple_installer"
+}

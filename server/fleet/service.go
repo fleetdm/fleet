@@ -514,4 +514,5 @@ type Service interface {
 
 	NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload MDMAppleEnrollmentPayload) (enrollment *MDMAppleEnrollment, url string, err error)
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
 }
