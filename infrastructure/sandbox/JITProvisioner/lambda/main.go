@@ -94,6 +94,7 @@ func clearActivitiesTable(c *gin.Context, id string) (err error) {
     connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", secretEntry.Username, secretEntry.Password, secretEntry.Endpoint, id)
     // Connect to db
     db, err := sql.Open("mysql", connectionString)
+    defer db.Close()
     if err != nil {
         log.Print(err)
         return
