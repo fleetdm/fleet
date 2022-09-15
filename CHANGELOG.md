@@ -1,6 +1,6 @@
 ## Fleet 4.20.1 (Sep 15, 2022)
 
-* Fixed a bug in which vulnerability automations sent duplicate webhooks.
+* Fixed a bug in which [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations) sent duplicate webhooks.
 
 * Fixed a bug in which logging in with single sign-on (SSO) did not work after a failed authorization attempt.
 
