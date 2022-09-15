@@ -163,47 +163,47 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	return results, nil
 }
 
-type uploadMacOSInstallerRequest struct {
+type uploadAppleInstallerRequest struct {
 	Installer *multipart.FileHeader
 }
 
-type uploadMacOSInstallerResponse struct {
+type uploadAppleInstallerResponse struct {
 	ID  uint  `json:"installer_id"`
 	Err error `json:"error,omitempty"`
 }
 
-func (uploadMacOSInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseMultipartForm(32 << 20) // 32Mb
 	if err != nil {
 		// Check if badRequestError makes sense here.
 		return nil, &badRequestError{message: err.Error()}
 	}
 	installer := r.MultipartForm.File["installer"][0]
-	return &uploadMacOSInstallerRequest{
+	return &uploadAppleInstallerRequest{
 		Installer: installer,
 	}, nil
 }
 
-func (r uploadMacOSInstallerResponse) error() error { return r.Err }
+func (r uploadAppleInstallerResponse) error() error { return r.Err }
 
-func uploadMacOSInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*uploadMacOSInstallerRequest)
+func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
 	if err != nil {
-		return uploadMacOSInstallerResponse{Err: err}, nil
+		return uploadAppleInstallerResponse{Err: err}, nil
 	}
 	defer ff.Close()
 	installer, err := svc.UploadMDMAppleInstaller(ctx, req.Installer.Filename, req.Installer.Size, ff)
 	if err != nil {
-		return uploadMacOSInstallerResponse{Err: err}, nil
+		return uploadAppleInstallerResponse{Err: err}, nil
 	}
-	return &uploadMacOSInstallerResponse{
+	return &uploadAppleInstallerResponse{
 		ID: installer.ID,
 	}, nil
 }
 
 func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -249,4 +249,38 @@ type readerWithSize struct {
 
 func (r *readerWithSize) Size() int64 {
 	return r.size
+}
+
+type getAppleInstallerDetailsRequest struct {
+	ID uint `url:"installer_id"`
+}
+
+type getAppleInstallerDetailsResponse struct {
+	Installer *fleet.MDMAppleInstaller
+	Err       error `json:"error,omitempty"`
+}
+
+func (r getAppleInstallerDetailsResponse) error() error { return r.Err }
+
+func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getAppleInstallerDetailsRequest)
+	installer, err := svc.GetMDMAppleInstallerByID(ctx, req.ID)
+	if err != nil {
+		return getAppleInstallerDetailsResponse{Err: err}, nil
+	}
+	return &getAppleInstallerDetailsResponse{
+		Installer: installer,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleInstallerByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	inst, err := svc.ds.MDMAppleInstallerDetailsByID(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return inst, nil
 }

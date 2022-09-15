@@ -108,3 +108,18 @@ func (ds *Datastore) MDMAppleInstaller(ctx context.Context, token string) (*flee
 	}
 	return &installer, nil
 }
+
+func (ds *Datastore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
+	var installer fleet.MDMAppleInstaller
+	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
+		&installer,
+		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers WHERE id = ?`,
+		id,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AppleInstaller").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get installer by id")
+	}
+	return &installer, nil
+}

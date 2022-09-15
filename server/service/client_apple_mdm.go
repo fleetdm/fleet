@@ -148,9 +148,21 @@ func (c *Client) UploadMDMAppleInstaller(ctx context.Context, name string, insta
 		return 0, fmt.Errorf("do multipart request: %w", err)
 	}
 
-	var installerResponse uploadMacOSInstallerResponse
+	var installerResponse uploadAppleInstallerResponse
 	if err := c.parseResponse(verb, path, response, &installerResponse); err != nil {
 		return 0, fmt.Errorf("parse response: %w", err)
 	}
 	return installerResponse.ID, nil
+}
+
+func (c *Client) MDMAppleGetInstallerDetails(id uint) (*fleet.MDMAppleInstaller, error) {
+	verb, path := http.MethodGet, fmt.Sprintf("/api/latest/fleet/mdm/apple/installers/%d", id)
+
+	var responseBody getAppleInstallerDetailsResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	if err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	return responseBody.Installer, nil
 }

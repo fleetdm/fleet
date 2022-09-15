@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/groob/plist"
+	"github.com/micromdm/micromdm/mdm/appmanifest"
+	"github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
@@ -30,9 +33,14 @@ func appleMDMCommand() *cli.Command {
 			appleMDMSetupCommand(),
 			appleMDMEnrollmentsCommand(),
 			appleMDMEnqueueCommandCommand(),
+
+			// TODO(lucas, michal): Having all commands defined here is a workaround for an issue
+			// with urfave/cli package when nesting subcommands.
 			appleMDMEnqueueCommandInstallProfileCommand(),
 			appleMDMEnqueueCommandRemoveProfileCommand(),
 			appleMDMEnqueueCommandProfileListCommand(),
+			appleMDMEnqueueCommandInstallEnterpriseApplicationCommand(),
+
 			appleMDMCommandResultsCommand(),
 			appleMDMInstallersCommand(),
 		},
@@ -597,6 +605,72 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 			return nil
 		},
 		Subcommands: []*cli.Command{},
+	}
+}
+
+func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "enqueue-command-install-enterprise-application",
+		Usage: "Enqueue the InstallEnterpriseApplication MDM command.",
+		Flags: []cli.Flag{
+			&cli.StringSliceFlag{
+				Name:     "device-ids",
+				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Required: true,
+			},
+			&cli.UintFlag{
+				Name:     "installer-id",
+				Usage:    "ID of the installer to install on the target devices.",
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := c.StringSlice("device-ids")
+			if len(deviceIDs) == 0 {
+				return errors.New("must provide at least one device ID")
+			}
+
+			installerID := c.Uint("installer-id")
+			installer, err := fleet.MDMAppleGetInstallerDetails(installerID)
+			if err != nil {
+				return fmt.Errorf("get installer: %w", err)
+			}
+
+			var m appmanifest.Manifest
+			if err := plist.NewDecoder(bytes.NewReader([]byte(installer.Manifest))).Decode(&m); err != nil {
+				return fmt.Errorf("decode manifest: %w", err)
+			}
+
+			payload := &mdm.CommandPayload{
+				Command: &mdm.Command{
+					RequestType: "InstallEnterpriseApplication",
+					InstallEnterpriseApplication: &mdm.InstallEnterpriseApplication{
+						Manifest: &m,
+					},
+				},
+			}
+			// convert to xml using tabs for indentation
+			payloadBytes, err := plist.MarshalIndent(payload, "	")
+			if err != nil {
+				return fmt.Errorf("marshal command payload plist: %w", err)
+			}
+			fmt.Printf("%s\n", payloadBytes)
+
+			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return fmt.Errorf("enqueue command: %w", err)
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
 	}
 }
 

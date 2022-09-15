@@ -407,10 +407,10 @@ func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic stri
 }
 
 func registerInstaller(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
-	installerLogger := kitlog.With(config.Logger, "handler", "enroll-profile")
+	installerLogger := kitlog.With(config.Logger, "handler", "register-installer")
 	mux.HandleFunc("/mdm/apple/installer", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			installerLogger.Log("err", "invalid method")
+		if r.Method != "GET" && r.Method != "HEAD" {
+			installerLogger.Log("err", "invalid method", "method", r.Method)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -436,6 +436,11 @@ func registerInstaller(ctx context.Context, mux *http.ServeMux, config SetupConf
 		w.Header().Set("Content-Length", strconv.FormatInt(installer.Size, 10))
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, installer.Name))
+
+		if r.Method == "HEAD" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 
 		// OK to just log the error here as writing anything on
 		// `http.ResponseWriter` sets the status code to 200 (and it can't be

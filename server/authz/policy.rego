@@ -515,16 +515,23 @@ allow {
 # Apple MDM
 ##
 
-# Global admins can read and write Apple MDM enrollments
+# Global admins can read and write Apple MDM enrollments.
 allow {
   object.type == "mdm_apple_enrollment"
   subject.global_role == admin
   action == [read, write][_]
 }
 
-# Global admins can read and write Apple MDM command results
+# Global admins can read and write Apple MDM command results.
 allow {
   object.type == "mdm_apple_command_result"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write Apple MDM installers.
+allow {
+  object.type == "mdm_apple_installer"
   subject.global_role == admin
   action == [read, write][_]
 }

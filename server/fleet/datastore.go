@@ -630,6 +630,7 @@ type Datastore interface {
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
 	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
+	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
 }
 
 const (
