@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -253,6 +254,7 @@ func appleMDMSetDEPTokenFinalizeCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("decrypt token: %w", err)
 			}
+			//nolint:gosec // G101: no credentials, just the file name.
 			tokenPath := "fleet-mdm-apple-dep.token"
 			if err := os.WriteFile(tokenPath, token, defaultFileMode); err != nil {
 				return fmt.Errorf("write token file: %w", err)
@@ -405,7 +407,7 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 
 			deviceIDs := c.StringSlice("device-ids")
 			if len(deviceIDs) == 0 {
-				return fmt.Errorf("must provide at least one device ID")
+				return errors.New("must provide at least one device ID")
 			}
 
 			payloadFilename := c.String("command-payload")
@@ -450,7 +452,7 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 
 			deviceIDs := c.StringSlice("device-ids")
 			if len(deviceIDs) == 0 {
-				return fmt.Errorf("must provide at least one device ID")
+				return errors.New("must provide at least one device ID")
 			}
 
 			profilePayloadFilename := c.String("mobileconfig")
@@ -467,7 +469,7 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 			}
 
 			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, plist.XMLFormat, "	")
+			payloadBytes, err := plist.MarshalIndent(payload, "	")
 			if err != nil {
 				return fmt.Errorf("marshal command payload plist: %w", err)
 			}
@@ -504,7 +506,7 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 
 			deviceIDs := c.StringSlice("device-ids")
 			if len(deviceIDs) == 0 {
-				return fmt.Errorf("must provide at least one device ID")
+				return errors.New("must provide at least one device ID")
 			}
 
 			identifier := c.String("identifier")
@@ -517,7 +519,7 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 			}
 
 			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, plist.XMLFormat, "	")
+			payloadBytes, err := plist.MarshalIndent(payload, "	")
 			if err != nil {
 				return fmt.Errorf("marshal command payload plist: %w", err)
 			}
@@ -548,7 +550,7 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 
 			deviceIDs := c.StringSlice("device-ids")
 			if len(deviceIDs) == 0 {
-				return fmt.Errorf("must provide at least one device ID")
+				return errors.New("must provide at least one device ID")
 			}
 
 			payload := &apple.CommandPayload{
@@ -558,7 +560,7 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 			}
 
 			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, plist.XMLFormat, "	")
+			payloadBytes, err := plist.MarshalIndent(payload, "	")
 			if err != nil {
 				return fmt.Errorf("marshal command payload plist: %w", err)
 			}

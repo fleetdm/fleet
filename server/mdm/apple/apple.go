@@ -2,8 +2,10 @@ package apple
 
 const DEPName = "fleet"
 
-const EnrollmentProfileID = "com.github.fleetdm.fleet.mdm.enroll"
-const PayloadTypeMDM = "com.apple.mdm"
+const (
+	EnrollmentProfileID = "com.github.fleetdm.fleet.mdm.enroll"
+	PayloadTypeMDM      = "com.apple.mdm"
+)
 
 // Profile is an apple configuration profile
 // TODO:use github.com/groob/plist for encoding, need to add tags
@@ -21,21 +23,6 @@ type ProfileType string
 const (
 	ProfileTypeEnrollment ProfileType = "enrollment"
 )
-
-// mobileconfig contains the top leve properties for configuring Device
-// Management Profiles.
-//
-// See https://developer.apple.com/documentation/devicemanagement/toplevel.
-type mobileconfig struct {
-	PayloadDescription       string
-	PayloadDisplayName       string
-	PayloadType              string      // Can only be Configuration
-	PayloadContent           interface{} // based on type, can be an array or dict?
-	PayloadIdentifier        string
-	PayloadUUID              string
-	PayloadVersion           int
-	PayloadRemovalDisallowed bool
-}
 
 // Payload contains payload keys common to all payloads. Including profiles.
 // See https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles#3234127
