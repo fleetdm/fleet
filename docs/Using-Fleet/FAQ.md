@@ -8,7 +8,6 @@
   - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
   - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
   - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-  - [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
   - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
   - [Where are my query results?](#where-are-my-query-results)
     - [Live queries](#live-queries)
@@ -27,6 +26,7 @@
   - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
   - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+  - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
   - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
   - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
   - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
@@ -82,12 +82,6 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 ## How do I monitor a Fleet server?
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./Monitoring-Fleet.md) documentation for details.
-
-## Why is the “Add User” button disabled?
-
-The “Add User” button is disabled if SMTP (email) has not been configured for the Fleet server. Currently, there is no way to add new users without email capabilities.
-
-One way to hack around this is to use a simulated mailserver like [Mailhog](https://github.com/mailhog/MailHog). You can retrieve the email that was “sent” in the Mailhog UI, and provide users with the invite URL manually.
 
 ## Can I disable password-based authentication in the Fleet UI?
 
@@ -210,6 +204,10 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 ```
 
 You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
+
+## When will the newest version of osquery be available to Orbit?
+
+When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
 
 ## Can I bundle osquery extensions into Orbit?
 
@@ -341,9 +339,9 @@ Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 ### Online hosts
 
-**Online** hosts are devices that are connected to Fleet and will respond to a live query.
+**Online** hosts will respond to a live query.
 
-Fleet considers a device as online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
+A host is online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
 A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
 The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts
 and in the **Settings > Teams > TEAM NAME > Agent options** page for hosts that belong to a team.
@@ -358,5 +356,5 @@ A host is considered online if it has connected to Fleet in the last 80 (20+60) 
 
 ### Offline hosts
 
-**Offline** hosts are devices that are not online. These hosts may be devices that are turned off or not connected to the internet.
-A host could also be marked as offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
+**Offline** hosts won't respond to a live query. These hosts may be shut down, asleep, or not connected to the internet.
+A host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
