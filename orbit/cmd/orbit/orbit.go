@@ -476,11 +476,11 @@ func main() {
 
 		}
 
-		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"))
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
-		orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"), enrollSecret, uuidStr)
+		orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
 		if err != nil {
 			return fmt.Errorf("error enroll: %w", err)
 		}
@@ -703,7 +703,7 @@ func getUUID(osqueryPath string) (string, error) {
 
 // getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
 // otherwise it enrolls the host with Fleet and saves the node key to disk
-func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enrollSecret string, uuidStr string) (string, error) {
+func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (string, error) {
 	nodeKeyFilePath := filepath.Join(rootDir, "secret-orbit-node-key.txt")
 	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
 	switch {
@@ -720,7 +720,7 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enroll
 		orbitEnrollRetrySleep = 5 * time.Second
 	)
 	for ; retries < orbitEnrollMaxRetries; retries++ {
-		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath, enrollSecret, uuidStr)
+		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath)
 		if err != nil {
 			log.Info().Err(err).Msg("enroll failed, retrying")
 			time.Sleep(orbitEnrollRetrySleep)
@@ -731,8 +731,8 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enroll
 	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", retries)
 }
 
-func enrollAndWriteNodeKeyFile(orbitClient *service.Client, nodeKeyFilePath, enrollSecret, uuidStr string) (string, error) {
-	orbitNodeKey, err := orbitClient.DoEnroll(enrollSecret, uuidStr)
+func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath string) (string, error) {
+	orbitNodeKey, err := orbitClient.DoEnroll()
 	if err != nil {
 		return "", fmt.Errorf("enroll request: %w", err)
 	}
@@ -741,6 +741,47 @@ func enrollAndWriteNodeKeyFile(orbitClient *service.Client, nodeKeyFilePath, enr
 	}
 	return orbitNodeKey, nil
 }
+
+//// getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
+//// otherwise it enrolls the host with Fleet and saves the node key to disk
+//func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enrollSecret string, uuidStr string) (string, error) {
+//	nodeKeyFilePath := filepath.Join(rootDir, "secret-orbit-node-key.txt")
+//	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
+//	switch {
+//	case err == nil:
+//		return string(orbitNodeKey), nil
+//	case errors.Is(err, fs.ErrNotExist):
+//		// OK
+//	default:
+//		return "", fmt.Errorf("read orbit node key file: %w", err)
+//	}
+//	retries := 0
+//	const (
+//		orbitEnrollMaxRetries = 10
+//		orbitEnrollRetrySleep = 5 * time.Second
+//	)
+//	for ; retries < orbitEnrollMaxRetries; retries++ {
+//		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath, enrollSecret, uuidStr)
+//		if err != nil {
+//			log.Info().Err(err).Msg("enroll failed, retrying")
+//			time.Sleep(orbitEnrollRetrySleep)
+//			continue
+//		}
+//		return orbitNodeKey, nil
+//	}
+//	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", retries)
+//}
+//
+//func enrollAndWriteNodeKeyFile(orbitClient *service.Client, nodeKeyFilePath, enrollSecret, uuidStr string) (string, error) {
+//	orbitNodeKey, err := orbitClient.DoEnroll(enrollSecret, uuidStr)
+//	if err != nil {
+//		return "", fmt.Errorf("enroll request: %w", err)
+//	}
+//	if err := os.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
+//		return "", fmt.Errorf("write orbit node key file: %w", err)
+//	}
+//	return orbitNodeKey, nil
+//}
 
 func loadOrGenerateToken(rootDir string) (string, error) {
 	filePath := filepath.Join(rootDir, "identifier")

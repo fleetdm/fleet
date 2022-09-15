@@ -51,7 +51,7 @@ type Service interface {
 	OsqueryService
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
-	GetOrbitFlags(ctx context.Context, orbitNodeKey string) (flags json.RawMessage, err error)
+	GetOrbitFlags(ctx context.Context) (flags json.RawMessage, err error)
 
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.

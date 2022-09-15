@@ -17,7 +17,7 @@ import (
 )
 
 type FlagRunner struct {
-	orbitClient *service.Client
+	orbitClient *service.OrbitClient
 	opt         FlagUpdateOptions
 	cancel      chan struct{}
 }
@@ -28,7 +28,7 @@ type FlagUpdateOptions struct {
 	OrbitNodeKey  string
 }
 
-func NewFlagRunner(orbitClient *service.Client, opt FlagUpdateOptions) (*FlagRunner, error) {
+func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) (*FlagRunner, error) {
 	r := &FlagRunner{
 		orbitClient: orbitClient,
 		opt:         opt,

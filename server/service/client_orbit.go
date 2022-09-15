@@ -1,80 +1,76 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 )
 
-type enrollOrbitResponse struct {
-	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
-	Err          error  `json:"error,omitempty"`
+type OrbitClient struct {
+	*baseClient
+	enrollSecret string
+	hardwareUUID string
 }
 
-type orbitGetConfigRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-}
+func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
+	var bodyBytes []byte
+	var err error
+	if params != nil {
+		bodyBytes, err = json.Marshal(params)
+		if err != nil {
+			return fmt.Errorf("making requst json marshalling : %w", err)
+		}
+	}
 
-func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitGetConfigResponse struct {
-	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
-}
-
-func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool) (*Client, error) {
-	return NewClient(addr, insecureSkipVerify, rootCA, "")
-}
-
-func (c *Client) DoEnroll(enrollSecret string, hardwareUUID string) (string, error) {
-	verb, path := "POST", "/api/latest/fleet/orbit/enroll"
-	params := enrollOrbitRequest{EnrollSecret: enrollSecret, HardwareUUID: hardwareUUID}
-	response, err := c.Do(verb, path, "", params)
-
+	request, err := http.NewRequest(
+		verb,
+		oc.url(path, "").String(),
+		bytes.NewBuffer(bodyBytes),
+	)
 	if err != nil {
-		return "", fmt.Errorf("POST /api/latest/fleet/orbit/enroll: %w", err)
+		return err
+	}
+	response, err := oc.http.Do(request)
+	if err != nil {
+		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Error POST /api/latest/fleet/orbit/enroll: %w", err)
-	}
+	return oc.parseResponse(verb, path, response, resp)
+}
 
-	body, err := ioutil.ReadAll(response.Body)
+func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool, enrollSecret, hardwareUUID string) (*OrbitClient, error) {
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "")
 	if err != nil {
-		return "", fmt.Errorf("Error POST /api/latest/fleet/orbit/enroll: %w", err)
+		return nil, err
 	}
 
+	return &OrbitClient{
+		baseClient:   bc,
+		enrollSecret: enrollSecret,
+		hardwareUUID: hardwareUUID,
+	}, nil
+}
+
+func (oc *OrbitClient) DoEnroll() (string, error) {
+	verb, path := "POST", "/api/latest/fleet/orbit/enroll"
+	params := enrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.hardwareUUID}
 	var resp enrollOrbitResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return "", fmt.Errorf("Error POST /api/latest/fleet/orbit/enroll: %w", err)
+	err := oc.request(verb, path, params, &resp)
+	if err != nil {
+		return "", err
 	}
 	return resp.OrbitNodeKey, nil
 }
 
-func (c *Client) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
+func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 	verb, path := "POST", "/api/latest/fleet/orbit/flags"
 	params := orbitGetConfigRequest{OrbitNodeKey: orbitNodeKey}
-	response, err := c.Do(verb, path, "", params)
-
+	var resp orbitGetConfigResponse
+	err := oc.request(verb, path, params, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", response.Status)
-	}
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", err)
-	}
-
-	resp := &orbitGetConfigResponse{
-		Flags: body,
+		return nil, err
 	}
 
 	return resp.Flags, nil

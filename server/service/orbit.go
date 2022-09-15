@@ -19,6 +19,24 @@ type enrollOrbitRequest struct {
 	HardwareUUID string `json:"hardware_uuid"`
 }
 
+type enrollOrbitResponse struct {
+	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
+	Err          error  `json:"error,omitempty"`
+}
+
+type orbitGetConfigRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetConfigResponse struct {
+	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
+	Err   error           `json:"error,omitempty"`
+}
+
 func (e orbitError) Error() string {
 	return e.message
 }
@@ -79,15 +97,14 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 }
 
 func getOrbitFlagsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*orbitGetConfigRequest)
-	opts, err := svc.GetOrbitFlags(ctx, req.OrbitNodeKey)
+	opts, err := svc.GetOrbitFlags(ctx)
 	if err != nil {
-		return enrollOrbitResponse{Err: err}, nil
+		return orbitGetConfigResponse{Err: err}, nil
 	}
-	return opts, nil
+	return orbitGetConfigResponse{Flags: opts}, nil
 }
 
-func (svc *Service) GetOrbitFlags(ctx context.Context, orbitNodeKey string) (json.RawMessage, error) {
+func (svc *Service) GetOrbitFlags(ctx context.Context) (json.RawMessage, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
