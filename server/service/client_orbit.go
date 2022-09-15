@@ -7,11 +7,6 @@ import (
 	"net/http"
 )
 
-type enrollOrbitRequest struct {
-	EnrollSecret string `json:"enroll_secret"`
-	HardwareUUID string `json:"hardware_uuid"`
-}
-
 type enrollOrbitResponse struct {
 	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
 	Err          error  `json:"error,omitempty"`
@@ -70,7 +65,7 @@ func (c *Client) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", err)
+		return nil, fmt.Errorf("POST /api/latest/fleet/orbit/flags: %w", response.Status)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)

@@ -15,6 +15,5 @@ const (
 	// running processes/tasks.
 	DesktopAppExecName = "fleet-desktop"
 	// Interval for flags update
-	OrbitFlagsInterval    = 30 * time.Second
-	OrbitEnrollMaxRetries = 10
+	OrbitFlagsInterval = 30 * time.Second
 )

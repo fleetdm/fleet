@@ -353,7 +353,7 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Info().Msg("running single query (SELECT uuid FROM system_info)")
+		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
 		uuidStr, err := getUUID(osquerydPath)
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
@@ -409,7 +409,7 @@ func main() {
 			certPath = filepath.Join(os.TempDir(), "fleet.crt")
 
 			// Write cert that proxy uses
-			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -705,33 +705,41 @@ func getUUID(osqueryPath string) (string, error) {
 // otherwise it enrolls the host with Fleet and saves the node key to disk
 func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enrollSecret string, uuidStr string) (string, error) {
 	nodeKeyFilePath := filepath.Join(rootDir, "secret-orbit-node-key.txt")
-	orbitNodeKeyBytes, err := ioutil.ReadFile(nodeKeyFilePath)
-	orbitNodeKey := string(orbitNodeKeyBytes)
-	retries := 0
-	enrollSuccess := false
-	for !enrollSuccess && retries < constant.OrbitEnrollMaxRetries {
-		switch {
-		case err == nil:
-			enrollSuccess = true
-		case errors.Is(err, fs.ErrNotExist):
-			// unsuccessful reading from file, make an enroll request to fleet server
-			orbitNodeKey, err = orbitClient.DoEnroll(enrollSecret, uuidStr)
-			if err != nil {
-				retries++
-			}
-			err = ioutil.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode)
-			if err != nil {
-				retries++
-			}
-			enrollSuccess = true
-		default:
-			retries++
-		}
+	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
+	switch {
+	case err == nil:
+		return string(orbitNodeKey), nil
+	case errors.Is(err, fs.ErrNotExist):
+		// OK
+	default:
+		return "", fmt.Errorf("read orbit node key file: %w", err)
 	}
-	if enrollSuccess {
+	retries := 0
+	const (
+		orbitEnrollMaxRetries = 10
+		orbitEnrollRetrySleep = 5 * time.Second
+	)
+	for ; retries < orbitEnrollMaxRetries; retries++ {
+		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath, enrollSecret, uuidStr)
+		if err != nil {
+			log.Info().Err(err).Msg("enroll failed, retrying")
+			time.Sleep(orbitEnrollRetrySleep)
+			continue
+		}
 		return orbitNodeKey, nil
 	}
-	return "", fmt.Errorf("orbit node key enroll failed: %w", err)
+	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", retries)
+}
+
+func enrollAndWriteNodeKeyFile(orbitClient *service.Client, nodeKeyFilePath, enrollSecret, uuidStr string) (string, error) {
+	orbitNodeKey, err := orbitClient.DoEnroll(enrollSecret, uuidStr)
+	if err != nil {
+		return "", fmt.Errorf("enroll request: %w", err)
+	}
+	if err := os.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("write orbit node key file: %w", err)
+	}
+	return orbitNodeKey, nil
 }
 
 func loadOrGenerateToken(rootDir string) (string, error) {
@@ -745,7 +753,7 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("generate identifier: %w", err)
 		}
-		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+		if err := os.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
 			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
 		}
 		return id.String(), nil

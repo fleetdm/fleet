@@ -5,21 +5,22 @@ import (
 	"encoding/json"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type orbitError struct {
-	message     string
-	nodeInvalid bool
+	message string
+}
+
+type enrollOrbitRequest struct {
+	EnrollSecret string `json:"enroll_secret"`
+	HardwareUUID string `json:"hardware_uuid"`
 }
 
 func (e orbitError) Error() string {
 	return e.message
-}
-
-func (e orbitError) NodeInvalid() bool {
-	return e.nodeInvalid
 }
 
 func (r enrollOrbitResponse) error() error { return r.Err }
@@ -61,26 +62,17 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 
 	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
-		return "", orbitError{
-			message:     "orbit enroll failed: " + err.Error(),
-			nodeInvalid: true,
-		}
+		return "", orbitError{message: "orbit enroll failed: " + err.Error()}
 	}
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", orbitError{
-			message:     "failed to generate orbit node key: " + err.Error(),
-			nodeInvalid: true,
-		}
+		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
 	}
 
 	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey)
 	if err != nil {
-		return "", orbitError{
-			message:     "failed to enroll " + err.Error(),
-			nodeInvalid: true,
-		}
+		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}
 
 	return orbitNodeKey, nil
@@ -99,12 +91,9 @@ func (svc *Service) GetOrbitFlags(ctx context.Context, orbitNodeKey string) (jso
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
-	if err != nil {
-		return nil, orbitError{
-			message:     "failed to find host by orbit node key: " + orbitNodeKey,
-			nodeInvalid: true,
-		}
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, orbitError{message: "internal error: missing host from request context"}
 	}
 
 	// team ID is not nil, get team specific flags and options

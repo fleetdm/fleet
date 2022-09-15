@@ -754,7 +754,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 			}
 		case errors.Is(err, sql.ErrNoRows):
 			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
-			//sqlInsert := `INSERT INTO hosts (osquery_host_id, uuid, orbit_node_key) VALUES (?, ?, ?)`
+			// create a new host
 			sqlInsert := `
 				INSERT INTO hosts (
 				    last_enrolled_at,               
@@ -768,7 +768,6 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 				    orbit_node_key
 				) VALUES (?, ?, ?, ?, ?, ?, 1, ?)
 			`
-			//_, err := tx.ExecContext(ctx, sqlInsert, hardwareUUID, hardwareUUID, orbitNodeKey)
 			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, "", nil, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")

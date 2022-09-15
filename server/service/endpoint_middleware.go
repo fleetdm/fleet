@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -162,7 +163,7 @@ func getOrbitNodeKey(r interface{}) (string, error) {
 	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
 		return onk.orbitHostNodeKey(), nil
 	}
-	return "", fmt.Errorf("error getting orbit node key")
+	return "", errors.New("error getting orbit node key")
 }
 
 func getNodeKey(r interface{}) (string, error) {
