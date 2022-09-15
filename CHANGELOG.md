@@ -1,3 +1,15 @@
+## Fleet 4.20.1 (Sep 15, 2022)
+
+* Fixed a bug in which [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations) sent duplicate webhooks.
+
+* Fixed a bug in which logging in with single sign-on (SSO) did not work after a failed authorization attempt.
+
+* Fixed a migration error. This only affects Fleet instances that use MariaDB. MariaDB is not [officially supported](https://fleetdm.com/docs/deploying/faq#what-my-sql-versions-are-supported). Future issues specific to MariaDB may not be fixed quickly (or at all). We strongly advise migrating to MySQL 8.0.19+.
+
+* Fixed a bug on the **Edit pack** page in which no targets are shown in the target picker.
+
+* Fixed a styling bug on the **Host details > Query > Select a query** modal.
+
 ## Fleet 4.20.0 (Sep 9, 2022)
 
 * Add ability to know how many hosts, and which hosts, have Munki issues. This information is presented on the **Home > macOS** page and **Host details** page. This information is also available in the [`GET /api/v1/fleet/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) and [`GET /api/v1/fleet/hosts/{id}/macadmins`](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-mobile-device-management-mdm-and-munki-information) and API routes.
