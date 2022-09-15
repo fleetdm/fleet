@@ -53,6 +53,7 @@ require (
 	github.com/macadmins/osquery-extension v0.0.7
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.13
+	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanodep v0.1.0
 	github.com/micromdm/nanomdm v0.3.0
 	github.com/micromdm/scep/v2 v2.1.0
@@ -239,7 +240,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mattn/go-tty v0.0.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
-	github.com/micromdm/micromdm v1.9.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
