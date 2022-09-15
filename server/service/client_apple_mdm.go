@@ -178,3 +178,15 @@ func (c *Client) MDMAppleListDevices() ([]fleet.MDMAppleDevice, error) {
 
 	return responseBody.Devices, nil
 }
+
+func (c *Client) DEPListDevices() ([]fleet.MDMAppleDEPDevice, error) {
+	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/dep/devices"
+
+	var responseBody listMDMAppleDEPDevicesResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	if err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	return responseBody.Devices, nil
+}

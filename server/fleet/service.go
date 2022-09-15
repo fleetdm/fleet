@@ -517,4 +517,5 @@ type Service interface {
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
 	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
+	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
 }

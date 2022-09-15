@@ -17,6 +17,7 @@ import (
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/godep"
 )
 
 type createMDMAppleEnrollmentRequest struct {
@@ -310,4 +311,42 @@ func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	}
 
 	return svc.ds.MDMAppleListDevices(ctx)
+}
+
+type listMDMAppleDEPDevicesRequest struct{}
+
+type listMDMAppleDEPDevicesResponse struct {
+	Devices []fleet.MDMAppleDEPDevice `json:"devices"`
+	Err     error                     `json:"error,omitempty"`
+}
+
+func (r listMDMAppleDEPDevicesResponse) error() error { return r.Err }
+
+func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	devices, err := svc.ListMDMAppleDEPDevices(ctx)
+	if err != nil {
+		return listMDMAppleDEPDevicesResponse{Err: err}, nil
+	}
+	return &listMDMAppleDEPDevicesResponse{
+		Devices: devices,
+	}, nil
+}
+
+func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppleDEPDevice, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
+
+	// TODO(lucas): Use cursors and limit.
+	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple.DEPName)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	devices := make([]fleet.MDMAppleDEPDevice, len(fetchDevicesResponse.Devices))
+	for i := range fetchDevicesResponse.Devices {
+		devices[i] = fleet.MDMAppleDEPDevice{Device: fetchDevicesResponse.Devices[i]}
+	}
+	return devices, nil
 }

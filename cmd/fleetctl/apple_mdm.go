@@ -42,6 +42,7 @@ func appleMDMCommand() *cli.Command {
 			appleMDMEnqueueCommandProfileListCommand(),
 			appleMDMEnqueueCommandInstallEnterpriseApplicationCommand(),
 
+			appleMDMDEPCommand(),
 			appleMDMDevicesCommand(),
 			appleMDMCommandResultsCommand(),
 			appleMDMInstallersCommand(),
@@ -713,6 +714,71 @@ func appleMDMDevicesListCommand() *cli.Command {
 					device.ID,
 					device.SerialNumber,
 					strconv.FormatBool(device.Enabled),
+				})
+			}
+
+			table.Render()
+
+			return nil
+		},
+	}
+}
+
+func appleMDMDEPCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "dep",
+		Usage: "Device Enrollment Program commands",
+		Subcommands: []*cli.Command{
+			appleMDMDEPListCommand(),
+		},
+	}
+}
+
+func appleMDMDEPListCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "list",
+		Usage: "List all DEP devices from the linked MDM server in Apple Business Manager",
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			devices, err := fleet.DEPListDevices()
+			if err != nil {
+				return err
+			}
+
+			// format output as a table
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetRowLine(true)
+			table.SetHeader([]string{
+				"Serial Number",
+				"OS",
+				"Family",
+				"Model",
+				"Description",
+				"Color",
+				"Asset Tag",
+				"Profile Status",
+				"Assigned Date",
+				"Assigned By",
+			})
+			table.SetAutoWrapText(false)
+			table.SetRowLine(true)
+
+			for _, device := range devices {
+				table.Append([]string{
+					device.SerialNumber,
+					device.OS,
+					device.DeviceFamily,
+					device.Model,
+					device.Description,
+					device.Color,
+					device.AssetTag,
+					device.ProfileStatus,
+					device.DeviceAssignedDate.String(),
+					device.DeviceAssignedBy,
 				})
 			}
 

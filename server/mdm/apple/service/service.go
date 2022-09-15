@@ -21,10 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
-	"github.com/micromdm/nanodep/proxy"
 	depsync "github.com/micromdm/nanodep/sync"
 	"github.com/micromdm/nanomdm/certverify"
 	"github.com/micromdm/nanomdm/cryptoutil"
@@ -80,7 +78,6 @@ func registerServices(ctx context.Context, mux *http.ServeMux, config SetupConfi
 	if err := registerInstaller(ctx, mux, config); err != nil {
 		return fmt.Errorf("installer endpoint: %w", err)
 	}
-	registerDEPProxy(mux, config)
 	return nil
 }
 
@@ -225,24 +222,6 @@ func registerEnroll(ctx context.Context, mux *http.ServeMux, config SetupConfig)
 		}
 	})
 	return nil
-}
-
-func registerDEPProxy(mux *http.ServeMux, config SetupConfig) {
-	stdLogger := stdlog.New(
-		kitlog.NewStdlibAdapter(
-			kitlog.With(config.Logger, "component", "http-mdm-apple-dep")),
-		"", stdlog.LstdFlags,
-	)
-	depLogger := nanodep_stdlogfmt.New(stdLogger, config.LoggingDebug)
-	p := proxy.New(
-		client.NewTransport(http.DefaultTransport, http.DefaultClient, config.DEPStorage, nil),
-		config.DEPStorage,
-		depLogger.With("component", "proxy"),
-	)
-	var proxyHandler http.Handler = proxy.ProxyDEPNameHandler(p, depLogger.With("handler", "proxy"))
-	proxyHandler = http.StripPrefix("/mdm/apple/proxy/", proxyHandler)
-	proxyHandler = delHeaderMiddleware(proxyHandler, "Authorization")
-	mux.Handle("/mdm/apple/proxy/", proxyHandler)
 }
 
 func startDEPRoutine(ctx context.Context, config SetupConfig) error {

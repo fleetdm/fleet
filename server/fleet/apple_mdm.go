@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"encoding/json"
+
+	"github.com/micromdm/nanodep/godep"
 )
 
 type MDMAppleEnrollmentPayload struct {
@@ -57,4 +59,12 @@ type MDMAppleDevice struct {
 
 func (m MDMAppleDevice) AuthzType() string {
 	return "mdm_apple_device"
+}
+
+type MDMAppleDEPDevice struct {
+	godep.Device
+}
+
+func (m MDMAppleDEPDevice) AuthzType() string {
+	return "mdm_apple_dep_device"
 }
