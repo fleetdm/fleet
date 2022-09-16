@@ -1,11 +1,8 @@
 import React from "react";
 
-import { fireEvent, render, screen } from "@testing-library/react";
-
+import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/testingUtils";
-
 import paths from "router/paths";
-
 import SummaryTile from "./SummaryTile";
 
 import TestIcon from "../../../../../../assets/images/icon-windows-black-24x24@2x.png";
@@ -45,7 +42,6 @@ describe("SummaryTile - component", () => {
     );
 
     const tile = screen.getByTestId("tile");
-
     expect(tile).toHaveStyle(`opacity: ${LOADING_OPACITY}`);
     expect(tile).toBeVisible();
   });

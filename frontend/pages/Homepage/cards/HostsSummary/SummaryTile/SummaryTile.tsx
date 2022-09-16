@@ -1,7 +1,6 @@
 import React from "react";
-import { browserHistory, InjectedRouter } from "react-router";
+import { browserHistory } from "react-router";
 import Button from "components/buttons/Button";
-import PATHS from "router/paths";
 import { kebabCase } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
