@@ -2,7 +2,7 @@
 
 ![osquery… as a threat hunting platform?](../website/assets/images/articles/osquery-for-threat-hunting-1600x900@2x.jpg)
 
-Detecting and containing a security incident isn’t easy, even in the simplest of computer infrastructures. Responders need to piece together the timeline of events that led to an intrusion. And they need to do so quickly.
+Detecting and containing a security incident isn’t easy even in the simplest of computer infrastructures. Responders need to piece together the timeline of events that led to an intrusion. And they need to do so quickly.
 
 In order to reconstruct an incident, you want as much information as possible. One of the most comprehensive strategies is using forensic tools to identify suspicious activity from device memory lists. But this takes a lot of time and effort.
 
@@ -16,13 +16,11 @@ Security teams must use proactive threat detection strategies and reactive incid
 
 ![osquery… as a threat hunting platform?](../website/assets/images/articles/osquery-for-threat-hunting-2-1600x900@2x.jpg)
 
-Osquery was built by Facebook engineers who needed a way to look inside heterogeneous device inventories. This open-source agent helps security engineers collect detailed system data from workstations and servers across organizations of all sizes.
+[Facebook engineers built osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1) to inspect complex device inventories. This open-source agent makes it easy to monitor operating system internals for computers. It extracts a rich data set from a system that you can easily query to uncover specific artifacts linked to that system. But collecting quality data wasn’t the only reason for creating osquery.
 
-Osquery makes it easy to monitor operating system internals for computers. As a quick and cost-effective endpoint monitoring tool, osquery extracts a rich data set from a system that you can easily query to uncover specific artifacts linked to that system.
+Imagine how many endpoints an organization like Facebook has. Inspecting all these devices could strain systems and diminish performance if not cause downtime. That’s why osquery was designed to be lightweight. Security teams can identify, investigate, and proactively track threats on hundreds of thousands of devices — making osquery a powerful tool for triage.
 
-Collecting quality data wasn’t the only reason behind the creation of osquery. Imagine how many endpoints an organization like Facebook has. Inspecting all these devices could strain systems and diminish performance if not lead to downtime. That’s why osquery was designed to be lightweight. Security teams can identify, investigate, and proactively track threats on hundreds of thousands of devices — making osquery a powerful tool for triage.
-
-Simply put, osquery acts as a single source of truth, a threat hunting platform for large-scale monitoring and detection of Indicators of Compromise (IoC) and Tactics, Techniques, and Procedures (TTP).
+Simply put, osquery acts as a single source of truth for security responders who need detailed data from every workstation and server. It’s a threat hunting platform for large-scale monitoring and detection of indicators of compromise (IoC) as well as Tactics, Techniques, and Procedures (TTP).
 
 This provides an important link between analysts and operating system internals. Analysts can query running processes, changes in the file system, logged-in users, loaded kernel modules, installed packages, and Syslog messages — all from a database-like structure.
 
@@ -34,9 +32,9 @@ You can view artifacts like running processes, bash history, open network socket
 
 With osquery, you can use queries to ask devices many different questions that help you identify, monitor, and manage threats. For instance, a query could be written to detect all processes currently running on a system or to flag servers with a root login during a specific time frame. Such queries are crucial when performing an audit of a system or investigating a breach.
 
-Security teams can also install osquery as a service and run scheduled or real-time queries. This data helps blue teamers define a baseline and set flags for outlying behavior that might indicate a security threat. Osquery lets you collect all kinds of device data that could help you hunt for threats and respond to them when exploited.
+Osquery lets you collect device data that could help you hunt for threats and respond to them when exploited. Security teams can install osquery and run scheduled or real-time queries. This reliable data helps blue teamers define a baseline and set flags for outlying behavior that might indicate a security threat. But first, you have to know which queries to run.
 
-You can try out these kinds of queries yourself. Maintained by [Recon InfoSec](https://twitter.com/Recon_InfoSec), the [Recon Hunt Queries](https://rhq.reconinfosec.com/) repo consolidates queries focused on incident response and threat hunting. Browse [general queries](https://rhq.reconinfosec.com/general/file_enumeration/) or find queries [by tactic](https://rhq.reconinfosec.com/tactics/initial_access/). The [Threat Hunting with Osquery](https://github.com/Kirtar22/ThreatHunting_with_Osquery) repo also has dozens of queries to help cyber threat analysts with their hunting or investigation exercises. Cloud Security Engineer [Pepe Burba](https://twitter.com/__pberba__) wrote a blog series about [hunting for persistence in Linux](https://pberba.github.io/security/2021/11/22/linux-threat-hunting-for-persistence-sysmon-auditd-webshell/#overview-of-blog-series). He explains how you can use osquery to [find evidence of web shells](https://pberba.github.io/security/2021/11/22/linux-threat-hunting-for-persistence-sysmon-auditd-webshell/#17-hunting-for-web-shells-using-osquery).
+Maintained by [Recon InfoSec](https://twitter.com/Recon_InfoSec), the [Recon Hunt Queries](https://rhq.reconinfosec.com/) repo consolidates queries focused on incident response and threat hunting. Browse [general queries](https://rhq.reconinfosec.com/general/file_enumeration/) or find queries [by tactic](https://rhq.reconinfosec.com/tactics/initial_access/). The [Threat Hunting with Osquery](https://github.com/Kirtar22/ThreatHunting_with_Osquery) repo also has dozens of queries to help cyber threat analysts with their hunting or investigation exercises. Cloud Security Engineer [Pepe Burba](https://twitter.com/__pberba__) wrote a blog series about [hunting for persistence in Linux](https://pberba.github.io/security/2021/11/22/linux-threat-hunting-for-persistence-sysmon-auditd-webshell/#overview-of-blog-series). He explains how you can use osquery to [find evidence of web shells](https://pberba.github.io/security/2021/11/22/linux-threat-hunting-for-persistence-sysmon-auditd-webshell/#17-hunting-for-web-shells-using-osquery).
 
 ## Reduce security risk
 
@@ -44,11 +42,11 @@ Companies need to rethink the fragmented, siloed approaches to cybersecurity. Mo
 
 Looking inside computers shouldn’t be this difficult. Your threat hunting platform should be a single source of truth. But osquery isn’t limited to endpoint security. It’s one solution that provides workstation and server visibility across IT, SRE, and even DevOps.
 
-Osquery is a powerful platform. Fleet makes it easy for companies to harness that power at scale. Fleet comes out of the box with a [query library](https://fleetdm.com/queries) that’s maintained by members of our community. So, you can start collecting accurate, actionable endpoint data right away. [Play around in Fleet Sandbox](https://fleetdm.com/try-fleet/register) to try Fleet on your device. Happy hunting.
+Osquery is a powerful platform. Like any new tool, it will take time and resources to make the most of it. Luckily, osquery managers simplify implementation and management for security teams. That’s where Fleet can help. Fleet makes it easy for companies to harness the power of osquery at scale. Fleet comes out of the box with a [query library](https://fleetdm.com/queries) that’s maintained by members of our community. So, you can start collecting accurate, actionable endpoint data right away. [Play in Fleet Sandbox](https://fleetdm.com/try-fleet/register) to try Fleet on your device. Happy hunting.
 
 <meta name="category" value="security">
 <meta name="authorFullName" value="Chris McGillicuddy">
 <meta name="authorGitHubUsername" value="chris-mcgillicuddy">
-<meta name="publishedOn" value="2022-09-15">
+<meta name="publishedOn" value="2022-09-16">
 <meta name="articleTitle" value="Osquery… as a threat hunting platform?">
 <meta name="articleImageUrl" value="../website/assets/images/articles/osquery-for-threat-hunting-1600x900@2x.jpg">
