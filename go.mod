@@ -317,8 +317,8 @@ require (
 
 replace github.com/kolide/kit => github.com/zwass/kit v0.0.0-20210625184505-ec5b5c5cce9c
 
-replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20220726144012-8df23dee99e9
+replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20220919170804-15d7f85f0ea7
 
-replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20220729174237-bb4cb0fbe9da
+replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20220919174611-6952196b3d20
 
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03

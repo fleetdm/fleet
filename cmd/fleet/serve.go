@@ -198,7 +198,6 @@ the way that the Fleet server works.
 			if config.Logging.TracingEnabled {
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
-			opts = append(opts, mysql.WithMDMApple(config.MDMApple.Enable))
 
 			mds, err := mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
@@ -229,14 +228,6 @@ the way that the Fleet server works.
 			}
 
 			migrationStatusCheck(migrationStatus, config.Upgrades.AllowMissingMigrations, dev, config.Mysql.Database)
-
-			if config.MDMApple.Enable {
-				mdmAppleMigrationStatus, err := mds.MigrationMDMAppleStatus(cmd.Context())
-				if err != nil {
-					initFatal(err, "retrieving mdm apple migration status")
-				}
-				migrationStatusCheck(mdmAppleMigrationStatus, config.Upgrades.AllowMissingMigrations, dev, config.Mysql.DatabaseMDMApple)
-			}
 
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {

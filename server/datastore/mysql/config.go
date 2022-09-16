@@ -25,9 +25,6 @@ type dbOptions struct {
 	tracingConfig       *config.LoggingConfig
 	minLastOpenedAtDiff time.Duration
 	sqlMode             string
-	mdmApple            bool
-	multiStatements     bool
-	disableParseTime    bool
 }
 
 // Logger adds a logger to the datastore.
@@ -84,22 +81,6 @@ func WithFleetConfig(conf *config.FleetConfig) DBOption {
 func SQLMode(mode string) DBOption {
 	return func(o *dbOptions) error {
 		o.sqlMode = mode
-		return nil
-	}
-}
-
-// WithMDMApple can be used to enable/disable Apple MDM MySQL DB.
-func WithMDMApple(v bool) DBOption {
-	return func(o *dbOptions) error {
-		o.mdmApple = v
-		return nil
-	}
-}
-
-// WithMultiStatements enables/disables MySQL multi-statements support.
-func WithMultiStatements(v bool) DBOption {
-	return func(o *dbOptions) error {
-		o.multiStatements = v
 		return nil
 	}
 }

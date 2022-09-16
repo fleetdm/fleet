@@ -24,8 +24,6 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	mdm_apple_migrations_data "github.com/fleetdm/fleet/v4/server/datastore/mysql/mdm_apple_migrations/data"
-	mdm_apple_migrations_tables "github.com/fleetdm/fleet/v4/server/datastore/mysql/mdm_apple_migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -64,9 +62,8 @@ type dbReader interface {
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	reader         dbReader // so it cannot be used to perform writes
-	writer         *sqlx.DB
-	appleMDMWriter *sqlx.DB
+	reader dbReader // so it cannot be used to perform writes
+	writer *sqlx.DB
 
 	logger log.Logger
 	clock  clock.Clock
@@ -117,7 +114,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 //
 // TODO(lucas): Discuss alternative approaches.
 func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*scep_mysql.MySQLDepot, error) {
-	s, err := scep_mysql.NewMySQLDepot(ds.appleMDMWriter.DB, caCertPEM, caKeyPEM)
+	s, err := scep_mysql.NewMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +126,7 @@ func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*s
 //
 // TODO(lucas): Discuss alternative approaches.
 func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
-	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.appleMDMWriter.DB))
+	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.writer.DB))
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +188,7 @@ func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []by
 //
 // TODO(lucas): Discuss alternative approaches.
 func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, error) {
-	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.appleMDMWriter.DB))
+	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.writer.DB))
 	if err != nil {
 		return nil, err
 	}
@@ -369,22 +366,9 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
-	var dbAppleMDMWriter *sqlx.DB
-	if options.mdmApple {
-		configMDMApple := config
-		configMDMApple.Database = configMDMApple.DatabaseMDMApple
-		// TODO(lucas): Check if we can get around with having parseTime=true.
-		configMDMApple.DisableParseTime = true
-		dbAppleMDMWriter, err = newDB(&configMDMApple, options)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	ds := &Datastore{
 		writer:              dbWriter,
 		reader:              dbReader,
-		appleMDMWriter:      dbAppleMDMWriter,
 		logger:              options.logger,
 		clock:               c,
 		config:              config,
@@ -450,12 +434,6 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	if opts.sqlMode != "" {
 		conf.SQLMode = opts.sqlMode
 	}
-	if opts.multiStatements {
-		conf.MultiStatements = true
-	}
-	if opts.disableParseTime {
-		conf.DisableParseTime = true
-	}
 
 	dsn := generateMysqlConnectionString(*conf)
 	db, err := sqlx.Open(driverName, dsn)
@@ -518,19 +496,6 @@ func (ds *Datastore) MigrateTables(ctx context.Context) error {
 
 func (ds *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(ds.writer.DB, "")
-}
-
-// MigrateMDMAppleTables applies the table migrations for the Apple MDM schema.
-func (ds *Datastore) MigrateMDMAppleTables(ctx context.Context) error {
-	return mdm_apple_migrations_tables.MigrationClient.Up(ds.appleMDMWriter.DB, "")
-}
-
-// MigrateMDMAppleData applies the data migrations for the Apple MDM schema.
-//
-// MDM for Apple has no data migrations but this is defined to allow for code reuse
-// of status checking and migration defined in this package.
-func (ds *Datastore) MigrateMDMAppleData(ctx context.Context) error {
-	return mdm_apple_migrations_data.MigrationClient.Up(ds.appleMDMWriter.DB, "")
 }
 
 // loadMigrations manually loads the applied migrations in ascending
@@ -621,23 +586,6 @@ func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, 
 		MissingTable: missingTable,
 		MissingData:  missingData,
 	}
-}
-
-// MigrationMDMAppleStatus returns the current status of the MDM Apple migrations
-// comparing the known migrations in code and the applied migrations in the database.
-//
-// It assumes some deployments may have performed migrations out of order.
-func (ds *Datastore) MigrationMDMAppleStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
-	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.appleMDMWriter.DB, ds.appleMDMWriter)
-	if err != nil {
-		return nil, fmt.Errorf("cannot load migrations: %w", err)
-	}
-	return compareMigrations(
-		mdm_apple_migrations_tables.MigrationClient.Migrations,
-		mdm_apple_migrations_data.MigrationClient.Migrations,
-		appliedTable,
-		appliedData,
-	), nil
 }
 
 var (
@@ -1017,19 +965,13 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"clientFoundRows":      []string{"true"},
 		"allowNativePasswords": []string{"true"},
 		"group_concat_max_len": []string{"4194304"},
-		"multiStatements":      []string{"false"},
+		"multiStatements":      []string{"true"},
 	}
 	if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {
 		params.Set("sql_mode", conf.SQLMode)
-	}
-	if conf.MultiStatements {
-		params.Set("multiStatements", "true")
-	}
-	if conf.DisableParseTime {
-		params.Set("parseTime", "false")
 	}
 
 	dsn := fmt.Sprintf(

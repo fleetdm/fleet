@@ -42,17 +42,13 @@ To setup Fleet infrastructure, use one of the available commands.
 				noPrompt = true
 			}
 
-			ds, err := mysql.New(config.Mysql, clock.C,
-				mysql.WithMDMApple(config.MDMApple.Enable),
-				// Multi-statements is required for applying MDM Apple schemas.
-				mysql.WithMultiStatements(config.MDMApple.Enable),
+			ds, err := mysql.New(
+				config.Mysql,
+				clock.C,
 			)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
-
-			// TODO(lucas): Add check to fail the command if config.MDMApple.Enable and
-			// the MySQL version is < 8.0.19.
 
 			status, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
@@ -67,22 +63,6 @@ To setup Fleet infrastructure, use one of the available commands.
 
 			if err := ds.MigrateData(cmd.Context()); err != nil {
 				initFatal(err, "migrating builtin data")
-			}
-
-			// TODO(lucas): Due to table name collisions, the Apple MDM tables are created
-			// on a separate database. Revisit.
-			if config.MDMApple.Enable {
-				status, err := ds.MigrationMDMAppleStatus(cmd.Context())
-				if err != nil {
-					initFatal(err, "retrieving migration status")
-				}
-				prepareMigrationStatusCheck(status, noPrompt, dev, config.Mysql.DatabaseMDMApple)
-				if err := ds.MigrateMDMAppleTables(cmd.Context()); err != nil {
-					initFatal(err, "migrating mdm apple db schema")
-				}
-				if err := ds.MigrateMDMAppleData(cmd.Context()); err != nil {
-					initFatal(err, "migrating mdmd apple builtin data")
-				}
 			}
 
 			fmt.Println("Migrations completed.")

@@ -12,7 +12,7 @@ import (
 func (ds *Datastore) NewMDMAppleEnrollment(
 	ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload,
 ) (*fleet.MDMAppleEnrollment, error) {
-	res, err := ds.appleMDMWriter.ExecContext(ctx,
+	res, err := ds.writer.ExecContext(ctx,
 		`INSERT INTO mdm_apple_enrollments (name, dep_config) VALUES (?, ?)`,
 		enrollment.Name, enrollment.DEPConfig,
 	)
@@ -29,7 +29,9 @@ func (ds *Datastore) NewMDMAppleEnrollment(
 
 func (ds *Datastore) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
 	var enrollments []fleet.MDMAppleEnrollment
-	if err := sqlx.SelectContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.SelectContext(
+		ctx,
+		ds.writer,
 		&enrollments,
 		`SELECT id, name, dep_config FROM mdm_apple_enrollments`,
 	); err != nil {
@@ -40,7 +42,7 @@ func (ds *Datastore) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAp
 
 func (ds *Datastore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error) {
 	var enrollment fleet.MDMAppleEnrollment
-	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.GetContext(ctx, ds.writer,
 		&enrollment,
 		`SELECT id, name, dep_config FROM mdm_apple_enrollments WHERE id = ?`,
 		enrollmentID,
@@ -61,7 +63,7 @@ SELECT
     status,
     result
 FROM
-    command_results
+    nano_command_results
 WHERE
     command_uuid = ?
 `
@@ -69,7 +71,7 @@ WHERE
 	var results []*fleet.MDMAppleCommandResult
 	err := sqlx.SelectContext(
 		ctx,
-		ds.appleMDMWriter,
+		ds.writer,
 		&results,
 		query,
 		commandUUID,
@@ -87,7 +89,8 @@ WHERE
 }
 
 func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
-	res, err := ds.appleMDMWriter.ExecContext(ctx,
+	res, err := ds.writer.ExecContext(
+		ctx,
 		`INSERT INTO mdm_apple_installers (name, size, manifest, installer, url_token) VALUES (?, ?, ?, ?, ?)`,
 		name, size, manifest, installer, urlToken,
 	)
@@ -107,7 +110,9 @@ func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size
 
 func (ds *Datastore) MDMAppleInstaller(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
 	var installer fleet.MDMAppleInstaller
-	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.GetContext(
+		ctx,
+		ds.writer,
 		&installer,
 		`SELECT id, name, size, manifest, installer, url_token FROM mdm_apple_installers WHERE url_token = ?`,
 		token,
@@ -122,7 +127,9 @@ func (ds *Datastore) MDMAppleInstaller(ctx context.Context, token string) (*flee
 
 func (ds *Datastore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
 	var installer fleet.MDMAppleInstaller
-	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.GetContext(
+		ctx,
+		ds.writer,
 		&installer,
 		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers WHERE id = ?`,
 		id,
@@ -137,7 +144,9 @@ func (ds *Datastore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) 
 
 func (ds *Datastore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
 	var installer fleet.MDMAppleInstaller
-	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.GetContext(
+		ctx,
+		ds.writer,
 		&installer,
 		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers WHERE url_token = ?`,
 		token,
@@ -152,7 +161,7 @@ func (ds *Datastore) MDMAppleInstallerDetailsByToken(ctx context.Context, token 
 
 func (ds *Datastore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
 	var installers []fleet.MDMAppleInstaller
-	if err := sqlx.SelectContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.SelectContext(ctx, ds.writer,
 		&installers,
 		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers`,
 	); err != nil {
@@ -163,13 +172,21 @@ func (ds *Datastore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMApp
 
 func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 	var devices []fleet.MDMAppleDevice
-	if err := sqlx.SelectContext(ctx, ds.appleMDMWriter,
+	if err := sqlx.SelectContext(
+		ctx,
+		ds.writer,
 		&devices,
-		`SELECT d.id, d.serial_number, e.enabled
-		FROM devices d
-		JOIN enrollments e
-		ON d.id = e.device_id
-		WHERE type = "Device"`,
+		`
+SELECT
+    d.id,
+    d.serial_number,
+    e.enabled
+FROM
+    nano_devices d
+    JOIN nano_enrollments e ON d.id = e.device_id
+WHERE
+    type = "Device"
+`,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list devices")
 	}
