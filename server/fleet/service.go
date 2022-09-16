@@ -516,6 +516,10 @@ type Service interface {
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
 	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+	GetMDMAppleInstallerByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
+	GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
+	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+	GetMDMAppleEnrollProfile(ctx context.Context, enrollID uint) (profile []byte, err error)
 }

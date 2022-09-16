@@ -32,6 +32,24 @@ nanoDEP --> mdmAppleDB;
 nanoMDM --> mdmAppleDB;
 ```
 
+## New Fleet Endpoints
+
+1. API endpoints
+- Path: `/api/_version_/fleet/mdm/apple/*`
+- Authentication: Fleet admin authenticated
+
+2. MDM protocol endpoints
+- Path: `/mdm/apple/scep` and `/mdm/apple/mdm`.
+- Authentication: MDM authentication.
+
+3. Enroll endpoint
+- Path: `/api/mdm/apple/enroll`
+- Authentication: SSO/Basic-Auth (TBD)
+
+4. Installers URL (on manifest)
+- Path: `/api/mdm/apple/installer`
+- Authentication: Secret token in URL.
+
 ## 1. Setup deployment from scratch
 
 ```sh

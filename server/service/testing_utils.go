@@ -90,7 +90,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		is = opts[0].Is
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter, nil)
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter, nil, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -206,7 +206,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+	r := MakeHandler(svc, cfg, logger, limitStore, nil, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()

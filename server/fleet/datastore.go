@@ -631,6 +631,7 @@ type Datastore interface {
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
 	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
 	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+	MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 }
 

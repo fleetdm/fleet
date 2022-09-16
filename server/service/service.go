@@ -18,6 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
+	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -52,7 +54,10 @@ type Service struct {
 
 	*fleet.EnterpriseOverrides
 
-	depStorage *mysql.NanoDEPStorage
+	depStorage     *mysql.NanoDEPStorage
+	mdmStorage     *mysql.NanoMDMStorage
+	mdmLogger      *nanomdm_stdlogfmt.Logger
+	mdmPushService *nanomdm_pushsvc.PushService
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -83,6 +88,9 @@ func NewService(
 	geoIP fleet.GeoIP,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	depStorage *mysql.NanoDEPStorage,
+	mdmStorage *mysql.NanoMDMStorage,
+	mdmLogger *nanomdm_stdlogfmt.Logger,
+	mdmPushService *nanomdm_pushsvc.PushService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -110,6 +118,9 @@ func NewService(
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,
+		mdmStorage:        mdmStorage,
+		mdmLogger:         mdmLogger,
+		mdmPushService:    mdmPushService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

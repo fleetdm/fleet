@@ -401,10 +401,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
-	// TODO(lucas): Do we want these defined here?
-	// Currently defined here to reuse functionality present in this package only (authEndpointer, etc.).
 	if config.MDMApple.Enable {
 		ue.POST("/api/_version_/fleet/mdm/apple/enrollments", createMDMAppleEnrollmentEndpoint, createMDMAppleEnrollmentRequest{})
+		ue.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 		ue.POST("/api/_version_/fleet/mdm/apple/installers", uploadAppleInstallerEndpoint, uploadAppleInstallerRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", getAppleInstallerEndpoint, getAppleInstallerDetailsRequest{})
@@ -472,6 +471,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+
+	if config.MDMApple.Enable {
+		ne.GET("/api/mdm/apple/enroll", mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
+		ne.GET("/api/mdm/apple/installer", mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
+		ne.HEAD("/api/mdm/apple/installer", mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
+	}
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	stdlog "log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -52,6 +53,9 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
+	"github.com/micromdm/nanomdm/push/buford"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -350,9 +354,11 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage *scep_mysql.MySQLDepot
-				depStorage  *mysql.NanoDEPStorage
-				mdmStorage  *mysql.NanoMDMStorage
+				scepStorage    *scep_mysql.MySQLDepot
+				depStorage     *mysql.NanoDEPStorage
+				mdmStorage     *mysql.NanoMDMStorage
+				mdmLogger      *nanomdm_stdlogfmt.Logger
+				mdmPushService *nanomdm_pushsvc.PushService
 			)
 			if config.MDMApple.Enable {
 				if err := config_apple.Verify(config.MDMApple); err != nil {
@@ -376,13 +382,25 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize mdm apple dep storage")
 				}
+				mdmLogger = nanomdm_stdlogfmt.New(
+					nanomdm_stdlogfmt.WithLogger(
+						stdlog.New(
+							kitlog.NewStdlibAdapter(
+								kitlog.With(logger, "component", "http-mdm-apple-mdm")),
+							"", stdlog.LstdFlags,
+						),
+					),
+					nanomdm_stdlogfmt.WithDebugFlag(config.Logging.Debug),
+				)
+				pushProviderFactory := buford.NewPushProviderFactory()
+				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, mdmLogger.With("service", "push"))
 			}
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage, mdmStorage, mdmLogger, mdmPushService)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

@@ -404,7 +404,7 @@ func appleMDMEnrollmentsListCommand() *cli.Command {
 func appleMDMEnqueueCommandCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "enqueue-command",
-		Usage: "Enqueue an MDM command. See the results using the command-results command and passing the command UUID that is returned from this command..",
+		Usage: "Enqueue an MDM command. See the results using the command-results command and passing the command UUID that is returned from this command.",
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
 				Name:     "device-ids",
@@ -662,7 +662,6 @@ func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("marshal command payload plist: %w", err)
 			}
-			fmt.Printf("%s\n", payloadBytes)
 
 			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
 			if err != nil {

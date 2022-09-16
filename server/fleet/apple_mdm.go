@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/micromdm/nanodep/godep"
+	"github.com/micromdm/nanomdm/mdm"
 )
 
 type MDMAppleEnrollmentPayload struct {
@@ -67,4 +68,33 @@ type MDMAppleDEPDevice struct {
 
 func (m MDMAppleDEPDevice) AuthzType() string {
 	return "mdm_apple_dep_device"
+}
+
+// These following types are copied from nanomdm.
+
+// EnrolledAPIResult is a per-enrollment API result.
+type EnrolledAPIResult struct {
+	PushError    string `json:"push_error,omitempty"`
+	PushResult   string `json:"push_result,omitempty"`
+	CommandError string `json:"command_error,omitempty"`
+}
+
+// EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
+type EnrolledAPIResults map[string]*EnrolledAPIResult
+
+type CommandEnqueueResult struct {
+	Status       EnrolledAPIResults `json:"status,omitempty"`
+	NoPush       bool               `json:"no_push,omitempty"`
+	PushError    string             `json:"push_error,omitempty"`
+	CommandError string             `json:"command_error,omitempty"`
+	CommandUUID  string             `json:"command_uuid,omitempty"`
+	RequestType  string             `json:"request_type,omitempty"`
+}
+
+type MDMAppleCommand struct {
+	*mdm.Command
+}
+
+func (m MDMAppleCommand) AuthzType() string {
+	return "mdm_apple_command"
 }

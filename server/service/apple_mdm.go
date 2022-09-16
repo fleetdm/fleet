@@ -3,14 +3,18 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
+	"text/template"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/google/uuid"
@@ -18,6 +22,11 @@ import (
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
+	"github.com/micromdm/nanomdm/cryptoutil"
+	nanomdm_log "github.com/micromdm/nanomdm/log"
+	"github.com/micromdm/nanomdm/mdm"
+	"github.com/micromdm/nanomdm/push"
+	"github.com/micromdm/nanomdm/storage"
 )
 
 type createMDMAppleEnrollmentRequest struct {
@@ -68,8 +77,8 @@ func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload
 }
 
 func (svc *Service) mdmAppleEnrollURL(enrollmentID uint) string {
-	// TODO(lucas): Define /mdm/apple/api/enroll path somewhere else.
-	return fmt.Sprintf("https://%s/mdm/apple/api/enroll?id=%d", svc.config.MDMApple.ServerAddress, enrollmentID)
+	// TODO(lucas): Define /api/mdm/apple/enroll path somewhere else.
+	return fmt.Sprintf("https://%s/api/mdm/apple/enroll?id=%d", svc.config.MDMApple.ServerAddress, enrollmentID)
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
@@ -214,7 +223,7 @@ func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, si
 	}
 	var installerBuf bytes.Buffer
 	// TODO(lucas): Define proper path for endpoint.
-	url := "https://" + svc.config.MDMApple.ServerAddress + "/mdm/apple/installer?token=" + urlToken.String()
+	url := "https://" + svc.config.MDMApple.ServerAddress + "/api/mdm/apple/installer?token=" + urlToken.String()
 	manifest, err := createManifest(size, io.TeeReader(installer, &installerBuf), url)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -349,4 +358,409 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 		devices[i] = fleet.MDMAppleDEPDevice{Device: fetchDevicesResponse.Devices[i]}
 	}
 	return devices, nil
+}
+
+type enqueueMDMAppleCommandRequest struct {
+	Command   string   `json:"command"`
+	DeviceIDs []string `json:"device_ids"`
+	NoPush    bool     `json:"no_push"`
+}
+
+type enqueueMDMAppleCommandResponse struct {
+	status int                        `json:"-"`
+	Result fleet.CommandEnqueueResult `json:"result"`
+	Err    error                      `json:"error,omitempty"`
+}
+
+func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
+func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
+
+func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*enqueueMDMAppleCommandRequest)
+	rawCommand, err := base64.RawStdEncoding.DecodeString(req.Command)
+	if err != nil {
+		return enqueueMDMAppleCommandResponse{Err: err}, nil
+	}
+	command, err := mdm.DecodeCommand(rawCommand)
+	if err != nil {
+		return enqueueMDMAppleCommandResponse{Err: err}, nil
+	}
+	status, result, err := svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: command}, req.DeviceIDs, req.NoPush)
+	if err != nil {
+		return enqueueMDMAppleCommandResponse{Err: err}, nil
+	}
+	return enqueueMDMAppleCommandResponse{
+		status: status,
+		Result: *result,
+	}, nil
+}
+
+func (svc *Service) EnqueueMDMAppleCommand(
+	ctx context.Context, command *fleet.MDMAppleCommand, deviceIDs []string, noPush bool,
+) (status int, result *fleet.CommandEnqueueResult, err error) {
+	if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err)
+	}
+	return rawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.mdmLogger)
+}
+
+// Copied from https://github.com/fleetdm/nanomdm/blob/a261f081323c80fb7f6575a64ac1a912dffe44ba/http/api/api.go#L134-L261
+// NOTE(lucas): I found no way to reuse Fleet's gokit middlewares with a raw http.Handler like api.RawCommandEnqueueHandler.
+func rawCommandEnqueue(
+	ctx context.Context,
+	enqueuer storage.CommandEnqueuer,
+	pusher push.Pusher,
+	command *mdm.Command,
+	deviceIDs []string,
+	noPush bool,
+	logger nanomdm_log.Logger,
+) (status int, result *fleet.CommandEnqueueResult, err error) {
+	output := fleet.CommandEnqueueResult{
+		Status:      make(fleet.EnrolledAPIResults),
+		NoPush:      noPush,
+		CommandUUID: command.CommandUUID,
+		RequestType: command.Command.RequestType,
+	}
+
+	logger = logger.With(
+		"command_uuid", command.CommandUUID,
+		"request_type", command.Command.RequestType,
+	)
+	logs := []interface{}{
+		"msg", "enqueue",
+	}
+	idErrs, err := enqueuer.EnqueueCommand(ctx, deviceIDs, command)
+	ct := len(deviceIDs) - len(idErrs)
+	if err != nil {
+		logs = append(logs, "err", err)
+		output.CommandError = err.Error()
+		if len(idErrs) == 0 {
+			// we assume if there were no ID-specific errors but
+			// there was a general error then all IDs failed
+			ct = 0
+		}
+	}
+	logs = append(logs, "count", ct)
+	if len(idErrs) > 0 {
+		logs = append(logs, "errs", len(idErrs))
+	}
+	if err != nil || len(idErrs) > 0 {
+		logger.Info(logs...)
+	} else {
+		logger.Debug(logs...)
+	}
+	// loop through our command errors, if any, and add to output
+	for id, err := range idErrs {
+		if err != nil {
+			output.Status[id] = &fleet.EnrolledAPIResult{
+				CommandError: err.Error(),
+			}
+		}
+	}
+	// optionally send pushes
+	pushResp := make(map[string]*push.Response)
+	var pushErr error
+	if !noPush {
+		pushResp, pushErr = pusher.Push(ctx, deviceIDs)
+		if err != nil {
+			logger.Info("msg", "push", "err", err)
+			output.PushError = err.Error()
+		}
+	} else {
+		pushErr = nil
+	}
+	// loop through our push errors, if any, and add to output
+	var pushCt, pushErrCt int
+	for id, resp := range pushResp {
+		if _, ok := output.Status[id]; ok {
+			output.Status[id].PushResult = resp.Id
+		} else {
+			output.Status[id] = &fleet.EnrolledAPIResult{
+				PushResult: resp.Id,
+			}
+		}
+		if resp.Err != nil {
+			output.Status[id].PushError = resp.Err.Error()
+			pushErrCt++
+		} else {
+			pushCt++
+		}
+	}
+	logs = []interface{}{
+		"msg", "push",
+		"count", pushCt,
+	}
+	if pushErr != nil {
+		logs = append(logs, "err", pushErr)
+	}
+	if pushErrCt > 0 {
+		logs = append(logs, "errs", pushErrCt)
+	}
+	if pushErr != nil || pushErrCt > 0 {
+		logger.Info(logs...)
+	} else {
+		logger.Debug(logs...)
+	}
+	// generate response codes depending on if everything succeeded, failed, or parially succedded
+	header := http.StatusInternalServerError
+	if (len(idErrs) > 0 || err != nil || (!noPush && (pushErrCt > 0 || pushErr != nil))) && (ct > 0 || (!noPush && (pushCt > 0))) {
+		header = http.StatusMultiStatus
+	} else if (len(idErrs) == 0 && err == nil && (noPush || (pushErrCt == 0 && pushErr == nil))) && (ct >= 1 && (noPush || (pushCt >= 1))) {
+		header = http.StatusOK
+	}
+	return header, &output, nil
+}
+
+type mdmAppleEnrollRequest struct {
+	EnrollmentID uint `query:"id"`
+}
+
+func (r mdmAppleEnrollResponse) error() error { return r.Err }
+
+type mdmAppleEnrollResponse struct {
+	Err error `json:"error,omitempty"`
+
+	// Profile field is used in hijackRender for the response.
+	Profile []byte
+}
+
+func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided.
+	if n, err := w.Write(r.Profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*mdmAppleEnrollRequest)
+	profile, err := svc.GetMDMAppleEnrollProfile(ctx, req.EnrollmentID)
+	if err != nil {
+		return mdmAppleEnrollResponse{Err: err}, nil
+	}
+	return mdmAppleEnrollResponse{
+		Profile: profile,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID uint) (profile []byte, err error) {
+	// skipauth: The enroll profile endpoint is unauthenticated.
+	svc.authz.SkipAuthorization(ctx)
+
+	topic, err := cryptoutil.TopicFromPEMCert(svc.config.MDMApple.MDM.PushCert.PEMCert)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	_, err = svc.ds.MDMAppleEnrollment(ctx, enrollmentID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
+	// on enrollments).
+	mobileConfig, err := generateMobileConfig(
+		// TODO(lucas): Define endpoints in one location.
+		"https://"+svc.config.MDMApple.ServerAddress+"/mdm/apple/scep",
+		"https://"+svc.config.MDMApple.ServerAddress+"/mdm/apple/mdm",
+		svc.config.MDMApple.SCEP.Challenge,
+		topic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	fmt.Printf("%s\n", mobileConfig)
+	return mobileConfig, nil
+}
+
+// mobileConfigTemplate is the template Fleet uses to assemble a .mobileconfig enroll profile to serve to devices.
+//
+// TODO(lucas): Tweak the remaining configuration.
+// Downloaded from:
+// https://github.com/micromdm/nanomdm/blob/3b1eb0e4e6538b6644633b18dedc6d8645853cb9/docs/enroll.mobileconfig
+//
+// TODO(lucas): Support enroll profile signing?
+var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>Key Type</key>
+				<string>RSA</string>
+				<key>Challenge</key>
+				<string>{{ .SCEPChallenge }}</string>
+				<key>Key Usage</key>
+				<integer>5</integer>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>URL</key>
+				<string>{{ .SCEPServerURL }}</string>
+			</dict>
+			<key>PayloadIdentifier</key>
+			<string>com.github.micromdm.scep</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>AccessRights</key>
+			<integer>8191</integer>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
+			<key>PayloadIdentifier</key>
+			<string>com.github.micromdm.nanomdm.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>96B11019-B54C-49DC-9480-43525834DE7B</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>com.apple.mdm.per-user-connections</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .MDMServerURL }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Enrollment Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.github.micromdm.nanomdm</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F9760DD4-F2D1-4F29-8D2C-48D52DD0A9B3</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
+func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
+	var contents bytes.Buffer
+	if err := mobileConfigTemplate.Execute(&contents, struct {
+		SCEPServerURL string
+		MDMServerURL  string
+		SCEPChallenge string
+		Topic         string
+	}{
+		SCEPServerURL: scepServerURL,
+		MDMServerURL:  mdmServerURL,
+		SCEPChallenge: scepChallenge,
+		Topic:         topic,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return contents.Bytes(), nil
+}
+
+type mdmAppleGetInstallerRequest struct {
+	Token string `query:"token"`
+}
+
+func (r mdmAppleGetInstallerResponse) error() error { return r.Err }
+
+type mdmAppleGetInstallerResponse struct {
+	Err error `json:"error,omitempty"`
+
+	// head is used by hijackRender for the response.
+	head bool
+	// Name field is used in hijackRender for the response.
+	name string
+	// Size field is used in hijackRender for the response.
+	size int64
+	// Installer field is used in hijackRender for the response.
+	installer []byte
+}
+
+func (r mdmAppleGetInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.FormatInt(r.size, 10))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.name))
+
+	if r.head {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(r.installer); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
+}
+
+func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*mdmAppleGetInstallerRequest)
+	installer, err := svc.GetMDMAppleInstallerByToken(ctx, req.Token)
+	if err != nil {
+		return mdmAppleGetInstallerResponse{Err: err}, nil
+	}
+	return mdmAppleGetInstallerResponse{
+		head:      false,
+		name:      installer.Name,
+		size:      installer.Size,
+		installer: installer.Installer,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleInstallerByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
+	// skipauth: The installer endpoint uses token authentication.
+	svc.authz.SkipAuthorization(ctx)
+
+	installer, err := svc.ds.MDMAppleInstaller(ctx, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return installer, nil
+}
+
+type mdmAppleHeadInstallerRequest struct {
+	Token string `query:"token"`
+}
+
+func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*mdmAppleHeadInstallerRequest)
+	installer, err := svc.GetMDMAppleInstallerDetailsByToken(ctx, req.Token)
+	if err != nil {
+		return mdmAppleGetInstallerResponse{Err: err}, nil
+	}
+	return mdmAppleGetInstallerResponse{
+		head:      true,
+		name:      installer.Name,
+		size:      installer.Size,
+		installer: installer.Installer,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
+	// skipauth: The installer endpoint uses token authentication.
+	svc.authz.SkipAuthorization(ctx)
+
+	installer, err := svc.ds.MDMAppleInstallerDetailsByToken(ctx, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return installer, nil
 }
