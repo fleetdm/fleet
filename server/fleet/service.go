@@ -49,8 +49,12 @@ type OsqueryService interface {
 
 type Service interface {
 	OsqueryService
+
+	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
+	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
 	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
+	// GetOrbitFlags returns team specific flags in agent options if the team id is not nil for host, otherwise it returns flags from global agent options
 	GetOrbitFlags(ctx context.Context) (flags json.RawMessage, err error)
 
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
