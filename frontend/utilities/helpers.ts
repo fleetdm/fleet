@@ -584,7 +584,7 @@ export const inMilliseconds = (nanoseconds: number): number => {
 
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
-  uptime: number
+  uptime: number | string
 ): string => {
   if (
     !detailUpdatedAt ||

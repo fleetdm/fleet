@@ -57,8 +57,18 @@ const HostStatusWebhook = ({
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 
-    if (enableHostStatusWebhook && !hostStatusWebhookDestinationURL) {
-      errors.destination_url = "Destination URL must be present";
+    if (enableHostStatusWebhook) {
+      if (!hostStatusWebhookDestinationURL) {
+        errors.destination_url = "Destination URL must be present";
+      }
+
+      if (!hostStatusWebhookDaysCount) {
+        errors.days_count = "Number of days must be present";
+      }
+
+      if (!hostStatusWebhookDaysCount) {
+        errors.host_percentage = "Percentage of hosts must be present";
+      }
     }
 
     setFormErrors(errors);
@@ -180,6 +190,7 @@ const HostStatusWebhook = ({
               name="hostStatusWebhookHostPercentage"
               value={hostStatusWebhookHostPercentage}
               parseTarget
+              onBlur={validateForm}
               tooltip={
                 "\
                   <p>Select the minimum percentage of hosts that<br/>must fail to check into Fleet in order to trigger<br/>the webhook request.</p>\
@@ -195,6 +206,7 @@ const HostStatusWebhook = ({
               name="hostStatusWebhookDaysCount"
               value={hostStatusWebhookDaysCount}
               parseTarget
+              onBlur={validateForm}
               tooltip={
                 "\
                   <p>Select the minimum number of days that the<br/>configured <b>Percentage of hosts</b> must fail to<br/>check into Fleet in order to trigger the<br/>webhook request.</p>\

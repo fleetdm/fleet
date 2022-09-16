@@ -15,7 +15,9 @@ describe("Teams flow (empty)", () => {
     });
     it("creates a new team", () => {
       cy.getAttached(".no-teams").within(() => {
-        cy.contains("button", /create team/i).click();
+        cy.getAttached(".no-teams__inner-text").within(() => {
+          cy.contains("button", /create team/i).click();
+        });
       });
       cy.findByLabelText(/team name/i)
         .click()

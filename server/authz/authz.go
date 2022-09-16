@@ -26,6 +26,7 @@ type Authorizer struct {
 }
 
 // Load the policy from policy.rego in this directory.
+//
 //go:embed policy.rego
 var policy string
 

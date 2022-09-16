@@ -20,11 +20,11 @@ goals.
 
 The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
 
-### Q2 OKRs
-
-The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization-wide OKR:
-
-[Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
+| Year, Quarter  | OKR file |   
+|---------------|------------------|
+| 2022, Q2      | [internal doc](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit?usp=sharing)   |
+| 2022, Q3      | [internal doc](https://docs.google.com/document/d/1i0ovyamy6MqyFDgiMtPO_OkAzetPuNKryAeu12KbMFk/edit?usp=sharing)   |
+| 2022, Q4      | TODO             |
 
 ## Q1 2022 product objectives
 
