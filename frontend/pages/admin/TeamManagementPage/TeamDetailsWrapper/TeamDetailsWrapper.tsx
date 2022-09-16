@@ -4,7 +4,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
-import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -32,10 +31,10 @@ import MainContent from "components/MainContent";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
-import DeleteSecretModal from "../../../../components/DeleteSecretModal";
-import SecretEditorModal from "../../../../components/SecretEditorModal";
+import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
+import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../../components/EnrollSecretModal";
+import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
 
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
@@ -414,7 +413,7 @@ const TeamDetailsWrapper = ({
                   selectedTeamId={toNumber(routeParams.team_id)}
                   currentUserTeams={adminTeams || []}
                   isDisabled={isLoadingTeams}
-                  disableAll
+                  includeAll={false}
                   onChange={(newSelectedValue: number) =>
                     handleTeamSelect(newSelectedValue)
                   }

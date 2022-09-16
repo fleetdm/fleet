@@ -1104,6 +1104,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
+	// add a policy execution
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host,
+		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
+
 	// add a policy to team
 	oldToken := s.token
 	t.Cleanup(func() {
@@ -1162,6 +1166,14 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+
+	// GET `/api/_version_/fleet/device/{token}/desktop`
+	getDesktopResp := FleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDesktopResp)
+	res.Body.Close()
+	require.NoError(t, getDesktopResp.Err)
+	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
