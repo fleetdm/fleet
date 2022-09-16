@@ -7,7 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -130,7 +129,6 @@ func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(flags), &data)
 	if err != nil {
-		log.Info().Msg(err.Error())
 		return nil, err
 	}
 
@@ -173,7 +171,7 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 // this only supports simple key:value pairs and not nested structures
 func readFlagFile(rootDir string) (map[string]string, error) {
 	flagfile := filepath.Join(rootDir, "osquery.flags")
-	bytes, err := ioutil.ReadFile(flagfile)
+	bytes, err := os.ReadFile(flagfile)
 	if err != nil {
 		return nil, fmt.Errorf("reading flagfile %s failed: %w", flagfile, err)
 	}
