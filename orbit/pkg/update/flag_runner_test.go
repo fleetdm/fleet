@@ -18,26 +18,26 @@ func TestGetFlagsFromJson(t *testing.T) {
 
 	value, ok := flagsJson["--verbose"]
 	if !ok {
-		t.Errorf("key \"--verbose\" expected but not found")
+		t.Errorf(`key ""--verbose" expected but not found`)
 	}
 	if value != "true" {
-		t.Errorf("expected \"true\", got %s", value)
+		t.Errorf(`expected "true", got %s`, value)
 	}
 
 	value, ok = flagsJson["--num"]
 	if !ok {
-		t.Errorf("key \"--num\" expected but not found")
+		t.Errorf(`key "--num" expected but not found`)
 	}
 	if value != "5" {
-		t.Errorf("expected \"5\", got %s", value)
+		t.Errorf(`expected "5", got %s`, value)
 	}
 
 	value, ok = flagsJson["--hello"]
 	if !ok {
-		t.Errorf("key \"--hello\" expected but not found")
+		t.Errorf(`key "--hello" expected but not found`)
 	}
 	if value != "world" {
-		t.Errorf("expected \"world\", got %s", value)
+		t.Errorf(`expected "world", got %s`, value)
 	}
 }
 

@@ -719,12 +719,11 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (
 	default:
 		return "", fmt.Errorf("read orbit node key file: %w", err)
 	}
-	retries := 0
 	const (
 		orbitEnrollMaxRetries = 10
 		orbitEnrollRetrySleep = 5 * time.Second
 	)
-	for ; retries < orbitEnrollMaxRetries; retries++ {
+	for retries := 0; retries < orbitEnrollMaxRetries; retries++ {
 		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath)
 		if err != nil {
 			log.Info().Err(err).Msg("enroll failed, retrying")
@@ -733,7 +732,7 @@ func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (
 		}
 		return orbitNodeKey, nil
 	}
-	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", retries)
+	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", orbitEnrollMaxRetries)
 }
 
 func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath string) (string, error) {

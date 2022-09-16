@@ -757,7 +757,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 			// create a new host
 			sqlInsert := `
 				INSERT INTO hosts (
-				    last_enrolled_at,               
+					last_enrolled_at,               
 					detail_updated_at,
 					label_updated_at,
 					policy_updated_at,
@@ -765,7 +765,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 					node_key,
 					team_id,
 					refetch_requested,
-				    orbit_node_key
+					orbit_node_key
 				) VALUES (?, ?, ?, ?, ?, ?, 1, ?)
 			`
 			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, "", nil, orbitNodeKey)
@@ -796,7 +796,6 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 
 		var hostID int64
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at, team_id FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
-		//level.Info(ds.logger).Log("enroll host", err.Error())
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")

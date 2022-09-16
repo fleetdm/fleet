@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -62,7 +61,7 @@ func (r *FlagRunner) Execute() error {
 			log.Info().Msg("calling flags update")
 			didUpdate, err := r.DoFlagsUpdate()
 			if err != nil {
-				log.Info().Err(err).Msg("flags updates failed " + err.Error())
+				log.Info().Err(err).Msg("flags updates failed")
 			}
 			if didUpdate {
 				log.Info().Msg("flags updated, exiting")
@@ -94,7 +93,7 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 		flagFileExists = false
 	}
 
-	// next GetFlags from Fleet API
+	// next GetConfig from Fleet API
 	flagsJSON, err := r.orbitClient.GetConfig(r.opt.OrbitNodeKey)
 	if err != nil {
 		return false, fmt.Errorf("error getting flags from fleet %w", err)
@@ -133,14 +132,7 @@ func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
 	}
 
 	for k, v := range data {
-		switch t := v.(type) {
-		case string:
-			result["--"+k] = t
-		case bool:
-			result["--"+k] = strconv.FormatBool(t)
-		case float64:
-			result["--"+k] = fmt.Sprint(t)
-		}
+		result["--"+k] = fmt.Sprintf("%v", v)
 	}
 	return result, nil
 }
