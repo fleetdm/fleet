@@ -1561,7 +1561,7 @@ const ManageHostsPage = ({
         {count !== undefined && (
           <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
         )}
-        {count ? (
+        {count && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1571,8 +1571,6 @@ const ManageHostsPage = ({
               Export hosts <img alt="" src={DownloadIcon} />
             </>
           </Button>
-        ) : (
-          <></>
         )}
       </div>
     );
@@ -1838,7 +1836,8 @@ const ManageHostsPage = ({
                 ) && (
                   <Button
                     onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts button button--brand`}
+                    className={`${baseClass}__add-hosts`}
+                    variant="brand"
                   >
                     <span>Add hosts</span>
                   </Button>
