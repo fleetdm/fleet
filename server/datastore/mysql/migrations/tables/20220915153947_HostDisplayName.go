@@ -26,15 +26,19 @@ func Up_20220915153947(tx *sql.Tx) error {
 				SELECT id host_id, IF(computer_name="", hostname, computer_name) display_name FROM hosts
 			)
 		`},
-		{"triggers", `
+		{"insert trigger", `
 				CREATE TRIGGER host_display_name_insert AFTER INSERT ON hosts FOR EACH ROW
 				    INSERT INTO hosts_display_name (host_id, display_name) VALUES (NEW.id, IF(NEW.computer_name="", NEW.hostname, NEW.computer_name));
+		`},
+		{"update trigger", `
 				CREATE TRIGGER host_display_name_update AFTER UPDATE ON hosts FOR EACH ROW
 				    UPDATE hosts_display_name SET display_name = IF(NEW.computer_name="", NEW.hostname, NEW.computer_name)
 				        WHERE NEW.id = OLD.id
 				          AND NEW.id = host_id
 				          AND IF(OLD.computer_name="", OLD.hostname, OLD.computer_name) != IF(NEW.computer_name="", NEW.hostname, NEW.computer_name);
-				CREATE TRIGGER host_display_name AFTER DELETE ON hosts FOR EACH ROW
+		`},
+		{"delete", `
+				CREATE TRIGGER host_display_name_delete AFTER DELETE ON hosts FOR EACH ROW
 				    DELETE FROM hosts_display_name WHERE host_id = OLD.id;
 		`},
 	} {

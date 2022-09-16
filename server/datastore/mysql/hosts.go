@@ -21,7 +21,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var hostSearchColumns = []string{"hostname", "uuid", "hardware_serial", "primary_ip"}
+var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 
 // NewHost creates a new host on the datastore.
 //
@@ -35,6 +35,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		policy_updated_at,
 		node_key,
 		hostname,
+	    computer_name,
 		uuid,
 		platform,
 		osquery_version,
@@ -47,7 +48,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		config_tls_refresh,
 		refetch_requested
 	)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer.ExecContext(
 		ctx,
@@ -58,6 +59,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		host.PolicyUpdatedAt,
 		host.NodeKey,
 		host.Hostname,
+		host.ComputerName,
 		host.UUID,
 		host.Platform,
 		host.OsqueryVersion,
@@ -602,6 +604,11 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		params = append(params, opt.MunkiIssueIDFilter)
 	}
 
+	displayNameJoin := ""
+	if opt.ListOptions.OrderKey == "display_name" {
+		displayNameJoin = ` JOIN hosts_display_name hdn ON h.id = hdn.host_id `
+	}
+
 	lowDiskSpaceFilter := "TRUE"
 	if opt.LowDiskSpaceFilter != nil {
 		lowDiskSpaceFilter = `hd.gigs_disk_space_available < ?`
@@ -618,9 +625,10 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
     %s
-    WHERE TRUE AND %s AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, ds.whereFilterHostsByTeams(filter, "h"),
-		softwareFilter, munkiFilter, lowDiskSpaceFilter,
+    %s
+		WHERE TRUE AND %s AND %s AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, displayNameJoin, ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter, munkiFilter,lowDiskSpaceFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
