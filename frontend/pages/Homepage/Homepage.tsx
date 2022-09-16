@@ -70,9 +70,7 @@ const Homepage = (): JSX.Element => {
   const [offlineCount, setOfflineCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [showSoftwareUI, setShowSoftwareUI] = useState(false);
-  const [showMunkiUI, setShowMunkiUI] = useState(false);
   const [showMunkiCard, setShowMunkiCard] = useState(true);
-  const [showMDMUI, setShowMDMUI] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
@@ -228,10 +226,6 @@ const Homepage = (): JSX.Element => {
             whatToRetrieve={"Munki"}
           />
         );
-      },
-      onError: () => {
-        setShowMDMUI(true);
-        setShowMunkiUI(true);
       },
     }
   );
