@@ -144,7 +144,10 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 
 	if options != nil {
 		team.Config.AgentOptions = &options
+		// TODO(mna): validate agent options before saving
 	} else {
+		// TODO(mna): in NewTeam, we set AgentOptions to the global config, why
+		// do we allow setting it to nil here?
 		team.Config.AgentOptions = nil
 	}
 
@@ -438,6 +441,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 }
 
 func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret) (*fleet.Team, error) {
+	// TODO(mna): validate agent options before saving
 	agentOptions := spec.AgentOptions
 	if agentOptions == nil {
 		agentOptions = defaults.AgentOptions
@@ -466,6 +470,7 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 
 func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
 	team.Name = spec.Name
+	// TODO(mna): validate agent options before saving, and we allow nil here instead of defaulting to global?
 	team.Config.AgentOptions = spec.AgentOptions
 
 	// replace (don't merge) the features with the new ones, using a config

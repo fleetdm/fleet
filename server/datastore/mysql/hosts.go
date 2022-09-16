@@ -851,8 +851,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 }
 
 // LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
-// If the token is invalid or expired it returns a NotFoundError.
-func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+// If the token is invalid it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
 	const query = `
     SELECT
       h.*
@@ -862,11 +862,10 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hosts h
     ON
       hda.host_id = h.id
-    WHERE hda.token = ? AND
-        hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+    WHERE hda.token = ?`
 
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -878,24 +877,12 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
-	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
-	// of the statement, it inherits the default behaviour which is that the updated_at
-	// timestamp will NOT be changed if the new token is the same as the old token
-	// (which is exactly what we want). The updated_at timestamp WILL be updated if the
-	// new token is different.
-	const stmt = `
-		INSERT INTO
-			host_device_auth ( host_id, token )
-		VALUES
-			(?, ?)
-		ON DUPLICATE KEY UPDATE
-			token = VALUES(token)
-`
-	_, err := ds.writer.ExecContext(ctx, stmt, hostID, authToken)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
-	}
-	return nil
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_device_auth SET token = ? WHERE host_id = ?`,
+		`INSERT INTO host_device_auth (token, host_id) VALUES (?, ?)`,
+		authToken, hostID,
+	)
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -1150,6 +1137,29 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 		}
 	}
 	return nil
+}
+
+func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+	if host.FleetPlatform() == "" {
+		// We log to help troubleshooting in case this happens.
+		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+	}
+
+	query := `
+		SELECT SUM(1 - pm.passes) AS n_failed
+		FROM policy_membership pm 
+		WHERE pm.host_id = ?
+		GROUP BY host_id
+	`
+
+	var r uint
+	if err := sqlx.GetContext(ctx, ds.reader, &r, query, host.ID); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get failing policies count")
+	}
+	return r, nil
 }
 
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -2435,7 +2445,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	// nothing to do so return early
 	if len(statsByTeamID) < 1 {
 		// log to help troubleshooting in case this happens
-		level.Info(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
+		level.Debug(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
 		return nil
 	}
 

@@ -14,6 +14,8 @@ import (
 func (ds *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
 	info.ApplyDefaultsForNewInstalls()
 
+	// TODO(mna): to ensure we don't accidentally store invalid initial config, we
+	// should go through the same config/agent options validation here before saving.
 	if err := ds.SaveAppConfig(ctx, info); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new app config")
 	}

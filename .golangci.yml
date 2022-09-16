@@ -1,7 +1,6 @@
 linters:
   disable-all: true
   enable:
-    - deadcode
     - depguard
     - gosec
     - gocritic
@@ -11,7 +10,6 @@ linters:
     - revive
     - rowserrcheck
     - sqlclosecheck
-    - structcheck
     - typecheck
     - unconvert
     - unused

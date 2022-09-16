@@ -4,12 +4,13 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
@@ -31,36 +32,34 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
-	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
-	if identifierPath == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
+	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
+	if devURL == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
+	}
+	deviceURL, err := url.Parse(devURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("invalid URL argument")
 	}
 
-	fleetURL := os.Getenv("FLEET_DESKTOP_FLEET_URL")
-	if fleetURL == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
-	}
+	basePath := deviceURL.Scheme + "://" + deviceURL.Host
+	deviceToken := path.Base(deviceURL.Path)
+	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
 	onReady := func() {
 		log.Info().Msg("ready")
 
 		systray.SetTemplateIcon(icoBytes, icoBytes)
-		systray.SetTooltip("Fleet Device Management Menu.")
+		systray.SetTooltip("Fleet Desktop")
 
 		// Add a disabled menu item with the current version
 		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
 		versionItem.Disable()
 		systray.AddSeparator()
 
-		myDeviceItem := systray.AddMenuItem("Connecting...", "")
+		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
-
-		tokenReader := token.Reader{Path: identifierPath}
-		if _, err := tokenReader.Read(); err != nil {
-			log.Fatal().Err(err).Msg("error reading device token from file")
-		}
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
@@ -68,32 +67,14 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(
-			fleetURL,
-			insecureSkipVerify,
-			rootCA,
-		)
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
 
-		refetchToken := func() {
-			if _, err := tokenReader.Read(); err != nil {
-				log.Error().Err(err).Msg("refetch token")
-			}
-			log.Debug().Msg("successfully refetched the token from disk")
-		}
-
-		disableTray := func() {
-			log.Debug().Msg("disabling tray items")
-			myDeviceItem.SetTitle("Connecting...")
-			myDeviceItem.Disable()
-			transparencyItem.Disable()
-		}
-
-		// checkToken performs API test calls to enable the "My device" item as
-		// soon as the device auth token is registered by Fleet.
-		checkToken := func() <-chan interface{} {
+		// Perform API test call to enable the "My device" item as soon
+		// as the device auth token is registered by Fleet.
+		deviceEnabledChan := func() <-chan interface{} {
 			done := make(chan interface{})
 
 			go func() {
@@ -102,19 +83,15 @@ func main() {
 				defer close(done)
 
 				for {
-					refetchToken()
-					_, err := client.ListDevicePolicies(tokenReader.GetCached())
+					_, err := client.GetDesktopPayload()
+
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
-						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
-						myDeviceItem.SetTooltip("")
 						transparencyItem.Enable()
 						return
 					}
 
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 
 					<-ticker.C
@@ -122,32 +99,6 @@ func main() {
 			}()
 
 			return done
-		}
-
-		// start a check as soon as the app starts
-		deviceEnabledChan := checkToken()
-
-		// this loop checks the `mtime` value of the token file and:
-		// 1. if the token file was modified, it disables the tray items until we
-		// verify the token is valid
-		// 2. calls (blocking) `checkToken` to verify the token is valid
-		go func() {
-			<-deviceEnabledChan
-			tic := time.NewTicker(1 * time.Second)
-			defer tic.Stop()
-
-			for {
-				<-tic.C
-				expired, err := tokenReader.HasChanged()
-				switch {
-				case err != nil:
-					log.Error().Err(err).Msg("check token file")
-				case expired:
-					log.Info().Msg("token file changed, rechecking")
-					disableTray()
-					<-checkToken()
-				}
-			}
 		}()
 
 		go func() {
@@ -156,39 +107,26 @@ func main() {
 			defer tic.Stop()
 
 			for {
-				policies, err := client.ListDevicePolicies(tokenReader.GetCached())
+				<-tic.C
+
+				res, err := client.GetDesktopPayload()
 				switch {
 				case err == nil:
 					// OK
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
 					continue
-				case errors.Is(err, service.ErrUnauthenticated):
-					disableTray()
-					<-checkToken()
-					continue
 				default:
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 					continue
 				}
 
-				failedPolicyCount := 0
-				for _, policy := range policies {
-					if policy.Response != "pass" {
-						failedPolicyCount++
-					}
-				}
-
-				if failedPolicyCount > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
 				} else {
 					myDeviceItem.SetTitle("🟢 My device")
 				}
 				myDeviceItem.Enable()
-
-				<-tic.C
 			}
 		}()
 
@@ -196,11 +134,11 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					if err := open.Browser(client.DeviceURL(tokenReader.GetCached())); err != nil {
+					if err := open.Browser(deviceURL.String()); err != nil {
 						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser(client.TransparencyURL(tokenReader.GetCached())); err != nil {
+					if err := open.Browser(transparencyURL); err != nil {
 						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}

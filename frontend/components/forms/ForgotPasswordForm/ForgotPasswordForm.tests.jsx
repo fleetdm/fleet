@@ -1,6 +1,7 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
+
+import { renderWithSetup } from "test/testingUtils";
 
 import ForgotPasswordForm from "./ForgotPasswordForm";
 
@@ -33,33 +34,31 @@ describe("ForgotPasswordForm - component", () => {
   });
 
   it("should test validation for email field", async () => {
-    render(<ForgotPasswordForm handleSubmit={handleSubmit} />);
+    const { user } = renderWithSetup(
+      <ForgotPasswordForm handleSubmit={handleSubmit} />
+    );
 
-    // when
-    fireEvent.click(screen.getByRole("button", { name: "Send email" }));
-    // then
-    expect(
-      await screen.findByText("Email field must be completed")
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Send email" }));
+    let emailError = screen.getByText("Email field must be completed");
+    expect(emailError).toBeInTheDocument();
     expect(handleSubmit).not.toHaveBeenCalled();
 
-    // when
-    userEvent.type(screen.getByPlaceholderText("Email"), "invalid-email");
-    fireEvent.click(screen.getByRole("button", { name: "Send email" }));
-    // then
-    expect(
-      await screen.findByText("invalid-email is not a valid email")
-    ).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Email"), "invalid-email");
+    await user.click(screen.getByRole("button", { name: "Send email" }));
+
+    emailError = screen.getByText("invalid-email is not a valid email");
+    expect(emailError).toBeInTheDocument();
     expect(handleSubmit).not.toHaveBeenCalled();
   });
 
-  it("submits the form data when the form is submitted", () => {
-    render(<ForgotPasswordForm handleSubmit={handleSubmit} />);
+  it("submits the form data when the form is submitted", async () => {
+    const { user } = renderWithSetup(
+      <ForgotPasswordForm handleSubmit={handleSubmit} />
+    );
 
-    // when
-    userEvent.type(screen.getByPlaceholderText("Email"), email);
-    fireEvent.click(screen.getByRole("button", { name: "Send email" }));
-    // then
+    await user.type(screen.getByPlaceholderText("Email"), email);
+    await user.click(screen.getByRole("button", { name: "Send email" }));
+
     expect(handleSubmit).toHaveBeenCalledWith({ email });
   });
 });

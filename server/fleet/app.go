@@ -30,16 +30,6 @@ const (
 	MaskedPassword = "********"
 )
 
-// ModifyAppConfigRequest contains application configuration information
-// sent from front end and used to change app config elements.
-type ModifyAppConfigRequest struct {
-	// TestSMTP is this is set to true, the SMTP configuration will be tested
-	// with the results of the test returned to caller. No config changes
-	// will be applied.
-	TestSMTP  bool      `json:"test_smtp"`
-	AppConfig AppConfig `json:"app_config"`
-}
-
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
 	// EntityID is a uri that identifies this service provider

@@ -56,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.19.1"
+  default     = "fleetdm/fleet:v4.20.1"
 }
 
 variable "software_inventory" {
@@ -113,7 +113,7 @@ variable "cloudwatch_log_retention" {
 
 variable "rds_backup_retention_period" {
   description = "number of days to keep snapshot backups"
-  default     = 7
+  default     = 30
 }
 
 variable "extra_security_group_cidrs" {

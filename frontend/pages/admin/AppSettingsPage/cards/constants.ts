@@ -28,6 +28,8 @@ export interface IAppConfigFormErrors {
   user_name?: string | null;
   password?: string | null;
   destination_url?: string | null;
+  days_count?: string | null;
+  host_percentage?: string | null;
   host_expiry_window?: string | null;
   agent_options?: string | null;
   transparency_url?: string | null;
@@ -83,45 +85,39 @@ export const usageStatsPreview = {
   hostStatusWebhookEnabled: true,
   numWeeklyActiveUsers: 999,
   hostsEnrolledByOperatingSystem: {
-    macos: [
+    darwin: [
       {
-        version: "12.3.1",
+        version: "macOS 12.3.1",
         numEnrolled: 999,
       },
     ],
     windows: [
       {
-        version: "10, version 21H2 (W)",
+        version: "Microsoft Windows 10, version 21H2 (W)",
         numEnrolled: 999,
       },
     ],
-    ubuntuLinux: [
+    ubuntu: [
       {
-        version: "22.04 'Jammy Jellyfish' (LTS)",
+        version: "Ubuntu 22.04 'Jammy Jellyfish' (LTS)",
         numEnrolled: 999,
       },
     ],
-    centosLinux: [
+    rhel: [
       {
-        version: "12.3.1",
+        version: "Red Hat Enterprise Linux 8.4.0",
         numEnrolled: 999,
       },
     ],
-    debianLinux: [
+    debian: [
       {
-        version: "11 (Bullseye)",
+        version: "Debian GNU/Linux 9.0.0",
         numEnrolled: 999,
       },
     ],
-    redhatLinux: [
+    amzn: [
       {
-        version: "9",
-        numEnrolled: 999,
-      },
-    ],
-    amazonLinux: [
-      {
-        version: "AMI",
+        version: "Amazon Linux 2.0.0",
         numEnrolled: 999,
       },
     ],

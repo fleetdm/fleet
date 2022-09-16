@@ -495,6 +495,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "mdm":                    {},
 		hostDetailQueryPrefix + "munki_info":             {},
 		hostDetailQueryPrefix + "windows_update_history": {},
+		hostDetailQueryPrefix + "kubequery_info":         {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -754,8 +755,7 @@ func TestLabelQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 1) // orbit_info is always returned
-	require.NotNil(t, queries[hostDetailQueryPrefix+"orbit_info"])
+	require.Empty(t, queries)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -767,11 +767,10 @@ func TestLabelQueries(t *testing.T) {
 		}, nil
 	}
 
-	// Now we should get the label queries + orbit_info
+	// Now we should get the label queries
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 4)
-	require.NotNil(t, queries[hostDetailQueryPrefix+"orbit_info"])
+	require.Len(t, queries, 3)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -826,8 +825,7 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 1) // only orbit_info
-	require.NotNil(t, queries[hostDetailQueryPrefix+"orbit_info"])
+	require.Empty(t, queries)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -867,8 +865,7 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 1) // only orbit_info
-	require.NotNil(t, queries[hostDetailQueryPrefix+"orbit_info"])
+	require.Empty(t, queries)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1054,12 +1051,11 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	host.DetailUpdatedAt = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
-	// Now no detail queries should be required except orbit_info
+	// Now no detail queries should be required
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	require.NotNil(t, queries[hostDetailQueryPrefix+"orbit_info"])
+	require.Empty(t, queries)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -1375,12 +1371,11 @@ func TestDetailQueries(t *testing.T) {
 	host.DetailUpdatedAt = mockClock.Now()
 	mockClock.AddTime(1 * time.Minute)
 
-	// Now no detail queries should be required except orbit_info
+	// Now no detail queries should be required
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	require.NotNil(t, queries[hostDetailQueryPrefix+"orbit_info"])
+	require.Empty(t, queries)
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -2821,7 +2816,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 }
 
 // TestFleetDesktopOrbitInfo tests that the orbit_info table extension is
-// refetched on every distributed/read call.
+// refetched for "orbitInfoRefetchAfterEnrollDur" after enroll.
 func TestFleetDesktopOrbitInfo(t *testing.T) {
 	ds := new(mock.Store)
 	lq := live_query_mock.New(t)
@@ -2857,15 +2852,13 @@ func TestFleetDesktopOrbitInfo(t *testing.T) {
 	require.Contains(t, queries, "fleet_detail_query_orbit_info")
 
 	// Advance mock clock
-	mockClock.AddTime(time.Minute)
+	mockClock.AddTime(orbitInfoRefetchAfterEnrollDur)
 	ctx = hostctx.NewContext(context.Background(), host)
 
-	// orbit_info query is still present
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	verifyDiscovery(t, queries, discovery)
-	require.Contains(t, queries, "fleet_detail_query_orbit_info")
+	require.Len(t, queries, 0)
+	require.Len(t, discovery, 0)
 }
 
 func distQueriesMapKeys(m map[string]string) []string {
