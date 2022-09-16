@@ -648,29 +648,11 @@ const ManageHostsPage = ({
   };
 
   const handleClearMissingFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["status"]),
-      })
-    );
+    handleClearFilter(["status"]);
   };
 
   const handleClearLowDiskSpaceFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["low_disk_space"]),
-      })
-    );
+    handleClearFilter(["low_disk_space"]);
   };
 
   const handleTeamSelect = (teamId: number) => {
