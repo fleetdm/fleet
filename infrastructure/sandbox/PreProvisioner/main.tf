@@ -255,7 +255,7 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "QUEUED_INSTANCES"
-            value = "20"
+            value = "5"
           },
           {
             name  = "TF_VAR_redis_address"

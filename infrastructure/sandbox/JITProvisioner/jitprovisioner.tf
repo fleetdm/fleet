@@ -88,7 +88,7 @@ data "aws_iam_policy_document" "jitprovisioner" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [var.kms_key.arn]
+    resources = [var.kms_key.arn, var.mysql_secret_kms.arn]
   }
 
   statement {

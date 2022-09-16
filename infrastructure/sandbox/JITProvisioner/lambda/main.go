@@ -87,7 +87,7 @@ func clearActivitiesTable(c *gin.Context, id string) (err error) {
         return
     }
     var secretEntry MysqlSecretEntry
-    if err = json.Unmarshal(sec.SecretBinary, &secretEntry); err != nil {
+    if err = json.Unmarshal([]byte(*sec.SecretString), &secretEntry); err != nil {
         log.Print(err)
         return
     }
