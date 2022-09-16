@@ -16,18 +16,28 @@ import (
 	"time"
 )
 
+// FlagRunner is a specialized runner to periodically check and update flags from Fleet
+// It is designed with Execute and Interrupt functions to be compatible with oklog/run
+//
+// It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
 	orbitClient *service.OrbitClient
 	opt         FlagUpdateOptions
 	cancel      chan struct{}
 }
 
+// FlagUpdateOptions is options provided for the flag update runner
 type FlagUpdateOptions struct {
+	// CheckInterval is the interval to check for updates
 	CheckInterval time.Duration
-	RootDir       string
-	OrbitNodeKey  string
+	// RootDir is the root directory for orbit state
+	RootDir string
+	// OrbitNodeKey is the orbit node key for the enrolled host
+	OrbitNodeKey string
 }
 
+// NewFlagRunner creates a new runner with provided options
+// The runner must be started with Execute
 func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) (*FlagRunner, error) {
 	r := &FlagRunner{
 		orbitClient: orbitClient,
@@ -37,12 +47,14 @@ func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) (*Fl
 	return r, nil
 }
 
+// Execute starts the loop checking for updates
 func (r *FlagRunner) Execute() error {
 	log.Debug().Msg("starting flag updater")
 
 	ticker := time.NewTicker(r.opt.CheckInterval)
 	defer ticker.Stop()
 
+	// Run until cancel or returning an error
 	for {
 		select {
 		case <-r.cancel:
@@ -61,11 +73,15 @@ func (r *FlagRunner) Execute() error {
 	}
 }
 
+// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
 func (r *FlagRunner) Interrupt(err error) {
-	r.cancel <- struct{}{}
+	close(r.cancel)
 	log.Debug().Err(err).Msg("interrupt for flags updater")
 }
 
+// DoFlagsUpdate checks for update of flags from Fleet
+// It gets the flags from the Fleet server, and compares them to locally stored flagfile (if it exists)
+// If the flag comparison from disk and server are not equal, it writes the flags to disk, and returns true
 func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	flagFileExists := true
 
@@ -98,18 +114,13 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	// flags are not equal, write the fleet flags to disk
 	err = writeFlagFile(r.opt.RootDir, osqueryFlagMapFromFleet)
 	if err != nil {
-		log.Error().Msg("Error writing flags to disk " + err.Error())
 		return false, fmt.Errorf("error writing flags to disk %w", err)
 	}
 	return true, nil
 }
 
 // getFlagsFromJSON converts the json of the type below
-// {
-//	  "number": 5,
-//	  "string": "str",
-//	  "boolean": true
-//	}
+// {"number": 5, "string": "str", "boolean": true}
 // to a map[string]string
 // this map will get compared and written to the filesystem and passed to osquery
 // this only supports simple key:value pairs and not nested structures
@@ -150,7 +161,7 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 			sb.WriteString(k + "\n")
 		}
 	}
-	if err := ioutil.WriteFile(flagfile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(flagfile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("writing flagfile %s failed: %w", flagfile, err)
 	}
 	return nil
