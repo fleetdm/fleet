@@ -108,7 +108,13 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      select: (data) => data.activities,
+      select: (data) => {
+        // We purposly removed the "applied_spec_team" activity as we are currently
+        // thinking how we want to display this in the UI.
+        return data.activities.filter(
+          (activity) => activity.type !== ActivityType.AppliedSpecTeam
+        );
+      },
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
         if (results.length < DEFAULT_PAGE_SIZE) {

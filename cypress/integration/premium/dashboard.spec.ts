@@ -13,13 +13,18 @@ describe("Dashboard", () => {
   });
 
   describe("Activity Card", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+    });
+
     it("displays activity when editing a teams agent options", () => {
       cy.visit("/settings/teams");
+      cy.intercept("GET", "/api/latest/fleet/activities?*").as("getActivities");
 
-      cy.getAttached(".no-teams__inner-text").within(() => {
-        cy.findByRole("button", { name: "Create team" })
-          .should("be.visible")
-          .click();
+      cy.getAttached(".no-teams").within(() => {
+        cy.getAttached(".no-teams__inner-text").within(() => {
+          cy.contains("button", /create team/i).click();
+        });
       });
 
       cy.findByRole("textbox", { name: "Team name" }).type("Team 1");
@@ -27,17 +32,29 @@ describe("Dashboard", () => {
 
       // we've just created this team so we know we only have one team with id = 1
       TeamSettingsPage.visitTeamAgentOptions(1);
-      TeamSettingsPage.editAgentOptionsForm("test:");
+
+      cy.intercept("GET", "/api/latest/fleet/teams?*").as("getTeams");
+
+      cy.wait("@getTeams").then(() => {
+        TeamSettingsPage.editAgentOptionsForm(
+          "{selectall}{backspace}test: null{enter}"
+        );
+        cy.getAttached(".flash-message").should("exist");
+      });
 
       cy.visit("/dashboard");
 
-      // the edit agent options is split across multiple elements so we use a
-      // matcher function and assert the different parts individually.
-      cy.findByText((content) => content.includes("edited agent options on"))
-        .should("exist")
-        .and("contain", "Admin")
-        .and("contain", "Team 1")
-        .and("contain", "team");
+      cy.wait("@getActivities").then(() => {
+        // the edit agent options is split across multiple elements so we use a
+        // matcher function and assert the different parts individually.
+        cy.getAttached(".activity-feed__block").within(() => {
+          cy.getAttached(".activity-feed__details-topline")
+            .first()
+            .contains(/edited agent options on/gi)
+            .contains(/Admin/gi)
+            .contains(/Team 1/gi);
+        });
+      });
     });
   });
 });
