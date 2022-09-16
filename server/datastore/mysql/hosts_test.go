@@ -128,6 +128,7 @@ func TestHosts(t *testing.T) {
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
+		{"TestHostDisplayName", testHostDisplayName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5281,4 +5282,30 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
+}
+
+// testHostDisplayName tests listing a host sorted by display name.
+func testHostDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: "1", Hostname: "0001", NodeKey: "1"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 2, OsqueryHostID: "2", Hostname: "0002", ComputerName: "0004", NodeKey: "2"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: "3", Hostname: "0003", NodeKey: "3"})
+	require.NoError(t, err)
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "display_name",
+		},
+	})
+	require.NoError(t, err)
+	expect := []string{"0001", "0003", "0004"}
+	require.Len(t, hosts, len(expect))
+	for i, h := range hosts {
+		dn := h.ComputerName
+		if dn == "" {
+			dn = h.Hostname
+		}
+		assert.Equal(t, expect[i], dn)
+	}
 }
