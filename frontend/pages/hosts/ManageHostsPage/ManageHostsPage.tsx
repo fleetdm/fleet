@@ -764,63 +764,53 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      if (currentTeam?.id) {
-        newQueryParams.team_id = currentTeam.id;
+      switch (true) {
+        case !!currentTeam?.id:
+          if (currentTeam) {
+            newQueryParams.team_id = currentTeam.id;
+          }
+          break;
+        case !!policyId && !!policyResponse:
+          newQueryParams.policy_id = policyId;
+          newQueryParams.policy_response = policyResponse;
+          break;
+        case !!softwareId:
+          if (softwareId) {
+            newQueryParams.software_id = softwareId;
+          }
+        case !!mdmId:
+          if (mdmId) {
+            newQueryParams.mdm_id = mdmId;
+          }
+          break;
+        case !!mdmEnrollmentStatus:
+          if (mdmEnrollmentStatus) {
+            newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
+          }
+          break;
+        case !!munkiIssueId:
+          if (munkiIssueId) {
+            newQueryParams.munki_issue_id = munkiIssueId;
+          }
+          break;
+        case !!missingHosts:
+          if (missingHosts) {
+            newQueryParams.status = "missing";
+          }
+          break;
+        case !!lowDiskSpaceHosts:
+          if (lowDiskSpaceHosts) {
+            newQueryParams.low_disk_space = lowDiskSpaceHosts;
+          }
+          break;
+        case !!(osId || (osName && osVersion)):
+          if (osId || (osName && osVersion)) {
+            newQueryParams.os_id = osId;
+            newQueryParams.os_name = osName;
+            newQueryParams.os_version = osVersion;
+          }
       }
 
-      if (policyId) {
-        newQueryParams.policy_id = policyId;
-      }
-
-      if (status) {
-        newQueryParams.status = status;
-      }
-
-      if (policyResponse) {
-        newQueryParams.policy_response = policyResponse;
-      }
-
-      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
-        newQueryParams.software_id = softwareId;
-      }
-
-      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
-        newQueryParams.mdm_id = mdmId;
-      }
-
-      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
-        newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
-      }
-
-      if (
-        munkiIssueId &&
-        !mdmEnrollmentStatus &&
-        !policyId &&
-        !softwareId &&
-        !mdmId
-      ) {
-        newQueryParams.munki_issue_id = munkiIssueId;
-      }
-
-      if (missingHosts) {
-        newQueryParams.status = "missing";
-      }
-
-      if (lowDiskSpaceHosts) {
-        newQueryParams.low_disk_space = lowDiskSpaceHosts;
-      }
-
-      if (
-        (osId || (osName && osVersion)) &&
-        !softwareId &&
-        !policyId &&
-        !mdmEnrollmentStatus &&
-        !mdmId
-      ) {
-        newQueryParams.os_id = osId;
-        newQueryParams.os_name = osName;
-        newQueryParams.os_version = osVersion;
-      }
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
