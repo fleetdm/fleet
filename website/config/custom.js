@@ -120,7 +120,7 @@ module.exports.custom = {
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/package.json': 'eashaw',
 
-    'docs': ['desmi-dizney', 'chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
+    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': 'ksatter',
     'docs/Contributing/API-for-contributors.md': 'ksatter',
