@@ -38,6 +38,11 @@ go.mod @fleetdm/go
 /website/views/ @eashaw
 /website/assets/ @eashaw
 
+# Features table
+# - CEO is DRI for pricing
+# - Mo is DRI for features table
+/website/views/pages/pricing.ejs @zhumo @eashaw @mikermcneil
+
 # Website redirects and URLs
 /website/config/routes.js @eashaw
 
