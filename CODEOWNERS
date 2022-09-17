@@ -41,6 +41,7 @@ go.mod @fleetdm/go
 # Features table
 # - CEO is DRI for pricing
 # - Mo is DRI for features table
+# - Eric is DRI for website frontend code
 /website/views/pages/pricing.ejs @zhumo @eashaw @mikermcneil
 
 # Website redirects and URLs
