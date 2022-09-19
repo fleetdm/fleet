@@ -37,11 +37,8 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
-		DisplayName: host.ComputerName,
+		DisplayName: host.DisplayName(),
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
-	}
-	if hr.DisplayName == "" {
-		hr.DisplayName = host.Hostname
 	}
 	return &hr, nil
 }
