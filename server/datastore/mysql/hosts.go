@@ -788,7 +788,6 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 	if osqueryHostID == "" {
 		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
-	level.Info(ds.logger).Log("osquery host ID", osqueryHostID)
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {

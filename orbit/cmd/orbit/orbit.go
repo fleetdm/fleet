@@ -406,7 +406,6 @@ func main() {
 				},
 			)
 
-
 			// Directory to store proxy related assets
 			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
 			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
