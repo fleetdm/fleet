@@ -208,7 +208,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 	}
 
 	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
-		return &badRequestError{"Cannot specify a list of ids and filters at the same time"}
+		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
 	if len(ids) > 0 {
@@ -1127,7 +1127,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 						// duplicating the list of columns from the Host's struct tags to a
 						// map and keep this in sync, for what is essentially a programmer
 						// mistake that should be caught and corrected early.
-						encodeError(ctx, &badRequestError{message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
 						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])
@@ -1247,11 +1247,11 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	if name != nil && version == nil {
-		return nil, &badRequestError{"Cannot specify os_name without os_version"}
+		return nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
 	}
 
 	if name == nil && version != nil {
-		return nil, &badRequestError{"Cannot specify os_version without os_name"}
+		return nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
