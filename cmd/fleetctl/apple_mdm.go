@@ -496,6 +496,7 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 			appleMDMEnqueueCommandSimpleCommand("ScheduleOSUpdateScan"),
 			appleMDMEnqueueCommandEraseDeviceCommand(),
 			appleMDMEnqueueCommandDeviceLockCommand(),
+			appleMDMEnqueueCommandDeviceInformationCommand(),
 		},
 	}
 }
@@ -536,6 +537,7 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 
 			payload := &mdm.CommandPayload{
 				Command: &mdm.Command{
+					RequestType: "InstallProfile",
 					InstallProfile: &mdm.InstallProfile{
 						Payload: profilePayloadBytes,
 					},
@@ -579,6 +581,7 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 
 			payload := &mdm.CommandPayload{
 				Command: &mdm.Command{
+					RequestType: "RemoveProfile",
 					RemoveProfile: &mdm.RemoveProfile{
 						Identifier: identifier,
 					},
@@ -671,11 +674,12 @@ func appleMDMEnqueueCommandEraseDeviceCommand() *cli.Command {
 
 			pin := c.String("pin")
 			if len(pin) != 6 {
-				return errors.New("must provide a six-character PIN for Find My.")
+				return errors.New("must provide a six-character PIN for Find My")
 			}
 
 			payload := &mdm.CommandPayload{
 				Command: &mdm.Command{
+					RequestType: "EraseDevice",
 					EraseDevice: &mdm.EraseDevice{
 						PIN: pin,
 					},
@@ -714,13 +718,58 @@ func appleMDMEnqueueCommandDeviceLockCommand() *cli.Command {
 
 			pin := c.String("pin")
 			if len(pin) != 6 {
-				return errors.New("must provide a six-character PIN for Find My.")
+				return errors.New("must provide a six-character PIN for Find My")
 			}
 
 			payload := &mdm.CommandPayload{
 				Command: &mdm.Command{
+					RequestType: "DeviceLock",
 					DeviceLock: &mdm.DeviceLock{
 						PIN: pin,
+					},
+				},
+			}
+
+			return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
+		},
+	}
+}
+
+func appleMDMEnqueueCommandDeviceInformationCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "DeviceInformation",
+		Usage: "Enqueue the DeviceInformation MDM command.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
+			},
+			&cli.StringFlag{
+				Name:  "queries",
+				Usage: "An array of query dictionaries to get information about a device. See https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command/queries.",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
+			if len(deviceIDs) == 0 {
+				return errors.New("must provide at least one device ID")
+			}
+
+			queries := strings.Split(c.String("queries"), ",")
+			if len(queries) == 0 {
+				return errors.New("must provide queries for the device")
+			}
+
+			payload := &mdm.CommandPayload{
+				Command: &mdm.Command{
+					RequestType: "DeviceInformation",
+					DeviceInformation: &mdm.DeviceInformation{
+						Queries: queries,
 					},
 				},
 			}
