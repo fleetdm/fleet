@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
@@ -77,8 +77,7 @@ func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload
 }
 
 func (svc *Service) mdmAppleEnrollURL(enrollmentID uint) string {
-	// TODO(lucas): Define /api/mdm/apple/enroll path somewhere else.
-	return fmt.Sprintf("https://%s/api/mdm/apple/enroll?id=%d", svc.config.MDMApple.ServerAddress, enrollmentID)
+	return fmt.Sprintf("https://%s"+apple_mdm.EnrollPath+"?id=%d", svc.config.MDMApple.ServerAddress, enrollmentID)
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
@@ -103,7 +102,7 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 	}
 
 	defineProfileRequest, err := client.NewRequestWithContext(
-		ctx, apple.DEPName, svc.depStorage, "POST", "/profile", bytes.NewReader(depProfile),
+		ctx, apple_mdm.DEPName, svc.depStorage, "POST", "/profile", bytes.NewReader(depProfile),
 	)
 	if err != nil {
 		return fmt.Errorf("create profile request: %w", err)
@@ -128,7 +127,7 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 		return fmt.Errorf("parse profile response: %w", err)
 	}
 	if err := svc.depStorage.StoreAssignerProfile(
-		ctx, apple.DEPName, defineProfileResponse.ProfileUUID,
+		ctx, apple_mdm.DEPName, defineProfileResponse.ProfileUUID,
 	); err != nil {
 		return fmt.Errorf("set profile UUID: %w", err)
 	}
@@ -222,8 +221,7 @@ func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, si
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var installerBuf bytes.Buffer
-	// TODO(lucas): Define proper path for endpoint.
-	url := "https://" + svc.config.MDMApple.ServerAddress + "/api/mdm/apple/installer?token=" + urlToken.String()
+	url := "https://" + svc.config.MDMApple.ServerAddress + apple_mdm.InstallerPath + "?token=" + urlToken.String()
 	manifest, err := createManifest(size, io.TeeReader(installer, &installerBuf), url)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -348,7 +346,7 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
 
 	// TODO(lucas): Use cursors and limit.
-	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple.DEPName)
+	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple_mdm.DEPName)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -563,9 +561,8 @@ func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID u
 	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
 	// on enrollments).
 	mobileConfig, err := generateMobileConfig(
-		// TODO(lucas): Define endpoints in one location.
-		"https://"+svc.config.MDMApple.ServerAddress+"/mdm/apple/scep",
-		"https://"+svc.config.MDMApple.ServerAddress+"/mdm/apple/mdm",
+		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.SCEPPath,
+		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.MDMPath,
 		svc.config.MDMApple.SCEP.Challenge,
 		topic,
 	)

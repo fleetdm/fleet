@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -803,13 +803,13 @@ func startAppleMDMDepProfileAssigner(
 	}
 	assigner := depsync.NewAssigner(
 		depClient,
-		apple.DEPName,
+		apple_mdm.DEPName,
 		depStorage,
 		assignerOpts...,
 	)
 	syncer := depsync.NewSyncer(
 		depClient,
-		apple.DEPName,
+		apple_mdm.DEPName,
 		depStorage,
 		depsync.WithLogger(depLogger.With("component", "syncer")),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {

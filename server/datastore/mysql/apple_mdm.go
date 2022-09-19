@@ -145,7 +145,9 @@ func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleD
 		&devices,
 		`SELECT d.id, d.serial_number, e.enabled
 		FROM devices d
-		JOIN enrollments e`,
+		JOIN enrollments e
+		ON d.id = e.device_id
+		WHERE type = "Device"`,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list devices")
 	}

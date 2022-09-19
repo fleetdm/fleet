@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/apple"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
@@ -480,8 +480,8 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 				return fmt.Errorf("read payload: %w", err)
 			}
 
-			payload := &apple.CommandPayload{
-				Command: apple.InstallProfile{
+			payload := &apple_mdm.CommandPayload{
+				Command: apple_mdm.InstallProfile{
 					RequestType: "InstallProfile",
 					Payload:     profilePayloadBytes,
 				},
@@ -535,8 +535,8 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 
 			identifier := c.String("identifier")
 
-			payload := &apple.CommandPayload{
-				Command: apple.RemoveProfile{
+			payload := &apple_mdm.CommandPayload{
+				Command: apple_mdm.RemoveProfile{
 					RequestType: "RemoveProfile",
 					Identifier:  identifier,
 				},
@@ -585,8 +585,8 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 				return errors.New("must provide at least one device ID")
 			}
 
-			payload := &apple.CommandPayload{
-				Command: apple.ProfileList{
+			payload := &apple_mdm.CommandPayload{
+				Command: apple_mdm.ProfileList{
 					RequestType: "ProfileList",
 				},
 			}
@@ -704,7 +704,7 @@ func appleMDMDevicesListCommand() *cli.Command {
 			// format output as a table
 			table := tablewriter.NewWriter(os.Stdout)
 			table.SetRowLine(true)
-			table.SetHeader([]string{"Device ID", "Serial Number", "Enabled"})
+			table.SetHeader([]string{"Device ID", "Serial Number", "Enrolled"})
 			table.SetAutoWrapText(false)
 			table.SetRowLine(true)
 

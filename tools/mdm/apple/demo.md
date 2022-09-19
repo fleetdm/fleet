@@ -9,12 +9,13 @@ subgraph Fleet [Fleet Server]
 
     direction TB;
 
-    enroll[".mobileconfig<br>/mdm/apple/api/enroll"];
+    enroll[".mobileconfig<br>/api/mdm/apple/enroll"];
+    installer[".mobileconfig<br>/api/mdm/apple/installer"];
     subgraph nanoMDMModules ["nanoMDM modules"]
         direction TB;
         nanoSCEP["nanoSCEP<br>/mdm/apple/scep"];
         nanoMDM["nanoMDM<br>/mdm/apple/mdm"];
-        nanoDEP["nanoDEP<br>/mdm/apple/dep/proxy"];
+        nanoDEP["nanoDEP"];
     end
     subgraph MySQL
         direction LR;
@@ -28,6 +29,7 @@ AppleDEP[https://mdmenrollment.apple.com];
 nanoDEP -- Apple MDM DEP API ----> AppleDEP;
 nanoMDM --> ApplePush;
 
+nanoSCEP --> mdmAppleDB
 nanoDEP --> mdmAppleDB;
 nanoMDM --> mdmAppleDB;
 ```
@@ -150,7 +152,7 @@ Sending usage statistics from your Fleet instance is optional and can be disable
 
 ```sh
 fleetctl apple-mdm enrollments create-manual --name foo
-Manual enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/mdm/apple/api/enroll?id=1, id: 1
+Manual enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=1, id: 1
 ```
 
 ## 9. Create automatic (DEP) enrollment
@@ -186,7 +188,7 @@ cat ./tools/mdm/apple/dep_sample_profile.json
 fleetctl apple-mdm enrollments create-automatic \
     --name foo \
     --profile ./tools/mdm/apple/dep_sample_profile.json
-Automatic enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/mdm/apple/api/enroll?id=2, id: 2
+Automatic enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=2, id: 2
 ```
 
 ## 10. Inspect MDM tables

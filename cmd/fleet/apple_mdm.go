@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	kitlog "github.com/go-kit/kit/log"
@@ -70,7 +71,7 @@ func registerSCEP(mux *http.ServeMux, config config.MDMAppleConfig, scepStorage 
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
-	mux.Handle("/mdm/apple/scep", scepHandler)
+	mux.Handle(apple_mdm.SCEPPath, scepHandler)
 	return scepCACrt, nil
 }
 
@@ -80,7 +81,7 @@ func registerMDM(mux *http.ServeMux, config config.MDMAppleConfig, scepCACrt *x5
 		Bytes: scepCACrt.Raw,
 	}
 	scepCAPEM := pem.EncodeToMemory(scepCAPEMBlock)
-	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
+	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, nil, x509.ExtKeyUsageClientAuth)
 	if err != nil {
 		return fmt.Errorf("certificate pool verifier: %w", err)
 	}
@@ -102,6 +103,6 @@ func registerMDM(mux *http.ServeMux, config config.MDMAppleConfig, scepCACrt *x5
 	mdmHandler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
-	mux.Handle("/mdm/apple/mdm", mdmHandler)
+	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
 }

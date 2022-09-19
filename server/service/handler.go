@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -473,9 +474,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
 	if config.MDMApple.Enable {
-		ne.GET("/api/mdm/apple/enroll", mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
-		ne.GET("/api/mdm/apple/installer", mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
-		ne.HEAD("/api/mdm/apple/installer", mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
+		ne.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
+		ne.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
+		ne.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
 	}
 
 	// For some reason osquery does not provide a node key with the block data.
