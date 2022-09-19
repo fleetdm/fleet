@@ -165,7 +165,8 @@ CREATE TABLE `host_disks` (
   `percent_disk_space_available` float NOT NULL DEFAULT '0',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`host_id`)
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_disks_gigs_disk_space_available` (`gigs_disk_space_available`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

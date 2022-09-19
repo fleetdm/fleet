@@ -17,7 +17,8 @@ func Up_20220914154915(tx *sql.Tx) error {
 		created_at                   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at                   TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-		PRIMARY KEY (host_id)
+		PRIMARY KEY (host_id),
+	  KEY idx_host_disks_gigs_disk_space_available (gigs_disk_space_available)
 	)`)
 	return err
 }

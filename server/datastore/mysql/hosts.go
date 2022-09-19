@@ -293,6 +293,7 @@ var hostRefs = []string{
 	"host_operating_system",
 	"host_munki_issues",
 	"windows_updates",
+	"host_disks",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -1147,7 +1148,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 
 	query := `
 		SELECT SUM(1 - pm.passes) AS n_failed
-		FROM policy_membership pm 
+		FROM policy_membership pm
 		WHERE pm.host_id = ?
 		GROUP BY host_id
 	`
@@ -1676,6 +1677,17 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,
 		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, host_id) VALUES (?, ?, ?, ?, ?)`,
 		enrolled, serverURL, installedFromDep, mdmID, hostID,
+	)
+}
+
+// SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
+// disks for the specified host.
+func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, host_id) VALUES (?, ?, ?)`,
+		gigsAvailable, percentAvailable, hostID,
 	)
 }
 
