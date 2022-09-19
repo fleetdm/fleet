@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
@@ -436,9 +437,9 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 		Name:  "enqueue-command",
 		Usage: "Enqueue an MDM command. See the results using the command-results command and passing the command UUID that is returned from this command.",
 		Flags: []cli.Flag{
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "device-ids",
-				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -453,7 +454,7 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 
-			deviceIDs := c.StringSlice("device-ids")
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
 			if len(deviceIDs) == 0 {
 				return errors.New("must provide at least one device ID")
 			}
@@ -482,9 +483,9 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 		Name:  "enqueue-command-install-profile",
 		Usage: "Enqueue the InstallProfile MDM command.",
 		Flags: []cli.Flag{
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "device-ids",
-				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -499,7 +500,7 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 
-			deviceIDs := c.StringSlice("device-ids")
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
 			if len(deviceIDs) == 0 {
 				return errors.New("must provide at least one device ID")
 			}
@@ -541,9 +542,9 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 		Name:  "enqueue-command-remove-profile",
 		Usage: "Enqueue the RemoveProfile MDM command.",
 		Flags: []cli.Flag{
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "device-ids",
-				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -558,7 +559,7 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 
-			deviceIDs := c.StringSlice("device-ids")
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
 			if len(deviceIDs) == 0 {
 				return errors.New("must provide at least one device ID")
 			}
@@ -577,7 +578,6 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("marshal command payload plist: %w", err)
 			}
-			fmt.Println(string(payloadBytes))
 
 			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
 			if err != nil {
@@ -598,9 +598,9 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 		Name:  "enqueue-command-profile-list",
 		Usage: "Enqueue the ProfileList MDM command.",
 		Flags: []cli.Flag{
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "device-ids",
-				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 				Required: true,
 			},
 		},
@@ -610,7 +610,7 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 
-			deviceIDs := c.StringSlice("device-ids")
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
 			if len(deviceIDs) == 0 {
 				return errors.New("must provide at least one device ID")
 			}
@@ -646,9 +646,9 @@ func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 		Name:  "enqueue-command-install-enterprise-application",
 		Usage: "Enqueue the InstallEnterpriseApplication MDM command.",
 		Flags: []cli.Flag{
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "device-ids",
-				Usage:    "The device IDs of the devices to send the MDM command to. This is the same as the hardware UUID.",
+				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 				Required: true,
 			},
 			&cli.UintFlag{
@@ -663,7 +663,7 @@ func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 
-			deviceIDs := c.StringSlice("device-ids")
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
 			if len(deviceIDs) == 0 {
 				return errors.New("must provide at least one device ID")
 			}
@@ -850,7 +850,8 @@ func appleMDMCommandResultsCommand() *cli.Command {
 			table.SetRowLine(true)
 
 			for deviceID, result := range results {
-				table.Append([]string{deviceID, result.Status, string(result.Result)})
+				xml := bytes.ReplaceAll(result.Result, []byte{'\t'}, []byte{' '})
+				table.Append([]string{deviceID, result.Status, string(xml)})
 			}
 
 			table.Render()
@@ -926,7 +927,8 @@ func appleMDMInstallersListCommand() *cli.Command {
 			table.SetRowLine(true)
 
 			for _, installer := range installers {
-				table.Append([]string{strconv.FormatUint(uint64(installer.ID), 10), installer.Name, installer.Manifest, installer.URL})
+				manifest := strings.ReplaceAll(installer.Manifest, "\t", " ")
+				table.Append([]string{strconv.FormatUint(uint64(installer.ID), 10), installer.Name, manifest, installer.URL})
 			}
 
 			table.Render()
