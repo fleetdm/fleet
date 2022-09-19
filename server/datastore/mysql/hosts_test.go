@@ -5324,10 +5324,6 @@ func testHostDisplayName(t *testing.T, ds *Datastore) {
 	expect := []string{"0001", "0003", "0004"}
 	require.Len(t, hosts, len(expect))
 	for i, h := range hosts {
-		dn := h.ComputerName
-		if dn == "" {
-			dn = h.Hostname
-		}
-		assert.Equal(t, expect[i], dn)
+		assert.Equal(t, expect[i], h.DisplayName())
 	}
 }
