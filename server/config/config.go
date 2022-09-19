@@ -356,10 +356,6 @@ type MDMAppleDEP struct {
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
 	SyncPeriodicity time.Duration
-	// SyncDeviceLimit limits the number of device to sync per API request.
-	//
-	// If set to 0, then it uses server default (100), maximum allowed value 1000.
-	SyncDeviceLimit int
 }
 
 // MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
@@ -783,8 +779,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
 	man.addConfigString("mdm.apple.dep.server_url", "", "URL of the Fleet server to be set in the DEP profile")
 	man.addConfigString("mdm.apple.dep.token", "", "MDM DEP Auth Token")
-	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 5*time.Minute, "How much time to wait between device fetching + assigning of DEP profile")
-	man.addConfigInt("mdm.apple.dep.sync_device_limit", 0, "Maximum number of devices to return on DEP sync/fetch requests (0 uses Apple default)")
+	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 5*time.Minute, "How much time to wait for DEP profile assignment")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -1019,7 +1014,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			DEP: MDMAppleDEP{
 				Token:           []byte(man.getConfigString("mdm.apple.dep.token")),
 				SyncPeriodicity: man.getConfigDuration("mdm.apple.dep.sync_periodicity"),
-				SyncDeviceLimit: man.getConfigInt("mdm.apple.dep.sync_device_limit"),
 			},
 		},
 	}

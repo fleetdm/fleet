@@ -25,7 +25,6 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -42,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	config_apple "github.com/fleetdm/fleet/v4/server/mdm/apple/config"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
-	mdm_apple_service "github.com/fleetdm/fleet/v4/server/mdm/apple/service"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -417,9 +415,10 @@ the way that the Fleet server works.
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
 			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
-			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, instanceID); err != nil {
-				initFatal(err, "failed to register schedules")
-			}
+
+			startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
+			startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+			startAppleMDMDepProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -511,15 +510,9 @@ the way that the Fleet server works.
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
 			if config.MDMApple.Enable {
-				if err := mdm_apple_service.Setup(ctx, rootMux, mdm_apple_service.SetupConfig{
-					MDMConfig:    config.MDMApple,
-					Logger:       logger,
-					MDMStorage:   mdmStorage,
-					SCEPStorage:  scepStorage,
-					DEPStorage:   depStorage,
-					Datastore:    ds,
-					LoggingDebug: config.Logging.Debug,
-				}); err != nil {
+				if err := registerAppleMDMProtocolServices(
+					rootMux, config.MDMApple, mdmStorage, scepStorage, logger, config.Logging.Debug,
+				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
 			}
@@ -718,7 +711,7 @@ const (
 	lockKeyWorker                  = "worker"
 )
 
-// runCrons runs cron jobs not yet ported to use the schedule package (startSchedules)
+// runCrons runs cron jobs not yet ported to use the schedule package.
 func runCrons(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -737,21 +730,6 @@ func runCrons(
 
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
-}
-
-func startSchedules(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	config config.FleetConfig,
-	license *fleet.LicenseInfo,
-	enrollHostLimiter fleet.EnrollHostLimiter,
-	instanceID string,
-) error {
-	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
-	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
-
-	return nil
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

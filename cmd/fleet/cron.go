@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	stdlog "log"
 	"net/url"
 	"os"
 	"strconv"
@@ -14,7 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -25,6 +28,9 @@ import (
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/micromdm/nanodep/godep"
+	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
+	depsync "github.com/micromdm/nanodep/sync"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -771,4 +777,49 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return err
 	}
 	return ds.RecordStatisticsSent(ctx)
+}
+
+func startAppleMDMDepProfileAssigner(
+	ctx context.Context,
+	instanceID string,
+	periodicity time.Duration,
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) {
+	stdLogger := stdlog.New(
+		kitlog.NewStdlibAdapter(
+			kitlog.With(logger, "component", "mdm-apple-dep-routine")),
+		"", stdlog.LstdFlags,
+	)
+	depLogger := nanodep_stdlogfmt.New(stdLogger, loggingDebug)
+	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	assignerOpts := []depsync.AssignerOption{
+		depsync.WithAssignerLogger(depLogger.With("component", "assigner")),
+	}
+	if loggingDebug {
+		assignerOpts = append(assignerOpts, depsync.WithDebug())
+	}
+	assigner := depsync.NewAssigner(
+		depClient,
+		apple.DEPName,
+		depStorage,
+		assignerOpts...,
+	)
+	syncer := depsync.NewSyncer(
+		depClient,
+		apple.DEPName,
+		depStorage,
+		depsync.WithLogger(depLogger.With("component", "syncer")),
+		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+			return assigner.ProcessDeviceResponse(ctx, resp)
+		}),
+	)
+
+	schedule.New(
+		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")),
+		schedule.WithJob("dep_syncer", syncer.Run),
+	).Start()
 }
