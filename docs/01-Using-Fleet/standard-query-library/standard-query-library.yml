@@ -930,4 +930,4 @@ spec:
   query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
   purpose: Informational
   tags: network, tls
-  contributors: zhumo
+  contributors: nabilschear
