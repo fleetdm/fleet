@@ -1,7 +1,6 @@
-/*
-    Copied from:
-    https://github.com/jessepeterson/mysqlscepserver/blob/f1abaac10899fddbe80b6424470b418ce1a446c4/schema.sql
-*/
+/* This schema for SCEP storage is a Fleet adaptation of the following schema:
+ * https://github.com/jessepeterson/mysqlscepserver/blob/f1abaac10899fddbe80b6424470b418ce1a446c4/schema.sql
+ */
 
 /* Certificate serials must be generated before certificate issuance.
  * While it may seem somehwat wasteful to have a table just for this

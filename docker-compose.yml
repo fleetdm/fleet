@@ -8,7 +8,6 @@ services:
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume:/tmp
-      - ./tools/mdm/apple/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:rw
     command:
       [
         "mysqld",
@@ -32,8 +31,6 @@ services:
     image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
-    volumes:
-      - ./tools/mdm/apple/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:rw
     command:
       [
         "mysqld",
