@@ -63,6 +63,10 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
+
+    &:focus-visible {
+      outline: 1px solid $core-vibrant-blue;
+    }
   }
   &__action-button-text {
     text-align: right;
