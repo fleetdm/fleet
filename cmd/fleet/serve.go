@@ -381,7 +381,7 @@ the way that the Fleet server works.
 			}
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
+			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
@@ -400,8 +400,8 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
-			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
-			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, instanceID); err != nil {
+			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, instanceID)
+			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, failingPolicySet, instanceID); err != nil {
 				initFatal(err, "failed to register schedules")
 			}
 
@@ -653,9 +653,7 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 }
 
 const (
-	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
-	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
-	lockKeyWorker                  = "worker"
+	lockKeyWorker = "worker"
 )
 
 // runCrons runs cron jobs not yet ported to use the schedule package (startSchedules)
@@ -666,13 +664,11 @@ func runCrons(
 	logger kitlog.Logger,
 	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
-	failingPoliciesSet fleet.FailingPolicySet,
 	ourIdentifier string,
 ) {
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }
 
@@ -683,11 +679,18 @@ func startSchedules(
 	config config.FleetConfig,
 	license *fleet.LicenseInfo,
 	enrollHostLimiter fleet.EnrollHostLimiter,
+	failingPoliciesSet fleet.FailingPolicySet,
 	instanceID string,
 ) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("getting app config: %w", err)
+	}
+
 	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
 	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 	startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
+	startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, *appConfig, failingPoliciesSet)
 
 	return nil
 }

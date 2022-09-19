@@ -357,114 +357,62 @@ func checkNVDVulnerabilities(
 	return vulns
 }
 
-func cronWebhooks(
+func startAutomationsSchedule(
 	ctx context.Context,
+	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-	failingPoliciesSet fleet.FailingPolicySet,
 	intervalReload time.Duration,
-) {
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
-
-	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	level.Debug(logger).Log("interval", interval.String())
-	ticker := time.NewTicker(interval)
-	start := time.Now()
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		case <-time.After(intervalReload):
-			// Reload interval and check if it has been reduced.
+	appConfig fleet.AppConfig,
+	failingPoliciesSet fleet.FailingPolicySet,
+) *schedule.Schedule {
+	s := schedule.New(
+		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
+		ctx, "automations", instanceID, appConfig.WebhookSettings.Interval.ValueOr(24*time.Hour), ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "automations")),
+		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
-				level.Error(logger).Log("config", "couldn't read app config", "err", err)
-				continue
+				return 0, err
 			}
-			if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
-				continue
-			}
-		}
-
-		// Reread app config to be able to read latest data used by the webhook
-		// and update the ticker for the next run.
-		appConfig, err = ds.AppConfig(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "couldn't read app config", err)
-		} else {
-			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
-			start = time.Now()
-		}
-
-		// We set the db lock durations to match the intervalReload.
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesAutomation(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
-
-		level.Debug(logger).Log("loop", "done")
-	}
+			newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+			return newInterval, nil
+		}),
+		schedule.WithJob(
+			"host_status_webhook",
+			func(ctx context.Context) error {
+				return webhooks.TriggerHostStatusWebhook(
+					ctx, ds, kitlog.With(logger, "automation", "host_status"),
+				)
+			},
+		),
+		schedule.WithJob(
+			"failing_policies_automation",
+			func(ctx context.Context) error {
+				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
+			},
+		),
+	)
+	s.Start()
+	return s
 }
 
-func maybeTriggerHostStatus(
+func triggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksHostStatus)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerHostStatusWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-	); err != nil {
-		errHandler(ctx, logger, "triggering host status webhook", err)
-	}
-}
-
-func maybeTriggerFailingPoliciesAutomation(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksFailingPolicies)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
+) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("getting app config: %w", err)
 	}
-
 	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
 	if err != nil {
-		errHandler(ctx, logger, "parsing appConfig.ServerSettings.ServerURL", err)
-		return
+		return fmt.Errorf("parsing appConfig.ServerSettings.ServerURL: %w", err)
 	}
 
-	logger = kitlog.With(logger, "webhook", "failing_policies")
-	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
@@ -497,8 +445,10 @@ func maybeTriggerFailingPoliciesAutomation(
 		return nil
 	})
 	if err != nil {
-		errHandler(ctx, logger, "triggering failing policies automation", err)
+		return fmt.Errorf("triggering failing policies automation: %w", err)
 	}
+
+	return nil
 }
 
 func cronWorker(
@@ -649,7 +599,7 @@ func startCleanupsAndAggregationSchedule(
 		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
 		// Run cleanup jobs first.
 		schedule.WithJob(
-			"distributed_query_campaings",
+			"distributed_query_campaigns",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 				return err

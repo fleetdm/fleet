@@ -180,7 +180,7 @@ func TestCronWebhooks(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), "1234", failingPoliciesSet, 5*time.Minute)
+	startAutomationsSchedule(ctx, "1234", ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), 5*time.Minute, fleet.AppConfig{}, failingPoliciesSet)
 
 	<-calledOnce
 	time.Sleep(1 * time.Second)
@@ -309,17 +309,23 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	}, 24*time.Second, 12*time.Second)
 }
 
-// TestCronWebhooksLockDuration tests that the Lock method is being called
-// for the current webhook crons and that their duration is always one hour (see #3584).
-func TestCronWebhooksLockDuration(t *testing.T) {
+// TestCronAutomationsLockDuration tests that the Lock method is being called
+// for the current automation crons and that their duration is equal to the current
+// schedule interval.
+func TestCronAutomationsLockDuration(t *testing.T) {
 	ds := new(mock.Store)
+	expectedInterval := 1 * time.Second
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
+		ac := fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
-				Interval: fleet.Duration{Duration: 1 * time.Second},
+				Interval: fleet.Duration{Duration: 1 * time.Hour},
 			},
-		}, nil
+		}
+		if ds.AppConfigFuncInvoked {
+			ac.WebhookSettings.Interval = fleet.Duration{Duration: expectedInterval}
+		}
+		return &ac, nil
 	}
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
@@ -327,16 +333,15 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	failingPoliciesClosed := false
 	unknownName := false
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		if expiration != 1*time.Hour {
+		if expiration != expectedInterval {
 			return false, nil
 		}
 		switch name {
-		case lockKeyWebhooksHostStatus:
+		case "automations":
 			if !hostStatusClosed {
 				close(hostStatus)
 				hostStatusClosed = true
 			}
-		case lockKeyWebhooksFailingPolicies:
 			if !failingPoliciesClosed {
 				close(failingPolicies)
 				failingPoliciesClosed = true
@@ -346,11 +351,14 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 		}
 		return true, nil
 	}
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		return nil
+	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 1*time.Hour)
+	startAutomationsSchedule(ctx, "1234", ds, kitlog.With(kitlog.NewNopLogger(), "cron", "automations"), 1*time.Second, fleet.AppConfig{}, service.NewMemFailingPolicySet())
 
 	select {
 	case <-failingPolicies:
@@ -402,11 +410,14 @@ func TestCronWebhooksIntervalChange(t *testing.T) {
 		}
 		return true, nil
 	}
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		return nil
+	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 200*time.Millisecond)
+	startAutomationsSchedule(ctx, "1234", ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), 200*time.Millisecond, fleet.AppConfig{}, service.NewMemFailingPolicySet())
 
 	select {
 	case <-configLoaded:
