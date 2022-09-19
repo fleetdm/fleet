@@ -421,8 +421,8 @@ github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77 h1:oaRSVdXLGFxX0aQa5
 github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
 github.com/fleetdm/nanodep v0.1.1-0.20220919174611-6952196b3d20 h1:mijG1yRNQhBIIHt17MD+qDxZtYYBmYr3c6sRedeygOs=
 github.com/fleetdm/nanodep v0.1.1-0.20220919174611-6952196b3d20/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
-github.com/fleetdm/nanomdm v0.3.1-0.20220919170804-15d7f85f0ea7 h1:/OUDsRbr1cslHX2nTlOlg0v1RsXtbrsNTYAMKjU+v7c=
-github.com/fleetdm/nanomdm v0.3.1-0.20220919170804-15d7f85f0ea7/go.mod h1:MJ03vNSdJguAqmjTg8wDKBL9Dav+H2kOgrKiaY/lDVc=
+github.com/fleetdm/nanomdm v0.3.1-0.20220919192759-fdba75c813ef h1:kFV4QYO6G6lNWnBf1BjAqSzUiFv7pVJze1uvBYqVTQA=
+github.com/fleetdm/nanomdm v0.3.1-0.20220919192759-fdba75c813ef/go.mod h1:MJ03vNSdJguAqmjTg8wDKBL9Dav+H2kOgrKiaY/lDVc=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03 h1:oW24iL1GfGWW1VhyWrVdw7VdnyvFePyzR88zvfnTqCo=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03/go.mod h1:PajjVSF3LaELUh847MlOtanfqrF8R2DOO4oS3NSPemI=
 github.com/flynn/go-docopt v0.0.0-20140912013429-f6dd2ebbb31e/go.mod h1:HyVoz1Mz5Co8TFO8EupIdlcpwShBmY98dkT2xeHkvEI=
