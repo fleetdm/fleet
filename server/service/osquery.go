@@ -895,7 +895,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			} else {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
-					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), failingPolicies, passingPolicies); err != nil {
 						logging.WithErr(ctx, err)
 					}
 				}()
@@ -1119,10 +1119,11 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
-func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
+func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname, displayName string, newFailing, newPassing []uint) error {
 	host := fleet.PolicySetHost{
-		ID:       hostID,
-		Hostname: hostname,
+		ID:          hostID,
+		Hostname:    hostname,
+		DisplayName: displayName,
 	}
 	for _, policyID := range newFailing {
 		if err := svc.failingPolicySet.AddHost(policyID, host); err != nil {
