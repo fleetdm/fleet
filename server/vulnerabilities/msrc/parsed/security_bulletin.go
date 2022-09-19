@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -103,6 +104,14 @@ func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 		ProductIDs:     make(map[string]bool),
 		RemediatedBy:   make(map[int]bool),
 	}
+}
+
+func (v *Vulnerability) TargetsAny(map[string]bool) bool {
+	panic("not implemented")
+}
+
+func (v *Vulnerability) PatchedBy([]fleet.WindowsUpdate) bool {
+	panic("not implemented")
 }
 
 type VendorFix struct {

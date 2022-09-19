@@ -165,6 +165,8 @@ type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.Tea
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
+type HostIDsByOSIDFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
+
 type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
@@ -447,7 +449,7 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
-type ListWindowsUpdatesByOSIDFunc func(ctx context.Context, osID uint) ([]fleet.WindowsUpdate, error)
+type ListWindowsUpdatesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error)
 
 type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
 
@@ -679,6 +681,9 @@ type DataStore struct {
 
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
+
+	HostIDsByOSIDFunc        HostIDsByOSIDFunc
+	HostIDsByOSIDFuncInvoked bool
 
 	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
 	HostIDsByOSVersionFuncInvoked bool
@@ -1103,8 +1108,8 @@ type DataStore struct {
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
 
-	ListWindowsUpdatesByOSIDFunc        ListWindowsUpdatesByOSIDFunc
-	ListWindowsUpdatesByOSIDFuncInvoked bool
+	ListWindowsUpdatesByHostIDFunc        ListWindowsUpdatesByHostIDFunc
+	ListWindowsUpdatesByHostIDFuncInvoked bool
 
 	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
 	InsertWindowsUpdatesFuncInvoked bool
@@ -1488,6 +1493,11 @@ func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
 	return s.HostIDsByNameFunc(ctx, filter, hostnames)
+}
+
+func (s *DataStore) HostIDsByOSID(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+	s.HostIDsByOSIDFuncInvoked = true
+	return s.HostIDsByOSIDFunc(ctx, osVersion, offset, limit)
 }
 
 func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
@@ -2195,9 +2205,9 @@ func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, erro
 	return s.ProcessListFunc(ctx)
 }
 
-func (s *DataStore) ListWindowsUpdatesByOSID(ctx context.Context, osID uint) ([]fleet.WindowsUpdate, error) {
-	s.ListWindowsUpdatesByOSIDFuncInvoked = true
-	return s.ListWindowsUpdatesByOSIDFunc(ctx, osID)
+func (s *DataStore) ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
+	s.ListWindowsUpdatesByHostIDFuncInvoked = true
+	return s.ListWindowsUpdatesByHostIDFunc(ctx, hostID)
 }
 
 func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {

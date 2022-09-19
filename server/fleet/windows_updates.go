@@ -7,7 +7,6 @@ import (
 )
 
 type WindowsUpdate struct {
-	HostID    uint `db:"host_id"`
 	KBID      uint `db:"kb_id"`
 	DateEpoch uint `db:"date_epoch"`
 }

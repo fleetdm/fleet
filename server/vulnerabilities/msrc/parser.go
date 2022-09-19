@@ -37,7 +37,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 	pIDToPName := make(map[string]string, len(rXML.WinProducts))
 
 	for pID, p := range rXML.WinProducts {
-		name := parsed.NewProduct(p.FullName).Name()
+		name := parsed.NewProductFromFullName(p.FullName).Name()
 		// If the name could not be determined means that we have an un-supported Windows product
 		if name == "" {
 			continue
@@ -46,7 +46,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 		if bulletins[name] == nil {
 			bulletins[name] = parsed.NewSecurityBulletin(name)
 		}
-		bulletins[name].Products[pID] = parsed.NewProduct(p.FullName)
+		bulletins[name].Products[pID] = parsed.NewProductFromFullName(p.FullName)
 		pIDToPName[pID] = name
 	}
 

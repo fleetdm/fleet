@@ -209,6 +209,10 @@ type Datastore interface {
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+
+	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
+	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
+
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
@@ -622,7 +626,7 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows Update History
-	ListWindowsUpdatesByOSID(ctx context.Context, osID uint) ([]WindowsUpdate, error)
+	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
 	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 }
 

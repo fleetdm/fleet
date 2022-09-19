@@ -28,7 +28,7 @@ func bulletinsDelta(
 	var matching []io.SecurityBulletinName
 	for _, r := range remote {
 		for _, o := range os {
-			product := parsed.NewProduct(o.Name)
+			product := parsed.NewProductFromOS(o)
 			if r.ProductName() == product.Name() {
 				matching = append(matching, r)
 			}

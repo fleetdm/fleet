@@ -1,6 +1,7 @@
 package parsed
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -11,8 +12,12 @@ import (
 // (if any) and its version (if any).
 type Product string
 
-func NewProduct(fullName string) Product {
+func NewProductFromFullName(fullName string) Product {
 	return Product(fullName)
+}
+
+func NewProductFromOS(os fleet.OperatingSystem) Product {
+	return Product(fmt.Sprintf("%s %s for %s", os.Name, os.Version, os.Arch))
 }
 
 // Arch returns the archicture for the current Microsoft product, if none can
@@ -80,6 +85,6 @@ func (p Product) Name() string {
 	}
 }
 
-func (p Product) MatchesOS(os fleet.OperatingSystem) bool {
+func (p Product) Matches(other Product) bool {
 	return false
 }

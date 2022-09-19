@@ -128,6 +128,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
+		{"HostIDsByOSID", testHostIDsByOSID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5200,6 +5201,87 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, actual)
+		}
+	})
+}
+
+func testHostIDsByOSID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	t.Run("no OS", func(t *testing.T) {
+		actual, err := ds.HostIDsByOSID(ctx, 1, 0, 100)
+		require.NoError(t, err)
+		require.Empty(t, actual)
+	})
+
+	t.Run("returns empty if no more pages", func(t *testing.T) {
+		for i := 1; i <= 510; i++ {
+			os := fleet.OperatingSystem{
+				Name:          "Microsoft Windows 11 Enterprise Evaluation II",
+				Version:       "21H2",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.22000.795",
+				Platform:      "windows",
+			}
+
+			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, uint(i+100), os))
+		}
+
+		storedOS, err := ds.ListOperatingSystems(ctx)
+		require.NoError(t, err)
+		for _, sOS := range storedOS {
+			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation II" {
+
+				actual, err := ds.HostIDsByOSID(ctx, sOS.ID, 0, 500)
+				require.NoError(t, err)
+				require.Len(t, actual, 500)
+
+				actual, err = ds.HostIDsByOSID(ctx, sOS.ID, 500, 500)
+				require.NoError(t, err)
+				require.Len(t, actual, 10)
+
+				actual, err = ds.HostIDsByOSID(ctx, sOS.ID, 510, 500)
+				require.NoError(t, err)
+				require.Empty(t, actual)
+				break
+			}
+		}
+	})
+
+	t.Run("returns matching entries", func(t *testing.T) {
+		os := []fleet.OperatingSystem{
+			{
+				Name:          "Microsoft Windows 11 Enterprise Evaluation",
+				Version:       "21H2",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.22000.795",
+				Platform:      "windows",
+			},
+			{
+				Name:          "macOS",
+				Version:       "12.3.1",
+				Arch:          "x86_64",
+				KernelVersion: "21.4.0",
+				Platform:      "darwin",
+			},
+		}
+
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 1, os[0]))
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 2, os[1]))
+
+		storedOS, err := ds.ListOperatingSystems(ctx)
+		require.NoError(t, err)
+
+		for _, sOS := range storedOS {
+			actual, err := ds.HostIDsByOSID(ctx, sOS.ID, 0, 100)
+			require.NoError(t, err)
+			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation" {
+				require.Equal(t, []uint{1}, actual)
+			}
+
+			if sOS.Name == "macOS" {
+				require.Equal(t, []uint{2}, actual)
+			}
 		}
 	})
 }
