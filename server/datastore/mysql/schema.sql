@@ -370,7 +370,7 @@ CREATE TABLE `hosts_display_name` (
   `host_id` int(10) unsigned NOT NULL,
   `display_name` varchar(255) NOT NULL,
   PRIMARY KEY (`host_id`),
-  FULLTEXT KEY `display_name` (`display_name`)
+  KEY `display_name` (`display_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
