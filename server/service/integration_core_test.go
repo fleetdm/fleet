@@ -44,17 +44,6 @@ func (s *integrationTestSuite) SetupSuite() {
 	s.withServer.SetupSuite("integrationTestSuite")
 }
 
-/*
-func (s *integrationTestSuite) SetupTest() {
-	t := s.T()
-	ctx := context.Background()
-	appConf, err := s.ds.AppConfig(ctx)
-	require.NoError(t, err)
-	require.NotEmpty(t, appConf.OrgInfo.OrgName)
-	require.NotEmpty(t, appConf.ServerSettings.ServerURL)
-}
-*/
-
 func (s *integrationTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
@@ -4359,6 +4348,12 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
+
+	// test setting the default app config we use for new installs (this check
+	// ensures that the default config passes the validation)
+	var defAppCfg fleet.AppConfig
+	defAppCfg.ApplyDefaultsForNewInstalls()
+	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint
