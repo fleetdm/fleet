@@ -9,6 +9,24 @@ import (
 	"strings"
 )
 
+// ProductIDsIntersect given two sets of product IDs returns whether they have any elements in common
+func ProductIDsIntersect(a map[string]bool, b map[string]bool) bool {
+	smallest := a
+	biggest := b
+
+	if len(a) > len(b) {
+		smallest = b
+		biggest = a
+	}
+
+	for pID := range smallest {
+		if biggest[pID] {
+			return true
+		}
+	}
+	return false
+}
+
 // LatestFile returns the path of 'fileName' in 'dir' if the file exists, otherwise it will
 // return the most recent file (based on the timestamp contained in 'fileName').
 func LatestFile(fileName string, dir string) (string, error) {

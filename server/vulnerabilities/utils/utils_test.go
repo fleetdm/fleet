@@ -10,6 +10,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestProductsIntersect(t *testing.T) {
+	a := map[string]bool{
+		"1": true,
+		"2": true,
+		"3": true,
+	}
+
+	b := map[string]bool{
+		"1": true,
+	}
+
+	c := map[string]bool{
+		"10": true,
+	}
+
+	d := make(map[string]bool)
+
+	require.True(t, ProductIDsIntersect(a, b))
+	require.True(t, ProductIDsIntersect(b, a))
+
+	require.False(t, ProductIDsIntersect(b, c))
+	require.False(t, ProductIDsIntersect(c, b))
+
+	require.False(t, ProductIDsIntersect(b, d))
+	require.False(t, ProductIDsIntersect(d, b))
+}
+
 func TestLatestFile(t *testing.T) {
 	t.Run("file exists", func(t *testing.T) {
 		dir := t.TempDir()

@@ -165,7 +165,7 @@ type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.Tea
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
-type HostIDsByOSIDFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
+type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
 type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
@@ -1495,9 +1495,9 @@ func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 	return s.HostIDsByNameFunc(ctx, filter, hostnames)
 }
 
-func (s *DataStore) HostIDsByOSID(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error) {
 	s.HostIDsByOSIDFuncInvoked = true
-	return s.HostIDsByOSIDFunc(ctx, osVersion, offset, limit)
+	return s.HostIDsByOSIDFunc(ctx, osID, offset, limit)
 }
 
 func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {

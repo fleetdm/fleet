@@ -28,10 +28,13 @@ func NewProductFromOS(os fleet.OperatingSystem) Product {
 func (p Product) Arch() string {
 	val := string(p)
 	switch {
-	case strings.Index(val, "32-bit") != -1:
-		return "32-bit"
-	case strings.Index(val, "x64") != -1:
+	case strings.Index(val, "x64") != -1 ||
+		strings.Index(val, "64-bit") != -1 ||
+		strings.Index(val, "x86_64") != -1:
 		return "64-bit"
+	case strings.Index(val, "32-bit") != -1 ||
+		strings.Index(val, "x86") != -1:
+		return "32-bit"
 	case strings.Index(val, "ARM64") != -1:
 		return "arm64"
 	case strings.Index(val, "Itanium-Based") != -1:
@@ -85,6 +88,12 @@ func (p Product) Name() string {
 	}
 }
 
-func (p Product) Matches(other Product) bool {
-	return false
+// Matches checks whehter product A matches product B by checking to see if both are for the same
+// product and if the architecture they target are compatible. This function is commutative.
+func (p Product) Matches(o Product) bool {
+	if p.Name() != o.Name() {
+		return false
+	}
+
+	return p.Arch() == "all" || o.Arch() == "all" || p.Arch() == o.Arch()
 }

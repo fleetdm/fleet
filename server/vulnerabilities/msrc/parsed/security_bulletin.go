@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -20,7 +19,7 @@ type SecurityBulletin struct {
 	// All vulnerabilities contained in this bulletin, by CVE
 	Vulnerabities map[string]Vulnerability
 	// All vendor fixes for remediating the vulnerabilities contained in this bulletin, by KBID
-	VendorFixes map[int]VendorFix
+	VendorFixes map[uint]VendorFix
 }
 
 func NewSecurityBulletin(pName string) *SecurityBulletin {
@@ -28,7 +27,7 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 		ProductName:   pName,
 		Products:      make(map[string]Product),
 		Vulnerabities: make(map[string]Vulnerability),
-		VendorFixes:   make(map[int]VendorFix),
+		VendorFixes:   make(map[uint]VendorFix),
 	}
 }
 
@@ -81,7 +80,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 				newVF.ProductIDs[pID] = v
 			}
 			if r.Supersedes != nil {
-				newVF.Supersedes = ptr.Int(*r.Supersedes)
+				newVF.Supersedes = ptr.Uint(*r.Supersedes)
 			}
 			b.VendorFixes[kbID] = newVF
 		}
@@ -90,36 +89,46 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	return nil
 }
 
+// WalkVendorFixes walks the 'VendorFixes' linked list by following the 'Supersedes' ref.
+// Returns true if stopCond evaluates to true, will return false if after walking the vendor fix
+// linked list, none of the calls to 'stopCond' evaluated to true.
+func (b *SecurityBulletin) WalkVendorFixes(kbID uint, stopCond func(uint) bool) bool {
+	val := stopCond(kbID)
+	if val {
+		return true
+	}
+
+	fix := b.VendorFixes[kbID]
+	if fix.Supersedes == nil {
+		return false
+	}
+
+	return val || b.WalkVendorFixes(uint(*fix.Supersedes), stopCond)
+}
+
 type Vulnerability struct {
 	PublishedEpoch *int64
-	// Set of products that are susceptible to this vuln.
+	// Set of products ids that are susceptible to this vuln.
 	ProductIDs map[string]bool
 	// Set of Vendor fixes that remediate this vuln.
-	RemediatedBy map[int]bool
+	RemediatedBy map[uint]bool
 }
 
 func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 	return Vulnerability{
 		PublishedEpoch: publishedDateEpoch,
 		ProductIDs:     make(map[string]bool),
-		RemediatedBy:   make(map[int]bool),
+		RemediatedBy:   make(map[uint]bool),
 	}
-}
-
-func (v *Vulnerability) TargetsAny(map[string]bool) bool {
-	panic("not implemented")
-}
-
-func (v *Vulnerability) PatchedBy([]fleet.WindowsUpdate) bool {
-	panic("not implemented")
 }
 
 type VendorFix struct {
 	// TODO (juan): Do we need this?
 	FixedBuild string
+	// Set of products ids that target this vendor fix
 	ProductIDs map[string]bool
 	// A Reference to what vendor fix this particular vendor fix 'replaces'.
-	Supersedes *int `json:",omitempty"`
+	Supersedes *uint `json:",omitempty"`
 }
 
 func NewVendorFix(fixedBuild string) VendorFix {

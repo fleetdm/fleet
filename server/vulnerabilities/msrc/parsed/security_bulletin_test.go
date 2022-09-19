@@ -41,19 +41,19 @@ func TestSecurityBulletin(t *testing.T) {
 		t.Run(".Vulnerabities", func(t *testing.T) {
 			cve1 := NewVulnerability(ptr.Int64(123))
 			cve1.ProductIDs = map[string]bool{"111": true, "222": true}
-			cve1.RemediatedBy = map[int]bool{1: true}
+			cve1.RemediatedBy = map[uint]bool{1: true}
 
 			cve2 := NewVulnerability(ptr.Int64(456))
 			cve2.ProductIDs = map[string]bool{"333": true, "444": true}
-			cve2.RemediatedBy = map[int]bool{2: true}
+			cve2.RemediatedBy = map[uint]bool{2: true}
 
 			cve3 := NewVulnerability(ptr.Int64(555))
 			cve3.ProductIDs = map[string]bool{"aaa": true, "bbb": true}
-			cve3.RemediatedBy = map[int]bool{3: true}
+			cve3.RemediatedBy = map[uint]bool{3: true}
 
 			cve4 := NewVulnerability(ptr.Int64(777))
 			cve4.ProductIDs = map[string]bool{"ccc": true, "ddd": true}
-			cve3.RemediatedBy = map[int]bool{4: true}
+			cve3.RemediatedBy = map[uint]bool{4: true}
 
 			a := NewSecurityBulletin("Windows 10")
 			a.Vulnerabities["cve-1"] = cve1
@@ -84,11 +84,11 @@ func TestSecurityBulletin(t *testing.T) {
 		t.Run(".VendorFixes", func(t *testing.T) {
 			vf1 := NewVendorFix("1")
 			vf1.ProductIDs = map[string]bool{"111": true, "222": true}
-			vf1.Supersedes = ptr.Int(1)
+			vf1.Supersedes = ptr.Uint(1)
 
 			vf2 := NewVendorFix("2")
 			vf2.ProductIDs = map[string]bool{"333": true, "444": true}
-			vf2.Supersedes = ptr.Int(2)
+			vf2.Supersedes = ptr.Uint(2)
 
 			a := NewSecurityBulletin("Windows 10")
 			a.VendorFixes[1] = vf1

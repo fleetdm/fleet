@@ -736,7 +736,7 @@ func TestParser(t *testing.T) {
 					"10852": true,
 					"10853": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013941: true,
 					5013952: true,
 					5013942: true,
@@ -752,7 +752,7 @@ func TestParser(t *testing.T) {
 					"11571": true,
 					"11572": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013941: true,
 				},
 			},
@@ -765,7 +765,7 @@ func TestParser(t *testing.T) {
 					"11923": true,
 					"11924": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013944: true,
 				},
 			},
@@ -777,7 +777,7 @@ func TestParser(t *testing.T) {
 				ProductIDs: map[string]bool{
 					"11803": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013942: true,
 				},
 			},
@@ -792,7 +792,7 @@ func TestParser(t *testing.T) {
 					"9318":  true,
 					"9344":  true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014010: true,
 					5014006: true,
 				},
@@ -806,7 +806,7 @@ func TestParser(t *testing.T) {
 					"10051": true,
 					"10049": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014012: true,
 					5013999: true,
 				},
@@ -820,7 +820,7 @@ func TestParser(t *testing.T) {
 					"10378": true,
 					"10379": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014017: true,
 					5014018: true,
 				},
@@ -834,7 +834,7 @@ func TestParser(t *testing.T) {
 					"10483": true,
 					"10543": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014011: true,
 					5014001: true,
 				},
@@ -848,7 +848,7 @@ func TestParser(t *testing.T) {
 					"10047": true,
 					"10048": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014012: true,
 					5013999: true,
 				},
@@ -862,7 +862,7 @@ func TestParser(t *testing.T) {
 					"10816": true,
 					"10855": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013952: true,
 				},
 			},
@@ -875,7 +875,7 @@ func TestParser(t *testing.T) {
 					"11926": true,
 					"11927": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013943: true,
 				},
 			},
@@ -887,7 +887,7 @@ func TestParser(t *testing.T) {
 				ProductIDs: map[string]bool{
 					"10484": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014025: true,
 				},
 			},
@@ -900,7 +900,7 @@ func TestParser(t *testing.T) {
 					"10481": true,
 					"10482": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014011: true,
 					5014001: true,
 				},
@@ -909,7 +909,7 @@ func TestParser(t *testing.T) {
 	}
 
 	// A random vulnerability ("CVE-2022-29137")
-	expectedVendorFixes := map[string]map[int]parsed.VendorFix{
+	expectedVendorFixes := map[string]map[uint]parsed.VendorFix{
 		"Windows 10": {
 			5013941: {
 				FixedBuild: "10.0.17763.2928",
@@ -918,7 +918,7 @@ func TestParser(t *testing.T) {
 					"11569": true,
 					"11570": true,
 				},
-				Supersedes: ptr.Int(5012647),
+				Supersedes: ptr.Uint(5012647),
 			},
 			5013952: {
 				FixedBuild: "10.0.14393.5125",
@@ -926,7 +926,7 @@ func TestParser(t *testing.T) {
 					"10852": true,
 					"10853": true,
 				},
-				Supersedes: ptr.Int(5012596),
+				Supersedes: ptr.Uint(5012596),
 			},
 			5013942: {
 				FixedBuild: "10.0.19043.1706",
@@ -941,7 +941,7 @@ func TestParser(t *testing.T) {
 					"11930": true,
 					"11931": true,
 				},
-				Supersedes: ptr.Int(5012599),
+				Supersedes: ptr.Uint(5012599),
 			},
 			5013963: {
 				FixedBuild: "10.0.10240.19297",
@@ -949,7 +949,7 @@ func TestParser(t *testing.T) {
 					"10729": true,
 					"10735": true,
 				},
-				Supersedes: ptr.Int(5012653),
+				Supersedes: ptr.Uint(5012653),
 			},
 
 			5013945: {
@@ -959,7 +959,7 @@ func TestParser(t *testing.T) {
 					"11713": true,
 					"11714": true,
 				},
-				Supersedes: ptr.Int(5012591),
+				Supersedes: ptr.Uint(5012591),
 			},
 		},
 		"Windows Server 2019": {
@@ -969,7 +969,7 @@ func TestParser(t *testing.T) {
 					"11571": true,
 					"11572": true,
 				},
-				Supersedes: ptr.Int(5012647),
+				Supersedes: ptr.Uint(5012647),
 			},
 		},
 
@@ -980,7 +980,7 @@ func TestParser(t *testing.T) {
 					"11923": true,
 					"11924": true,
 				},
-				Supersedes: ptr.Int(5012604),
+				Supersedes: ptr.Uint(5012604),
 			},
 		},
 
@@ -990,7 +990,7 @@ func TestParser(t *testing.T) {
 				ProductIDs: map[string]bool{
 					"11803": true,
 				},
-				Supersedes: ptr.Int(5012599),
+				Supersedes: ptr.Uint(5012599),
 			},
 		},
 
@@ -1003,7 +1003,7 @@ func TestParser(t *testing.T) {
 					"9344":  true,
 				},
 				FixedBuild: "6.0.6003.21481",
-				Supersedes: ptr.Int(5012658),
+				Supersedes: ptr.Uint(5012658),
 			},
 			5014006: {
 				ProductIDs: map[string]bool{
@@ -1022,7 +1022,7 @@ func TestParser(t *testing.T) {
 					"10051": true,
 					"10049": true,
 				},
-				Supersedes: ptr.Int(5012626),
+				Supersedes: ptr.Uint(5012626),
 				FixedBuild: "6.1.7601.25954",
 			},
 			5013999: {
@@ -1040,7 +1040,7 @@ func TestParser(t *testing.T) {
 					"10378": true,
 					"10379": true,
 				},
-				Supersedes: ptr.Int(5012650),
+				Supersedes: ptr.Uint(5012650),
 				FixedBuild: "6.2.9200.23714",
 			},
 			5014018: {
@@ -1059,7 +1059,7 @@ func TestParser(t *testing.T) {
 					"10543": true,
 				},
 				FixedBuild: "6.3.9600.20371",
-				Supersedes: ptr.Int(5012670),
+				Supersedes: ptr.Uint(5012670),
 			},
 			5014001: {
 				ProductIDs: map[string]bool{
@@ -1076,7 +1076,7 @@ func TestParser(t *testing.T) {
 					"10047": true,
 					"10048": true,
 				},
-				Supersedes: ptr.Int(5012626),
+				Supersedes: ptr.Uint(5012626),
 				FixedBuild: "6.1.7601.25954",
 			},
 			5013999: {
@@ -1105,7 +1105,7 @@ func TestParser(t *testing.T) {
 					"11927": true,
 				},
 				FixedBuild: "10.0.22000.675",
-				Supersedes: ptr.Int(5012592),
+				Supersedes: ptr.Uint(5012592),
 			},
 		},
 
@@ -1125,7 +1125,7 @@ func TestParser(t *testing.T) {
 					"10482": true,
 				},
 				FixedBuild: "6.3.9600.20371",
-				Supersedes: ptr.Int(5012670),
+				Supersedes: ptr.Uint(5012670),
 			},
 			5014001: {
 				ProductIDs: map[string]bool{
