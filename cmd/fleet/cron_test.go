@@ -40,6 +40,7 @@ func TestFilterRecentVulns(t *testing.T) {
 		ovalVulns := []fleet.SoftwareVulnerability{
 			{CVE: "cve-recent-1"},
 			{CVE: "cve-recent-2"},
+			{CVE: "cve-recent-2"},
 			{CVE: "cve-outdated-1"},
 		}
 
@@ -70,6 +71,7 @@ func TestFilterRecentVulns(t *testing.T) {
 			"cve-recent-3": {CVE: "cve-recent-3"},
 		}
 
+		require.Equal(t, len(expected), len(actual))
 		require.ElementsMatch(t, expected, actual)
 		require.Equal(t, expectedMeta, meta)
 	})

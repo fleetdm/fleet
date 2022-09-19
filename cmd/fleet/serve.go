@@ -653,7 +653,6 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 }
 
 const (
-	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
 	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
 	lockKeyWorker                  = "worker"
@@ -673,9 +672,6 @@ func runCrons(
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, &config.Vulnerabilities, license)
-
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }
@@ -691,6 +687,7 @@ func startSchedules(
 ) error {
 	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
 	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+	startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
 
 	return nil
 }

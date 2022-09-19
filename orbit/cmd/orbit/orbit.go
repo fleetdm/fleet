@@ -406,7 +406,14 @@ func main() {
 				},
 			)
 
-			certPath = filepath.Join(os.TempDir(), "fleet.crt")
+
+			// Directory to store proxy related assets
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+			}
+
+			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
 			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
