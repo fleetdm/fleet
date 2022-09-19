@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +30,7 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 func TestDeviceClientGetDesktopPayload(t *testing.T) {
-	client, err := NewDeviceClient("https://test.com", "test-token", true, "")
+	client, err := NewDeviceClient("https://test.com", "test-token", true, "", []fleet.Capability{})
 	require.NoError(t, err)
 
 	mockRequestDoer := &mockHttpClient{}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
 	"github.com/rs/zerolog"
@@ -67,7 +68,9 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		capabilities := []fleet.Capability{fleet.CapabilityTokenRotation}
+
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA, capabilities)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}

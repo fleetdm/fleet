@@ -527,7 +527,18 @@ type KafkaRESTConfig struct {
 	ProxyHost   string `json:"proxyhost"`
 }
 
-// DeviceAPIFeatures specifies a list of features supported
-// by the current API version. Each field in the struct is
-// meant to be a boolean value.
-type DeviceAPIFeatures struct{}
+// Capability represents a concrete feature of Fleet.
+type Capability string
+
+// The following are the capabilities that Fleet supports. These can be used by
+// the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
+// is supported.
+const (
+	// CapabilityTokenRotation is the ability to rotate and expire host device
+	// tokens over a given period of time.
+	CapabilityTokenRotation Capability = "token_rotation"
+)
+
+// ServerCapabilities is a list of capabilities that the _Server_ supports.
+// **it shouldn't be modified at runtime**
+var ServerCapabilities = []Capability{CapabilityTokenRotation}

@@ -294,6 +294,10 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedDevice(svc, logger, next)
 	}
+
+	// Inject the X-Fleet-Capabilities header to the response for device endpoints
+	opts = append(opts, capabilitiesResponseFunc())
+
 	return &authEndpointer{
 		svc:      svc,
 		opts:     opts,
@@ -330,6 +334,10 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedOrbitHost(svc, logger, next)
 	}
+
+	// Inject the X-Fleet-Capabilities header to the response for Orbit hosts
+	opts = append(opts, capabilitiesResponseFunc())
+
 	return &authEndpointer{
 		svc:      svc,
 		opts:     opts,
@@ -358,6 +366,24 @@ var pathReplacer = strings.NewReplacer(
 func getNameFromPathAndVerb(verb, path string) string {
 	return strings.ToLower(verb) + "_" +
 		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
+}
+
+func capabilitiesResponseFunc() kithttp.ServerOption {
+	return kithttp.ServerAfter(func(ctx context.Context, w http.ResponseWriter) context.Context {
+		writeCapabilitiesHeader(w)
+		return ctx
+	})
+}
+
+func writeCapabilitiesHeader(w http.ResponseWriter) {
+	capabilities := make([]string, len(fleet.ServerCapabilities))
+	for i, capability := range fleet.ServerCapabilities {
+		capabilities[i] = string(capability)
+	}
+	value := strings.Join(capabilities, ",")
+	if len(capabilities) > 0 {
+		w.Header().Set("X-Fleet-Capabilities", value)
+	}
 }
 
 func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {

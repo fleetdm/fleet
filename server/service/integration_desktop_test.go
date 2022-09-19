@@ -69,10 +69,14 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	getHostResp.Host.Policies = nil
 	require.Equal(t, hostDevResp, getHostResp.Host)
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// request a refetch for that valid host
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/refetch", nil, http.StatusOK)
 	res.Body.Close()
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// host should have that flag turned to true
 	getHostResp = getDeviceHostResponse{}
@@ -80,6 +84,8 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.True(t, getHostResp.Host.RefetchRequested)
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// request a refetch for an invalid token
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/no_such_token/refetch", nil, http.StatusUnauthorized)
@@ -93,12 +99,16 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, hosts[0].ID, listDMResp.HostID)
 	require.Len(t, listDMResp.DeviceMapping, 2)
 	devDMs := listDMResp.DeviceMapping
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// compare response with standard list device mapping API for that same host
 	listDMResp = listHostDeviceMappingResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listDMResp)
 	require.Equal(t, hosts[0].ID, listDMResp.HostID)
 	require.Equal(t, devDMs, listDMResp.DeviceMapping)
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// list device mappings for invalid token
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/device_mapping", nil, http.StatusUnauthorized)
@@ -111,11 +121,15 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 	require.Equal(t, "1.3.0", getMacadm.Macadmins.Munki.Version)
 	devMacadm := getMacadm.Macadmins
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// compare response with standard macadmins API for that same host
 	getMacadm = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hosts[0].ID), nil, http.StatusOK, &getMacadm)
 	require.Equal(t, devMacadm, getMacadm.Macadmins)
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
 
 	// get macadmins for invalid token
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
@@ -129,20 +143,15 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NotNil(t, getHostResp.License)
 	require.Equal(t, getHostResp.License.Tier, "free")
 
+	// response includes capabilities
+	require.Equal(t, []string{"token_rotation"}, res.Header["X-Fleet-Capabilities"])
+
 	// device policies are not accessible for free endpoints
 	listPoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusPaymentRequired)
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.Nil(t, listPoliciesResp.Policies)
-
-	// get list of api features
-	apiFeaturesResp := deviceAPIFeaturesResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/api_features", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&apiFeaturesResp)
-	res.Body.Close()
-	require.Nil(t, apiFeaturesResp.Err)
-	require.NotNil(t, apiFeaturesResp.Features)
 }
 
 // TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.

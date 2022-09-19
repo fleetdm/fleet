@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/google/uuid"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -18,6 +16,10 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -482,7 +484,9 @@ func main() {
 
 		}
 
-		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr)
+		capabilities := []fleet.Capability{fleet.CapabilityTokenRotation}
+
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}

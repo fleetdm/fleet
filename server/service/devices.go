@@ -260,29 +260,6 @@ func (svc *Service) FailingPoliciesCount(ctx context.Context, host *fleet.Host) 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Device API features
-////////////////////////////////////////////////////////////////////////////////
-
-type deviceAPIFeaturesRequest struct {
-	Token string `url:"token"`
-}
-
-func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
-	return r.Token
-}
-
-type deviceAPIFeaturesResponse struct {
-	Err      error                   `json:"error,omitempty"`
-	Features fleet.DeviceAPIFeatures `json:"features"`
-}
-
-func (r deviceAPIFeaturesResponse) error() error { return r.Err }
-
-func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Transparency URL Redirect
 ////////////////////////////////////////////////////////////////////////////////
 

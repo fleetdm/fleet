@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -42,6 +45,19 @@ func (e orbitError) Error() string {
 }
 
 func (r enrollOrbitResponse) error() error { return r.Err }
+
+// hijackRender so we can add a header with the server capabilities in the
+// response, allowing Orbit to know what features are available without the
+// need to enroll.
+func (r enrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	writeCapabilitiesHeader(w)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+
+	if err := enc.Encode(r); err != nil {
+		encodeError(ctx, osqueryError{message: fmt.Sprintf("orbit enroll failed: %e", err)}, w)
+	}
+}
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*enrollOrbitRequest)

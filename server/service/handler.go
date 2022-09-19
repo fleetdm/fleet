@@ -427,9 +427,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_policies", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_api_features", desktopQuota),
-	).GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
-	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
