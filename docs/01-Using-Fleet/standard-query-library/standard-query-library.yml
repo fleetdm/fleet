@@ -926,7 +926,7 @@ kind: query
 spec:
   name: Discover TLS certificates
   platforms: Linux, Windows, macOS
-  description: Finds where certs are being served. Enables mTLS adoption analysis and cert expiration notifications
+  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
   query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
   purpose: Informational
   tags: network, tls
