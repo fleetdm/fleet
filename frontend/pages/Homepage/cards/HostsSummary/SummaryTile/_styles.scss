@@ -39,6 +39,24 @@
   &__count {
     font-size: $large;
     white-space: nowrap;
+
+    &:before {
+      border-radius: 100%;
+      content: " ";
+      display: inline-block;
+      margin-right: $pad-small;
+      height: 8px;
+      width: 8px;
+      margin-bottom: 5px;
+    }
+
+    &--online-hosts:before {
+      background-color: $ui-success;
+    }
+
+    &--offline-hosts:before {
+      background-color: $ui-offline;
+    }
   }
 
   &__description {

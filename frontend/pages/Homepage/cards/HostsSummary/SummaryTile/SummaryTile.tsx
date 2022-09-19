@@ -10,7 +10,7 @@ interface ISummaryTileProps {
   isLoading: boolean;
   showUI: boolean;
   title: string;
-  icon: any;
+  icon?: any;
   tooltip?: string;
   path: string;
 }
@@ -47,14 +47,16 @@ const SummaryTile = ({
         onClick={() => handleClick()}
       >
         <>
-          <div className={`${baseClass}__icon-wrapper`}>
-            <img
-              src={icon}
-              alt={title}
-              className={`${baseClass}__icon`}
-              id={`${kebabCase(title)}-icon`}
-            />
-          </div>
+          {icon && (
+            <div className={`${baseClass}__icon-wrapper`}>
+              <img
+                src={icon}
+                alt={title}
+                className={`${baseClass}__icon`}
+                id={`${kebabCase(title)}-icon`}
+              />
+            </div>
+          )}
           <div>
             <div
               className={`${baseClass}__count ${baseClass}__count--${kebabCase(
