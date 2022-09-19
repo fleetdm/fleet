@@ -647,7 +647,7 @@ func runSimpleCommand(c *cli.Context, name string) error {
 
 	payload := &mdm.CommandPayload{
 		Command: &mdm.Command{
-			RequestType: "RestartDevice",
+			RequestType: name,
 		},
 	}
 	// convert to xml using tabs for indentation
