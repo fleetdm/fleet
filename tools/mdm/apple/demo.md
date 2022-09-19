@@ -191,21 +191,8 @@ fleetctl apple-mdm enrollments create-automatic \
 Automatic enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=2, id: 2
 ```
 
-## 10. Inspect MDM tables
-
-```sh
-mysql --host=127.0.0.1 --port=3306 --user=fleet --password
-select id from devices;
-```
-
-## 11. Trigger a device restart
-
-```sh
-./tools/mdm/apple/cmdr.py RestartDevice | curl -k -T - 'https://127.0.0.1:8080/mdm/apple/mdm/api/v1/enqueue/<ID_FROM_PREVIOUS_STEP>'
-```
-
-## 12. DEP test
+## 10. DEP Enroll
 
 1. Assign the device to our MDM server in https://business.apple.com
-2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must either trigger a sync or wait for ~1h).
+2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must wait for 5m after executing the `create-automatic` command).
 3. Start the VM and enroll.

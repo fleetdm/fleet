@@ -13,23 +13,6 @@ const (
 	InstallerPath = "/api/mdm/apple/installer"
 )
 
-// Profile is an apple configuration profile
-// TODO:use github.com/groob/plist for encoding, need to add tags
-type Profile struct {
-	ID                uint   `json:"id" db:"id"`     // should this be the profile identifer in the mobileconfig
-	Name              string `json:"name" db:"name"` // unique name
-	ProfileIdentifier string `json:"profile_identifier" db:"profile_identifier"`
-	// Description  string `json:"description" db:"description"` // human readable
-	Type         string `json:"type" db:"type"` // eg enrollment, use to validate mobileconfig?
-	Mobileconfig string `json:"mobileconfig"`   // store as bytes in database? signed? binary?
-}
-
-type ProfileType string
-
-const (
-	ProfileTypeEnrollment ProfileType = "enrollment"
-)
-
 // Payload contains payload keys common to all payloads. Including profiles.
 // See https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles#3234127
 type Payload struct {
