@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
@@ -35,14 +34,6 @@ func appleMDMCommand() *cli.Command {
 			appleMDMSetupCommand(),
 			appleMDMEnrollmentsCommand(),
 			appleMDMEnqueueCommandCommand(),
-
-			// TODO(lucas, michal): Having all commands defined here is a workaround for an issue
-			// with urfave/cli package when nesting subcommands.
-			appleMDMEnqueueCommandInstallProfileCommand(),
-			appleMDMEnqueueCommandRemoveProfileCommand(),
-			appleMDMEnqueueCommandProfileListCommand(),
-			appleMDMEnqueueCommandInstallEnterpriseApplicationCommand(),
-
 			appleMDMDEPCommand(),
 			appleMDMDevicesCommand(),
 			appleMDMCommandResultsCommand(),
@@ -438,14 +429,12 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 		Usage: "Enqueue an MDM command. See the results using the command-results command and passing the command UUID that is returned from this command.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "device-ids",
-				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
-				Required: true,
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 			},
 			&cli.StringFlag{
-				Name:      "command-payload",
-				Usage:     "A plist file containing the raw MDM command payload. Note that a new CommandUUID will be generated automatically. See https://developer.apple.com/documentation/devicemanagement/commands_and_queries for available commands.",
-				TakesFile: true,
+				Name:  "command-payload",
+				Usage: "A plist file containing the raw MDM command payload. Note that a new CommandUUID will be generated automatically. See https://developer.apple.com/documentation/devicemanagement/commands_and_queries for available commands.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -460,6 +449,9 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 			}
 
 			payloadFilename := c.String("command-payload")
+			if payloadFilename == "" {
+				return errors.New("must provide a command payload file")
+			}
 			payloadBytes, err := os.ReadFile(payloadFilename)
 			if err != nil {
 				return fmt.Errorf("read payload: %w", err)
@@ -475,23 +467,50 @@ func appleMDMEnqueueCommandCommand() *cli.Command {
 
 			return nil
 		},
+		Subcommands: []*cli.Command{
+			appleMDMEnqueueCommandInstallProfileCommand(),
+			appleMDMEnqueueCommandSimpleCommand("ProfileList"),
+			appleMDMEnqueueCommandRemoveProfileCommand(),
+			appleMDMEnqueueCommandInstallEnterpriseApplicationCommand(),
+			appleMDMEnqueueCommandSimpleCommand("ProvisioningProfileList"),
+			appleMDMEnqueueCommandSimpleCommand("CertificateList"),
+			appleMDMEnqueueCommandSimpleCommand("SecurityInfo"),
+			appleMDMEnqueueCommandSimpleCommand("RestartDevice"),
+			appleMDMEnqueueCommandSimpleCommand("ShutdownDevice"),
+			appleMDMEnqueueCommandSimpleCommand("StopMirroring"),
+			appleMDMEnqueueCommandSimpleCommand("ClearRestrictionsPassword"),
+			appleMDMEnqueueCommandSimpleCommand("UserList"),
+			appleMDMEnqueueCommandSimpleCommand("LogOutUser"),
+			appleMDMEnqueueCommandSimpleCommand("PlayLostModeSound"),
+			appleMDMEnqueueCommandSimpleCommand("DisableLostMode"),
+			appleMDMEnqueueCommandSimpleCommand("DeviceLocation"),
+			appleMDMEnqueueCommandSimpleCommand("ManagedMediaList"),
+			appleMDMEnqueueCommandSimpleCommand("DeviceConfigured"),
+			appleMDMEnqueueCommandSimpleCommand("AvailableOSUpdates"),
+			appleMDMEnqueueCommandSimpleCommand("NSExtensionMappings"),
+			appleMDMEnqueueCommandSimpleCommand("OSUpdateStatus"),
+			appleMDMEnqueueCommandSimpleCommand("EnableRemoteDesktop"),
+			appleMDMEnqueueCommandSimpleCommand("DisableRemoteDesktop"),
+			appleMDMEnqueueCommandSimpleCommand("ActivationLockBypassCode"),
+			appleMDMEnqueueCommandSimpleCommand("ScheduleOSUpdateScan"),
+			appleMDMEnqueueCommandEraseDeviceCommand(),
+			appleMDMEnqueueCommandDeviceLockCommand(),
+		},
 	}
 }
 
 func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "enqueue-command-install-profile",
+		Name:  "InstallProfile",
 		Usage: "Enqueue the InstallProfile MDM command.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "device-ids",
-				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
-				Required: true,
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 			},
 			&cli.StringFlag{
-				Name:     "mobileconfig",
-				Usage:    "The mobileconfig file containing the profile to install.",
-				Required: true,
+				Name:  "mobileconfig",
+				Usage: "The mobileconfig file containing the profile to install.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -506,15 +525,19 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 			}
 
 			profilePayloadFilename := c.String("mobileconfig")
+			if profilePayloadFilename == "" {
+				return errors.New("must provide a mobileprofile payload")
+			}
 			profilePayloadBytes, err := os.ReadFile(profilePayloadFilename)
 			if err != nil {
 				return fmt.Errorf("read payload: %w", err)
 			}
 
-			payload := &apple_mdm.CommandPayload{
-				Command: apple_mdm.InstallProfile{
-					RequestType: "InstallProfile",
-					Payload:     profilePayloadBytes,
+			payload := &mdm.CommandPayload{
+				Command: &mdm.Command{
+					InstallProfile: &mdm.InstallProfile{
+						Payload: profilePayloadBytes,
+					},
 				},
 			}
 
@@ -539,18 +562,16 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 
 func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "enqueue-command-remove-profile",
+		Name:  "RemoveProfile",
 		Usage: "Enqueue the RemoveProfile MDM command.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "device-ids",
-				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
-				Required: true,
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 			},
 			&cli.StringFlag{
-				Name:     "identifier",
-				Usage:    "The PayloadIdentifier value for the profile to remove eg cis.macOSBenchmark.section2.SecureKeyboard.",
-				Required: true,
+				Name:  "identifier",
+				Usage: "The PayloadIdentifier value for the profile to remove eg cis.macOSBenchmark.section2.SecureKeyboard.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -565,11 +586,15 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 			}
 
 			identifier := c.String("identifier")
+			if identifier == "" {
+				return errors.New("must provide the identifier of the profile")
+			}
 
-			payload := &apple_mdm.CommandPayload{
-				Command: apple_mdm.RemoveProfile{
-					RequestType: "RemoveProfile",
-					Identifier:  identifier,
+			payload := &mdm.CommandPayload{
+				Command: &mdm.Command{
+					RemoveProfile: &mdm.RemoveProfile{
+						Identifier: identifier,
+					},
 				},
 			}
 
@@ -589,19 +614,70 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 
 			return nil
 		},
-		Subcommands: []*cli.Command{},
 	}
 }
 
-func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
+func appleMDMEnqueueCommandSimpleCommand(name string) *cli.Command {
 	return &cli.Command{
-		Name:  "enqueue-command-profile-list",
-		Usage: "Enqueue the ProfileList MDM command.",
+		Name:  name,
+		Usage: fmt.Sprintf("Enqueue the %s MDM command.", name),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "device-ids",
-				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
-				Required: true,
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			return runSimpleCommand(c, name)
+		},
+	}
+}
+
+// runSimpleCommand runs commands that do not have any extra arguments, like RestartDevice.
+func runSimpleCommand(c *cli.Context, name string) error {
+	fleet, err := clientFromCLI(c)
+	if err != nil {
+		return fmt.Errorf("create client: %w", err)
+	}
+
+	deviceIDs := strings.Split(c.String("device-ids"), ",")
+	if len(deviceIDs) == 0 {
+		return errors.New("must provide at least one device ID")
+	}
+
+	payload := &mdm.CommandPayload{
+		Command: &mdm.Command{
+			RequestType: "RestartDevice",
+		},
+	}
+	// convert to xml using tabs for indentation
+	payloadBytes, err := plist.MarshalIndent(payload, "	")
+	if err != nil {
+		return fmt.Errorf("marshal command payload plist: %w", err)
+	}
+
+	result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+	if err != nil {
+		return fmt.Errorf("enqueue command: %w", err)
+	}
+
+	commandUUID := result.CommandUUID
+	fmt.Printf("Command UUID: %s\n", commandUUID)
+	return nil
+}
+
+func appleMDMEnqueueCommandEraseDeviceCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "EraseDevice",
+		Usage: "Enqueue the EraseDevice MDM command.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
+			},
+			&cli.StringFlag{
+				Name:  "pin",
+				Usage: "The six-character PIN for Find My.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -615,9 +691,16 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 				return errors.New("must provide at least one device ID")
 			}
 
-			payload := &apple_mdm.CommandPayload{
-				Command: apple_mdm.ProfileList{
-					RequestType: "ProfileList",
+			pin := c.String("pin")
+			if len(pin) != 6 {
+				return errors.New("must provide a six-character PIN for Find My.")
+			}
+
+			payload := &mdm.CommandPayload{
+				Command: &mdm.Command{
+					EraseDevice: &mdm.EraseDevice{
+						PIN: pin,
+					},
 				},
 			}
 
@@ -637,24 +720,78 @@ func appleMDMEnqueueCommandProfileListCommand() *cli.Command {
 
 			return nil
 		},
-		Subcommands: []*cli.Command{},
+	}
+}
+
+func appleMDMEnqueueCommandDeviceLockCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "DeviceLock",
+		Usage: "Enqueue the DeviceLock MDM command.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
+			},
+			&cli.StringFlag{
+				Name:  "pin",
+				Usage: "The six-character PIN for Find My.",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			deviceIDs := strings.Split(c.String("device-ids"), ",")
+			if len(deviceIDs) == 0 {
+				return errors.New("must provide at least one device ID")
+			}
+
+			pin := c.String("pin")
+			if len(pin) != 6 {
+				return errors.New("must provide a six-character PIN for Find My.")
+			}
+
+			payload := &mdm.CommandPayload{
+				Command: &mdm.Command{
+					DeviceLock: &mdm.DeviceLock{
+						PIN: pin,
+					},
+				},
+			}
+
+			// convert to xml using tabs for indentation
+			payloadBytes, err := plist.MarshalIndent(payload, "	")
+			if err != nil {
+				return fmt.Errorf("marshal command payload plist: %w", err)
+			}
+
+			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return err
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
+
+			return nil
+		},
 	}
 }
 
 func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "enqueue-command-install-enterprise-application",
+		Name:  "InstallEnterpriseApplication",
 		Usage: "Enqueue the InstallEnterpriseApplication MDM command.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "device-ids",
-				Usage:    "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
-				Required: true,
+				Name:  "device-ids",
+				Usage: "Comma separated device IDs to send the MDM command to. This is the same as the hardware UUID.",
 			},
 			&cli.UintFlag{
-				Name:     "installer-id",
-				Usage:    "ID of the installer to install on the target devices.",
-				Required: true,
+				Name:  "installer-id",
+				Usage: "ID of the installer to install on the target devices.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -669,6 +806,9 @@ func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 			}
 
 			installerID := c.Uint("installer-id")
+			if installerID == 0 {
+				return errors.New("must provide an installer ID")
+			}
 			installer, err := fleet.MDMAppleGetInstallerDetails(installerID)
 			if err != nil {
 				return fmt.Errorf("get installer: %w", err)
