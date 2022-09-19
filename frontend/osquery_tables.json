@@ -7556,6 +7556,104 @@
     ]
   },
   {
+    "name": "es_process_file_events",
+    "description": "Process execution events from EndpointSecurity.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/darwin/es_process_file_events.table",
+    "platforms": ["darwin"],
+    "evented": true,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "version",
+        "description": "Version of EndpointSecurity event",
+        "type": "integer",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "seq_num",
+        "description": "Per event sequence number",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "global_seq_num",
+        "description": "Global sequence number",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid",
+        "description": "Process (or thread) ID",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Path of executed file",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "parent",
+        "description": "Parent process ID",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "dest_filename",
+        "description": "Destination filename for the event",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "event_type",
+        "description": "Type of EndpointSecurity event",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time",
+        "description": "Time of execution in UNIX time",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "event_type",
+        "description": "Type of EndpointSecurity event",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "eid",
+        "description": "Event ID",
+        "type": "text",
+        "hidden": true,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
     "name": "etc_hosts",
     "description": "Line-parsed /etc/hosts.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/etc_hosts.table",
