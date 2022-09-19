@@ -14540,6 +14540,48 @@
     ]
   },
   {
+    "name": "password_policy",
+    "description": "Password Policies for macOS.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/darwin/password_policy.table",
+    "platforms": ["darwin"],
+    "evented": false,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "uid",
+        "description": "User ID for the policy if available",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_identifier",
+        "description": "Policy Identifier",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_content",
+        "description": "Policy content",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_description",
+        "description": "Policy description",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
     "name": "patches",
     "description": "Lists all the patches applied. Note: This does not include patches applied via MSI or downloaded from Windows Update (e.g. Service Packs).",
     "url": "https://github.com/osquery/osquery/blob/master/specs/windows/patches.table",
@@ -21897,6 +21939,112 @@
         "name": "signatures_up_to_date",
         "description": "1 if product signatures are up to date, else 0",
         "type": "integer",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
+    "name": "windows_update_history",
+    "description": "Provides the history of the windows update events.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/windows/windows_update_history.table",
+    "platforms": ["windows"],
+    "evented": false,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "client_app_id",
+        "description": "Identifier of the client application that processed an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "date",
+        "description": "Date and the time an update was applied",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "description",
+        "description": "Description of an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "hresult",
+        "description": "HRESULT value that is returned from the operation on an update",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "operation",
+        "description": "Operation on an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "result_code",
+        "description": "Result of an operation on an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "server_selection",
+        "description": "Value that indicates which server provided an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "service_id",
+        "description": "Service identifier of an update service that is not a Windows update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "support_url",
+        "description": "Hyperlink to the language-specific support information for an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "title",
+        "description": "Title of an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "update_id",
+        "description": "Revision-independent identifier of an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "update_revision",
+        "description": "Revision number of an update",
+        "type": "bigint",
         "hidden": false,
         "required": false,
         "index": false
