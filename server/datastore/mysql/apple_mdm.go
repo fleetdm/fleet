@@ -27,6 +27,17 @@ func (ds *Datastore) NewMDMAppleEnrollment(
 	}, nil
 }
 
+func (ds *Datastore) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
+	var enrollments []fleet.MDMAppleEnrollment
+	if err := sqlx.SelectContext(ctx, ds.appleMDMWriter,
+		&enrollments,
+		`SELECT id, name, dep_config FROM mdm_apple_enrollments`,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list devices")
+	}
+	return enrollments, nil
+}
+
 func (ds *Datastore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error) {
 	var enrollment fleet.MDMAppleEnrollment
 	if err := sqlx.GetContext(ctx, ds.appleMDMWriter,
@@ -137,6 +148,17 @@ func (ds *Datastore) MDMAppleInstallerDetailsByToken(ctx context.Context, token 
 		return nil, ctxerr.Wrap(ctx, err, "get installer details by id")
 	}
 	return &installer, nil
+}
+
+func (ds *Datastore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
+	var installers []fleet.MDMAppleInstaller
+	if err := sqlx.SelectContext(ctx, ds.appleMDMWriter,
+		&installers,
+		`SELECT id, name, size, manifest, url_token FROM mdm_apple_installers`,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list installers")
+	}
+	return installers, nil
 }
 
 func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {

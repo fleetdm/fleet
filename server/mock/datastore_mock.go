@@ -453,6 +453,8 @@ type NewMDMAppleEnrollmentFunc func(ctx context.Context, enrollment fleet.MDMApp
 
 type MDMAppleEnrollmentFunc func(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error)
 
+type ListMDMAppleEnrollmentsFunc func(ctx context.Context) ([]fleet.MDMAppleEnrollment, error)
+
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error)
 
 type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
@@ -462,6 +464,8 @@ type MDMAppleInstallerFunc func(ctx context.Context, token string) (*fleet.MDMAp
 type MDMAppleInstallerDetailsByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
 
 type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
+
+type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
@@ -1126,6 +1130,9 @@ type DataStore struct {
 	MDMAppleEnrollmentFunc        MDMAppleEnrollmentFunc
 	MDMAppleEnrollmentFuncInvoked bool
 
+	ListMDMAppleEnrollmentsFunc        ListMDMAppleEnrollmentsFunc
+	ListMDMAppleEnrollmentsFuncInvoked bool
+
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
 
@@ -1140,6 +1147,9 @@ type DataStore struct {
 
 	MDMAppleInstallerDetailsByTokenFunc        MDMAppleInstallerDetailsByTokenFunc
 	MDMAppleInstallerDetailsByTokenFuncInvoked bool
+
+	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
+	ListMDMAppleInstallersFuncInvoked bool
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
@@ -2245,6 +2255,11 @@ func (s *DataStore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (
 	return s.MDMAppleEnrollmentFunc(ctx, enrollmentID)
 }
 
+func (s *DataStore) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
+	s.ListMDMAppleEnrollmentsFuncInvoked = true
+	return s.ListMDMAppleEnrollmentsFunc(ctx)
+}
+
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
 	s.GetMDMAppleCommandResultsFuncInvoked = true
 	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
@@ -2268,6 +2283,11 @@ func (s *DataStore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (
 func (s *DataStore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
 	s.MDMAppleInstallerDetailsByTokenFuncInvoked = true
 	return s.MDMAppleInstallerDetailsByTokenFunc(ctx, token)
+}
+
+func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
+	s.ListMDMAppleInstallersFuncInvoked = true
+	return s.ListMDMAppleInstallersFunc(ctx)
 }
 
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {

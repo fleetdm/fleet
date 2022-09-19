@@ -81,7 +81,7 @@ func registerMDM(mux *http.ServeMux, config config.MDMAppleConfig, scepCACrt *x5
 		Bytes: scepCACrt.Raw,
 	}
 	scepCAPEM := pem.EncodeToMemory(scepCAPEMBlock)
-	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, nil, x509.ExtKeyUsageClientAuth)
+	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
 	if err != nil {
 		return fmt.Errorf("certificate pool verifier: %w", err)
 	}

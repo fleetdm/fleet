@@ -17,20 +17,25 @@ import (
 	"howett.net/plist"
 )
 
-func (c *Client) CreateEnrollment(name string, depConfig *json.RawMessage) (*fleet.MDMAppleEnrollment, string, error) {
+func (c *Client) CreateEnrollment(name string, depConfig *json.RawMessage) (*fleet.MDMAppleEnrollment, error) {
 	request := createMDMAppleEnrollmentRequest{
 		Name:      name,
 		DEPConfig: depConfig,
 	}
 	var response createMDMAppleEnrollmentResponse
 	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enrollments", &response); err != nil {
-		return nil, "", fmt.Errorf("request: %w", err)
+		return nil, fmt.Errorf("request: %w", err)
 	}
-	return &fleet.MDMAppleEnrollment{
-		ID:        response.ID,
-		Name:      name,
-		DEPConfig: depConfig,
-	}, response.URL, nil
+	return response.Enrollment, nil
+}
+
+func (c *Client) ListEnrollments() ([]fleet.MDMAppleEnrollment, error) {
+	request := listMDMAppleEnrollmentsRequest{}
+	var response listMDMAppleEnrollmentsResponse
+	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/enrollments", &response); err != nil {
+		return nil, fmt.Errorf("request: %w", err)
+	}
+	return response.Enrollments, nil
 }
 
 func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.CommandEnqueueResult, error) {
@@ -148,4 +153,13 @@ func (c *Client) DEPListDevices() ([]fleet.MDMAppleDEPDevice, error) {
 	}
 
 	return responseBody.Devices, nil
+}
+
+func (c *Client) ListInstallers() ([]fleet.MDMAppleInstaller, error) {
+	request := listMDMAppleInstallersRequest{}
+	var response listMDMAppleInstallersResponse
+	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/installers", &response); err != nil {
+		return nil, fmt.Errorf("request: %w", err)
+	}
+	return response.Installers, nil
 }

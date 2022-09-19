@@ -35,16 +35,15 @@ type createMDMAppleEnrollmentRequest struct {
 }
 
 type createMDMAppleEnrollmentResponse struct {
-	ID  uint   `json:"enrollment_id"`
-	URL string `json:"url"`
-	Err error  `json:"error,omitempty"`
+	Enrollment *fleet.MDMAppleEnrollment `json:"enrollment"`
+	Err        error                     `json:"error,omitempty"`
 }
 
 func (r createMDMAppleEnrollmentResponse) error() error { return r.Err }
 
 func createMDMAppleEnrollmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*createMDMAppleEnrollmentRequest)
-	enrollment, url, err := svc.NewMDMAppleEnrollment(ctx, fleet.MDMAppleEnrollmentPayload{
+	enrollment, err := svc.NewMDMAppleEnrollment(ctx, fleet.MDMAppleEnrollmentPayload{
 		Name:      req.Name,
 		DEPConfig: req.DEPConfig,
 	})
@@ -54,30 +53,30 @@ func createMDMAppleEnrollmentEndpoint(ctx context.Context, request interface{}, 
 		}, nil
 	}
 	return createMDMAppleEnrollmentResponse{
-		ID:  enrollment.ID,
-		URL: url,
+		Enrollment: enrollment,
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, string, error) {
+func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	enrollment, err := svc.ds.NewMDMAppleEnrollment(ctx, enrollmentPayload)
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if enrollment.DEPConfig != nil {
 		if err := svc.setDEPProfile(ctx, enrollment); err != nil {
-			return nil, "", ctxerr.Wrap(ctx, err)
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
-	return enrollment, svc.mdmAppleEnrollURL(enrollment.ID), nil
+	enrollment.URL = svc.mdmAppleEnrollURL(enrollment.ID)
+	return enrollment, nil
 }
 
 func (svc *Service) mdmAppleEnrollURL(enrollmentID uint) string {
-	return fmt.Sprintf("https://%s"+apple_mdm.EnrollPath+"?id=%d", svc.config.MDMApple.ServerAddress, enrollmentID)
+	return fmt.Sprintf("https://%s%s?id=%d", svc.config.MDMApple.ServerAddress, apple_mdm.EnrollPath, enrollmentID)
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
@@ -132,6 +131,42 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 		return fmt.Errorf("set profile UUID: %w", err)
 	}
 	return nil
+}
+
+type listMDMAppleEnrollmentsRequest struct{}
+
+type listMDMAppleEnrollmentsResponse struct {
+	Enrollments []fleet.MDMAppleEnrollment `json:"enrollments"`
+	Err         error                      `json:"error,omitempty"`
+}
+
+func (r listMDMAppleEnrollmentsResponse) error() error { return r.Err }
+
+func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	enrollments, err := svc.ListMDMAppleEnrollments(ctx)
+	if err != nil {
+		return listMDMAppleEnrollmentsResponse{
+			Err: err,
+		}, nil
+	}
+	return listMDMAppleEnrollmentsResponse{
+		Enrollments: enrollments,
+	}, nil
+}
+
+func (svc *Service) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	enrollments, err := svc.ds.ListMDMAppleEnrollments(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	for i := range enrollments {
+		enrollments[i].URL = svc.mdmAppleEnrollURL(enrollments[i].ID)
+	}
+	return enrollments, nil
 }
 
 type getMDMAppleCommandResultsRequest struct {
@@ -221,7 +256,7 @@ func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, si
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var installerBuf bytes.Buffer
-	url := "https://" + svc.config.MDMApple.ServerAddress + apple_mdm.InstallerPath + "?token=" + urlToken.String()
+	url := svc.installerURL(urlToken.String())
 	manifest, err := createManifest(size, io.TeeReader(installer, &installerBuf), url)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -231,6 +266,10 @@ func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, si
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return inst, nil
+}
+
+func (svc *Service) installerURL(urlToken string) string {
+	return "https://" + svc.config.MDMApple.ServerAddress + apple_mdm.InstallerPath + "?token=" + urlToken
 }
 
 func createManifest(size int64, installer io.Reader, url string) (string, error) {
@@ -760,4 +799,40 @@ func (svc *Service) GetMDMAppleInstallerDetailsByToken(ctx context.Context, toke
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return installer, nil
+}
+
+type listMDMAppleInstallersRequest struct{}
+
+type listMDMAppleInstallersResponse struct {
+	Installers []fleet.MDMAppleInstaller `json:"installers"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listMDMAppleInstallersResponse) error() error { return r.Err }
+
+func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	installers, err := svc.ListMDMAppleInstallers(ctx)
+	if err != nil {
+		return listMDMAppleInstallersResponse{
+			Err: err,
+		}, nil
+	}
+	return listMDMAppleInstallersResponse{
+		Installers: installers,
+	}, nil
+}
+
+func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	installers, err := svc.ds.ListMDMAppleInstallers(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	for i := range installers {
+		installers[i].URL = svc.installerURL(installers[i].URLToken)
+	}
+	return installers, nil
 }

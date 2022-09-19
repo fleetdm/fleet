@@ -17,6 +17,7 @@ type MDMAppleEnrollment struct {
 	ID        uint             `json:"id" db:"id"`
 	Name      string           `json:"name" db:"name"`
 	DEPConfig *json.RawMessage `json:"dep_config" db:"dep_config"`
+	URL       string           `json:"url"`
 }
 
 func (m MDMAppleEnrollment) AuthzType() string {
@@ -46,6 +47,8 @@ type MDMAppleInstaller struct {
 	Manifest  string `json:"manifest" db:"manifest"`
 	Installer []byte `json:"-" db:"installer"`
 	URLToken  string `json:"url_token" db:"url_token"`
+
+	URL string `json:"url"`
 }
 
 func (m MDMAppleInstaller) AuthzType() string {

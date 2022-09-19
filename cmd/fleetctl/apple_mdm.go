@@ -278,7 +278,6 @@ func appleMDMSetDEPTokenFinalizeCommand() *cli.Command {
 				return fmt.Errorf("write token file: %w", err)
 			}
 			fmt.Printf("Successfully generated token file: %s.\n", tokenPath)
-			// TODO(lucas): Delete pemCertPath, pemKeyPath and encryptedTokenPath files?
 			fmt.Printf("Set FLEET_MDM_APPLE_DEP_TOKEN=$(cat %s) when running Fleet.\n", tokenPath)
 			return nil
 		},
@@ -330,11 +329,11 @@ func appleMDMEnrollmentsCreateAutomaticCommand() *cli.Command {
 				return fmt.Errorf("create client: %w", err)
 			}
 			depProfile := json.RawMessage(profile)
-			enrollment, url, err := fleet.CreateEnrollment(enrollmentName, &depProfile)
+			enrollment, err := fleet.CreateEnrollment(enrollmentName, &depProfile)
 			if err != nil {
 				return fmt.Errorf("create enrollment: %w", err)
 			}
-			fmt.Printf("Automatic enrollment created, URL: %s, id: %d\n", url, enrollment.ID)
+			fmt.Printf("Automatic enrollment created, URL: %s\n", enrollment.URL)
 			return nil
 		},
 	}
@@ -358,11 +357,11 @@ func appleMDMEnrollmentsCreateManualCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("create client: %w", err)
 			}
-			enrollment, url, err := fleet.CreateEnrollment(enrollmentName, nil)
+			enrollment, err := fleet.CreateEnrollment(enrollmentName, nil)
 			if err != nil {
 				return fmt.Errorf("create enrollment: %w", err)
 			}
-			fmt.Printf("Manual enrollment created, URL: %s, id: %d\n", url, enrollment.ID)
+			fmt.Printf("Manual enrollment created, URL: %s.\n", enrollment.URL)
 			return nil
 		},
 	}
@@ -394,8 +393,39 @@ func appleMDMEnrollmentsListCommand() *cli.Command {
 		Name:  "list",
 		Usage: "List all enrollments",
 		Action: func(c *cli.Context) error {
-			// TODO(lucas): Implement command.
-			fmt.Println("Not implemented yet.")
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+			enrollments, err := fleet.ListEnrollments()
+			if err != nil {
+				return fmt.Errorf("create enrollment: %w", err)
+			}
+
+			// format output as a table
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetRowLine(true)
+			table.SetHeader([]string{"ID", "Name", "URL", "Type", "DEP Config"})
+			table.SetAutoWrapText(false)
+			table.SetRowLine(true)
+
+			for _, enrollment := range enrollments {
+				enrollmentType := "manual"
+				depConfig := ""
+				if enrollment.DEPConfig != nil {
+					enrollmentType = "automatic"
+					depConfig = string(*enrollment.DEPConfig)
+				}
+				table.Append([]string{
+					strconv.FormatUint(uint64(enrollment.ID), 10),
+					enrollment.Name,
+					enrollment.URL,
+					enrollmentType,
+					depConfig,
+				})
+			}
+
+			table.Render()
 			return nil
 		},
 	}
@@ -836,6 +866,8 @@ func appleMDMInstallersCommand() *cli.Command {
 		Usage: "Commands to manage macOS installers",
 		Subcommands: []*cli.Command{
 			appleMDMInstallersUploadCommand(),
+			appleMDMInstallersListCommand(),
+			appleMDMInstallersDeleteCommand(),
 		},
 	}
 }
@@ -844,7 +876,7 @@ func appleMDMInstallersUploadCommand() *cli.Command {
 	var path string
 	return &cli.Command{
 		Name:  "upload",
-		Usage: "Upload a macOS installer to Fleet",
+		Usage: "Upload an Apple installer to Fleet",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "path",
@@ -868,6 +900,57 @@ func appleMDMInstallersUploadCommand() *cli.Command {
 				return fmt.Errorf("upload installer: %w", err)
 			}
 			fmt.Printf("Installer uploaded successfully, id=%d", installerID)
+			return nil
+		},
+	}
+}
+
+func appleMDMInstallersListCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "list",
+		Usage: "List all Apple installers",
+		Action: func(c *cli.Context) error {
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+			installers, err := fleet.ListInstallers()
+			if err != nil {
+				return fmt.Errorf("list installers: %w", err)
+			}
+			// format output as a table
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetRowLine(true)
+			table.SetHeader([]string{"ID", "Name", "Manifest", "URL"})
+			table.SetAutoWrapText(false)
+			table.SetRowLine(true)
+
+			for _, installer := range installers {
+				table.Append([]string{strconv.FormatUint(uint64(installer.ID), 10), installer.Name, installer.Manifest, installer.URL})
+			}
+
+			table.Render()
+			return nil
+		},
+	}
+}
+
+func appleMDMInstallersDeleteCommand() *cli.Command {
+	var installerID uint
+	return &cli.Command{
+		Name:  "delete",
+		Usage: "Delete an Apple installer",
+		Flags: []cli.Flag{
+			&cli.UintFlag{
+				Name:        "id",
+				Usage:       "Identifier of the installer",
+				Destination: &installerID,
+				Required:    true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			// TODO(lucas): Implement command.
+			fmt.Println("Not implemented yet.")
 			return nil
 		},
 	}
