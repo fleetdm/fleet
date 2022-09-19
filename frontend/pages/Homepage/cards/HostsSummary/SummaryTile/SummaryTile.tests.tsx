@@ -6,7 +6,7 @@ import paths from "router/paths";
 
 import SummaryTile from "./SummaryTile";
 
-import TestIcon from "../../../../../assets/images/icon-windows-black-24x24@2x.png";
+import TestIcon from "../../../../../../assets/images/icon-windows-black-24x24@2x.png";
 
 const INITIAL_OPACITY = 0;
 
@@ -35,8 +35,8 @@ describe("SummaryTile - component", () => {
     render(
       <SummaryTile
         count={200}
-        isLoading={true} // tested
-        showUI={true}
+        isLoading // tested
+        showUI
         title={"Windows hosts"}
         icon={TestIcon}
         tooltip={"Hosts on any Windows device"}
@@ -54,7 +54,7 @@ describe("SummaryTile - component", () => {
       <SummaryTile
         count={200} // tested
         isLoading={false}
-        showUI={true}
+        showUI
         title={"Windows hosts"} // tested
         icon={TestIcon} // tested
         tooltip={"Hosts on any Windows device"}
@@ -80,7 +80,7 @@ describe("SummaryTile - component", () => {
       <SummaryTile
         count={200}
         isLoading={false}
-        showUI={true}
+        showUI
         title={"Windows hosts"}
         icon={TestIcon}
         tooltip={"Hosts on any Windows device"} // tested
@@ -100,7 +100,7 @@ describe("SummaryTile - component", () => {
       <SummaryTile
         count={200}
         isLoading={false}
-        showUI={true}
+        showUI
         title={"Windows hosts"}
         icon={TestIcon}
         tooltip={"Hosts on any Windows device"} // tested
