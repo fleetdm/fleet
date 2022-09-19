@@ -33,8 +33,8 @@ func WithMaxAttempts(a int) Option {
 // non-nil error it performs a retry according to the options
 // provided.
 //
-// By default operations are retried between 30 seconds and an
-// unlimited number of times.
+// By default operations are retried an unlimited number of times for 30
+// seconds
 func Do(fn func() error, opts ...Option) error {
 	cfg := &config{
 		interval: 30 * time.Second,
