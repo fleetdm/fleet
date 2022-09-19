@@ -9,6 +9,10 @@
     text-align: left;
     padding: $pad-medium;
     height: fit-content;
+
+    &:focus-visible {
+      outline: 1px solid $core-vibrant-blue;
+    }
   }
 
   &__icon-wrapper {
