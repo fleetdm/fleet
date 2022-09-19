@@ -4349,12 +4349,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 
-	// test setting the default app config we use for new installs (this check
-	// ensures that the default config passes the validation)
-	var defAppCfg fleet.AppConfig
-	defAppCfg.ApplyDefaultsForNewInstalls()
-	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
-
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint
 	acResp = appConfigResponse{}
@@ -4471,6 +4465,15 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
+
+	// test setting the default app config we use for new installs (this check
+	// ensures that the default config passes the validation)
+	var defAppCfg fleet.AppConfig
+	defAppCfg.ApplyDefaultsForNewInstalls()
+	// must set org name and server settings
+	defAppCfg.OrgInfo.OrgName = acResp.OrgInfo.OrgName
+	defAppCfg.ServerSettings.ServerURL = acResp.ServerSettings.ServerURL
+	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestQuerySpecs() {
