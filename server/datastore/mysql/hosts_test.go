@@ -1591,15 +1591,15 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	h.GigsDiskSpaceAvailable = 1.24
-	h.PercentDiskSpaceAvailable = 42.0
 	err = ds.UpdateHost(context.Background(), h)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0)
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
 	require.NoError(t, err)
-	assert.NotZero(t, h.GigsDiskSpaceAvailable)
-	assert.NotZero(t, h.PercentDiskSpaceAvailable)
+	assert.Equal(t, 1.24, h.GigsDiskSpaceAvailable)
+	assert.Equal(t, 42.0, h.PercentDiskSpaceAvailable)
 }
 
 func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {

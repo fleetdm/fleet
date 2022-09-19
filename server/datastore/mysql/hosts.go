@@ -838,7 +838,53 @@ func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, qu
 // LoadHostByNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	query := `SELECT * FROM hosts WHERE node_key = ?`
+	query := `
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+    FROM
+      hosts h
+    LEFT OUTER JOIN
+      host_disks hd ON hd.host_id = h.id
+    WHERE node_key = ?`
 
 	var host fleet.Host
 	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
@@ -2236,9 +2282,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			primary_ip = ?,
 			primary_mac = ?,
 			public_ip = ?,
-			refetch_requested = ?,
-			gigs_disk_space_available = ?,
-			percent_disk_space_available = ?
+			refetch_requested = ?
 		WHERE id = ?
 	`
 	_, err := ds.writer.ExecContext(ctx, sqlStatement,
@@ -2274,8 +2318,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.PrimaryMac,
 		host.PublicIP,
 		host.RefetchRequested,
-		host.GigsDiskSpaceAvailable,
-		host.PercentDiskSpaceAvailable,
 		host.ID,
 	)
 	if err != nil {
@@ -2578,7 +2620,7 @@ func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logg
 	// current seven-day statistics reporting period.
 	sql := `
 SELECT h.host_id FROM (
-  SELECT * FROM hosts JOIN host_seen_times hst ON hosts.id = hst.host_id
+  SELECT hst.host_id, hst.seen_time, hosts.detail_updated_at, hosts.distributed_interval FROM hosts JOIN host_seen_times hst ON hosts.id = hst.host_id
   WHERE hst.seen_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
 ) h
 WHERE
