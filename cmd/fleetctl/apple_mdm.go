@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/micromdm/mdm/mdm"
@@ -541,21 +542,7 @@ func appleMDMEnqueueCommandInstallProfileCommand() *cli.Command {
 				},
 			}
 
-			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, "	")
-			if err != nil {
-				return fmt.Errorf("marshal command payload plist: %w", err)
-			}
-
-			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
-			if err != nil {
-				return err
-			}
-
-			commandUUID := result.CommandUUID
-			fmt.Printf("Command UUID: %s\n", commandUUID)
-
-			return nil
+			return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
 		},
 	}
 }
@@ -598,21 +585,7 @@ func appleMDMEnqueueCommandRemoveProfileCommand() *cli.Command {
 				},
 			}
 
-			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, "	")
-			if err != nil {
-				return fmt.Errorf("marshal command payload plist: %w", err)
-			}
-
-			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
-			if err != nil {
-				return err
-			}
-
-			commandUUID := result.CommandUUID
-			fmt.Printf("Command UUID: %s\n", commandUUID)
-
-			return nil
+			return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
 		},
 	}
 }
@@ -650,6 +623,10 @@ func runSimpleCommand(c *cli.Context, name string) error {
 			RequestType: name,
 		},
 	}
+	return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
+}
+
+func enqueueCommandAndPrintHelp(fleet *service.Client, deviceIDs []string, payload *mdm.CommandPayload) error {
 	// convert to xml using tabs for indentation
 	payloadBytes, err := plist.MarshalIndent(payload, "	")
 	if err != nil {
@@ -663,6 +640,7 @@ func runSimpleCommand(c *cli.Context, name string) error {
 
 	commandUUID := result.CommandUUID
 	fmt.Printf("Command UUID: %s\n", commandUUID)
+	fmt.Printf("Use `fleetctl apple-mdm command-results --command-uuid %s` to get results.\n", commandUUID)
 	return nil
 }
 
@@ -704,21 +682,7 @@ func appleMDMEnqueueCommandEraseDeviceCommand() *cli.Command {
 				},
 			}
 
-			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, "	")
-			if err != nil {
-				return fmt.Errorf("marshal command payload plist: %w", err)
-			}
-
-			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
-			if err != nil {
-				return err
-			}
-
-			commandUUID := result.CommandUUID
-			fmt.Printf("Command UUID: %s\n", commandUUID)
-
-			return nil
+			return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
 		},
 	}
 }
@@ -761,21 +725,7 @@ func appleMDMEnqueueCommandDeviceLockCommand() *cli.Command {
 				},
 			}
 
-			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, "	")
-			if err != nil {
-				return fmt.Errorf("marshal command payload plist: %w", err)
-			}
-
-			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
-			if err != nil {
-				return err
-			}
-
-			commandUUID := result.CommandUUID
-			fmt.Printf("Command UUID: %s\n", commandUUID)
-
-			return nil
+			return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
 		},
 	}
 }
@@ -827,21 +777,8 @@ func appleMDMEnqueueCommandInstallEnterpriseApplicationCommand() *cli.Command {
 					},
 				},
 			}
-			// convert to xml using tabs for indentation
-			payloadBytes, err := plist.MarshalIndent(payload, "	")
-			if err != nil {
-				return fmt.Errorf("marshal command payload plist: %w", err)
-			}
 
-			result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
-			if err != nil {
-				return fmt.Errorf("enqueue command: %w", err)
-			}
-
-			commandUUID := result.CommandUUID
-			fmt.Printf("Command UUID: %s\n", commandUUID)
-
-			return nil
+			return enqueueCommandAndPrintHelp(fleet, deviceIDs, payload)
 		},
 	}
 }
