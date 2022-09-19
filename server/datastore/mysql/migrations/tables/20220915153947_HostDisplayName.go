@@ -18,7 +18,7 @@ func Up_20220915153947(tx *sql.Tx) error {
 			    host_id int(10) unsigned NOT NULL,
 			    display_name varchar(255) NOT NULL,
 			    PRIMARY KEY (host_id),
-			    FULLTEXT KEY (display_name)
+			    KEY (display_name)
 			);
 		`},
 		{"migrate data", `
