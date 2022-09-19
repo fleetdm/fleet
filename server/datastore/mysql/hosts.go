@@ -331,7 +331,46 @@ func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	// TODO(mna): replace h.* with explicit list, join with host_disks
 	sqlStatement := `
 SELECT
-  h.*,
+  h.id,
+  h.osquery_host_id,
+  h.created_at,
+  h.updated_at,
+  h.detail_updated_at,
+  h.node_key,
+  h.hostname,
+  h.uuid,
+  h.platform,
+  h.osquery_version,
+  h.os_version,
+  h.build,
+  h.platform_like,
+  h.code_name,
+  h.uptime,
+  h.memory,
+  h.cpu_type,
+  h.cpu_subtype,
+  h.cpu_brand,
+  h.cpu_physical_cores,
+  h.cpu_logical_cores,
+  h.hardware_vendor,
+  h.hardware_model,
+  h.hardware_version,
+  h.hardware_serial,
+  h.computer_name,
+  h.primary_ip_id,
+  h.distributed_interval,
+  h.logger_tls_period,
+  h.config_tls_refresh,
+  h.primary_ip,
+  h.primary_mac,
+  h.label_updated_at,
+  h.last_enrolled_at,
+  h.refetch_requested,
+  h.team_id,
+  h.policy_updated_at,
+  h.public_ip,
+  COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+  COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
   (
@@ -348,6 +387,7 @@ FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_disks hd ON hd.host_id = h.id
   JOIN (
     SELECT
       count(*) as count
