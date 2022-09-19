@@ -1,1 +1,1 @@
-Use MSRC parser to generate security bulletin artifacts to be used for detecting Windows OS vulnerabilities.
+* Add es_process_file_events to osquery tables
