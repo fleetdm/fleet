@@ -872,10 +872,10 @@ func (s *integrationTestSuite) TestHostsCount() {
 	assert.Equal(t, 1, resp.Count)
 
 	// filter by low_disk_space criteria is ignored (premium-only filter)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "true")
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Equal(t, len(hosts), resp.Count)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "false")
-	require.Equal(t, len(hosts), resp.Count)
+	// but it is still validated for a correct value when provided (as that happens in a middleware before the handler)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "123456") // TODO: status code to be fixed with #4406
 
 	// filter by MDM criteria without any host having such information
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
@@ -1000,10 +1000,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// setting the low_disk_space criteria is ignored (premium-only)
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "true")
-	require.Len(t, resp.Hosts, len(hosts))
-	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "false")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Len(t, resp.Hosts, len(hosts))
 
 	resp = listHostsResponse{}

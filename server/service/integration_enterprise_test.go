@@ -1495,31 +1495,33 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NotNil(t, host3)
 
 	// set disk space information for some hosts (none provided for host3)
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0)) // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, 3)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "true")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
 	assert.Equal(t, 10.0, resp.Hosts[0].GigsDiskSpaceAvailable)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "false")
-	require.Len(t, resp.Hosts, 1)
-	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
-	assert.Equal(t, 40.0, resp.Hosts[0].GigsDiskSpaceAvailable)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "100")
+	require.Len(t, resp.Hosts, 2)
+
+	// returns an error when the criteria is invalid (outside 1-100)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "101") // TODO: status code to be fixed with #4406
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "0")   // TODO: status code to be fixed with #4406
 
 	// counting hosts works with and without the filter too
 	var countResp countHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp)
 	require.Equal(t, 3, countResp.Count)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "true")
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "32")
 	require.Equal(t, 1, countResp.Count)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "false")
-	require.Equal(t, 1, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "100")
+	require.Equal(t, 2, countResp.Count)
 }

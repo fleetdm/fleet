@@ -1740,7 +1740,7 @@ None.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
-| low_disk_space          | boolean | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with (when set to "true", or without if set to "false") low disk space. Low disk space is defined as < 32GB. |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1881,7 +1881,7 @@ Response payload with the `munki_issue_id` filter provided:
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
-| low_disk_space          | boolean | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with (when set to "true", or without if set to "false") low disk space. Low disk space is defined as < 32GB. |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 

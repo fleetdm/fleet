@@ -77,11 +77,10 @@ type HostListOptions struct {
 	MunkiIssueIDFilter *uint
 
 	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
-	// with less than N gigs of disk space available - see the implementation in
-	// the datastore for the current value of N). Note that this is a Fleet
+	// with less than N gigs of disk space available). Note that this is a Fleet
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
-	LowDiskSpaceFilter *bool
+	LowDiskSpaceFilter *int
 }
 
 func (h HostListOptions) Empty() bool {
