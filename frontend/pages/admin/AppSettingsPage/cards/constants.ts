@@ -28,6 +28,8 @@ export interface IAppConfigFormErrors {
   user_name?: string | null;
   password?: string | null;
   destination_url?: string | null;
+  days_count?: string | null;
+  host_percentage?: string | null;
   host_expiry_window?: string | null;
   agent_options?: string | null;
   transparency_url?: string | null;
