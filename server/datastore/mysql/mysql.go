@@ -704,7 +704,19 @@ func (ds *Datastore) Close() error {
 
 // sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
 func sanitizeColumn(col string) string {
-	return columnCharsRegexp.ReplaceAllString(col, "")
+	col = columnCharsRegexp.ReplaceAllString(col, "")
+	oldParts := strings.Split(col, ".")
+	parts := oldParts[:0]
+	for _, p := range oldParts {
+		if len(p) != 0 {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	col = "`" + strings.Join(parts, "`.`") + "`"
+	return col
 }
 
 // appendListOptionsToSelect will apply the given list options to ds and
@@ -777,7 +789,7 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "<" // DESC
 		}
-		sql = fmt.Sprintf("%s %s `%s` %s ?", sql, afterSql, orderKey, direction)
+		sql = fmt.Sprintf("%s %s %s %s ?", sql, afterSql, orderKey, direction)
 
 		// After existing supersedes Page, so we disable it
 		opts.Page = 0
@@ -789,7 +801,7 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 			direction = "DESC"
 		}
 
-		sql = fmt.Sprintf("%s ORDER BY `%s` %s", sql, orderKey, direction)
+		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
 	// REVIEW: If caller doesn't supply a limit apply a default limit of 1000
 	// to insure that an unbounded query with many results doesn't consume too
