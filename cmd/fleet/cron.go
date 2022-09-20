@@ -33,96 +33,84 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	ctxerr.Handle(ctx, err)
 }
 
+func startVulnerabilitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config *config.VulnerabilitiesConfig,
+	license *fleet.LicenseInfo,
+) *schedule.Schedule {
+	interval := config.Periodicity
+	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
+	s := schedule.New(
+		ctx, "vulnerabilities", instanceID, interval, ds,
+		schedule.WithLogger(vulnerabilitiesLogger),
+		schedule.WithJob(
+			"cron_vulnerabilities",
+			func(ctx context.Context) error {
+				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
+				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config, license)
+			},
+		),
+		schedule.WithJob(
+			"cron_sync_host_software",
+			func(ctx context.Context) error {
+				return ds.SyncHostsSoftware(ctx, time.Now())
+			},
+		),
+	)
+	s.Start()
+	return s
+}
+
 func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	config *config.VulnerabilitiesConfig,
 	license *fleet.LicenseInfo,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
-
+) error {
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
-		return
+		return nil
 	}
-
-	// release the lock when this function exits
-	defer func() {
-		// use a different context that won't be cancelled when shutting down
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		err := ds.Unlock(ctx, lockKeyVulnerabilities, identifier)
-		if err != nil {
-			errHandler(ctx, logger, "error releasing lock", err)
-		}
-	}()
 
 	level.Info(logger).Log("periodicity", config.Periodicity)
 
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(config.Periodicity)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-
-		if config.CurrentInstanceChecks == "auto" {
-			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
-				errHandler(ctx, logger, "error acquiring lock", err)
-				continue
-			} else if !locked {
-				level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-				continue
-			}
-		}
-
-		appConfig, err := ds.AppConfig(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "couldn't read app config", err)
-			continue
-		}
-
-		if !appConfig.Features.EnableSoftwareInventory {
-			level.Info(logger).Log("msg", "software inventory not configured")
-			continue
-		}
-
-		var vulnPath string
-		switch {
-		case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
-			vulnPath = config.DatabasesPath
-			level.Info(logger).Log(
-				"msg", "fleet config takes precedence over app config when both are configured",
-				"databases_path", vulnPath,
-			)
-		case config.DatabasesPath != "":
-			vulnPath = config.DatabasesPath
-		case appConfig.VulnerabilitySettings.DatabasesPath != "":
-			vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
-		default:
-			level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
-		}
-		if vulnPath != "" {
-			level.Info(logger).Log("msg", "scanning vulnerabilities")
-			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
-				errHandler(ctx, logger, "scanning vulnerabilities", err)
-			}
-		}
-
-		if err := ds.SyncHostsSoftware(ctx, time.Now()); err != nil {
-			errHandler(ctx, logger, "calculating hosts count per software", err)
-		}
-
-		level.Debug(logger).Log("loop", "done")
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
 	}
+
+	if !appConfig.Features.EnableSoftwareInventory {
+		level.Info(logger).Log("msg", "software inventory not configured")
+		return nil
+	}
+
+	var vulnPath string
+	switch {
+	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
+		vulnPath = config.DatabasesPath
+		level.Info(logger).Log(
+			"msg", "fleet config takes precedence over app config when both are configured",
+			"databases_path", vulnPath,
+		)
+	case config.DatabasesPath != "":
+		vulnPath = config.DatabasesPath
+	case appConfig.VulnerabilitySettings.DatabasesPath != "":
+		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
+	default:
+		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
+	}
+	if vulnPath != "" {
+		level.Info(logger).Log("msg", "scanning vulnerabilities")
+		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
+			return fmt.Errorf("scanning vulnerabilities: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func scanVulnerabilities(

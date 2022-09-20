@@ -231,6 +231,10 @@ func (s *Schedule) Start() {
 					sentry.CaptureException(err)
 					continue
 				}
+				if newInterval <= 0 {
+					level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
+					continue
+				}
 				if schedInterval == newInterval {
 					level.Debug(s.logger).Log("msg", "schedule interval unchanged")
 					continue
