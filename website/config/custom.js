@@ -111,7 +111,7 @@ module.exports.custom = {
     'handbook/sales': 'alexmitchelliii',
     'handbook/digital-experience': 'mike-j-thomas',
     'handbook/growth': 'timmy-k',
-    'handbook/customers': 'mikermcneil',
+    'handbook/customers': 'ksatter',
     'handbook/community': ['timmy-k'],
 
     'website': 'mikermcneil',// (default for website)
