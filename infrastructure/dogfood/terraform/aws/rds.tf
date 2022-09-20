@@ -79,7 +79,7 @@ module "aurora_mysql" {
   database_name                       = var.database_name
   enable_http_endpoint                = false
   backup_retention_period             = var.rds_backup_retention_period
-  snapshot_identifier                 = "arn:aws:rds:us-east-2:160035666661:cluster-snapshot:zwinnerman-2022-09-12-pre-mysql8"
+  snapshot_identifier                 = var.rds_initial_snapshot
   #performance_insights_enabled       = true
 
   vpc_id                = module.vpc.vpc_id
