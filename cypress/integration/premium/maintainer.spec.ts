@@ -1,4 +1,6 @@
 import CONSTANTS from "../../support/constants";
+import hostDetailsPage from "../pages/hostDetailsPage";
+import manageHostsPage from "../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -129,73 +131,27 @@ describe("Premium tier - Maintainer user", () => {
     });
     describe("Manage hosts page", () => {
       it("renders elements according to role-based access controls", () => {
-        cy.visit("/hosts/manage");
-        // Hosts table includes teams column
-        cy.getAttached(".data-table__table th")
-          .contains("Team")
-          .should("be.visible");
-        cy.getAttached(".button-wrap")
-          .contains("button", /add hosts/i)
-          .click();
-        cy.getAttached(".modal__content").contains("button", /done/i).click();
-
-        cy.getAttached(".button-wrap")
-          .contains("button", /manage enroll secret/i)
-          .click();
-        cy.getAttached(".enroll-secret-modal__add-secret")
-          .contains("button", /add secret/i)
-          .click();
-        cy.getAttached(".secret-editor-modal .modal-cta-wrap")
-          .contains("button", /save/i)
-          .click();
-        cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
-          .contains("button", /done/i)
-          .click();
+        manageHostsPage.visitsManageHostsPage();
+        manageHostsPage.includesTeamColumn();
+        manageHostsPage.allowsAddHosts();
+        manageHostsPage.allowsManageAndAddSecrets();
       });
     });
     describe("Host details page", () => {
       beforeEach(() => {
-        cy.visit("/hosts/manage");
-        cy.getAttached(".hostname__cell").first().click();
+        hostDetailsPage.visitsHostDetailsPage(1);
       });
       it("allows global maintainer to transfer host to an existing team", () => {
-        cy.getAttached(".host-details__transfer-button").click();
-        cy.findByText(/create a team/i).should("not.exist");
-        cy.getAttached(".Select-control").click();
-        cy.getAttached(".Select-menu").within(() => {
-          cy.findByText(/no team/i).should("exist");
-          cy.findByText(/apples/i).should("exist");
-          cy.findByText(/oranges/i).click();
-        });
-        cy.getAttached(".transfer-host-modal .modal-cta-wrap")
-          .contains("button", /transfer/i)
-          .click();
-        cy.findByText(/transferred to oranges/i).should("exist");
-        cy.findByText(/team/i).next().contains("Oranges");
+        hostDetailsPage.transfersHost();
       });
       it("allows global maintainer to create an operating system policy", () => {
-        cy.getAttached(".info-flex").within(() => {
-          cy.findByText(/ubuntu/i).should("exist");
-          cy.getAttached(".host-summary__os-policy-button").click();
-        });
-        cy.getAttached(".modal__content")
-          .findByRole("button", { name: /create new policy/i })
-          .should("exist");
+        hostDetailsPage.createOperatingSystemPolicy();
       });
-      it("allows global maintainer to create a custom query", () => {
-        cy.getAttached(".host-details__query-button").click();
-        cy.contains("button", /create custom query/i).should("exist");
-        cy.getAttached(".modal__ex").click();
+      it("allows global maintainer to custom query a host", () => {
+        hostDetailsPage.queriesHost();
       });
       it("allows global maintainer to delete a host", () => {
-        cy.getAttached(".host-details__action-button-container")
-          .contains("button", /delete/i)
-          .click();
-        cy.getAttached(".delete-host-modal__modal").within(() => {
-          cy.findByText(/delete host/i).should("exist");
-          cy.contains("button", /delete/i).should("exist");
-          cy.getAttached(".modal__ex").click();
-        });
+        hostDetailsPage.deletesHost();
       });
     });
     describe("Manage software page", () => {

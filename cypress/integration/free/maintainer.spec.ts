@@ -1,4 +1,6 @@
 import CONSTANTS from "../../support/constants";
+import hostDetailsPage from "../pages/hostDetailsPage";
+import manageHostsPage from "../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -138,7 +140,7 @@ describe(
     describe("Manage hosts page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/hosts/manage");
+        manageHostsPage.visitsManageHostsPage();
       });
       it("verifies maintainer is on the Manage Hosts page", () => {
         cy.getAttached(".manage-hosts").within(() => {
@@ -148,42 +150,28 @@ describe(
       it("verifies teams is disabled", () => {
         cy.contains(/team/i).should("not.exist");
       });
-      it("allows maintainer to see and click the 'Add hosts' button", () => {
-        cy.findByRole("button", { name: /add hosts/i }).click();
-        cy.contains("button", /done/i).click();
-      });
-      it("allows maintainer to manage the enroll secret", () => {
-        cy.contains("button", /manage enroll secret/i).click();
-        cy.contains("button", /done/i).click();
+      it("allows maintainer to see and click 'Add hosts' and 'Manage enroll secrets'", () => {
+        manageHostsPage.allowsAddHosts();
+        manageHostsPage.allowsManageAndAddSecrets();
       });
       it("allows maintainer to open the 'Add label' form", () => {
-        cy.getAttached(".label-filter-select__control").click();
-        cy.findByRole("button", { name: /add label/i }).click();
-        cy.findByText(/New Label/i).should("exist");
+        manageHostsPage.allowsAddHosts();
       });
     });
-    describe("Host details tests", () => {
+    describe("Host details page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/hosts/1");
+        hostDetailsPage.visitsHostDetailsPage(1);
       });
       it("verifies teams is disabled", () => {
-        cy.findByText(/team/i).should("not.exist");
-        cy.contains("button", /transfer/i).should("not.exist");
+        hostDetailsPage.verifiesTeamsisDisabled();
+        hostDetailsPage.hidesButton("Transfer");
       });
-      it("allows maintainer to delete a host", () => {
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.findByText(/delete host/i).should("exist");
-        cy.findByRole("button", { name: /cancel/i }).click();
+      it("allows maintainer to delete the host", () => {
+        hostDetailsPage.deletesHost();
       });
-      it("allows maintainer to create a new query on a host", () => {
-        cy.findByRole("button", { name: /query/i }).click();
-        cy.findByRole("button", { name: /create custom query/i }).should(
-          "exist"
-        );
-        cy.getAttached(".modal__ex").within(() => {
-          cy.findByRole("button").click();
-        });
+      it("allows maintainer to custom query the host", () => {
+        hostDetailsPage.queriesHost();
       });
     });
     describe("Manage software page", () => {

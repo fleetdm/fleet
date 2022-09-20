@@ -1,4 +1,6 @@
 import CONSTANTS from "../../support/constants";
+import hostDetailsPage from "../pages/hostDetailsPage";
+import manageHostsPage from "../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -133,37 +135,29 @@ describe("Free tier - Observer user", () => {
   describe("Manage hosts page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it("verifies teams is disabled on Manage Host page", () => {
-      cy.findByText(/teams/i).should("not.exist");
+      manageHostsPage.verifiesTeamsIsDisabled();
     });
-    it("hides 'Add hosts' button", () => {
-      cy.contains("button", /add hosts/i).should("not.exist");
-    });
-    it("hides add a label button", () => {
-      cy.contains("button", /add label/i).should("not.exist");
-    });
-    it("hides manage enroll secrets button", () => {
-      cy.contains("button", /manage enroll secret/i).should("not.exist");
+    it("hides 'Add hosts', 'Add label', and 'Manage enroll secrets' button", () => {
+      manageHostsPage.hidesButton("Add label");
+      manageHostsPage.hidesButton("Add hosts");
+      manageHostsPage.hidesButton("Manage enroll secret");
     });
   });
   describe("Host details page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/hosts/1");
+      hostDetailsPage.visitsHostDetailsPage(1);
     });
     it("verifies teams is disabled on Host Details page", () => {
-      cy.findByText(/team/i).should("not.exist");
+      hostDetailsPage.verifiesTeamsisDisabled();
     });
-    it("hides transfer host button", () => {
-      cy.contains("button", /transfer/i).should("not.exist");
-    });
-    it("hides delete host button", () => {
-      cy.contains("button", /delete/i).should("not.exist");
-    });
-    it("hides query host button", () => {
-      cy.contains("button", /query/i).click();
+    it("hides all cta buttons", () => {
+      hostDetailsPage.hidesButton("Transfer");
+      hostDetailsPage.hidesButton("Query");
+      hostDetailsPage.hidesButton("Delete");
     });
   });
   describe("Manage software page", () => {

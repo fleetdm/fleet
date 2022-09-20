@@ -1,4 +1,5 @@
 import CONSTANTS from "../../support/constants";
+import manageHostsPage from "../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -135,17 +136,15 @@ describe("Premium tier - Team observer/maintainer user", () => {
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/hosts/manage");
-        // Hosts table includes teams column
-        cy.getAttached(".data-table__table th")
-          .contains("Team")
-          .should("be.visible");
+        manageHostsPage.visitsManageHostsPage();
+        manageHostsPage.includesTeamColumn();
+
         cy.findByText(/add label/i).should("not.exist");
 
         // On observing team, not see the "add hosts" and "Manage enroll secret" buttons
         cy.contains(/apples/i).should("exist");
-        cy.contains("button", /add hosts/i).should("not.exist");
-        cy.contains("button", /manage enroll secret/i).should("not.exist");
+        manageHostsPage.hidesButton("Add hosts");
+        manageHostsPage.hidesButton("Manage enroll secrets");
       });
     });
     describe("Manage policies page", () => {
@@ -200,42 +199,21 @@ describe("Premium tier - Team observer/maintainer user", () => {
 
     beforeEach(() => {
       cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
-        // Hosts table includes teams column
-        cy.getAttached(".data-table__table th")
-          .contains("Team")
-          .should("be.visible");
-        cy.findByText(/add label/i).should("not.exist");
+        manageHostsPage.includesTeamColumn();
+        manageHostsPage.hidesButton("Add label");
 
         // On maintaining team, see the "add hosts" and "Manage enroll secret" buttons
         cy.getAttached(".manage-hosts__header").within(() => {
           cy.contains("Apples").click({ force: true });
           cy.contains("Oranges").click({ force: true });
         });
-        cy.getAttached(".team_name__cell").within(() => {
-          cy.findByText(/oranges/i).should("exist");
-        });
-        cy.getAttached(".button-wrap")
-          .contains("button", /add hosts/i)
-          .click();
-        cy.getAttached(".modal__content").contains("button", /done/i).click();
-
-        // On maintaining team, add new enroll secret
-        cy.getAttached(".button-wrap")
-          .contains("button", /manage enroll secret/i)
-          .click();
-        cy.getAttached(".enroll-secret-modal__add-secret")
-          .contains("button", /add secret/i)
-          .click();
-        cy.getAttached(".secret-editor-modal .modal-cta-wrap")
-          .contains("button", /save/i)
-          .click();
-        cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
-          .contains("button", /done/i)
-          .click();
+        manageHostsPage.ensuresTeamDropdownLoads("Apples");
+        manageHostsPage.allowsAddHosts();
+        manageHostsPage.allowsManageAndAddSecrets();
       });
     });
     describe("Manage software page", () => {

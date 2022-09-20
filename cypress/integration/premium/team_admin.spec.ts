@@ -1,4 +1,5 @@
 import CONSTANTS from "../../support/constants";
+import manageHostsPage from "../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -137,30 +138,10 @@ describe("Premium tier - Team Admin user", () => {
     beforeEach(() => {
       cy.visit("/hosts/manage");
     });
-    it("displays team column in hosts table", () => {
-      cy.getAttached(".data-table__table th")
-        .contains("Team")
-        .should("be.visible");
-    });
-    it("allows team admin to see and click 'Add hosts'", () => {
-      cy.getAttached(".button-wrap")
-        .contains("button", /add hosts/i)
-        .click();
-      cy.getAttached(".modal__content").contains("button", /done/i).click();
-    });
-    it("allows team admin to add new enroll secret", () => {
-      cy.getAttached(".button-wrap")
-        .contains("button", /manage enroll secret/i)
-        .click();
-      cy.getAttached(".enroll-secret-modal__add-secret")
-        .contains("button", /add secret/i)
-        .click();
-      cy.getAttached(".secret-editor-modal .modal-cta-wrap")
-        .contains("button", /save/i)
-        .click();
-      cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
-        .contains("button", /done/i)
-        .click();
+    it("should render elements according to role-based access controls", () => {
+      manageHostsPage.includesTeamColumn();
+      manageHostsPage.allowsAddHosts();
+      manageHostsPage.allowsManageAndAddSecrets();
     });
   });
   describe("Host details page", () => {

@@ -1,4 +1,6 @@
 import CONSTANTS from "../../support/constants";
+import hostDetailsPage from "../pages/hostDetailsPage";
+import manageHostsPage from "../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -131,43 +133,21 @@ describe("Premium tier - Observer user", () => {
     describe("Manage hosts page", () => {
       beforeEach(() => cy.visit("/hosts/manage"));
       it("should render elements according to role-based access controls", () => {
-        // Ensure page is loaded with teams dropdown
-        cy.getAttached(".Select-value-label").contains("All teams");
-        // Not see the "Manage enroll secret” or "Add hosts" button
-        cy.contains("button", /manage enroll secret/i).should("not.exist");
-        cy.contains("button", /add hosts/i).should("not.exist");
-        // Hosts table includes teams column
-        cy.getAttached("thead").within(() => {
-          cy.findByText(/team/i).should("exist");
-        });
+        manageHostsPage.ensuresTeamDropdownLoads();
+        manageHostsPage.includesTeamColumn();
+        manageHostsPage.hidesButton("Manage enroll secrets");
+        manageHostsPage.hidesButton("Add hosts");
       });
     });
     describe("Host details page", () => {
-      beforeEach(() => cy.visit("/hosts/manage"));
+      beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
       it("should render elements according to role-based access controls", () => {
-        // Navigate to host details page for first host
-        cy.getAttached(".hostname__cell").first().click();
+        hostDetailsPage.hidesButton("Transfer");
+        hostDetailsPage.hidesButton("Delete");
+        hostDetailsPage.hidesCustomQuery();
 
-        // Click query button and confirm observer cannot create custom query
-        cy.getAttached(".host-details__query-button").click();
-        cy.contains("button", /create custom query/i).should("not.exist");
-        cy.getAttached(".modal__ex").click();
-
-        // Confirm other actions are not available to observer
-        cy.getAttached(".host-details__action-button-container").within(() => {
-          cy.contains("button", /transfer/i).should("not.exist");
-          cy.contains("button", /delete/i).should("not.exist");
-        });
-
-        // Confirm additional host details for observer
-        cy.getAttached(".info-flex").within(() => {
-          // Team is shown for host
-          cy.findByText(/apples/i).should("exist");
-          // OS is shown for host
-          cy.findByText(/ubuntu/i).should("exist");
-          // Observer cannot create a new OS policy
-          cy.findByRole("button").should("not.exist");
-        });
+        hostDetailsPage.verifiesTeam("Apples");
+        hostDetailsPage.hidesCreatingOSPolicy();
       });
     });
     describe("Manage software page", () => {
