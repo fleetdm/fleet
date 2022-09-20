@@ -1480,14 +1480,27 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		Platform:        "linux",
 	})
 	require.NoError(t, err)
+	host3, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name() + "3",
+		NodeKey:         t.Name() + "3",
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sbaz.local", t.Name()),
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host3)
 
-	// set disk space information for some hosts
+	// set disk space information for some hosts (none provided for host3)
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0)) // low disk
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0)) // not low disk
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
-	require.Len(t, resp.Hosts, 2)
+	require.Len(t, resp.Hosts, 3)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "true")
@@ -1500,4 +1513,13 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
 	assert.Equal(t, 40.0, resp.Hosts[0].GigsDiskSpaceAvailable)
+
+	// counting hosts works with and without the filter too
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp)
+	require.Equal(t, 3, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "true")
+	require.Equal(t, 1, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "false")
+	require.Equal(t, 1, countResp.Count)
 }
