@@ -377,8 +377,10 @@ func capabilitiesResponseFunc() kithttp.ServerOption {
 
 func writeCapabilitiesHeader(w http.ResponseWriter) {
 	capabilities := make([]string, len(fleet.ServerCapabilities))
-	for i, capability := range fleet.ServerCapabilities {
-		capabilities[i] = string(capability)
+	idx := 0
+	for capability := range fleet.ServerCapabilities {
+		capabilities[idx] = string(capability)
+		idx++
 	}
 	value := strings.Join(capabilities, ",")
 	if len(capabilities) > 0 {

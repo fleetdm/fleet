@@ -484,7 +484,7 @@ func main() {
 
 		}
 
-		capabilities := []fleet.Capability{fleet.CapabilityTokenRotation}
+		capabilities := fleet.CapabilityMap{}
 
 		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
 		if err != nil {

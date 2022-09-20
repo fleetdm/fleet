@@ -37,7 +37,7 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 
 // NewDeviceClient instantiates a new client to perform requests against device
 // endpoints
-func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string, capabilities []fleet.Capability) (*DeviceClient, error) {
+func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string, capabilities fleet.CapabilityMap) (*DeviceClient, error) {
 	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
 	if err != nil {
 		return nil, err

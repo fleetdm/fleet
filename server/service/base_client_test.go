@@ -12,14 +12,14 @@ import (
 
 func TestUrlGeneration(t *testing.T) {
 	t.Run("without prefix", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "", []fleet.Capability{})
+		bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/test/path", bc.url("test/path", "").String())
 		require.Equal(t, "https://test.com/test/path?raw=query", bc.url("test/path", "raw=query").String())
 	})
 
 	t.Run("with prefix", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "prefix/", []fleet.Capability{})
+		bc, err := newBaseClient("https://test.com", true, "", "prefix/", fleet.CapabilityMap{})
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/prefix/test/path", bc.url("test/path", "").String())
 		require.Equal(t, "https://test.com/prefix/test/path?raw=query", bc.url("test/path", "raw=query").String())
@@ -39,7 +39,7 @@ func TestParseResponseKnownErrors(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.message, func(t *testing.T) {
-			bc, err := newBaseClient("https://test.com", true, "", "", []fleet.Capability{})
+			bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 			require.NoError(t, err)
 			response := &http.Response{
 				StatusCode: c.code,
@@ -52,7 +52,7 @@ func TestParseResponseKnownErrors(t *testing.T) {
 }
 
 func TestParseResponseOK(t *testing.T) {
-	bc, err := newBaseClient("https://test.com", true, "", "", []fleet.Capability{})
+	bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 	require.NoError(t, err)
 	response := &http.Response{
 		StatusCode: http.StatusOK,
@@ -67,7 +67,7 @@ func TestParseResponseOK(t *testing.T) {
 
 func TestParseResponseGeneralErrors(t *testing.T) {
 	t.Run("general HTTP errors", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "", []fleet.Capability{})
+		bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 		require.NoError(t, err)
 		response := &http.Response{
 			StatusCode: http.StatusBadRequest,
@@ -78,7 +78,7 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 	})
 
 	t.Run("parse errors", func(t *testing.T) {
-		bc, err := newBaseClient("https://test.com", true, "", "", []fleet.Capability{})
+		bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 		require.NoError(t, err)
 		response := &http.Response{
 			StatusCode: http.StatusBadRequest,
@@ -91,18 +91,18 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 
 func TestNewBaseClient(t *testing.T) {
 	t.Run("invalid addresses are an error", func(t *testing.T) {
-		_, err := newBaseClient("invalid", true, "", "", []fleet.Capability{})
+		_, err := newBaseClient("invalid", true, "", "", fleet.CapabilityMap{})
 		require.Error(t, err)
 	})
 
 	t.Run("http is only valid in development", func(t *testing.T) {
-		_, err := newBaseClient("http://test.com", true, "", "", []fleet.Capability{})
+		_, err := newBaseClient("http://test.com", true, "", "", fleet.CapabilityMap{})
 		require.Error(t, err)
 
-		_, err = newBaseClient("http://localhost:8080", true, "", "", []fleet.Capability{})
+		_, err = newBaseClient("http://localhost:8080", true, "", "", fleet.CapabilityMap{})
 		require.NoError(t, err)
 
-		_, err = newBaseClient("http://127.0.0.1:8080", true, "", "", []fleet.Capability{})
+		_, err = newBaseClient("http://127.0.0.1:8080", true, "", "", fleet.CapabilityMap{})
 		require.NoError(t, err)
 	})
 }
@@ -110,12 +110,18 @@ func TestNewBaseClient(t *testing.T) {
 func TestClientCapabilities(t *testing.T) {
 	cases := []struct {
 		name         string
-		capabilities []fleet.Capability
+		capabilities fleet.CapabilityMap
 		expected     string
 	}{
-		{"no capabilities", []fleet.Capability{}, ""},
-		{"one capability", []fleet.Capability{fleet.CapabilityTokenRotation}, "token_rotation"},
-		{"multiple capabilities", []fleet.Capability{fleet.CapabilityTokenRotation, fleet.Capability("test_capability")}, "token_rotation,test_capability"},
+		{"no capabilities", fleet.CapabilityMap{}, ""},
+		{"one capability", fleet.CapabilityMap{fleet.CapabilityTokenRotation: {}}, "token_rotation"},
+		{
+			"multiple capabilities",
+			fleet.CapabilityMap{
+				fleet.CapabilityTokenRotation:       {},
+				fleet.Capability("test_capability"): {},
+			},
+			"token_rotation,test_capability"},
 	}
 
 	for _, c := range cases {
@@ -137,12 +143,12 @@ func TestServerCapabilities(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 		Header:     http.Header{"X-Fleet-Capabilities": []string{"token_rotation"}},
 	}
-	bc, err := newBaseClient("https://test.com", true, "", "", []fleet.Capability{})
+	bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 	require.NoError(t, err)
 
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
-	require.Equal(t, map[fleet.Capability]struct{}{fleet.CapabilityTokenRotation: {}}, bc.serverCapabilities)
+	require.Equal(t, fleet.CapabilityMap{fleet.CapabilityTokenRotation: {}}, bc.serverCapabilities)
 	require.True(t, bc.HasServerCapability(fleet.CapabilityTokenRotation))
 
 	// later on, the server is downgraded and no longer has the capability

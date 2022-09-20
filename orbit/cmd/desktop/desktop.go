@@ -68,7 +68,7 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		capabilities := []fleet.Capability{fleet.CapabilityTokenRotation}
+		capabilities := fleet.CapabilityMap{}
 
 		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA, capabilities)
 		if err != nil {

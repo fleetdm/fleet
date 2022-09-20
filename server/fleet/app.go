@@ -530,6 +530,9 @@ type KafkaRESTConfig struct {
 // Capability represents a concrete feature of Fleet.
 type Capability string
 
+// CapabilityMap is an utility type to represent a set of capabilities.
+type CapabilityMap map[Capability]struct{}
+
 // The following are the capabilities that Fleet supports. These can be used by
 // the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
 // is supported.
@@ -539,6 +542,6 @@ const (
 	CapabilityTokenRotation Capability = "token_rotation"
 )
 
-// ServerCapabilities is a list of capabilities that the _Server_ supports.
+// ServerCapabilities is a set of capabilities that the _Server_ supports.
 // **it shouldn't be modified at runtime**
-var ServerCapabilities = []Capability{CapabilityTokenRotation}
+var ServerCapabilities = CapabilityMap{CapabilityTokenRotation: {}}

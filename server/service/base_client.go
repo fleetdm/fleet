@@ -25,13 +25,13 @@ type baseClient struct {
 	http               httpClient
 	urlPrefix          string
 	insecureSkipVerify bool
-	// serverCapabilities is a list of capabilities that the server supports.
+	// serverCapabilities is a map of capabilities that the server supports.
 	// This map is updated on each response we receive from the server.
-	serverCapabilities map[fleet.Capability]struct{}
-	// clientCapabilities is a list of capabilities that the client supports.
+	serverCapabilities fleet.CapabilityMap
+	// clientCapabilities is a map of capabilities that the client supports.
 	// This list is given when the client is instantiated and shouldn't be
 	// modified afterwards.
-	clientCapabilities []fleet.Capability
+	clientCapabilities fleet.CapabilityMap
 }
 
 func (bc *baseClient) parseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
@@ -78,7 +78,7 @@ func (bc *baseClient) url(path, rawQuery string) *url.URL {
 // setServerCapabilities updates the server capabilities based on the response
 // from the server.
 func (bc *baseClient) setServerCapabilities(response *http.Response) {
-	bc.serverCapabilities = map[fleet.Capability]struct{}{}
+	bc.serverCapabilities = fleet.CapabilityMap{}
 	capabilities := response.Header.Get("X-Fleet-Capabilities")
 
 	if capabilities == "" {
@@ -106,9 +106,12 @@ func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
 	if len(bc.clientCapabilities) == 0 {
 		return
 	}
+
+	idx := 0
 	capabilities := make([]string, len(bc.clientCapabilities))
-	for i, capability := range bc.clientCapabilities {
-		capabilities[i] = string(capability)
+	for capability := range bc.clientCapabilities {
+		capabilities[idx] = string(capability)
+		idx++
 	}
 
 	if req.Header == nil {
@@ -117,7 +120,7 @@ func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
 	req.Header.Set("X-Fleet-Capabilities", strings.Join(capabilities, ","))
 }
 
-func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, capabilities []fleet.Capability) (*baseClient, error) {
+func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, capabilities fleet.CapabilityMap) (*baseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)

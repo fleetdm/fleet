@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -23,14 +23,14 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 
 	res := &http.Response{
 		StatusCode: m.statusCode,
-		Body:       ioutil.NopCloser(bytes.NewBufferString(m.resBody)),
+		Body:       io.NopCloser(bytes.NewBufferString(m.resBody)),
 	}
 
 	return res, nil
 }
 
 func TestDeviceClientGetDesktopPayload(t *testing.T) {
-	client, err := NewDeviceClient("https://test.com", "test-token", true, "", []fleet.Capability{})
+	client, err := NewDeviceClient("https://test.com", "test-token", true, "", fleet.CapabilityMap{})
 	require.NoError(t, err)
 
 	mockRequestDoer := &mockHttpClient{}

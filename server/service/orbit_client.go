@@ -43,7 +43,7 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return oc.parseResponse(verb, path, response, resp)
 }
 
-func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool, enrollSecret, hardwareUUID string, capabilities []fleet.Capability) (*OrbitClient, error) {
+func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool, enrollSecret, hardwareUUID string, capabilities fleet.CapabilityMap) (*OrbitClient, error) {
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
 	if err != nil {
 		return nil, err
