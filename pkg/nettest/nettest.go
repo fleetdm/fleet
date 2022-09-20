@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 )
 
 func lock(lockFilePath string) {
@@ -74,13 +76,10 @@ func Retryable(err error) bool {
 
 // RunWithNetRetry runs the given function and retries in case of network errors (see Retryable).
 func RunWithNetRetry(t *testing.T, fn func() error) error {
-	for {
-		err := fn()
-		if err != nil && Retryable(err) {
-			time.Sleep(5 * time.Second)
+	return retry.Do(func() error {
+		if err := fn(); err != nil && Retryable(err) {
 			t.Logf("%s: retrying error: %s", t.Name(), err)
-			continue
 		}
-		return err
-	}
+		return nil
+	}, retry.WithInterval(5*time.Second))
 }

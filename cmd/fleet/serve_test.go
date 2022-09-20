@@ -229,8 +229,8 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
 	}
-
-	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
+	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -272,9 +272,6 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -302,7 +299,8 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		CurrentInstanceChecks: "1",
 	}
 
-	go cronVulnerabilities(ctx, ds, logger, "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
+	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.

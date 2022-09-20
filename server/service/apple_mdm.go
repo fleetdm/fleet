@@ -217,10 +217,9 @@ type uploadAppleInstallerResponse struct {
 }
 
 func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(32 << 20) // 32Mb
+	err := r.ParseMultipartForm(32 << 10) // 32Mb
 	if err != nil {
-		// Check if badRequestError makes sense here.
-		return nil, &badRequestError{message: err.Error()}
+		return nil, &fleet.BadRequestError{Message: err.Error()}
 	}
 	installer := r.MultipartForm.File["installer"][0]
 	return &uploadAppleInstallerRequest{
