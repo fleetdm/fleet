@@ -24,7 +24,7 @@ import (
 type DetailQuery struct {
 	// Query is the SQL query string.
 	Query string
-	// Discovery is the SQL query that defines whether the query will run or the host or not.
+	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
 	// Platforms is a list of platforms to run the query on. If this value is
@@ -346,6 +346,11 @@ SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
+	},
+	"kubequery_info": {
+		Query:      `SELECT * from kubernetes_info`,
+		IngestFunc: ingestKubequeryInfo,
+		Discovery:  discoveryTable("kubernetes_info"),
 	},
 }
 
@@ -1037,6 +1042,9 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 		}
 		users = append(users, u)
 	}
+	if len(users) == 0 {
+		return nil
+	}
 	if err := ds.SaveHostUsers(ctx, host.ID, users); err != nil {
 		return ctxerr.Wrap(ctx, err, "update host users")
 	}
@@ -1104,6 +1112,20 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
 	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
+}
+
+func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "ingestKubequeryInfo", "warn",
+			fmt.Sprintf("kubernetes_info expected single result got %d", len(rows)))
+	}
+
+	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
+
+	// These values are not provided by kubequery
+	host.OsqueryVersion = "kubequery"
+	host.Platform = "kubequery"
+	return nil
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {

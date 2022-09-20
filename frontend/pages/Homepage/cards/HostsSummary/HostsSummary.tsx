@@ -5,6 +5,7 @@ import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
 
 import DataError from "components/DataError";
+import SummaryTile from "./SummaryTile";
 
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
@@ -76,43 +77,36 @@ const HostsSummary = ({
   }
 
   const renderMacCount = () => (
-    <div className={`${baseClass}__tile mac-tile`}>
-      <div className={`${baseClass}__tile-icon`}>
-        <img src={MacIcon} alt="mac icon" id="mac-icon" />
-      </div>
-      <div>
-        <div className={`${baseClass}__tile-count mac-count`}>{macCount}</div>
-        <div className={`${baseClass}__tile-description`}>macOS hosts</div>
-      </div>
-    </div>
+    <SummaryTile
+      icon={MacIcon}
+      count={macCount}
+      isLoading={isLoadingHostsSummary}
+      showUI={showHostsUI}
+      title="macOS hosts"
+      path={paths.MANAGE_HOSTS_LABEL(7)}
+    />
   );
 
   const renderWindowsCount = () => (
-    <div className={`${baseClass}__tile windows-tile`}>
-      <div className={`${baseClass}__tile-icon`}>
-        <img src={WindowsIcon} alt="windows icon" id="windows-icon" />
-      </div>
-      <div>
-        <div className={`${baseClass}__tile-count windows-count`}>
-          {windowsCount}
-        </div>
-        <div className={`${baseClass}__tile-description`}>Windows hosts</div>
-      </div>
-    </div>
+    <SummaryTile
+      icon={WindowsIcon}
+      count={windowsCount}
+      isLoading={isLoadingHostsSummary}
+      showUI={showHostsUI}
+      title="Windows hosts"
+      path={paths.MANAGE_HOSTS_LABEL(10)}
+    />
   );
 
   const renderLinuxCount = () => (
-    <div className={`${baseClass}__tile linux-tile`}>
-      <div className={`${baseClass}__tile-icon`}>
-        <img src={LinuxIcon} alt="linux icon" id="linux-icon" />
-      </div>
-      <div>
-        <div className={`${baseClass}__tile-count linux-count`}>
-          {linuxCount}
-        </div>
-        <div className={`${baseClass}__tile-description`}>Linux hosts</div>
-      </div>
-    </div>
+    <SummaryTile
+      icon={LinuxIcon}
+      count={linuxCount}
+      isLoading={isLoadingHostsSummary}
+      showUI={showHostsUI}
+      title="Linux hosts"
+      path={paths.MANAGE_HOSTS_LABEL(12)}
+    />
   );
 
   const renderCounts = () => {
