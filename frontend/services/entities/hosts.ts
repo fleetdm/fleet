@@ -26,7 +26,6 @@ export interface ILoadHostsOptions {
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  missingHosts?: boolean;
   lowDiskSpaceHosts?: boolean;
   osId?: number;
   osName?: string;
@@ -51,7 +50,6 @@ export interface IExportHostsOptions {
   mdmId?: number;
   munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
-  missingHosts?: boolean;
   lowDiskSpaceHosts?: boolean;
   osId?: number;
   osName?: string;
@@ -136,7 +134,6 @@ export default {
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
-    const missingHosts = options?.missingHosts;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
@@ -159,7 +156,6 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
-        missingHosts,
         lowDiskSpaceHosts,
       }),
       status,
@@ -186,7 +182,6 @@ export default {
     mdmId,
     mdmEnrollmentStatus,
     munkiIssueId,
-    missingHosts,
     lowDiskSpaceHosts,
     osId,
     osName,
@@ -215,7 +210,6 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
-        missingHosts,
         lowDiskSpaceHosts,
         osId,
         osName,

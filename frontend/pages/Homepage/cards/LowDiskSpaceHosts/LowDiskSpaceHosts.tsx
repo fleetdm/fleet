@@ -17,24 +17,16 @@ const LowDiskSpaceHosts = ({
   isLoadingHosts,
   showHostsUI,
 }: IHostSummaryProps): JSX.Element => {
-  // Renders opaque information as host information is loading
-  let opacity = { opacity: 0 };
-  if (showHostsUI) {
-    opacity = isLoadingHosts ? { opacity: 0.4 } : { opacity: 1 };
-  }
-
   return (
-    <div className={baseClass} style={opacity}>
-      <SummaryTile
-        icon={LowDiskSpaceIcon}
-        count={lowDiskSpaceCount}
-        isLoading={isLoadingHosts}
-        showUI={showHostsUI}
-        title="Low disk space hosts"
-        tooltip="Hosts that have 32 GB or less disk space available."
-        path={`${PATHS.MANAGE_HOSTS}?low_disk_space=true`}
-      />
-    </div>
+    <SummaryTile
+      icon={LowDiskSpaceIcon}
+      count={lowDiskSpaceCount}
+      isLoading={isLoadingHosts}
+      showUI={showHostsUI}
+      title="Low disk space hosts"
+      tooltip="Hosts that have 32 GB or less disk space available."
+      path={`${PATHS.MANAGE_HOSTS}?low_disk_space=true`}
+    />
   );
 };
 

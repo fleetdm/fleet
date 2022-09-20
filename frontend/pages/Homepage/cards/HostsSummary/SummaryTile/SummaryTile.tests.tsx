@@ -42,6 +42,7 @@ describe("SummaryTile - component", () => {
     );
 
     const tile = screen.getByTestId("tile");
+
     expect(tile).toHaveStyle(`opacity: ${LOADING_OPACITY}`);
     expect(tile).toBeVisible();
   });

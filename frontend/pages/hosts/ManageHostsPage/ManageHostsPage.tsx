@@ -521,7 +521,6 @@ const ManageHostsPage = ({
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
-      missingHosts,
       lowDiskSpaceHosts,
       osId,
       osName,
@@ -1018,7 +1017,6 @@ const ManageHostsPage = ({
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        missingHosts,
         lowDiskSpaceHosts,
         osId,
         osName,
@@ -1074,7 +1072,6 @@ const ManageHostsPage = ({
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        missingHosts,
         lowDiskSpaceHosts,
         osId,
         osName,
@@ -1490,7 +1487,6 @@ const ManageHostsPage = ({
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
-      missingHosts,
       lowDiskSpaceHosts,
       os_id: osId,
       os_name: osName,
@@ -1566,7 +1562,6 @@ const ManageHostsPage = ({
       mdmId ||
       mdmEnrollmentStatus ||
       lowDiskSpaceHosts ||
-      missingHosts ||
       osId ||
       (osName && osVersion) ||
       munkiIssueId
@@ -1670,7 +1665,6 @@ const ManageHostsPage = ({
         mdm_id ||
         mdm_enrollment_status ||
         low_disk_space ||
-        status === "missing" ||
         osId ||
         osName ||
         osVersion

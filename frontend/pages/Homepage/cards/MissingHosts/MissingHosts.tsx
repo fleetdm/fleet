@@ -17,24 +17,16 @@ const MissingHosts = ({
   isLoadingHosts,
   showHostsUI,
 }: IHostSummaryProps): JSX.Element => {
-  // Renders opaque information as host information is loading
-  let opacity = { opacity: 0 };
-  if (showHostsUI) {
-    opacity = isLoadingHosts ? { opacity: 0.4 } : { opacity: 1 };
-  }
-
   return (
-    <div className={baseClass} style={opacity}>
-      <SummaryTile
-        icon={MissingHostsIcon}
-        count={missingCount}
-        isLoading={isLoadingHosts}
-        showUI={showHostsUI}
-        title="Missing hosts"
-        tooltip="Hosts that have not been online in 10 days or more."
-        path={`${PATHS.MANAGE_HOSTS}?status=missing`}
-      />
-    </div>
+    <SummaryTile
+      icon={MissingHostsIcon}
+      count={missingCount}
+      isLoading={isLoadingHosts}
+      showUI={showHostsUI}
+      title="Missing hosts"
+      tooltip="Hosts that have not been online in 10 days or more."
+      path={`${PATHS.MANAGE_HOSTS}?status=missing`}
+    />
   );
 };
 
