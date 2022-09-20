@@ -17,7 +17,7 @@
       border-radius: 8px;
       padding: 9px 16px;
       background: #FAFAFA;
-      border: 1px solid #E2E4EA;
+      border: 1px solid @core-vibrant-blue-15;
       cursor: pointer;
     }
     [purpose='platform-selector-dropwdown'] {
@@ -27,7 +27,7 @@
     [purpose='search'] {
       width: 260px;
       padding: 8px 15px;
-      border: 1px solid #E2E4EA;
+      border: 1px solid @core-vibrant-blue-15;
       border-radius: 8px;
       input {
         border: 0;
@@ -57,16 +57,16 @@
         text-decoration: none;
       }
       a::hover {
-        color: #6A67FE;
+        color: @core-vibrant-blue;
       }
       .active {
-        color: #6A67FE;
+        color: @core-vibrant-blue;
       }
     }
   }
   [purpose='number-of-tables'] {
     padding: 4px 8px;
-    background-color: #E2E4EA;
+    background-color: @core-vibrant-blue-15;
     border-radius: 8px;
     font-size: 14px;
     line-height: 14px;
@@ -100,10 +100,10 @@
       text-decoration: none;
     }
     a:hover {
-      color: #6A67FE;
+      color: @core-vibrant-blue;
     }
     a.active {
-      color: #6A67FE;
+      color: @core-vibrant-blue;
     }
     min-height: calc(~'100vh - 565px');
     overflow-y: scroll;
@@ -191,13 +191,17 @@
       max-width: 100%;
       padding: 10px 17px;
       background: #F9FAFC;
-      border: 1px solid #E2E4EA;
+      border: 1px solid @core-vibrant-blue-15;
       border-radius: 4px;
       margin-bottom: 0px;
       code {
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
           color: #AE6DDF;
           white-space: pre;
+          break-before: always;
+        }
+        .hljs-keyword:not(:first-of-type)::before {
+          content: '\a';
         }
         .hljs-attr { // For table and column names
           color: #FFF;
@@ -207,6 +211,9 @@
           white-space: pre;
           vertical-align: baseline;
           line-height: 16px;
+          span {
+            padding: 0;
+          }
         }
         .hljs-string { // For words wrapped in quotation marks
           color: #3DB67B;
@@ -225,7 +232,7 @@
       margin-bottom: 40px;
     }
     table {
-      border: 1px solid #E2E4EA;
+      border: 1px solid @core-vibrant-blue-15;
       width: 100%;
       overflow: scroll;
       border-collapse: collapse;
@@ -257,7 +264,7 @@
       right: -16px;
       line-height: 14px;
       padding: 4px 8px 4px 18px;
-      background-color: #E2E4EA;
+      background-color: @core-vibrant-blue-15;
       border-radius: 6px;
       width: 120px;
       span {
@@ -281,7 +288,6 @@
 
   }
   [purpose='edit-button'] {
-    // margin-top: 40px;
     color: @core-vibrant-blue;
     font-size: 12px;
     cursor: pointer;
@@ -291,7 +297,7 @@
     padding: 8px 12px;
     text-decoration: none;
     a {
-      color: #6A67FE;
+      color: @core-vibrant-blue;
       size: 14px;
       line-height: 20px;
       font-weight: 700;
@@ -354,7 +360,7 @@
       min-width: 100%;
       border-right: none;
       margin-right: 0px;
-      border-bottom: 1px solid #E2E4EA;
+      border-bottom: 1px solid @core-vibrant-blue-15;
     }
   }
 
@@ -408,5 +414,4 @@
       }
     }
   }
-  @import './pages/docs/code-blocks.less'; // styles for code blocks and hljs
 }

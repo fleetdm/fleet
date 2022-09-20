@@ -51,7 +51,7 @@ parasails.registerPage('osquery-table-details', {
       });
       $('.hljs').each((i, el)=>{
         for(let keyword of keywordsForThisTable) {
-          if(_.includes(el.innerHTML, keyword)) {
+          if(_.includes(el.innerText, keyword)) {
             let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
             $(el).html(replacementHMTL);
           }
