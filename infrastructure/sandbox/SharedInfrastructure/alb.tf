@@ -108,7 +108,7 @@ resource "cloudflare_record" "cert" {
 
 resource "cloudflare_record" "main" {
   zone_id = data.cloudflare_zone.main.id
-  name    = "sandbox"
+  name    = local.env_specific[data.aws_caller_identity.current.account_id]["dns_name"]
   type    = "CNAME"
   value   = aws_lb.main.dns_name
   proxied = false
@@ -116,7 +116,7 @@ resource "cloudflare_record" "main" {
 
 resource "cloudflare_record" "wildcard" {
   zone_id = data.cloudflare_zone.main.id
-  name    = "*.sandbox"
+  name    = "*.${local.env_specific[data.aws_caller_identity.current.account_id]["dns_name"]}"
   type    = "CNAME"
   value   = aws_lb.main.dns_name
   proxied = false

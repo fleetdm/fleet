@@ -7,53 +7,17 @@
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
 
-Entities in Fleet, such as queries, packs, labels, agent options, and enroll secrets, can be managed with configuration files in YAML syntax.
+Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files. 
 
-This page contains links to examples that can help you understand the configuration options for your Fleet YAML file(s).
-
-Examples in this directory are presented in two forms:
-- [`single-file-configuration.yml`](./single-file-configuration.yml) presents multiple YAML documents in one file. One file is often easier to manage than several. Group related objects into a single file whenever it makes sense.
-- The `multi-file-configuration` directory presents multiple YAML documents in separate files. They are in the following structure:
-
-```
-├─ packs
-├   └─ osquery-monitoring.yml
-├─ agent-options.yml
-├─ enroll-secrets.yml
-├─ labels.yml
-├─ queries.yml
-```
-
-## Using YAML files in Fleet
-
-A Fleet configuration is defined using one or more declarative "messages" in YAML syntax. Each message can live in it's own file or multiple in one file, each separated by `---`. Each file/message contains a few required top-level keys:
-
-- `apiVersion` - the API version of the file/request
-- `spec` - the "data" of the request
-- `kind ` - the type of file/object (i.e.: pack, query, config)
-
-The file may optionally also include some `metadata` for more complex data types (i.e.: packs).
-
-When you reason about how to manage these config files, consider following the [General Config Tips](https://kubernetes.io/docs/concepts/configuration/overview/#general-config-tips) published by the Kubernetes project. Some of the especially relevant tips are included here as well:
-
-- When defining configurations, specify the latest stable API version.
-- Configuration files should be stored in version control before being pushed to the cluster. This allows quick roll-back of a configuration if needed. It also aids with cluster re-creation and restoration if necessary.
-- Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
+Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](../../Using-Fleet/fleetctl-CLI.md#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
 
 ## Queries
 
-For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
+The `query` YAML file controls queries in Fleet.
 
-```yaml
-apiVersion: v1
-kind: query
-spec:
-  name: docker_processes
-  description: The docker containers processes that are running on a system.
-  query: SELECT * FROM docker_container_processes;
-```
+You can define one or more queries in the same file with with `---`.
 
-To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
+The following example file includes several queries:
 
 ```yaml
 ---
@@ -78,6 +42,10 @@ spec:
   description: Report event publisher health and track event counters.
   query: select name, publisher, type, subscriptions, events, active from osquery_events;
 ```
+
+Continued edits and applications to this file will update the queries. 
+
+If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
 
 ## Packs
 
@@ -163,7 +131,11 @@ spec:
 
 **Applies only to Fleet Premium**.
 
-The following is an example configuration file for a Team.
+The `team` YAML file controls a team in Fleet.
+
+You can define one or more teams in the same file with with `---`.
+
+The following example file includes one team:
 
 ```yaml
 apiVersion: v1
@@ -235,7 +207,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
 
 The `config` YAML file controls Fleet's organization settings.
 
-The following example file shows the default organization settings.
+The following example file shows the default organization settings:
 
 ```yaml
 apiVersion: v1
@@ -397,7 +369,7 @@ Whether or not Fleet sends the query needed to gather the list of software insta
   	enable_software_inventory: false
   ```
 
-#### Fleet Desktop settings
+#### Fleet Desktop
 
 For more information about Fleet Desktop, see [Fleet Desktop's documentation](../../Using-Fleet/Fleet-desktop.md).
 
@@ -413,9 +385,9 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](..
     transparency_url: "https://example.org/transparency"
   ```
 
-#### Host Expiry settings
+#### Host expiry settings
 
-The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
+The `host_expiry_settings` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
 
 ##### host_expiry_settings.host_expiry_enabled
 
@@ -570,7 +542,7 @@ The base URL of the fleet server, including the scheme (e.g. "https://").
 
 It's recommended to use the Fleet UI to configure SMTP since a secret password must be provided. Navigate to **Settings -> Organization settings -> SMTP Options** to proceed with this configuration.
 
-#### SSO Settings
+#### SSO settings
 
 For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet, and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
 
@@ -712,7 +684,7 @@ The interval at which to check for webhook conditions. This value currently conf
     interval: "12h"
   ```
 
-##### Failing policies
+##### Failing policies webhook
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
@@ -771,7 +743,7 @@ The IDs of the policies for which the webhook will be enabled.
         - 3
   ```
 
-##### Host status
+##### Host status webhook
 
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts are offline for the specified amount of time.
 
@@ -827,7 +799,7 @@ The percentage of hosts that need to be offline to trigger the webhook.
       host_percentage: 10
   ```
 
-##### Recent vulnerabilities
+##### Vulnerabilities webhook
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 30 days (based on the National Vulnerability Database, NVD).
 
