@@ -20,7 +20,7 @@ Users with the Admin role receive all permissions.
 | Filter hosts by software                                                           | ✅       | ✅         | ✅    |
 | Filter software by team\*                                                          | ✅       | ✅         | ✅    |
 | Manage vulnerability automations                                                   |          |            | ✅    |
-| Run only designated, _observer can run_ ,queries as live queries against all hosts | ✅       | ✅         | ✅    |
+| Run only designated, **observer can run** ,queries as live queries against all hosts | ✅       | ✅         | ✅    |
 | Run any query as live query against all hosts                                      |          | ✅         | ✅    |
 | Create, edit, and delete queries                                                   |          | ✅         | ✅    |
 | View all queries                                                                   | ✅       | ✅         | ✅    |
@@ -71,9 +71,9 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter software by vulnerabilities                                                 | ✅            | ✅              | ✅         |
 | Filter hosts by software                                                           | ✅            | ✅              | ✅         |
 | Filter software                                                                    | ✅            | ✅              | ✅         |
-| Run only designated, _observer can run_ ,queries as live queries against all hosts | ✅            | ✅              | ✅         |
+| Run only designated, **observer can run** ,queries as live queries against all hosts | ✅            | ✅              | ✅         |
 | Run any query as live query                                                        |               | ✅              | ✅         |
-| Create, edit, and delete only _self authored_ queries                              |               | ✅              | ✅         |
+| Create, edit, and delete only **self authored** queries                              |               | ✅              | ✅         |
 | Add, edit, and remove queries from the schedule                                    |               | ✅              | ✅         |
 | View policies                                                                      | ✅            | ✅              | ✅         |
 | View global (inherited) policies                                                   | ✅            | ✅              | ✅         |
