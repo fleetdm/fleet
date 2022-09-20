@@ -50,7 +50,7 @@ func (r enrollOrbitResponse) error() error { return r.Err }
 // response, allowing Orbit to know what features are available without the
 // need to enroll.
 func (r enrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w)
+	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -157,4 +157,26 @@ func (svc *Service) GetOrbitFlags(ctx context.Context) (json.RawMessage, error) 
 		}
 	}
 	return opts.CommandLineStartUpFlags, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Ping orbit endpoint
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPingRequest struct {
+	Token string `url:"token"`
+}
+
+type orbitPingResponse struct{}
+
+func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
+}
+
+// NOTE: we're intentionally not reading the capabilities header in this
+// endpoint as is unauthenticated and we don't want to trust whatever comes in
+// there.
+func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	svc.DisableAuthForPing(ctx)
+	return orbitPingResponse{}, nil
 }

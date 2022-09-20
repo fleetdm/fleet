@@ -526,24 +526,3 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }
-
-// Capability represents a concrete feature of Fleet.
-type Capability string
-
-// CapabilityMap is an utility type to represent a set of capabilities.
-type CapabilityMap map[Capability]struct{}
-
-// The following are the capabilities that Fleet supports. These can be used by
-// the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
-// is supported.
-const (
-	// CapabilityTokenRotation is the ability to rotate and expire host device
-	// tokens over a given period of time.
-	CapabilityTokenRotation Capability = "token_rotation"
-)
-
-// ServerCapabilities is a set of capabilities that the _Server_ supports.
-// **it shouldn't be modified at runtime**
-var ServerCapabilities = CapabilityMap{CapabilityTokenRotation: {}}
-
-const CapabilitiesHeader = "X-Fleet-Capabilities"

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -296,7 +297,9 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	}
 
 	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
-	opts = append(opts, capabilitiesResponseFunc())
+	opts = append(opts, capabilitiesResponseFunc(fleet.ServerDeviceCapabilities))
+	// Add the capabilities reported by the device to the request context
+	opts = append(opts, capabilitiesContextFunc())
 
 	return &authEndpointer{
 		svc:      svc,
@@ -336,7 +339,9 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 	}
 
 	// Inject the fleet.Capabilities header to the response for Orbit hosts
-	opts = append(opts, capabilitiesResponseFunc())
+	opts = append(opts, capabilitiesResponseFunc(fleet.ServerOrbitCapabilities))
+	// Add the capabilities reported by Orbit to the request context
+	opts = append(opts, capabilitiesContextFunc())
 
 	return &authEndpointer{
 		svc:      svc,
@@ -368,24 +373,25 @@ func getNameFromPathAndVerb(verb, path string) string {
 		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
-func capabilitiesResponseFunc() kithttp.ServerOption {
+func capabilitiesResponseFunc(capabilities fleet.CapabilityMap) kithttp.ServerOption {
 	return kithttp.ServerAfter(func(ctx context.Context, w http.ResponseWriter) context.Context {
-		writeCapabilitiesHeader(w)
+		writeCapabilitiesHeader(w, capabilities)
 		return ctx
 	})
 }
 
-func writeCapabilitiesHeader(w http.ResponseWriter) {
-	capabilities := make([]string, len(fleet.ServerCapabilities))
-	idx := 0
-	for capability := range fleet.ServerCapabilities {
-		capabilities[idx] = string(capability)
-		idx++
+func capabilitiesContextFunc() kithttp.ServerOption {
+	return kithttp.ServerBefore(func(ctx context.Context, r *http.Request) context.Context {
+		return capabilities.NewContext(ctx, r)
+	})
+}
+
+func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.CapabilityMap) {
+	if len(capabilities) == 0 {
+		return
 	}
-	value := strings.Join(capabilities, ",")
-	if len(capabilities) > 0 {
-		w.Header().Set(fleet.CapabilitiesHeader, value)
-	}
+
+	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
 }
 
 func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
