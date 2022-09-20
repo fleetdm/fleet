@@ -98,6 +98,10 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error getting flags from fleet %w", err)
 	}
+	if len(flagsJSON) == 0 {
+		// command_line_flags not set in YAML, nothing to do
+		return false, nil
+	}
 
 	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
 	if err != nil {

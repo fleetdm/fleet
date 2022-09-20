@@ -754,7 +754,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 			}
 		case errors.Is(err, sql.ErrNoRows):
 			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
-			// create a new host
+			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
+			// so that the frontend automatically starts background checks to update the page whenever
+			// the refetch is completed.
+			// We are also initially setting node_key to be the same as orbit_node_key because node_key has a unique
+			// constraint
 			sqlInsert := `
 				INSERT INTO hosts (
 					last_enrolled_at,               
@@ -768,7 +772,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 					orbit_node_key
 				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
 			`
-			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, "", nil, orbitNodeKey)
+			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, nil, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
