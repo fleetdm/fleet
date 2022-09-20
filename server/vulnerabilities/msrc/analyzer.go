@@ -40,19 +40,19 @@ func Analyze(
 	var vulns []fleet.Vulnerability
 
 	for {
-		hostIDs, err := ds.HostIDsByOSID(ctx, os.ID, offset, hostsBatchSize)
-		offset += len(hostIDs)
+		hIDs, err := ds.HostIDsByOSID(ctx, os.ID, offset, hostsBatchSize)
+		offset += len(hIDs)
 
 		if err != nil {
 			return nil, err
 		}
 
-		if len(hostIDs) == 0 {
+		if len(hIDs) == 0 {
 			break
 		}
 
-		for _, hostID := range hostIDs {
-			updates, err := ds.ListWindowsUpdatesByHostID(ctx, hostID)
+		for _, hID := range hIDs {
+			updates, err := ds.ListWindowsUpdatesByHostID(ctx, hID)
 			if err != nil {
 				return nil, err
 			}
@@ -66,7 +66,7 @@ func Analyze(
 					continue
 				}
 
-				vulns = append(vulns, fleet.OSVulnerability{OSID: os.ID, HostID: hostID, CVE: cve})
+				vulns = append(vulns, fleet.OSVulnerability{OSID: os.ID, HostID: hID, CVE: cve})
 			}
 		}
 	}
@@ -74,30 +74,31 @@ func Analyze(
 	return vulns, nil
 }
 
+// patched returns true if the vulnerability (v) is patched by the any of the provided Windows
+// updates.
 func patched(
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
 	productIDs map[string]bool,
 	updates []fleet.WindowsUpdate,
 ) bool {
-	// check if any update directly remediates this vulnerability,
-	// as this will be much faster than walking the linked list of vendor fixes
+	// check if any update directly remediates the vulnerability,
+	// this will be much faster than walking the linked list of vendor fixes.
 	for _, u := range updates {
 		if v.RemediatedBy[u.KBID] {
 			return true
 		}
 	}
 
-	for _, u := range updates {
-		for KBID := range v.RemediatedBy {
-			fix := b.VendorFixes[KBID]
-			if !utils.ProductIDsIntersect(fix.ProductIDs, productIDs) {
-				continue
-			}
+	for KBID := range v.RemediatedBy {
+		fix := b.VendorFixes[KBID]
 
-			if b.WalkVendorFixes(KBID, func(kbID uint) bool {
-				return kbID == u.KBID
-			}) {
+		if !utils.ProductIDsIntersect(fix.ProductIDs, productIDs) {
+			continue
+		}
+
+		for _, u := range updates {
+			if b.Connected(KBID, u.KBID) {
 				return true
 			}
 		}
@@ -106,11 +107,12 @@ func patched(
 	return false
 }
 
-func loadBulletin(os fleet.OperatingSystem, vulnPath string) (*msrc.SecurityBulletin, error) {
-	product := msrc.NewProductFromFullName(os.Name)
+// loadBulletin loads the most recent bulletin for the given os
+func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin, error) {
+	product := msrc.NewProductFromOS(os)
 	fileName := io.FileName(product.Name(), time.Now())
 
-	latest, err := utils.LatestFile(fileName, vulnPath)
+	latest, err := utils.LatestFile(fileName, dir)
 	if err != nil {
 		return nil, err
 	}

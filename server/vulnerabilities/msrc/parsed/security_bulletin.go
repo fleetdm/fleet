@@ -3,6 +3,7 @@ package parsed
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -89,21 +90,87 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	return nil
 }
 
-// WalkVendorFixes walks the 'VendorFixes' linked list by following the 'Supersedes' ref.
-// Returns true if stopCond evaluates to true, will return false if after walking the vendor fix
-// linked list, none of the calls to 'stopCond' evaluated to true.
-func (b *SecurityBulletin) WalkVendorFixes(kbID uint, stopCond func(uint) bool) bool {
-	val := stopCond(kbID)
-	if val {
-		return true
+// We will be using a weighted union-find datastruct for determing whether two kbIDs are connected,
+// this will be used for handling cumulative updates.
+type wUF struct {
+	// Each 'value' points to the parent of 'key', each key is a KBID
+	ids map[uint]uint
+	// The size of each tree by 'kbID'
+	size map[uint]uint16
+}
+
+func (uf *wUF) union(p uint, q uint) {
+	pRoot := uf.root(p)
+	qRoot := uf.root(q)
+
+	if uf.size[qRoot] < uf.size[pRoot] {
+		uf.ids[qRoot] = uf.ids[pRoot]
+		uf.size[pRoot] += uf.size[qRoot]
+	} else {
+		uf.ids[pRoot] = uf.ids[qRoot]
+		uf.size[qRoot] += uf.size[pRoot]
+	}
+}
+
+func (uf *wUF) root(p uint) uint {
+	if _, ok := uf.ids[p]; !ok {
+		return p
 	}
 
-	fix := b.VendorFixes[kbID]
-	if fix.Supersedes == nil {
+	for uf.ids[p] != p {
+		uf.ids[p] = uf.ids[uf.ids[p]]
+		p = uf.ids[p]
+	}
+
+	return p
+}
+
+func (uf *wUF) connected(p uint, q uint) bool {
+	rootP := uf.root(p)
+	rootQ := uf.root(q)
+
+	if rootP == 0 || rootQ == 0 {
 		return false
 	}
 
-	return val || b.WalkVendorFixes(uint(*fix.Supersedes), stopCond)
+	return rootP == rootQ
+}
+
+func (b *SecurityBulletin) initUF() *wUF {
+	uf := &wUF{}
+
+	uf.ids = make(map[uint]uint, len(b.VendorFixes))
+	uf.size = make(map[uint]uint16, len(b.VendorFixes))
+
+	// Init forest
+	for kbID := range b.VendorFixes {
+		uf.ids[kbID] = kbID
+		uf.size[kbID] = 1
+	}
+
+	// Create unions
+	for kbID, vf := range b.VendorFixes {
+		if vf.Supersedes != nil {
+			uf.union(kbID, *vf.Supersedes)
+		}
+	}
+
+	return uf
+}
+
+var vendorFixGraph *wUF
+
+func (b *SecurityBulletin) getVendorFixGraph() *wUF {
+	if vendorFixGraph == nil {
+		vendorFixGraph = b.initUF()
+	}
+	return vendorFixGraph
+}
+
+func (b *SecurityBulletin) Connected(p, q uint) bool {
+	uf := b.getVendorFixGraph()
+	fmt.Println(uf)
+	return uf.connected(p, q)
 }
 
 type Vulnerability struct {
