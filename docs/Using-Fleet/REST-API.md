@@ -1917,14 +1917,15 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name     | Type    | In    | Description                                                                     |
-| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
-| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| Name            | Type    | In    | Description                                                                     |
+| --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -1939,6 +1940,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "mia_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
+  "low_disk_space_count": 12,
   "builtin_labels": [
     {
       "id": 6,
