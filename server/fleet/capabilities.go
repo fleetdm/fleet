@@ -11,12 +11,13 @@ type CapabilityMap map[Capability]struct{}
 // PopulateFromString populates the CapabilityMap from a comma separated string.
 // Example: "foo,bar,baz" => {"foo": struct{}, "bar": struct{}, "baz": struct{}}
 func (c *CapabilityMap) PopulateFromString(s string) {
+	*c = make(CapabilityMap)
+
 	if s == "" {
 		return
 	}
-	raw := strings.Split(s, ",")
-	*c = make(CapabilityMap, len(raw))
-	for _, capability := range raw {
+
+	for _, capability := range strings.Split(s, ",") {
 		(*c)[Capability(capability)] = struct{}{}
 	}
 }
