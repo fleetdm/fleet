@@ -159,7 +159,7 @@ func TestServerCapabilities(t *testing.T) {
 	}
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
-	require.Equal(t, map[fleet.Capability]struct{}{}, bc.serverCapabilities)
+	require.Equal(t, fleet.CapabilityMap{}, bc.serverCapabilities)
 	require.False(t, bc.HasServerCapability(fleet.CapabilityTokenRotation))
 
 	// after an upgrade, the server has many capabilities
@@ -170,7 +170,7 @@ func TestServerCapabilities(t *testing.T) {
 	}
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
-	require.Equal(t, map[fleet.Capability]struct{}{
+	require.Equal(t, fleet.CapabilityMap{
 		fleet.CapabilityTokenRotation:       {},
 		fleet.Capability("test_capability"): {},
 	}, bc.serverCapabilities)
