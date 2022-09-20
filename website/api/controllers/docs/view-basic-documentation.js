@@ -76,7 +76,7 @@ module.exports = {
         : 'Documentation for Fleet for osquery.'// « otherwise use the generic description
       ),
       showSwagForm,
-      docSearchPublicKey: sails.config.custom.docSearchPublicKey,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }

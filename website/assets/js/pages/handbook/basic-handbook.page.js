@@ -25,10 +25,10 @@ parasails.registerPage('basic-handbook', {
   mounted: async function() {
 
     // Algolia DocSearch
-    if(this.docSearchPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.docSearchPublicKey is set.
+    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
       docsearch({
         appId: 'NZXAYZXDGH',
-        apiKey: this.docSearchPublicKey,
+        apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
         inputSelector: '#docsearch-query',
         debug: false,
