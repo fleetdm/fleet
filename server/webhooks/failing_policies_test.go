@@ -73,6 +73,10 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		},
 	}
 
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return ac, nil
+	}
+
 	failingPolicySet := service.NewMemFailingPolicySet()
 	err := failingPolicySet.AddHost(policyID1, fleet.PolicySetHost{
 		ID:       1,
@@ -86,7 +90,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	require.NoError(t, err)
 
 	mockClock := time.Now()
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
@@ -137,7 +141,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 
 	requestBody = ""
 
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
@@ -245,6 +249,10 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		},
 	}
 
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return ac, nil
+	}
+
 	failingPolicySet := service.NewMemFailingPolicySet()
 	err := failingPolicySet.AddHost(1, fleet.PolicySetHost{
 		ID:       1,
@@ -258,7 +266,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	require.NoError(t, err)
 
 	now := time.Now()
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err
@@ -307,7 +315,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 
 	webhookBody = ""
 
-	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
 		if err != nil {
 			return err

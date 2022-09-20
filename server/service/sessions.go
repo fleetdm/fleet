@@ -278,7 +278,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	}
 
 	if !appConfig.SSOSettings.EnableSSO {
-		err := &badRequestError{message: "organization not configured to use sso"}
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
 	}
 
@@ -326,11 +326,11 @@ type callbackSSORequest struct{}
 func (callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decode sso callback")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decode sso callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decoding sso callback")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decoding sso callback")
 	}
 	return authResponse, nil
 }
@@ -632,7 +632,7 @@ type demologinRequest struct {
 func (demologinRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decode demo login")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decode demo login")
 	}
 
 	return demologinRequest{

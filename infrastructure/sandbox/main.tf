@@ -197,18 +197,19 @@ module "pre-provisioner" {
 }
 
 module "jit-provisioner" {
-  source         = "./JITProvisioner"
-  prefix         = local.prefix
-  vpc            = module.vpc
-  kms_key        = aws_kms_key.main
-  dynamodb_table = aws_dynamodb_table.lifecycle-table
-  remote_state   = module.remote_state
-  mysql_secret   = module.shared-infrastructure.mysql_secret
-  eks_cluster    = module.shared-infrastructure.eks_cluster
-  redis_cluster  = module.shared-infrastructure.redis_cluster
-  alb_listener   = module.shared-infrastructure.alb_listener
-  ecs_cluster    = aws_ecs_cluster.main
-  base_domain    = local.base_domain
+  source           = "./JITProvisioner"
+  prefix           = local.prefix
+  vpc              = module.vpc
+  kms_key          = aws_kms_key.main
+  dynamodb_table   = aws_dynamodb_table.lifecycle-table
+  remote_state     = module.remote_state
+  mysql_secret     = module.shared-infrastructure.mysql_secret
+  mysql_secret_kms = module.shared-infrastructure.mysql_secret_kms
+  eks_cluster      = module.shared-infrastructure.eks_cluster
+  redis_cluster    = module.shared-infrastructure.redis_cluster
+  alb_listener     = module.shared-infrastructure.alb_listener
+  ecs_cluster      = aws_ecs_cluster.main
+  base_domain      = local.base_domain
 }
 
 module "monitoring" {
