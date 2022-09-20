@@ -60,6 +60,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
+	s.withServer.commonTearDownTest(s.T())
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
@@ -1449,4 +1450,54 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
+}
+
+func (s *integrationEnterpriseTestSuite) TestListHosts() {
+	t := s.T()
+
+	// create a couple of hosts
+	host1, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name() + "2",
+		NodeKey:         t.Name() + "2",
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// set disk space information for some hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0)) // not low disk
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, 2)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "true")
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
+	assert.Equal(t, 10.0, resp.Hosts[0].GigsDiskSpaceAvailable)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "false")
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
+	assert.Equal(t, 40.0, resp.Hosts[0].GigsDiskSpaceAvailable)
 }

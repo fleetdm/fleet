@@ -45,60 +45,7 @@ func (s *integrationTestSuite) SetupSuite() {
 }
 
 func (s *integrationTestSuite) TearDownTest() {
-	t := s.T()
-	ctx := context.Background()
-
-	u := s.users["admin1@example.com"]
-	filter := fleet.TeamFilter{User: &u}
-	hosts, err := s.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
-	require.NoError(t, err)
-	for _, host := range hosts {
-		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
-		require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
-	}
-
-	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, lbl := range lbls {
-		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.ds.DeleteLabel(ctx, lbl.Name)
-			require.NoError(t, err)
-		}
-	}
-
-	users, err := s.ds.ListUsers(ctx, fleet.UserListOptions{})
-	require.NoError(t, err)
-	for _, u := range users {
-		if _, ok := s.users[u.Email]; !ok {
-			err := s.ds.DeleteUser(ctx, u.ID)
-			require.NoError(t, err)
-		}
-	}
-
-	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, tm := range teams {
-		err := s.ds.DeleteTeam(ctx, tm.ID)
-		require.NoError(t, err)
-	}
-
-	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
-	require.NoError(t, err)
-	if len(globalPolicies) > 0 {
-		var globalPolicyIDs []uint
-		for _, gp := range globalPolicies {
-			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
-		}
-		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
-		require.NoError(t, err)
-	}
-
-	// SyncHostsSoftware performs a cleanup.
-	err = s.ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	s.withServer.commonTearDownTest(s.T())
 }
 
 func TestIntegrations(t *testing.T) {
@@ -1024,8 +971,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -1033,13 +980,21 @@ func (s *integrationTestSuite) TestListHosts() {
 	for _, h := range resp.Hosts {
 		switch h.ID {
 		case hosts[0].ID:
-			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 10.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
 		case hosts[1].ID:
-			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 40.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 		}
 	}
+
+	// setting the low_disk_space criteria is ignored (premium-only)
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "true")
+	require.Len(t, resp.Hosts, len(hosts))
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "false")
+	require.Len(t, resp.Hosts, len(hosts))
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")

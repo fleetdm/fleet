@@ -550,6 +550,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+	const lowDiskSpaceGigsThreshold = 32
+
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
@@ -601,6 +603,16 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		params = append(params, opt.MunkiIssueIDFilter)
 	}
 
+	lowDiskSpaceFilter := "TRUE"
+	if opt.LowDiskSpaceFilter != nil {
+		if *opt.LowDiskSpaceFilter {
+			lowDiskSpaceFilter = `hd.gigs_disk_space_available < ?`
+		} else {
+			lowDiskSpaceFilter = `hd.gigs_disk_space_available >= ?`
+		}
+		params = append(params, lowDiskSpaceGigsThreshold)
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
@@ -611,9 +623,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		%s
 		%s
 		%s
-		WHERE TRUE AND %s AND %s AND %s
+		WHERE TRUE AND %s AND %s AND %s AND %s
     `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, ds.whereFilterHostsByTeams(filter, "h"),
-		softwareFilter, munkiFilter,
+		softwareFilter, munkiFilter, lowDiskSpaceFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)

@@ -320,6 +320,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.MunkiIssueIDFilter = &mid
 	}
 
+	lowDiskSpace := r.URL.Query().Get("low_disk_space")
+	if lowDiskSpace != "" {
+		v, err := strconv.ParseBool(lowDiskSpace)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.LowDiskSpaceFilter = &v
+	}
+
 	return hopt, nil
 }
 
