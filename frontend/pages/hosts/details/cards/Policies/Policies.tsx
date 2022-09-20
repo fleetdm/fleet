@@ -70,7 +70,7 @@ const Policies = ({
                 This host is not updating the response for some policies. Check
                 out the Fleet documentation on&nbsp;
                 <a
-                  href="https://fleetdm.com/docs/using-fleet/faq#why-my-host-is-not-updating-a-policys-response"
+                  href="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-updating-a-policys-response"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
