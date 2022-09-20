@@ -631,7 +631,7 @@ func (a *agent) runPolicy(query string) []map[string]string {
 			{"1": "1"},
 		}
 	}
-	return nil
+	return []map[string]string{}
 }
 
 func (a *agent) randomQueryStats() []map[string]string {

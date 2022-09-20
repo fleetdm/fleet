@@ -12,7 +12,7 @@ import (
 // VulnMapper used for mapping vulnerabilities and their associated data into the payload that
 // will be sent via thrid party webhooks.
 type VulnMapper interface {
-	GetPayload(*url.URL, []*fleet.HostShort, fleet.SoftwareVulnerability, fleet.CVEMeta) WebhookPayload
+	GetPayload(*url.URL, []*fleet.HostShort, string, fleet.CVEMeta) WebhookPayload
 }
 
 type hostPayloadPart struct {
@@ -56,12 +56,12 @@ func (m *Mapper) getHostPayloadPart(
 func (m *Mapper) GetPayload(
 	hostBaseURL *url.URL,
 	hosts []*fleet.HostShort,
-	vuln fleet.SoftwareVulnerability,
+	cve string,
 	meta fleet.CVEMeta,
 ) WebhookPayload {
 	return WebhookPayload{
-		CVE:   vuln.CVE,
-		Link:  fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE),
+		CVE:   cve,
+		Link:  fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 		Hosts: m.getHostPayloadPart(hostBaseURL, hosts),
 	}
 }

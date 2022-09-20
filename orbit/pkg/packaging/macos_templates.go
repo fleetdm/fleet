@@ -70,7 +70,7 @@ launchctl kickstart "system/${DAEMON_LABEL}"
 
 // TODO set Nice?
 //
-//Note it's important not to start the orbit binary in
+// Note it's important not to start the orbit binary in
 // `/usr/local/bin/orbit` because this is a path that users usually have write
 // access to, and running that binary with launchd can become a privilege
 // escalation vector.
