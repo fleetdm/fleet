@@ -128,6 +128,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
+		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -753,6 +754,11 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 		{HostID: hosts[2].ID, Email: "dbca@b.cba", Source: "src1"},
 	}))
 
+	// add some disks space info for some hosts
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0))
+
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -790,6 +796,19 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%00"}}, 10)
 	assert.Equal(t, 10, len(gotHosts))
+	for _, h := range gotHosts {
+		switch h.ID {
+		case hosts[0].ID:
+			assert.Equal(t, h.GigsDiskSpaceAvailable, 1.0)
+			assert.Equal(t, h.PercentDiskSpaceAvailable, 2.0)
+		case hosts[1].ID:
+			assert.Equal(t, h.GigsDiskSpaceAvailable, 3.0)
+			assert.Equal(t, h.PercentDiskSpaceAvailable, 4.0)
+		case hosts[2].ID:
+			assert.Equal(t, h.GigsDiskSpaceAvailable, 5.0)
+			assert.Equal(t, h.PercentDiskSpaceAvailable, 6.0)
+		}
+	}
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "hostname%003"}}, 1)
 	assert.Equal(t, 1, len(gotHosts))
@@ -5206,4 +5225,62 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.expected, actual)
 		}
 	})
+}
+
+func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		OsqueryHostID:   "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		OsqueryHostID:   "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	// set a device host token for host 1, to test loading disk space by device token
+	token1 := "token1"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2)
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4)
+	require.NoError(t, err)
+
+	h, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
+	require.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), host2.NodeKey)
+	require.NoError(t, err)
+	require.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
+	require.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6)
+	require.NoError(t, err)
+
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	require.NoError(t, err)
+	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
+	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
 }
