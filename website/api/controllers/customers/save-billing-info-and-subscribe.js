@@ -97,9 +97,9 @@ module.exports = {
       billingCardLast4: inputs.paymentSource.billingCardLast4,
       billingCardExpMonth: inputs.paymentSource.billingCardExpMonth,
       billingCardExpYear: inputs.paymentSource.billingCardExpYear,
-      firstName: inputs.firstName ? inputs.firstName : this.req.me.firstName,
-      lastName: inputs.lastName ? inputs.lastName : this.req.me.lastName,
-      organization: inputs.organization ? inputs.organization : this.req.me.organization
+      firstName: inputs.firstName,
+      lastName: inputs.lastName,
+      organization: inputs.organization,
     });
 
     // Create the subscription for this order in Stripe
