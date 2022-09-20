@@ -328,7 +328,6 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 }
 
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
-	// TODO(mna): replace h.* with explicit list, join with host_disks
 	sqlStatement := `
 SELECT
   h.id,
@@ -458,9 +457,47 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	// TODO(mna): replace h.* with explicit list, join with host_disks
 	sql := `SELECT
-		h.*,
+    h.id,
+    h.osquery_host_id,
+    h.created_at,
+    h.updated_at,
+    h.detail_updated_at,
+    h.node_key,
+    h.hostname,
+    h.uuid,
+    h.platform,
+    h.osquery_version,
+    h.os_version,
+    h.build,
+    h.platform_like,
+    h.code_name,
+    h.uptime,
+    h.memory,
+    h.cpu_type,
+    h.cpu_subtype,
+    h.cpu_brand,
+    h.cpu_physical_cores,
+    h.cpu_logical_cores,
+    h.hardware_vendor,
+    h.hardware_model,
+    h.hardware_version,
+    h.hardware_serial,
+    h.computer_name,
+    h.primary_ip_id,
+    h.distributed_interval,
+    h.logger_tls_period,
+    h.config_tls_refresh,
+    h.primary_ip,
+    h.primary_mac,
+    h.label_updated_at,
+    h.last_enrolled_at,
+    h.refetch_requested,
+    h.team_id,
+    h.policy_updated_at,
+    h.public_ip,
+    COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+    COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time,
 		t.name AS team_name
 	`
@@ -567,6 +604,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
 		%s
 		%s
 		%s
@@ -846,9 +884,54 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
-		// TODO(mna): replace * with explicit list, join with host_disks
 		sqlSelect := `
-			SELECT * FROM hosts WHERE id = ? LIMIT 1
+      SELECT
+        h.id,
+        h.osquery_host_id,
+        h.created_at,
+        h.updated_at,
+        h.detail_updated_at,
+        h.node_key,
+        h.hostname,
+        h.uuid,
+        h.platform,
+        h.osquery_version,
+        h.os_version,
+        h.build,
+        h.platform_like,
+        h.code_name,
+        h.uptime,
+        h.memory,
+        h.cpu_type,
+        h.cpu_subtype,
+        h.cpu_brand,
+        h.cpu_physical_cores,
+        h.cpu_logical_cores,
+        h.hardware_vendor,
+        h.hardware_model,
+        h.hardware_version,
+        h.hardware_serial,
+        h.computer_name,
+        h.primary_ip_id,
+        h.distributed_interval,
+        h.logger_tls_period,
+        h.config_tls_refresh,
+        h.primary_ip,
+        h.primary_mac,
+        h.label_updated_at,
+        h.last_enrolled_at,
+        h.refetch_requested,
+        h.team_id,
+        h.policy_updated_at,
+        h.public_ip,
+        COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+      FROM
+        hosts h
+      LEFT OUTER JOIN
+        host_disks hd ON hd.host_id = h.id
+      WHERE h.id = ?
+      LIMIT 1
 		`
 		err = sqlx.GetContext(ctx, tx, &host, sqlSelect, hostID)
 		if err != nil {
@@ -1053,13 +1136,52 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 //   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
 //   - An optional list of IDs to omit from the search.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
-	// TODO(mna): replace h.* with explicit list, join with host_disks
 	query := `SELECT
-		h.*,
+    h.id,
+    h.osquery_host_id,
+    h.created_at,
+    h.updated_at,
+    h.detail_updated_at,
+    h.node_key,
+    h.hostname,
+    h.uuid,
+    h.platform,
+    h.osquery_version,
+    h.os_version,
+    h.build,
+    h.platform_like,
+    h.code_name,
+    h.uptime,
+    h.memory,
+    h.cpu_type,
+    h.cpu_subtype,
+    h.cpu_brand,
+    h.cpu_physical_cores,
+    h.cpu_logical_cores,
+    h.hardware_vendor,
+    h.hardware_model,
+    h.hardware_version,
+    h.hardware_serial,
+    h.computer_name,
+    h.primary_ip_id,
+    h.distributed_interval,
+    h.logger_tls_period,
+    h.config_tls_refresh,
+    h.primary_ip,
+    h.primary_mac,
+    h.label_updated_at,
+    h.last_enrolled_at,
+    h.refetch_requested,
+    h.team_id,
+    h.policy_updated_at,
+    h.public_ip,
+    COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+    COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
 		COALESCE(hst.seen_time, h.created_at) AS seen_time
-	FROM hosts h
-	LEFT JOIN host_seen_times hst
-	ON (h.id = hst.host_id) WHERE TRUE `
+  FROM hosts h
+  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_disks hd ON hd.host_id = h.id
+  WHERE TRUE`
 
 	var args []interface{}
 	if len(matchQuery) > 0 {
@@ -1114,14 +1236,54 @@ func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter,
 }
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
-	// TODO(mna): replace h.* with explicit list, join with host_disks
 	stmt := `
-		SELECT h.*, COALESCE(hst.seen_time, h.created_at) AS seen_time
-		FROM hosts h
-		LEFT JOIN host_seen_times hst
-		ON (h.id = hst.host_id)
-		WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
-		LIMIT 1
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hst.seen_time, h.created_at) AS seen_time
+    FROM hosts h
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
+    LIMIT 1
 	`
 	host := &fleet.Host{}
 	err := sqlx.GetContext(ctx, ds.reader, host, stmt, identifier)
