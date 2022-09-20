@@ -1,0 +1,2 @@
+* Add display_name to hosts, which is either the computer-name or the hostname.
+* Add display_name to lists, searches, integrations and web-hooks.

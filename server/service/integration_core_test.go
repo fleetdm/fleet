@@ -5397,7 +5397,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 44)        // total number of cols
+	require.Len(t, rows[0], 45)        // total number of cols
 	t.Log(rows[0])
 
 	const (

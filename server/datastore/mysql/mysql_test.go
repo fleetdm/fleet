@@ -82,18 +82,22 @@ func TestSanitizeColumn(t *testing.T) {
 		input  string
 		output string
 	}{
-		{"foobar-column", "foobar-column"},
-		{"foobar_column", "foobar_column"},
-		{"foobar;column", "foobarcolumn"},
-		{"foobar#", "foobar"},
-		{"foobar*baz", "foobarbaz"},
+		{"", ""},
+		{"foobar-column", "`foobar-column`"},
+		{"foobar_column", "`foobar_column`"},
+		{"foobar;column", "`foobarcolumn`"},
+		{"foobar#", "`foobar`"},
+		{"foobar*baz", "`foobarbaz`"},
+		{"....", ""},
+		{"h.id", "`h`.`id`"},
 	}
 
 	for _, tt := range testCases {
+		tt := tt // copy of tt because test run in parallel.
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tt.output, sanitizeColumn(tt.input))
+			require.Equal(t, tt.output, sanitizeColumn(tt.input))
 		})
 	}
 }
