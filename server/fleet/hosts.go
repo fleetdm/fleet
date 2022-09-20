@@ -226,6 +226,13 @@ type HostSummary struct {
 	Platforms        []*HostSummaryPlatform `json:"platforms"`
 }
 
+// PremiumHostSummary is a superset of HostSummary that includes fields that
+// should only be present for Fleet Premium users.
+type PremiumHostSummary struct {
+	HostSummary
+	LowDiskSpaceCount uint `json:"low_disk_space_count" db:"low_disk_space"`
+}
+
 // HostSummaryPlatform represents the hosts statistics for a given platform,
 // as returned inside the HostSummary struct by the GetHostSummary service.
 type HostSummaryPlatform struct {
