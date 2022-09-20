@@ -54,7 +54,7 @@ func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool, enrollS
 }
 
 func (oc *OrbitClient) DoEnroll() (string, error) {
-	verb, path := "POST", "/api/latest/fleet/orbit/enroll"
+	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := enrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.hardwareUUID}
 	var resp enrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
@@ -65,7 +65,7 @@ func (oc *OrbitClient) DoEnroll() (string, error) {
 }
 
 func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
-	verb, path := "POST", "/api/latest/fleet/orbit/config"
+	verb, path := "POST", "/api/fleet/orbit/config"
 	params := orbitGetConfigRequest{OrbitNodeKey: orbitNodeKey}
 	var resp orbitGetConfigResponse
 	err := oc.request(verb, path, params, &resp)
