@@ -56,7 +56,7 @@ func TestCapabilityString(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			require.EqualValues(t, strings.Split(tt.in.String(), ","), strings.Split(tt.out, ","))
+			require.ElementsMatch(t, strings.Split(tt.in.String(), ","), strings.Split(tt.out, ","))
 		})
 	}
 }
