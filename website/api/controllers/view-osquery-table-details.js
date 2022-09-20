@@ -11,6 +11,7 @@ module.exports = {
       description: 'The slug of the osquery table that this user wants to display',
       example: 'account_policy_data',
       type: 'string',
+      required: true,
     }
   },
 
