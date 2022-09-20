@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestCapabilityString(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.in.String(), tt.out)
+			require.EqualValues(t, strings.Split(tt.in.String(), ","), strings.Split(tt.out, ","))
 		})
 	}
 }
