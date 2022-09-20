@@ -496,8 +496,9 @@ type AggregatedMacadminsData struct {
 
 // HostShort is a minimal host representation returned when querying hosts.
 type HostShort struct {
-	ID       uint   `json:"id" db:"id"`
-	Hostname string `json:"hostname" db:"hostname"`
+	ID          uint   `json:"id" db:"id"`
+	Hostname    string `json:"hostname" db:"hostname"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 type OSVersions struct {
