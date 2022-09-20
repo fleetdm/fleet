@@ -6,22 +6,26 @@
 flowchart LR
 
 subgraph Fleet [Fleet Server]
-
     direction TB;
-
-    enroll[".mobileconfig<br>/api/mdm/apple/enroll"];
-    installer[".mobileconfig<br>/api/mdm/apple/installer"];
+    subgraph apiEndpoints ["Admin API endpoints"]
+        api["/api/_version_/fleet/mdm/apple/enrollments
+        /api/_version_/fleet/mdm/apple/enqueue
+        /api/_version_/fleet/mdm/apple/commandresults
+        /api/_version_/fleet/mdm/apple/installers
+        /api/_version_/fleet/mdm/apple/devices
+        /api/_version_/fleet/mdm/apple/dep/devices"];
+    end 
+    subgraph deviceEndpoints ["Apple Device Endpoints"];
+        enroll[".mobileconfig<br>/api/mdm/apple/enroll"];
+        installer[".mobileconfig<br>/api/mdm/apple/installer"];
+    end
     subgraph nanoMDMModules ["nanoMDM modules"]
         direction TB;
         nanoSCEP["nanoSCEP<br>/mdm/apple/scep"];
         nanoMDM["nanoMDM<br>/mdm/apple/mdm"];
         nanoDEP["nanoDEP"];
     end
-    subgraph MySQL
-        direction LR;
-        mdmAppleDB[(nanoMDM<br>Schemas)];
-        fleetDB[(fleet)];
-    end
+    fleetDB[(Fleet DB)];
 end
 
 ApplePush[https://api.push.apple.com];
@@ -29,9 +33,9 @@ AppleDEP[https://mdmenrollment.apple.com];
 nanoDEP -- Apple MDM DEP API ----> AppleDEP;
 nanoMDM --> ApplePush;
 
-nanoSCEP --> mdmAppleDB
-nanoDEP --> mdmAppleDB;
-nanoMDM --> mdmAppleDB;
+nanoSCEP --> fleetDB
+nanoDEP --> fleetDB;
+nanoMDM --> fleetDB;
 ```
 
 ## New Fleet Endpoints
@@ -55,10 +59,8 @@ nanoMDM --> mdmAppleDB;
 ## 1. Setup deployment from scratch
 
 ```sh
-FLEET_MYSQL_IMAGE=mysql:8.0.19 docker-compose down
-docker volume rm fleet_mysql-persistent-volume
 FLEET_MYSQL_IMAGE=mysql:8.0.19 docker-compose up
-make fleet-dev
+make db-reset
 ```
 
 ## 2. Setup APNS Push Certificate and Key
@@ -75,14 +77,7 @@ What we did for this test is:
 - Zach uploads the decrypted CSR to identity.apple.com and downloads the final certificate.
 - Place certificate in `~/mdm-apple-test/mdmcert.download.push.pem`
 
-## 3. Fleet prepare db
-
-Initial prepare db populates the MySQL database with the MDM tables:
-```sh
-FLEET_MDM_APPLE_ENABLE=1 ./build/fleet prepare db --dev --logging_debug
-```
-
-## 4. SCEP setup
+## 3. SCEP setup
 
 ```sh
 fleetctl apple-mdm setup scep --validity-years=1 --cn "Acme" --organization "Acme Inc." --organizational-unit "Acme Inc. IT" --country US
@@ -90,7 +85,7 @@ Successfully generated SCEP CA: fleet-mdm-apple-scep.crt, fleet-mdm-apple-scep.k
 Set FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) when running Fleet.
 ```
 
-## 5. DEP setup
+## 4. DEP setup
 
 1. Init:
 ```sh
@@ -119,14 +114,14 @@ Successfully generated token file: fleet-mdm-apple-dep.token.
 Set FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) when running Fleet.
 ```
 
-## 6. Run Fleet behind ngrok
+## 5. Run Fleet behind ngrok
 
 Fleet needs to run behind TLS with valid certificates (otherwise Apple devices won't trust it).
-```
+```sh
 ngrok http https://localhost:8080
 ```
 
-## 7. Run Fleet
+## 6. Run Fleet
 
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
@@ -148,14 +143,14 @@ Sending usage statistics from your Fleet instance is optional and can be disable
 [+] Fleet setup successful and context configured!
 ```
 
-## 8. Create manual enrollment
+## 7. Create manual enrollment
 
 ```sh
 fleetctl apple-mdm enrollments create-manual --name foo
-Manual enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=1, id: 1
+Manual enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=1.
 ```
 
-## 9. Create automatic (DEP) enrollment
+## 8. Create automatic (DEP) enrollment
 
 ```sh
 cat ./tools/mdm/apple/dep_sample_profile.json
@@ -188,10 +183,10 @@ cat ./tools/mdm/apple/dep_sample_profile.json
 fleetctl apple-mdm enrollments create-automatic \
     --name foo \
     --profile ./tools/mdm/apple/dep_sample_profile.json
-Automatic enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=2, id: 2
+Automatic enrollment created, URL: https://ab51-181-228-157-44.ngrok.io/api/mdm/apple/enroll?id=2.
 ```
 
-## 10. DEP Enroll
+## 9. DEP Enroll
 
 1. Assign the device to our MDM server in https://business.apple.com
 2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must wait for 5m after executing the `create-automatic` command).

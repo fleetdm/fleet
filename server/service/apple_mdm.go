@@ -597,9 +597,14 @@ func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
 	// on enrollments).
 	mobileConfig, err := generateMobileConfig(
+		appConfig.OrgInfo.OrgName,
 		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.SCEPPath,
 		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.MDMPath,
 		svc.config.MDMApple.SCEP.Challenge,
@@ -608,7 +613,6 @@ func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	fmt.Printf("%s\n", mobileConfig)
 	return mobileConfig, nil
 }
 
@@ -619,6 +623,10 @@ func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID u
 // https://github.com/micromdm/nanomdm/blob/3b1eb0e4e6538b6644633b18dedc6d8645853cb9/docs/enroll.mobileconfig
 //
 // TODO(lucas): Support enroll profile signing?
+//
+// During a profile replacement, the system updates payloads with the same PayloadIdentifier and
+// PayloadUUID in the old and new profiles.
+// PayloadUUIDs have been generated with uuidgen in macOS.
 var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -641,11 +649,11 @@ var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
 				<string>{{ .SCEPServerURL }}</string>
 			</dict>
 			<key>PayloadIdentifier</key>
-			<string>com.github.micromdm.scep</string>
+			<string>com.fleetdm.fleet.mdm.apple.scep</string>
 			<key>PayloadType</key>
 			<string>com.apple.security.scep</string>
 			<key>PayloadUUID</key>
-			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
@@ -655,13 +663,13 @@ var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
-			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
 			<key>PayloadIdentifier</key>
-			<string>com.github.micromdm.nanomdm.mdm</string>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
 			<key>PayloadType</key>
 			<string>com.apple.mdm</string>
 			<key>PayloadUUID</key>
-			<string>96B11019-B54C-49DC-9480-43525834DE7B</string>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>ServerCapabilities</key>
@@ -677,28 +685,30 @@ var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Enrollment Profile</string>
+	<string>{{ .Organization }} Enrollment</string>
 	<key>PayloadIdentifier</key>
-	<string>com.github.micromdm.nanomdm</string>
+	<string>com.fleetdm.fleet.mdm.apple</string>
 	<key>PayloadScope</key>
 	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>F9760DD4-F2D1-4F29-8D2C-48D52DD0A9B3</string>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
 </plist>`))
 
-func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
+func generateMobileConfig(orgName, scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
 	var contents bytes.Buffer
 	if err := mobileConfigTemplate.Execute(&contents, struct {
+		Organization  string
 		SCEPServerURL string
 		MDMServerURL  string
 		SCEPChallenge string
 		Topic         string
 	}{
+		Organization:  orgName,
 		SCEPServerURL: scepServerURL,
 		MDMServerURL:  mdmServerURL,
 		SCEPChallenge: scepChallenge,
