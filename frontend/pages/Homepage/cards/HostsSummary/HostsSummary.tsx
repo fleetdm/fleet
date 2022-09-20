@@ -7,7 +7,6 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
 import DataError from "components/DataError";
 import SummaryTile from "./SummaryTile";
 
-import SummaryTile from "../HostsSummary/SummaryTile";
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
 import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";

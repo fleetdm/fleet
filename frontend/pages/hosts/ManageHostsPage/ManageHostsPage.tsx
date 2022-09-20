@@ -647,10 +647,6 @@ const ManageHostsPage = ({
     handleClearFilter(["munki_issue_id"]);
   };
 
-  const handleClearMissingFilter = () => {
-    handleClearFilter(["status"]);
-  };
-
   const handleClearLowDiskSpaceFilter = () => {
     handleClearFilter(["low_disk_space"]);
   };
@@ -1315,23 +1311,6 @@ const ManageHostsPage = ({
     return null;
   };
 
-  const renderMissingFilterBlock = () => {
-    const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
-        Hosts that have not been online in <br />
-        10 days or more.
-      </span>
-    );
-
-    return (
-      <FilterPill
-        label="Missing"
-        tooltipDescription={TooltipDescription}
-        onClear={handleClearMissingFilter}
-      />
-    );
-  };
-
   const renderLowDiskSpaceFilterBlock = () => {
     const TooltipDescription = (
       <span className={`tooltip__tooltip-text`}>
@@ -1608,8 +1587,6 @@ const ManageHostsPage = ({
             return renderOSFilterBlock();
           case !!munkiIssueId:
             return renderMunkiIssueFilterBlock();
-          case !!missingHosts:
-            return renderMissingFilterBlock();
           case !!lowDiskSpaceHosts:
             return renderLowDiskSpaceFilterBlock();
           default:
