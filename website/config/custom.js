@@ -124,9 +124,9 @@ module.exports.custom = {
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': 'ksatter',
     'docs/Contributing/API-for-contributors.md': 'ksatter',
-    'docs/Deploying/FAQ.md': ['ksatter', 'mikermcneil'],
-    'docs/Contributing/FAQ.md': ['ksatter', 'mikermcneil'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter', 'mikermcneil'],
+    'docs/Deploying/FAQ.md': ['ksatter'],
+    'docs/Contributing/FAQ.md': ['ksatter'],
+    'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
   },
