@@ -744,7 +744,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 	return ids, nil
 }
 
-func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.PremiumHostSummary, error) {
+func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 	// The logic in this function should remain synchronized with
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
@@ -770,7 +770,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
-				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
+				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
 				%s
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -783,10 +783,14 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics statement")
 	}
-	summary := fleet.PremiumHostSummary{HostSummary: fleet.HostSummary{TeamID: filter.TeamID}}
+	summary := fleet.HostSummary{TeamID: filter.TeamID}
 	err = sqlx.GetContext(ctx, ds.reader, &summary, stmt, args...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "generating host statistics")
+	}
+	if lowDiskSpace == nil {
+		// don't return the low disk space count if it wasn't requested
+		summary.LowDiskSpaceCount = nil
 	}
 
 	// get the counts per platform, the `h` alias for hosts is required so that

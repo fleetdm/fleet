@@ -463,8 +463,9 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID   *uint   `query:"team_id,optional"`
-	Platform *string `query:"platform,optional"`
+	TeamID       *uint   `query:"team_id,optional"`
+	Platform     *string `query:"platform,optional"`
+	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
 
 type getHostSummaryResponse struct {
@@ -476,7 +477,7 @@ func (r getHostSummaryResponse) error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostSummaryRequest)
-	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform)
+	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
 		return getHostSummaryResponse{Err: err}, nil
 	}
@@ -487,7 +488,7 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return resp, nil
 }
 
-func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string) (*fleet.HostSummary, error) {
+func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -497,7 +498,11 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
+	if !svc.license.IsPremium() {
+		lowDiskSpace = nil
+	}
+
+	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform, lowDiskSpace)
 	if err != nil {
 		return nil, err
 	}

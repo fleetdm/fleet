@@ -215,22 +215,16 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID           *uint                  `json:"team_id,omitempty"`
-	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount      uint                   `json:"online_count" db:"online"`
-	OfflineCount     uint                   `json:"offline_count" db:"offline"`
-	MIACount         uint                   `json:"mia_count" db:"mia"`
-	NewCount         uint                   `json:"new_count" db:"new"`
-	AllLinuxCount    uint                   `json:"all_linux_count"`
-	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
-}
-
-// PremiumHostSummary is a superset of HostSummary that includes fields that
-// should only be present for Fleet Premium users.
-type PremiumHostSummary struct {
-	HostSummary
-	LowDiskSpaceCount uint `json:"low_disk_space_count" db:"low_disk_space"`
+	TeamID            *uint                  `json:"team_id,omitempty" db:"-"`
+	TotalsHostsCount  uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount       uint                   `json:"online_count" db:"online"`
+	OfflineCount      uint                   `json:"offline_count" db:"offline"`
+	MIACount          uint                   `json:"mia_count" db:"mia"`
+	NewCount          uint                   `json:"new_count" db:"new"`
+	AllLinuxCount     uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels     []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms         []*HostSummaryPlatform `json:"platforms" db:"-"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
