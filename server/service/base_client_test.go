@@ -131,7 +131,7 @@ func TestClientCapabilities(t *testing.T) {
 
 			var req http.Request
 			bc.setClientCapabilitiesHeader(&req)
-			require.Equal(t, c.expected, req.Header.Get("X-Fleet-Capabilities"))
+			require.Equal(t, c.expected, req.Header.Get(fleet.CapabilitiesHeader))
 		})
 	}
 }
@@ -141,7 +141,7 @@ func TestServerCapabilities(t *testing.T) {
 	response := &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
-		Header:     http.Header{"X-Fleet-Capabilities": []string{"token_rotation"}},
+		Header:     http.Header{fleet.CapabilitiesHeader: []string{"token_rotation"}},
 	}
 	bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestServerCapabilities(t *testing.T) {
 	response = &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
-		Header:     http.Header{"X-Fleet-Capabilities": []string{"token_rotation,test_capability"}},
+		Header:     http.Header{fleet.CapabilitiesHeader: []string{"token_rotation,test_capability"}},
 	}
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)

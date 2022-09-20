@@ -295,7 +295,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 		return authenticatedDevice(svc, logger, next)
 	}
 
-	// Inject the X-Fleet-Capabilities header to the response for device endpoints
+	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
 	opts = append(opts, capabilitiesResponseFunc())
 
 	return &authEndpointer{
@@ -335,7 +335,7 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 		return authenticatedOrbitHost(svc, logger, next)
 	}
 
-	// Inject the X-Fleet-Capabilities header to the response for Orbit hosts
+	// Inject the fleet.Capabilities header to the response for Orbit hosts
 	opts = append(opts, capabilitiesResponseFunc())
 
 	return &authEndpointer{
@@ -384,7 +384,7 @@ func writeCapabilitiesHeader(w http.ResponseWriter) {
 	}
 	value := strings.Join(capabilities, ",")
 	if len(capabilities) > 0 {
-		w.Header().Set("X-Fleet-Capabilities", value)
+		w.Header().Set(fleet.CapabilitiesHeader, value)
 	}
 }
 

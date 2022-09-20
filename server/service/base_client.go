@@ -79,7 +79,7 @@ func (bc *baseClient) url(path, rawQuery string) *url.URL {
 // from the server.
 func (bc *baseClient) setServerCapabilities(response *http.Response) {
 	bc.serverCapabilities = fleet.CapabilityMap{}
-	capabilities := response.Header.Get("X-Fleet-Capabilities")
+	capabilities := response.Header.Get(fleet.CapabilitiesHeader)
 
 	if capabilities == "" {
 		return
@@ -117,7 +117,7 @@ func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
 	if req.Header == nil {
 		req.Header = http.Header{}
 	}
-	req.Header.Set("X-Fleet-Capabilities", strings.Join(capabilities, ","))
+	req.Header.Set(fleet.CapabilitiesHeader, strings.Join(capabilities, ","))
 }
 
 func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, capabilities fleet.CapabilityMap) (*baseClient, error) {

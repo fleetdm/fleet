@@ -545,3 +545,5 @@ const (
 // ServerCapabilities is a set of capabilities that the _Server_ supports.
 // **it shouldn't be modified at runtime**
 var ServerCapabilities = CapabilityMap{CapabilityTokenRotation: {}}
+
+const CapabilitiesHeader = "X-Fleet-Capabilities"
