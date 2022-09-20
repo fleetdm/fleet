@@ -498,19 +498,19 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.public_ip,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-		COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		t.name AS team_name
+    COALESCE(hst.seen_time, h.created_at) AS seen_time,
+    t.name AS team_name
 	`
 
 	if opt.DeviceMapping {
 		sql += `,
-			COALESCE(dm.device_mapping, 'null') as device_mapping
+    COALESCE(dm.device_mapping, 'null') as device_mapping
 		`
 	}
 
 	failingPoliciesSelect := `,
-		coalesce(failing_policies.count, 0) as failing_policies_count,
-		coalesce(failing_policies.count, 0) as total_issues_count
+    coalesce(failing_policies.count, 0) as failing_policies_count,
+    coalesce(failing_policies.count, 0) as total_issues_count
 	`
 	if opt.DisableFailingPolicies {
 		failingPoliciesSelect = ""
@@ -608,16 +608,16 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	}
 
 	sql += fmt.Sprintf(`FROM hosts h
-		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-		LEFT JOIN teams t ON (h.team_id = t.id)
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-		%s
-		%s
-		%s
-		%s
-		%s
-		%s
-		WHERE TRUE AND %s AND %s AND %s AND %s
+    %s
+    %s
+    %s
+    %s
+    %s
+    %s
+    WHERE TRUE AND %s AND %s AND %s AND %s
     `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, ds.whereFilterHostsByTeams(filter, "h"),
 		softwareFilter, munkiFilter, lowDiskSpaceFilter,
 	)
@@ -1183,7 +1183,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.public_ip,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-		COALESCE(hst.seen_time, h.created_at) AS seen_time
+    COALESCE(hst.seen_time, h.created_at) AS seen_time
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
