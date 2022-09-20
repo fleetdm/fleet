@@ -1524,4 +1524,30 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Equal(t, 1, countResp.Count)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "100")
 	require.Equal(t, 2, countResp.Count)
+
+	// host summary returns counts for low disk space
+	var summaryResp getHostSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "low_disk_space", "32")
+	require.Equal(t, uint(3), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(1), *summaryResp.LowDiskSpaceCount)
+
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "platform", "windows", "low_disk_space", "32")
+	require.Equal(t, uint(1), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
+
+	// all possible filters
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux", "low_disk_space", "32")
+	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
+
+	// without low_disk_space, does not return the count
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux")
+	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
+	require.Nil(t, summaryResp.LowDiskSpaceCount)
 }
