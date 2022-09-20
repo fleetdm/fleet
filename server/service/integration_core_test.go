@@ -361,9 +361,14 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.True(t, config.Features.EnableSoftwareInventory)
 
 	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
+	var previousRawConfig string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(context.Background(), q, &previousRawConfig, "SELECT json_value FROM app_config_json")
+		if err != nil {
+			return err
+		}
 		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, `
+		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, `
     {
       "host_settings": {
         "enable_host_users": false,
@@ -379,6 +384,13 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.False(t, resp.Features.EnableHostUsers)
 	require.True(t, resp.Features.EnableSoftwareInventory)
 	require.NotNil(t, resp.Features.AdditionalQueries)
+
+	// restore the previous appconfig so that other tests are not impacted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, previousRawConfig)
+		return err
+	})
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -3122,6 +3134,90 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
+func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
+	t := s.T()
+
+	// enable with valid config
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+     	 		"destination_url": "http://some/url",
+				  "host_percentage": 2,
+					"days_count": 1
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
+
+	// update without a destination url
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+     	 		"destination_url": "",
+				  "host_percentage": 2,
+					"days_count": 1
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// update without a negative days count
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+					"destination_url": "http://other/url",
+				  "host_percentage": 2,
+					"days_count": -123
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// update with 0%
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+					"destination_url": "http://other/url",
+				  "host_percentage": 0,
+					"days_count": 12
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// config left unmodified since last successful call
+	config = s.getConfig()
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
+
+	// disabling ignores the invalid parameters
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": false,
+     	 		"destination_url": "",
+				  "host_percentage": 0
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config = s.getConfig()
+	require.False(t, config.WebhookSettings.HostStatusWebhook.Enable)
+}
+
 func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
 	t := s.T()
 
@@ -4251,7 +4347,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.Equal(t, "free", acResp.License.Tier)
-	assert.Equal(t, "", acResp.OrgInfo.OrgName)
+	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint
@@ -4274,13 +4370,71 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// test a change that does modify the agent options.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-    "agent_options": { "foo": 1 }
+		"agent_options": { "config": {"views": {"foo": "bar"}} }
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+
+	// try to set invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"nope": true} }
+  }`), http.StatusBadRequest, &acResp)
+	// did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// try to set an invalid agent options logger_tls_endpoint (must start with "/")
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"options": {"logger_tls_endpoint": "not-a-rooted-path"}} }
+  }`), http.StatusBadRequest, &acResp)
+	// did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"not-a-rooted-path"`)
+
+	// try to set a valid agent options logger_tls_endpoint
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"options": {"logger_tls_endpoint": "/rooted-path"}} }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"/rooted-path"`)
+
+	// force-set invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"nope": true} }
+  }`), http.StatusOK, &acResp, "force", "true")
+	require.Contains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// dry-run valid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"views":{"yep": "ok"}} }
+  }`), http.StatusOK, &acResp, "dry_run", "true")
+	require.NotContains(t, string(*acResp.AgentOptions), `"yep"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// dry-run invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"invalid": true} }
+  }`), http.StatusBadRequest, &acResp, "dry_run", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
+
+	// dry-run valid appconfig that uses legacy settings (returns error)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"host_settings": { "additional_queries": {"foo": "bar"} }
+  }`), http.StatusBadRequest, &acResp, "dry_run", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Nil(t, acResp.Features.AdditionalQueries)
+
+	// without dry-run, the valid appconfig that uses legacy settings is accepted
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"host_settings": { "additional_queries": {"foo": "bar"} }
+  }`), http.StatusOK, &acResp, "dry_run", "false")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp.Features.AdditionalQueries)
+	require.Contains(t, string(*acResp.Features.AdditionalQueries), `"foo": "bar"`)
 
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
@@ -4311,6 +4465,15 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
+
+	// test setting the default app config we use for new installs (this check
+	// ensures that the default config passes the validation)
+	var defAppCfg fleet.AppConfig
+	defAppCfg.ApplyDefaultsForNewInstalls()
+	// must set org name and server settings
+	defAppCfg.OrgInfo.OrgName = acResp.OrgInfo.OrgName
+	defAppCfg.ServerSettings.ServerURL = acResp.ServerSettings.ServerURL
+	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestQuerySpecs() {
