@@ -111,7 +111,7 @@ module.exports.custom = {
     'handbook/sales': 'alexmitchelliii',
     'handbook/digital-experience': 'mike-j-thomas',
     'handbook/growth': 'timmy-k',
-    'handbook/customers': 'tgauda',
+    'handbook/customers': 'mikermcneil',
     'handbook/community': ['timmy-k'],
 
     'website': 'mikermcneil',// (default for website)
@@ -124,9 +124,9 @@ module.exports.custom = {
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': 'ksatter',
     'docs/Contributing/API-for-contributors.md': 'ksatter',
-    'docs/Deploying/FAQ.md': ['ksatter', 'tgauda'],
-    'docs/Contributing/FAQ.md': ['ksatter', 'tgauda'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter', 'tgauda'],
+    'docs/Deploying/FAQ.md': ['ksatter'],
+    'docs/Contributing/FAQ.md': ['ksatter'],
+    'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
   },
