@@ -81,10 +81,6 @@ func (bc *baseClient) setServerCapabilities(response *http.Response) {
 	bc.serverCapabilities = fleet.CapabilityMap{}
 	capabilities := response.Header.Get(fleet.CapabilitiesHeader)
 
-	if capabilities == "" {
-		return
-	}
-
 	for _, capability := range strings.Split(capabilities, ",") {
 		bc.serverCapabilities[fleet.Capability(capability)] = struct{}{}
 	}
