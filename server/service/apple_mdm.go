@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -217,7 +218,7 @@ type uploadAppleInstallerResponse struct {
 }
 
 func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(32 << 10) // 32Mb
+	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: err.Error()}
 	}
