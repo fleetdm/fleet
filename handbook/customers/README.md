@@ -143,15 +143,13 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Kathy Satterlee        |
 | Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Kathy Satterlee |
 | Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Kathy Satterlee |
-| Customer debriefs | Weekly | [Discuss customer questions, requests, and issues with the Product team.](https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing) | Kathy Satterlee  |
+| [Customer voice]((https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing)) | Weekly | Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more. | Kathy Satterlee  |
 | Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Kathy Satterlee |
 | Customer request backlog | Weekly | Check-in before product office hours to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Kathy Satterlee |
-| Product office hours | Weekly | Present tickets and items brought to Fleet's attention by customers that are interesting from a product perspective and advocate for customer requests. | Kathy Satterlee |
+| Product office hours | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
 | Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
-| Product review | Every three weeks | Meet with the Product team to gain product pipeline visibility in order to gather info on new features and fixes in the next release. | Kathy Satterlee |
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
-| Sales huddle | Bi-monthly | Meet with Sales team to gain sales pipeline visibility for business intelligence and product development purposes, such as testing scalability for potential customer's needs, predicting product success obstacles, etc. | Kathy Satterlee |
-| Advisory meetings | Quarterly | Peer network feedback and Q& with other industry professionals. Mostly discussions on the refining process. | Kathy Satterlee |
+
 
 ## Slack channels
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
