@@ -766,7 +766,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 					team_id,
 					refetch_requested,
 					orbit_node_key
-				) VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
 			`
 			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, "", nil, orbitNodeKey)
 			if err != nil {
