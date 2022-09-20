@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
@@ -23,11 +24,19 @@ func main() {
 	wd, err := os.Getwd()
 	panicif(err)
 
+	inPath := filepath.Join(wd, "msrc_in")
+	err = os.MkdirAll(inPath, 0o755)
+	panicif(err)
+
+	outPath := filepath.Join(wd, "msrc_out")
+	err = os.MkdirAll(outPath, 0o755)
+	panicif(err)
+
 	now := time.Now()
 	httpC := http.DefaultClient
 
-	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
-	msrcAPI := io.NewMSRCClient(httpC, wd, io.MSRCBaseURL)
+	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, inPath)
+	msrcAPI := io.NewMSRCClient(httpC, inPath, io.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
 	eBulletins, err := ghAPI.Bulletins()
@@ -46,7 +55,7 @@ func main() {
 
 	fmt.Println("Saving bulletins...")
 	for _, b := range bulletins {
-		err := serialize(b, now, wd)
+		err := serialize(b, now, outPath)
 		panicif(err)
 	}
 
@@ -137,11 +146,13 @@ func backfill(upToM time.Month, upToY int, client io.MSRCAPI) ([]*parsed.Securit
 	return r, nil
 }
 
-func serialize(b *parsed.SecurityBulletin, d time.Time, wd string) error {
+func serialize(b *parsed.SecurityBulletin, d time.Time, dir string) error {
 	payload, err := json.Marshal(b)
 	if err != nil {
 		return err
 	}
-	filePath := io.FileName(b.ProductName, d, "json")
+	fileName := io.FileName(b.ProductName, d, "json")
+	filePath := filepath.Join(dir, fileName)
+
 	return os.WriteFile(filePath, payload, 0o644)
 }
