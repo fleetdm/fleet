@@ -682,16 +682,12 @@ func startSchedules(
 	failingPoliciesSet fleet.FailingPolicySet,
 	instanceID string,
 ) error {
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("getting app config: %w", err)
-	}
-
 	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
 	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 	startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
-	startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, *appConfig, failingPoliciesSet)
-
+	if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPoliciesSet); err != nil {
+		return err
+	}
 	return nil
 }
 

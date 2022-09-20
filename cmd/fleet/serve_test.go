@@ -129,7 +129,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	assert.False(t, called)
 }
 
-func TestCronWebhooks(t *testing.T) {
+func TestAutomationsSchedule(t *testing.T) {
 	ds := new(mock.Store)
 
 	endpointCalled := int32(0)
@@ -180,7 +180,7 @@ func TestCronWebhooks(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	startAutomationsSchedule(ctx, "1234", ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), 5*time.Minute, fleet.AppConfig{}, failingPoliciesSet)
+	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
 
 	<-calledOnce
 	time.Sleep(1 * time.Second)
@@ -312,18 +312,23 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 // TestCronAutomationsLockDuration tests that the Lock method is being called
 // for the current automation crons and that their duration is equal to the current
 // schedule interval.
-func TestCronAutomationsLockDuration(t *testing.T) {
+func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ds := new(mock.Store)
 	expectedInterval := 1 * time.Second
 
+	intitalConfigLoaded := make(chan struct{}, 1)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		ac := fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
 				Interval: fleet.Duration{Duration: 1 * time.Hour},
 			},
 		}
-		if ds.AppConfigFuncInvoked {
+		select {
+		case <-intitalConfigLoaded:
 			ac.WebhookSettings.Interval = fleet.Duration{Duration: expectedInterval}
+		default:
+			// initial config
+			close(intitalConfigLoaded)
 		}
 		return &ac, nil
 	}
@@ -358,7 +363,7 @@ func TestCronAutomationsLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	startAutomationsSchedule(ctx, "1234", ds, kitlog.With(kitlog.NewNopLogger(), "cron", "automations"), 1*time.Second, fleet.AppConfig{}, service.NewMemFailingPolicySet())
+	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
 
 	select {
 	case <-failingPolicies:
@@ -373,7 +378,7 @@ func TestCronAutomationsLockDuration(t *testing.T) {
 	require.False(t, unknownName)
 }
 
-func TestCronWebhooksIntervalChange(t *testing.T) {
+func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ds := new(mock.Store)
 
 	interval := struct {
@@ -417,12 +422,15 @@ func TestCronWebhooksIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	startAutomationsSchedule(ctx, "1234", ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), 200*time.Millisecond, fleet.AppConfig{}, service.NewMemFailingPolicySet())
+	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
 
-	select {
-	case <-configLoaded:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout: initial config load")
+	// wait for config to be called once by startAutomationsSchedule and again by configReloadFunc
+	for c := 0; c < 2; c++ {
+		select {
+		case <-configLoaded:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout: initial config load")
+		}
 	}
 
 	interval.Lock()

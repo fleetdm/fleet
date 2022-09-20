@@ -363,19 +363,24 @@ func startAutomationsSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	intervalReload time.Duration,
-	appConfig fleet.AppConfig,
 	failingPoliciesSet fleet.FailingPolicySet,
-) *schedule.Schedule {
+) (*schedule.Schedule, error) {
+	const defaultAutomationsInterval = 24 * time.Hour
+
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting app config: %w", err)
+	}
 	s := schedule.New(
 		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
-		ctx, "automations", instanceID, appConfig.WebhookSettings.Interval.ValueOr(24*time.Hour), ds,
+		ctx, "automations", instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultAutomationsInterval), ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", "automations")),
 		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
 				return 0, err
 			}
-			newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+			newInterval := appConfig.WebhookSettings.Interval.ValueOr(defaultAutomationsInterval)
 			return newInterval, nil
 		}),
 		schedule.WithJob(
@@ -394,7 +399,7 @@ func startAutomationsSchedule(
 		),
 	)
 	s.Start()
-	return s
+	return s, nil
 }
 
 func triggerFailingPoliciesAutomation(
