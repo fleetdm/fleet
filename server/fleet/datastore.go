@@ -206,7 +206,7 @@ type Datastore interface {
 	// different osquery queries failed to populate details.
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
-	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
+	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
@@ -584,6 +584,7 @@ type Datastore interface {
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
+	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
 

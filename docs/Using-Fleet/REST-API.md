@@ -1706,6 +1706,7 @@ None.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1841,11 +1842,12 @@ Response payload with the `munki_issue_id` filter provided:
 | os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, mdm or munki filters.                                                                                                                                                                                                                                                                        |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, low_disk_space, mdm or munki filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1881,14 +1883,15 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name     | Type    | In    | Description                                                                     |
-| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
-| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| Name            | Type    | In    | Description                                                                     |
+| --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -1903,6 +1906,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "mia_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
+  "low_disk_space_count": 12,
   "builtin_labels": [
     {
       "id": 6,

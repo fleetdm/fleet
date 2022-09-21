@@ -1110,6 +1110,11 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+		require.Equal(t, 277.0, gigsAvailable)
+		require.Equal(t, 56.0, percentAvailable)
+		return nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
@@ -1309,6 +1314,7 @@ func TestDetailQueries(t *testing.T) {
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 	require.True(t, ds.SetOrUpdateMunkiInfoFuncInvoked)
 	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
+	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -1362,9 +1368,6 @@ func TestDetailQueries(t *testing.T) {
 			Source:           "source2",
 		},
 	}, gotSoftware)
-
-	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
-	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
 
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
