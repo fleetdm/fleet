@@ -4,7 +4,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
-import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";

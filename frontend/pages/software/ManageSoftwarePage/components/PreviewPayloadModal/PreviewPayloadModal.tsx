@@ -53,7 +53,12 @@ const PreviewPayloadModal = ({
   }
 
   return (
-    <Modal title={"Example payload"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Example payload"}
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+    >
       <div className={`${baseClass}__preview-modal`}>
         <p>
           Want to learn more about how automations in Fleet work?{" "}

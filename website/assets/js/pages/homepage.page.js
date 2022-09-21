@@ -66,7 +66,6 @@ parasails.registerPage('homepage', {
 
     submittedNewsletterForm: async function() {
       // Show the success message.
-      console.log('aaaaa');
       this.cloudSuccess = true;
     },
   }
