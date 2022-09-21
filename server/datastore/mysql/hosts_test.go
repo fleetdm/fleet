@@ -4858,7 +4858,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// set host' disk space
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25)
 	require.NoError(t, err)
-	
+
 	// Operating system vulnerabilities
 	_, err = ds.writer.Exec(
 		`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
