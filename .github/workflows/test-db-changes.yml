@@ -41,11 +41,6 @@ jobs:
           exit 1
         fi
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-      with:
-        limit-access-to-actor: true
-
     # TODO: This doesn't cover all scenarios since other PRs might
     # be merged into `main` after this check has passed.
     #
