@@ -3,7 +3,6 @@ package parsed
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -76,7 +75,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	// Vendor fixes
 	for kbID, r := range other.VendorFixes {
 		if _, ok := b.VendorFixes[kbID]; !ok {
-			newVF := NewVendorFix(r.FixedBuild)
+			newVF := NewVendorFix()
 			for pID, v := range r.ProductIDs {
 				newVF.ProductIDs[pID] = v
 			}
@@ -90,15 +89,60 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	return nil
 }
 
-// We will be using a weighted union-find datastruct for determing whether two kbIDs are connected,
+func (b *SecurityBulletin) initUF() *wUF {
+	uf := &wUF{}
+
+	uf.ids = make(map[uint]uint, len(b.VendorFixes))
+	uf.size = make(map[uint]uint16, len(b.VendorFixes))
+
+	// Init forest
+	for KBID := range b.VendorFixes {
+		uf.ids[KBID] = KBID
+		uf.size[KBID] = 1
+	}
+
+	// Create unions
+	for KBID, vf := range b.VendorFixes {
+		if vf.Supersedes != nil {
+			uf.union(KBID, *vf.Supersedes)
+		}
+	}
+
+	return uf
+}
+
+var vfForest *wUF
+
+func (b *SecurityBulletin) getVFForest() *wUF {
+	if vfForest == nil {
+		vfForest = b.initUF()
+	}
+	return vfForest
+}
+
+// KBIDsConnected returns whether two updates are 'connected', used for dealing with cumulative
+// updates. A cumulative update can replace another update (we determine this via the 'Supersedes'
+// prop. in the VendorFix type), when determining whether a host is susceptible to a vulnerability we
+// are interested in determining whether the host has a specific update installed or any of the
+// superseded updates.
+func (b *SecurityBulletin) KBIDsConnected(p, q uint) bool {
+	return b.getVFForest().connected(p, q)
+}
+
+// ----
+// UF
+// ----
+
+// We will be using a weighted union-find data struct for determining whether two KBIDs are 'connected',
 // this will be used for handling cumulative updates.
 type wUF struct {
 	// Each 'value' points to the parent of 'key', each key is a KBID
 	ids map[uint]uint
-	// The size of each tree by 'kbID'
+	// The size of each tree by 'KBID'
 	size map[uint]uint16
 }
 
+// union connects two components (KBID)
 func (uf *wUF) union(p uint, q uint) {
 	pRoot := uf.root(p)
 	qRoot := uf.root(q)
@@ -112,6 +156,7 @@ func (uf *wUF) union(p uint, q uint) {
 	}
 }
 
+// root returns the root of the 'p' tree
 func (uf *wUF) root(p uint) uint {
 	if _, ok := uf.ids[p]; !ok {
 		return p
@@ -125,53 +170,15 @@ func (uf *wUF) root(p uint) uint {
 	return p
 }
 
+// connected returns whether two components are connected, for example:
+// A -> B -> C -> D; connected(A, C) -> true
 func (uf *wUF) connected(p uint, q uint) bool {
-	rootP := uf.root(p)
-	rootQ := uf.root(q)
-
-	if rootP == 0 || rootQ == 0 {
-		return false
-	}
-
-	return rootP == rootQ
+	return uf.root(p) == uf.root(q)
 }
 
-func (b *SecurityBulletin) initUF() *wUF {
-	uf := &wUF{}
-
-	uf.ids = make(map[uint]uint, len(b.VendorFixes))
-	uf.size = make(map[uint]uint16, len(b.VendorFixes))
-
-	// Init forest
-	for kbID := range b.VendorFixes {
-		uf.ids[kbID] = kbID
-		uf.size[kbID] = 1
-	}
-
-	// Create unions
-	for kbID, vf := range b.VendorFixes {
-		if vf.Supersedes != nil {
-			uf.union(kbID, *vf.Supersedes)
-		}
-	}
-
-	return uf
-}
-
-var vendorFixGraph *wUF
-
-func (b *SecurityBulletin) getVendorFixGraph() *wUF {
-	if vendorFixGraph == nil {
-		vendorFixGraph = b.initUF()
-	}
-	return vendorFixGraph
-}
-
-func (b *SecurityBulletin) Connected(p, q uint) bool {
-	uf := b.getVendorFixGraph()
-	fmt.Println(uf)
-	return uf.connected(p, q)
-}
+// ----------------------
+// Vulnerability
+// ----------------------
 
 type Vulnerability struct {
 	PublishedEpoch *int64
@@ -189,18 +196,19 @@ func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 	}
 }
 
+// ----------------------
+// VendorFix
+// ----------------------
+
 type VendorFix struct {
-	// TODO (juan): Do we need this?
-	FixedBuild string
 	// Set of products ids that target this vendor fix
 	ProductIDs map[string]bool
 	// A Reference to what vendor fix this particular vendor fix 'replaces'.
 	Supersedes *uint `json:",omitempty"`
 }
 
-func NewVendorFix(fixedBuild string) VendorFix {
+func NewVendorFix() VendorFix {
 	return VendorFix{
-		FixedBuild: fixedBuild,
 		ProductIDs: make(map[string]bool),
 	}
 }

@@ -26,19 +26,19 @@ func Analyze(
 		return nil, err
 	}
 
-	osProduct := msrc.NewProductFromOS(os)
-
 	// Find matching products inside the bulletin
-	productIDs := make(map[string]bool)
+	osProduct := msrc.NewProductFromOS(os)
+	matchingPIDs := make(map[string]bool)
 	for pID, p := range bulletin.Products {
 		if p.Matches(osProduct) {
-			productIDs[pID] = true
+			matchingPIDs[pID] = true
 		}
 	}
 
 	var offset int
 	var vulns []fleet.Vulnerability
 
+	// Detect vulnerabilities
 	for {
 		hIDs, err := ds.HostIDsByOSID(ctx, os.ID, offset, hostsBatchSize)
 		offset += len(hIDs)
@@ -58,11 +58,11 @@ func Analyze(
 			}
 
 			for cve, v := range bulletin.Vulnerabities {
-				if !utils.ProductIDsIntersect(v.ProductIDs, productIDs) {
+				if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 					continue
 				}
 
-				if patched(bulletin, v, productIDs, updates) {
+				if patched(bulletin, v, matchingPIDs, updates) {
 					continue
 				}
 
@@ -79,11 +79,11 @@ func Analyze(
 func patched(
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
-	productIDs map[string]bool,
+	matchingPIDs map[string]bool,
 	updates []fleet.WindowsUpdate,
 ) bool {
 	// check if any update directly remediates the vulnerability,
-	// this will be much faster than walking the linked list of vendor fixes.
+	// this will be much faster than walking the forest of vendor fixes.
 	for _, u := range updates {
 		if v.RemediatedBy[u.KBID] {
 			return true
@@ -93,12 +93,13 @@ func patched(
 	for KBID := range v.RemediatedBy {
 		fix := b.VendorFixes[KBID]
 
-		if !utils.ProductIDsIntersect(fix.ProductIDs, productIDs) {
+		// Check if this vendor fix targets the OS
+		if !utils.ProductIDsIntersect(fix.ProductIDs, matchingPIDs) {
 			continue
 		}
 
 		for _, u := range updates {
-			if b.Connected(KBID, u.KBID) {
+			if b.KBIDsConnected(KBID, u.KBID) {
 				return true
 			}
 		}

@@ -105,7 +105,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 				// initialize it.
 				var vFix parsed.VendorFix
 				if vFix, ok = b.VendorFixes[remediatedKBID]; !ok {
-					vFix = parsed.NewVendorFix(rem.FixedBuild)
+					vFix = parsed.NewVendorFix()
 				}
 				vFix.Supersedes = supersedes
 				vFix.ProductIDs[pID] = true

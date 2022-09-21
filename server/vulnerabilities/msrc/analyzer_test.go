@@ -60,12 +60,12 @@ func TestAnalyzer(t *testing.T) {
 			vuln.RemediatedBy[456] = true
 			b.Vulnerabities["cve-123"] = vuln
 
-			vfA := parsed.NewVendorFix("")
+			vfA := parsed.NewVendorFix()
 			vfA.Supersedes = ptr.Uint(123)
 			vfA.ProductIDs["123"] = true
 			b.VendorFixes[456] = vfA
 
-			vfB := parsed.NewVendorFix("")
+			vfB := parsed.NewVendorFix()
 			vfB.Supersedes = ptr.Uint(456)
 			vfB.ProductIDs["123"] = true
 			b.VendorFixes[789] = vfA
