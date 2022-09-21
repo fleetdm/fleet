@@ -128,53 +128,45 @@ CREATE TABLE `enroll_secrets` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_additional`
-(
-    `host_id`    int(10) unsigned NOT NULL,
-    `additional` json DEFAULT NULL,
-    PRIMARY KEY (`host_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `host_additional` (
+  `host_id` int(10) unsigned NOT NULL,
+  `additional` json DEFAULT NULL,
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client = @@character_set_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_batteries`
-(
-    `id`            int(10) unsigned NOT NULL AUTO_INCREMENT,
-    `host_id`       int(10) unsigned NOT NULL,
-    `serial_number` varchar(255)     NOT NULL,
-    `cycle_count`   int(10)          NOT NULL,
-    `health`        varchar(40)      NOT NULL,
-    `created_at`    timestamp        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`    timestamp        NULL     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `idx_host_batteries_host_id_serial_number` (`host_id`, `serial_number`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `host_batteries` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int(10) unsigned NOT NULL,
+  `serial_number` varchar(255) NOT NULL,
+  `cycle_count` int(10) NOT NULL,
+  `health` varchar(40) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_batteries_host_id_serial_number` (`host_id`,`serial_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client = @@character_set_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_device_auth`
-(
-    `host_id` int(10) unsigned NOT NULL,
-    `token`   varchar(255)     NOT NULL,
-    PRIMARY KEY (`host_id`),
-    UNIQUE KEY `idx_host_device_auth_token` (`token`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `host_device_auth` (
+  `host_id` int(10) unsigned NOT NULL,
+  `token` varchar(255) NOT NULL,
+  PRIMARY KEY (`host_id`),
+  UNIQUE KEY `idx_host_device_auth_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client = @@character_set_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_display_name`
-(
-    `host_id`      int(10) unsigned NOT NULL,
-    `display_name` varchar(255)     NOT NULL,
-    PRIMARY KEY (`host_id`),
-    KEY `display_name` (`display_name`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `host_display_name` (
+  `host_id` int(10) unsigned NOT NULL,
+  `display_name` varchar(255) NOT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `display_name` (`display_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client = @@character_set_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_disks` (
   `host_id` int(10) unsigned NOT NULL,
@@ -188,30 +180,27 @@ CREATE TABLE `host_disks` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_emails`
-(
-    `id`         int(10) unsigned NOT NULL AUTO_INCREMENT,
-    `host_id`    int(10) unsigned NOT NULL,
-    `email`      varchar(255)     NOT NULL,
-    `source`     varchar(255)     NOT NULL,
-    `created_at` timestamp        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` timestamp        NULL     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    KEY `idx_host_emails_host_id_email` (`host_id`, `email`),
-    KEY `idx_host_emails_email` (`email`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4;
+CREATE TABLE `host_emails` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int(10) unsigned NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `source` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_host_emails_host_id_email` (`host_id`,`email`),
+  KEY `idx_host_emails_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client = @@character_set_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_mdm`
-(
-    `host_id`            int(10) unsigned NOT NULL,
-    `enrolled`           tinyint(1)       NOT NULL DEFAULT '0',
-    `server_url`         varchar(255)     NOT NULL DEFAULT '',
-    `installed_from_dep` tinyint(1)       NOT NULL DEFAULT '0',
-    `mdm_id`             int(10) unsigned          DEFAULT NULL,
-    PRIMARY KEY (`host_id`),
+CREATE TABLE `host_mdm` (
+  `host_id` int(10) unsigned NOT NULL,
+  `enrolled` tinyint(1) NOT NULL DEFAULT '0',
+  `server_url` varchar(255) NOT NULL DEFAULT '',
+  `installed_from_dep` tinyint(1) NOT NULL DEFAULT '0',
+  `mdm_id` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
   KEY `host_mdm_mdm_id_idx` (`mdm_id`),
   KEY `host_mdm_enrolled_installed_from_dep_idx` (`enrolled`,`installed_from_dep`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
