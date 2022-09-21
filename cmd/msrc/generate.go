@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,7 +28,8 @@ func main() {
 	now := time.Now()
 	httpC := http.DefaultClient
 
-	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
+	ctx := context.Background()
+	ghAPI := io.NewGitHubClient(ctx, httpC, github.NewClient(httpC).Repositories, wd)
 	msrcAPI := io.NewMSRCClient(httpC, wd, io.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")

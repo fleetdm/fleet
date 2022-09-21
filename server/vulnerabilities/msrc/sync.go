@@ -1,6 +1,7 @@
 package msrc
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -60,9 +61,9 @@ func bulletinsDelta(
 // Sync syncs the local msrc security bulletins (contained in dstDir) for one or more operating systems with the security
 // bulletin published in Github.
 // If 'os' is nil, then all security bulletins will be synched.
-func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
+func Sync(ctx context.Context, client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
 	rep := github.NewClient(client).Repositories
-	gh := io.NewGitHubClient(client, rep, dstDir)
+	gh := io.NewGitHubClient(ctx, client, rep, dstDir)
 	fs := io.NewFSClient(dstDir)
 
 	if err := sync(os, fs, gh); err != nil {

@@ -31,6 +31,7 @@ type GitHubAPI interface {
 }
 
 type GitHubClient struct {
+	ctx        context.Context
 	httpClient *http.Client
 	releases   ReleaseLister
 	workDir    string
@@ -38,8 +39,9 @@ type GitHubClient struct {
 
 // NewGitHubClient returns a new GithubClient, 'workDir' will be used as the destination directory for
 // downloading artifacts.
-func NewGitHubClient(client *http.Client, releases ReleaseLister, workDir string) GitHubClient {
+func NewGitHubClient(ctx context.Context, client *http.Client, releases ReleaseLister, workDir string) GitHubClient {
 	return GitHubClient{
+		ctx:        ctx,
 		httpClient: client,
 		releases:   releases,
 		workDir:    workDir,
@@ -64,7 +66,7 @@ func (gh GitHubClient) Download(URL string) (string, error) {
 
 // Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
 func (gh GitHubClient) Bulletins() (map[SecurityBulletinName]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(gh.ctx, 3*time.Second)
 	defer cancel()
 
 	releases, r, err := gh.releases.ListReleases(

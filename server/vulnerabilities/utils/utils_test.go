@@ -11,6 +11,66 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRecentVulns(t *testing.T) {
+	meta := []fleet.CVEMeta{
+		{CVE: "cve-recent-1"},
+		{CVE: "cve-recent-2"},
+		{CVE: "cve-recent-3"},
+	}
+
+	t.Run("no NVD nor OVAL vulns", func(t *testing.T) {
+		vulns, meta := RecentVulns[fleet.SoftwareVulnerability](nil, meta)
+		require.Empty(t, vulns)
+		require.Empty(t, meta)
+	})
+
+	t.Run("filters vulnerabilities based on max age", func(t *testing.T) {
+		ovalVulns := []fleet.SoftwareVulnerability{
+			{CVE: "cve-recent-1"},
+			{CVE: "cve-recent-2"},
+			{CVE: "cve-recent-2"},
+			{CVE: "cve-outdated-1"},
+		}
+
+		nvdVulns := []fleet.SoftwareVulnerability{
+			{CVE: "cve-recent-1"},
+			{CVE: "cve-recent-3"},
+			{CVE: "cve-outdated-2"},
+			{CVE: "cve-outdated-3"},
+		}
+
+		expected := []string{
+			"cve-recent-1",
+			"cve-recent-2",
+			"cve-recent-3",
+		}
+
+		var input []fleet.SoftwareVulnerability
+		for _, e := range ovalVulns {
+			input = append(input, e)
+		}
+		for _, e := range nvdVulns {
+			input = append(input, e)
+		}
+
+		var actual []string
+		vulns, meta := RecentVulns(input, meta)
+		for _, r := range vulns {
+			actual = append(actual, r.GetCVE())
+		}
+
+		expectedMeta := map[string]fleet.CVEMeta{
+			"cve-recent-1": {CVE: "cve-recent-1"},
+			"cve-recent-2": {CVE: "cve-recent-2"},
+			"cve-recent-3": {CVE: "cve-recent-3"},
+		}
+
+		require.Equal(t, len(expected), len(actual))
+		require.ElementsMatch(t, expected, actual)
+		require.Equal(t, expectedMeta, meta)
+	})
+}
+
 func TestVulnsDelta(t *testing.T) {
 	t.Run("no existing vulnerabilities", func(t *testing.T) {
 		var found []fleet.SoftwareVulnerability

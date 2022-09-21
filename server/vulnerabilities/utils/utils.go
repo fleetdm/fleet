@@ -11,6 +11,34 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// RecentVulns filters vulnerabilities based on whether the vulnerability cve is contained in 'meta'.
+// Returns the filtered vulnerabilities and their meta data.
+func RecentVulns[T fleet.Vulnerability](
+	vulns []T,
+	meta []fleet.CVEMeta,
+) ([]T, map[string]fleet.CVEMeta) {
+	if len(vulns) == 0 {
+		return nil, nil
+	}
+
+	recent := make(map[string]fleet.CVEMeta)
+	for _, r := range meta {
+		recent[r.CVE] = r
+	}
+
+	seen := make(map[string]bool)
+	var r []T
+
+	for _, v := range vulns {
+		if _, ok := recent[v.GetCVE()]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			r = append(r, v)
+		}
+	}
+
+	return r, recent
+}
+
 func BatchProcess[T fleet.Vulnerability](
 	values map[string]T,
 	dsFunc func(v []T) error,

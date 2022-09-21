@@ -4816,6 +4816,14 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
 	_, err = ds.writer.Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
+
+	// Operating system vulnerabilities
+	_, err = ds.writer.Exec(
+		`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
+		host.ID, 1, "cve-1",
+	)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
