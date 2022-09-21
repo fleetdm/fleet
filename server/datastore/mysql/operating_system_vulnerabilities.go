@@ -5,21 +5,31 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]fleet.OSVulnerability, error) {
-	stmt := `
-        SELECT host_id, operating_system_id, cve
-        FROM operating_system_vulnerabilities
-        WHERE host_id IN (?)
-	`
+func (ds *Datastore) ListOSVulnerabilities(ctx context.Context, hostIDs []uint) ([]fleet.OSVulnerability, error) {
 	r := []fleet.OSVulnerability{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &r, stmt, hostID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing OS vulnerabilities")
+	stmt := dialect.
+		From(goqu.T("operating_system_vulnerabilities")).
+		Select(
+			goqu.I("host_id"),
+			goqu.I("operating_system_id"),
+			goqu.I("cve"),
+		).
+		Where(goqu.C("host_id").In(hostIDs))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &r, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
 	return r, nil
