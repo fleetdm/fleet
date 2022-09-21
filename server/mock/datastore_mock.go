@@ -427,6 +427,8 @@ type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version str
 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
+type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
 
 type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
@@ -1070,6 +1072,9 @@ type DataStore struct {
 
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
+
+	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
+	SetOrUpdateHostDisksSpaceFuncInvoked bool
 
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
@@ -2138,6 +2143,11 @@ func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, versi
 func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
 	s.SetOrUpdateMDMDataFuncInvoked = true
 	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep)
+}
+
+func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
+	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
+	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
 }
 
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {

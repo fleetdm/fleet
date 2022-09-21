@@ -75,10 +75,31 @@ type HostListOptions struct {
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
 	MunkiIssueIDFilter *uint
+
+	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
+	// with less than N gigs of disk space available). Note that this is a Fleet
+	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
+	// disable it).
+	LowDiskSpaceFilter *int
 }
 
 func (h HostListOptions) Empty() bool {
-	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+	return h.ListOptions.Empty() &&
+		h.DeviceMapping == false &&
+		len(h.AdditionalFilters) == 0 &&
+		h.StatusFilter == "" &&
+		h.TeamFilter == nil &&
+		h.PolicyIDFilter == nil &&
+		h.PolicyResponseFilter == nil &&
+		h.SoftwareIDFilter == nil &&
+		h.OSIDFilter == nil &&
+		h.OSNameFilter == nil &&
+		h.OSVersionFilter == nil &&
+		h.DisableFailingPolicies == false &&
+		h.MDMIDFilter == nil &&
+		h.MDMEnrollmentStatusFilter == "" &&
+		h.MunkiIssueIDFilter == nil &&
+		h.LowDiskSpaceFilter == nil
 }
 
 type HostUser struct {
