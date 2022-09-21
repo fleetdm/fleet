@@ -4,17 +4,6 @@ This guide includes everything you need to know about Fleet’s editorial proces
 
 > For help with formatting your article, check out our [article formatting guide](./article-formatting-guide).
 
-### On this page
-
-- [Article DRIs](#article-dr-is)
-- [Who can publish articles?](#who-can-publish-articles)
-- [Communication](#communication)
-- [Schedule](#schedule)
-- [How to submit an article](#how-to-submit-an-article)
-- [Review process](#review-process)
-- [Pre-publication checklist](#pre-publication-checklist)
-- [After publication](#after-publication)
-
 ## Article DRIs
 
 | Activity | DRI |
@@ -38,11 +27,8 @@ Publishing occurs according to our [content calendar](https://docs.google.com/sp
 
 ## How to submit an article
 
-1. Familiarize yourself with our [article formatting guide](./article-formatting-guide) and writing style guide (todo).
-2. Create a pull request for fleetdm.com with a file of your article, formatted in [Markdown](./markdown-guide).
-3. Include any relevant images, image suggestions, or other design requests you may have.
-
-> **IMPORTANT**: Your PR is not confidential. If the information in your article is confidential, please prepare your article in a Google Doc, or create a draft PR ~1 hour before publication time to keep your article private.
+1. Submit your draft to Chris McGillcuddy as a Google Doc. 
+2. Include any relevant images, image suggestions, or other design requests you may have.
 
 ## Review process
 
@@ -61,6 +47,18 @@ Articles are official Fleet communication. We carefully review published content
 | Posts requiring a technical review | Three business days |
 
 > Review times for posts requiring a technical review may vary depending on the Engineering and Security teams' schedules. E.g., if a review coincides with a product release.
+
+## Create a PR for your article
+
+After your article has been editied and approved, create a pull request on fleetdm.com and request review from Chris McGillicuddy.
+
+### How to PR your article   
+
+1. Familiarize yourself with our [article formatting guide](./article-formatting-guide).
+2. Add a file, formatted in [Markdown](./markdown-guide), to the Fleet repo in Github [fleetdm/fleet/articles](https://github.com/fleetdm/fleet/tree/main/articles), using the name of your article as the filename. E.g., `deploy-fleet-on-render.md`.
+3. Request a review from Chris McGillicuddy. 
+
+> **IMPORTANT**: Your PR is not confidential. If the information in your article is confidential, please prepare your article in a Google Doc, or create a draft PR ~1 hour before publication time to keep your article private.
 
 ## Pre-publication checklist
 
