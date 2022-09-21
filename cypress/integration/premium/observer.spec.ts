@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageQueriesPage from "../pages/manageQueriesPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
@@ -161,22 +162,9 @@ describe("Premium tier - Observer user", () => {
       });
     });
     describe("Query pages", () => {
-      beforeEach(() => cy.visit("/queries/manage"));
-      it("should render elements according to role-based access controls", () => {
-        // Navigate to query detail page for first query on manage queries page
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.contains(".fleet-checkbox__input").should("not.exist");
-              cy.findByText(/detect presence/i).click();
-            });
-        });
-        cy.getAttached(".query-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /run/i }).click();
-        });
-        cy.contains("h3", /teams/i).should("exist");
-        cy.contains(".selector-name", /apples/i).should("exist");
+      beforeEach(() => manageQueriesPage.visitManageQueriesPage());
+      it("allows global maintainer to select teams targets for query", () => {
+        manageQueriesPage.allowsSelectTeamTargets();
       });
     });
     describe("Policies pages", () => {

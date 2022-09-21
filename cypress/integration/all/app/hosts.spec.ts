@@ -26,8 +26,6 @@ describe("Hosts flow", () => {
     });
     it("adds a new host and downloads installation files", () => {
       // Download add hosts files
-      cy.visit("/hosts/manage");
-
       cy.getAttached(".manage-hosts").within(() => {
         cy.contains("button", /add hosts/i).click();
       });

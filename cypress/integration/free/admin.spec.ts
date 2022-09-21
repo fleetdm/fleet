@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageQueriesPage from "../pages/manageQueriesPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
@@ -194,32 +195,10 @@ describe(
     describe("Query pages", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
-        cy.visit("/queries/manage");
+        manageQueriesPage.visitManageQueriesPage();
       });
       it("allows admin add a new query", () => {
-        cy.findByRole("button", { name: /new query/i }).click();
-        cy.getAttached(".ace_text-input")
-          .click({ force: true })
-          .clear({ force: true })
-          .type("SELECT * FROM cypress;", {
-            force: true,
-          });
-        cy.findByRole("button", { name: /save/i }).click();
-        cy.getAttached(".modal__background").within(() => {
-          cy.getAttached(".modal__modal_container").within(() => {
-            cy.getAttached(".modal__content").within(() => {
-              cy.getAttached("form").within(() => {
-                cy.findByLabelText(/name/i).click().type("Cypress test query");
-                cy.findByLabelText(/description/i)
-                  .click()
-                  .type("Cypress test of create new query flow.");
-                cy.findByLabelText(/observers can run/i).click({ force: true });
-                cy.findByRole("button", { name: /save query/i }).click();
-              });
-            });
-          });
-        });
-        cy.findByText(/query created/i).should("exist");
+        manageQueriesPage.createsNewQuery();
       });
       it("allows admin to edit a query", () => {
         cy.findByText(/cypress test query/i).click({ force: true });

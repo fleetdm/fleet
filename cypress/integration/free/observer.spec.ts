@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageQueriesPage from "../pages/manageQueriesPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
@@ -174,12 +175,10 @@ describe("Free tier - Observer user", () => {
   describe("Query page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/queries/manage");
+      manageQueriesPage.visitManageQueriesPage();
     });
     it("hides create a query button", () => {
-      cy.findByRole("button", { name: /create new query/i }).should(
-        "not.exist"
-      );
+      manageQueriesPage.hidesButton("Create new query");
     });
     it("verifies observer can select a query and only run it", () => {
       cy.getAttached(".data-table__table").within(() => {
