@@ -38,7 +38,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilities", testListSoftwareVulnerabilities},
-		{"InsertVulnerabilities", testInsertVulnerabilities},
+		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"SoftwareByID", testSoftwareByID},
@@ -246,7 +246,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
 	}
-	_, err := ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
+	_, err := ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
@@ -502,7 +502,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003"},
 	}
 
-	_, err := ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
+	_, err := ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 
 	cveMeta := []fleet.CVEMeta{
@@ -1108,7 +1108,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	})
 
 	chrome3 := host2.Software[2]
-	n, err := ds.InsertVulnerabilities(context.Background(), []fleet.SoftwareVulnerability{
+	n, err := ds.InsertSoftwareVulnerabilities(context.Background(), []fleet.SoftwareVulnerability{
 		{
 			SoftwareID: chrome3.ID,
 			CVE:        "CVE-2022-0001",
@@ -1119,7 +1119,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, int(n))
 
 	barRpm := host2.Software[0]
-	n, err = ds.InsertVulnerabilities(context.Background(),
+	n, err = ds.InsertSoftwareVulnerabilities(context.Background(),
 		[]fleet.SoftwareVulnerability{
 			{
 				SoftwareID: barRpm.ID,
@@ -1426,7 +1426,7 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 		}
 
 	}
-	n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.NVDSource)
+	n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
 	require.NoError(t, err)
 	require.Equal(t, int(n), 2)
 
@@ -1446,11 +1446,11 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
+func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	t.Run("no vulnerabilities to insert", func(t *testing.T) {
-		r, err := ds.InsertVulnerabilities(ctx, nil, fleet.UbuntuOVALSource)
+		r, err := ds.InsertSoftwareVulnerabilities(ctx, nil, fleet.UbuntuOVALSource)
 		require.Zero(t, r)
 		require.NoError(t, err)
 	})
@@ -1475,7 +1475,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
@@ -1507,11 +1507,11 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
-		n, err = ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 0, int(n))
 
@@ -1629,7 +1629,7 @@ func testSoftwareByID(t *testing.T, ds *Datastore) {
 				CVE:        fmt.Sprintf("cve-%d", i),
 			})
 		}
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 4, int(n))
 

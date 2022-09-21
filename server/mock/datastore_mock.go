@@ -311,7 +311,7 @@ type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cp
 
 type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
-type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
+type InsertSoftwareVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error)
 
@@ -452,6 +452,12 @@ type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 type ListWindowsUpdatesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error)
 
 type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
+
+type ListOSVulnerabilitiesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.OSVulnerability, error)
+
+type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
+
+type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -901,8 +907,8 @@ type DataStore struct {
 	ListSoftwareCPEsFunc        ListSoftwareCPEsFunc
 	ListSoftwareCPEsFuncInvoked bool
 
-	InsertVulnerabilitiesFunc        InsertVulnerabilitiesFunc
-	InsertVulnerabilitiesFuncInvoked bool
+	InsertSoftwareVulnerabilitiesFunc        InsertSoftwareVulnerabilitiesFunc
+	InsertSoftwareVulnerabilitiesFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -1113,6 +1119,15 @@ type DataStore struct {
 
 	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
 	InsertWindowsUpdatesFuncInvoked bool
+
+	ListOSVulnerabilitiesByHostIDFunc        ListOSVulnerabilitiesByHostIDFunc
+	ListOSVulnerabilitiesByHostIDFuncInvoked bool
+
+	InsertOSVulnerabilitiesFunc        InsertOSVulnerabilitiesFunc
+	InsertOSVulnerabilitiesFuncInvoked bool
+
+	DeleteOSVulnerabilitiesFunc        DeleteOSVulnerabilitiesFunc
+	DeleteOSVulnerabilitiesFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -1860,9 +1875,9 @@ func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, 
 	return s.ListSoftwareCPEsFunc(ctx)
 }
 
-func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
-	s.InsertVulnerabilitiesFuncInvoked = true
-	return s.InsertVulnerabilitiesFunc(ctx, vulns, source)
+func (s *DataStore) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+	s.InsertSoftwareVulnerabilitiesFuncInvoked = true
+	return s.InsertSoftwareVulnerabilitiesFunc(ctx, vulns, source)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
@@ -2213,4 +2228,19 @@ func (s *DataStore) ListWindowsUpdatesByHostID(ctx context.Context, hostID uint)
 func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
 	s.InsertWindowsUpdatesFuncInvoked = true
 	return s.InsertWindowsUpdatesFunc(ctx, hostID, updates)
+}
+
+func (s *DataStore) ListOSVulnerabilitiesByHostID(ctx context.Context, hostID uint) ([]fleet.OSVulnerability, error) {
+	s.ListOSVulnerabilitiesByHostIDFuncInvoked = true
+	return s.ListOSVulnerabilitiesByHostIDFunc(ctx, hostID)
+}
+
+func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+	s.InsertOSVulnerabilitiesFuncInvoked = true
+	return s.InsertOSVulnerabilitiesFunc(ctx, vulnerabilities, source)
+}
+
+func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {
+	s.DeleteOSVulnerabilitiesFuncInvoked = true
+	return s.DeleteOSVulnerabilitiesFunc(ctx, vulnerabilities)
 }

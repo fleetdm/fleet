@@ -392,9 +392,9 @@ type Datastore interface {
 	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
-	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
+	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
-	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
+	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
@@ -625,9 +625,15 @@ type Datastore interface {
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Windows Update History
+	// WindowsUpdates Store
 	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
 	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// OperatingSystemVulnerabilities Store
+	ListOSVulnerabilitiesByHostID(ctx context.Context, hostID uint) ([]OSVulnerability, error)
+	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
+	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 }
 
 const (

@@ -51,10 +51,10 @@ func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context) ([]fleet.Softwa
 	return d.Store.ListSoftwareCPEs(ctx)
 }
 
-func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+func (d *threadSafeDSMock) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.InsertVulnerabilities(ctx, vulns, src)
+	return d.Store.InsertSoftwareVulnerabilities(ctx, vulns, src)
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
@@ -81,7 +81,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 			cveLock := &sync.Mutex{}
 			var cvesFound []string
-			ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 				cveLock.Lock()
 				defer cveLock.Unlock()
 				for _, v := range vulns {
@@ -112,7 +112,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return softwareCPEs, nil
 		}
 
-		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 1, nil
 		}
 		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
@@ -132,7 +132,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		// call it again but now return 0 from this call, simulating CVE-CPE pairs
 		// that already existed in the DB.
-		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 0, nil
 		}
 		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)

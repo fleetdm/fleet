@@ -71,9 +71,9 @@ func (sv SoftwareVulnerability) Affected() uint {
 // OSVulnerability is a vulnerability on a OS.
 // Represents an entry in the `os_vulnerabilities` table.
 type OSVulnerability struct {
-	OSID   uint
-	HostID uint
-	CVE    string
+	OSID   uint   `db:"operating_system_id"`
+	HostID uint   `db:"host_id"`
+	CVE    string `db:"cve"`
 }
 
 // String implements fmt.Stringer.
@@ -109,4 +109,5 @@ const (
 	NVDSource VulnerabilitySource = iota
 	UbuntuOVALSource
 	RHELOVALSource
+	MSRCSource
 )

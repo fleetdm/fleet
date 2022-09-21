@@ -20,6 +20,7 @@ func Up_20220921090715(tx *sql.Tx) error {
 			host_id             INT UNSIGNED NOT NULL,
 			operating_system_id INT UNSIGNED NOT NULL,
 			cve                 VARCHAR(255) NOT NULL,
+			source              SMALLINT              DEFAULT 0,
 			created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
 			UNIQUE KEY idx_operating_system_vulnerabilities_unq_cve (host_id, cve),
