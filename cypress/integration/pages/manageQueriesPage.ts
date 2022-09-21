@@ -11,7 +11,6 @@ const manageQueriesPage = {
     cy.findByRole("button", { name: /new query/i }).click();
     cy.getAttached(".ace_scroller")
       .click({ force: true })
-      .clear({ force: true })
       .type("{selectall}SELECT * FROM windows_crashes;", { force: true });
     cy.findByRole("button", { name: /save/i }).click();
     cy.getAttached(".modal__background").within(() => {

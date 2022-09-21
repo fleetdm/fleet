@@ -66,12 +66,12 @@ const hostDetailsPage = {
 
   hidesCreatingOSPolicy: () => {
     cy.getAttached(".info-flex").within(() => {
-      cy.findByText(/operating system/i)
+      cy.findByText("Operating system")
         .next()
         .findByText(/ubuntu/i)
         .should("exist");
 
-      cy.findByText(/operating system/i)
+      cy.findByText("Operating system")
         .next()
         .findByRole("button")
         .should("not.exist");

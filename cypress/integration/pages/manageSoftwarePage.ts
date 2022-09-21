@@ -4,11 +4,6 @@ const manageSoftwarePage = {
   },
 
   hidesButton: (text: string) => {
-    if (text === "Manage automations") {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.contains("button", text).should("not.exist");
-      });
-    }
     cy.contains("button", text).should("not.exist");
   },
 
