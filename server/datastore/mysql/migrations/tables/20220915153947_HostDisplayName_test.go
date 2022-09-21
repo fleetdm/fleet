@@ -24,7 +24,7 @@ func TestUp_20220915153947(t *testing.T) {
 		DisplayName string `db:"display_name"`
 	}
 	var rows []dn
-	require.NoError(t, db.Select(&rows, `SELECT * FROM host_display_name`))
+	require.NoError(t, db.Select(&rows, `SELECT * FROM host_display_names`))
 	require.ElementsMatch(t, []dn{
 		{1, "foo.example.com"},
 		{2, "bar"},

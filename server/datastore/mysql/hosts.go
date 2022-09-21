@@ -87,11 +87,11 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
 		_, err = ds.writer.ExecContext(ctx,
-			`INSERT INTO host_display_name (host_id, display_name) VALUES (?,?)`,
+			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
 			host.ID, host.DisplayName(),
 		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "host_display_name")
+			return ctxerr.Wrap(ctx, err, "host_display_names")
 		}
 		return nil
 	})
@@ -309,7 +309,7 @@ var hostRefs = []string{
 	"host_batteries",
 	"host_operating_system",
 	"host_munki_issues",
-	"host_display_name",
+	"host_display_names",
 	"windows_updates",
 	"host_disks",
 }
@@ -622,7 +622,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 
 	displayNameJoin := ""
 	if opt.ListOptions.OrderKey == "display_name" {
-		displayNameJoin = ` JOIN host_display_name hdn ON h.id = hdn.host_id `
+		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
 
 	lowDiskSpaceFilter := "TRUE"
@@ -759,11 +759,11 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		}
 
 		cleanupHostDisplayName := fmt.Sprintf(
-			`DELETE FROM host_display_name WHERE host_id IN (%s)`,
+			`DELETE FROM host_display_names WHERE host_id IN (%s)`,
 			selectIDs,
 		)
 		if _, err := ds.writer.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup host_display_name")
+			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
 		}
 
 		cleanupHosts := `
@@ -953,11 +953,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			hostID, _ = result.LastInsertId()
 			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
-				INSERT INTO host_display_name (host_id, display_name) VALUES (?, '')
+				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
 			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "insert host_display_name")
+				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
@@ -2704,7 +2704,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
 		}
 		tx.ExecContext(ctx, `
-			UPDATE host_display_name
+			UPDATE host_display_names
 			SET display_name=?
 			WHERE host_id=?`,
 			host.DisplayName(),
