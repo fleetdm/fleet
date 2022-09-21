@@ -1481,6 +1481,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// no team filter
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp)
 	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
+	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 3)
 	gotPlatforms, wantPlatforms := make([]string, 3), []string{"linux", "debian", "rhel"}
 	for i, p := range resp.Platforms {
@@ -1513,9 +1514,10 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
-	// team filter, one host
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
+	// team filter, one host, low_disk_count is ignored as not premium
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
@@ -1547,6 +1549,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
 	require.Equal(t, resp.AllLinuxCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
+
+	// invalid low_disk_space value is still validated and results in error
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusInternalServerError, &resp, "low_disk_space", "1234") // TODO: should be 400, see #4406
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
