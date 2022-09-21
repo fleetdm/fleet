@@ -561,7 +561,7 @@ Create a new issue for the current month and year named "Closing out YYYY-MM" us
 ### Annual reporting for capital credit line
 
 - Within 60 days of the end of the year:
-  - Provide SVB with our balance sheet and P&L for the past twelve months.  
+  - Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
   - Provide SVB with our annual operating budgets and projections (on a quarterly basis) for the coming year.
   - Deliver this as early as possible in case they have questions.
 
