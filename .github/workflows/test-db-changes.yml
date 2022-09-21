@@ -49,7 +49,7 @@ jobs:
     - name: Check migration order
       run: |
         all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
-        new_migrations=($(git diff --name-only ${{github.base_ref}} -- server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
+        new_migrations=($(git diff --name-only origin/${{github.base_ref}} -- server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
 
         index=0
         for migration in $new_migrations; do
