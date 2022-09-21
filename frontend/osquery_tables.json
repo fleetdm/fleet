@@ -8999,7 +8999,7 @@
     "name": "intel_me_info",
     "description": "Intel ME/CSE Info.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/linwin/intel_me_info.table",
-    "platforms": ["darwin", "linux", "windows"],
+    "platforms": ["linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -17705,7 +17705,7 @@
     "name": "secureboot",
     "description": "Secure Boot UEFI Settings.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/linwin/secureboot.table",
-    "platforms": ["darwin", "linux", "windows"],
+    "platforms": ["linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
