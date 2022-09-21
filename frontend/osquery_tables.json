@@ -745,7 +745,7 @@
     "name": "apt_sources",
     "description": "Current list of APT repositories or software channels.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/apt_sources.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -22483,7 +22483,7 @@
     "name": "yum_sources",
     "description": "Current list of Yum repositories or software channels.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/yum_sources.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
