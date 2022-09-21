@@ -1374,7 +1374,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if *a.ActorEmail == auth.UserID() && a.Type == fleet.ActivityTypeUserAddedBySSO {
+			if a.Type == fleet.ActivityTypeUserAddedBySSO && *a.ActorEmail == auth.UserID() {
 				return true
 			}
 		}
