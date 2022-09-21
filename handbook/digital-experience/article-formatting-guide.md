@@ -1,21 +1,12 @@
 # Article formatting guide
 
-To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown, in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
-
-> Learn how to write Fleet-flavored Markdown in our [Markdown guide](./markdown-guide).
-
-### On this page
-- [Layout](#layout)
-- [Images and screenshots](#images-and-screenshots)
-- [Meta tags](#meta-tags)
-- [Customizable CTA](#customizable-cta)
-- [Related pages](#related-pages)
+> Before creating a pull request for an article, please submit a Google Doc draft (see [How to submit an article](./how-to-submit-and-publish-an-article.md#how-to-submit-an-article)). If you need help with Fleet-flavored Markdown, please read our handy [Markdown guide](./markdown-guide).
 
 ## Layout
 The following layout guide aims to help you create consistently formatted articles. For an existing article example, check out the [Markdown](https://raw.githubusercontent.com/fleetdm/fleet/main/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge.md) and the [finished result](https://fleetdm.com/securing/tales-from-fleet-security-speeding-up-macos-updates-with-nudge).
 
 ### Hero image
-Consider adding a hero image for a more significant impact. Get in touch with Digital Experience via #content on Slack to make a request. 
+Consider adding a hero image for a more significant impact. Get in touch with Digital Experience in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack to make a request. 
 
 ### Table of contents
 For long articles or guides, consider adding a table of contents.
@@ -28,9 +19,6 @@ The main body of your article.
 
 ### Conclusion
 It’s a good idea to finish your article with a clear closing statement.
-
-### Add a customizable CTA
-Add a CTA at the end of your article. See [Customizable CTA](#customizable-cta) below for instructions on creating a CTA tailored to your article topic.
 
 ## Images and screenshots
 Images are a great way to help engage your readers. But consider the following before including images or screenshots in your article:

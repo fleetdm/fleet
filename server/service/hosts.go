@@ -163,6 +163,11 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
+	if !svc.license.IsPremium() {
+		// the low disk space filter is premium-only
+		opt.LowDiskSpaceFilter = nil
+	}
+
 	return svc.ds.ListHosts(ctx, filter, opt)
 }
 
@@ -272,6 +277,11 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 	filter, err := processHostFilters(ctx, opt, nil)
 	if err != nil {
 		return 0, err
+	}
+
+	if !svc.license.IsPremium() {
+		// the low disk space filter is premium-only
+		opt.LowDiskSpaceFilter = nil
 	}
 
 	var count int

@@ -69,6 +69,23 @@ data "aws_iam_role" "admin" {
   name = "admin"
 }
 
+resource "aws_iam_policy" "fluentbit_logs" {
+  name   = "${var.prefix}-fluentbit"
+  policy = data.aws_iam_policy_document.fluentbit_logs.json
+}
+
+data "aws_iam_policy_document" "fluentbit_logs" {
+  statement {
+    actions = [
+      "logs:CreateLogStream",
+      "logs:CreateLogGroup",
+      "logs:DescribeLogStreams",
+      "logs:PutLogEvents",
+    ]
+    resources = ["*"]
+  }
+}
+
 module "aws-eks-accelerator-for-terraform" {
   source       = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
   cluster_name = var.prefix
@@ -97,7 +114,7 @@ module "aws-eks-accelerator-for-terraform" {
 
   fargate_profiles = {
     default = {
-      additional_iam_policies = [aws_iam_policy.ecr.arn]
+      additional_iam_policies = [aws_iam_policy.ecr.arn, aws_iam_policy.fluentbit_logs.arn]
       fargate_profile_name    = "default"
       fargate_profile_namespaces = [
         {
@@ -149,7 +166,7 @@ module "kubernetes-addons" {
   enable_ingress_nginx                = false
   enable_aws_for_fluentbit            = false
   enable_argocd                       = false
-  enable_fargate_fluentbit            = false
+  enable_fargate_fluentbit            = true
   enable_argo_rollouts                = false
   enable_kubernetes_dashboard         = false
   enable_yunikorn                     = false
