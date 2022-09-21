@@ -129,7 +129,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	assert.False(t, called)
 }
 
-func TestCronWebhooks(t *testing.T) {
+func TestAutomationsSchedule(t *testing.T) {
 	ds := new(mock.Store)
 
 	endpointCalled := int32(0)
@@ -180,7 +180,7 @@ func TestCronWebhooks(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	go cronWebhooks(ctx, ds, kitlog.With(kitlog.NewNopLogger(), "cron", "webhooks"), "1234", failingPoliciesSet, 5*time.Minute)
+	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
 
 	<-calledOnce
 	time.Sleep(1 * time.Second)
@@ -228,8 +228,8 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		Periodicity:           10 * time.Second,
 		CurrentInstanceChecks: "auto",
 	}
-
-	go cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
+	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -271,9 +271,6 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -301,7 +298,8 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		CurrentInstanceChecks: "1",
 	}
 
-	go cronVulnerabilities(ctx, ds, logger, "AAA", &config, &fleet.LicenseInfo{Tier: "premium"})
+	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -311,17 +309,28 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	}, 24*time.Second, 12*time.Second)
 }
 
-// TestCronWebhooksLockDuration tests that the Lock method is being called
-// for the current webhook crons and that their duration is always one hour (see #3584).
-func TestCronWebhooksLockDuration(t *testing.T) {
+// TestCronAutomationsLockDuration tests that the Lock method is being called
+// for the current automation crons and that their duration is equal to the current
+// schedule interval.
+func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ds := new(mock.Store)
+	expectedInterval := 1 * time.Second
 
+	intitalConfigLoaded := make(chan struct{}, 1)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
+		ac := fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
-				Interval: fleet.Duration{Duration: 1 * time.Second},
+				Interval: fleet.Duration{Duration: 1 * time.Hour},
 			},
-		}, nil
+		}
+		select {
+		case <-intitalConfigLoaded:
+			ac.WebhookSettings.Interval = fleet.Duration{Duration: expectedInterval}
+		default:
+			// initial config
+			close(intitalConfigLoaded)
+		}
+		return &ac, nil
 	}
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
@@ -329,16 +338,15 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	failingPoliciesClosed := false
 	unknownName := false
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		if expiration != 1*time.Hour {
+		if expiration != expectedInterval {
 			return false, nil
 		}
 		switch name {
-		case lockKeyWebhooksHostStatus:
+		case "automations":
 			if !hostStatusClosed {
 				close(hostStatus)
 				hostStatusClosed = true
 			}
-		case lockKeyWebhooksFailingPolicies:
 			if !failingPoliciesClosed {
 				close(failingPolicies)
 				failingPoliciesClosed = true
@@ -348,11 +356,14 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 		}
 		return true, nil
 	}
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		return nil
+	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 1*time.Hour)
+	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
 
 	select {
 	case <-failingPolicies:
@@ -367,7 +378,7 @@ func TestCronWebhooksLockDuration(t *testing.T) {
 	require.False(t, unknownName)
 }
 
-func TestCronWebhooksIntervalChange(t *testing.T) {
+func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ds := new(mock.Store)
 
 	interval := struct {
@@ -404,16 +415,22 @@ func TestCronWebhooksIntervalChange(t *testing.T) {
 		}
 		return true, nil
 	}
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		return nil
+	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	go cronWebhooks(ctx, ds, kitlog.NewNopLogger(), "1234", service.NewMemFailingPolicySet(), 200*time.Millisecond)
+	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
 
-	select {
-	case <-configLoaded:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout: initial config load")
+	// wait for config to be called once by startAutomationsSchedule and again by configReloadFunc
+	for c := 0; c < 2; c++ {
+		select {
+		case <-configLoaded:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timeout: initial config load")
+		}
 	}
 
 	interval.Lock()

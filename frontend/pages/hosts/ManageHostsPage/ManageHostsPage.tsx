@@ -621,7 +621,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleClearPoliciesFilter = () => {
+  const handleClearFilter = (omitParams: string[]) => {
     handleResetPageIndex();
 
     router.replace(
@@ -629,77 +629,33 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, ["policy_id", "policy_response"]),
+        queryParams: omit(queryParams, omitParams),
       })
     );
+  };
+
+  const handleClearPoliciesFilter = () => {
+    handleClearFilter(["policy_id", "policy_response"]);
   };
 
   const handleClearOSFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["os_id", "os_name", "os_version"]),
-      })
-    );
+    handleClearFilter(["os_id", "os_name", "os_version"]);
   };
 
   const handleClearSoftwareFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["software_id"]),
-      })
-    );
-    setSoftwareDetails(null);
+    handleClearFilter(["software_id"]);
   };
 
   const handleClearMDMSolutionFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["mdm_id"]),
-      })
-    );
-    setMDMSolutionDetails(null);
+    handleClearFilter(["mdm_id"]);
   };
 
   const handleClearMDMEnrollmentFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["mdm_enrollment_status"]),
-      })
-    );
+    handleClearFilter(["mdm_enrollment_status"]);
   };
 
   const handleClearMunkiIssueFilter = () => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: omit(queryParams, ["munki_issue_id"]),
-      })
-    );
-    setMunkiIssueDetails(null);
+    handleClearFilter(["munki_issue_id"]);
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -1597,7 +1553,9 @@ const ManageHostsPage = ({
       selectedLabel &&
       selectedLabel.type !== "all" &&
       selectedLabel.type !== "status";
+
     if (
+      showSelectedLabel ||
       policyId ||
       softwareId ||
       showSelectedLabel ||
@@ -1607,56 +1565,33 @@ const ManageHostsPage = ({
       (osName && osVersion) ||
       munkiIssueId
     ) {
+      const renderFilterPill = () => {
+        switch (true) {
+          case showSelectedLabel:
+            return renderLabelFilterPill();
+          case !!policyId:
+            return renderPoliciesFilterBlock();
+          case !!softwareId:
+            return renderSoftwareFilterBlock();
+          case !!mdmId:
+            return renderMDMSolutionFilterBlock();
+          case !!mdmEnrollmentStatus:
+            return renderMDMEnrollmentFilterBlock();
+          case !!osId || (!!osName && !!osVersion):
+            return renderOSFilterBlock();
+          case !!munkiIssueId:
+            return renderMunkiIssueFilterBlock();
+          default:
+            return null;
+        }
+      };
+
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {showSelectedLabel && renderLabelFilterPill()}
-          {!!policyId &&
-            !softwareId &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderPoliciesFilterBlock()}
-          {!!softwareId &&
-            !policyId &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderSoftwareFilterBlock()}
-          {!!mdmId &&
-            !policyId &&
-            !softwareId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderMDMSolutionFilterBlock()}
-          {!!mdmEnrollmentStatus &&
-            !policyId &&
-            !softwareId &&
-            !mdmId &&
-            !munkiIssueId &&
-            !showSelectedLabel &&
-            renderMDMEnrollmentFilterBlock()}
-          {(!!osId || (!!osName && !!osVersion)) &&
-            !policyId &&
-            !softwareId &&
-            !showSelectedLabel &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            !munkiIssueId &&
-            renderOSFilterBlock()}
-          {!!munkiIssueId &&
-            !policyId &&
-            !softwareId &&
-            !showSelectedLabel &&
-            !mdmId &&
-            !mdmEnrollmentStatus &&
-            renderMunkiIssueFilterBlock()}
+          {renderFilterPill()}
         </div>
       );
     }
-    return null;
   };
 
   const renderCustomControls = () => {

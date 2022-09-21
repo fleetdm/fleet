@@ -25,12 +25,20 @@ func main() {
 	wd, err := os.Getwd()
 	panicif(err)
 
+	inPath := filepath.Join(wd, "msrc_in")
+	err = os.MkdirAll(inPath, 0o755)
+	panicif(err)
+
+	outPath := filepath.Join(wd, "msrc_out")
+	err = os.MkdirAll(outPath, 0o755)
+	panicif(err)
+
 	now := time.Now()
 	httpC := http.DefaultClient
 
 	ctx := context.Background()
 	ghAPI := io.NewGitHubClient(ctx, httpC, github.NewClient(httpC).Repositories, wd)
-	msrcAPI := io.NewMSRCClient(httpC, wd, io.MSRCBaseURL)
+	msrcAPI := io.NewMSRCClient(httpC, inPath, io.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
 	eBulletins, err := ghAPI.Bulletins()
@@ -49,7 +57,7 @@ func main() {
 
 	fmt.Println("Saving bulletins...")
 	for _, b := range bulletins {
-		err := serialize(b, now, wd)
+		err := serialize(b, now, outPath)
 		panicif(err)
 	}
 
@@ -145,7 +153,8 @@ func serialize(b *parsed.SecurityBulletin, d time.Time, dir string) error {
 	if err != nil {
 		return err
 	}
-	fileName := io.FileName(b.ProductName, d)
+	filePath := io.FileName(b.ProductName, d, "json")
 	filePath := filepath.Join(dir, fileName)
+
 	return os.WriteFile(filePath, payload, 0o644)
 }

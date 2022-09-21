@@ -118,6 +118,22 @@ func (e InvalidArgumentError) Invalid() []map[string]string {
 	return invalid
 }
 
+// BadRequestError is an error type that generates a 400 status code.
+type BadRequestError struct {
+	Message string
+}
+
+// Error returns the error message.
+func (e *BadRequestError) Error() string {
+	return e.Message
+}
+
+// This implements the interface required by the server/service package logic
+// to determine the status code to return to the client.
+func (e *BadRequestError) BadRequestError() []map[string]string {
+	return nil
+}
+
 type AuthFailedError struct {
 	// internal is the reason that should only be logged internally
 	internal string
