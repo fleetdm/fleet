@@ -36,6 +36,7 @@ These tags help pass information to the website about the article to display and
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2021-11-21">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">
+<meta name="description" value="Learn how to configure and deploy Fleet on Render in 30 minutes">
 ```
 
 ### `articleTitle`
@@ -65,6 +66,13 @@ The date that the article was published. Please follow the correct date format, 
 
 ### `articleImageUrl`
 The relative url path for the article cover image. Article images are stored in `../website/assets/images/articles/` See [How to export images for the website](https://fleetdm.com/handbook/brand#how-to-export-images-for-the-website).
+
+### `description`
+The description meta-tag appears on social media posts when shared (e.g., on Twitter) and on browser results pages. It is also important for SEO purposes.
+
+The description should be between 50 - 150 characters and provide a summary of your article to give context or information to readers. Do not repeat the title for the description.
+
+> If you do not include a description, fleetdm.com will create a description using the articleTitle and the authorFullName meta tags
 
 ## Customizable CTA
 Use the following code snippet to include an inline CTA (call to action) in your article:
