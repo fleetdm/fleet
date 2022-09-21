@@ -93,10 +93,7 @@ func TestSanitizeColumn(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt // copy of tt because test run in parallel.
 		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-
 			require.Equal(t, tt.output, sanitizeColumn(tt.input))
 		})
 	}

@@ -214,7 +214,7 @@ func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, token
 	return errors.New("unimplemented")
 }
 
-type txFn func(sqlx.ExtContext) error
+type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
 	name string
