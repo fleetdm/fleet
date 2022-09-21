@@ -161,8 +161,8 @@ CREATE TABLE `host_device_auth` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_disks` (
   `host_id` int(10) unsigned NOT NULL,
-  `gigs_disk_space_available` float NOT NULL DEFAULT '0',
-  `percent_disk_space_available` float NOT NULL DEFAULT '0',
+  `gigs_disk_space_available` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `percent_disk_space_available` decimal(10,2) NOT NULL DEFAULT '0.00',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`host_id`),
