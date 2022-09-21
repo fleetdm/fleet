@@ -91,9 +91,9 @@ func Analyze(
 		}
 	}
 
-	err = batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
+	err = utils.BatchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
 		return ds.DeleteSoftwareVulnerabilities(ctx, v)
-	})
+	}, vulnBatchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func Analyze(
 		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
 	}
 
-	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
+	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
 		n, err := ds.InsertSoftwareVulnerabilities(ctx, v, source)
 		if err != nil {
 			return err
@@ -116,44 +116,12 @@ func Analyze(
 		}
 
 		return nil
-	})
+	}, vulnBatchSize)
 	if err != nil {
 		return nil, err
 	}
 
 	return inserted, nil
-}
-
-func batchProcess(
-	values map[string]fleet.SoftwareVulnerability,
-	dsFunc func(v []fleet.SoftwareVulnerability) error,
-) error {
-	if len(values) == 0 {
-		return nil
-	}
-
-	bSize := vulnBatchSize
-	if bSize > len(values) {
-		bSize = len(values)
-	}
-
-	buffer := make([]fleet.SoftwareVulnerability, bSize)
-	var offset, i int
-	for _, v := range values {
-		buffer[offset] = v
-		offset++
-		i++
-
-		// Consume buffer if full or if we are at the last iteration
-		if offset == bSize || i >= len(values) {
-			err := dsFunc(buffer[:offset])
-			if err != nil {
-				return err
-			}
-			offset = 0
-		}
-	}
-	return nil
 }
 
 // loadDef returns the latest oval Definition for the given platform.

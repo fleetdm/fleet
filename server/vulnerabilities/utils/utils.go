@@ -11,6 +11,39 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+func BatchProcess[T fleet.Vulnerability](
+	values map[string]T,
+	dsFunc func(v []T) error,
+	batchSize int,
+) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	bSize := batchSize
+	if bSize > len(values) {
+		bSize = len(values)
+	}
+
+	buffer := make([]T, bSize)
+	var offset, i int
+	for _, v := range values {
+		buffer[offset] = v
+		offset++
+		i++
+
+		// Consume buffer if full or if we are at the last iteration
+		if offset == bSize || i >= len(values) {
+			err := dsFunc(buffer[:offset])
+			if err != nil {
+				return err
+			}
+			offset = 0
+		}
+	}
+	return nil
+}
+
 // VulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
 // and returns what to insert and what to delete.
 func VulnsDelta[T fleet.Vulnerability](
