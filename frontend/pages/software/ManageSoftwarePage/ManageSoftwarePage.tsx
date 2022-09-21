@@ -44,7 +44,7 @@ import MainContent from "components/MainContent";
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
-import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -79,7 +79,7 @@ interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
@@ -99,11 +99,11 @@ const ManageSoftwarePage = ({
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState(false);
   const [
     isVulnerabilityAutomationsEnabled,
     setIsVulnerabilityAutomationsEnabled,
-  ] = useState<boolean>();
+  ] = useState(false);
   const [
     recentVulnerabilityMaxAge,
     setRecentVulnerabilityMaxAge,
@@ -129,7 +129,7 @@ const ManageSoftwarePage = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
       let jiraIntegrationEnabled = false;
       if (data.integrations.jira) {
         jiraIntegrationEnabled = data?.integrations.jira.some(
@@ -175,7 +175,7 @@ const ManageSoftwarePage = ({
       {
         scope: "software",
         page: pageIndex,
-        perPage: PAGE_SIZE,
+        perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
         // API expects "epss_probability" rather than "vulnerabilities"
@@ -399,7 +399,13 @@ const ManageSoftwarePage = ({
     }
 
     return null;
-  }, [isFetchingCount, software, softwareCountError, softwareCount]);
+  }, [
+    isFetchingCount,
+    software,
+    softwareCountError,
+    softwareCount,
+    isSoftwareEnabled,
+  ]);
 
   // TODO: retool this with react-router location descriptor objects
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
@@ -462,7 +468,7 @@ const ManageSoftwarePage = ({
           rel="noopener noreferrer"
         >
           File an issue on GitHub
-          <img alt="External link" src={ExternalLinkIcon} />
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </div>
     );
@@ -480,7 +486,8 @@ const ManageSoftwarePage = ({
 
   const isLastPage =
     !!softwareCount &&
-    PAGE_SIZE * pageIndex + (software?.software?.length || 0) >= softwareCount;
+    DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
+      softwareCount;
 
   const softwareTableHeaders = useMemo(
     () => generateSoftwareTableHeaders(isPremiumTier),
@@ -512,7 +519,7 @@ const ManageSoftwarePage = ({
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}
               manualSortBy
-              pageSize={PAGE_SIZE}
+              pageSize={DEFAULT_PAGE_SIZE}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}

@@ -14,6 +14,7 @@ const baseClass = "app-config-form";
 const WebAddress = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     serverURL: appConfig.server_settings.server_url || "",
@@ -25,6 +26,7 @@ const WebAddress = ({
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+    setFormErrors({});
   };
 
   const validateForm = () => {
@@ -78,6 +80,8 @@ const WebAddress = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        isLoading={isUpdatingSettings}
       >
         Save
       </Button>

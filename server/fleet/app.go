@@ -1,8 +1,12 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -27,16 +31,6 @@ const (
 	MaskedPassword = "********"
 )
 
-// ModifyAppConfigRequest contains application configuration information
-// sent from front end and used to change app config elements.
-type ModifyAppConfigRequest struct {
-	// TestSMTP is this is set to true, the SMTP configuration will be tested
-	// with the results of the test returned to caller. No config changes
-	// will be applied.
-	TestSMTP  bool      `json:"test_smtp"`
-	AppConfig AppConfig `json:"app_config"`
-}
-
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
 	// EntityID is a uri that identifies this service provider
@@ -57,6 +51,9 @@ type SSOSettings struct {
 	// EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated
 	// login.
 	EnableSSOIdPLogin bool `json:"enable_sso_idp_login"`
+	// EnableJITProvisioning allows user accounts to be created the first time
+	// users try to log in
+	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -103,13 +100,17 @@ type VulnerabilitySettings struct {
 }
 
 // AppConfig holds server configuration that can be changed via the API.
+//
+// Note: management of deprecated fields is done on JSON-marshalling and uses
+// the legacyConfig struct to list them.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
 	SMTPSettings       SMTPSettings       `json:"smtp_settings"`
 	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
-	HostSettings       HostSettings       `json:"host_settings"`
-	AgentOptions       *json.RawMessage   `json:"agent_options,omitempty"`
+	// Features allows to globally enable or disable features
+	Features     Features         `json:"features"`
+	AgentOptions *json.RawMessage `json:"agent_options,omitempty"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
@@ -122,6 +123,19 @@ type AppConfig struct {
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
+
+	// when true, strictDecoding causes the UnmarshalJSON method to return an
+	// error if there are unknown fields in the raw JSON.
+	strictDecoding bool
+	// this field is set to true during UnmarshalJSON if any legacy settings
+	// were set in the raw JSON.
+	didUnmarshalLegacySettings bool
+}
+
+// legacyConfig holds settings that have been replaced, superceded or
+// deprecated by other AppConfig settings.
+type legacyConfig struct {
+	HostSettings *Features `json:"host_settings"`
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -129,11 +143,32 @@ type AppConfig struct {
 // "GET /api/latest/fleet/config" API endpoint (and fleetctl get config).
 type EnrichedAppConfig struct {
 	AppConfig
+	enrichedAppConfigFields
+}
 
+// enrichedAppConfigFields are grouped separately to aid with JSON unmarshaling
+type enrichedAppConfigFields struct {
 	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
+// both AppConfig and enrichedAppConfigFields properly:
+//
+// - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.UnmarshalJSON doesn't get
+// called.
+func (e *EnrichedAppConfig) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &e.AppConfig); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &e.enrichedAppConfigFields); err != nil {
+		return err
+	}
+	return nil
 }
 
 type Duration struct {
@@ -223,17 +258,59 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
 
-	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
+	agentOptions := json.RawMessage(`{"config": {"options": {"pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
 
-	c.HostSettings.EnableSoftwareInventory = true
+	c.Features.ApplyDefaultsForNewInstalls()
 
 	c.ApplyDefaults()
 }
 
 func (c *AppConfig) ApplyDefaults() {
-	c.HostSettings.EnableHostUsers = true
+	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+}
+
+// EnableStrictDecoding enables strict decoding of the AppConfig struct.
+func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
+
+// DidUnmarshalLegacySettings returns true if any legacy setting was set
+// in the JSON used to unmarshal this AppConfig.
+func (c *AppConfig) DidUnmarshalLegacySettings() bool { return c.didUnmarshalLegacySettings }
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (c *AppConfig) UnmarshalJSON(b []byte) error {
+	// Define a new type, this is to prevent infinite recursion when
+	// unmarshalling the AppConfig struct.
+	type cfgStructUnmarshal AppConfig
+	compatConfig := struct {
+		*legacyConfig
+		*cfgStructUnmarshal
+	}{
+		&legacyConfig{},
+		(*cfgStructUnmarshal)(c),
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(b))
+	if c.strictDecoding {
+		decoder.DisallowUnknownFields()
+	}
+	if err := decoder.Decode(&compatConfig); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return errors.New("unexpected extra tokens found in config")
+	}
+
+	// Define and assign legacy settings to new fields.
+	// This has the drawback of legacy fields taking precedence over new fields
+	// if both are defined.
+	if compatConfig.legacyConfig.HostSettings != nil {
+		c.didUnmarshalLegacySettings = true
+		c.Features = *compatConfig.legacyConfig.HostSettings
+	}
+
+	return nil
 }
 
 // OrgInfo contains general info about the organization using Fleet.
@@ -257,10 +334,22 @@ type HostExpirySettings struct {
 	HostExpiryWindow  int  `json:"host_expiry_window"`
 }
 
-type HostSettings struct {
+type Features struct {
 	EnableHostUsers         bool             `json:"enable_host_users"`
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+}
+
+func (f *Features) ApplyDefaultsForNewInstalls() {
+	// Software inventory is enabled only for new installs as
+	// we didn't want to enable software inventory from one version to the
+	// next in already running fleets
+	f.EnableSoftwareInventory = true
+	f.ApplyDefaults()
+}
+
+func (f *Features) ApplyDefaults() {
+	f.EnableHostUsers = true
 }
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
@@ -314,6 +403,34 @@ type ListQueryOptions struct {
 	ListOptions
 
 	OnlyObserverCanRun bool
+}
+
+// ApplySpecOptions are the options available when applying a YAML or JSON spec.
+type ApplySpecOptions struct {
+	// Force indicates that any validation error in the incoming payload should
+	// be ignored and the spec should be applied anyway.
+	Force bool
+	// DryRun indicates that the spec should not be applied, but the validation
+	// errors should be returned.
+	DryRun bool
+}
+
+// RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
+// query string parameters. It only sets the parameters that are not the
+// default values.
+func (o *ApplySpecOptions) RawQuery() string {
+	if o == nil {
+		return ""
+	}
+
+	query := make(url.Values)
+	if o.Force {
+		query.Set("force", "true")
+	}
+	if o.DryRun {
+		query.Set("dry_run", "true")
+	}
+	return query.Encode()
 }
 
 // EnrollSecret contains information about an enroll secret, name, and active
@@ -397,13 +514,15 @@ type UpdateIntervalConfig struct {
 // config file), not to be confused with VulnerabilitySettings which is the
 // configuration in AppConfig.
 type VulnerabilitiesConfig struct {
-	DatabasesPath             string        `json:"databases_path"`
-	Periodicity               time.Duration `json:"periodicity"`
-	CPEDatabaseURL            string        `json:"cpe_database_url"`
-	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url"`
-	CurrentInstanceChecks     string        `json:"current_instance_checks"`
-	DisableDataSync           bool          `json:"disable_data_sync"`
-	RecentVulnerabilityMaxAge time.Duration `json:"recent_vulnerability_max_age"`
+	DatabasesPath               string        `json:"databases_path"`
+	Periodicity                 time.Duration `json:"periodicity"`
+	CPEDatabaseURL              string        `json:"cpe_database_url"`
+	CPETranslationsURL          string        `json:"cpe_translations_url"`
+	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks       string        `json:"current_instance_checks"`
+	DisableDataSync             bool          `json:"disable_data_sync"`
+	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age"`
+	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities"`
 }
 
 type LoggingPlugin struct {

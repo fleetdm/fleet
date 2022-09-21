@@ -1,0 +1,6 @@
+# Each line should contain a single query with no LIMIT clause and no semicolon.
+# LIMIT 3 will be automatically added by the script.
+
+processes: select * from processes
+users: select * from users
+user_ssh_keys: select * from users cross join user_ssh_keys using (uid)

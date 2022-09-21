@@ -29,12 +29,8 @@ const PolicyDetailsModal = ({
             <p>{policy?.resolution}</p>
           </div>
         )}
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="brand"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
             Done
           </Button>
         </div>

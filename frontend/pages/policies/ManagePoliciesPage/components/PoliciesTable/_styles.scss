@@ -1,12 +1,6 @@
 .policies-table {
   border-collapse: collapse;
 
-  a {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    text-decoration: none;
-  }
-
   thead {
     th {
       &.passing_host_count__header,
@@ -31,6 +25,11 @@
     font-size: $x-small;
     color: $core-fleet-black;
   }
+
+  &__action-button-container {
+    display: flex;
+    justify-content: center;
+  }
 }
 
 .has-not-run {
@@ -43,12 +42,6 @@
   align-items: center;
   text-align: center;
   padding-top: $pad-xxxlarge;
-
-  a {
-    color: $core-vibrant-blue;
-    font-size: $x-small;
-    text-decoration: none;
-  }
 
   h1 {
     font-size: $large;

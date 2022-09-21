@@ -25,8 +25,6 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
 
-    let GitHub = require('machinepack-github');
-
     // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
     // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
     // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
@@ -37,40 +35,39 @@ module.exports = {
     sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    // Is this in use?
-    // > For context on the history of this bit of code, which has gone been
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    // > ^For context on the history of this bit of code, which has gone been
     // > implemented a couple of different ways, and gone back and forth, check out:
     // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
-      'sailsbot',
+      // FUTURE: move this array into website/config/custom.js alongside the other similar config
+      // and reference here as e.g. `sails.config.custom.githubUsernamesOfBotsAndMaintainers`
+
+      // Bots
+      'vercel[bot]',
       'fleet-release',
+
+      // Humans
       'noahtalerman',
       'mike-j-thomas',
       'mikermcneil',
       'lukeheath',
       'zwass',
-      'martavis',
       'rachelelysia',
       'gillespi314',
       'chiiph',
       'mna',
       'edwardsb',
-      'alphabrevity',
       'eashaw',
       'drewbakerfdm',
-      'vercel[bot]',
       'lucasmrod',
-      'tgauda',
       'ksatter',
       'guillaumeross',
-      'dominuskelvin',
       'sharvilshah',
       'michalnicp',
-      'desmi-dizney',
       'charlottechance',
       'timmy-k',
       'zwinnerman-fleetdm',
@@ -82,6 +79,8 @@ module.exports = {
       'chris-mcgillicuddy',
       'rfairburn',
       'artemist-work',
+      'fx5',
+      'marcosd4h',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -106,7 +105,6 @@ module.exports = {
     if (!sails.config.custom.githubAccessToken) {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
-    let credentials = { accessToken: sails.config.custom.githubAccessToken };
 
     let issueOrPr = (pr || issue || undefined);
 
@@ -162,7 +160,13 @@ module.exports = {
       //   } else {
       //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
       //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-      //       await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+      //       await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //         {},
+      //         {
+      //           'User-Agent': 'Fleetie pie',
+      //           'Authorization': 'token '+sails.config.custom.githubAccessToken
+      //         }
+      //       );
       //     });//∞ß
       //     newBotComment =
       //     `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
@@ -173,10 +177,12 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // }
-
       // // Now that we know what to say, add our comment.
       // if (newBotComment) {
-      //   await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
+      //   await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
+      //     {'body': newBotComment},
+      //     {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+      //   );
       // }//ﬁ
 
     } else if (
@@ -345,7 +351,13 @@ module.exports = {
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-          await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+          await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+            {},
+            {
+              'User-Agent': 'Fleetie Pie',
+              'Authorization': 'token '+sails.config.custom.githubAccessToken
+            }
+          );
         });//∞ß
       }//ﬁ
     } else if (

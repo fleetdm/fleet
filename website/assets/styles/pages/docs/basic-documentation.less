@@ -311,6 +311,7 @@
     }
 
     [purpose='left-sidebar'] {
+      scrollbar-width: none;
       font-size: 14px;
       border-right: 1px solid @core-fleet-black-25;
 
@@ -353,9 +354,12 @@
       }
 
     }
+    [purpose='left-sidebar']::-webkit-scrollbar, [purpose='right-sidebar']::-webkit-scrollbar, [purpose='subtopics']::-webkit-scrollbar {
+      display: none;
+    }
 
     [purpose='right-sidebar'] {
-
+      scrollbar-width: none;
       p, a {
         font-size: 14px;
       }
@@ -367,30 +371,63 @@
       }
 
     }
-    [purpose='swag-cta'] {
-      display: flex;
+    [purpose='right-sidebar-buttons'] {
       margin-top: 30px;
-      border: 1px solid #E3E3E3;
-      box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
-      border-radius: 6px;
-      padding: 20px;
-      color: @core-fleet-black;
-      width: fit-content;
-      a {
-        text-decoration: none;
+      [purpose='swag-cta'] {
+        display: flex;
+        border: 1px solid #E3E3E3;
+        box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 16px;
         color: @core-fleet-black;
-        &:hover {
+        width: 100%;
+        a {
+          text-decoration: none;
+          color: @core-fleet-black;
+          &:hover {
+            color: @core-fleet-black;
+          }
+        }
+        p {
+          white-space: nowrap;
+          font-weight: 700;
+          font-size: 14px;
+          line-height: 24px;
+        }
+        span {
+          text-align: center;
+          font-size: 14px;
+          line-height: 19px;
           color: @core-fleet-black;
         }
       }
-      strong {
-        font-size: 14px;
-        line-height: 24px;
-      }
-      span {
-        font-size: 14px;
-        line-height: 19px;
+      [purpose='demo-cta'] {
+        display: flex;
+        border: 1px solid #E3E3E3;
+        box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
+        border-radius: 6px;
+        padding: 20px 16px;
         color: @core-fleet-black;
+        width: 100%;
+        a {
+          text-decoration: none;
+          color: @core-fleet-black;
+          &:hover {
+            color: @core-fleet-black;
+          }
+        }
+        p {
+          font-weight: 700;
+          font-size: 14px;
+          line-height: 18px;
+        }
+        span {
+          text-align: center;
+          font-size: 14px;
+          line-height: 19px;
+          color: @core-fleet-black;
+        }
       }
     }
 
@@ -446,24 +483,58 @@
         padding-top: 0px;
       }
       blockquote {
+        margin: 24px 0 32px 32px;
+        display: block;
+        position: relative;
+      }
+      [purpose='quote'] {
+        font-style: italic;
+        line-height: 36px;
+        font-size: 24px;
+      }
+      [purpose='large-quote'] {
+        font-style: italic;
+        line-height: 24px;
+        font-size: 16px;
+      }
+      [purpose='large-quote']::before, [purpose='quote']::before {
+        display: inline;
+        position: absolute;
+        content: '“';
+        top: 16px;
+        left: -32px;
+        font-size: 64px;
+        padding-right: 8px;
+        color: @core-vibrant-blue;
+      }
+      [purpose='tip'] {
         margin: 16px 0 32px;
         background: #F7F7FC;
         border: 1px solid @core-vibrant-blue-50;
         padding: 16px;
         border-radius: 8px;
-        display: inline-flex;
-      img {
         display: flex;
-        margin: 4px 12px 0 0;
-        height: 16px;
-        width: 16px;
-        padding: 0px;
-      }
-      p {
-        display: block;
-        margin-bottom: 0px;
-        line-height: 24px;
-        font-size: 16px;
+        img {
+          display: flex;
+          margin: 4px 12px 0 0;
+          height: 16px;
+          width: 16px;
+          padding: 0px;
+        }
+        p {
+          display: block;
+          margin-bottom: 16px;
+          line-height: 24px;
+          font-size: 16px;
+        }
+        p:last-child {
+          margin-bottom: 0px;
+        }
+        ul:last-child {
+          margin-bottom: 0px;
+        }
+        li:last-child {
+          padding-bottom: 0px;
         }
       }
 
@@ -567,6 +638,19 @@
       [purpose='checklist-item']::marker {
         display: none;
       }
+      [purpose='embedded-content'] {
+        position: relative;
+        margin-bottom: 40px;
+        width: 100%;
+        padding-bottom: 57%;
+        iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+        }
+      }
 
     }
 
@@ -596,23 +680,18 @@
       }
 
       .header-hidden { // For scrolling the sidebars with the sticky header
-        transform: translateY(-60px);
-        max-height: calc(~'100vh - 80px');
+        transform: translateY(-80px);
+        max-height: calc(~'100vh - 60px');
       }
       .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
-        max-height: calc(~'100vh - 170px');
+        max-height: calc(~'100vh - 140px');
       }
       [purpose='left-sidebar'] {
-        position: sticky;
-        top: 146px;
         height: fit-content;
-        overflow-y: auto;
+        min-width: 216px;
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 500ms;
-        &:not(.scrolled) {
-          max-height: calc(~'100vh - 205px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
-        }
       }
 
       [purpose='right-sidebar'] {
@@ -620,9 +699,8 @@
           line-height: 21px;
         }
         min-width: 190px;
-        max-width: 210px;
         position: sticky;
-        top: 146px;
+        top: 118px;
         height: fit-content;
         overflow-y: auto;
         transition-property: all;
@@ -630,7 +708,7 @@
         transition-duration: 500ms;
 
         [purpose='subtopics'] {
-          max-height: 100vh;
+          scrollbar-width: none;
           overflow-y: auto;
           color: @core-fleet-black;
           padding-top: 4px;

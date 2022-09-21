@@ -28,7 +28,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 |:------ |:-----------------|:-------------------------------|-----------|
 | Articles | **Queued** – see [How to submit and publish an article](./how-to-submit-and-publish-an-article). | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
+| Docs | **Gated**. Request review from Chris McGillicuddy – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
 | Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
@@ -168,6 +168,14 @@ A hyphen is unnecessary when not modifying a noun:
 
 ## For editors
 
+### In this section
+
+- [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
+- [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
+- [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
+- [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
+- [How to edit social media posts](#how-to-edit-social-media-posts)
+
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
 
 The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
@@ -217,18 +225,11 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 ### How to edit articles, release posts, and press releases
 
-This type of content comes in two flavors: draft articles and published articles. 
+Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
 
-For draft articles, please refer to [Publishing articles on fleetdm.com.](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) 
+* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article#review-process).
 
-For making edits to published articles:
-
-1. Log in to [Medium](https://fleetdm.com/blog).
-2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
-3. Scan for typos and grammatical errors.
-4. Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
-5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
-6. Hit "Save and publish," and you're all done.
+* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
 
 ### How to edit social media posts
 
@@ -298,26 +299,103 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
+## Using Figma
 
-## Fleet website
+We use Figma for most of our design work. This includes the Fleet product, our website, and our marketing collateral. 
 
-### Using Figma?
-Fleet EE
-- All product design work is done in the Fleet EE (scratchpad) Figma doc. Check out the README for how to use this doc.
+### Which file should I use?
 
-Fleet website
-- All website design work is done in the fleetdm.com (current, dev-ready) Figma file.
+**Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
 
-Shared design system
-- Shared logos, typography styles, and UI components can be found in Design system.
+**Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
+
+**Design system.** Shared logos, typography styles, and UI components can be found in [Design system](https://www.figma.com/files/project/15701210).
 
 > The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
 
-Marketing assets
-- Product screenshots and artwork for social media, articles, and other marketing assets can be found in Collateral.
+**Marketing assets.** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
 
-### Which logo should I use?
-The "official" Fleet logo and other assets can be found at:  https://fleetdm.com/logos
+> Looking for the official Fleet logo? Download it from: https://fleetdm.com/logos.
+
+
+## Fleet website
+
+The Digital Experience team is responsible for production and maintenance of the Fleet website.
+
+#### In this section
+
+- [Wireframes](#wireframes)
+- [Design reviews](#design-reviews)
+- [Estimation sessions](#estimation-sessions)
+- [When can I merge changes to the website?](#when-can-i-merge-a-change-to-the-website)
+- [How to export images for the website](#how-to-export-images-for-the-website)
+- [Maintaining browser compatibility](#maintaining-browser-compatibility)
+- [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
+- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-git-hub-action-failed)
+- [Vulnerability monitoring](#vulnerability-monitoring)
+- [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
+
+### Wireframes
+
+Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
+
+See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
+
+### Design reviews
+
+We hold regular design review sessions to evaluate, revise, and approve wireframes before moving into production.
+
+Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
+
+### Estimation sessions
+
+We use estimation sessions to estimate the effort required to complete a prioritized task. 
+
+Through these sessions, we can:
+
+- Confirm that wireframes are complete before moving to production
+- Consider all edge cases and requirements that may have been with during wireframing.
+- Avoid having the engineer make choices for “unknowns” during production.
+- More accurately plan and prioritize upcoming tasks.
+
+#### Story points
+
+Story points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
+
+We use the following story points to estimate website tasks:
+
+| Story point | Time |
+|:---|:---|
+| 1 | 1 to 2 hours |
+| 2 | 2 to 4 hours |
+| 3 | 1 day |
+| 5 | 1 to 2 days |
+| 8 | Up to a week |
+| 13 | 1 to 2 weeks |
+
+### When can I merge a change to the website?
+When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
+
+Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
+
+### How to export images for the website
+In Figma:
+1. Select the layers you want to export.
+2. Confirm export settings and naming convention:
+  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
+  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
+  * File extension might be .jpg or .png.
+  * Avoid using SVGs or icon fonts.
+3. Click the __Export__ button.
+
+### Maintaining browser compatibility
+
+A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
+
+- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
+- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
+- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
+- If in doubt about anything regarding design or layout, please reach out to the Design team.
 
 ### Responding to a 5xx error on fleetdm.com
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
@@ -334,12 +412,7 @@ When conducting an incident post-mortem, answer the following three questions:
 
 1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
 2. Root Cause: Why did this error happen?
-3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
-
-### When can I merge a change to the website?
-When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
-
-Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width. 
+3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error. 
 
 ### The "Deploy Fleet Website" GitHub action failed
 If the action fails, please complete the following steps:
@@ -347,14 +420,9 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
-### Maintaining browser compatibility
+### Vulnerability monitoring
 
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
-
-- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
-- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
-- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the Design team.
+Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
 ### How to make usability changes to the website
 
@@ -367,19 +435,6 @@ To propose changes:
 4. Code the website change. Again, digital experience often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the growth team will have ideas on how to do this.
 
-### How to export images for the website
-In Figma:
-1. Select the layers you want to export.
-2. Confirm export settings and naming convention:
-  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
-  * File extension might be .jpg or .png.
-  * Avoid using SVGs or icon fonts.
-3. Click the __Export__ button.
-
-### Vulnerability monitoring
-
-Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
 ## Rituals
 
@@ -387,15 +442,14 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Chris McGillicuddy |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Chris McGillicuddy |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
-| Docs editor pass | Weekly | Edit two sections a week until completed. | Desmi Dizney |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
-| Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
+| Handbook editor pass | Monthly | Edit for copy and content. | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
@@ -415,6 +469,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
 | `#help-operations-and-contract-reviews`          | Nathan Holliday
+| `#help-travel`              | Nathan Holliday
+| `#help-ceo`                  | Charlie Chance
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

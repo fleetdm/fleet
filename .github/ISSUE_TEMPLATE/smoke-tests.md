@@ -15,7 +15,7 @@ assignees: ''
 
 # Important reference data
 
-1. [fleetctl preview setup](https://fleetdm.com/get-started)
+1. [fleetctl preview setup](https://fleetdm.com/fleetctl-preview)
 2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
 3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
 4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
@@ -66,6 +66,13 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 2. Host serial number and date added are accurate
 3. Host is not visible after it is deleted
 4. Warning and informational modals show when expected and make sense
+</td><td>pass/fail</td></tr>
+
+<tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
+
+Using the migration scripts located in fleet/test/upgrade/
+1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
+2. Upgrade test returns an 'OK' response.
 </td><td>pass/fail</td></tr>
 </table>
 

@@ -1,37 +1,53 @@
 # Using Fleet FAQ
 
-- [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
-- [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
-- [Can I target my hosts using their enroll secrets?](#can-I-target-my-hosts-using-their-enroll-secrets)
-- [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
-- [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
-- [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
-- [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-- [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
-- [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
-- [Where are my query results?](#where-are-my-query-results)
-- [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
-- [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
-- [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
-- [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
-- [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
-- [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
-- [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
-- [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
-- [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
-- [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
-- [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
-- [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
-- [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
-- [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
-- [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
-- [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
-- [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
-- [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
-- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
-- [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
+- [Using Fleet FAQ](#using-fleet-faq)
+  - [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
+  - [Has anyone stress tested Fleet? How many hosts can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-hosts-can-the-fleet-server-handle)
+  - [Can I target my hosts using their enroll secrets?](#can-i-target-my-hosts-using-their-enroll-secrets)
+  - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
+  - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
+  - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
+  - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
+  - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
+  - [Where are my query results?](#where-are-my-query-results)
+    - [Live queries](#live-queries)
+    - [Scheduled queries](#scheduled-queries)
+    - [What are my options for storing the osquery logs?](#what-are-my-options-for-storing-the-osquery-logs)
+    - [Troubleshooting](#troubleshooting)
+  - [Why does the same query come back faster sometimes?](#why-does-the-same-query-come-back-faster-sometimes)
+  - [What happens if I have a query on a team policy and I also have it scheduled to run separately?](#what-happens-if-i-have-a-query-on-a-team-policy-and-i-also-have-it-scheduled-to-run-separately)
+  - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
+  - [Why does my query work locally with osquery but not in Fleet?](#why-does-my-query-work-locally-with-osquery-but-not-in-fleet)
+  - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
+  - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-fleet)
+  - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
+  - [Why is my host not updating a policy's response?](#why-is-my-host-not-updating-a-policys-response)
+  - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
+  - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
+  - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
+  - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+  - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
+  - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
+  - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
+  - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
+  - [Why do I see "Unknown Certificate Error" when adding hosts to my dev server?](#why-do-i-see-unknown-certificate-error-when-adding-hosts-to-my-dev-server)
+  - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
+  - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
+  - [When do I need fleetctl vs. the REST API vs. the Fleet UI?](#when-do-i-need-fleetctl-vs-the-rest-api-vs-the-fleet-ui)
+  - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
+  - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
+  - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
+  - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
+  - [How do I downgrade from Fleet Premium to Fleet Free?](#how-do-i-downgrade-from-fleet-premium-to-fleet-free)
+  - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
+  - [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbitfleet-desktop)
+    - [MacOS](#macos)
+    - [Windows](#windows)
+    - [Ubuntu](#ubuntu)
+    - [CentOS](#centos)
+  - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
+    - [Online hosts](#online-hosts)
+    - [Offline hosts](#offline-hosts)
 
 ## How can I switch to Fleet from Kolide Fleet?
 
@@ -66,12 +82,6 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 ## How do I monitor a Fleet server?
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./Monitoring-Fleet.md) documentation for details.
-
-## Why is the “Add User” button disabled?
-
-The “Add User” button is disabled if SMTP (email) has not been configured for the Fleet server. Currently, there is no way to add new users without email capabilities.
-
-One way to hack around this is to use a simulated mailserver like [Mailhog](https://github.com/mailhog/MailHog). You can retrieve the email that was “sent” in the Mailhog UI, and provide users with the invite URL manually.
 
 ## Can I disable password-based authentication in the Fleet UI?
 
@@ -157,7 +167,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 [Team enroll secrets](./Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
-## Why my host is not updating a policy's response.
+## Why is my host not updating a policy's response?
 
 The following are reasons why a host may not be updating a policy's response:
 
@@ -170,23 +180,6 @@ The following are reasons why a host may not be updating a policy's response:
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
 * Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./Adding-hosts.md).
-* Restart the `fleetctl preview` docker containers.
-* Uninstall and reinstall Docker.
-
-## Fleet preview fails with Invalid interpolation. What should I do?
-
-If you tried running `fleetctl preview` and you get the following error:
-
-```
-fleetctl preview
-Downloading dependencies into /root/.fleet/preview...
-Pulling Docker dependencies...
-Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
-
-Failed to run docker-compose
-```
-
-You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
 
 ## How does Fleet deal with IP duplication?
 
@@ -196,13 +189,26 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
-## Can I disable auto-updates for Orbit?
+## Can I control how Orbit handles updates?
 
-Yes, auto-updates can be disabled by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
+Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
+
+You can also indicate the [channels you would like Orbit to watch for updates](https://github.com/fleetdm/fleet/tree/main/orbit#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+```
+
+You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
+
+## When will the newest version of osquery be available to Orbit?
+
+When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
+
 ## Can I bundle osquery extensions into Orbit?
 
 This isn't supported yet, but we're working on it! 
@@ -231,7 +237,7 @@ This isn't currently supported, but we're working on it! You can track that issu
 
 Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule. 
 
-## When do I need fleetctl vs the REST API vs the Fleet UI?
+## When do I need fleetctl vs. the REST API vs. the Fleet UI?
 
 [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) is great for users that like to do things in a terminal (like iTerm on a Mac). Lots of tech folks are real power users of the terminal. It is also helpful for automating things like deployments.
 
@@ -242,10 +248,6 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 ## Why can't I run queries with `fleetctl` using a new API-only user?
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
-
-## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
-
-If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the most likely culprit is that you're behind a corporate proxy server and need to [add the proxy settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by `fleetctl preview` is able to connect properly. 
 
 ## Can I audit actions taken in Fleet?
 
@@ -271,13 +273,6 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    3 "macOS 12.3.0"
    6 "macOS 12.3.1"
 ```
-
-## Will updating fleetctl lead to loss of data in fleetctl preview?
-
-No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
-
-## Can I disable usage statistics via the config file or a CLI flag?
-Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
@@ -323,7 +318,7 @@ Lastly, remove your Fleet Premium license key:
 
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
-No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
+No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
 ## How can I uninstall Orbit/Fleet Desktop?
 To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
@@ -339,3 +334,27 @@ Run `sudo apt remove fleet-osquery -y`
 
 ### CentOS
 Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
+
+## How does Fleet determines online and offline status?
+
+### Online hosts
+
+**Online** hosts will respond to a live query.
+
+A host is online if it has connected successfully in a window of time set by `distributed_interval` (or `config_tls_refresh`, whichever is smaller).
+A buffer of 60 seconds is added to the calculation to avoid unnecessary flapping between online/offline status (in case hosts take a bit longer than expected to connect to Fleet).
+The values for `distributed_interval` and `config_tls_refresh` can be found in the **Settings > Organization settings > Agent options** page for global hosts
+and in the **Settings > Teams > TEAM NAME > Agent options** page for hosts that belong to a team.
+
+For example:
+
+`distributed_interval=10, config_tls_refresh=30`
+A host is considered online if it has connected to Fleet in the last 70 (10+60) seconds.
+
+`distributed_interval=30, config_tls_refresh=20`
+A host is considered online if it has connected to Fleet in the last 80 (20+60) seconds.
+
+### Offline hosts
+
+**Offline** hosts won't respond to a live query. These hosts may be shut down, asleep, or not connected to the internet.
+A host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).

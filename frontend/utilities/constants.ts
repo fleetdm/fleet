@@ -27,7 +27,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 2,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
+      "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2162) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.93)) WHERE score == 1;",
     name: "Antivirus healthy (macOS)",
     description:
       "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.",
@@ -52,9 +52,9 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;",
     name: "Automatic login disabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
+      "Checks that a mobile device management (MDM) solution configures the Mac to prevent log in without a password.",
     resolution:
-      "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login.",
     platform: "darwin",
   },
   {
@@ -81,7 +81,8 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 7,
-    query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+    query:
+      "SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
     name: "Full disk encryption enabled (Windows)",
     description:
       "Checks to make sure that full disk encryption is enabled on Windows devices.",
@@ -101,17 +102,6 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 9,
-    query:
-      "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
-    name: "Guest users disabled (macOS)",
-    description:
-      "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
-    resolution:
-      "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71.",
-    platform: "darwin",
-  },
-  {
-    key: 10,
     query: "SELECT 1 FROM mdm WHERE enrolled='true';",
     name: "MDM enrolled (macOS)",
     description:
@@ -120,17 +110,18 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 11,
+    key: 10,
     query:
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
-    name: "Secure keyboard entry for Terminal.app enabled (macOS)",
+    name: "Secure keyboard entry for Terminal application enabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
-    resolution: "",
+      "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application.",
     platform: "darwin",
   },
   {
-    key: 12,
+    key: 11,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
     name: "System Integrity Protection enabled (macOS)",
@@ -141,7 +132,7 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 13,
+    key: 12,
     query: "SELECT 1 FROM alf WHERE global_state >= 1;",
     name: "Firewall enabled (macOS)",
     description: "Checks if the firewall is enabled.",
@@ -150,28 +141,29 @@ export const DEFAULT_POLICIES = [
     platform: "darwin",
   },
   {
-    key: 14,
+    key: 13,
     query:
       "SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';",
-    name: "Screen lock enabled via MDM profile (macOS)",
-    description: "Checks that a MDM profile configures the screen lock",
+    name: "Screen lock enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock.",
     resolution:
-      "Contact your IT administrator to help you enroll your computer in your organization's MDM. If already enrolled, ask your IT administrator to enable the screen lock feature in the profile configuration.",
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock.",
     platform: "darwin",
   },
   {
-    key: 15,
+    key: 14,
     query:
       "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;",
     name: "Screen lock enabled (Windows)",
     description:
       "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less.",
     resolution:
-      "Ask your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
+      "Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
     platform: "windows",
   },
   {
-    key: 16,
+    key: 15,
     query:
       "SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);",
     name: "Password requires 10 or more characters (macOS)",
@@ -179,6 +171,170 @@ export const DEFAULT_POLICIES = [
       "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
     resolution:
       "Contact your IT administrator to confirm that your Mac is receiving configuration profiles for password length.",
+    platform: "darwin",
+  },
+  {
+    key: 16,
+    query: "SELECT 1 FROM os_version WHERE version >= '12.5.1';",
+    name: "Operating system up to date (macOS)",
+    description: "Checks that the operating system is up to date.",
+    resolution:
+      "From the Apple menu () in the corner of your screen choose System Preferences. Then select Software Update and select Upgrade Now. You might be asked to restart or enter your password.",
+    platform: "darwin",
+  },
+  {
+    key: 17,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;",
+    name: "Automatic updates enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates.",
+    platform: "darwin",
+  },
+  {
+    key: 18,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;",
+    name: "Automatic update downloads enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads.",
+    platform: "darwin",
+  },
+  {
+    key: 19,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;",
+    name: "Installation of application updates is enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to Apple applications.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables installation of application updates.",
+    platform: "darwin",
+  },
+  {
+    key: 20,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;",
+    name: "Automatic security and data file updates is enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation.",
+    platform: "darwin",
+  },
+  {
+    key: 21,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;",
+    name:
+      "Automatic installation of operating system updates is enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates.",
+    platform: "darwin",
+  },
+  {
+    key: 22,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;",
+    name: "Time and date are configured to be updated automatically (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration.",
+    platform: "darwin",
+  },
+  {
+    key: 23,
+    query:
+      "SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);",
+    name: "Lock screen after inactivity of 20 minutes or less (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less.",
+    platform: "darwin",
+  },
+  {
+    key: 24,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;",
+    name: "Internet sharing blocked (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.",
+    platform: "darwin",
+  },
+  {
+    key: 25,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;",
+    name: "Content caching is disabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching.",
+    platform: "darwin",
+  },
+  {
+    key: 26,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;",
+    name: "Ad tracking is limited (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking.",
+    platform: "darwin",
+  },
+  {
+    key: 27,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;",
+    name: "iCloud Desktop and Document sync is disabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync.",
+    platform: "darwin",
+  },
+  {
+    key: 28,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;",
+    name: "Firewall logging is enabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.",
+    platform: "darwin",
+  },
+  {
+    key: 29,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;",
+    name: "Guest account disabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account.",
+    platform: "darwin",
+  },
+  {
+    key: 30,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;",
+    name: "Guest access to shared folders is disabled (macOS)",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
     platform: "darwin",
   },
 ] as IPolicyNew[];
@@ -322,7 +478,6 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
-  freebsd: "FreeBSD",
   linux: "Linux",
   windows: "Windows",
 };
@@ -398,8 +553,4 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   name: "",
   password: "",
   sso_enabled: null,
-};
-
-export const DEFAULT_CREATE_LABEL_ERRORS = {
-  name: "",
 };

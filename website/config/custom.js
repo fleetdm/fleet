@@ -95,36 +95,40 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': 'chris-mcgillicuddy',// (github brandfront)
+    'README.md': ['chris-mcgillicuddy'],// (github brandfront)
+    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas'],//« brandfront for fleetctl package on npm
 
-    'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
+    'CODEOWNERS': ['zwass', 'mikermcneil'],
+
+    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+
+    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/people': 'charlottechance',
     'handbook/engineering': 'zwass',
     'handbook/product': 'noahtalerman',
     'handbook/security': 'guillaumeross',
+    'handbook/sales': 'alexmitchelliii',
     'handbook/digital-experience': 'mike-j-thomas',
     'handbook/growth': 'timmy-k',
-    'handbook/customers': 'tgauda',
-    'handbook/community': ['dominuskelvin', 'ksatter'],
-    'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
-
-    'tools/fleetctl-npm/README.md': ['mike-j-thomas'],//« brandfront for fleetctl package on npm
+    'handbook/customers': 'ksatter',
+    'handbook/community': ['timmy-k'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+    'website/package.json': 'eashaw',
 
-    'docs': 'zwass',// (default for docs)
-    'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-    'docs/Using-Fleet/REST-API.md': 'lukeheath',
-    'docs/Contributing/API-for-contributors.md': 'lukeheath',
-    'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
-    'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
+    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
+    'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
+    'docs/Using-Fleet/REST-API.md': 'ksatter',
+    'docs/Contributing/API-for-contributors.md': 'ksatter',
+    'docs/Deploying/FAQ.md': ['ksatter'],
+    'docs/Contributing/FAQ.md': ['ksatter'],
+    'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
   },
 
 

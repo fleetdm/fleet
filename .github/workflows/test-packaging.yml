@@ -12,7 +12,15 @@ on:
       - patch-*
   pull_request:
     paths:
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
+      - 'tools/fleetctl-docker/**'
+      - 'tools/wix-docker/**'
+      - 'tools/bomutils-docker/**'
       - '.github/workflows/test-packaging.yml'
   workflow_dispatch: # Manual
 
@@ -25,20 +33,26 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['^1.17.8']
+        go-version: ['^1.19.1']
     runs-on: ${{ matrix.os }}
 
     steps:
+
+    # Docker needs to be installed manually on macOS.
+    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
     - name: Install Docker
-      timeout-minutes: 60
+      timeout-minutes: 20
       if: matrix.os == 'macos-latest'
-      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
-        brew install --cask docker
+        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
+        brew install --cask docker.rb
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
+          sleep 1;
+        done
         echo "Docker is ready."
 
     - name: Pull fleetdm/wix
@@ -51,7 +65,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies

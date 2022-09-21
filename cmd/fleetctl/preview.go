@@ -21,7 +21,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/mitchellh/go-ps"
 	"github.com/urfave/cli/v2"
@@ -297,16 +299,25 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				}
 			}
 
-			err = applyYamlBytes(c, buf, client)
+			specs, err := spec.GroupFromBytes(buf)
+			if err != nil {
+				return err
+			}
+			logf := func(format string, a ...interface{}) {
+				fmt.Fprintf(c.App.Writer, format, a...)
+			}
+			err = client.ApplyGroup(c.Context, specs, logf, fleet.ApplySpecOptions{})
 			if err != nil {
 				return err
 			}
 
 			// disable analytics collection and enable software inventory for preview
+			// TODO(roperzh): replace `host_settings` with `features` once the
+			// Docker image used for preview (fleetdm/fleetctl:latest) is released
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"host_settings":   {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
-			}); err != nil {
+			}, fleet.ApplySpecOptions{}); err != nil {
 				return fmt.Errorf("failed to apply updated app config: %w", err)
 			}
 
@@ -322,8 +333,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// disable analytics collection for preview
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"server_settings": {"enable_analytics": false},
-			},
-			); err != nil {
+			}, fleet.ApplySpecOptions{}); err != nil {
 				return fmt.Errorf("Error disabling analytics collection in app config: %w", err)
 			}
 

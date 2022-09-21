@@ -69,7 +69,17 @@ type listHostsRequest struct {
 type listHostsResponse struct {
 	Hosts    []HostResponse  `json:"hosts"`
 	Software *fleet.Software `json:"software,omitempty"`
-	Err      error           `json:"error,omitempty"`
+	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
+	// filter if one is provided with the request (and it exists in the
+	// database). It is nil otherwise and absent of the JSON response payload.
+	MDMSolution *fleet.MDMSolution `json:"mobile_device_management_solution,omitempty"`
+	// MunkiIssue is populated with the munki issue corresponding to the
+	// munki_issue_id filter if one is provided with the request (and it exists
+	// in the database). It is nil otherwise and absent of the JSON response
+	// payload.
+	MunkiIssue *fleet.MunkiIssue `json:"munki_issue,omitempty"`
+
+	Err error `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -82,6 +92,24 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		var err error
 		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
 		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var mdmSolution *fleet.MDMSolution
+	if req.Opts.MDMIDFilter != nil {
+		var err error
+		mdmSolution, err = svc.GetMDMSolution(ctx, *req.Opts.MDMIDFilter)
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the MDM solution in that case
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var munkiIssue *fleet.MunkiIssue
+	if req.Opts.MunkiIssueIDFilter != nil {
+		var err error
+		munkiIssue, err = svc.GetMunkiIssue(ctx, *req.Opts.MunkiIssueIDFilter)
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the munki issue in that case
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -100,7 +128,28 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses, Software: software}, nil
+	return listHostsResponse{
+		Hosts:       hostResponses,
+		Software:    software,
+		MDMSolution: mdmSolution,
+		MunkiIssue:  munkiIssue,
+	}, nil
+}
+
+func (svc *Service) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	return svc.ds.GetMDMSolution(ctx, mdmID)
+}
+
+func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	return svc.ds.GetMunkiIssue(ctx, munkiIssueID)
 }
 
 func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -159,7 +208,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 	}
 
 	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
-		return &badRequestError{"Cannot specify a list of ids and filters at the same time"}
+		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
 	if len(ids) > 0 {
@@ -886,7 +935,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var munkiInfo *fleet.HostMunkiInfo
-	switch version, err := svc.ds.GetMunkiVersion(ctx, id); {
+	switch version, err := svc.ds.GetHostMunkiVersion(ctx, id); {
 	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
 	case err == nil:
@@ -894,29 +943,29 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var mdm *fleet.HostMDM
-	switch enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id); {
+	switch hmdm, err := svc.ds.GetHostMDM(ctx, id); {
 	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
 	case err == nil:
-		enrollmentStatus := "Unenrolled"
-		if enrolled && !installedFromDep {
-			enrollmentStatus = "Enrolled (manual)"
-		} else if enrolled && installedFromDep {
-			enrollmentStatus = "Enrolled (automated)"
-		}
-		mdm = &fleet.HostMDM{
-			EnrollmentStatus: enrollmentStatus,
-			ServerURL:        serverURL,
-		}
+		mdm = hmdm
 	}
 
-	if munkiInfo == nil && mdm == nil {
+	var munkiIssues []*fleet.HostMunkiIssue
+	switch issues, err := svc.ds.GetHostMunkiIssues(ctx, id); {
+	case err != nil:
+		return nil, err
+	case err == nil:
+		munkiIssues = issues
+	}
+
+	if munkiInfo == nil && mdm == nil && len(munkiIssues) == 0 {
 		return nil, nil
 	}
 
 	data := &fleet.MacadminsData{
-		Munki: munkiInfo,
-		MDM:   mdm,
+		Munki:       munkiInfo,
+		MDM:         mdm,
+		MunkiIssues: munkiIssues,
 	}
 
 	return data, nil
@@ -966,15 +1015,33 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MunkiVersions = versions
 
+	issues, munkiIssUpdatedAt, err := svc.ds.AggregatedMunkiIssues(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiIssues = issues
+
 	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 	agg.MDMStatus = status
 
+	solutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMSolutions = solutions
+
 	agg.CountsUpdatedAt = munkiUpdatedAt
-	if mdmUpdatedAt.After(munkiUpdatedAt) {
+	if munkiIssUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = munkiIssUpdatedAt
+	}
+	if mdmUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = mdmUpdatedAt
+	}
+	if mdmSolutionsUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = mdmSolutionsUpdatedAt
 	}
 
 	return agg, nil
@@ -1060,7 +1127,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 						// duplicating the list of columns from the Host's struct tags to a
 						// map and keep this in sync, for what is essentially a programmer
 						// mistake that should be caught and corrected early.
-						encodeError(ctx, &badRequestError{message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
 						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])
@@ -1148,6 +1215,8 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 type osVersionsRequest struct {
 	TeamID   *uint   `query:"team_id,optional"`
 	Platform *string `query:"platform,optional"`
+	Name     *string `query:"os_name,optional"`
+	Version  *string `query:"os_name,optional"`
 }
 
 type osVersionsResponse struct {
@@ -1161,7 +1230,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1172,12 +1241,20 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
+	if name != nil && version == nil {
+		return nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
+	}
+
+	if name == nil && version != nil {
+		return nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
+	}
+
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
 	if err != nil && fleet.IsNotFound(err) {
 		// differentiate case where team was added after UpdateOSVersions last ran
 		if teamID != nil {

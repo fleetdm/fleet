@@ -115,8 +115,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 
 	require.NoError(t, err)
-	config.HostSettings.EnableSoftwareInventory = false
-	config.HostSettings.EnableHostUsers = false
+	config.Features.EnableSoftwareInventory = false
+	config.Features.EnableHostUsers = false
 	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
 

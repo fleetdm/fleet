@@ -6,13 +6,6 @@
     gap: 1rem;
   }
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
   .header {
     flex: 100%;
     display: flex;
@@ -221,6 +214,10 @@
     }
   }
 
+  .tooltip {
+    color: $ui-fleet-black-50;
+  }
+
   .component__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
@@ -351,11 +348,7 @@
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__query-button,
-  &__transfer-button {
-    margin-right: $pad-large;
+    gap: $pad-large;
   }
 
   &__back-link {

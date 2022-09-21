@@ -2,6 +2,8 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import {
   IInvite,
   ICreateInviteFormData,
@@ -40,34 +42,14 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  loadAll: ({
-    page = 0,
-    perPage = 100,
-    globalFilter = "",
-    sortBy = [],
-  }: IInviteSearchOptions) => {
-    const { INVITES } = endpoints;
+  loadAll: ({ globalFilter = "" }: IInviteSearchOptions) => {
+    const queryParams = {
+      query: globalFilter,
+    };
 
-    // NOTE: this code is duplicated from /entities/users.js
-    // we should pull this out into shared utility at some point.
-    const pagination = `page=${page}&per_page=${perPage}`;
-
-    let orderKeyParam = "";
-    let orderDirection = "";
-    if (sortBy.length !== 0) {
-      const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.id}`;
-      orderDirection = sortItem.desc
-        ? "&order_direction=desc"
-        : "&order_direction=asc";
-    }
-
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
-    }
-
-    const path = `${INVITES}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.INVITES;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path).then((response) => {
       const { invites } = response;

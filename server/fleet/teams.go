@@ -122,6 +122,7 @@ type TeamConfig struct {
 	AgentOptions    *json.RawMessage    `json:"agent_options,omitempty"`
 	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    TeamIntegrations    `json:"integrations"`
+	Features        Features            `json:"features"`
 }
 
 type TeamWebhookSettings struct {
@@ -252,4 +253,5 @@ type TeamSpec struct {
 	Name         string           `json:"name"`
 	AgentOptions *json.RawMessage `json:"agent_options"`
 	Secrets      []EnrollSecret   `json:"secrets"`
+	Features     *json.RawMessage `json:"features"`
 }

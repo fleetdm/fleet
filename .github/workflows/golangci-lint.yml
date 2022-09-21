@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '.github/workflows/golangci-lint.yml'
   workflow_dispatch: # Manual
 
 permissions:
@@ -22,15 +23,18 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
       - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
-          go-version: '1.17'
+          go-version: '1.19.1'
 
       - name: Run go lint
         run: |
           # The following packages are needed to build Fleet Desktop on Ubuntu.
           sudo apt install -y gcc libgtk-3-dev libayatana-appindicator3-dev
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
+          # Don't forget to update
+          # docs/Contributing/Testing-and-local-development.md when this
+          # version changes
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.47.3
           make lint-go

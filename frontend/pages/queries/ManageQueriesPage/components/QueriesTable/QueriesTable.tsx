@@ -9,7 +9,7 @@ import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import generateTableHeaders from "./QueriesTableConfig";
 
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "queries-table";
 const noQueriesClass = "no-queries";
@@ -22,7 +22,6 @@ interface IQueriesTableProps {
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
-  searchable: boolean;
   customControl?: () => JSX.Element;
   selectedDropdownFilter: string;
   isOnlyObserver?: boolean;
@@ -33,13 +32,12 @@ const QueriesTable = ({
   isLoading,
   onDeleteQueryClick,
   onCreateQueryClick,
-  searchable,
   customControl,
   selectedDropdownFilter,
   isOnlyObserver,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
 
   const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
     setSearchString(searchQuery);
@@ -69,14 +67,14 @@ const QueriesTable = ({
                     <p>
                       Create a new query, or{" "}
                       <a
-                        target="_blank"
-                        rel="noreferrer noopener"
                         href="https://fleetdm.com/docs/using-fleet/standard-query-library"
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
-                        import Fleet’s standard query library{" "}
+                        import Fleet’s standard query library
                         <img
-                          src={OpenNewTabIcon}
-                          alt="open new tab"
+                          src={ExternalLinkIcon}
+                          alt="Open external link"
                           id="new-tab-icon"
                         />
                       </a>
@@ -122,8 +120,7 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
-        disablePagination
+        searchable={!!queriesList}
         onPrimarySelectActionClick={onDeleteQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"

@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -204,7 +204,6 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
-
 	limitStore, _ := memstore.New(0)
 	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
@@ -286,7 +285,7 @@ func testUnrecognizedPluginConfig() config.FleetConfig {
 }
 
 func assertBodyContains(t *testing.T, resp *http.Response, expected string) {
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	require.Nil(t, err)
 	bodyString := string(bodyBytes)
 	assert.Contains(t, bodyString, expected)

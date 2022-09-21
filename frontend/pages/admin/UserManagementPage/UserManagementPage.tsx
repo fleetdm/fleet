@@ -12,7 +12,7 @@ interface IUserManagementProps {
 
 const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
         Create new users, customize user permissions, and remove users from
         Fleet.
@@ -22,6 +22,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
           <SandboxDemoMessage
             message="User management is only available in self-managed Fleet"
             utmSource="fleet-ui-users-page"
+            className={`${baseClass}__sandbox-demo-message`}
           />
         )}
       >

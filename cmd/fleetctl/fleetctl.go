@@ -86,6 +86,15 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		hostsCommand(),
 		vulnerabilityDataStreamCommand(),
 		packageCommand(),
+		{
+			// It's become common for folks to unintentionally install fleetctl when they actually
+			// need the Fleet server. This is hopefully a more helpful error message.
+			Name:  "prepare",
+			Usage: "This is not the binary you're looking for. Please use the fleet server binary for prepare commands.",
+			Action: func(c *cli.Context) error {
+				return errors.New("This is not the binary you're looking for. Please use the fleet server binary for prepare commands.")
+			},
+		},
 	}
 	return app
 }

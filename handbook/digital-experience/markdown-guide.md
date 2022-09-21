@@ -101,5 +101,74 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
 
+## Blockquotes
+
+To add a tip blockquote, start a line with ">" and end the blockquote with a blank newline.
+
+### Tip blockquotes
+
+Tip blockquotes are the default blockquote style in our Markdown content.
+
+#### Example
+
+```
+> This is a tip blockquote.
+This line is rendered inside of the tip blockquote.
+
+This line is rendered outside of the tip blockquote.
+```
+
+#### Rendered output
+
+> This is a tip blockquote.
+This line is rendered inside of the tip blockquote.
+
+This line is rendered outside of the tip blockquote.
+
+### Quote blockquotes
+
+To add a quote blockquote, add a `<blockquote>` HTML element with `purpose="quote"`.
+
+#### Example
+
+```
+<blockquote purpose="quote">
+This is a quote blockquote.
+
+Lines seperated by a blank newline will be rendered on a different line in the blockquote.
+</blockquote>
+```
+
+#### Rendered output
+
+<blockquote purpose="quote">
+This is a quote blockquote.
+
+Lines seperated by a blank newline will be rendered on a different line in the blockquote.
+</blockquote>
+
+### Large quote blockquote
+
+You can add a large quote blockquote by adding a `<blockquote>` HTML element with `purpose="large-quote"`.
+
+#### Example
+
+```
+<blockquote purpose="large-quote"> 
+This is a large blockquote.
+
+You can use a large quote blockquote to reduce the font size and line height of the rendered text.
+</blockquote>
+```
+
+#### Rendered output
+
+<blockquote purpose="large-quote"> 
+This is a large blockquote.
+
+You can use a large quote blockquote to reduce the font size and line height of the rendered text.
+</blockquote>
+
+
 <meta name="maintainedBy" value="mike-j-thomas">
 <meta name="title" value="Markdown-guide">

@@ -1,270 +1,310 @@
 import CONSTANTS from "../../support/constants";
 
-const { GOOD_PASSWORD } = CONSTANTS;
+const { GOOD_PASSWORD, CONFIG_INTEGRATIONS_AUTOMATIONS } = CONSTANTS;
 
-const getConfig = {
-  org_info: {
-    org_name: "Fleet Test",
-    org_logo_url: "",
-  },
-  server_settings: {
-    server_url: "https://localhost:8642",
-    live_query_disabled: false,
-    enable_analytics: true,
-    deferred_save_host: false,
-  },
-  smtp_settings: {
-    enable_smtp: false,
-    configured: false,
-    sender_address: "",
-    server: "",
-    port: 587,
-    authentication_type: "authtype_username_password",
-    user_name: "",
-    password: "",
-    enable_ssl_tls: true,
-    authentication_method: "authmethod_plain",
-    domain: "",
-    verify_ssl_certs: true,
-    enable_start_tls: true,
-  },
-  host_expiry_settings: {
-    host_expiry_enabled: true,
-    host_expiry_window: 9,
-  },
-  host_settings: {
-    enable_host_users: true,
-    enable_software_inventory: true,
-  },
-  agent_options: {
-    config: {
-      options: {
-        logger_plugin: "tls",
-        pack_delimiter: "/",
-        logger_tls_period: 10,
-        distributed_plugin: "tls",
-        disable_distributed: false,
-        logger_tls_endpoint: "/api/osquery/log",
-        distributed_interval: 10,
-        distributed_tls_max_attempts: 3,
+const patchTeamJiraPoliciesIntegration = {
+  integrations: {
+    jira: [
+      {
+        enable_failing_policies: false,
+        project_key: "PROJECT 1",
+        url: "https://fleetdm.atlassian.com",
       },
-      decorators: {
-        load: [
-          "SELECT uuid AS host_uuid FROM system_info;",
-          "SELECT hostname AS hostname FROM system_info;",
-        ],
+      {
+        enable_failing_policies: true,
+        project_key: "PROJECT 2",
+        url: "https://fleetdm.atlassian.com",
       },
-    },
-    overrides: {},
-  },
-  sso_settings: {
-    entity_id: "",
-    issuer_uri: "",
-    idp_image_url: "",
-    metadata: "",
-    metadata_url: "",
-    idp_name: "",
-    enable_sso: false,
-    enable_sso_idp_login: false,
-  },
-  vulnerability_settings: {
-    databases_path: "",
+    ],
+    zendesk: [
+      {
+        enable_failing_policies: false,
+        group_id: 12345678,
+        url: "https://fleetdm.zendesk.com",
+      },
+      {
+        enable_failing_policies: false,
+        group_id: 87654321,
+        url: "https://fleetdm.zendesk.com",
+      },
+    ],
   },
   webhook_settings: {
-    host_status_webhook: {
-      enable_host_status_webhook: false,
-      destination_url: "",
-      host_percentage: 0,
-      days_count: 0,
-    },
     failing_policies_webhook: {
-      enable_failing_policies_webhook: true,
-      destination_url: "ok.com",
-      policy_ids: [5, 10],
-      host_batch_size: 0,
+      destination_url: "https://example.com/global_admin",
+      enable_failing_policies_webhook: false,
+      policy_ids: [1, 3, 2],
     },
-    vulnerabilities_webhook: {
-      enable_vulnerabilities_webhook: false,
-      destination_url: "",
-      host_batch_size: 0,
-    },
-    interval: "24h0m0s",
   },
-  integrations: {
-    jira: [
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_software_vulnerabilities: true,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira2@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 2",
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira3@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 3",
-        enable_software_vulnerabilities: false,
-      },
-    ],
-  },
-  update_interval: {
-    osquery_detail: 3600000000000,
-    osquery_policy: 3600000000000,
-  },
-  vulnerabilities: {
-    databases_path: "/tmp/vulndbs",
-    periodicity: 3600000000000,
-    cpe_database_url: "",
-    cve_feed_prefix_url: "",
-    current_instance_checks: "auto",
-    disable_data_sync: false,
-    recent_vulnerability_max_age: 2592000000000000,
-  },
-  license: {
-    tier: "premium",
-    organization: "development-only",
-    device_count: 100,
-    expiration: "2099-06-30T20:00:00-04:00",
-    note: "for development only",
-  },
-  logging: {
-    debug: false,
-    json: false,
-    result: {
-      plugin: "filesystem",
+};
+
+const getTeamJiraPoliciesIntegration = {
+  team: {
+    id: 1,
+    created_at: "2022-07-01T19:31:46Z",
+    name: "Apples",
+    description: "",
+    agent_options: {
       config: {
-        status_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
-        result_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
-        enable_log_rotation: false,
-        enable_log_compression: false,
+        options: {
+          logger_plugin: "tls",
+          pack_delimiter: "/",
+          logger_tls_period: 10,
+          distributed_plugin: "tls",
+          disable_distributed: false,
+          logger_tls_endpoint: "/api/osquery/log",
+          distributed_interval: 10,
+          distributed_tls_max_attempts: 3,
+        },
+        decorators: {
+          load: [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;",
+          ],
+        },
+      },
+      overrides: {},
+    },
+    webhook_settings: {
+      failing_policies_webhook: {
+        enable_failing_policies_webhook: false,
+        destination_url: "https://example.com/global_admin",
+        policy_ids: [1, 3, 2],
+        host_batch_size: 0,
       },
     },
-    status: {
-      plugin: "filesystem",
+    integrations: {
+      jira: [
+        {
+          enable_failing_policies: false,
+          project_key: "PROJECT 1",
+          url: "https://fleetdm.atlassian.com",
+        },
+        {
+          enable_failing_policies: true,
+          project_key: "PROJECT 2",
+          url: "https://fleetdm.atlassian.com",
+        },
+      ],
+      zendesk: [
+        {
+          enable_failing_policies: false,
+          group_id: 12345678,
+          url: "https://fleetdm.zendesk.com",
+        },
+        {
+          enable_failing_policies: false,
+          group_id: 87654321,
+          url: "https://fleetdm.zendesk.com",
+        },
+      ],
+    },
+    user_count: 0,
+    users: [
+      {
+        created_at: "0001-01-01T00:00:00Z",
+        updated_at: "0001-01-01T00:00:00Z",
+        id: 8,
+        name: "Marco",
+        email: "marco@organization.com",
+        force_password_reset: false,
+        gravatar_url: "",
+        sso_enabled: false,
+        global_role: null,
+        api_only: false,
+        teams: null,
+        role: "observer",
+      },
+      {
+        created_at: "0001-01-01T00:00:00Z",
+        updated_at: "0001-01-01T00:00:00Z",
+        id: 9,
+        name: "Anita T. Admin",
+        email: "anita@organization.com",
+        force_password_reset: false,
+        gravatar_url: "",
+        sso_enabled: false,
+        global_role: null,
+        api_only: false,
+        teams: null,
+        role: "admin",
+      },
+      {
+        created_at: "0001-01-01T00:00:00Z",
+        updated_at: "0001-01-01T00:00:00Z",
+        id: 10,
+        name: "Toni",
+        email: "toni@organization.com",
+        force_password_reset: false,
+        gravatar_url: "",
+        sso_enabled: false,
+        global_role: null,
+        api_only: false,
+        teams: null,
+        role: "observer",
+      },
+    ],
+    host_count: 0,
+    secrets: [
+      {
+        secret: "OgkyoX/SGsuvLXPaNHUVIJoYSx1PTV+S",
+        created_at: "2022-07-01T19:31:46Z",
+        team_id: 1,
+      },
+    ],
+  },
+};
+
+const patchTeamZendeskPoliciesIntegration = {
+  integrations: {
+    jira: [
+      {
+        enable_failing_policies: false,
+        project_key: "PROJECT 1",
+        url: "https://fleetdm.atlassian.com",
+      },
+      {
+        enable_failing_policies: false,
+        project_key: "PROJECT 2",
+        url: "https://fleetdm.atlassian.com",
+      },
+    ],
+    zendesk: [
+      {
+        enable_failing_policies: false,
+        group_id: 12345678,
+        url: "https://fleetdm.zendesk.com",
+      },
+      {
+        enable_failing_policies: true,
+        group_id: 87654321,
+        url: "https://fleetdm.zendesk.com",
+      },
+    ],
+  },
+  webhook_settings: {
+    failing_policies_webhook: {
+      destination_url: "https://example.com/global_admin",
+      enable_failing_policies_webhook: false,
+      policy_ids: [1, 3, 2],
+    },
+  },
+};
+
+const getTeamZendeskPoliciesIntegration = {
+  team: {
+    id: 1,
+    created_at: "2022-07-01T19:31:46Z",
+    name: "Apples",
+    description: "",
+    agent_options: {
       config: {
-        status_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
-        result_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
-        enable_log_rotation: false,
-        enable_log_compression: false,
+        options: {
+          logger_plugin: "tls",
+          pack_delimiter: "/",
+          logger_tls_period: 10,
+          distributed_plugin: "tls",
+          disable_distributed: false,
+          logger_tls_endpoint: "/api/osquery/log",
+          distributed_interval: 10,
+          distributed_tls_max_attempts: 3,
+        },
+        decorators: {
+          load: [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;",
+          ],
+        },
+      },
+      overrides: {},
+    },
+    webhook_settings: {
+      failing_policies_webhook: {
+        enable_failing_policies_webhook: false,
+        destination_url: "https://example.com/global_admin",
+        policy_ids: [1, 3, 2],
+        host_batch_size: 0,
       },
     },
-  },
-};
-
-const enableWebhook = {
-  ...getConfig,
-  integrations: {
-    jira: [
+    integrations: {
+      jira: [
+        {
+          enable_failing_policies: false,
+          project_key: "PROJECT 1",
+          url: "https://fleetdm.atlassian.com",
+        },
+        {
+          enable_failing_policies: false,
+          project_key: "PROJECT 2",
+          url: "https://fleetdm.atlassian.com",
+        },
+      ],
+      zendesk: [
+        {
+          enable_failing_policies: false,
+          group_id: 12345678,
+          url: "https://fleetdm.zendesk.com",
+        },
+        {
+          enable_failing_policies: true,
+          group_id: 87654321,
+          url: "https://fleetdm.zendesk.com",
+        },
+      ],
+    },
+    user_count: 0,
+    users: [
       {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_software_vulnerabilities: false,
+        created_at: "0001-01-01T00:00:00Z",
+        updated_at: "0001-01-01T00:00:00Z",
+        id: 8,
+        name: "Marco",
+        email: "marco@organization.com",
+        force_password_reset: false,
+        gravatar_url: "",
+        sso_enabled: false,
+        global_role: null,
+        api_only: false,
+        teams: null,
+        role: "observer",
       },
       {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira2@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 2",
-        enable_software_vulnerabilities: false,
+        created_at: "0001-01-01T00:00:00Z",
+        updated_at: "0001-01-01T00:00:00Z",
+        id: 9,
+        name: "Anita T. Admin",
+        email: "anita@organization.com",
+        force_password_reset: false,
+        gravatar_url: "",
+        sso_enabled: false,
+        global_role: null,
+        api_only: false,
+        teams: null,
+        role: "admin",
       },
       {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira3@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 3",
-        enable_software_vulnerabilities: false,
+        created_at: "0001-01-01T00:00:00Z",
+        updated_at: "0001-01-01T00:00:00Z",
+        id: 10,
+        name: "Toni",
+        email: "toni@organization.com",
+        force_password_reset: false,
+        gravatar_url: "",
+        sso_enabled: false,
+        global_role: null,
+        api_only: false,
+        teams: null,
+        role: "observer",
       },
     ],
-  },
-  webhook_settings: {
-    vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
-      enable_vulnerabilities_webhook: true,
-    },
-  },
-};
-
-const enableIntegration = {
-  ...getConfig,
-  integrations: {
-    jira: [
+    host_count: 0,
+    secrets: [
       {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira2@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 2",
-        enable_software_vulnerabilities: true,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira3@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 3",
-        enable_software_vulnerabilities: false,
+        secret: "OgkyoX/SGsuvLXPaNHUVIJoYSx1PTV+S",
+        created_at: "2022-07-01T19:31:46Z",
+        team_id: 1,
       },
     ],
-  },
-  webhook_settings: {
-    vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
-      enable_vulnerabilities_webhook: false,
-    },
-  },
-};
-
-const disableAutomations = {
-  ...getConfig,
-  integrations: {
-    jira: [
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira2@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 2",
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira3@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 3",
-        enable_software_vulnerabilities: false,
-      },
-    ],
-  },
-  webhook_settings: {
-    vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
-      enable_vulnerabilities_webhook: false,
-    },
   },
 };
 
@@ -343,13 +383,7 @@ describe("Premium tier - Global Admin user", () => {
   });
   describe("Manage software page", () => {
     beforeEach(() => {
-      cy.intercept("GET", "/api/latest/fleet/config", getConfig).as(
-        "getIntegrations"
-      );
       cy.visit("/software/manage");
-      cy.wait("@getIntegrations").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
     });
     // it(`displays "Probability of exploit" column`, () => {
     //   cy.getAttached("thead").within(() => {
@@ -357,118 +391,9 @@ describe("Premium tier - Global Admin user", () => {
     //     cy.findByText(/probability of exploit/i).should("exist");
     //   });
     // });
-    it("allows admin to create webhook software vulnerability automation", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByRole("button", { name: /manage automations/i }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached("#webhook-radio-btn").next().click();
-      });
-      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
-      cy.intercept("PATCH", "/api/latest/fleet/config", enableWebhook).as(
-        "createWebhook"
-      );
-      cy.intercept("GET", "/api/latest/fleet/config", enableWebhook).as(
-        "createdWebhook"
-      );
-      cy.findByRole("button", { name: /^Save$/ }).click();
-      cy.wait("@createWebhook").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      cy.wait("@createdWebhook").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      // Confirm manage automations webhook was added successfully
-      cy.findByText(/updated vulnerability automations/i).should("exist");
-      cy.getAttached(".button-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider--active").should("exist");
-        cy.getAttached("#webhook-url").should("exist");
-      });
-    });
-    it("allows admin to create jira integration software vulnerability automation", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached("#ticket-radio-btn").next().click();
-        cy.findByText(/project 1/i).click();
-        cy.findByText(/project 2/i).click();
-      });
-      cy.intercept("PATCH", "/api/latest/fleet/config", enableIntegration).as(
-        "enableIntegration"
-      );
-      cy.intercept("GET", "/api/latest/fleet/config", enableIntegration).as(
-        "enabledIntegration"
-      );
-      cy.findByRole("button", { name: /^Save$/ }).click();
-      cy.wait("@enableIntegration").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      cy.wait("@enabledIntegration").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      // Confirm jira integration was added successfully
-      cy.findByText(/updated vulnerability automations/i).should("exist");
-      cy.intercept("GET", "/api/latest/fleet/config", enableIntegration).as(
-        "getIntegrations"
-      );
-      cy.visit("/software/manage");
-      cy.wait("@getIntegrations").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      cy.getAttached(".button-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider--active").should("exist");
-        cy.findByText(/project 2/i).should("exist");
-      });
-    });
-    it("allows admin to disable software vulnerability automation", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-      });
-      cy.intercept("PATCH", "/api/latest/fleet/config", disableAutomations).as(
-        "disableAutomations"
-      );
-      cy.intercept("GET", "/api/latest/fleet/config", disableAutomations).as(
-        "disabledAutomations"
-      );
-      cy.findByRole("button", { name: /^Save$/ }).click();
-      cy.wait("@disableAutomations").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      cy.wait("@disabledAutomations").then((configStub) => {
-        console.log(JSON.stringify(configStub));
-      });
-      // Confirm integration was disabled successfully
-      cy.findByText(/updated vulnerability automations/i).should("exist");
-      cy.getAttached(".button-wrap").within(() => {
-        cy.findByRole("button", {
-          name: /manage automations/i,
-        }).click();
-      });
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.findByText(/vulnerability automations disabled/i).should("exist");
-      });
+    it("allows admin to click 'Manage automations' button", () => {
+      cy.findByRole("button", { name: /manage automations/i }).click();
+      cy.findByRole("button", { name: /cancel/i }).click();
     });
     it("hides manage automations button since all teams not selected", () => {
       cy.getAttached(".manage-software-page__header-wrap").within(() => {
@@ -554,9 +479,11 @@ describe("Premium tier - Global Admin user", () => {
       cy.findByText(/gatekeeper enabled/i).click();
       cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.getAttached(".policy-form__save").click();
+        cy.findByRole("button", { name: /save/i }).click();
       });
-      cy.getAttached(".policy-form__button--modal-save").click();
+      cy.getAttached(".modal-cta-wrap").within(() => {
+        cy.findByRole("button", { name: /save policy/i }).click();
+      });
       cy.findByText(/policy created/i).should("exist");
       cy.findByText(/gatekeeper enabled/i).should("exist");
     });
@@ -574,7 +501,7 @@ describe("Premium tier - Global Admin user", () => {
       });
       cy.findByText(/successfully updated policy automations/i).should("exist");
     });
-    it("allows global admin to automate a team policy", () => {
+    it("allows global admin to automate a team policy webhook", () => {
       cy.visit("/policies/manage");
       cy.getAttached(".Select-control").within(() => {
         cy.findByText(/all teams/i).click();
@@ -595,7 +522,62 @@ describe("Premium tier - Global Admin user", () => {
       });
       cy.findByText(/successfully updated policy automations/i).should("exist");
     });
-    it("allows global admin to delete a team policy", () => {
+  });
+  it("allows global admin to delete a team policy", () => {
+    cy.visit("/policies/manage");
+    cy.getAttached(".Select-control").within(() => {
+      cy.findByText(/all teams/i).click();
+    });
+    cy.getAttached(".Select-menu")
+      .contains(/apples/i)
+      .click();
+    cy.getAttached("tbody").within(() => {
+      cy.getAttached("tr")
+        .first()
+        .within(() => {
+          cy.getAttached(".fleet-checkbox__input").check({
+            force: true,
+          });
+        });
+    });
+    cy.findByRole("button", { name: /delete/i }).click();
+    cy.getAttached(".delete-policy-modal").within(() => {
+      cy.findByRole("button", { name: /delete/i }).should("exist");
+      cy.findByRole("button", { name: /cancel/i }).click();
+    });
+  });
+  it("allows global admin to edit a team policy", () => {
+    cy.visit("policies/manage");
+    cy.findByText(/all teams/i).click();
+    cy.findByText(/apples/i).click();
+    cy.getAttached("tbody").within(() => {
+      cy.getAttached("tr")
+        .first()
+        .within(() => {
+          cy.getAttached(".fleet-checkbox__input").check({
+            force: true,
+          });
+        });
+    });
+    cy.findByText(/filevault enabled/i).click();
+    cy.getAttached(".policy-form__button-wrap").within(() => {
+      cy.findByRole("button", { name: /run/i }).should("exist");
+      cy.findByRole("button", { name: /save/i }).should("exist");
+    });
+  });
+  describe("Manage policies page (mock integrations)", () => {
+    beforeEach(() => {
+      cy.intercept(
+        "GET",
+        "/api/latest/fleet/config",
+        CONFIG_INTEGRATIONS_AUTOMATIONS
+      ).as("getIntegrations");
+      cy.visit("/policies/manage");
+      cy.wait("@getIntegrations").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+    });
+    it("allows global admin to delete team policy", () => {
       cy.visit("/policies/manage");
       cy.getAttached(".Select-control").within(() => {
         cy.findByText(/all teams/i).click();
@@ -613,29 +595,78 @@ describe("Premium tier - Global Admin user", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".delete-policies-modal").within(() => {
+      cy.getAttached(".delete-policy-modal").within(() => {
         cy.findByRole("button", { name: /delete/i }).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
     });
-    it("allows global admin to edit a team policy", () => {
-      cy.visit("policies/manage");
-      cy.findByText(/all teams/i).click();
-      cy.findByText(/apples/i).click();
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({
-              force: true,
-            });
-          });
+    it("allows global admin to automate a team policy jira integration", () => {
+      cy.visit("/policies/manage");
+      cy.getAttached(".Select-control").within(() => {
+        cy.findByText(/all teams/i).click();
       });
-      cy.findByText(/filevault enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save/i }).should("exist");
+      cy.getAttached(".Select-menu")
+        .contains(/apples/i)
+        .click();
+      cy.getAttached(".button-wrap")
+        .findByRole("button", { name: /manage automations/i })
+        .click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached("#ticket-radio-btn").next().click();
+        cy.findByText(/select integration/i).click();
+        cy.findByText(/project 2/i).click();
+        cy.intercept(
+          "PATCH",
+          "/api/latest/fleet/teams/1",
+          patchTeamJiraPoliciesIntegration
+        ).as("enableJiraPoliciesIntegration");
+        cy.intercept(
+          "GET",
+          "/api/latest/fleet/teams/1",
+          getTeamJiraPoliciesIntegration
+        ).as("enabledJiraPoliciesIntegration");
+        cy.findByText(/save/i).click();
       });
+      cy.findByText(/successfully updated policy automations/i).should("exist");
+    });
+
+    it("allows global admin to automate a team policy zendesk integration", () => {
+      cy.visit("/policies/manage");
+      cy.getAttached(".Select-control").within(() => {
+        cy.findByText(/all teams/i).click();
+      });
+      cy.getAttached(".Select-menu")
+        .contains(/apples/i)
+        .click();
+      cy.getAttached(".button-wrap")
+        .findByRole("button", { name: /manage automations/i })
+        .click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached("#ticket-radio-btn").next().click();
+        cy.findByText(/select integration/i).click();
+        cy.findByText(/87654321/i).click();
+        cy.intercept(
+          "PATCH",
+          "/api/latest/fleet/teams/1",
+          patchTeamZendeskPoliciesIntegration
+        ).as("enableZendeskPoliciesIntegration");
+        cy.intercept(
+          "GET",
+          "/api/latest/fleet/teams/1",
+          getTeamZendeskPoliciesIntegration
+        ).as("enabledZendeskPoliciesIntegration");
+        cy.findByText(/save/i).click();
+        cy.wait("@enableZendeskPoliciesIntegration").then((configStub) => {
+          console.log(JSON.stringify(configStub));
+        });
+      });
+      cy.findByText(/successfully updated policy automations/i).should("exist");
     });
   });
   describe("Admin settings page", () => {

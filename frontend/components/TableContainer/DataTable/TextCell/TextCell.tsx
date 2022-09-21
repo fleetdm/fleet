@@ -3,7 +3,7 @@ import React from "react";
 interface ITextCellProps {
   value: string | number | boolean;
   formatter?: (val: any) => string; // string, number, or null
-  greyed?: string;
+  greyed?: boolean;
   classes?: string;
 }
 
@@ -20,7 +20,7 @@ const TextCell = ({
   }
 
   return (
-    <span className={`text-cell ${classes} ${greyed || ""}`}>
+    <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
       {formatter(val)}
     </span>
   );

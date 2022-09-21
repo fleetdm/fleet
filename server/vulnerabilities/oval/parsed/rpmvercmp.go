@@ -7,17 +7,18 @@ import (
 )
 
 // Rpmvercmp Compares two evr strings (EPOCH:VERSION-RELEASE) by looking at each part in order:
-//  - EPOCHs are compared based on their numeric values, if missing then '0' is assumed,
-//  if equal then VERSIONs are compared.
-//  - VERSIONS are compared according to librpm's rpmvercmp algo
-//  (see http://ftp.rpm.org/api/4.4.2.2/rpmvercmp_8c-source.html), if equal RELEASEs are
-//  compared.
-//  - RELEASEs are compared using the rpmvercmp algo, if equal then both are equal.
+//   - EPOCHs are compared based on their numeric values, if missing then '0' is assumed,
+//     if equal then VERSIONs are compared.
+//   - VERSIONS are compared according to librpm's rpmvercmp algo
+//     (see http://ftp.rpm.org/api/4.4.2.2/rpmvercmp_8c-source.html), if equal RELEASEs are
+//     compared.
+//   - RELEASEs are compared using the rpmvercmp algo, if equal then both are equal.
 //
 // Returns:
-//  -1 if a < b
-//  0 if a == b
-//  1 if a > b
+//
+//	-1 if a < b
+//	0 if a == b
+//	1 if a > b
 func Rpmvercmp(a, b string) int {
 	epoch1 := epoch(a)
 	epoch2 := epoch(b)
