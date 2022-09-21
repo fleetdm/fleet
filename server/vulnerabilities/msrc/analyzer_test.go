@@ -51,6 +51,27 @@ func TestAnalyzer(t *testing.T) {
 			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
 		})
 
+		t.Run("remediated by build", func(t *testing.T) {
+			b := parsed.NewSecurityBulletin(prod.Name())
+			b.Products["123"] = prod
+			pIDs := map[string]bool{"123": true}
+
+			vuln := parsed.NewVulnerability(nil)
+			vuln.RemediatedBy[456] = true
+			b.Vulnerabities["cve-123"] = vuln
+
+			vfA := parsed.NewVendorFix("10.0.22000.794")
+			vfA.Supersedes = ptr.Uint(123)
+			vfA.ProductIDs["123"] = true
+			b.VendorFixes[456] = vfA
+
+			updates := []fleet.WindowsUpdate{
+				{KBID: 789},
+			}
+
+			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
+		})
+
 		t.Run("remediated by a cumulative update", func(t *testing.T) {
 			b := parsed.NewSecurityBulletin(prod.Name())
 			b.Products["123"] = prod

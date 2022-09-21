@@ -159,7 +159,7 @@ func patched(
 
 		// Check if the kernel build already contains the fix
 		if utils.Rpmvercmp(os.KernelVersion, fix.FixedBuild) >= 0 {
-			continue
+			return true
 		}
 
 		// If not, walk the forest
