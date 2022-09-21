@@ -934,7 +934,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
-			sqlInsert := `
+			const sqlInsert = `
 				INSERT INTO hosts (
 					detail_updated_at,
 					label_updated_at,
@@ -952,6 +952,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 			hostID, _ = result.LastInsertId()
 			level.Info(ds.logger).Log("hostID", hostID)
+			const sqlHostDisplayName = `
+				INSERT INTO host_display_name (host_id, display_name) VALUES (?, '')
+			`
+			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host_display_name")
+			}
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
