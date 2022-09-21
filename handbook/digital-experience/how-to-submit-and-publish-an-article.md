@@ -27,7 +27,7 @@ Publishing occurs according to our [content calendar](https://docs.google.com/sp
 
 ## How to submit an article
 
-1. Submit your draft to Chris McGillcuddy as a Google Doc. 
+1. Submit your draft to Chris McGillicuddy as a Google Doc. 
 2. Include any relevant images, image suggestions, or other design requests you may have.
 
 ## Review process
