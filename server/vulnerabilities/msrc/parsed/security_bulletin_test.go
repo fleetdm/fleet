@@ -98,8 +98,8 @@ func TestSecurityBulletin(t *testing.T) {
 
 			a.Merge(b)
 
-			require.Equal(t, *a.VendorFixes[1].Supersedes, int(1))
-			require.Equal(t, *a.VendorFixes[2].Supersedes, int(2))
+			require.Equal(t, *a.VendorFixes[1].Supersedes, uint(1))
+			require.Equal(t, *a.VendorFixes[2].Supersedes, uint(2))
 
 			require.Equal(t, a.VendorFixes[1].ProductIDs, vf1.ProductIDs)
 			require.Equal(t, a.VendorFixes[2].ProductIDs, vf2.ProductIDs)
