@@ -42,8 +42,8 @@ parasails.registerPage('new-license', {
   },
   mounted: async function() {
 
-    // If this users firstName and lastName are set to be part of the user's email address, they signed up through the Fleet Sandbox signup, and we'll need some additional information to complete this order.
-    if(this.me.firstName === this.me.emailAddress.split('@')[0] && this.me.lastName === this.me.emailAddress.split('@')[1]) {
+    // If this user's signupReason is 'Try Fleet Sandbox' we'll need some additional information to complete this order.
+    if(this.me.signupReason === 'Try Fleet Sandbox') {
       this.showAdditionalBillingFormInputs = true;
       this.billingFormRules.organization = {required: true};
       this.billingFormRules.firstName = {required: true};
