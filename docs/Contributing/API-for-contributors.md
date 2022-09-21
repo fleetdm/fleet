@@ -13,9 +13,7 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
 
 ## Packs
 
-Scheduling queries in Fleet is the best practice for collecting data from hosts. 
-
-Fleet Premium users can schedule different queries for each team to collect data from only a group of hosts. To learn how to schedule different queries for teams, [check out the docs here](TODO).
+Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](../Using-Fleet/Fleet-UI.md#schedule-a-query).
 
 The API routes to control packs are supported for backwards compatibility.
 
