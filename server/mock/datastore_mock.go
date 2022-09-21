@@ -453,7 +453,7 @@ type ListWindowsUpdatesByHostIDFunc func(ctx context.Context, hostID uint) ([]fl
 
 type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
 
-type ListOSVulnerabilitiesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.OSVulnerability, error)
+type ListOSVulnerabilitiesFunc func(ctx context.Context, hostID []uint) ([]fleet.OSVulnerability, error)
 
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
@@ -1120,8 +1120,8 @@ type DataStore struct {
 	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
 	InsertWindowsUpdatesFuncInvoked bool
 
-	ListOSVulnerabilitiesByHostIDFunc        ListOSVulnerabilitiesByHostIDFunc
-	ListOSVulnerabilitiesByHostIDFuncInvoked bool
+	ListOSVulnerabilitiesFunc        ListOSVulnerabilitiesFunc
+	ListOSVulnerabilitiesFuncInvoked bool
 
 	InsertOSVulnerabilitiesFunc        InsertOSVulnerabilitiesFunc
 	InsertOSVulnerabilitiesFuncInvoked bool
@@ -2230,9 +2230,9 @@ func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updat
 	return s.InsertWindowsUpdatesFunc(ctx, hostID, updates)
 }
 
-func (s *DataStore) ListOSVulnerabilitiesByHostID(ctx context.Context, hostID uint) ([]fleet.OSVulnerability, error) {
-	s.ListOSVulnerabilitiesByHostIDFuncInvoked = true
-	return s.ListOSVulnerabilitiesByHostIDFunc(ctx, hostID)
+func (s *DataStore) ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]fleet.OSVulnerability, error) {
+	s.ListOSVulnerabilitiesFuncInvoked = true
+	return s.ListOSVulnerabilitiesFunc(ctx, hostID)
 }
 
 func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {

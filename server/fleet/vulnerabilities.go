@@ -98,6 +98,7 @@ func (ov OSVulnerability) Affected() uint {
 
 // Represents a vulnerability, e.g. an OS or a Software vulnerability.
 type Vulnerability interface {
+	OSVulnerability | SoftwareVulnerability
 	GetCVE() string
 	Affected() uint
 	Key() string

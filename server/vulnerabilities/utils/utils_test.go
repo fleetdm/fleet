@@ -7,8 +7,85 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
+
+func TestVulnsDelta(t *testing.T) {
+	t.Run("no existing vulnerabilities", func(t *testing.T) {
+		var found []fleet.SoftwareVulnerability
+		var existing []fleet.SoftwareVulnerability
+
+		toInsert, toDelete := VulnsDelta(found, existing)
+		require.Empty(t, toInsert)
+		require.Empty(t, toDelete)
+	})
+
+	t.Run("existing match found", func(t *testing.T) {
+		found := []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "cve_1"},
+			{SoftwareID: 1, CVE: "cve_2"},
+			{SoftwareID: 2, CVE: "cve_3"},
+			{SoftwareID: 2, CVE: "cve_4"},
+		}
+
+		existing := []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "cve_1"},
+			{SoftwareID: 1, CVE: "cve_2"},
+			{SoftwareID: 2, CVE: "cve_3"},
+			{SoftwareID: 2, CVE: "cve_4"},
+		}
+
+		toInsert, toDelete := VulnsDelta(found, existing)
+		require.Empty(t, toInsert)
+		require.Empty(t, toDelete)
+	})
+
+	t.Run("existing differ from found", func(t *testing.T) {
+		found := []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "cve_1"},
+			{SoftwareID: 1, CVE: "cve_2"},
+			{SoftwareID: 3, CVE: "cve_5"},
+			{SoftwareID: 3, CVE: "cve_6"},
+		}
+
+		existing := []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "cve_1"},
+			{SoftwareID: 1, CVE: "cve_2"},
+			{SoftwareID: 2, CVE: "cve_3"},
+			{SoftwareID: 2, CVE: "cve_4"},
+		}
+
+		expectedToInsert := []fleet.SoftwareVulnerability{
+			{SoftwareID: 3, CVE: "cve_5"},
+			{SoftwareID: 3, CVE: "cve_6"},
+		}
+
+		expectedToDelete := []fleet.SoftwareVulnerability{
+			{SoftwareID: 2, CVE: "cve_3"},
+			{SoftwareID: 2, CVE: "cve_4"},
+		}
+
+		toInsert, toDelete := VulnsDelta(found, existing)
+		require.Equal(t, expectedToInsert, toInsert)
+		require.ElementsMatch(t, expectedToDelete, toDelete)
+	})
+
+	t.Run("nothing found but vulns exist", func(t *testing.T) {
+		var found []fleet.SoftwareVulnerability
+
+		existing := []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "cve_1"},
+			{SoftwareID: 1, CVE: "cve_2"},
+			{SoftwareID: 2, CVE: "cve_3"},
+			{SoftwareID: 2, CVE: "cve_4"},
+		}
+
+		toInsert, toDelete := VulnsDelta(found, existing)
+		require.Empty(t, toInsert)
+		require.ElementsMatch(t, existing, toDelete)
+	})
+}
 
 func TestProductsIntersect(t *testing.T) {
 	a := map[string]bool{

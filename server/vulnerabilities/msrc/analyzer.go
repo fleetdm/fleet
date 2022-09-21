@@ -21,7 +21,7 @@ func Analyze(
 	os fleet.OperatingSystem,
 	vulnPath string,
 	collectVulns bool,
-) ([]fleet.Vulnerability, error) {
+) ([]fleet.OSVulnerability, error) {
 	bulletin, err := loadBulletin(os, vulnPath)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func Analyze(
 		}
 
 		for _, hID := range hIDs {
-			insrt, del := vulnsDelta(foundInBatch[hID], existingInBatch[hID])
+			insrt, del := utils.VulnsDelta(foundInBatch[hID], existingInBatch[hID])
 			for _, i := range insrt {
 				toInsertSet[i.Key()] = i
 			}
@@ -104,9 +104,9 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.Vulnerability
+	var inserted []fleet.OSVulnerability
 	if collectVulns {
-		inserted = make([]fleet.Vulnerability, 0, len(toInsertSet))
+		inserted = make([]fleet.OSVulnerability, 0, len(toInsertSet))
 	}
 
 	err = batchProcess(toInsertSet, func(v []fleet.OSVulnerability) error {
@@ -160,40 +160,6 @@ func batchProcess(
 		}
 	}
 	return nil
-}
-
-// vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
-// and returns what to insert and what to delete.
-func vulnsDelta(
-	found []fleet.OSVulnerability,
-	existing []fleet.OSVulnerability,
-) (toInsert []fleet.OSVulnerability, toDelete []fleet.OSVulnerability) {
-	toDelete = make([]fleet.OSVulnerability, 0)
-	toInsert = make([]fleet.OSVulnerability, 0)
-
-	existingSet := make(map[string]bool)
-	for _, e := range existing {
-		existingSet[e.Key()] = true
-	}
-
-	foundSet := make(map[string]bool)
-	for _, f := range found {
-		foundSet[f.Key()] = true
-	}
-
-	for _, e := range existing {
-		if _, ok := foundSet[e.Key()]; !ok {
-			toDelete = append(toDelete, e)
-		}
-	}
-
-	for _, f := range found {
-		if _, ok := existingSet[f.Key()]; !ok {
-			toInsert = append(toInsert, f)
-		}
-	}
-
-	return toInsert, toDelete
 }
 
 // patched returns true if the vulnerability (v) is patched by the any of the provided Windows

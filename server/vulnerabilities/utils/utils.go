@@ -13,12 +13,12 @@ import (
 
 // VulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
 // and returns what to insert and what to delete.
-func VulnsDelta(
-	found []fleet.Vulnerability,
-	existing []fleet.Vulnerability,
-) (toInsert []fleet.Vulnerability, toDelete []fleet.Vulnerability) {
-	toDelete = make([]fleet.Vulnerability, 0)
-	toInsert = make([]fleet.Vulnerability, 0)
+func VulnsDelta[T fleet.Vulnerability](
+	found []T,
+	existing []T,
+) (toInsert []T, toDelete []T) {
+	toDelete = make([]T, 0)
+	toInsert = make([]T, 0)
 
 	existingSet := make(map[string]bool)
 	for _, e := range existing {

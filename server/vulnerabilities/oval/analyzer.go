@@ -25,7 +25,7 @@ func Analyze(
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
-) ([]fleet.Vulnerability, error) {
+) ([]fleet.SoftwareVulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
 	source := fleet.UbuntuOVALSource
@@ -81,7 +81,7 @@ func Analyze(
 		}
 
 		for _, hId := range hIds {
-			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
+			insrt, del := utils.VulnsDelta(foundInBatch[hId], existingInBatch[hId])
 			for _, i := range insrt {
 				toInsertSet[i.Key()] = i
 			}
@@ -98,9 +98,9 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.Vulnerability
+	var inserted []fleet.SoftwareVulnerability
 	if collectVulns {
-		inserted = make([]fleet.Vulnerability, 0, len(toInsertSet))
+		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
 	}
 
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
@@ -154,40 +154,6 @@ func batchProcess(
 		}
 	}
 	return nil
-}
-
-// vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
-// and returns what to insert and what to delete.
-func vulnsDelta(
-	found []fleet.SoftwareVulnerability,
-	existing []fleet.SoftwareVulnerability,
-) (toInsert []fleet.SoftwareVulnerability, toDelete []fleet.SoftwareVulnerability) {
-	toDelete = make([]fleet.SoftwareVulnerability, 0)
-	toInsert = make([]fleet.SoftwareVulnerability, 0)
-
-	existingSet := make(map[string]bool)
-	for _, e := range existing {
-		existingSet[e.Key()] = true
-	}
-
-	foundSet := make(map[string]bool)
-	for _, f := range found {
-		foundSet[f.Key()] = true
-	}
-
-	for _, e := range existing {
-		if _, ok := foundSet[e.Key()]; !ok {
-			toDelete = append(toDelete, e)
-		}
-	}
-
-	for _, f := range found {
-		if _, ok := existingSet[f.Key()]; !ok {
-			toInsert = append(toInsert, f)
-		}
-	}
-
-	return toInsert, toDelete
 }
 
 // loadDef returns the latest oval Definition for the given platform.
