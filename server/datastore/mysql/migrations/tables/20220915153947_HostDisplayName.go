@@ -14,7 +14,7 @@ func Up_20220915153947(tx *sql.Tx) error {
 		{"delete index", `ALTER TABLE hosts DROP INDEX hosts_search`},
 		{"create index", `CREATE FULLTEXT INDEX hosts_search ON hosts(hostname, uuid, computer_name)`},
 		{"new table", `
-			CREATE TABLE host_display_name (
+			CREATE TABLE host_display_names (
 			    host_id int(10) unsigned NOT NULL,
 			    display_name varchar(255) NOT NULL,
 			    PRIMARY KEY (host_id),
@@ -22,8 +22,8 @@ func Up_20220915153947(tx *sql.Tx) error {
 			);
 		`},
 		{"migrate data", `
-			INSERT INTO host_display_name (
-				SELECT id host_id, IF(computer_name="", hostname, computer_name) display_name FROM hosts
+			INSERT INTO host_display_names (
+				SELECT id host_id, IF(computer_name='', hostname, computer_name) display_name FROM hosts
 			)
 		`},
 	} {
