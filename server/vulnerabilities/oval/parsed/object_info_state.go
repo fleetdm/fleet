@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 type ObjectInfoState struct {
@@ -58,7 +59,7 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 			rel = s.Release
 		} else {
 			// If not, try to get it from the version
-			rel = release(s.Version)
+			rel = utils.Release(s.Version)
 		}
 		rEval, err := sta.Release.Eval(rel)
 		if err != nil {
@@ -87,7 +88,7 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 		// TODO: see https://github.com/fleetdm/fleet/issues/6236 -
 		// ATM we are not storing the epoch, so we will need to removed it from the
 		// state ... otherwise we will
-		rEval, err := sta.Evr.Eval(evr, Rpmvercmp, true)
+		rEval, err := sta.Evr.Eval(evr, utils.Rpmvercmp, true)
 		if err != nil {
 			return false, err
 		}

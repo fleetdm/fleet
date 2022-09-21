@@ -30,7 +30,7 @@ func TestAnalyzer(t *testing.T) {
 			b.Products["123"] = prod
 			b.Vulnerabities["cve-123"] = parsed.NewVulnerability(nil)
 			pIDs := map[string]bool{"123": true}
-			require.False(t, patched(b, b.Vulnerabities["cve-123"], pIDs, nil))
+			require.False(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, nil))
 		})
 
 		t.Run("directly remediated", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestAnalyzer(t *testing.T) {
 				{KBID: 456},
 			}
 
-			require.True(t, patched(b, b.Vulnerabities["cve-123"], pIDs, updates))
+			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
 		})
 
 		t.Run("remediated by a cumulative update", func(t *testing.T) {
@@ -60,12 +60,12 @@ func TestAnalyzer(t *testing.T) {
 			vuln.RemediatedBy[456] = true
 			b.Vulnerabities["cve-123"] = vuln
 
-			vfA := parsed.NewVendorFix("")
+			vfA := parsed.NewVendorFix("10.0.22000.796")
 			vfA.Supersedes = ptr.Uint(123)
 			vfA.ProductIDs["123"] = true
 			b.VendorFixes[456] = vfA
 
-			vfB := parsed.NewVendorFix("")
+			vfB := parsed.NewVendorFix("10.0.22000.796")
 			vfB.Supersedes = ptr.Uint(456)
 			vfB.ProductIDs["123"] = true
 			b.VendorFixes[789] = vfA
@@ -74,7 +74,7 @@ func TestAnalyzer(t *testing.T) {
 				{KBID: 789},
 			}
 
-			require.True(t, patched(b, b.Vulnerabities["cve-123"], pIDs, updates))
+			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
 		})
 	})
 

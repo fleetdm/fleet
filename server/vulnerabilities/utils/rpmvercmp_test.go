@@ -1,4 +1,4 @@
-package oval_parsed
+package utils
 
 import (
 	"testing"
@@ -50,7 +50,7 @@ func TestVersionParts(t *testing.T) {
 	for _, c := range cases {
 		require.Equal(t, c.epoch, epoch(c.v))
 		require.Equal(t, c.version, version(c.v))
-		require.Equal(t, c.release, release(c.v))
+		require.Equal(t, c.release, Release(c.v))
 	}
 }
 
@@ -4557,6 +4557,7 @@ func TestRpmvercmp(t *testing.T) {
 		{"2~", GREATER, "~a"},
 		{"2~", GREATER, "1~"},
 		{"2~", EQUAL, "2~"},
+		{"10.0.22000.795", LESS, "10.0.22000.796"},
 	}
 
 	for _, c := range cases {

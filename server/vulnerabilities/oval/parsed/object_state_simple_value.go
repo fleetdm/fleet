@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 type ObjectStateSimpleValue string
@@ -59,7 +61,7 @@ func (sta ObjectStateSimpleValue) Eval(other string) (bool, error) {
 		}
 	case EvrString:
 		evr := NewObjectStateEvrString(op.String(), val)
-		return evr.Eval(other, Rpmvercmp, true)
+		return evr.Eval(other, utils.Rpmvercmp, true)
 	case Float:
 		val1, err := strconv.ParseFloat(val, 32)
 		if err != nil {

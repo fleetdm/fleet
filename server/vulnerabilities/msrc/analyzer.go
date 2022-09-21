@@ -71,7 +71,7 @@ func Analyze(
 				if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 					continue
 				}
-				if patched(bulletin, v, matchingPIDs, updates) {
+				if patched(os, bulletin, v, matchingPIDs, updates) {
 					continue
 				}
 				vs = append(vs, fleet.OSVulnerability{OSID: os.ID, HostID: hID, CVE: cve})
@@ -135,6 +135,7 @@ func Analyze(
 // patched returns true if the vulnerability (v) is patched by the any of the provided Windows
 // updates.
 func patched(
+	os fleet.OperatingSystem,
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
 	matchingPIDs map[string]bool,
@@ -156,6 +157,12 @@ func patched(
 			continue
 		}
 
+		// Check if the kernel build already contains the fix
+		if utils.Rpmvercmp(os.KernelVersion, fix.FixedBuild) >= 0 {
+			continue
+		}
+
+		// If not, walk the forest
 		for _, u := range updates {
 			if b.KBIDsConnected(KBID, u.KBID) {
 				return true
