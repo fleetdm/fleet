@@ -1,8 +1,12 @@
 # Configuration for contributors
 
+- [Packs](#packs)
+
 This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
 
 Unlike the [configuration files documentation](../Using-Fleet/configuration-files/README.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
+
+
 
 ## Integrations
 
