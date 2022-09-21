@@ -15,8 +15,8 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"ListOSVulnerabilitiesByHostIDEmpty", testListOSVulnerabilitiesByHostIDEmpty},
-		{"ListOSVulnerabilitiesByHostID", testListOSVulnerabilitiesByHostID},
+		{"ListOSVulnerabilitiesEmpty", testListOSVulnerabilitiesEmpty},
+		{"ListOSVulnerabilities", testListOSVulnerabilities},
 		{"InsertOSVulnerabilities", testInsertOSVulnerabilities},
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
 		{"DeleteOSVulnerabilities", testDeleteOSVulnerabilities},
@@ -29,14 +29,14 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 	}
 }
 
-func testListOSVulnerabilitiesByHostIDEmpty(t *testing.T, ds *Datastore) {
+func testListOSVulnerabilitiesEmpty(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	actual, err := ds.ListOSVulnerabilitiesByHostID(ctx, 4)
+	actual, err := ds.ListOSVulnerabilities(ctx, []uint{4})
 	require.NoError(t, err)
 	require.Empty(t, actual)
 }
 
-func testListOSVulnerabilitiesByHostID(t *testing.T, ds *Datastore) {
+func testListOSVulnerabilities(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	vulns := []fleet.OSVulnerability{
@@ -54,7 +54,7 @@ func testListOSVulnerabilitiesByHostID(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("none matching", func(t *testing.T) {
-		actual, err := ds.ListOSVulnerabilitiesByHostID(ctx, 3)
+		actual, err := ds.ListOSVulnerabilities(ctx, []uint{3})
 		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
@@ -65,7 +65,7 @@ func testListOSVulnerabilitiesByHostID(t *testing.T, ds *Datastore) {
 			{HostID: 1, CVE: "cve-3", OSID: 1},
 		}
 
-		actual, err := ds.ListOSVulnerabilitiesByHostID(ctx, 1)
+		actual, err := ds.ListOSVulnerabilities(ctx, []uint{1})
 		require.NoError(t, err)
 		require.ElementsMatch(t, expected, actual)
 	})
@@ -90,7 +90,7 @@ func testInsertOSVulnerabilities(t *testing.T, ds *Datastore) {
 		{HostID: 1, CVE: "cve-3", OSID: 1},
 	}
 
-	actual, err := ds.ListOSVulnerabilitiesByHostID(ctx, 1)
+	actual, err := ds.ListOSVulnerabilities(ctx, []uint{1})
 	require.NoError(t, err)
 	require.ElementsMatch(t, expected, actual)
 }
@@ -130,14 +130,14 @@ func testDeleteOSVulnerabilities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteOSVulnerabilities(ctx, toDelete)
 	require.NoError(t, err)
 
-	actual, err := ds.ListOSVulnerabilitiesByHostID(ctx, 1)
+	actual, err := ds.ListOSVulnerabilities(ctx, []uint{1})
 	require.NoError(t, err)
 	require.ElementsMatch(t, []fleet.OSVulnerability{
 		{HostID: 1, CVE: "cve-1", OSID: 1},
 		{HostID: 1, CVE: "cve-3", OSID: 1},
 	}, actual)
 
-	actual, err = ds.ListOSVulnerabilitiesByHostID(ctx, 2)
+	actual, err = ds.ListOSVulnerabilities(ctx, []uint{2})
 	require.NoError(t, err)
 	require.Empty(t, actual)
 }

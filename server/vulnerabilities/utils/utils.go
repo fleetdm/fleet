@@ -7,7 +7,43 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
+
+// VulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
+// and returns what to insert and what to delete.
+func VulnsDelta(
+	found []fleet.Vulnerability,
+	existing []fleet.Vulnerability,
+) (toInsert []fleet.Vulnerability, toDelete []fleet.Vulnerability) {
+	toDelete = make([]fleet.Vulnerability, 0)
+	toInsert = make([]fleet.Vulnerability, 0)
+
+	existingSet := make(map[string]bool)
+	for _, e := range existing {
+		existingSet[e.Key()] = true
+	}
+
+	foundSet := make(map[string]bool)
+	for _, f := range found {
+		foundSet[f.Key()] = true
+	}
+
+	for _, e := range existing {
+		if _, ok := foundSet[e.Key()]; !ok {
+			toDelete = append(toDelete, e)
+		}
+	}
+
+	for _, f := range found {
+		if _, ok := existingSet[f.Key()]; !ok {
+			toInsert = append(toInsert, f)
+		}
+	}
+
+	return toInsert, toDelete
+}
 
 // ProductIDsIntersect given two sets of product IDs returns whether they have any elements in common
 func ProductIDsIntersect(a map[string]bool, b map[string]bool) bool {

@@ -10,11 +10,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListOSVulnerabilitiesByHostID(ctx context.Context, hostID uint) ([]fleet.OSVulnerability, error) {
+func (ds *Datastore) ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]fleet.OSVulnerability, error) {
 	stmt := `
         SELECT host_id, operating_system_id, cve
         FROM operating_system_vulnerabilities
-        WHERE host_id = ?
+        WHERE host_id IN (?)
 	`
 	r := []fleet.OSVulnerability{}
 

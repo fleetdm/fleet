@@ -631,7 +631,7 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
-	ListOSVulnerabilitiesByHostID(ctx context.Context, hostID uint) ([]OSVulnerability, error)
+	ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]OSVulnerability, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 }

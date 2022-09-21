@@ -12,6 +12,7 @@ import (
 
 const (
 	hostsBatchSize = 500
+	vulnBatchSize  = 500
 )
 
 func Analyze(
@@ -35,10 +36,10 @@ func Analyze(
 		}
 	}
 
-	var offset int
-	var vulns []fleet.Vulnerability
+	toInsertSet := make(map[string]fleet.OSVulnerability)
+	toDeleteSet := make(map[string]fleet.OSVulnerability)
 
-	// Detect vulnerabilities
+	var offset int
 	for {
 		hIDs, err := ds.HostIDsByOSID(ctx, os.ID, offset, hostsBatchSize)
 		offset += len(hIDs)
@@ -51,27 +52,148 @@ func Analyze(
 			break
 		}
 
+		// Run vulnerability detection for all hosts in this batch (hIDs)
+		// and store the results in 'foundInBatch'.
+		foundInBatch := make(map[uint][]fleet.OSVulnerability, len(hIDs))
 		for _, hID := range hIDs {
 			updates, err := ds.ListWindowsUpdatesByHostID(ctx, hID)
 			if err != nil {
 				return nil, err
 			}
 
+			var vs []fleet.OSVulnerability
 			for cve, v := range bulletin.Vulnerabities {
+				// Check if this vulnerability targets the OS
 				if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 					continue
 				}
-
 				if patched(bulletin, v, matchingPIDs, updates) {
 					continue
 				}
-
-				vulns = append(vulns, fleet.OSVulnerability{OSID: os.ID, HostID: hID, CVE: cve})
+				vs = append(vs, fleet.OSVulnerability{OSID: os.ID, HostID: hID, CVE: cve})
 			}
+			foundInBatch[hID] = vs
+		}
+
+		osvulns, err := ds.ListOSVulnerabilities(ctx, hIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		existingInBatch := make(map[uint][]fleet.OSVulnerability)
+		for _, osv := range osvulns {
+			existingInBatch[osv.HostID] = append(existingInBatch[osv.HostID], osv)
+		}
+
+		for _, hID := range hIDs {
+			insrt, del := vulnsDelta(foundInBatch[hID], existingInBatch[hID])
+			for _, i := range insrt {
+				toInsertSet[i.Key()] = i
+			}
+			for _, d := range del {
+				toDeleteSet[d.Key()] = d
+			}
+		}
+
+	}
+
+	err = batchProcess(toDeleteSet, func(v []fleet.OSVulnerability) error {
+		return ds.DeleteOSVulnerabilities(ctx, v)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var inserted []fleet.Vulnerability
+	if collectVulns {
+		inserted = make([]fleet.Vulnerability, 0, len(toInsertSet))
+	}
+
+	err = batchProcess(toInsertSet, func(v []fleet.OSVulnerability) error {
+		n, err := ds.InsertOSVulnerabilities(ctx, v, fleet.MSRCSource)
+		if err != nil {
+			return err
+		}
+
+		if collectVulns && n > 0 {
+			for _, e := range v {
+				inserted = append(inserted, e)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return inserted, nil
+}
+
+func batchProcess(
+	values map[string]fleet.OSVulnerability,
+	dsFunc func(v []fleet.OSVulnerability) error,
+) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	bSize := vulnBatchSize
+	if bSize > len(values) {
+		bSize = len(values)
+	}
+
+	buffer := make([]fleet.OSVulnerability, bSize)
+	var offset, i int
+	for _, v := range values {
+		buffer[offset] = v
+		offset++
+		i++
+
+		// Consume buffer if full or if we are at the last iteration
+		if offset == bSize || i >= len(values) {
+			err := dsFunc(buffer[:offset])
+			if err != nil {
+				return err
+			}
+			offset = 0
+		}
+	}
+	return nil
+}
+
+// vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
+// and returns what to insert and what to delete.
+func vulnsDelta(
+	found []fleet.OSVulnerability,
+	existing []fleet.OSVulnerability,
+) (toInsert []fleet.OSVulnerability, toDelete []fleet.OSVulnerability) {
+	toDelete = make([]fleet.OSVulnerability, 0)
+	toInsert = make([]fleet.OSVulnerability, 0)
+
+	existingSet := make(map[string]bool)
+	for _, e := range existing {
+		existingSet[e.Key()] = true
+	}
+
+	foundSet := make(map[string]bool)
+	for _, f := range found {
+		foundSet[f.Key()] = true
+	}
+
+	for _, e := range existing {
+		if _, ok := foundSet[e.Key()]; !ok {
+			toDelete = append(toDelete, e)
 		}
 	}
 
-	return vulns, nil
+	for _, f := range found {
+		if _, ok := existingSet[f.Key()]; !ok {
+			toInsert = append(toInsert, f)
+		}
+	}
+
+	return toInsert, toDelete
 }
 
 // patched returns true if the vulnerability (v) is patched by the any of the provided Windows
