@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -137,10 +138,10 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
       manageHostsPage.visitsManageHostsPage();
     });
-    it("verifies teams is disabled on Manage Host page", () => {
+    it("verifies teams is disabled", () => {
       manageHostsPage.verifiesTeamsIsDisabled();
     });
-    it("hides 'Add hosts', 'Add label', and 'Manage enroll secrets' button", () => {
+    it("hides 'Add hosts', 'Add label', and 'Manage enroll secrets' buttons", () => {
       manageHostsPage.hidesButton("Add label");
       manageHostsPage.hidesButton("Add hosts");
       manageHostsPage.hidesButton("Manage enroll secret");
@@ -158,19 +159,16 @@ describe("Free tier - Observer user", () => {
       hostDetailsPage.hidesButton("Transfer");
       hostDetailsPage.hidesButton("Query");
       hostDetailsPage.hidesButton("Delete");
+      hostDetailsPage.hidesCreatingOSPolicy();
     });
   });
   describe("Manage software page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/software/manage");
+      manageSoftwarePage.visitManageSoftwarePage();
     });
     it("hides manage automations button", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByRole("button", { name: /manage automations/i }).should(
-          "not.exist"
-        );
-      });
+      manageSoftwarePage.hidesButton("Manage automations");
     });
   });
   describe("Query page", () => {

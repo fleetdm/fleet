@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -154,6 +155,7 @@ describe(
         manageHostsPage.verifiesTeamsIsDisabled();
       });
       it("allows admin to see and click CTA buttons", () => {
+        manageHostsPage.allowsAddLabelForm();
         manageHostsPage.allowsAddHosts();
         manageHostsPage.allowsManageAndAddSecrets();
       });
@@ -177,7 +179,7 @@ describe(
     describe("Manage software page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
-        cy.visit("/software/manage");
+        manageSoftwarePage.visitManageSoftwarePage();
       });
       // it(`displays "Vulnerabilities" column`, () => {
       //   cy.getAttached("thead").within(() => {
@@ -186,8 +188,7 @@ describe(
       //   });
       // });
       it("allows admin to click 'Manage automations' button", () => {
-        cy.findByRole("button", { name: /manage automations/i }).click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+        manageSoftwarePage.allowsManageAutomations();
       });
     });
     describe("Query pages", () => {

@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD, CONFIG_INTEGRATIONS_AUTOMATIONS } = CONSTANTS;
 
@@ -363,32 +364,8 @@ describe("Premium tier - Global Admin user", () => {
       manageHostsPage.allowsManageAndAddSecrets();
     });
   });
-  describe("Manage software page", () => {
-    beforeEach(() => {
-      cy.visit("/software/manage");
-    });
-    // it(`displays "Probability of exploit" column`, () => {
-    //   cy.getAttached("thead").within(() => {
-    //     cy.findByText(/vulnerabilities/i).should("not.exist");
-    //     cy.findByText(/probability of exploit/i).should("exist");
-    //   });
-    // });
-    it("allows admin to click 'Manage automations' button", () => {
-      cy.findByRole("button", { name: /manage automations/i }).click();
-      cy.findByRole("button", { name: /cancel/i }).click();
-    });
-    it("hides manage automations button since all teams not selected", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.getAttached(".Select").within(() => {
-          cy.findByText(/all teams/i).click();
-          cy.findByText(/apples/i).click();
-        });
-        cy.findByText(/manage automations/i).should("not.exist");
-      });
-    });
-  });
   describe("Host details page", () => {
-    beforeEach(() => cy.visit("hosts/2"));
+    beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
     it("allows global admin to transfer host to an existing team", () => {
       hostDetailsPage.transfersHost();
     });
@@ -402,7 +379,29 @@ describe("Premium tier - Global Admin user", () => {
       hostDetailsPage.deletesHost();
     });
   });
-
+  describe("Manage software page", () => {
+    beforeEach(() => {
+      manageSoftwarePage.visitManageSoftwarePage();
+    });
+    // it(`displays "Probability of exploit" column`, () => {
+    //   cy.getAttached("thead").within(() => {
+    //     cy.findByText(/vulnerabilities/i).should("not.exist");
+    //     cy.findByText(/probability of exploit/i).should("exist");
+    //   });
+    // });
+    it("allows admin to click 'Manage automations' button", () => {
+      manageSoftwarePage.allowsManageAutomations();
+    });
+    it("hides manage automations button since all teams not selected", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.getAttached(".Select").within(() => {
+          cy.findByText(/all teams/i).click();
+          cy.findByText(/apples/i).click();
+        });
+        manageSoftwarePage.hidesButton("Manage automations");
+      });
+    });
+  });
   describe("Query pages", () => {
     beforeEach(() => cy.visit("/queries/manage"));
     it("allows global admin to select teams targets for query", () => {

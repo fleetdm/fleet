@@ -1,5 +1,7 @@
 import CONSTANTS from "../../support/constants";
+import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -136,7 +138,7 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("Manage hosts page", () => {
     beforeEach(() => {
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it("should render elements according to role-based access controls", () => {
       manageHostsPage.includesTeamColumn();
@@ -145,35 +147,20 @@ describe("Premium tier - Team Admin user", () => {
     });
   });
   describe("Host details page", () => {
-    beforeEach(() => cy.visit("hosts/1"));
+    beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
     it("allows team admin to create an operating system policy", () => {
-      cy.getAttached(".info-flex").within(() => {
-        cy.findByText(/ubuntu/i).should("exist");
-        cy.getAttached(".host-summary__os-policy-button").click();
-      });
-      cy.getAttached(".modal__content")
-        .findByRole("button", { name: /create new policy/i })
-        .should("exist");
+      hostDetailsPage.createOperatingSystemPolicy();
     });
-    it("allows team admin to query host but not transfer host", () => {
-      cy.getAttached(".host-details__query-button").should("exist");
-      cy.findByText(/transfer/i).should("not.exist");
-    });
-    it("allows team admin to delete a host", () => {
-      cy.getAttached(".host-details__action-button-container")
-        .contains("button", /delete/i)
-        .click();
-      cy.getAttached(".delete-host-modal__modal").within(() => {
-        cy.findByText(/delete host/i).should("exist");
-        cy.contains("button", /delete/i).should("exist");
-        cy.getAttached(".modal__ex").click();
-      });
+    it("allows team admin to query host, delete host but not transfer host", () => {
+      hostDetailsPage.queriesHost();
+      hostDetailsPage.deletesHost();
+      hostDetailsPage.hidesButton("Transfer");
     });
   });
   describe("Manage software page", () => {
-    beforeEach(() => cy.visit("/software/manage"));
+    beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());
     it("hides manage automations button", () => {
-      cy.findByText(/manage automations/i).should("not.exist");
+      manageSoftwarePage.hidesButton("Manage automations");
     });
   });
   describe("Query pages", () => {

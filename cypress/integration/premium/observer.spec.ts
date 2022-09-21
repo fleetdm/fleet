@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -131,12 +132,15 @@ describe("Premium tier - Observer user", () => {
       });
     });
     describe("Manage hosts page", () => {
-      beforeEach(() => cy.visit("/hosts/manage"));
-      it("should render elements according to role-based access controls", () => {
+      beforeEach(() => manageHostsPage.visitsManageHostsPage());
+      it("renders team elements", () => {
         manageHostsPage.ensuresTeamDropdownLoads();
         manageHostsPage.includesTeamColumn();
-        manageHostsPage.hidesButton("Manage enroll secrets");
+      });
+      it("hides 'Add hosts', 'Add label', and 'Manage enroll secrets' buttons", () => {
+        manageHostsPage.hidesButton("Add label");
         manageHostsPage.hidesButton("Add hosts");
+        manageHostsPage.hidesButton("Manage enroll secret");
       });
     });
     describe("Host details page", () => {
@@ -151,13 +155,9 @@ describe("Premium tier - Observer user", () => {
       });
     });
     describe("Manage software page", () => {
-      beforeEach(() => cy.visit("/software/manage"));
+      beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());
       it("hides manage automations button", () => {
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", { name: /manage automations/i }).should(
-            "not.exist"
-          );
-        });
+        manageSoftwarePage.hidesButton("Manage automations");
       });
     });
     describe("Query pages", () => {
@@ -242,11 +242,9 @@ describe("Premium tier - Observer user", () => {
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/hosts/manage");
-        // Hosts table includes teams column
-        cy.getAttached(".data-table__table th")
-          .contains("Team")
-          .should("be.visible");
+        manageHostsPage.visitsManageHostsPage();
+        manageHostsPage.includesTeamColumn();
+        manageHostsPage.hidesButton("Add hosts");
       });
     });
     describe("Manage policies page", () => {

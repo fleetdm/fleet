@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -142,19 +143,12 @@ describe(
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         manageHostsPage.visitsManageHostsPage();
       });
-      it("verifies maintainer is on the Manage Hosts page", () => {
-        cy.getAttached(".manage-hosts").within(() => {
-          cy.findByText(/edit columns/i).should("exist");
-        });
-      });
       it("verifies teams is disabled", () => {
-        cy.contains(/team/i).should("not.exist");
+        manageHostsPage.verifiesTeamsIsDisabled();
       });
-      it("allows maintainer to see and click 'Add hosts' and 'Manage enroll secrets'", () => {
+      it("allows maintainer to see and click 'Add label', 'Add hosts', and 'Manage enroll secrets' buttons", () => {
         manageHostsPage.allowsAddHosts();
         manageHostsPage.allowsManageAndAddSecrets();
-      });
-      it("allows maintainer to open the 'Add label' form", () => {
         manageHostsPage.allowsAddHosts();
       });
     });
@@ -167,17 +161,20 @@ describe(
         hostDetailsPage.verifiesTeamsisDisabled();
         hostDetailsPage.hidesButton("Transfer");
       });
-      it("allows maintainer to delete the host", () => {
-        hostDetailsPage.deletesHost();
+      it("allows maintainer to create an operating system policy", () => {
+        hostDetailsPage.createOperatingSystemPolicy();
       });
       it("allows maintainer to custom query the host", () => {
         hostDetailsPage.queriesHost();
       });
+      it("allows maintainer to delete the host", () => {
+        hostDetailsPage.deletesHost();
+      });
     });
     describe("Manage software page", () => {
-      beforeEach(() => cy.visit("/software/manage"));
-      it("should restrict global maintainer from 'Manage automations' button", () => {
-        cy.findByText(/manage automations/).should("not.exist");
+      beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());
+      it("hides 'Manage automations' button from global maintainer", () => {
+        manageSoftwarePage.hidesButton("Manage automations");
       });
     });
     describe("Query pages", () => {

@@ -1,6 +1,7 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -130,9 +131,13 @@ describe("Premium tier - Maintainer user", () => {
       });
     });
     describe("Manage hosts page", () => {
-      it("renders elements according to role-based access controls", () => {
-        manageHostsPage.visitsManageHostsPage();
+      beforeEach(() => manageHostsPage.visitsManageHostsPage());
+      it("renders team elements", () => {
+        manageHostsPage.ensuresTeamDropdownLoads();
         manageHostsPage.includesTeamColumn();
+      });
+      it("renders 'Add hosts', 'Add label', and 'Manage enroll secrets' buttons", () => {
+        manageHostsPage.allowsAddLabelForm();
         manageHostsPage.allowsAddHosts();
         manageHostsPage.allowsManageAndAddSecrets();
       });
@@ -155,9 +160,9 @@ describe("Premium tier - Maintainer user", () => {
       });
     });
     describe("Manage software page", () => {
-      beforeEach(() => cy.visit("/software/manage"));
+      beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());
       it("hides 'Manage automations' button from global maintainer", () => {
-        cy.findByText(/manage automations/i).should("not.exist");
+        manageSoftwarePage.hidesButton("Manage automations");
       });
     });
     describe("Query pages", () => {
