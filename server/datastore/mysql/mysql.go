@@ -102,7 +102,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-type txFn func(sqlx.ExtContext) error
+type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
 	name string
