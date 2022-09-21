@@ -33,14 +33,13 @@ type HostResponse struct {
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
-	hr := HostResponse{
+	return &HostResponse{
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
 		DisplayName: host.DisplayName(),
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
-	}
-	return &hr, nil
+	}, nil
 }
 
 // HostDetailResponse is the response struct that contains the full host information
