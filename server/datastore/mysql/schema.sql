@@ -159,15 +159,6 @@ CREATE TABLE `host_device_auth` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `host_display_names` (
-  `host_id` int(10) unsigned NOT NULL,
-  `display_name` varchar(255) NOT NULL,
-  PRIMARY KEY (`host_id`),
-  KEY `display_name` (`display_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_disks` (
   `host_id` int(10) unsigned NOT NULL,
   `gigs_disk_space_available` decimal(10,2) NOT NULL DEFAULT '0.00',
@@ -176,6 +167,15 @@ CREATE TABLE `host_disks` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`host_id`),
   KEY `idx_host_disks_gigs_disk_space_available` (`gigs_disk_space_available`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `host_display_names` (
+  `host_id` int(10) unsigned NOT NULL,
+  `display_name` varchar(255) NOT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `display_name` (`display_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -618,7 +618,7 @@ CREATE TABLE `nano_users` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
-/*!50001 CREATE VIEW `nano_view_queue` AS SELECT 
+/*!50001 CREATE VIEW `nano_view_queue` AS SELECT
  1 AS `id`,
  1 AS `created_at`,
  1 AS `active`,
