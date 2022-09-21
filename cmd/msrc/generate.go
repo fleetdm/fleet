@@ -153,7 +153,7 @@ func serialize(b *parsed.SecurityBulletin, d time.Time, dir string) error {
 	if err != nil {
 		return err
 	}
-	filePath := io.FileName(b.ProductName, d, "json")
+	fileName := io.FileName(b.ProductName, d)
 	filePath := filepath.Join(dir, fileName)
 
 	return os.WriteFile(filePath, payload, 0o644)

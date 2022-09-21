@@ -17,7 +17,7 @@ func TestWindowsUpdates(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"InsertWindowsUpdates", testListOSVulnerabilities},
+		{"InsertWindowsUpdates", testInsertWindowsUpdates},
 		{"ListWindowsUpdatesByHostID", testListWindowsUpdatesByHostID},
 	}
 	for _, c := range cases {
