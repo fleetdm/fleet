@@ -97,7 +97,7 @@ func BuildMSI(opt Options) (string, error) {
 		// "S-1-1-0" is the SID for the World/Everyone group
 		// (a group that includes all users).
 		out, err := exec.Command(
-			"icacls", tmpDir, "/grant", "S-1-1-0:R", "/t",
+			"icacls", tmpDir, "/grant", "*S-1-1-0:R", "/t",
 		).CombinedOutput()
 		if err != nil {
 			fmt.Println(string(out))
