@@ -82,11 +82,11 @@ func TestSecurityBulletin(t *testing.T) {
 		})
 
 		t.Run(".VendorFixes", func(t *testing.T) {
-			vf1 := NewVendorFix()
+			vf1 := NewVendorFix("")
 			vf1.ProductIDs = map[string]bool{"111": true, "222": true}
 			vf1.Supersedes = ptr.Uint(1)
 
-			vf2 := NewVendorFix()
+			vf2 := NewVendorFix("")
 			vf2.ProductIDs = map[string]bool{"333": true, "444": true}
 			vf2.Supersedes = ptr.Uint(2)
 

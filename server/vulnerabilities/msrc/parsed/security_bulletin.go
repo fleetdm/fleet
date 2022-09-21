@@ -75,7 +75,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	// Vendor fixes
 	for kbID, r := range other.VendorFixes {
 		if _, ok := b.VendorFixes[kbID]; !ok {
-			newVF := NewVendorFix()
+			newVF := NewVendorFix(r.FixedBuild)
 			for pID, v := range r.ProductIDs {
 				newVF.ProductIDs[pID] = v
 			}
@@ -201,14 +201,16 @@ func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 // ----------------------
 
 type VendorFix struct {
+	FixedBuild string
 	// Set of products ids that target this vendor fix
 	ProductIDs map[string]bool
 	// A Reference to what vendor fix this particular vendor fix 'replaces'.
 	Supersedes *uint `json:",omitempty"`
 }
 
-func NewVendorFix() VendorFix {
+func NewVendorFix(fixedBuild string) VendorFix {
 	return VendorFix{
+		FixedBuild: fixedBuild,
 		ProductIDs: make(map[string]bool),
 	}
 }
