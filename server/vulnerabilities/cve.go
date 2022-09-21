@@ -137,10 +137,7 @@ func TranslateCPEToCVE(
 			return nil, err
 		}
 
-		for _, e := range r {
-			vulns = append(vulns, e)
-		}
-
+		vulns = append(vulns, r...)
 	}
 
 	return vulns, nil

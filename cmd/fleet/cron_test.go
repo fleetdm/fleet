@@ -59,7 +59,7 @@ func TestFilterRecentVulns(t *testing.T) {
 			"cve-recent-3",
 		}
 
-		var input []fleet.Vulnerability
+		var input []fleet.SoftwareVulnerability
 		for _, e := range ovalVulns {
 			input = append(input, e)
 		}

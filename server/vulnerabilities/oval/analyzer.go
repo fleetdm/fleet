@@ -110,9 +110,7 @@ func Analyze(
 		}
 
 		if collectVulns && n > 0 {
-			for _, e := range v {
-				inserted = append(inserted, e)
-			}
+			inserted = append(inserted, v...)
 		}
 
 		return nil

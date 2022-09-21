@@ -36,14 +36,16 @@ func Analyze(
 		}
 	}
 
-	toInsertSet := make(map[string]fleet.OSVulnerability)
-	toDeleteSet := make(map[string]fleet.OSVulnerability)
+	if len(matchingPIDs) == 0 {
+		return nil, nil
+	}
+
+	toInsert := make(map[string]fleet.OSVulnerability)
+	toDelete := make(map[string]fleet.OSVulnerability)
 
 	var offset int
 	for {
 		hIDs, err := ds.HostIDsByOSID(ctx, os.ID, offset, hostsBatchSize)
-		offset += len(hIDs)
-
 		if err != nil {
 			return nil, err
 		}
@@ -52,9 +54,11 @@ func Analyze(
 			break
 		}
 
+		offset += len(hIDs)
+
 		// Run vulnerability detection for all hosts in this batch (hIDs)
-		// and store the results in 'foundInBatch'.
-		foundInBatch := make(map[uint][]fleet.OSVulnerability, len(hIDs))
+		// and store the results in 'found'.
+		found := make(map[uint][]fleet.OSVulnerability, len(hIDs))
 		for _, hID := range hIDs {
 			updates, err := ds.ListWindowsUpdatesByHostID(ctx, hID)
 			if err != nil {
@@ -72,32 +76,32 @@ func Analyze(
 				}
 				vs = append(vs, fleet.OSVulnerability{OSID: os.ID, HostID: hID, CVE: cve})
 			}
-			foundInBatch[hID] = vs
+			found[hID] = vs
 		}
 
-		osvulns, err := ds.ListOSVulnerabilities(ctx, hIDs)
+		// Fetch all stored vulnerabilities for the current batch
+		osVulns, err := ds.ListOSVulnerabilities(ctx, hIDs)
 		if err != nil {
 			return nil, err
 		}
-
-		existingInBatch := make(map[uint][]fleet.OSVulnerability)
-		for _, osv := range osvulns {
-			existingInBatch[osv.HostID] = append(existingInBatch[osv.HostID], osv)
+		existing := make(map[uint][]fleet.OSVulnerability)
+		for _, osv := range osVulns {
+			existing[osv.HostID] = append(existing[osv.HostID], osv)
 		}
 
+		// Compute what needs to be inserted/deleted for this batch
 		for _, hID := range hIDs {
-			insrt, del := utils.VulnsDelta(foundInBatch[hID], existingInBatch[hID])
+			insrt, del := utils.VulnsDelta(found[hID], existing[hID])
 			for _, i := range insrt {
-				toInsertSet[i.Key()] = i
+				toInsert[i.Key()] = i
 			}
 			for _, d := range del {
-				toDeleteSet[d.Key()] = d
+				toDelete[d.Key()] = d
 			}
 		}
-
 	}
 
-	err = utils.BatchProcess(toDeleteSet, func(v []fleet.OSVulnerability) error {
+	err = utils.BatchProcess(toDelete, func(v []fleet.OSVulnerability) error {
 		return ds.DeleteOSVulnerabilities(ctx, v)
 	}, vulnBatchSize)
 	if err != nil {
@@ -106,19 +110,17 @@ func Analyze(
 
 	var inserted []fleet.OSVulnerability
 	if collectVulns {
-		inserted = make([]fleet.OSVulnerability, 0, len(toInsertSet))
+		inserted = make([]fleet.OSVulnerability, 0, len(toInsert))
 	}
 
-	err = utils.BatchProcess(toInsertSet, func(v []fleet.OSVulnerability) error {
+	err = utils.BatchProcess(toInsert, func(v []fleet.OSVulnerability) error {
 		n, err := ds.InsertOSVulnerabilities(ctx, v, fleet.MSRCSource)
 		if err != nil {
 			return err
 		}
 
 		if collectVulns && n > 0 {
-			for _, e := range v {
-				inserted = append(inserted, e)
-			}
+			inserted = append(inserted, v...)
 		}
 
 		return nil

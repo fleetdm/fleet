@@ -321,7 +321,7 @@ func QueueZendeskVulnJobs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	recentVulns []fleet.Vulnerability,
+	recentVulns []fleet.SoftwareVulnerability,
 ) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 

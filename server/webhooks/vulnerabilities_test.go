@@ -35,9 +35,9 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		},
 	}
 
-	recentVulns := []fleet.Vulnerability{
-		fleet.SoftwareVulnerability{SoftwareID: 1, CVE: "CVE-2012-1234"},
-		fleet.SoftwareVulnerability{SoftwareID: 2, CVE: "CVE-2012-1234"},
+	recentVulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: 1, CVE: "CVE-2012-1234"},
+		{SoftwareID: 2, CVE: "CVE-2012-1234"},
 	}
 
 	t.Run("disabled", func(t *testing.T) {
@@ -103,24 +103,24 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 
 		cases := []struct {
 			name  string
-			vulns []fleet.Vulnerability
+			vulns []fleet.SoftwareVulnerability
 			meta  map[string]fleet.CVEMeta
 			hosts []*fleet.HostShort
 			want  string
 		}{
 			{
 				"1 vuln, 1 host",
-				[]fleet.Vulnerability{fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1}},
+				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
 				nil,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
 			},
 			{
 				"1 vuln in multiple software, 1 host",
-				[]fleet.Vulnerability{
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1},
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1},
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 2},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+					{CVE: cves[0], SoftwareID: 1},
+					{CVE: cves[0], SoftwareID: 2},
 				},
 				nil,
 				hosts[:1],
@@ -128,8 +128,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			},
 			{
 				"1 vuln, 2 hosts",
-				[]fleet.Vulnerability{
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
 				},
 				nil,
 				hosts[:2],
@@ -137,8 +137,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			},
 			{
 				"1 vuln, 3 hosts",
-				[]fleet.Vulnerability{
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
 				},
 				nil,
 				hosts[:3],
@@ -146,8 +146,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			},
 			{
 				"1 vuln, 4 hosts",
-				[]fleet.Vulnerability{
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
 				},
 				nil,
 				hosts[:4],
@@ -155,9 +155,9 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			},
 			{
 				"2 vulns, 1 host each",
-				[]fleet.Vulnerability{
-					fleet.SoftwareVulnerability{CVE: cves[0], SoftwareID: 1},
-					fleet.SoftwareVulnerability{CVE: cves[1], SoftwareID: 2},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+					{CVE: cves[1], SoftwareID: 2},
 				},
 				nil,
 				hosts[:1],

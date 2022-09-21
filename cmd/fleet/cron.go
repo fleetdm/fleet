@@ -177,7 +177,7 @@ func scanVulnerabilities(
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
-	vulns := make([]fleet.Vulnerability, len(nvdVulns)+len(ovalVulns))
+	vulns := make([]fleet.SoftwareVulnerability, len(nvdVulns)+len(ovalVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 
@@ -244,9 +244,9 @@ func recentVulns(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	vulns []fleet.Vulnerability,
+	vulns []fleet.SoftwareVulnerability,
 	maxAge time.Duration,
-) ([]fleet.Vulnerability, map[string]fleet.CVEMeta) {
+) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
 	if len(vulns) == 0 {
 		return nil, nil
 	}
@@ -263,7 +263,7 @@ func recentVulns(
 	}
 
 	seen := make(map[string]bool)
-	var r []fleet.Vulnerability
+	var r []fleet.SoftwareVulnerability
 
 	for _, v := range vulns {
 		if _, ok := recent[v.GetCVE()]; ok && !seen[v.Key()] {
@@ -282,12 +282,12 @@ func checkOvalVulnerabilities(
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
-) []fleet.Vulnerability {
+) []fleet.SoftwareVulnerability {
 	if config.DisableDataSync {
 		return nil
 	}
 
-	var results []fleet.Vulnerability
+	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
 	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
@@ -332,7 +332,7 @@ func checkNVDVulnerabilities(
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
-) []fleet.Vulnerability {
+) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
 		opts := vulnerabilities.SyncOptions{
 			VulnPath:           config.DatabasesPath,
