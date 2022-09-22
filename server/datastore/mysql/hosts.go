@@ -2626,8 +2626,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			primary_mac = ?,
 			public_ip = ?,
 			refetch_requested = ?,
-			gigs_disk_space_available = ?,
-			percent_disk_space_available = ?,
 			orbit_node_key = ?
 		WHERE id = ?
 	`
@@ -2664,8 +2662,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.PrimaryMac,
 		host.PublicIP,
 		host.RefetchRequested,
-		host.GigsDiskSpaceAvailable,
-		host.PercentDiskSpaceAvailable,
 		host.OrbitNodeKey,
 		host.ID,
 	)
