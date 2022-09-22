@@ -1,0 +1,23 @@
+.query-table-example {
+
+  h3 {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__ace {
+    border-radius: $border-radius;
+    // background-color: $ui-light-grey; // copy fleet ace background color
+    background-color: $ui-light-grey; // copy fleet ace background color
+    padding: $pad-medium;
+    border: 1px solid $ui-blue-gray;
+
+    .ace_cursor {
+      display: none !important
+    }
+
+    .ace_selected-word, .ace_bracket{
+      display: none;
+    }
+  }
+}

@@ -1,21 +1,94 @@
 import React from "react";
-import classnames from "classnames";
 
 import { IOsqueryTable } from "interfaces/osquery_table";
+import { IOsqueryPlatform } from "interfaces/platform";
 import { osqueryTableNames } from "utilities/osquery_tables";
-import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-import TooltipWrapper from "components/TooltipWrapper";
+import FleetMarkdown from "components/FleetMarkdown";
+
+import QueryTableColumns from "./QueryTableColumns";
+import QueryTablePlatforms from "./QueryTablePlatforms";
+// TODO: change path after moving type to common location.
+import { IQueryTableColumn } from "./QueryTableColumns/QueryTableColumns";
 
 // @ts-ignore
-import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
-import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
-import WindowsIcon from "../../../../assets/images/icon-windows-dark-20x20@2x.png";
 import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png";
+import QueryTableExample from "./QueryTableExample";
+import QueryTableNotes from "./QueryTableNotes";
+
+interface QueryTableData {
+  name: string;
+  description: string;
+  url: string;
+  hidden: boolean;
+  platforms: IOsqueryPlatform[];
+  evented: boolean;
+  notes?: string;
+  examples?: string;
+  columns: IQueryTableColumn[];
+}
+
+const MOCK_TABLE_DATA: QueryTableData[] = [
+  {
+    name: "account_policy_data",
+    description:
+      'changing this to [something else](https://example.com) and another <a href="https://test.com" target="__blank">link</a>', // supports markdown
+    url:
+      "https://github.com/osquery/osquery/blob/master/specs/darwin/account_policy_data.table",
+    hidden: true,
+    platforms: [
+      "darwin",
+      "windows", // Note that this array was overwritten, not merged. Darwin vs. Windows!
+      "linux",
+    ],
+    evented: false,
+    notes: "* on M1 macs, this will return XYZ, ABC\n* on M2 macs, this will", // supports markdown
+    // examples: "// This will get everything\nSELECT * FROM account_policy_data;", // supports markdown
+    examples:
+      "changing this to [something else](https://example.com)\nSELECT username, uid, failed_login_timestamp FROM account_policy_data JOIN users USING(pid) WHERE failed__login_timestamp > 0;", // supports markdown
+    columns: [
+      {
+        // this column is unchanged because the fleet schema did not reference it.
+        name: "uid",
+        description: "User ID",
+        type: "bigint",
+        required: true,
+      },
+      {
+        name: "creation_time",
+        description: "When the account was first created",
+        type: "double",
+        required: false,
+        platforms: [
+          "darwin",
+          "linux", // this was added. Note that it is a hard overwrite, not a merge.
+        ],
+        requires_user_context: true,
+      },
+      {
+        name: "before not required",
+        description: "When the account was first created",
+        type: "double",
+        required: false,
+        platforms: [],
+        requires_user_context: false,
+      },
+      {
+        name: "before required",
+        description: "When the account was first created",
+        type: "double",
+        required: true,
+        platforms: [
+          "darwin",
+          "windows", // this was added. Note that it is a hard overwrite, not a merge.
+        ],
+        requires_user_context: false,
+      },
+    ],
+  },
+];
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsqueryTable;
@@ -30,41 +103,8 @@ const QuerySidePanel = ({
   onOsqueryTableSelect,
   onClose,
 }: IQuerySidePanel): JSX.Element => {
-  const displayTypeForDataType = (dataType: string) => {
-    switch (dataType) {
-      case "TEXT_TYPE":
-        return "text";
-      case "BIGINT_TYPE":
-        return "big int";
-      case "INTEGER_TYPE":
-        return "integer";
-      default:
-        return dataType;
-    }
-  };
-
   const onSelectTable = (value: string) => {
     onOsqueryTableSelect(value);
-  };
-
-  const renderColumns = () => {
-    const columns = selectedOsqueryTable?.columns;
-    const columnBaseClass = "query-column-list";
-
-    return columns?.map((column) => (
-      <li key={column.name} className={`${columnBaseClass}__item`}>
-        <span className={`${columnBaseClass}__name`}>
-          <TooltipWrapper tipContent={column.description}>
-            {column.name}
-          </TooltipWrapper>
-        </span>
-        <div className={`${columnBaseClass}__description`}>
-          <span className={`${columnBaseClass}__type`}>
-            {displayTypeForDataType(column.type)}
-          </span>
-        </div>
-      </li>
-    ));
   };
 
   const renderTableSelect = () => {
@@ -86,8 +126,9 @@ const QuerySidePanel = ({
     );
   };
 
-  const { description, platforms } = selectedOsqueryTable || {};
-  const iconClasses = classnames([`${baseClass}__icon`], "icon");
+  const { description } = selectedOsqueryTable || {};
+
+  const MOCK_DATA = MOCK_TABLE_DATA[0];
   return (
     <>
       <div
@@ -101,58 +142,14 @@ const QuerySidePanel = ({
       <div className={`${baseClass}__choose-table`}>
         <h2 className={`${baseClass}__header`}>Tables</h2>
         {renderTableSelect()}
-        <p className={`${baseClass}__description`}>{description}</p>
       </div>
-      <div className={`${baseClass}__os-availability`}>
-        <h2 className={`${baseClass}__header`}>Compatible with:</h2>
-        <ul className={`${baseClass}__platforms`}>
-          {platforms?.map((platform) => {
-            if (platform === "all") {
-              return (
-                <li key={platform}>
-                  <FleetIcon name="hosts" />{" "}
-                  {PLATFORM_DISPLAY_NAMES[platform] || platform}
-                </li>
-              );
-            }
-            platform = platform.toLowerCase();
-            let icon = (
-              <img
-                src={AppleIcon}
-                alt={`${platform} icon`}
-                className={iconClasses}
-              />
-            );
-            if (platform === "linux") {
-              icon = (
-                <img
-                  src={LinuxIcon}
-                  alt={`${platform} icon`}
-                  className={iconClasses}
-                />
-              );
-            } else if (platform === "windows") {
-              icon = (
-                <img
-                  src={WindowsIcon}
-                  alt={`${platform} icon`}
-                  className={iconClasses}
-                />
-              );
-            }
-
-            return (
-              <li key={platform}>
-                {icon} {PLATFORM_DISPLAY_NAMES[platform] || platform}
-              </li>
-            );
-          })}
-        </ul>
+      <div className={`${baseClass}__description`}>
+        <FleetMarkdown markdown={MOCK_DATA.description} />
       </div>
-      <div className={`${baseClass}__columns`}>
-        <h2 className={`${baseClass}__header`}>Columns</h2>
-        <ul className={`${baseClass}__column-list`}>{renderColumns()}</ul>
-      </div>
+      <QueryTablePlatforms platforms={MOCK_DATA.platforms} />
+      <QueryTableColumns columns={MOCK_DATA.columns} />
+      {MOCK_DATA.examples && <QueryTableExample example={MOCK_DATA.examples} />}
+      {MOCK_DATA.notes && <QueryTableNotes notes={MOCK_DATA.notes} />}
     </>
   );
 };
