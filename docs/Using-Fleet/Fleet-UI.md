@@ -64,7 +64,7 @@ With [the teams feature](./Teams.md), you can schedule queries for groups of hos
 
 > In Fleet, groups of hosts are called "teams."
 
-How to use teams to schedule  queries for a group of hosts:
+How to use teams to schedule queries for a group of hosts:
 
 1. If you haven't already, first [create a team](./Teams.md#create-a-team) and [transfer hosts](./Teams.md#transfer-hosts-to-a-team) to the team.
 
