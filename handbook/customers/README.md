@@ -76,6 +76,31 @@ The weekly on-call retro at Fleet provides time to discuss highlights and answer
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
+### Customer support responses
+
+When a customer encounters an unexpected error on fleetdm.com, it is important that we contact them quickly to resolve the issue. 
+
+If you need to reach out to a customer to resolve an error, you can use one of the templates below. The full list of response email templates is availiable in this [Google doc](https://docs.google.com/document/d/1-DvPSBnFbsa2hlr02rAGy2GBTwE0Gx03jV94AStTYf4/edit).
+
+#### Error while purchasing a Fleet Premium license
+
+"Hi [company name] team, I just noticed you ran into an error signing up for a license key on fleetdm.com. 
+
+I’m so sorry about that! Were fixing the issue now and I’ve refunded your payment and bumped your license to add an additional three hosts for the year as well.
+
+I’ll let you know when your account is sorted and follow up with instructions to access your Fleet Premium licenses.
+
+Thanks for bearing with us, please don’t hesitate to reach out if you have any questions about this, Fleet, osquery, or anything else!"
+
+
+#### Error while running a live query in Fleet Sandbox
+
+"Hey there, the team and I just noticed you experienced a 500 error that may have affected your experience running a live query on https://fleetdm.com/.
+
+I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
+
+Thank you for trying Fleet!"
+
 ## Customer requests
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
 
