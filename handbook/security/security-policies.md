@@ -754,7 +754,7 @@ Fleet policy requires that:
 2. Fleet performs quality assurance activities. This may include
 
   * peer code reviews prior to merging new code into the main development branch
-    (e.g., master branch).
+    (e.g., main branch).
   * thorough product testing before releasing it to production (e.g., unit testing
     and integration testing).
 
