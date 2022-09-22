@@ -72,14 +72,14 @@ func watchSystemTheme(iconManager *iconManager) {
 			// https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regnotifychangekeyvalue
 			key, err := registry.OpenKey(registry.CURRENT_USER, registryPath, syscall.KEY_NOTIFY)
 			if err != nil {
-				fmt.Println("open key: " + err.Error())
+				log.Error().Err(err).Msg("open registry key")
 				return
 			}
 			defer key.Close()
 
 			err = regNotifyChangeKeyValue(windows.Handle(key), false, REG_NOTIFY_CHANGE_LAST_SET, windows.Handle(0), false)
 			if err != nil {
-				fmt.Println("Setting up change notification on registry value failed: %v", err)
+				log.Error().Err(err).Msg("change notification on registry value")
 			}
 
 			theme, err := getSystemTheme()
