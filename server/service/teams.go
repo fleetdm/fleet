@@ -171,7 +171,9 @@ func (svc *Service) DeleteTeam(ctx context.Context, tid uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type applyTeamSpecsRequest struct {
-	Specs []*fleet.TeamSpec `json:"specs"`
+	Force  bool              `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Specs  []*fleet.TeamSpec `json:"specs"`
 }
 
 type applyTeamSpecsResponse struct {
@@ -182,14 +184,27 @@ func (r applyTeamSpecsResponse) error() error { return r.Err }
 
 func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*applyTeamSpecsRequest)
-	err := svc.ApplyTeamSpecs(ctx, req.Specs)
+
+	// remove any nil spec (may happen in conversion from YAML to JSON with fleetctl, but also
+	// with the API should someone send such JSON)
+	actualSpecs := make([]*fleet.TeamSpec, 0, len(req.Specs))
+	for _, spec := range req.Specs {
+		if spec != nil {
+			actualSpecs = append(actualSpecs, spec)
+		}
+	}
+
+	err := svc.ApplyTeamSpecs(ctx, actualSpecs, fleet.ApplySpecOptions{
+		Force:  req.Force,
+		DryRun: req.DryRun,
+	})
 	if err != nil {
 		return applyTeamSpecsResponse{Err: err}, nil
 	}
 	return applyTeamSpecsResponse{}, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
+func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -202,20 +217,25 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamAgentOptionsRequest struct {
-	ID uint `json:"-" url:"id"`
+	ID     uint `json:"-" url:"id"`
+	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	json.RawMessage
 }
 
 func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*modifyTeamAgentOptionsRequest)
-	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage)
+	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage, fleet.ApplySpecOptions{
+		Force:  req.Force,
+		DryRun: req.DryRun,
+	})
 	if err != nil {
 		return teamResponse{Err: err}, nil
 	}
 	return teamResponse{Team: team}, err
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*fleet.Team, error) {
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

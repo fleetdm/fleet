@@ -336,16 +336,16 @@ var hostDetailQueries = map[string]DetailQuery{
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
-		IngestFunc: ingestDiskSpace,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		DirectIngestFunc: directIngestDiskSpace,
 	},
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
        ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
-		Platforms:  []string{"windows"},
-		IngestFunc: ingestDiskSpace,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestDiskSpace,
 	},
 	"kubequery_info": {
 		Query:      `SELECT * from kubernetes_info`,
@@ -1051,23 +1051,27 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func ingestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
+		return nil
+	}
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
+		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
 			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
 		return nil
 	}
 
-	var err error
-	host.GigsDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
+	gigsAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
 	if err != nil {
 		return err
 	}
-	host.PercentDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
+	percentAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
 }
 
 func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {

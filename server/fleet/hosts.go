@@ -75,10 +75,31 @@ type HostListOptions struct {
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
 	MunkiIssueIDFilter *uint
+
+	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
+	// with less than N gigs of disk space available). Note that this is a Fleet
+	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
+	// disable it).
+	LowDiskSpaceFilter *int
 }
 
 func (h HostListOptions) Empty() bool {
-	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+	return h.ListOptions.Empty() &&
+		h.DeviceMapping == false &&
+		len(h.AdditionalFilters) == 0 &&
+		h.StatusFilter == "" &&
+		h.TeamFilter == nil &&
+		h.PolicyIDFilter == nil &&
+		h.PolicyResponseFilter == nil &&
+		h.SoftwareIDFilter == nil &&
+		h.OSIDFilter == nil &&
+		h.OSNameFilter == nil &&
+		h.OSVersionFilter == nil &&
+		h.DisableFailingPolicies == false &&
+		h.MDMIDFilter == nil &&
+		h.MDMEnrollmentStatusFilter == "" &&
+		h.MunkiIssueIDFilter == nil &&
+		h.LowDiskSpaceFilter == nil
 }
 
 type HostUser struct {
@@ -195,15 +216,16 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID           *uint                  `json:"team_id,omitempty"`
-	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount      uint                   `json:"online_count" db:"online"`
-	OfflineCount     uint                   `json:"offline_count" db:"offline"`
-	MIACount         uint                   `json:"mia_count" db:"mia"`
-	NewCount         uint                   `json:"new_count" db:"new"`
-	AllLinuxCount    uint                   `json:"all_linux_count"`
-	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
+	TeamID            *uint                  `json:"team_id,omitempty" db:"-"`
+	TotalsHostsCount  uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount       uint                   `json:"online_count" db:"online"`
+	OfflineCount      uint                   `json:"offline_count" db:"offline"`
+	MIACount          uint                   `json:"mia_count" db:"mia"`
+	NewCount          uint                   `json:"new_count" db:"new"`
+	AllLinuxCount     uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels     []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms         []*HostSummaryPlatform `json:"platforms" db:"-"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,

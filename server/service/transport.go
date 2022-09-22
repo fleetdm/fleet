@@ -320,6 +320,18 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.MunkiIssueIDFilter = &mid
 	}
 
+	lowDiskSpace := r.URL.Query().Get("low_disk_space")
+	if lowDiskSpace != "" {
+		v, err := strconv.Atoi(lowDiskSpace)
+		if err != nil {
+			return hopt, err
+		}
+		if v < 1 || v > 100 {
+			return hopt, ctxerr.Errorf(r.Context(), "invalid low_disk_space threshold, must be between 1 and 100: %s", lowDiskSpace)
+		}
+		hopt.LowDiskSpaceFilter = &v
+	}
+
 	return hopt, nil
 }
 

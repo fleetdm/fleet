@@ -92,9 +92,13 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if runtime.GOOS == "windows" {
-		// Explicitly grant read access, otherwise within the Docker container there are permissions
-		// errors.
-		out, err := exec.Command("icacls", tmpDir, "/grant", "everyone:R", "/t").CombinedOutput()
+		// Explicitly grant read access, otherwise within the Docker
+		// container there are permissions errors.
+		// "S-1-1-0" is the SID for the World/Everyone group
+		// (a group that includes all users).
+		out, err := exec.Command(
+			"icacls", tmpDir, "/grant", "*S-1-1-0:R", "/t",
+		).CombinedOutput()
 		if err != nil {
 			fmt.Println(string(out))
 			return "", fmt.Errorf("icacls: %w", err)
