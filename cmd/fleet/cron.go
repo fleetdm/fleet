@@ -268,7 +268,7 @@ func checkWinVulnerabilities(
 		errHandler(ctx, logger, "updating msrc definitions", err)
 	}
 
-	// Analyze all supported os versions using the synched OVAL definitions.
+	// Analyze all Win OS using the synched MSRC artifact.
 	for _, o := range os {
 		start := time.Now()
 		r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)

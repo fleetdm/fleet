@@ -20,6 +20,9 @@ type SecurityBulletin struct {
 	Vulnerabities map[string]Vulnerability
 	// All vendor fixes for remediating the vulnerabilities contained in this bulletin, by KBID
 	VendorFixes map[uint]VendorFix
+
+	// Data struct used for telling if two KBID are 'connected'
+	vfForest *wUF
 }
 
 func NewSecurityBulletin(pName string) *SecurityBulletin {
@@ -111,13 +114,11 @@ func (b *SecurityBulletin) initUF() *wUF {
 	return uf
 }
 
-var vfForest *wUF
-
 func (b *SecurityBulletin) getVFForest() *wUF {
-	if vfForest == nil {
-		vfForest = b.initUF()
+	if b.vfForest == nil {
+		b.vfForest = b.initUF()
 	}
-	return vfForest
+	return b.vfForest
 }
 
 // KBIDsConnected returns whether two updates are 'connected', used for dealing with cumulative
