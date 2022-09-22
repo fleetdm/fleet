@@ -40,14 +40,20 @@ func Up_20220915165115(tx *sql.Tx) error {
 
 	// Add Fleet domain tables.
 	_, err = tx.Exec(`
-CREATE TABLE IF NOT EXISTS mdm_apple_enrollments (
+CREATE TABLE IF NOT EXISTS mdm_apple_enrollment_profiles (
     id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL DEFAULT '',
-    -- dep_config is NULL for manual enrollments
-    dep_config JSON DEFAULT NULL,
+    token VARCHAR(36),
+    type VARCHAR(10) NOT NULL DEFAULT 'automatic',
+    -- dep_profile is NULL for manual enrollment profiles
+    dep_profile JSON,
+    created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (id)
-);`)
+    PRIMARY KEY (id),
+    UNIQUE KEY idx_token (token),
+    UNIQUE KEY idx_type (type)
+);
+`)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_apple_enrollments table: %w", err)
 	}
@@ -62,7 +68,8 @@ CREATE TABLE IF NOT EXISTS mdm_apple_installers (
     url_token VARCHAR(36) DEFAULT NULL,
 
     PRIMARY KEY (id)
-);`)
+);
+`)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_apple_installers table: %w", err)
 	}

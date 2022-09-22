@@ -17,25 +17,25 @@ import (
 	"howett.net/plist"
 )
 
-func (c *Client) CreateEnrollment(name string, depConfig *json.RawMessage) (*fleet.MDMAppleEnrollment, error) {
-	request := createMDMAppleEnrollmentRequest{
-		Name:      name,
-		DEPConfig: depConfig,
+func (c *Client) CreateEnrollmentProfile(enrollmentProfileType fleet.MDMAppleEnrollmentType, depProfile *json.RawMessage) (*fleet.MDMAppleEnrollmentProfile, error) {
+	request := createMDMAppleEnrollmentProfileRequest{
+		Type:       enrollmentProfileType,
+		DEPProfile: depProfile,
 	}
-	var response createMDMAppleEnrollmentResponse
-	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enrollments", &response); err != nil {
+	var response createMDMAppleEnrollmentProfileResponse
+	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles", &response); err != nil {
 		return nil, fmt.Errorf("request: %w", err)
 	}
-	return response.Enrollment, nil
+	return response.EnrollmentProfile, nil
 }
 
-func (c *Client) ListEnrollments() ([]fleet.MDMAppleEnrollment, error) {
-	request := listMDMAppleEnrollmentsRequest{}
-	var response listMDMAppleEnrollmentsResponse
-	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/enrollments", &response); err != nil {
+func (c *Client) ListEnrollments() ([]*fleet.MDMAppleEnrollmentProfile, error) {
+	request := listMDMAppleEnrollmentProfilesRequest{}
+	var response listMDMAppleEnrollmentProfilesResponse
+	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles", &response); err != nil {
 		return nil, fmt.Errorf("request: %w", err)
 	}
-	return response.Enrollments, nil
+	return response.EnrollmentProfiles, nil
 }
 
 func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.CommandEnqueueResult, error) {

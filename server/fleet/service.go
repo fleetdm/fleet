@@ -523,8 +523,8 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
-	NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload MDMAppleEnrollmentPayload) (enrollment *MDMAppleEnrollment, err error)
-	ListMDMAppleEnrollments(ctx context.Context) ([]MDMAppleEnrollment, error)
+	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
+	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
 	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
@@ -535,5 +535,5 @@ type Service interface {
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
-	GetMDMAppleEnrollProfile(ctx context.Context, enrollID uint) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
 }

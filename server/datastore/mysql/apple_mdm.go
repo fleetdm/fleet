@@ -9,48 +9,80 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) NewMDMAppleEnrollment(
-	ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload,
-) (*fleet.MDMAppleEnrollment, error) {
+func (ds *Datastore) NewMDMAppleEnrollmentProfile(
+	ctx context.Context,
+	payload fleet.MDMAppleEnrollmentProfilePayload,
+) (*fleet.MDMAppleEnrollmentProfile, error) {
 	res, err := ds.writer.ExecContext(ctx,
-		`INSERT INTO mdm_apple_enrollments (name, dep_config) VALUES (?, ?)`,
-		enrollment.Name, enrollment.DEPConfig,
+		`
+INSERT INTO
+    mdm_apple_enrollment_profiles (token, type, dep_profile)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    token = VALUES(token),
+    type = VALUES(type),
+    dep_profile = VALUES(dep_profile)
+`,
+		payload.Token, payload.Type, payload.DEPProfile,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	id, _ := res.LastInsertId()
-	return &fleet.MDMAppleEnrollment{
-		ID:        uint(id),
-		Name:      enrollment.Name,
-		DEPConfig: enrollment.DEPConfig,
+	return &fleet.MDMAppleEnrollmentProfile{
+		ID:         uint(id),
+		Token:      payload.Token,
+		Type:       payload.Type,
+		DEPProfile: payload.DEPProfile,
 	}, nil
 }
 
-func (ds *Datastore) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
-	var enrollments []fleet.MDMAppleEnrollment
+func (ds *Datastore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
+	var enrollmentProfiles []*fleet.MDMAppleEnrollmentProfile
 	if err := sqlx.SelectContext(
 		ctx,
 		ds.writer,
-		&enrollments,
-		`SELECT id, name, dep_config FROM mdm_apple_enrollments`,
+		&enrollmentProfiles,
+		`
+SELECT
+    id,
+    token,
+    type,
+    dep_profile,
+    created_at,
+    updated_at
+FROM
+    mdm_apple_enrollment_profiles
+`,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list devices")
+		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
 	}
-	return enrollments, nil
+	return enrollmentProfiles, nil
 }
 
-func (ds *Datastore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error) {
-	var enrollment fleet.MDMAppleEnrollment
+func (ds *Datastore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+	var enrollment fleet.MDMAppleEnrollmentProfile
 	if err := sqlx.GetContext(ctx, ds.writer,
 		&enrollment,
-		`SELECT id, name, dep_config FROM mdm_apple_enrollments WHERE id = ?`,
-		enrollmentID,
+		`
+SELECT
+    id,
+    token,
+    type,
+    dep_profile,
+    created_at,
+    updated_at
+FROM
+    mdm_apple_enrollment_profiles
+WHERE
+    token = ?
+`,
+		token,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("AppleEnrollment").WithID(enrollmentID))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"))
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get enrollment by id")
+		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile by token")
 	}
 	return &enrollment, nil
 }

@@ -344,6 +344,9 @@ type MDMAppleConfig struct {
 	MDM MDMAppleMDMConfig
 	// DEP holds the MDM DEP configuration.
 	DEP MDMAppleDEP
+
+	// EnrollSecert contains the secret used during MDM enrollment.
+	EnrollSecret string
 }
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.

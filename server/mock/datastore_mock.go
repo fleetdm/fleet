@@ -455,11 +455,11 @@ type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
 
-type NewMDMAppleEnrollmentFunc func(ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error)
+type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
 
-type MDMAppleEnrollmentFunc func(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error)
+type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
 
-type ListMDMAppleEnrollmentsFunc func(ctx context.Context) ([]fleet.MDMAppleEnrollment, error)
+type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error)
 
@@ -1141,14 +1141,14 @@ type DataStore struct {
 	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
 	InsertWindowsUpdatesFuncInvoked bool
 
-	NewMDMAppleEnrollmentFunc        NewMDMAppleEnrollmentFunc
-	NewMDMAppleEnrollmentFuncInvoked bool
+	NewMDMAppleEnrollmentProfileFunc        NewMDMAppleEnrollmentProfileFunc
+	NewMDMAppleEnrollmentProfileFuncInvoked bool
 
-	MDMAppleEnrollmentFunc        MDMAppleEnrollmentFunc
-	MDMAppleEnrollmentFuncInvoked bool
+	GetMDMAppleEnrollmentProfileByTokenFunc        GetMDMAppleEnrollmentProfileByTokenFunc
+	GetMDMAppleEnrollmentProfileByTokenFuncInvoked bool
 
-	ListMDMAppleEnrollmentsFunc        ListMDMAppleEnrollmentsFunc
-	ListMDMAppleEnrollmentsFuncInvoked bool
+	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
+	ListMDMAppleEnrollmentProfilesFuncInvoked bool
 
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
@@ -2280,19 +2280,19 @@ func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updat
 	return s.InsertWindowsUpdatesFunc(ctx, hostID, updates)
 }
 
-func (s *DataStore) NewMDMAppleEnrollment(ctx context.Context, enrollment fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error) {
-	s.NewMDMAppleEnrollmentFuncInvoked = true
-	return s.NewMDMAppleEnrollmentFunc(ctx, enrollment)
+func (s *DataStore) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+	s.NewMDMAppleEnrollmentProfileFuncInvoked = true
+	return s.NewMDMAppleEnrollmentProfileFunc(ctx, enrollmentPayload)
 }
 
-func (s *DataStore) MDMAppleEnrollment(ctx context.Context, enrollmentID uint) (*fleet.MDMAppleEnrollment, error) {
-	s.MDMAppleEnrollmentFuncInvoked = true
-	return s.MDMAppleEnrollmentFunc(ctx, enrollmentID)
+func (s *DataStore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+	s.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = true
+	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, token)
 }
 
-func (s *DataStore) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
-	s.ListMDMAppleEnrollmentsFuncInvoked = true
-	return s.ListMDMAppleEnrollmentsFunc(ctx)
+func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
+	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
+	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {

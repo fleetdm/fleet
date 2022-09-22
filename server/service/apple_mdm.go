@@ -30,59 +30,63 @@ import (
 	"github.com/micromdm/nanomdm/storage"
 )
 
-type createMDMAppleEnrollmentRequest struct {
-	Name      string           `json:"name"`
-	DEPConfig *json.RawMessage `json:"dep_config"`
+type createMDMAppleEnrollmentProfileRequest struct {
+	Type       fleet.MDMAppleEnrollmentType `json:"type"`
+	DEPProfile *json.RawMessage             `json:"dep_profile"`
 }
 
-type createMDMAppleEnrollmentResponse struct {
-	Enrollment *fleet.MDMAppleEnrollment `json:"enrollment"`
-	Err        error                     `json:"error,omitempty"`
+type createMDMAppleEnrollmentProfileResponse struct {
+	EnrollmentProfile *fleet.MDMAppleEnrollmentProfile `json:"enrollment_profile"`
+	Err               error                            `json:"error,omitempty"`
 }
 
-func (r createMDMAppleEnrollmentResponse) error() error { return r.Err }
+func (r createMDMAppleEnrollmentProfileResponse) error() error { return r.Err }
 
-func createMDMAppleEnrollmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*createMDMAppleEnrollmentRequest)
-	enrollment, err := svc.NewMDMAppleEnrollment(ctx, fleet.MDMAppleEnrollmentPayload{
-		Name:      req.Name,
-		DEPConfig: req.DEPConfig,
+func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*createMDMAppleEnrollmentProfileRequest)
+
+	enrollmentProfile, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
+		Type:       req.Type,
+		DEPProfile: req.DEPProfile,
 	})
 	if err != nil {
-		return createMDMAppleEnrollmentResponse{
+		return createMDMAppleEnrollmentProfileResponse{
 			Err: err,
 		}, nil
 	}
-	return createMDMAppleEnrollmentResponse{
-		Enrollment: enrollment,
+	return createMDMAppleEnrollmentProfileResponse{
+		EnrollmentProfile: enrollmentProfile,
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleEnrollment(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentPayload) (*fleet.MDMAppleEnrollment, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
+func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollment, err := svc.ds.NewMDMAppleEnrollment(ctx, enrollmentPayload)
+	// generate a token for the profile
+	enrollmentPayload.Token = uuid.New().String()
+
+	profile, err := svc.ds.NewMDMAppleEnrollmentProfile(ctx, enrollmentPayload)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if enrollment.DEPConfig != nil {
-		if err := svc.setDEPProfile(ctx, enrollment); err != nil {
+	if profile.DEPProfile != nil {
+		if err := svc.setDEPProfile(ctx, profile); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
-	enrollment.URL = svc.mdmAppleEnrollURL(enrollment.ID)
-	return enrollment, nil
+	profile.EnrollmentURL = svc.mdmAppleEnrollURL(profile.Token)
+	return profile, nil
 }
 
-func (svc *Service) mdmAppleEnrollURL(enrollmentID uint) string {
-	return fmt.Sprintf("https://%s%s?id=%d", svc.config.MDMApple.ServerAddress, apple_mdm.EnrollPath, enrollmentID)
+func (svc *Service) mdmAppleEnrollURL(token string) string {
+	return fmt.Sprintf("https://%s%s?token=%s", svc.config.MDMApple.ServerAddress, apple_mdm.EnrollPath, token)
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
 // sets the returned Profile UUID as the current DEP profile to apply to newly sync DEP devices.
-func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppleEnrollment) error {
+func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile) error {
 	httpClient := fleethttp.NewClient()
 	depTransport := client.NewTransport(httpClient.Transport, httpClient, svc.depStorage, nil)
 	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
@@ -90,10 +94,10 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 	// TODO(lucas): Currently overriding the `url` and `configuration_web_url`.
 	// We need to actually expose configuration.
 	var depProfileRequest map[string]interface{}
-	if err := json.Unmarshal(*enrollment.DEPConfig, &depProfileRequest); err != nil {
+	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
 		return fmt.Errorf("invalid DEP profile: %w", err)
 	}
-	enrollURL := svc.mdmAppleEnrollURL(enrollment.ID)
+	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token)
 	depProfileRequest["url"] = enrollURL
 	depProfileRequest["configuration_web_url"] = enrollURL
 	depProfile, err := json.Marshal(depProfileRequest)
@@ -134,38 +138,38 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollment *fleet.MDMAppl
 	return nil
 }
 
-type listMDMAppleEnrollmentsRequest struct{}
+type listMDMAppleEnrollmentProfilesRequest struct{}
 
-type listMDMAppleEnrollmentsResponse struct {
-	Enrollments []fleet.MDMAppleEnrollment `json:"enrollments"`
-	Err         error                      `json:"error,omitempty"`
+type listMDMAppleEnrollmentProfilesResponse struct {
+	EnrollmentProfiles []*fleet.MDMAppleEnrollmentProfile `json:"enrollment_profiles"`
+	Err                error                              `json:"error,omitempty"`
 }
 
-func (r listMDMAppleEnrollmentsResponse) error() error { return r.Err }
+func (r listMDMAppleEnrollmentProfilesResponse) error() error { return r.Err }
 
 func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	enrollments, err := svc.ListMDMAppleEnrollments(ctx)
+	enrollmentProfiles, err := svc.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
-		return listMDMAppleEnrollmentsResponse{
+		return listMDMAppleEnrollmentProfilesResponse{
 			Err: err,
 		}, nil
 	}
-	return listMDMAppleEnrollmentsResponse{
-		Enrollments: enrollments,
+	return listMDMAppleEnrollmentProfilesResponse{
+		EnrollmentProfiles: enrollmentProfiles,
 	}, nil
 }
 
-func (svc *Service) ListMDMAppleEnrollments(ctx context.Context) ([]fleet.MDMAppleEnrollment, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollment{}, fleet.ActionWrite); err != nil {
+func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollments, err := svc.ds.ListMDMAppleEnrollments(ctx)
+	enrollments, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	for i := range enrollments {
-		enrollments[i].URL = svc.mdmAppleEnrollURL(enrollments[i].ID)
+		enrollments[i].EnrollmentURL = svc.mdmAppleEnrollURL(enrollments[i].Token)
 	}
 	return enrollments, nil
 }
@@ -578,7 +582,7 @@ func rawCommandEnqueue(
 }
 
 type mdmAppleEnrollRequest struct {
-	EnrollmentID uint `query:"id"`
+	Token string `query:"token"`
 }
 
 func (r mdmAppleEnrollResponse) error() error { return r.Err }
@@ -605,7 +609,8 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*mdmAppleEnrollRequest)
-	profile, err := svc.GetMDMAppleEnrollProfile(ctx, req.EnrollmentID)
+
+	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
@@ -614,25 +619,32 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID uint) (profile []byte, err error) {
+func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (profile []byte, err error) {
+
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
+
+	_, err = svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, fleet.NewAuthFailedError("enrollment profile not found")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile")
+	}
 
 	topic, err := cryptoutil.TopicFromPEMCert(svc.config.MDMApple.MDM.PushCert.PEMCert)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	_, err = svc.ds.MDMAppleEnrollment(ctx, enrollmentID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
 	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
 	// on enrollments).
-	mobileConfig, err := generateMobileConfig(
+	mobileconfig, err := generateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.SCEPPath,
 		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.MDMPath,
@@ -642,10 +654,10 @@ func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	return mobileConfig, nil
+	return mobileconfig, nil
 }
 
-// mobileConfigTemplate is the template Fleet uses to assemble a .mobileconfig enroll profile to serve to devices.
+// enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
 // TODO(lucas): Tweak the remaining configuration.
 // Downloaded from:
@@ -655,8 +667,7 @@ func (svc *Service) GetMDMAppleEnrollProfile(ctx context.Context, enrollmentID u
 //
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and
 // PayloadUUID in the old and new profiles.
-// PayloadUUIDs have been generated with uuidgen in macOS.
-var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
+var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -728,9 +739,9 @@ var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
 </dict>
 </plist>`))
 
-func generateMobileConfig(orgName, scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
+func generateEnrollmentProfileMobileconfig(orgName, scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
 	var contents bytes.Buffer
-	if err := mobileConfigTemplate.Execute(&contents, struct {
+	if err := enrollmentProfileMobileconfigTemplate.Execute(&contents, struct {
 		Organization  string
 		SCEPServerURL string
 		MDMServerURL  string

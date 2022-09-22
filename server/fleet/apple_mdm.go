@@ -7,20 +7,32 @@ import (
 	"github.com/micromdm/nanomdm/mdm"
 )
 
-type MDMAppleEnrollmentPayload struct {
-	Name      string           `json:"name"`
-	DEPConfig *json.RawMessage `json:"dep_config"`
+type MDMAppleEnrollmentType string
+
+const (
+	MDMAppleEnrollmentTypeAutomatic MDMAppleEnrollmentType = "automatic"
+	MDMAppleEnrollmentTypeManual    MDMAppleEnrollmentType = "manual"
+)
+
+type MDMAppleEnrollmentProfilePayload struct {
+	Type       MDMAppleEnrollmentType `json:"type"`
+	DEPProfile *json.RawMessage       `json:"dep_profile"`
+
+	// Token should be auto-generated.
+	Token string `json:"-"`
 }
 
-type MDMAppleEnrollment struct {
-	// TODO(lucas): Add UpdateCreateTimestamps
-	ID        uint             `json:"id" db:"id"`
-	Name      string           `json:"name" db:"name"`
-	DEPConfig *json.RawMessage `json:"dep_config" db:"dep_config"`
-	URL       string           `json:"url"`
+type MDMAppleEnrollmentProfile struct {
+	ID            uint                   `json:"id" db:"id"`
+	Token         string                 `json:"token" db:"token"`
+	Type          MDMAppleEnrollmentType `json:"type" db:"type"`
+	DEPProfile    *json.RawMessage       `json:"dep_profile" db:"dep_profile"`
+	EnrollmentURL string                 `json:"enrollment_url"`
+
+	UpdateCreateTimestamps
 }
 
-func (m MDMAppleEnrollment) AuthzType() string {
+func (m MDMAppleEnrollmentProfile) AuthzType() string {
 	return "mdm_apple_enrollment"
 }
 

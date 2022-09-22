@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/groob/plist"
@@ -33,7 +34,7 @@ func appleMDMCommand() *cli.Command {
 		},
 		Subcommands: []*cli.Command{
 			appleMDMSetupCommand(),
-			appleMDMEnrollmentsCommand(),
+			appleMDMEnrollmentProfilesCommand(),
 			appleMDMEnqueueCommandCommand(),
 			appleMDMDEPCommand(),
 			appleMDMDevicesCommand(),
@@ -277,99 +278,84 @@ func appleMDMSetDEPTokenFinalizeCommand() *cli.Command {
 	}
 }
 
-func appleMDMEnrollmentsCommand() *cli.Command {
+func appleMDMEnrollmentProfilesCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "enrollments",
-		Usage: "Commands to manage enrollments",
+		Name:  "enrollment-profiles",
+		Usage: "Commands to manage enrollment profiles",
 		Subcommands: []*cli.Command{
-			appleMDMEnrollmentsCreateAutomaticCommand(),
-			appleMDMEnrollmentsCreateManualCommand(),
-			appleMDMEnrollmentsDeleteCommand(),
-			appleMDMEnrollmentsListCommand(),
+			appleMDMEnrollmentProfilesCreateAutomaticCommand(),
+			appleMDMEnrollmentProfilesCreateManualCommand(),
+			appleMDMEnrollmentProfilesDeleteCommand(),
+			appleMDMEnrollmentProfilesListCommand(),
 		},
 	}
 }
 
-func appleMDMEnrollmentsCreateAutomaticCommand() *cli.Command {
+func appleMDMEnrollmentProfilesCreateAutomaticCommand() *cli.Command {
 	var (
-		enrollmentName string
-		depConfigPath  string
+		depProfilePath string
 	)
 	return &cli.Command{
 		Name:  "create-automatic",
-		Usage: "Create a new automatic enrollment",
+		Usage: "Create an automatic enrollment profile",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "name",
-				Usage:       "Name of the automatic enrollment",
-				Destination: &enrollmentName,
-				Required:    true,
-			},
-			&cli.StringFlag{
-				Name:        "profile",
+				Name:        "dep-profile",
 				Usage:       "JSON file with fields defined in https://developer.apple.com/documentation/devicemanagement/profile",
-				Destination: &depConfigPath,
+				Destination: &depProfilePath,
 				Required:    true,
 			},
 		},
 		Action: func(c *cli.Context) error {
-			profile, err := os.ReadFile(depConfigPath)
+			profile, err := os.ReadFile(depProfilePath)
 			if err != nil {
 				return fmt.Errorf("read dep profile: %w", err)
 			}
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return fmt.Errorf("create client: %w", err)
 			}
 			depProfile := json.RawMessage(profile)
-			enrollment, err := fleet.CreateEnrollment(enrollmentName, &depProfile)
+			enrollmentProfile, err := client.CreateEnrollmentProfile(fleet.MDMAppleEnrollmentTypeAutomatic, &depProfile)
 			if err != nil {
-				return fmt.Errorf("create enrollment: %w", err)
+				return fmt.Errorf("create enrollment profile: %w", err)
 			}
-			fmt.Printf("Automatic enrollment created, URL: %s\n", enrollment.URL)
+			fmt.Printf("Automatic enrollment profile created, ID: %d\n", enrollmentProfile.ID)
 			return nil
 		},
 	}
 }
 
-func appleMDMEnrollmentsCreateManualCommand() *cli.Command {
-	var enrollmentName string
+func appleMDMEnrollmentProfilesCreateManualCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "create-manual",
-		Usage: "Create a new manual enrollment",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "name",
-				Usage:       "Name of the manual enrollment",
-				Destination: &enrollmentName,
-				Required:    true,
-			},
-		},
+		Usage: "Create a manual enrollment profile",
+		Flags: []cli.Flag{},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return fmt.Errorf("create client: %w", err)
 			}
-			enrollment, err := fleet.CreateEnrollment(enrollmentName, nil)
+			enrollmentProfile, err := client.CreateEnrollmentProfile(fleet.MDMAppleEnrollmentTypeManual, nil)
 			if err != nil {
-				return fmt.Errorf("create enrollment: %w", err)
+				return fmt.Errorf("create enrollment profile: %w", err)
 			}
-			fmt.Printf("Manual enrollment created, URL: %s.\n", enrollment.URL)
+			fmt.Printf("Manual enrollment profile created, URL: %s.\n", enrollmentProfile.EnrollmentURL)
 			return nil
 		},
 	}
 }
 
-func appleMDMEnrollmentsDeleteCommand() *cli.Command {
-	var enrollmentID uint
+func appleMDMEnrollmentProfilesDeleteCommand() *cli.Command {
+	var enrollmentProfileID uint
 	return &cli.Command{
 		Name:  "delete",
-		Usage: "Delete an enrollment",
+		Usage: "Delete an enrollment profile",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:        "id",
-				Usage:       "Identifier of the enrollment",
-				Destination: &enrollmentID,
+				Usage:       "Identifier of the enrollment profile",
+				Destination: &enrollmentProfileID,
 				Required:    true,
 			},
 		},
@@ -381,7 +367,7 @@ func appleMDMEnrollmentsDeleteCommand() *cli.Command {
 	}
 }
 
-func appleMDMEnrollmentsListCommand() *cli.Command {
+func appleMDMEnrollmentProfilesListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
 		Usage: "List all enrollments",
@@ -398,23 +384,20 @@ func appleMDMEnrollmentsListCommand() *cli.Command {
 			// format output as a table
 			table := tablewriter.NewWriter(os.Stdout)
 			table.SetRowLine(true)
-			table.SetHeader([]string{"ID", "Name", "URL", "Type", "DEP Config"})
+			table.SetHeader([]string{"ID", "Type", "DEP Profile", "Enrollment URL"})
 			table.SetAutoWrapText(false)
 			table.SetRowLine(true)
 
 			for _, enrollment := range enrollments {
-				enrollmentType := "manual"
-				depConfig := ""
-				if enrollment.DEPConfig != nil {
-					enrollmentType = "automatic"
-					depConfig = string(*enrollment.DEPConfig)
+				var depProfile string
+				if enrollment.DEPProfile != nil {
+					depProfile = string(*enrollment.DEPProfile)
 				}
 				table.Append([]string{
 					strconv.FormatUint(uint64(enrollment.ID), 10),
-					enrollment.Name,
-					enrollment.URL,
-					enrollmentType,
-					depConfig,
+					string(enrollment.Type),
+					depProfile,
+					enrollment.EnrollmentURL,
 				})
 			}
 
