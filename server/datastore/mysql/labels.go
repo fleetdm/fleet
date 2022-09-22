@@ -461,15 +461,55 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 // with fleet.Label referened by Label ID
 func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	queryFmt := `
-		SELECT
-			h.*,
-			COALESCE(hst.seen_time, h.created_at) as seen_time,
-			(SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
-			%s
-		FROM label_membership lm
-		JOIN hosts h ON (lm.host_id = h.id)
-		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-		%s
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hst.seen_time, h.created_at) as seen_time,
+      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+      %s
+    FROM label_membership lm
+    JOIN hosts h ON (lm.host_id = h.id)
+    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+    LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+    %s
 	`
 	failingPoliciesSelect := `,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
@@ -531,11 +571,52 @@ func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.T
 	}
 
 	sqlStatement := fmt.Sprintf(`
-			SELECT DISTINCT h.*, (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
-			FROM label_membership lm
-			JOIN hosts h
-			ON lm.host_id = h.id
-			WHERE lm.label_id IN (?) AND %s
+      SELECT DISTINCT
+        h.id,
+        h.osquery_host_id,
+        h.created_at,
+        h.updated_at,
+        h.detail_updated_at,
+        h.node_key,
+        h.hostname,
+        h.uuid,
+        h.platform,
+        h.osquery_version,
+        h.os_version,
+        h.build,
+        h.platform_like,
+        h.code_name,
+        h.uptime,
+        h.memory,
+        h.cpu_type,
+        h.cpu_subtype,
+        h.cpu_brand,
+        h.cpu_physical_cores,
+        h.cpu_logical_cores,
+        h.hardware_vendor,
+        h.hardware_model,
+        h.hardware_version,
+        h.hardware_serial,
+        h.computer_name,
+        h.primary_ip_id,
+        h.distributed_interval,
+        h.logger_tls_period,
+        h.config_tls_refresh,
+        h.primary_ip,
+        h.primary_mac,
+        h.label_updated_at,
+        h.last_enrolled_at,
+        h.refetch_requested,
+        h.team_id,
+        h.policy_updated_at,
+        h.public_ip,
+        COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+        (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+      FROM label_membership lm
+      JOIN hosts h ON lm.host_id = h.id
+      LEFT JOIN host_disks hd ON hd.host_id = h.id
+      WHERE lm.label_id IN (?) AND %s
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
