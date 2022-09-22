@@ -495,6 +495,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "mdm":                    {},
 		hostDetailQueryPrefix + "munki_info":             {},
 		hostDetailQueryPrefix + "windows_update_history": {},
+		hostDetailQueryPrefix + "kubequery_info":         {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

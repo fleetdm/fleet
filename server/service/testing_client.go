@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,8 +31,17 @@ type withDS struct {
 }
 
 func (ts *withDS) SetupSuite(dbName string) {
-	ts.ds = mysql.CreateNamedMySQLDS(ts.s.T(), dbName)
-	test.AddAllHostsLabel(ts.s.T(), ts.ds)
+	t := ts.s.T()
+	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	test.AddAllHostsLabel(t, ts.ds)
+
+	// setup the required fields on AppConfig
+	appConf, err := ts.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConf.OrgInfo.OrgName = "FleetTest"
+	appConf.ServerSettings.ServerURL = "https://example.org"
+	err = ts.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
 }
 
 func (ts *withDS) TearDownSuite() {

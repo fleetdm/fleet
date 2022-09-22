@@ -481,7 +481,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  tags: compliance, hardening, built-in, CIS2.5.2.1
+  tags: compliance, hardening, built-in, CIS, CIS2.5.2.1
   platform: darwin
   contributors: groob
 ---
@@ -509,7 +509,7 @@ spec:
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
   platforms: macOS
-  tags: compliance, hardening, built-in, CIS2.5.1.1
+  tags: compliance, hardening, built-in, CIS, CIS2.5.1.1
   platform: darwin
   contributors: groob
 ---
@@ -533,7 +533,7 @@ spec:
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  tags: compliance, malware, hardening, built-in, CIS5.1.2
+  tags: compliance, malware, hardening, built-in, CIS, CIS5.1.2
   platform: darwin
   contributors: groob
 ---
@@ -542,8 +542,8 @@ kind: policy
 spec:
   name: Automatic login disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
-  resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
@@ -552,21 +552,10 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Guest users disabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
-  resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
-  platforms: macOS
-  tags: compliance, hardening, built-in
-  platform: darwin
-  contributors: groob
----
-apiVersion: v1
-kind: policy
-spec:
-  name: Secure keyboard entry for Terminal.app enabled (macOS)
+  name: Secure keyboard entry for Terminal application enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
@@ -700,17 +689,17 @@ spec:
   description: "Checks if the firewall is enabled."
   resolution: "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall."
   platforms: macOS
-  tags: hardening, compliance, built-in, CIS2.5.2.2
+  tags: hardening, compliance, built-in, CIS, CIS2.5.2.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: Screen lock enabled via MDM profile (macOS)
+  name: Screen lock enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
-  description: "Checks that a MDM profile configures the screen lock."
-  resolution: "Contact your IT administrator to help you enroll your computer in your organization's MDM. If already enrolled, ask your IT administrator to enable the screen lock feature in the profile configuration."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
@@ -722,7 +711,7 @@ spec:
   name: Screen lock enabled (Windows)
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;
   description: "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less."
-  resolution: "Ask your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower."
+  resolution: "Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower."
   platforms: Windows
   tags: compliance, hardening, built-in
   platform: windows
@@ -736,7 +725,7 @@ spec:
   description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
   resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
   platforms: macOS
-  tags: compliance, hardening, built-in, CIS5.2.2
+  tags: compliance, hardening, built-in, CIS, CIS5.2.2
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -757,7 +746,7 @@ kind: policy
 spec:
   name: Automatic updates enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically check for updates."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates."
   platforms: macOS
   tags: compliance, CIS, CIS1.2
@@ -769,7 +758,7 @@ kind: policy
 spec:
   name: Automatic update downloads enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically download updates."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
   platforms: macOS
   tags: compliance, CIS, CIS1.3
@@ -781,7 +770,7 @@ kind: policy
 spec:
   name: Automatic installation of application updates is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically install updates to App Store applications."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to App Store applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
   platforms: macOS
   tags: compliance, CIS, CIS1.4
@@ -793,7 +782,7 @@ kind: policy
 spec:
   name: Automatic security and data file updates is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
-  description: "Checks that the operating system is configured to automatically download updates to built-in macOS security tools such as malware removal tools."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
   platforms: macOS
   tags: compliance, CIS, CIS1.5
@@ -805,7 +794,7 @@ kind: policy
 spec:
   name: Automatic installation of operating system updates is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically install operating system updates."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
   platforms: macOS
   tags: compliance, CIS, CIS1.6
@@ -817,7 +806,7 @@ kind: policy
 spec:
   name: Time and date are configured to be updated automatically (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically update the time and date."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
   platforms: macOS
   tags: compliance, CIS, CIS2.2.1
@@ -827,10 +816,10 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Inactivity limit of 20 minutes or less (macOS)
+  name: Lock screen after inactivity of 20 minutes or less (macOS)
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
-  description: "Checks that a mobile device management (MDM) solution configures the operating system lock the screen in 20 minutes or less."
-  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver and lock within an inactivity delay of 20 minutes or less."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
   platforms: macOS
   tags: compliance, CIS, CIS2.3.1, CIS5.8
   platform: darwin
@@ -841,7 +830,7 @@ kind: policy
 spec:
   name: Internet sharing is blocked (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent Internet sharing."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
   platforms: macOS
   tags: compliance, CIS, CIS2.4.2
@@ -853,7 +842,7 @@ kind: policy
 spec:
   name: Content caching is disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to disable content caching."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
   platforms: macOS
   tags: compliance, CIS, CIS2.4.10
@@ -865,7 +854,7 @@ kind: policy
 spec:
   name: Ad tracking is limited (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to limit advertisement tracking."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
   platforms: macOS
   tags: compliance, CIS, CIS2.5.6
@@ -877,7 +866,7 @@ kind: policy
 spec:
   name: iCloud Desktop and Document sync is disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent iCloud Desktop and Documents sync."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
   platforms: macOS
   tags: compliance, CIS, CIS2.6.1.4
@@ -889,7 +878,7 @@ kind: policy
 spec:
   name: Firewall logging is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system log firewall activity."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
   platforms: macOS
   tags: compliance, CIS, CIS3.6
@@ -899,9 +888,9 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Guest account is disabled (macOS)
+  name: Guest account disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent the use of a guest account."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
   platforms: macOS
   tags: compliance, CIS, CIS6.1.3
@@ -913,7 +902,7 @@ kind: policy
 spec:
   name: Guest access to shared folders is disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent guest access to shared folders."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
   platforms: macOS
   tags: compliance, CIS, CIS6.1.4
@@ -931,3 +920,14 @@ spec:
   tags: compliance, built-in
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover TLS certificates
+  platforms: Linux, Windows, macOS
+  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
+  query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  purpose: Informational
+  tags: network, tls
+  contributors: nabilschear

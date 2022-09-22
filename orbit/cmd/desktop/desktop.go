@@ -49,7 +49,7 @@ func main() {
 		log.Info().Msg("ready")
 
 		systray.SetTemplateIcon(icoBytes, icoBytes)
-		systray.SetTooltip("Fleet Device Management Menu.")
+		systray.SetTooltip("Fleet Desktop")
 
 		// Add a disabled menu item with the current version
 		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
@@ -83,18 +83,15 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.ListDevicePolicies()
+					_, err := client.GetDesktopPayload()
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
-						myDeviceItem.SetTooltip("")
 						transparencyItem.Enable()
 						return
 					}
 
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 
 					<-ticker.C
@@ -112,7 +109,7 @@ func main() {
 			for {
 				<-tic.C
 
-				policies, err := client.ListDevicePolicies()
+				res, err := client.GetDesktopPayload()
 				switch {
 				case err == nil:
 					// OK
@@ -120,21 +117,12 @@ func main() {
 					myDeviceItem.SetTitle("My device")
 					continue
 				default:
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 					continue
 				}
 
-				failedPolicyCount := 0
-				for _, policy := range policies {
-					if policy.Response != "pass" {
-						failedPolicyCount++
-					}
-				}
-
-				if failedPolicyCount > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
 				} else {
 					myDeviceItem.SetTitle("🟢 My device")
 				}

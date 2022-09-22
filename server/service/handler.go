@@ -412,6 +412,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_host", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
 	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_fleet_desktop", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
+	de.WithCustomMiddleware(
 		errorLimiter.Limit("refetch_device_host", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	de.WithCustomMiddleware(

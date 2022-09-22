@@ -139,6 +139,7 @@
                 font-weight: bold;
                 text-decoration: none;
                 vertical-align: middle;
+                padding-left: 15px;
 
                 a {
                   text-decoration: none;
@@ -218,6 +219,7 @@
                 width: auto;
                 .hosts-cell__wrapper {
                   display: flex;
+                  align-items: center;
                   justify-content: space-between;
                   .hosts-cell__link {
                     display: flex;

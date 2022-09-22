@@ -11,18 +11,16 @@ export default {
   create: ({ email, password }: ICreateSessionProps) => {
     const { LOGIN } = endpoints;
 
-    return sendRequest("POST", LOGIN, JSON.stringify({ email, password })).then(
-      (response) => {
-        const { user, available_teams } = response;
-        const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
+    return sendRequest("POST", LOGIN, { email, password }).then((response) => {
+      const { user, available_teams } = response;
+      const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
 
-        return {
-          ...response,
-          user: userWithGravatarUrl,
-          available_teams,
-        };
-      }
-    );
+      return {
+        ...response,
+        user: userWithGravatarUrl,
+        available_teams,
+      };
+    });
   },
   destroy: () => {
     const { LOGOUT } = endpoints;
@@ -30,7 +28,7 @@ export default {
   },
   initializeSSO: (relay_url: string) => {
     const { SSO } = endpoints;
-    return sendRequest("POST", SSO, JSON.stringify({ relay_url }));
+    return sendRequest("POST", SSO, { relay_url });
   },
   ssoSettings: () => {
     const { SSO } = endpoints;

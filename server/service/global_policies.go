@@ -57,8 +57,8 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		return nil, errors.New("user must be authenticated to create team policies")
 	}
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("policy payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
 	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
@@ -302,8 +302,8 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
 		if err := policy.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, &badRequestError{
-				message: fmt.Sprintf("policy spec payload verification: %s", err),
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
 		}
 		if policy.Team != "" {

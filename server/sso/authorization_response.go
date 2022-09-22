@@ -68,8 +68,8 @@ var statusMap = map[string]int{
 //
 // Most of the items here come from:
 //
-//  - https://docs.ldap.com/specs/rfc2798.txt
-//  - https://docs.microsoft.com/en-us/windows-server/identity/ad-fs/technical-reference/the-role-of-claims
+//   - https://docs.ldap.com/specs/rfc2798.txt
+//   - https://docs.microsoft.com/en-us/windows-server/identity/ad-fs/technical-reference/the-role-of-claims
 var validDisplayNameAttrs = map[string]struct{}{
 	"name":            {},
 	"displayname":     {},
