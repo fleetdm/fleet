@@ -485,7 +485,8 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatbility issues have been identified with MySQL variants and these may not be fixed in future Fleet releases.
+Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants and these may not be addressed in future Fleet releases.
+
 ### What are the MySQL user requirements?
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
