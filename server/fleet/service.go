@@ -267,7 +267,7 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier.
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or

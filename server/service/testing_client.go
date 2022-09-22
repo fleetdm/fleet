@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -70,6 +72,62 @@ func (ts *withServer) SetupSuite(dbName string) {
 
 func (ts *withServer) TearDownSuite() {
 	ts.withDS.TearDownSuite()
+}
+
+func (ts *withServer) commonTearDownTest(t *testing.T) {
+	ctx := context.Background()
+
+	u := ts.users["admin1@example.com"]
+	filter := fleet.TeamFilter{User: &u}
+	hosts, err := ts.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	for _, host := range hosts {
+		require.NoError(t, ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
+		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
+	}
+
+	// recalculate software counts will remove the software entries
+	require.NoError(t, ts.ds.SyncHostsSoftware(context.Background(), time.Now()))
+
+	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, lbl := range lbls {
+		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			require.NoError(t, err)
+		}
+	}
+
+	users, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})
+	require.NoError(t, err)
+	for _, u := range users {
+		if _, ok := ts.users[u.Email]; !ok {
+			err := ts.ds.DeleteUser(ctx, u.ID)
+			require.NoError(t, err)
+		}
+	}
+
+	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := ts.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	if len(globalPolicies) > 0 {
+		var globalPolicyIDs []uint
+		for _, gp := range globalPolicies {
+			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
+		}
+		_, err = ts.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
+		require.NoError(t, err)
+	}
+
+	// SyncHostsSoftware performs a cleanup.
+	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {

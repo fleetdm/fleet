@@ -66,6 +66,6 @@ export default {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
-    return sendRequest("PATCH", path, JSON.stringify(updateParams));
+    return sendRequest("PATCH", path, updateParams);
   },
 };

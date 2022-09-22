@@ -53,7 +53,9 @@ module.exports = {
       pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet Device Management';
     }//ﬁ
     let pageDescriptionForMeta;
-    if(thisPage.meta.articleTitle && thisPage.meta.authorFullName) {
+    if(thisPage.meta.description){
+      pageDescriptionForMeta = thisPage.meta.description;
+    } else if(thisPage.meta.articleTitle && thisPage.meta.authorFullName) {
       pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') + ' by ' + thisPage.meta.authorFullName;
     }//ﬁ
 

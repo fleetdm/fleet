@@ -299,26 +299,103 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
+## Using Figma
 
-## Fleet website
+We use Figma for most of our design work. This includes the Fleet product, our website, and our marketing collateral. 
 
-### Using Figma?
-Fleet EE
-- All product design work is done in the Fleet EE (scratchpad) Figma doc. Check out the README for how to use this doc.
+### Which file should I use?
 
-Fleet website
-- All website design work is done in the fleetdm.com (current, dev-ready) Figma file.
+**Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
 
-Shared design system
-- Shared logos, typography styles, and UI components can be found in Design system.
+**Fleet website.** All website design work is done in the [fleetdm.com (current, dev-ready)](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/%E2%9C%85-fleetdm.com-(current%2C-dev-ready)?node-id=794%3A373) Figma file.
+
+**Design system.** Shared logos, typography styles, and UI components can be found in [Design system](https://www.figma.com/files/project/15701210).
 
 > The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
 
-Marketing assets
-- Product screenshots and artwork for social media, articles, and other marketing assets can be found in Collateral.
+**Marketing assets.** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
 
-### Which logo should I use?
-The "official" Fleet logo and other assets can be found at:  https://fleetdm.com/logos
+> Looking for the official Fleet logo? Download it from: https://fleetdm.com/logos.
+
+
+## Fleet website
+
+The Digital Experience team is responsible for production and maintenance of the Fleet website.
+
+#### In this section
+
+- [Wireframes](#wireframes)
+- [Design reviews](#design-reviews)
+- [Estimation sessions](#estimation-sessions)
+- [When can I merge changes to the website?](#when-can-i-merge-a-change-to-the-website)
+- [How to export images for the website](#how-to-export-images-for-the-website)
+- [Maintaining browser compatibility](#maintaining-browser-compatibility)
+- [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
+- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-git-hub-action-failed)
+- [Vulnerability monitoring](#vulnerability-monitoring)
+- [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
+
+### Wireframes
+
+Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
+
+See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
+
+### Design reviews
+
+We hold regular design review sessions to evaluate, revise, and approve wireframes before moving into production.
+
+Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
+
+### Estimation sessions
+
+We use estimation sessions to estimate the effort required to complete a prioritized task. 
+
+Through these sessions, we can:
+
+- Confirm that wireframes are complete before moving to production
+- Consider all edge cases and requirements that may have been with during wireframing.
+- Avoid having the engineer make choices for “unknowns” during production.
+- More accurately plan and prioritize upcoming tasks.
+
+#### Story points
+
+Story points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
+
+We use the following story points to estimate website tasks:
+
+| Story point | Time |
+|:---|:---|
+| 1 | 1 to 2 hours |
+| 2 | 2 to 4 hours |
+| 3 | 1 day |
+| 5 | 1 to 2 days |
+| 8 | Up to a week |
+| 13 | 1 to 2 weeks |
+
+### When can I merge a change to the website?
+When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
+
+Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
+
+### How to export images for the website
+In Figma:
+1. Select the layers you want to export.
+2. Confirm export settings and naming convention:
+  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
+  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
+  * File extension might be .jpg or .png.
+  * Avoid using SVGs or icon fonts.
+3. Click the __Export__ button.
+
+### Maintaining browser compatibility
+
+A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
+
+- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
+- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
+- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
+- If in doubt about anything regarding design or layout, please reach out to the Design team.
 
 ### Responding to a 5xx error on fleetdm.com
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
@@ -335,12 +412,7 @@ When conducting an incident post-mortem, answer the following three questions:
 
 1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
 2. Root Cause: Why did this error happen?
-3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
-
-### When can I merge a change to the website?
-When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
-
-Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width. 
+3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error. 
 
 ### The "Deploy Fleet Website" GitHub action failed
 If the action fails, please complete the following steps:
@@ -348,14 +420,9 @@ If the action fails, please complete the following steps:
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
-### Maintaining browser compatibility
+### Vulnerability monitoring
 
-A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
-
-- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
-- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
-- Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the Design team.
+Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
 ### How to make usability changes to the website
 
@@ -368,19 +435,6 @@ To propose changes:
 4. Code the website change. Again, digital experience often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the growth team will have ideas on how to do this.
 
-### How to export images for the website
-In Figma:
-1. Select the layers you want to export.
-2. Confirm export settings and naming convention:
-  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
-  * File extension might be .jpg or .png.
-  * Avoid using SVGs or icon fonts.
-3. Click the __Export__ button.
-
-### Vulnerability monitoring
-
-Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
 ## Rituals
 
