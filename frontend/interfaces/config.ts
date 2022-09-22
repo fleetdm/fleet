@@ -35,6 +35,7 @@ export default PropTypes.shape({
   idp_name: PropTypes.string,
   enable_sso: PropTypes.bool,
   enable_sso_idp_login: PropTypes.bool,
+  enable_jit_provisioning: PropTypes.bool,
   host_expiry_enabled: PropTypes.bool,
   host_expiry_window: PropTypes.number,
   agent_options: PropTypes.string,
@@ -147,12 +148,13 @@ export interface IConfig {
     idp_name: string;
     enable_sso: boolean;
     enable_sso_idp_login: boolean;
+    enable_jit_provisioning: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
-  host_settings: {
+  features: {
     enable_host_users: boolean;
     enable_software_inventory: boolean;
   };

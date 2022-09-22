@@ -7,7 +7,9 @@ parasails.registerPage('homepage', {
     syncing: false,
 
     // Form data
-    formData: { /* … */ },
+    formData: {
+      subscribeTo: 'releases'
+    },
 
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
@@ -23,6 +25,8 @@ parasails.registerPage('homepage', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+    showAllTweets: false,
+    modal: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -50,8 +54,17 @@ parasails.registerPage('homepage', {
       // > ~Dec 31, 2020
       window.dispatchEvent(new Event('papercups:open'));
     },
+    clickToggleTruncateTweets: function() {
+      this.showAllTweets = !this.showAllTweets;
+    },
+    clickOpenVideoModal: function() {
+      this.modal = 'video';
+    },
+    closeModal: function() {
+      this.modal = '';
+    },
 
-    submittedForm: async function() {
+    submittedNewsletterForm: async function() {
       // Show the success message.
       this.cloudSuccess = true;
     },

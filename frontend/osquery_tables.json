@@ -745,7 +745,7 @@
     "name": "apt_sources",
     "description": "Current list of APT repositories or software channels.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/apt_sources.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -827,7 +827,7 @@
     "name": "arp_cache",
     "description": "Address resolution cache, both static and dynamic (from ARP, NDP).",
     "url": "https://github.com/osquery/osquery/blob/master/specs/arp_cache.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -983,7 +983,7 @@
     "name": "atom_packages",
     "description": "Lists all atom packages in a directory or globally installed in a system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/atom_packages.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -1389,7 +1389,7 @@
     "name": "azure_instance_metadata",
     "description": "Azure instance metadata.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/azure_instance_metadata.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -1527,7 +1527,7 @@
     "name": "azure_instance_tags",
     "description": "Azure instance tags.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/azure_instance_tags.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -2335,7 +2335,7 @@
     "name": "carbon_black_info",
     "description": "Returns info about a Carbon Black sensor install.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/carbon_black_info.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -2513,7 +2513,7 @@
     "name": "carves",
     "description": "List the set of completed and in-progress carves. If carve=1 then the query is treated as a new carve request.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/carves.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -2937,7 +2937,7 @@
     "name": "chrome_extension_content_scripts",
     "description": "Chrome browser extension content scripts.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/chrome_extension_content_scripts.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -3019,7 +3019,7 @@
     "name": "chrome_extensions",
     "description": "Chrome-based browser extensions.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/chrome_extensions.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -3531,7 +3531,7 @@
     "name": "cpuid",
     "description": "Useful CPU features from the cpuid ASM call.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/cpuid.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -3909,7 +3909,7 @@
     "name": "curl",
     "description": "Perform an http request and return stats about it.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/curl.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -3975,7 +3975,7 @@
     "name": "curl_certificate",
     "description": "Inspect TLS certificates by connecting to input hostnames.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/curl_certificate.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -6831,7 +6831,7 @@
     "name": "ec2_instance_metadata",
     "description": "EC2 instance metadata.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/ec2_instance_metadata.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -6953,7 +6953,7 @@
     "name": "ec2_instance_tags",
     "description": "EC2 instance tag key value pairs.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/ec2_instance_tags.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -7556,10 +7556,108 @@
     ]
   },
   {
+    "name": "es_process_file_events",
+    "description": "Process execution events from EndpointSecurity.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/darwin/es_process_file_events.table",
+    "platforms": ["darwin"],
+    "evented": true,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "version",
+        "description": "Version of EndpointSecurity event",
+        "type": "integer",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "seq_num",
+        "description": "Per event sequence number",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "global_seq_num",
+        "description": "Global sequence number",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid",
+        "description": "Process (or thread) ID",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Path of executed file",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "parent",
+        "description": "Parent process ID",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "dest_filename",
+        "description": "Destination filename for the event",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "event_type",
+        "description": "Type of EndpointSecurity event",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time",
+        "description": "Time of execution in UNIX time",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "event_type",
+        "description": "Type of EndpointSecurity event",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "eid",
+        "description": "Event ID",
+        "type": "text",
+        "hidden": true,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
     "name": "etc_hosts",
     "description": "Line-parsed /etc/hosts.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/etc_hosts.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -7593,7 +7691,7 @@
     "name": "etc_protocols",
     "description": "Line-parsed /etc/protocols.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/etc_protocols.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -7635,7 +7733,7 @@
     "name": "etc_services",
     "description": "Line-parsed /etc/services.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/etc_services.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -7735,7 +7833,7 @@
     "name": "example",
     "description": "This is an example table spec.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/example.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": true,
     "cacheable": false,
     "columns": [
@@ -7898,52 +7996,10 @@
     ]
   },
   {
-    "name": "fbsd_kmods",
-    "description": "Loaded FreeBSD kernel modules.",
-    "url": "https://github.com/osquery/osquery/blob/master/specs/freebsd/fbsd_kmods.table",
-    "platforms": ["freebsd"],
-    "evented": false,
-    "cacheable": false,
-    "columns": [
-      {
-        "name": "name",
-        "description": "Module name",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "size",
-        "description": "Size of module content",
-        "type": "integer",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "refs",
-        "description": "Module reverse dependencies",
-        "type": "integer",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "address",
-        "description": "Kernel module address",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ]
-  },
-  {
     "name": "file",
     "description": "Interactive filesystem attributes and metadata.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/file.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -8307,7 +8363,7 @@
     "name": "firefox_addons",
     "description": "Firefox browser extensions, webapps, and addons.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/firefox_addons.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -8521,7 +8577,7 @@
     "name": "groups",
     "description": "Local system groups.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/groups.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -8693,7 +8749,7 @@
     "name": "hash",
     "description": "Filesystem hash data.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/hash.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -8943,7 +8999,7 @@
     "name": "intel_me_info",
     "description": "Intel ME/CSE Info.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/linwin/intel_me_info.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -8961,7 +9017,7 @@
     "name": "interface_addresses",
     "description": "Network interfaces and relevant metadata.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/interface_addresses.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -9027,7 +9083,7 @@
     "name": "interface_details",
     "description": "Detailed information and stats of network interfaces.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/interface_details.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -9581,7 +9637,7 @@
     "name": "kernel_info",
     "description": "Basic active kernel information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/kernel_info.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -10329,7 +10385,7 @@
     "name": "listening_ports",
     "description": "Processes with listening (bound) network sockets/ports.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/listening_ports.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -11017,7 +11073,7 @@
     "name": "logged_in_users",
     "description": "Users with an active shell on the system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/logged_in_users.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -13681,7 +13737,7 @@
     "name": "os_version",
     "description": "A single row containing the operating system name and version.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/os_version.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -13795,7 +13851,7 @@
     "name": "osquery_events",
     "description": "Information about the event publishers and subscribers.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_events.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -13861,7 +13917,7 @@
     "name": "osquery_extensions",
     "description": "List of active osquery extensions.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_extensions.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -13919,7 +13975,7 @@
     "name": "osquery_flags",
     "description": "Configurable flags that modify osquery's behavior.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_flags.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -13977,7 +14033,7 @@
     "name": "osquery_info",
     "description": "Top level information about the running version of osquery.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_info.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -14083,7 +14139,7 @@
     "name": "osquery_packs",
     "description": "Information about the current query packs that are loaded in osquery.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_packs.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -14149,7 +14205,7 @@
     "name": "osquery_registry",
     "description": "List the osquery registry plugins.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_registry.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -14199,7 +14255,7 @@
     "name": "osquery_schedule",
     "description": "Information about the current queries that are scheduled in osquery.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/osquery_schedule.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -14476,6 +14532,48 @@
       {
         "name": "path",
         "description": "Path of receipt plist",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
+    "name": "password_policy",
+    "description": "Password Policies for macOS.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/darwin/password_policy.table",
+    "platforms": ["darwin"],
+    "evented": false,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "uid",
+        "description": "User ID for the policy if available",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_identifier",
+        "description": "Policy Identifier",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_content",
+        "description": "Policy content",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "policy_description",
+        "description": "Policy description",
         "type": "text",
         "hidden": false,
         "required": false,
@@ -14836,52 +14934,10 @@
     ]
   },
   {
-    "name": "pkg_packages",
-    "description": "pkgng packages that are currently installed on the host system.",
-    "url": "https://github.com/osquery/osquery/blob/master/specs/freebsd/pkg_packages.table",
-    "platforms": ["freebsd"],
-    "evented": false,
-    "cacheable": true,
-    "columns": [
-      {
-        "name": "name",
-        "description": "Package name",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "version",
-        "description": "Package version",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "flatsize",
-        "description": "Package size in bytes",
-        "type": "bigint",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "arch",
-        "description": "Architecture(s) supported",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ]
-  },
-  {
     "name": "platform_info",
     "description": "Information about EFI/UEFI/ROM and platform/boot.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/platform_info.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -15913,7 +15969,7 @@
     "name": "process_memory_map",
     "description": "Process memory mapped files and pseudo device/regions.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/process_memory_map.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -16177,7 +16233,7 @@
     "name": "process_open_sockets",
     "description": "Processes which have open network sockets on the system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/process_open_sockets.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -16283,7 +16339,7 @@
     "name": "processes",
     "description": "All running processes on the host system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/processes.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -16713,7 +16769,7 @@
     "name": "python_packages",
     "description": "Python packages installed in a system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/python_packages.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -16951,7 +17007,7 @@
     "name": "routes",
     "description": "The active route table for the host system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/routes.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -17649,7 +17705,7 @@
     "name": "secureboot",
     "description": "Secure Boot UEFI Settings.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/linwin/secureboot.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -18684,200 +18740,6 @@
     ]
   },
   {
-    "name": "smart_drive_info",
-    "description": "Drive information read by SMART controller utilizing autodetect.",
-    "url": "https://github.com/osquery/osquery/blob/master/specs/smart/smart_drive_info.table",
-    "platforms": ["darwin", "linux"],
-    "evented": false,
-    "cacheable": false,
-    "columns": [
-      {
-        "name": "device_name",
-        "description": "Name of block device",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "disk_id",
-        "description": "Physical slot number of device, only exists when hardware storage controller exists",
-        "type": "integer",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "driver_type",
-        "description": "The explicit device type used to retrieve the SMART information",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "model_family",
-        "description": "Drive model family",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "device_model",
-        "description": "Device Model",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "serial_number",
-        "description": "Device serial number",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "lu_wwn_device_id",
-        "description": "Device Identifier",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "additional_product_id",
-        "description": "An additional drive identifier if any",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "firmware_version",
-        "description": "Drive firmware version",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "user_capacity",
-        "description": "Bytes of drive capacity",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "sector_sizes",
-        "description": "Bytes of drive sector sizes",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "rotation_rate",
-        "description": "Drive RPM",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "form_factor",
-        "description": "Form factor if reported",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "in_smartctl_db",
-        "description": "Boolean value for if drive is recognized",
-        "type": "integer",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "ata_version",
-        "description": "ATA version of drive",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "transport_type",
-        "description": "Drive transport type",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "sata_version",
-        "description": "SATA version, if any",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "read_device_identity_failure",
-        "description": "Error string for device id read, if any",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "smart_supported",
-        "description": "SMART support status",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "smart_enabled",
-        "description": "SMART enabled status",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "packet_device_type",
-        "description": "Packet device type",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "power_mode",
-        "description": "Device power mode",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "warnings",
-        "description": "Warning messages from SMART controller",
-        "type": "text",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ]
-  },
-  {
     "name": "smbios_tables",
     "description": "BIOS (DMI) structure common details and content.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/smbios_tables.table",
@@ -19143,7 +19005,7 @@
     "name": "ssh_configs",
     "description": "A table of parsed ssh_configs.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/ssh_configs.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -19185,7 +19047,7 @@
     "name": "startup_items",
     "description": "Applications and binaries set as user/login startup items.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/startup_items.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -19557,7 +19419,7 @@
     "name": "system_info",
     "description": "System information for identification.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/system_info.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -19875,7 +19737,7 @@
     "name": "time",
     "description": "Track current date and time in the system.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/utility/time.table",
-    "platforms": ["darwin", "linux", "freebsd", "windows"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -20213,7 +20075,7 @@
     "name": "uptime",
     "description": "Track time passed since last boot. Some systems track this as calendar time, some as runtime.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/uptime.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -20467,7 +20329,7 @@
     "name": "user_groups",
     "description": "Local system user group relationships.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/user_groups.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -20511,7 +20373,7 @@
     "name": "user_ssh_keys",
     "description": "Returns the private keys in the users ~/.ssh directory and whether or not they are encrypted.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/user_ssh_keys.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -20603,7 +20465,7 @@
     "name": "users",
     "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
     "url": "https://github.com/osquery/osquery/blob/master/specs/users.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -21890,6 +21752,112 @@
     ]
   },
   {
+    "name": "windows_update_history",
+    "description": "Provides the history of the windows update events.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/windows/windows_update_history.table",
+    "platforms": ["windows"],
+    "evented": false,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "client_app_id",
+        "description": "Identifier of the client application that processed an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "date",
+        "description": "Date and the time an update was applied",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "description",
+        "description": "Description of an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "hresult",
+        "description": "HRESULT value that is returned from the operation on an update",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "operation",
+        "description": "Operation on an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "result_code",
+        "description": "Result of an operation on an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "server_selection",
+        "description": "Value that indicates which server provided an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "service_id",
+        "description": "Service identifier of an update service that is not a Windows update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "support_url",
+        "description": "Hyperlink to the language-specific support information for an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "title",
+        "description": "Title of an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "update_id",
+        "description": "Revision-independent identifier of an update",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "update_revision",
+        "description": "Revision number of an update",
+        "type": "bigint",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
     "name": "wmi_bios_info",
     "description": "Lists important information from the system bios.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/windows/wmi_bios_info.table",
@@ -22433,7 +22401,7 @@
     "name": "ycloud_instance_metadata",
     "description": "Yandex.Cloud instance metadata.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/ycloud_instance_metadata.table",
-    "platforms": ["darwin", "linux", "windows", "freebsd"],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "columns": [
@@ -22515,7 +22483,7 @@
     "name": "yum_sources",
     "description": "Current list of Yum repositories or software channels.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/yum_sources.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [

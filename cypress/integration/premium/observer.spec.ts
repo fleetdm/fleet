@@ -85,7 +85,6 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/all teams/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-munki").should("exist");
           cy.getAttached(".home-mdm").should("exist");
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
@@ -94,7 +93,9 @@ describe("Premium tier - Observer user", () => {
       });
       it("views all hosts for all platforms", () => {
         cy.findByText(/view all hosts/i).click();
-        cy.get(".manage-hosts__label-block").should("not.exist");
+        cy.findByRole("status", { name: /hosts filtered by/i }).should(
+          "not.exist"
+        );
       });
       it("views all hosts for windows only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -102,11 +103,9 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/windows/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/windows/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for linux only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -114,11 +113,9 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/linux/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/linux/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by Linux/i }).should(
+          "exist"
+        );
       });
       it("views all hosts for macOS only", () => {
         cy.getAttached(".homepage__platforms").within(() => {
@@ -126,11 +123,9 @@ describe("Premium tier - Observer user", () => {
           cy.findByText(/macos/i).click();
         });
         cy.findByText(/view all hosts/i).click();
-        cy.getAttached(".manage-hosts__label-block").within(() => {
-          cy.getAttached(".title").within(() => {
-            cy.findByText(/macos/i).should("exist");
-          });
-        });
+        cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
+          "exist"
+        );
       });
     });
     describe("Manage hosts page", () => {

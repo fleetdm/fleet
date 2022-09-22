@@ -9,6 +9,9 @@
       width: auto;
       vertical-align: middle;
     }
+    &:focus-visible {
+      outline: 1px solid $core-vibrant-blue;
+    }
   }
   .data-table__wrapper {
     overflow-x: auto;
@@ -33,13 +36,6 @@
       font-weight: $regular;
       font-size: $x-small;
       margin: 0;
-    }
-
-    a {
-      color: $core-vibrant-blue;
-      font-size: $x-small;
-      font-weight: $bold;
-      text-decoration: none;
     }
   }
   &__status_dropdown {

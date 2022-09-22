@@ -10,6 +10,10 @@
     margin: 0;
   }
 
+  .fleet-checkbox {
+    display: flex;
+    align-items: center;
+  }
   .component__tooltip-wrapper__tip-text {
     p {
       padding: 0;
@@ -65,11 +69,6 @@
       background-color: $ui-vibrant-blue-10;
       border-color: $core-vibrant-blue;
     }
-  }
-
-  &__button--download {
-    width: 154px;
-    height: 38px;
   }
 
   &__success {

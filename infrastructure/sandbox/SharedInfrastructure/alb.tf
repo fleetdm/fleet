@@ -5,6 +5,12 @@ resource "aws_lb" "main" {
   security_groups            = [aws_security_group.lb.id]
   subnets                    = var.vpc.public_subnets
   enable_deletion_protection = true
+
+  access_logs {
+    bucket  = module.s3_bucket_for_logs.s3_bucket_id
+    prefix  = var.prefix
+    enabled = true
+  }
 }
 
 output "lb" {
@@ -102,7 +108,7 @@ resource "cloudflare_record" "cert" {
 
 resource "cloudflare_record" "main" {
   zone_id = data.cloudflare_zone.main.id
-  name    = "sandbox"
+  name    = local.env_specific[data.aws_caller_identity.current.account_id]["dns_name"]
   type    = "CNAME"
   value   = aws_lb.main.dns_name
   proxied = false
@@ -110,8 +116,127 @@ resource "cloudflare_record" "main" {
 
 resource "cloudflare_record" "wildcard" {
   zone_id = data.cloudflare_zone.main.id
-  name    = "*.sandbox"
+  name    = "*.${local.env_specific[data.aws_caller_identity.current.account_id]["dns_name"]}"
   type    = "CNAME"
   value   = aws_lb.main.dns_name
   proxied = false
+}
+
+module "s3_bucket_for_logs" {
+  source = "terraform-aws-modules/s3-bucket/aws"
+
+  bucket = "${var.prefix}-alb-logs"
+  acl    = "log-delivery-write"
+
+  # Allow deletion of non-empty bucket
+  force_destroy = true
+
+  attach_elb_log_delivery_policy        = true # Required for ALB logs
+  attach_lb_log_delivery_policy         = true # Required for ALB/NLB logs
+  attach_deny_insecure_transport_policy = true
+  attach_require_latest_tls_policy      = true
+  block_public_acls                     = true
+  block_public_policy                   = true
+  ignore_public_acls                    = true
+  restrict_public_buckets               = true
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        kms_master_key_id = var.kms_key.arn
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+  lifecycle_rule = [
+    {
+      id      = "log"
+      enabled = true
+
+      transition = [
+        {
+          days          = 30
+          storage_class = "ONEZONE_IA"
+        }
+      ]
+      expiration = {
+        days                         = 90
+        expired_object_delete_marker = true
+      }
+      noncurrent_version_expiration = {
+        newer_noncurrent_versions = 5
+        days                      = 30
+      }
+    }
+  ]
+}
+
+resource "aws_athena_database" "logs" {
+  name   = replace("${var.prefix}-alb-logs", "-", "_")
+  bucket = module.athena-s3-bucket.s3_bucket_id
+}
+
+module "athena-s3-bucket" {
+  source = "terraform-aws-modules/s3-bucket/aws"
+
+  bucket = "${var.prefix}-alb-logs-athena"
+  acl    = "log-delivery-write"
+
+  # Allow deletion of non-empty bucket
+  force_destroy = true
+
+  attach_elb_log_delivery_policy        = true # Required for ALB logs
+  attach_lb_log_delivery_policy         = true # Required for ALB/NLB logs
+  attach_deny_insecure_transport_policy = true
+  attach_require_latest_tls_policy      = true
+  block_public_acls                     = true
+  block_public_policy                   = true
+  ignore_public_acls                    = true
+  restrict_public_buckets               = true
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        kms_master_key_id = var.kms_key.arn
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
+  lifecycle_rule = [
+    {
+      id      = "log"
+      enabled = true
+
+      transition = [
+        {
+          days          = 30
+          storage_class = "ONEZONE_IA"
+        }
+      ]
+      expiration = {
+        days                         = 90
+        expired_object_delete_marker = true
+      }
+      noncurrent_version_expiration = {
+        newer_noncurrent_versions = 5
+        days                      = 30
+      }
+    }
+  ]
+}
+
+resource "aws_athena_workgroup" "logs" {
+  name = "${var.prefix}-logs"
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = true
+
+    result_configuration {
+      output_location = "s3://${module.athena-s3-bucket.s3_bucket_id}/output/"
+
+      encryption_configuration {
+        encryption_option = "SSE_KMS"
+        kms_key_arn       = var.kms_key.arn
+      }
+    }
+  }
 }

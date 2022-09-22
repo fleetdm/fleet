@@ -10,6 +10,14 @@ import (
 	"github.com/kolide/kit/version"
 )
 
+// EnterpriseOverrides contains the methods that can be overriden by the
+// enterprise service
+//
+// TODO: find if there's a better way to accomplish this and standardize.
+type EnterpriseOverrides struct {
+	HostFeatures func(context context.Context, host *Host) (*Features, error)
+}
+
 type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
@@ -42,6 +50,12 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// SetEnterpriseOverrides allows the enterprise service to override specific methods
+	// that can't be easily overridden via embedding.
+	//
+	// TODO: find if there's a better way to accomplish this and standardize.
+	SetEnterpriseOverrides(overrides EnterpriseOverrides)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.
 
@@ -57,6 +71,9 @@ type Service interface {
 
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
+
+	// NewUser creates a new user with the given payload
+	NewUser(ctx context.Context, p UserPayload) (*User, error)
 
 	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
 	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a
@@ -107,10 +124,14 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
-	// CallbackSSO handles the IDP response. The original URL the viewer attempted to access is returned from this
-	// function, so we can redirect back to the front end and load the page the viewer originally attempted to access
-	// when prompted for login.
-	CallbackSSO(ctx context.Context, auth Auth) (*SSOSession, error)
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid
+	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// GetSSOUser handles retrieval of an user that is trying to authenticate
+	// via SSO
+	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
+	// LoginSSOUser logs-in the given SSO user
+	LoginSSOUser(ctx context.Context, user *User, redirectURL string) (*SSOSession, error)
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
@@ -246,7 +267,7 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier.
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
@@ -272,20 +293,29 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+
+	// FailingPoliciesCount returns the number of failling policies for 'host'
+	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
+	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
+	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	// OSVersions returns a list of operating systems and associated host counts, which may be
+	// filtered using the following optional criteria: team id, platform, or name and version.
+	// Name cannot be used without version, and conversely, version cannot be used without name.
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
-	ModifyAppConfig(ctx context.Context, p []byte) (info *AppConfig, err error)
+	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -388,7 +418,7 @@ type Service interface {
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.
-	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
+	ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions ApplySpecOptions) (*Team, error)
 	// AddTeamUsers adds users to an existing team.
 	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeamUsers deletes users from an existing team.
@@ -406,7 +436,7 @@ type Service interface {
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
@@ -475,4 +505,5 @@ type Service interface {
 	// Installers
 
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
+	CheckInstallerExistence(ctx context.Context, installer Installer) error
 }

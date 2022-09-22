@@ -18,6 +18,7 @@ const baseClass = "app-config-form";
 const Info = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     orgName: appConfig.org_info.org_name || "",
@@ -30,6 +31,7 @@ const Info = ({
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+    setFormErrors({});
   };
 
   const validateForm = () => {
@@ -92,6 +94,8 @@ const Info = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        isLoading={isUpdatingSettings}
       >
         Save
       </Button>

@@ -2,6 +2,12 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost } from "interfaces/host";
+import {
+  buildQueryStringFromParams,
+  getLabelParam,
+  reconcileMutuallyExclusiveHostParams,
+  getStatusParam,
+} from "utilities/url";
 
 export interface ISortOption {
   key: string;
@@ -18,6 +24,12 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
+  munkiIssueId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -33,12 +45,50 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  munkiIssueId?: number;
+  mdmEnrollmentStatus?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+
+const LABEL_PREFIX = "labels/";
+
+const getLabel = (selectedLabels?: string[]) => {
+  if (selectedLabels === undefined) return undefined;
+  return selectedLabels.find((filter) => filter.includes(LABEL_PREFIX));
+};
+
+const getHostEndpoint = (selectedLabels?: string[]) => {
+  const { HOSTS, LABEL_HOSTS } = endpoints;
+  if (selectedLabels === undefined) return HOSTS;
+
+  const label = getLabel(selectedLabels);
+  if (label) {
+    const labelId = label.substr(LABEL_PREFIX.length);
+    return LABEL_HOSTS(parseInt(labelId, 10));
+  }
+
+  return HOSTS;
+};
+
+const getSortParams = (sortOptions?: ISortOption[]) => {
+  if (sortOptions === undefined || sortOptions.length === 0) {
+    return {};
+  }
+
+  const sortItem = sortOptions[0];
+  return {
+    order_key: sortItem.key,
+    order_direction: sortItem.direction,
+  };
+};
 
 export default {
   destroy: (host: IHost) => {
@@ -69,143 +119,97 @@ export default {
     });
   },
   exportHosts: (options: IExportHostsOptions) => {
-    const { HOSTS_REPORT } = endpoints;
     const sortBy = options.sortBy;
     const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
-    const teamId = options?.teamId || null;
-    const policyId = options?.policyId || null;
+    const teamId = options?.teamId;
+    const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
-    const softwareId = options?.softwareId || null;
-    const visibleColumns = options?.visibleColumns || null;
+    const softwareId = options?.softwareId;
+    const mdmId = options?.mdmId;
+    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
+    const visibleColumns = options?.visibleColumns;
+    const label = getLabelParam(selectedLabels);
+    const munkiIssueId = options?.munkiIssueId;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
 
-    const orderKeyParam = `?order_key=${sortBy[0].key}`;
-    const orderDirection = `&order_direction=${sortBy[0].direction}`;
+    const queryParams = {
+      order_key: sortBy[0].key,
+      order_direction: sortBy[0].direction,
+      query: globalFilter,
+      team_id: teamId,
+      ...reconcileMutuallyExclusiveHostParams(
+        label,
+        policyId,
+        policyResponse,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        softwareId
+      ),
+      status: getStatusParam(selectedLabels),
+      label_id: label,
+      columns: visibleColumns,
+      format: "csv",
+    };
 
-    let path = `${HOSTS_REPORT}${orderKeyParam}${orderDirection}`;
-
-    if (globalFilter !== "") {
-      path += `&query=${globalFilter}`;
-    }
-    const labelPrefix = "labels/";
-
-    // Handle multiple filters
-    const label = selectedLabels.find((f) => f.includes(labelPrefix)) || "";
-    const status = selectedLabels.find((f) => !f.includes(labelPrefix)) || "";
-    const statusFilterList = ["new", "online", "offline"];
-    const isStatusFilter = statusFilterList.includes(status);
-
-    if (isStatusFilter) {
-      path += `&status=${status}`;
-    }
-
-    if (teamId) {
-      path += `&team_id=${teamId}`;
-    }
-
-    // Label OR policy_id OR software_id are valid filters.
-    if (label) {
-      const lid = label.substr(labelPrefix.length);
-      path += `&label_id=${parseInt(lid, 10)}`;
-    }
-
-    if (!label && policyId) {
-      path += `&policy_id=${policyId}`;
-      path += `&policy_response=${policyResponse}`;
-    }
-
-    if (!label && !policyId && softwareId) {
-      path += `&software_id=${softwareId}`;
-    }
-
-    if (visibleColumns) {
-      path += `&columns=${visibleColumns}`;
-    }
-
-    path += "&format=csv";
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.HOSTS_REPORT;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
-  loadHosts: (options: ILoadHostsOptions | undefined) => {
-    const { HOSTS, LABEL_HOSTS } = endpoints;
-    const page = options?.page || 0;
-    const perPage = options?.perPage || 100;
-    const selectedLabels = options?.selectedLabels || [];
-    const globalFilter = options?.globalFilter || "";
-    const sortBy = options?.sortBy || [];
-    const teamId = options?.teamId || null;
-    const policyId = options?.policyId || null;
-    const policyResponse = options?.policyResponse || null;
-    const softwareId = options?.softwareId || null;
-    const device_mapping = options?.device_mapping || null;
-    const columns = options?.columns || null;
+  loadHosts: ({
+    page = 0,
+    perPage = 20,
+    globalFilter,
+    teamId,
+    policyId,
+    policyResponse = "passing",
+    softwareId,
+    mdmId,
+    mdmEnrollmentStatus,
+    munkiIssueId,
+    osId,
+    osName,
+    osVersion,
+    device_mapping,
+    selectedLabels,
+    sortBy,
+  }: ILoadHostsOptions) => {
+    const label = getLabel(selectedLabels);
+    const sortParams = getSortParams(sortBy);
 
-    // TODO: add this query param logic to client class
-    const pagination = `page=${page}&per_page=${perPage}`;
+    const queryParams = {
+      page,
+      per_page: perPage,
+      query: globalFilter,
+      team_id: teamId,
+      device_mapping,
+      order_key: sortParams.order_key,
+      order_direction: sortParams.order_direction,
+      ...reconcileMutuallyExclusiveHostParams(
+        label,
+        policyId,
+        policyResponse,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        softwareId,
+        osId,
+        osName,
+        osVersion
+      ),
+      status: getStatusParam(selectedLabels),
+    };
 
-    let orderKeyParam = "";
-    let orderDirection = "";
-    if (sortBy.length !== 0) {
-      const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.key}`;
-      orderDirection = `&order_direction=${sortItem.direction}`;
-    }
+    const queryString = buildQueryStringFromParams(queryParams);
 
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
-    }
-
-    let path = "";
-    const labelPrefix = "labels/";
-
-    // Handle multiple filters
-    const label = selectedLabels.find((f) => f.includes(labelPrefix));
-    const status = selectedLabels.find((f) => !f.includes(labelPrefix));
-    const isValidStatus =
-      status === "new" || status === "online" || status === "offline";
-
-    if (label) {
-      const lid = label.substr(labelPrefix.length);
-      path = `${LABEL_HOSTS(
-        parseInt(lid, 10)
-      )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
-
-      // connect status if applicable
-      if (status && isValidStatus) {
-        path += `&status=${status}`;
-      }
-    } else if (status && isValidStatus) {
-      path = `${HOSTS}?${pagination}&status=${status}${searchQuery}${orderKeyParam}${orderDirection}`;
-    } else {
-      path = `${HOSTS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
-    }
-
-    if (teamId) {
-      path += `&team_id=${teamId}`;
-    }
-
-    if (!label && policyId) {
-      path += `&policy_id=${policyId}`;
-      path += `&policy_response=${policyResponse || "passing"}`; // TODO: confirm whether there should be a default if there is an id but no response sepcified
-    }
-    // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
-    if (!label && !policyId && softwareId) {
-      path += `&software_id=${softwareId}`;
-    }
-
-    if (device_mapping) {
-      path += "&device_mapping=true";
-    }
-
-    if (columns) {
-      path += `&columns=${columns}`;
-    }
-
+    const endpoint = getHostEndpoint(selectedLabels);
+    const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },
   loadHostDetails: (hostID: number) => {

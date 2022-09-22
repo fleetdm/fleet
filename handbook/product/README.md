@@ -20,11 +20,11 @@ goals.
 
 The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
 
-### Q2 OKRs
-
-The following Q2 OKRs Google doc lists the "Product" sub-OKRs under each organization-wide OKR:
-
-[Q2 OKRs](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit#heading=h.krtfhfsshh3u)
+| Year, Quarter  | OKR file |   
+|---------------|------------------|
+| 2022, Q2      | [internal doc](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit?usp=sharing)   |
+| 2022, Q3      | [internal doc](https://docs.google.com/document/d/1i0ovyamy6MqyFDgiMtPO_OkAzetPuNKryAeu12KbMFk/edit?usp=sharing)   |
+| 2022, Q4      | TODO             |
 
 ## Q1 2022 product objectives
 
@@ -238,119 +238,6 @@ Please start the manual QA process by creating a blank GitHub issue. As you comp
 flow, record a list of the bugs you encounter in this new issue. Each item in this list should
 contain one sentence describing the bug and a screenshot of the item if it is a frontend bug.
 
-### Fleet UI
-
-For all following flows, please refer to the [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) to make sure that actions are limited to the appropriate user type. Any users with access beyond what this document lists as available should be considered a bug and reported for either documentation updates or investigation.
-
-#### Set up flow
-
-Successfully set up `fleetctl preview` using the preview steps outlined [here](https://fleetdm.com/get-started)
-
-#### Log in and log out flow
-
-Successfully log out and then log in to your local Fleet.
-
-#### Host details page
-
-Select a host from the "Hosts" table as a global user with the Maintainer role. You may create a user with a fake email for this purpose.
-
-You should be able to see and select the "Delete" button on this host's **Host details** page.
-
-You should be able to see and select the "Query" button on this host's **Host details** page.
-
-#### Label flow
-
-`Flow is covered by e2e testing`
-
-Create a new label by selecting "Add a new label" on the host's page. Make sure it correctly filters the host on the host's page.
-
-Edit this label. Confirm users can only edit the "Name" and "Description" fields for a label. Users cannot edit the "Query" field because label queries are immutable.
-
-Delete this label.
-
-#### Query flow
-
-`Flow is covered by e2e testing`
-
-Create a new saved query.
-
-Run this query as a live query against your local machine.
-
-Edit this query and then delete this query.
-
-#### Pack flow
-
-`Flow is covered by e2e testing`
-
-Create a new pack (under Schedule/advanced).
-
-Add a query as a saved query to the pack. Remove this query. Delete the pack.
-
-
-#### My account flow
-
-Head to the My Account page by selecting the dropdown icon next to your avatar in the top navigation. Select "My account" and successfully update your password. Please do this with an extra user created for this purpose to maintain the accessibility of `fleetctl preview` admin user.
-
-
-### fleetctl CLI
-
-#### Set up flow
-
-Successfully set up Fleet by running the `fleetctl setup` command.
-
-You may have to wipe your local MySQL database in order to set up Fleet successfully. Check out the [Clear your local MySQL database](#clear-your-local-mysql-database) section of this document for instructions.
-
-#### Log in and log out flow
-
-Successfully log in by running the `fleetctl login` command.
-
-Successfully log out by running the `fleetctl logout` command. Then, log in again.
-
-#### Hosts
-
-Run the `fleetctl get hosts` command.
-
-You should see your local machine returned. If your host isn't showing up, you may have to re-enroll your local machine. Check out the [Orbit for osquery documentation](https://github.com/fleetdm/fleet/blob/main/orbit/README.md) for instructions on generating and installing an Orbit package.
-
-#### Query flow
-
-Apply the standard query library by running the following command:
-
-`fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml`
-
-Make sure all queries were successfully added by running the following command:
-
-`fleetctl get queries`
-
-Run the "Get the version of the resident operating system" query against your local machine by running the following command:
-
-`fleetctl query --hosts <your-local-machine-here> --query-name "Get the version of the resident operating system"`
-
-#### Pack flow
-
-Apply a pack by running the following commands:
-
-`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/queries.yml`
-
-`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/pack.yml`
-
-Make sure the pack was successfully added by running the following command:
-
-`fleetctl get packs`
-
-#### Organization settings flow
-
-Apply organization settings by running the following command:
-
-`fleetctl apply -f docs/Using-Fleet/configuration-files/multi-file-configuration/organization-settings.yml`
-
-#### Manage users flow
-
-Create a new user by running the `fleetctl user create` command.
-
-Logout of your current user and log in with the newly created user.
-
-
 ## UI design
 
 ### Communicating design changes to the engineering team.
@@ -509,7 +396,7 @@ All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Pr
 folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
 Google drive.
 
-Each week Reed Haynes follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+Each week Noah Talerman follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
 
 ## Usage statistics
 
@@ -530,10 +417,9 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🎨 UI/UX huddle      | Weekly (Wednesdays) | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. We hold  separate times for 🎙 Product huddle so Mike Thomas can make it.    | Noah Talerman |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
-| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Reed Haynes |
+| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Noah Talerman |
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
 | Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
-
 
 ## Slack channels
 
@@ -546,9 +432,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |
-
-
-
+| `#g-mdm`                            | Noah Talerman                                                       |
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="⚗️ Product">

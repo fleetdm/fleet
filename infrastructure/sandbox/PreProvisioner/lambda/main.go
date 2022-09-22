@@ -85,6 +85,7 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 		OsquerydChannel:              "stable",
 		DesktopChannel:               "stable",
 		OrbitUpdateInterval:          15 * time.Minute,
+		Notarize:                     true,
 		MacOSDevIDCertificateContent: options.MacOSDevIDCertificateContent,
 		AppStoreConnectAPIKeyID:      options.AppStoreConnectAPIKeyID,
 		AppStoreConnectAPIKeyIssuer:  options.AppStoreConnectAPIKeyIssuer,

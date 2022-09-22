@@ -3,6 +3,7 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { pick } from "lodash";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import {
   INewMembersBody,
@@ -51,21 +52,15 @@ export default {
     return sendRequest("GET", path);
   },
   loadAll: ({
-    page = 0,
-    perPage = 100,
     globalFilter = "",
   }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
-    const { TEAMS } = endpoints;
+    const queryParams = {
+      query: globalFilter,
+    };
 
-    // TODO: add this query param logic to client class
-    const pagination = `page=${page}&per_page=${perPage}`;
-
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
-    }
-
-    const path = `${TEAMS}?${pagination}${searchQuery}`;
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.TEAMS;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },

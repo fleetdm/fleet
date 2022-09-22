@@ -24,7 +24,7 @@ interface IAutoSizeInputFieldProps {
 
 const baseClass = "component__auto-size-input-field";
 
-const TeamsDropdown = ({
+const AutoSizeInputField = ({
   name,
   placeholder,
   value,
@@ -102,4 +102,4 @@ const TeamsDropdown = ({
   );
 };
 
-export default TeamsDropdown;
+export default AutoSizeInputField;

@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
-import ReactTooltip from "react-tooltip";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
@@ -19,26 +18,32 @@ import hostsAPI, {
 import hostCountAPI, {
   IHostCountLoadOptions,
 } from "services/entities/host_count";
+import {
+  getOSVersions,
+  IGetOSVersionsQueryKey,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
-import { ILabel, ILabelFormData } from "interfaces/label";
+import { ILabel } from "interfaces/label";
+import { IMdmSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
-  DEFAULT_CREATE_LABEL_ERRORS,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -48,15 +53,12 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -65,21 +67,18 @@ import {
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import {
-  NEW_LABEL_HASH,
-  EDIT_LABEL_HASH,
   ALL_HOSTS_LABEL,
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
-
-import LabelForm from "../components/LabelForm";
-import DeleteSecretModal from "../../../components/DeleteSecretModal";
-import SecretEditorModal from "../../../components/SecretEditorModal";
+import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
+import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../components/EnrollSecretModal";
+import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
 import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
@@ -91,10 +90,11 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
+import LabelFilterSelect from "./components/LabelFilterSelect";
+import FilterPill from "./components/FilterPill";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -159,10 +159,6 @@ const ManageHostsPage = ({
       });
     }
   }
-
-  const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
-    QueryContext
-  );
   const { setResetSelectedRows } = useContext(TableContext);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
@@ -196,69 +192,73 @@ const ManageHostsPage = ({
   // ========= states
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
-  const [
-    showNoEnrollSecretBanner,
-    setShowNoEnrollSecretBanner,
-  ] = useState<boolean>(true);
-  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState<boolean>(
-    false
+  const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
+    true
   );
-  const [showSecretEditorModal, setShowSecretEditorModal] = useState<boolean>(
-    false
-  );
-  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState<boolean>(
-    false
-  );
-  const [showEditColumnsModal, setShowEditColumnsModal] = useState<boolean>(
-    false
-  );
-  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
+  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
+  const [showDeleteLabelModal, setShowDeleteLabelModal] = useState(false);
+  const [showEditColumnsModal, setShowEditColumnsModal] = useState(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     storedHiddenColumns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
-  const [
-    isAllMatchingHostsSelected,
-    setIsAllMatchingHostsSelected,
-  ] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
+  const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
+    false
+  );
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [hosts, setHosts] = useState<IHost[]>();
-  const [isHostsLoading, setIsHostsLoading] = useState<boolean>(false);
-  const [hasHostErrors, setHasHostErrors] = useState<boolean>(false);
+  const [isHostsLoading, setIsHostsLoading] = useState(false);
+  const [hasHostErrors, setHasHostErrors] = useState(false);
   const [filteredHostCount, setFilteredHostCount] = useState<number>();
-  const [isHostCountLoading, setIsHostCountLoading] = useState<boolean>(false);
-  const [hasHostCountErrors, setHasHostCountErrors] = useState<boolean>(false);
+  const [isHostCountLoading, setIsHostCountLoading] = useState(false);
+  const [hasHostCountErrors, setHasHostCountErrors] = useState(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
   const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
     null
   );
+  const [
+    mdmSolutionDetails,
+    setMDMSolutionDetails,
+  ] = useState<IMdmSolution | null>(null);
+  const [
+    munkiIssueDetails,
+    setMunkiIssueDetails,
+  ] = useState<IMunkiIssuesAggregate | null>(null);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [
     currentQueryOptions,
     setCurrentQueryOptions,
   ] = useState<ILoadHostsOptions>();
-  const [labelValidator, setLabelValidator] = useState<{
-    [key: string]: string;
-  }>(DEFAULT_CREATE_LABEL_ERRORS);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
 
-  const isAddLabel = location.hash === NEW_LABEL_HASH;
-  const isEditLabel = location.hash === EDIT_LABEL_HASH;
-  const routeTemplate = route && route.path ? route.path : "";
+  const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const softwareId = parseInt(queryParams?.software_id, 10);
+  const softwareId =
+    queryParams?.software_id !== undefined
+      ? parseInt(queryParams?.software_id, 10)
+      : undefined;
+  const mdmId =
+    queryParams?.mdm_id !== undefined
+      ? parseInt(queryParams?.mdm_id, 10)
+      : undefined;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const munkiIssueId =
+    queryParams?.munki_issue_id !== undefined
+      ? parseInt(queryParams?.munki_issue_id, 10)
+      : undefined;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -271,10 +271,10 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
+  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
   const {
-    isLoading: isLabelsLoading,
+    isLoading: isLoadingLabels,
     data: labels,
     error: labelsError,
     refetch: refetchLabels,
@@ -338,13 +338,7 @@ const ManageHostsPage = ({
 
   useQuery<IPolicyAPIResponse, Error>(
     ["policy"],
-    () => {
-      const teamId = parseInt(queryParams?.team_id, 10) || 0;
-      const request = teamId
-        ? teamPoliciesAPI.load(teamId, policyId)
-        : globalPoliciesAPI.load(policyId);
-      return request;
-    },
+    () => globalPoliciesAPI.load(policyId),
     {
       enabled: !!policyId,
       onSuccess: ({ policy: policyAPIResponse }) => {
@@ -352,6 +346,19 @@ const ManageHostsPage = ({
       },
     }
   );
+
+  const { data: osVersions } = useQuery<
+    IOSVersionsResponse,
+    Error,
+    IOperatingSystemVersion[],
+    IGetOSVersionsQueryKey[]
+  >([{ scope: "os_versions" }], () => getOSVersions(), {
+    enabled:
+      !!queryParams?.os_id ||
+      (!!queryParams?.os_name && !!queryParams?.os_version),
+    keepPreviousData: true,
+    select: (data) => data.os_versions,
+  });
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -395,10 +402,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const getLabelSelected = () => {
-    return selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX));
-  };
-
   const getStatusSelected = () => {
     return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
   };
@@ -421,11 +424,17 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
-        options
-      );
+      const {
+        hosts: returnedHosts,
+        software,
+        mobile_device_management_solution,
+        munki_issue,
+      } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
+      mobile_device_management_solution &&
+        setMDMSolutionDetails(mobile_device_management_solution);
+      munki_issue && setMunkiIssueDetails(munki_issue);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -506,6 +515,12 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      osId,
+      osName,
+      osVersion,
+      munkiIssueId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -520,6 +535,12 @@ const ManageHostsPage = ({
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!filteredHostCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex + (hosts?.length || 0) >=
+      filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -574,7 +595,19 @@ const ManageHostsPage = ({
     return true;
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData({
+      ...tableQueryData,
+      pageIndex: 0,
+    } as ITableQueryProps);
+
+    setResetPageIndex(true);
+  };
+
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -588,41 +621,58 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleClearPoliciesFilter = () => {
+  const handleClearFilter = (omitParams: string[]) => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, ["policy_id", "policy_response"]),
+        queryParams: omit(queryParams, omitParams),
       })
     );
   };
 
+  const handleClearPoliciesFilter = () => {
+    handleClearFilter(["policy_id", "policy_response"]);
+  };
+
+  const handleClearOSFilter = () => {
+    handleClearFilter(["os_id", "os_name", "os_version"]);
+  };
+
   const handleClearSoftwareFilter = () => {
-    router.replace(PATHS.MANAGE_HOSTS);
-    setCurrentTeam(undefined);
-    setSoftwareDetails(null);
+    handleClearFilter(["software_id"]);
+  };
+
+  const handleClearMDMSolutionFilter = () => {
+    handleClearFilter(["mdm_id"]);
+  };
+
+  const handleClearMDMEnrollmentFilter = () => {
+    handleClearFilter(["mdm_enrollment_status"]);
+  };
+
+  const handleClearMunkiIssueFilter = () => {
+    handleClearFilter(["munki_issue_id"]);
   };
 
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
+
     const teamIdParam = getValidatedTeamId(
       availableTeams || [],
       teamId,
       currentUser,
-      isOnGlobalTeam as boolean
+      isOnGlobalTeam ?? false
     );
 
-    const slimmerParams = omit(queryParams, [
-      "policy_id",
-      "policy_response",
-      "team_id",
-    ]);
+    const slimmerParams = omit(queryParams, ["team_id"]);
 
     const newQueryParams = !teamIdParam
       ? slimmerParams
-      : Object.assign({}, slimmerParams, { team_id: teamIdParam });
+      : Object.assign(slimmerParams, { team_id: teamIdParam });
 
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
@@ -630,6 +680,8 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
+
+    handleResetPageIndex();
     router.replace(nextLocation);
     const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -641,23 +693,18 @@ const ManageHostsPage = ({
     const selected = isAll
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
+    handleResetPageIndex();
+
     handleLabelChange(selected as ILabel);
   };
 
-  const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-
-    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
-    router.push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`);
+  const onAddLabelClick = () => {
+    router.push(`${PATHS.NEW_LABEL}`);
   };
 
   const onEditLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-
-    setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
-    router.push(
-      `${PATHS.MANAGE_HOSTS}/${getLabelSelected()}${EDIT_LABEL_HASH}`
-    );
+    router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
   const onSaveColumns = (newHiddenColumns: string[]) => {
@@ -666,9 +713,10 @@ const ManageHostsPage = ({
     setShowEditColumnsModal(false);
   };
 
-  const onCancelLabel = () => {
-    router.goBack();
-  };
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
@@ -729,10 +777,39 @@ const ManageHostsPage = ({
         newQueryParams.policy_response = policyResponse;
       }
 
-      if (softwareId && !policyId) {
+      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
         newQueryParams.software_id = softwareId;
       }
 
+      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
+        newQueryParams.mdm_id = mdmId;
+      }
+
+      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
+        newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
+      }
+
+      if (
+        munkiIssueId &&
+        !mdmEnrollmentStatus &&
+        !policyId &&
+        !softwareId &&
+        !mdmId
+      ) {
+        newQueryParams.munki_issue_id = munkiIssueId;
+      }
+
+      if (
+        (osId || (osName && osVersion)) &&
+        !softwareId &&
+        !policyId &&
+        !mdmEnrollmentStatus &&
+        !mdmId
+      ) {
+        newQueryParams.os_id = osId;
+        newQueryParams.os_name = osName;
+        newQueryParams.os_version = osVersion;
+      }
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -741,6 +818,8 @@ const ManageHostsPage = ({
           queryParams: newQueryParams,
         })
       );
+
+      return 0;
     },
     [
       availableTeams,
@@ -749,6 +828,12 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      osId,
+      osName,
+      osVersion,
+      munkiIssueId,
       sortBy,
     ]
   );
@@ -768,6 +853,8 @@ const ManageHostsPage = ({
     if (enrollSecretString) {
       newSecrets.push({ secret: enrollSecretString });
     }
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -803,6 +890,8 @@ const ManageHostsPage = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -817,6 +906,8 @@ const ManageHostsPage = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -843,70 +934,16 @@ const ManageHostsPage = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
-  const onEditLabel = (formData: ILabelFormData) => {
-    if (!selectedLabel) {
-      console.error("Label isn't available. This should not happen.");
-      return;
+  const onClearLabelFilter = () => {
+    const allHostsLabel = labels?.find((label) => label.name === "All Hosts");
+    if (allHostsLabel !== undefined) {
+      handleLabelChange(allHostsLabel);
     }
-
-    const updateAttrs = deepDifference(formData, selectedLabel);
-
-    labelsAPI
-      .update(selectedLabel, updateAttrs)
-      .then(() => {
-        refetchLabels();
-        renderFlash(
-          "success",
-          "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
-        );
-        setLabelValidator({});
-      })
-      .catch((updateError: { data: IApiError }) => {
-        if (updateError.data.errors[0].reason.includes("Duplicate")) {
-          setLabelValidator({
-            name: "A label with this name already exists",
-          });
-        } else {
-          renderFlash("error", "Could not create label. Please try again.");
-        }
-      });
-  };
-
-  const onLabelClick = (label: ILabel) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-      handleLabelChange(label);
-    };
-  };
-
-  const onOsqueryTableSelect = (tableName: string) => {
-    setSelectedOsqueryTable(tableName);
-  };
-
-  const onSaveAddLabel = (formData: ILabelFormData) => {
-    labelsAPI
-      .create(formData)
-      .then(() => {
-        router.push(PATHS.MANAGE_HOSTS);
-        renderFlash(
-          "success",
-          "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
-        );
-        setLabelValidator({});
-        refetchLabels();
-      })
-      .catch((updateError: any) => {
-        if (updateError.data.errors[0].reason.includes("Duplicate")) {
-          setLabelValidator({
-            name: "A label with this name already exists",
-          });
-        } else {
-          renderFlash("error", "Could not create label. Please try again.");
-        }
-      });
   };
 
   const onDeleteLabel = async () => {
@@ -914,6 +951,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
+    setIsUpdatingLabel(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -929,9 +967,12 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
+      renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete label. Please try again.");
+    } finally {
+      setIsUpdatingLabel(false);
     }
   };
 
@@ -946,6 +987,8 @@ const ManageHostsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHosts(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -986,6 +1029,12 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        osId,
+        osName,
+        osVersion,
+        munkiIssueId,
       });
 
       toggleTransferHostModal();
@@ -993,10 +1042,14 @@ const ManageHostsPage = ({
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
   const onDeleteHostSubmit = async () => {
+    setIsUpdatingHosts(true);
+
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -1031,6 +1084,12 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        osId,
+        osName,
+        osVersion,
+        munkiIssueId,
       });
 
       refetchLabels();
@@ -1044,15 +1103,15 @@ const ManageHostsPage = ({
           selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
       currentUserTeams={availableTeams || []}
-      selectedTeamId={
-        (policyId && policy?.team_id) || (currentTeam?.id as number)
-      }
+      selectedTeamId={currentTeam?.id}
       isDisabled={isHostsLoading || isHostCountLoading}
       onChange={(newSelectedValue: number) =>
         handleTeamSelect(newSelectedValue)
@@ -1060,67 +1119,204 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderLabelFilterPill = () => {
+    if (selectedLabel) {
+      const { description, display_text, label_type } = selectedLabel;
+      const pillLabel =
+        PLATFORM_LABEL_DISPLAY_NAMES[display_text] ?? display_text;
+
+      return (
+        <>
+          <FilterPill
+            label={pillLabel}
+            tooltipDescription={description}
+            onClear={onClearLabelFilter}
+          />
+          {label_type !== "builtin" && !isOnlyObserver && (
+            <>
+              <Button onClick={onEditLabelClick} variant={"text-icon"}>
+                <img src={PencilIcon} alt="Edit label" />
+              </Button>
+              <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
+                <img src={TrashIcon} alt="Delete label" />
+              </Button>
+            </>
+          )}
+        </>
+      );
+    }
+
+    return null;
+  };
+
+  const renderOSFilterBlock = () => {
+    if (!osId && !(osName && osVersion)) return null;
+
+    let os: IOperatingSystemVersion | undefined;
+    if (osId) {
+      os = osVersions?.find((v) => v.os_id === osId);
+    } else if (osName && osVersion) {
+      const name: string = osName;
+      const vers: string = osVersion;
+
+      os = osVersions?.find(
+        ({ name_only, version }) =>
+          name_only.toLowerCase() === name.toLowerCase() &&
+          version.toLowerCase() === vers.toLowerCase()
+      );
+    }
+    if (!os) return null;
+
+    const { name, name_only, version } = os;
+    const label = formatOperatingSystemDisplayName(
+      name_only || version
+        ? `${name_only || ""} ${version || ""}`
+        : `${name || ""}`
+    );
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        {`Hosts with ${formatOperatingSystemDisplayName(name_only || name)}`},
+        <br />
+        {version && `${version} installed`}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearOSFilter}
+      />
+    );
+  };
+
   const renderPoliciesFilterBlock = () => (
-    <div className={`${baseClass}__policies-filter-block`}>
+    <>
       <PoliciesFilter
         policyResponse={policyResponse}
         onChange={handleChangePoliciesFilter}
       />
-      <div className={`${baseClass}__policies-filter-name-card`}>
-        <img src={PolicyIcon} alt="Policy" />
-        {policy?.name}
-        <Button
-          className={`${baseClass}__clear-policies-filter`}
-          onClick={handleClearPoliciesFilter}
-          variant={"small-text-icon"}
-          title={policy?.name}
-        >
-          <img src={CloseIcon} alt="Remove policy filter" />
-        </Button>
-      </div>
-    </div>
+      <FilterPill
+        icon={PolicyIcon}
+        label={policy?.name ?? "..."}
+        onClear={handleClearPoliciesFilter}
+        className={`${baseClass}__policies-filter-pill`}
+      />
+    </>
   );
 
   const renderSoftwareFilterBlock = () => {
-    if (softwareDetails) {
-      const { name, version } = softwareDetails;
-      const buttonText = name && version ? `${name} ${version}` : "";
+    if (!softwareDetails) return null;
+
+    const { name, version } = softwareDetails;
+    const label = name && version ? `${name} ${version}` : "";
+    const TooltipDescription =
+      name && version ? (
+        <span className={`tooltip__tooltip-text`}>
+          {`Hosts with ${name}`},<br />
+          {`${version} installed`}
+        </span>
+      ) : undefined;
+
+    return (
+      <FilterPill
+        label={label}
+        onClear={handleClearSoftwareFilter}
+        tooltipDescription={TooltipDescription}
+      />
+    );
+  };
+
+  const renderMDMSolutionFilterBlock = () => {
+    if (!mdmSolutionDetails) return null;
+
+    const { name, server_url } = mdmSolutionDetails;
+    const label = name ? `${name} ${server_url}` : `${server_url}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Host enrolled
+        {name !== "Unknown" && ` to ${name}`}
+        <br /> at {server_url}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMDMSolutionFilter}
+      />
+    );
+  };
+
+  const renderMDMEnrollmentFilterBlock = () => {
+    if (!mdmEnrollmentStatus) return null;
+
+    let label: string;
+    switch (mdmEnrollmentStatus) {
+      case "automatic":
+        label = "MDM enrolled (automatic)";
+        break;
+      case "manual":
+        label = "MDM enrolled (manual)";
+        break;
+      default:
+        label = "Unenrolled";
+    }
+
+    let TooltipDescription: JSX.Element;
+    switch (mdmEnrollmentStatus) {
+      case "automatic":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts automatically enrolled <br />
+            to an MDM solution the first time <br />
+            the host is used. Administrators <br />
+            might have a higher level of control <br />
+            over these hosts.
+          </span>
+        );
+        break;
+      case "manual":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts manually enrolled to an <br />
+            MDM solution by a user or <br />
+            administrator.
+          </span>
+        );
+        break;
+      default:
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts not enrolled to <br /> an MDM solution.
+          </span>
+        );
+    }
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMDMEnrollmentFilter}
+      />
+    );
+  };
+
+  const renderMunkiIssueFilterBlock = () => {
+    if (munkiIssueDetails) {
       return (
-        <div className={`${baseClass}__software-filter-block`}>
-          <div>
-            <span
-              data-tip
-              data-for="software-filter-tooltip"
-              data-tip-disable={!name || !version}
-            >
-              <div
-                className={`${baseClass}__software-filter-name-card tooltip`}
-              >
-                {buttonText}
-                <Button
-                  className={`${baseClass}__clear-policies-filter`}
-                  onClick={handleClearSoftwareFilter}
-                  variant={"small-text-icon"}
-                  title={buttonText}
-                >
-                  <img src={CloseIcon} alt="Remove policy filter" />
-                </Button>
-              </div>
+        <FilterPill
+          label={munkiIssueDetails.name}
+          tooltipDescription={
+            <span className={`tooltip__tooltip-text`}>
+              Hosts that reported this Munki issue <br />
+              the last time Munki ran on each host.
             </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="software-filter-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                {`Hosts with ${name}`},<br />
-                {`${version} installed`}
-              </span>
-            </ReactTooltip>
-          </div>
-        </div>
+          }
+          onClear={handleClearMunkiIssueFilter}
+        />
       );
     }
     return null;
@@ -1152,6 +1348,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1161,6 +1358,7 @@ const ManageHostsPage = ({
       selectedTeam={currentTeam?.id || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1180,6 +1378,7 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
+      isUpdatingLabel={isUpdatingLabel}
     />
   );
 
@@ -1214,6 +1413,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
+        isUpdatingHosts={isUpdatingHosts}
       />
     );
   };
@@ -1224,43 +1424,9 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      isUpdatingHosts={isUpdatingHosts}
     />
   );
-
-  const renderHeaderLabelBlock = () => {
-    if (selectedLabel) {
-      const {
-        description,
-        display_text: displayText,
-        label_type: labelType,
-      } = selectedLabel;
-
-      return (
-        <div className={`${baseClass}__label-block`}>
-          <div className="title">
-            <span>
-              {PLATFORM_LABEL_DISPLAY_NAMES[displayText] || displayText}
-            </span>
-            {labelType !== "builtin" && !isOnlyObserver && (
-              <>
-                <Button onClick={onEditLabelClick} variant={"text-icon"}>
-                  <img src={PencilIcon} alt="Edit label" />
-                </Button>
-                <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-                  <img src={TrashIcon} alt="Delete label" />
-                </Button>
-              </>
-            )}
-          </div>
-          <div className="description">
-            <span>{description}</span>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
 
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
@@ -1314,6 +1480,12 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id: osId,
+      os_name: osName,
+      os_version: osVersion,
+      munkiIssueId,
       visibleColumns,
     };
 
@@ -1381,91 +1553,76 @@ const ManageHostsPage = ({
       selectedLabel &&
       selectedLabel.type !== "all" &&
       selectedLabel.type !== "status";
-    if (policyId || softwareId || showSelectedLabel) {
+
+    if (
+      showSelectedLabel ||
+      policyId ||
+      softwareId ||
+      showSelectedLabel ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      osId ||
+      (osName && osVersion) ||
+      munkiIssueId
+    ) {
+      const renderFilterPill = () => {
+        switch (true) {
+          case showSelectedLabel:
+            return renderLabelFilterPill();
+          case !!policyId:
+            return renderPoliciesFilterBlock();
+          case !!softwareId:
+            return renderSoftwareFilterBlock();
+          case !!mdmId:
+            return renderMDMSolutionFilterBlock();
+          case !!mdmEnrollmentStatus:
+            return renderMDMEnrollmentFilterBlock();
+          case !!osId || (!!osName && !!osVersion):
+            return renderOSFilterBlock();
+          case !!munkiIssueId:
+            return renderMunkiIssueFilterBlock();
+          default:
+            return null;
+        }
+      };
+
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {showSelectedLabel && renderHeaderLabelBlock()}
-          {!!policyId &&
-            !softwareId &&
-            !showSelectedLabel &&
-            renderPoliciesFilterBlock()}
-          {!!softwareId &&
-            !policyId &&
-            !showSelectedLabel &&
-            renderSoftwareFilterBlock()}
+          {renderFilterPill()}
         </div>
       );
     }
-    return null;
   };
 
-  const renderForm = () => {
-    if (isAddLabel) {
-      return (
-        <LabelForm
-          onCancel={onCancelLabel}
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          handleSubmit={onSaveAddLabel}
-          baseError={labelsError?.message || ""}
-          backendValidators={labelValidator}
-        />
-      );
-    }
+  const renderCustomControls = () => {
+    // we filter out the status labels as we dont want to display them in the label
+    // filter select dropdown.
+    // TODO: seperate labels and status into different data sets.
+    const selectedDropdownLabel =
+      selectedLabel?.type !== "all" && selectedLabel?.type !== "status"
+        ? selectedLabel
+        : undefined;
 
-    if (isEditLabel) {
-      return (
-        <LabelForm
-          selectedLabel={selectedLabel}
-          onCancel={onCancelLabel}
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          handleSubmit={onEditLabel}
-          baseError={labelsError?.message || ""}
-          backendValidators={labelValidator}
-          isEdit
+    return (
+      <div className={`${baseClass}__filter-dropdowns`}>
+        <Dropdown
+          value={getStatusSelected() || ALL_HOSTS_LABEL}
+          className={`${baseClass}__status_dropdown`}
+          options={HOST_SELECT_STATUSES}
+          searchable={false}
+          onChange={handleStatusDropdownChange}
         />
-      );
-    }
-
-    return false;
+        <LabelFilterSelect
+          className={`${baseClass}__label-filter-dropdown`}
+          labels={labels ?? []}
+          canAddNewLabels={canAddNewLabels}
+          selectedLabel={selectedDropdownLabel ?? null}
+          onChange={handleLabelChange}
+          onAddLabel={onAddLabelClick}
+        />
+      </div>
+    );
   };
-
-  const renderSidePanel = () => {
-    let SidePanel;
-
-    if (isAddLabel) {
-      SidePanel = (
-        <QuerySidePanel
-          key="query-side-panel"
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          selectedOsqueryTable={selectedOsqueryTable}
-        />
-      );
-    } else {
-      SidePanel = (
-        <HostSidePanel
-          key="hosts-side-panel"
-          labels={labels}
-          onAddLabelClick={onAddLabelClick}
-          onLabelClick={onLabelClick}
-          selectedFilter={getLabelSelected() || getStatusSelected()}
-          canAddNewLabel={canAddNewLabels as boolean}
-          isLabelsLoading={isLabelsLoading}
-        />
-      );
-    }
-
-    return SidePanel;
-  };
-
-  const renderStatusDropdown = () => (
-    <Dropdown
-      value={getStatusSelected() || ALL_HOSTS_LABEL}
-      className={`${baseClass}__status_dropdown`}
-      options={HOST_SELECT_STATUSES}
-      searchable={false}
-      onChange={handleStatusDropdownChange}
-    />
-  );
 
   const renderTable = () => {
     if (
@@ -1492,14 +1649,23 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { software_id, policy_id } = queryParams || {};
-      const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
+      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
+        queryParams || {};
+      const includesNameCardFilter = !!(
+        software_id ||
+        policy_id ||
+        mdm_id ||
+        mdm_enrollment_status ||
+        osId ||
+        osName ||
+        osVersion
+      );
 
       return (
         <NoHosts
           toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
-          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
+          includesNameCardFilter={includesNameCardFilter}
         />
       );
     }
@@ -1548,11 +1714,13 @@ const ManageHostsPage = ({
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={EmptyHosts}
-        customControl={renderStatusDropdown}
+        customControl={renderCustomControls}
         onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        resetPageIndex={resetPageIndex}
+        disableNextPage={isLastPage}
       />
     );
   };
@@ -1581,14 +1749,14 @@ const ManageHostsPage = ({
             </span>
           </div>
           <div className={`dismiss-banner-button`}>
-            <button
-              className="button button--unstyled"
+            <Button
+              variant="unstyled"
               onClick={() =>
                 setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
               }
             >
               <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </button>
+            </Button>
           </div>
         </div>
       )
@@ -1602,54 +1770,48 @@ const ManageHostsPage = ({
   return (
     <>
       <MainContent>
-        <>
-          {renderForm()}
-          {!isAddLabel && !isEditLabel && (
-            <div className={`${baseClass}`}>
-              <div className="header-wrap">
-                {renderHeader()}
-                <div className={`${baseClass} button-wrap`}>
-                  {!isSandboxMode &&
-                    canEnrollHosts &&
-                    !hasHostErrors &&
-                    !hasHostCountErrors && (
-                      <Button
-                        onClick={() => setShowEnrollSecretModal(true)}
-                        className={`${baseClass}__enroll-hosts button`}
-                        variant="inverse"
-                      >
-                        <span>Manage enroll secret</span>
-                      </Button>
-                    )}
-                  {canEnrollHosts &&
-                    !hasHostErrors &&
-                    !hasHostCountErrors &&
-                    !(
-                      getStatusSelected() === ALL_HOSTS_LABEL &&
-                      selectedLabel?.count === 0
-                    ) &&
-                    !(
-                      getStatusSelected() === ALL_HOSTS_LABEL &&
-                      filteredHostCount === 0
-                    ) && (
-                      <Button
-                        onClick={toggleAddHostsModal}
-                        className={`${baseClass}__add-hosts button button--brand`}
-                      >
-                        <span>Add hosts</span>
-                      </Button>
-                    )}
-                </div>
-              </div>
-              {renderActiveFilterBlock()}
-              {renderNoEnrollSecretBanner()}
-              {renderTable()}
+        <div className={`${baseClass}`}>
+          <div className="header-wrap">
+            {renderHeader()}
+            <div className={`${baseClass} button-wrap`}>
+              {!isSandboxMode &&
+                canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors && (
+                  <Button
+                    onClick={() => setShowEnrollSecretModal(true)}
+                    className={`${baseClass}__enroll-hosts button`}
+                    variant="inverse"
+                  >
+                    <span>Manage enroll secret</span>
+                  </Button>
+                )}
+              {canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  selectedLabel?.count === 0
+                ) &&
+                !(
+                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  filteredHostCount === 0 &&
+                  searchQuery === ""
+                ) && (
+                  <Button
+                    onClick={toggleAddHostsModal}
+                    className={`${baseClass}__add-hosts button button--brand`}
+                  >
+                    <span>Add hosts</span>
+                  </Button>
+                )}
             </div>
-          )}
-        </>
+          </div>
+          {renderActiveFilterBlock()}
+          {renderNoEnrollSecretBanner()}
+          {renderTable()}
+        </div>
       </MainContent>
-      <SidePanelContent>{renderSidePanel()}</SidePanelContent>
-
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
       {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}

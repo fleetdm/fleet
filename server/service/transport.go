@@ -204,9 +204,6 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid status %s", status)
 
 	}
-	if err != nil {
-		return hopt, err
-	}
 
 	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
 	if additionalInfoFiltersString != "" {
@@ -255,6 +252,26 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	osID := r.URL.Query().Get("os_id")
+	if osID != "" {
+		id, err := strconv.Atoi(osID)
+		if err != nil {
+			return hopt, err
+		}
+		sid := uint(id)
+		hopt.OSIDFilter = &sid
+	}
+
+	osName := r.URL.Query().Get("os_name")
+	if osName != "" {
+		hopt.OSNameFilter = &osName
+	}
+
+	osVersion := r.URL.Query().Get("os_version")
+	if osVersion != "" {
+		hopt.OSVersionFilter = &osVersion
+	}
+
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
@@ -271,6 +288,48 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, err
 		}
 		hopt.DeviceMapping = boolVal
+	}
+
+	mdmID := r.URL.Query().Get("mdm_id")
+	if mdmID != "" {
+		id, err := strconv.Atoi(mdmID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MDMIDFilter = &mid
+	}
+
+	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
+	switch fleet.MDMEnrollStatus(enrollmentStatus) {
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusUnenrolled:
+		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+	}
+
+	munkiIssueID := r.URL.Query().Get("munki_issue_id")
+	if munkiIssueID != "" {
+		id, err := strconv.Atoi(munkiIssueID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MunkiIssueIDFilter = &mid
+	}
+
+	lowDiskSpace := r.URL.Query().Get("low_disk_space")
+	if lowDiskSpace != "" {
+		v, err := strconv.Atoi(lowDiskSpace)
+		if err != nil {
+			return hopt, err
+		}
+		if v < 1 || v > 100 {
+			return hopt, ctxerr.Errorf(r.Context(), "invalid low_disk_space threshold, must be between 1 and 100: %s", lowDiskSpace)
+		}
+		hopt.LowDiskSpaceFilter = &v
 	}
 
 	return hopt, nil

@@ -852,13 +852,14 @@ None.
     "metadata_url": "",
     "idp_name": "",
     "enable_sso": false,
-    "enable_sso_idp_login": false
+    "enable_sso_idp_login": false,
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "agent_options": {
@@ -980,58 +981,60 @@ Modifies the Fleet's configuration with the supplied information.
 
 #### Parameters
 
-| Name                  | Type    | In   | Description                                                                                                                                                                            |
-| --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
-| org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
-| server_url            | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
-| live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
-| enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
-| sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
-| server                | string  | body | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
-| port                  | integer | body | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
-| authentication_type   | string  | body | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
-| username_name         | string  | body | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
-| password              | string  | body | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
-| enable_ssl_tls        | boolean | body | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
-| authentication_method | string  | body | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
-| domain                | string  | body | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
-| verify_ssl_certs      | boolean | body | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enabled_start_tls     | boolean | body | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
-| enabled_sso           | boolean | body | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
-| entity_id             | string  | body | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
-| issuer_uri            | string  | body | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
-| idp_image_url         | string  | body | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
-| metadata              | string  | body | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
-| metadata_url          | string  | body | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
-| host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
-| host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
-| agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| transparency_url      | string  | body | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
-| enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count            | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
-| enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
-| destination_url       | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| policy_ids            | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size       | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
-| destination_url       | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| host_batch_size       | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
-| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies | boolean | body | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| url                   | string | body | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
-| username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
-| api_token             | string | body | _integrations.jira[] settings_. The API token of the Jira username to use for this Jira integration. |
-| project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
-| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies | boolean | body | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| url                   | string | body | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
-| email              | string | body | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
-| api_token              | string | body | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
-| group_id           | integer | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
-| additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
+| Name                              | Type    | In    | Description                                                                                                                                                                            |
+| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| org_name                          | string  | body  | _Organization information_. The organization name.                                                                                                                                     |
+| org_logo_url                      | string  | body  | _Organization information_. The URL for the organization logo.                                                                                                                         |
+| server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
+| enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
+| sender_address                    | string  | body  | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
+| server                            | string  | body  | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
+| port                              | integer | body  | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
+| authentication_type               | string  | body  | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
+| username_name                     | string  | body  | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
+| password                          | string  | body  | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
+| enable_ssl_tls                    | boolean | body  | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
+| authentication_method             | string  | body  | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
+| domain                            | string  | body  | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
+| verify_ssl_certs                  | boolean | body  | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
+| enabled_start_tls                 | boolean | body  | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| enabled_sso                       | boolean | body  | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| entity_id                         | string  | body  | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
+| issuer_uri                        | string  | body  | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
+| idp_image_url                     | string  | body  | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
+| metadata                          | string  | body  | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
+| metadata_url                      | string  | body  | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| host_expiry_enabled               | boolean | body  | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
+| host_expiry_window                | integer | body  | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| transparency_url                  | string  | body  | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
+| enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url                   | string  | body  | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage                   | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count                        | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_failing_policies_webhook   | boolean | body  | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids                        | array   | body  | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size                   | integer | body  | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook    | boolean | body  | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size                   | integer | body  | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| enable_software_vulnerabilities   | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies           | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| url                               | string  | body  | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
+| username                          | string  | body  | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
+| api_token                         | string  | body  | _integrations.jira[] settings_. The API token of the Jira username to use for this Jira integration. |
+| project_key                       | string  | body  | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| enable_software_vulnerabilities   | boolean | body  | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies           | boolean | body  | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| url                               | string  | body  | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
+| email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
+| api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
+| group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
+| force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
+| dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
 #### Example
 
@@ -1095,7 +1098,7 @@ Modifies the Fleet's configuration with the supplied information.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "license": {
@@ -1725,14 +1728,27 @@ None.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields. |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                         |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.
-### Get host's Google Chrome profiles
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
+
 If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
+
+If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
+
+If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the information corresponding to the `munki_issue_id`.
 
 #### Example
 
@@ -1797,9 +1813,45 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
+      },
+      "geolocation": {
+        "country_iso": "US",
+        "city_name": "New York",
+        "geometry": {
+          "type": "point",
+          "coordinates": [40.6799, -74.0028]
+        }
       }
     }
   ]
+}
+```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+
+Response payload with the `mdm_id` filter provided:
+
+```json
+{
+  "hosts": [...],
+  "mobile_device_management_solution": {
+    "server_url": "http://some.url/mdm",
+    "name": "MDM Vendor Name",
+    "id": 999
+  }
+}
+```
+
+Response payload with the `munki_issue_id` filter provided:
+
+```json
+{
+  "hosts": [...],
+  "munki_issue": {
+    "id": 1,
+    "name": "Could not retrieve managed install primary manifest",
+    "type": "error"
+  }
 }
 ```
 
@@ -1817,12 +1869,19 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                            |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, low_disk_space, mdm or munki filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1858,14 +1917,15 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name     | Type    | In    | Description                                                                     |
-| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
-| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| Name            | Type    | In    | Description                                                                     |
+| --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -1880,6 +1940,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "mia_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
+  "low_disk_space_count": 12,
   "builtin_labels": [
     {
       "id": 6,
@@ -2130,10 +2191,20 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2203,10 +2274,20 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
@@ -2439,9 +2520,25 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
     "munki": {
       "version": "1.2.3"
     },
+    "munki_issues": [
+      {
+        "id": 1,
+        "name": "Could not retrieve managed install primary manifest",
+        "type": "error",
+        "created_at": "2022-08-01T05:09:44Z"
+      },
+      {
+        "id": 2,
+        "name": "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
+        "type": "warning",
+        "created_at": "2022-08-01T05:09:44Z"
+      }
+    ],
     "mobile_device_management": {
       "enrollment_status": "Enrolled (automated)",
-      "server_url": "http://some.url/mdm"
+      "server_url": "http://some.url/mdm",
+      "name": "MDM Vendor Name",
+      "id": 999
     }
   }
 }
@@ -2502,11 +2599,39 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
         "hosts_count": 50
       }
     ],
+    "munki_issues": [
+      {
+        "id": 1,
+        "name": "Could not retrieve managed install primary manifest",
+        "type": "error",
+        "hosts_count": 2851
+      },
+      {
+        "id": 2,
+        "name": "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
+        "type": "warning",
+        "hosts_count": 1983
+      }
+    ],
     "mobile_device_management_enrollment_status": {
       "enrolled_manual_hosts_count": 124,
-      "enrolled_automatic_hosts_count": 124,
+      "enrolled_automated_hosts_count": 124,
       "unenrolled_hosts_count": 112
-    }
+    },
+    "mobile_device_management_solution": [
+      {
+        "id": 1,
+        "name": "SimpleMDM",
+        "hosts_count": 8360,
+        "server_url": "https://a.simplemdm.com/mdm"
+      },
+      {
+        "id": 2,
+        "name": "Intune",
+        "hosts_count": 1700,
+        "server_url": "https://enrollment.manage.microsoft.com"
+      }
+    ]
   }
 }
 ```
@@ -2519,10 +2644,12 @@ Retrieves the aggregated host OS versions information.
 
 #### Parameters
 
-| Name     | Type     | In    | Description                                                                                                                          |
+| Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id  | integery | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
-| platform | string   | query | Filters the hosts to the specified platform                                                                                          |
+| team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| platform            | string   | query | Filters the hosts to the specified platform |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 
 ##### Default response
 
@@ -2535,43 +2662,51 @@ Retrieves the aggregated host OS versions information.
     {
       "hosts_count": 1,
       "name": "CentOS 6.10.0",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "6.10.0",
+      "platform": "rhel",
+      "os_id": 1
     },
     {
       "hosts_count": 1,
       "name": "CentOS Linux 7.9.2009",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "7.9.2009",
+      "platform": "rhel",
+      "os_id": 2
     },
     {
       "hosts_count": 1,
       "name": "CentOS Linux 8.3.2011",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "8.2.2011",
+      "platform": "rhel",
+      "os_id": 3
     },
     {
       "hosts_count": 1,
       "name": "Debian GNU/Linux 10.0.0",
-      "platform": "debian"
+      "name_only": "Debian GNU/Linux",
+      "version": "10.0.0",
+      "platform": "debian",
+      "os_id": 4
     },
     {
       "hosts_count": 1,
       "name": "Debian GNU/Linux 9.0.0",
-      "platform": "debian"
+      "name_only": "Debian GNU/Linux",
+      "version": "9.0.0",
+      "platform": "debian",
+      "os_id": 5
     },
     {
       "hosts_count": 1,
-      "name": "Ubuntu 16.4.0",
-      "platform": "ubuntu"
+      "name": "Ubuntu 16.4.0 LTS",
+      "name_only": "Ubuntu",
+      "version": "16.4.0 LTS",
+      "platform": "ubuntu",
+      "os_id": 6
     },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 18.4.0",
-      "platform": "ubuntu"
-    },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 20.4.0",
-      "platform": "ubuntu"
-    }
   ]
 }
 ```
@@ -2597,7 +2732,10 @@ requested by a web browser.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, munki or mdm filters.                                                                                                                                                                                                                                                                 |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 
 #### Example
 
@@ -2828,9 +2966,9 @@ Returns a list of all the labels in Fleet.
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |                                                                                               |
-| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                              |
+| Name            | Type    | In    | Description   |
+| --------------- | ------- | ----- |------------------------------------- |
+| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
@@ -5242,6 +5380,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Get team](#get-team)
 - [Create team](#create-team)
 - [Modify team](#modify-team)
+- [Modify team's agent options](#modify-teams-agent-options)
 - [Delete team](#delete-team)
 
 ### List teams
@@ -5357,9 +5496,9 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id   | string | body | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                          |
+| ---- | ------  | ---- | ------------------------------------ |
+| id   | integer | path | **Required.** The desired team's ID. |
 
 #### Example
 
@@ -5497,7 +5636,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                  |
 | ---                                                     | ---     | ---  | ---                                                                                                                                                          |
-| id                                                      | string  | body | **Required.** The desired team's ID.                                                                                                                         |
+| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                         |
 | name                                                    | string  | body | The team's name.                                                                                                                                             |
 | host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                     |
 | user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                |
@@ -5637,37 +5776,48 @@ _Available in Fleet Premium_
 }
 ```
 
-#### Example (edit agent options for a team)
+### Modify team's agent options
 
-`PATCH /api/v1/fleet/teams/1`
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/teams/{id}/agent_options`
+
+#### Parameters
+
+| Name                             | Type    | In    | Description                                                                                                                                                  |
+| ---                              | ---     | ---   | ---                                                                                                                                                          |
+| id                               | integer | path  | **Required.** The desired team's ID.                                                                                                                         |
+| force                            | bool    | query | Force apply the options even if there are validation errors.                                                                                                 |
+| dry_run                          | bool    | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
+| _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](./configuration-files/README.md#agent-options) for details.                              |
+
+#### Example
+
+`POST /api/v1/fleet/teams/1/agent_options`
 
 ##### Request body
 
 ```json
 {
-  "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 20,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 60,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {}
-    }
-  }
+	"config": {
+		"options": {
+			"logger_plugin": "tls",
+			"pack_delimiter": "/",
+			"logger_tls_period": 20,
+			"distributed_plugin": "tls",
+			"disable_distributed": false,
+			"logger_tls_endpoint": "/api/v1/osquery/log",
+			"distributed_interval": 60,
+			"distributed_tls_max_attempts": 3
+		},
+		"decorators": {
+			"load": [
+				"SELECT uuid AS host_uuid FROM system_info;",
+				"SELECT hostname AS hostname FROM system_info;"
+			]
+		}
+	},
+	"overrides": {}
 }
 ```
 
@@ -5727,9 +5877,9 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id   | string | body | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                          |
+| ---- | ------  | ---- | ------------------------------------ |
+| id   | integer | path | **Required.** The desired team's ID. |
 
 #### Example
 

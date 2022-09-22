@@ -13,6 +13,8 @@ terraform {
 
 data "aws_region" "current" {}
 
+data "aws_caller_identity" "current" {}
+
 locals {
   name      = "preprovisioner"
   full_name = "${var.prefix}-${local.name}"
@@ -255,7 +257,7 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "QUEUED_INSTANCES"
-            value = "20"
+            value = data.aws_caller_identity.current.account_id == 411315989055 ? "20" : "5"
           },
           {
             name  = "TF_VAR_redis_address"
@@ -288,6 +290,10 @@ resource "aws_ecs_task_definition" "main" {
           {
             name  = "TF_VAR_kms_key_arn"
             value = var.kms_key.arn
+          },
+          {
+            name  = "TF_VAR_ecr_url"
+            value = var.ecr.repository_url
           },
         ]),
         secrets = concat([
@@ -365,6 +371,7 @@ resource "docker_registry_image" "main" {
   build {
     context     = "${path.module}/lambda/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
 
   depends_on = [

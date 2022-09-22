@@ -34,7 +34,7 @@ func (mw metricsMiddleware) CallbackSSO(ctx context.Context, auth fleet.Auth) (s
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	sess, err = mw.Service.CallbackSSO(ctx, auth)
+	sess, err = getSSOSession(ctx, mw.Service, auth)
 	return
 }
 

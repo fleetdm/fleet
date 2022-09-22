@@ -20,7 +20,7 @@ import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "create-user-form";
 
@@ -85,6 +85,7 @@ interface ICreateUserFormProps {
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
   createOrEditUserErrors?: IUserFormErrors;
+  isUpdatingUsers?: boolean;
 }
 
 const UserForm = ({
@@ -108,6 +109,7 @@ const UserForm = ({
   isInvitePending,
   serverErrors,
   createOrEditUserErrors,
+  isUpdatingUsers,
 }: ICreateUserFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -123,9 +125,7 @@ const UserForm = ({
     currentUserId,
   });
 
-  const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
-    !!defaultGlobalRole
-  );
+  const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
   useEffect(() => {
     setErrors(createOrEditUserErrors);
@@ -301,7 +301,7 @@ const UserForm = ({
               rel="noopener noreferrer"
             >
               Learn more about user permissions
-              <img src={OpenNewTabIcon} alt="open new tab" />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </InfoBanner>
         )}
@@ -356,7 +356,7 @@ const UserForm = ({
                   rel="noopener noreferrer"
                 >
                   Learn more about user permissions
-                  <img src={OpenNewTabIcon} alt="open new tab" />
+                  <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
               </InfoBanner>
               <SelectedTeamsForm
@@ -567,20 +567,18 @@ const UserForm = ({
       )}
       {!isPremiumTier && renderGlobalRoleForm()}
 
-      <div className={`${baseClass}__btn-wrap`}>
+      <div className="modal-cta-wrap">
         <Button
-          className={`${baseClass}__btn`}
           type="submit"
           variant="brand"
           onClick={onFormSubmit}
+          className={`${submitText === "Create" ? "create" : "save"}-loading
+          `}
+          isLoading={isUpdatingUsers}
         >
           {submitText}
         </Button>
-        <Button
-          className={`${baseClass}__btn`}
-          onClick={onCancel}
-          variant="inverse"
-        >
+        <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
       </div>

@@ -59,7 +59,7 @@ class FleetDetails extends Component {
           type="submit"
           tabIndex={tabIndex}
           disabled={!currentPage}
-          className="button button--brand"
+          variant="brand"
         >
           Next
         </Button>

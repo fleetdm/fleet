@@ -15,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/sfn"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
@@ -23,8 +25,11 @@ import (
 	_ "go.elastic.co/apm/v2"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type OptionsStruct struct {
@@ -33,9 +38,75 @@ type OptionsStruct struct {
 	LifecycleSFN       string `long:"lifecycle-sfn" env:"LIFECYCLE_SFN" required:"true"`
 	FleetBaseURL       string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
 	AuthorizationPSK   string `long:"authorization-psk" env:"AUTHORIZATION_PSK" required:"true"`
+    MysqlSecret string `long:"mysql-secret" env:"MYSQL_SECRET" required:"true"`
 }
 
 var options = OptionsStruct{}
+
+func applyConfig(c *gin.Context, url, token string) (err error) {
+	var client *service.Client
+	if client, err = service.NewClient(url, false, "", ""); err != nil {
+		log.Print(err)
+		return
+	}
+	client.SetToken(token)
+
+	buf, err := os.ReadFile("standard-query-library.yml")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	specs, err := spec.GroupFromBytes(buf)
+	if err != nil {
+		return
+	}
+	logf := func(format string, a ...interface{}) {
+		log.Printf(format, a...)
+	}
+	err = client.ApplyGroup(c, specs, logf)
+	if err != nil {
+		return
+	}
+	return
+}
+
+type MysqlSecretEntry struct {
+    Endpoint string `json:"endpoint"`
+    Username string `json:"username"`
+    Password string `json:"password"`
+}
+
+func clearActivitiesTable(c *gin.Context, id string) (err error) {
+    // Get connection string
+    svc := secretsmanager.New(session.New())
+    sec, err := svc.GetSecretValue(&secretsmanager.GetSecretValueInput{
+        SecretId: aws.String(options.MysqlSecret),
+    })
+    if err != nil {
+        log.Print(err)
+        return
+    }
+    var secretEntry MysqlSecretEntry
+    if err = json.Unmarshal([]byte(*sec.SecretString), &secretEntry); err != nil {
+        log.Print(err)
+        return
+    }
+    connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", secretEntry.Username, secretEntry.Password, secretEntry.Endpoint, id)
+    // Connect to db
+    db, err := sql.Open("mysql", connectionString)
+    if err != nil {
+        log.Print(err)
+        return
+    }
+    defer db.Close()
+    // truncate activities table
+    _, err = db.ExecContext(c, "truncate activities;")
+    if err != nil {
+        log.Print(err)
+        return
+    }
+    return
+}
 
 type LifecycleRecord struct {
 	ID      string
@@ -207,14 +278,26 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		return
 	}
 	log.Print("Creating admin user")
-	if _, err = client.Setup(in.Email, in.Name, in.Password, "Fleet Sandbox"); err != nil {
+	var token string
+	if token, err = client.Setup(in.Email, in.Name, in.Password, "Fleet Sandbox"); err != nil {
 		log.Print(err)
 		return
 	}
+	log.Print("Triggering SFN to start teardown timer")
 	if err = triggerSFN(fleet.ID, in.SandboxExpiration); err != nil {
 		log.Print(err)
 		return
 	}
+	log.Print("Applying basic config now that we have a user")
+	if err = applyConfig(c, ret.URL, token); err != nil {
+		log.Print(err)
+		return
+	}
+	log.Print("Clearing activities table")
+	if err = clearActivitiesTable(c, fleet.ID); err != nil {
+	    log.Print(err)
+	    return
+    }
 	return
 }
 

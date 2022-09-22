@@ -52,3 +52,7 @@ func Float64Ptr(x float64) **float64 {
 	p := Float64(x)
 	return &p
 }
+
+func Int64(x int64) *int64 {
+	return &x
+}

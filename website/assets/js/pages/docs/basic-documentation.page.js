@@ -82,16 +82,18 @@ parasails.registerPage('basic-documentation', {
 
   mounted: async function() {
     // Algolia DocSearch
-    docsearch({
-      appId: 'NZXAYZXDGH',
-      apiKey: 'f3c02b646222734376a5e94408d6fead',
-      indexName: 'fleetdm',
-      inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
-      debug: false,
-      algoliaOptions: {
-        'facetFilters': ['section:docs']
-      },
-    });
+    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
+        debug: false,
+        algoliaOptions: {
+          'facetFilters': ['section:docs']
+        },
+      });
+    }
 
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){
@@ -251,7 +253,6 @@ parasails.registerPage('basic-documentation', {
 
     scrollSideNavigationWithHeader: function () {
       var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-      var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       if(rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
@@ -261,17 +262,6 @@ parasails.registerPage('basic-documentation', {
             rightNavBar.classList.remove('header-hidden', 'scrolled');
           } else {
             rightNavBar.classList.remove('header-hidden');
-          }
-        }
-      }
-      if(leftNavBar) {
-        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
-          leftNavBar.classList.add('header-hidden', 'scrolled');
-        } else {
-          if(scrollTop === 0) {
-            leftNavBar.classList.remove('header-hidden', 'scrolled');
-          } else {
-            leftNavBar.classList.remove('header-hidden');
           }
         }
       }

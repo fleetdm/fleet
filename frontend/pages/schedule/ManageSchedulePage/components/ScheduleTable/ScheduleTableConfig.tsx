@@ -116,8 +116,8 @@ const generateTableHeaders = (
       disableHidden: true,
     },
     {
-      title: "Query",
-      Header: "Query",
+      title: "Name",
+      Header: "Name",
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
@@ -134,7 +134,6 @@ const generateTableHeaders = (
       ),
     },
     {
-      title: "Performance impact",
       Header: () => {
         return (
           <div>
@@ -214,6 +213,11 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
       value: "edit",
     },
     {
+      label: "Show query",
+      disabled: false,
+      value: "showQuery",
+    },
+    {
       label: "Remove",
       disabled: false,
       value: "remove",
@@ -238,6 +242,7 @@ const enhanceAllScheduledQueryData = (
       interval: scheduledQuery.interval,
       actions: generateActionDropdownOptions(),
       id: scheduledQuery.id,
+      query: scheduledQuery.query,
       query_id: scheduledQuery.query_id,
       snapshot: scheduledQuery.snapshot,
       removed: scheduledQuery.removed,

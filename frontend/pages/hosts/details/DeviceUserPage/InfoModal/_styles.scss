@@ -5,27 +5,5 @@
     width: 658px;
     padding: $pad-xxlarge;
     border-radius: $pad-small;
-
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-
-    img {
-      height: 12px;
-      width: 12px;
-      margin: 0;
-    }
-  }
-
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-  }
-
-  &__btn {
-    width: 120px;
   }
 }

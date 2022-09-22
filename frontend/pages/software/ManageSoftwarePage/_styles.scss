@@ -1,8 +1,4 @@
 .manage-software-page {
-  &__vibrant-blue {
-    color: $core-vibrant-blue;
-  }
-
   &__header-wrap {
     display: flex;
     align-items: center;
@@ -82,20 +78,6 @@
         font-size: $x-small;
         margin: 0;
       }
-
-      a {
-        color: $core-vibrant-blue;
-        font-size: $x-small;
-        font-weight: $bold;
-        text-decoration: none;
-        margin-left: 0;
-      }
-
-      img {
-        height: 12px;
-        width: 12px;
-        margin: 0;
-      }
     }
   }
 
@@ -157,6 +139,7 @@
                 font-weight: bold;
                 text-decoration: none;
                 vertical-align: middle;
+                padding-left: 15px;
 
                 a {
                   text-decoration: none;
@@ -236,6 +219,7 @@
                 width: auto;
                 .hosts-cell__wrapper {
                   display: flex;
+                  align-items: center;
                   justify-content: space-between;
                   .hosts-cell__link {
                     display: flex;

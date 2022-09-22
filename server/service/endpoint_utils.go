@@ -263,7 +263,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					default:
 						queryValInt, err = strconv.Atoi(queryVal)
 						if err != nil {
-							return nil, fmt.Errorf("parsing uint from query: %w", err)
+							return nil, fmt.Errorf("parsing int from query: %w", err)
 						}
 					}
 					field.SetInt(int64(queryValInt))
@@ -361,6 +361,10 @@ func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
 
 func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "DELETE")
+}
+
+func (e *authEndpointer) HEAD(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "HEAD")
 }
 
 // PathHandler registers a handler for the verb and path. The pathHandler is

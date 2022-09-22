@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -33,6 +35,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+// MDMEnrollStatus defines the possible MDM enrollment statuses.
+type MDMEnrollStatus string
+
+const (
+	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
+	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
+)
+
 type HostListOptions struct {
 	ListOptions
 
@@ -52,11 +63,43 @@ type HostListOptions struct {
 
 	SoftwareIDFilter *uint
 
+	OSIDFilter      *uint
+	OSNameFilter    *string
+	OSVersionFilter *string
+
 	DisableFailingPolicies bool
+
+	// MDMIDFilter filters the hosts by MDM ID.
+	MDMIDFilter *uint
+	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
+	MDMEnrollmentStatusFilter MDMEnrollStatus
+	// MunkiIssueIDFilter filters the hosts by munki issue ID.
+	MunkiIssueIDFilter *uint
+
+	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
+	// with less than N gigs of disk space available). Note that this is a Fleet
+	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
+	// disable it).
+	LowDiskSpaceFilter *int
 }
 
 func (h HostListOptions) Empty() bool {
-	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+	return h.ListOptions.Empty() &&
+		h.DeviceMapping == false &&
+		len(h.AdditionalFilters) == 0 &&
+		h.StatusFilter == "" &&
+		h.TeamFilter == nil &&
+		h.PolicyIDFilter == nil &&
+		h.PolicyResponseFilter == nil &&
+		h.SoftwareIDFilter == nil &&
+		h.OSIDFilter == nil &&
+		h.OSNameFilter == nil &&
+		h.OSVersionFilter == nil &&
+		h.DisableFailingPolicies == false &&
+		h.MDMIDFilter == nil &&
+		h.MDMEnrollmentStatusFilter == "" &&
+		h.MunkiIssueIDFilter == nil &&
+		h.LowDiskSpaceFilter == nil
 }
 
 type HostUser struct {
@@ -172,15 +215,16 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID           *uint                  `json:"team_id,omitempty"`
-	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount      uint                   `json:"online_count" db:"online"`
-	OfflineCount     uint                   `json:"offline_count" db:"offline"`
-	MIACount         uint                   `json:"mia_count" db:"mia"`
-	NewCount         uint                   `json:"new_count" db:"new"`
-	AllLinuxCount    uint                   `json:"all_linux_count"`
-	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
+	TeamID            *uint                  `json:"team_id,omitempty" db:"-"`
+	TotalsHostsCount  uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount       uint                   `json:"online_count" db:"online"`
+	OfflineCount      uint                   `json:"offline_count" db:"offline"`
+	MIACount          uint                   `json:"mia_count" db:"mia"`
+	NewCount          uint                   `json:"new_count" db:"new"`
+	AllLinuxCount     uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels     []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms         []*HostSummaryPlatform `json:"platforms" db:"-"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -240,6 +284,16 @@ func IsLinux(hostPlatform string) bool {
 	return false
 }
 
+func IsUnixLike(hostPlatform string) bool {
+	unixLikeOSs := append(HostLinuxOSs, "darwin")
+	for _, p := range unixLikeOSs {
+		if p == hostPlatform {
+			return true
+		}
+	}
+	return false
+}
+
 // PlatformFromHost converts the given host platform into
 // the generic platforms known by osquery
 // https://osquery.readthedocs.io/en/stable/deployment/configuration/
@@ -286,9 +340,88 @@ type HostMunkiInfo struct {
 	Version string `json:"version"`
 }
 
+// HostMDM represents a host_mdm row, with information about the MDM solution
+// used by a host. Note that it uses a different JSON representation than its
+// struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	EnrollmentStatus string `json:"enrollment_status"`
-	ServerURL        string `json:"server_url"`
+	HostID           uint   `db:"host_id" json:"-"`
+	Enrolled         bool   `db:"enrolled" json:"-"`
+	ServerURL        string `db:"server_url" json:"-"`
+	InstalledFromDep bool   `db:"installed_from_dep" json:"-"`
+	MDMID            *uint  `db:"mdm_id" json:"-"`
+	Name             string `db:"name" json:"-"`
+}
+
+// HostMunkiIssue represents a single munki issue for a host.
+type HostMunkiIssue struct {
+	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
+	Name               string    `db:"name" json:"name"`
+	IssueType          string    `db:"issue_type" json:"type"`
+	HostIssueCreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+// List of well-known MDM solution names. Those correspond to names stored in
+// the mobile_device_management_solutions table, created via (data) migrations.
+const (
+	UnknownMDMName        = ""
+	WellKnownMDMKandji    = "Kandji"
+	WellKnownMDMJamf      = "Jamf"
+	WellKnownMDMVMWare    = "VMware Workspace ONE"
+	WellKnownMDMIntune    = "Intune"
+	WellKnownMDMSimpleMDM = "SimpleMDM"
+)
+
+var mdmNameFromServerURLChecks = map[string]string{
+	"kandji":    WellKnownMDMKandji,
+	"jamf":      WellKnownMDMJamf,
+	"airwatch":  WellKnownMDMVMWare,
+	"microsoft": WellKnownMDMIntune,
+	"simplemdm": WellKnownMDMSimpleMDM,
+}
+
+// MDMNameFromServerURL returns the MDM solution name corresponding to the
+// given server URL. If no match is found, it returns the unknown MDM name.
+func MDMNameFromServerURL(serverURL string) string {
+	serverURL = strings.ToLower(serverURL)
+	for check, name := range mdmNameFromServerURLChecks {
+		if strings.Contains(serverURL, check) {
+			return name
+		}
+	}
+	return UnknownMDMName
+}
+
+func (h *HostMDM) EnrollmentStatus() string {
+	switch {
+	case h.Enrolled && !h.InstalledFromDep:
+		return "Enrolled (manual)"
+	case h.Enrolled && h.InstalledFromDep:
+		return "Enrolled (automated)"
+	default:
+		return "Unenrolled"
+	}
+}
+
+func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	var jsonMDM struct {
+		EnrollmentStatus string `json:"enrollment_status"`
+		ServerURL        string `json:"server_url"`
+		Name             string `json:"name,omitempty"`
+		ID               *uint  `json:"id,omitempty"`
+	}
+
+	jsonMDM.ServerURL = h.ServerURL
+	jsonMDM.EnrollmentStatus = h.EnrollmentStatus()
+	jsonMDM.Name = h.Name
+	jsonMDM.ID = h.MDMID
+	return json.Marshal(jsonMDM)
+}
+
+func (h *HostMDM) UnmarshalJSON(b []byte) error {
+	// fail attempts to unmarshal in this struct, to prevent using e.g.
+	// getMacadminsDataResponse in tests, as it can't unmarshal in a meaningful
+	// way.
+	return errors.New("JSON unmarshaling is not supported for HostMDM")
 }
 
 // HostBattery represents a host's battery, as reported by the osquery battery
@@ -301,12 +434,26 @@ type HostBattery struct {
 }
 
 type MacadminsData struct {
-	Munki *HostMunkiInfo `json:"munki"`
-	MDM   *HostMDM       `json:"mobile_device_management"`
+	Munki       *HostMunkiInfo    `json:"munki"`
+	MDM         *HostMDM          `json:"mobile_device_management"`
+	MunkiIssues []*HostMunkiIssue `json:"munki_issues"`
 }
 
 type AggregatedMunkiVersion struct {
 	HostMunkiInfo
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+// MunkiIssue represents a single munki issue, as returned by the list hosts
+// endpoint when a muniki issue ID is provided as filter.
+type MunkiIssue struct {
+	ID        uint   `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
+	IssueType string `json:"type" db:"issue_type"`
+}
+
+type AggregatedMunkiIssue struct {
+	MunkiIssue
 	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
@@ -317,10 +464,25 @@ type AggregatedMDMStatus struct {
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
 
+// MDMSolution represents a single MDM solution, as returned by the list hosts
+// endpoint when an MDM Solution ID is provided as filter.
+type MDMSolution struct {
+	ID        uint   `json:"id" db:"id"`
+	Name      string `json:"name" db:"name"`
+	ServerURL string `json:"server_url" db:"server_url"`
+}
+
+type AggregatedMDMSolutions struct {
+	MDMSolution
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
 type AggregatedMacadminsData struct {
 	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
 	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MunkiIssues     []AggregatedMunkiIssue   `json:"munki_issues"`
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
 // HostShort is a minimal host representation returned when querying hosts.
@@ -335,9 +497,20 @@ type OSVersions struct {
 }
 
 type OSVersion struct {
-	HostsCount int    `json:"hosts_count"`
-	Name       string `json:"name"`
-	Platform   string `json:"platform"`
+	// HostsCount is the number of hosts that have reported the operating system.
+	HostsCount int `json:"hosts_count"`
+	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
+	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field will no longer include the alphanumeric version.
+	Name string `json:"name"`
+	// NameOnly is the name of the operating system, e.g., "Microsoft Windows 11 Enterprise",
+	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field be removed.
+	NameOnly string `json:"name_only"`
+	// Version is the alphanumeric version of the operating system, e.g., "21H2", "20.4.0", or "12.5".
+	Version string `json:"version"`
+	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
+	Platform string `json:"platform"`
+	// ID is the unique id of the operating system.
+	ID uint `json:"os_id,omitempty"`
 }
 
 type HostDetailOptions struct {

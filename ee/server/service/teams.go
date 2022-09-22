@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log/level"
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -28,6 +29,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	team := &fleet.Team{
 		Config: fleet.TeamConfig{
 			AgentOptions: globalConfig.AgentOptions,
+			Features:     globalConfig.Features,
 		},
 	}
 
@@ -131,7 +133,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	return svc.ds.SaveTeam(ctx, team)
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*fleet.Team, error) {
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -141,13 +143,41 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		return nil, err
 	}
 
-	if options != nil {
-		team.Config.AgentOptions = &options
+	if teamOptions != nil {
+		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
+			if applyOptions.Force && !applyOptions.DryRun {
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+			}
+			if !applyOptions.Force {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+			}
+		}
+	}
+	if applyOptions.DryRun {
+		return team, nil
+	}
+
+	if teamOptions != nil {
+		team.Config.AgentOptions = &teamOptions
 	} else {
 		team.Config.AgentOptions = nil
 	}
 
-	return svc.ds.SaveTeam(ctx, team)
+	tm, err := svc.ds.SaveTeam(ctx, team)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedAgentOptions,
+		&map[string]interface{}{"global": false, "team_id": team.ID, "team_name": team.Name},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create edited agent options activity")
+	}
+
+	return tm, nil
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -338,7 +368,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	return newSecrets, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}
@@ -364,10 +394,16 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		}
 	}
 
-	config, err := svc.AppConfig(ctx)
+	appConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
+
+	type activityDetail struct {
+		ID   uint   `json:"id"`
+		Name string `json:"name"`
+	}
+	var details []activityDetail
 
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
@@ -377,48 +413,139 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 			})
 		}
 
+		var create bool
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
-		if err != nil {
-			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				agentOptions := spec.AgentOptions
-				if agentOptions == nil {
-					agentOptions = config.AgentOptions
-				}
-				_, err = svc.ds.NewTeam(ctx, &fleet.Team{
-					Name: spec.Name,
-					Config: fleet.TeamConfig{
-						AgentOptions: agentOptions,
-					},
-					Secrets: secrets,
-				})
-				if err != nil {
-					return err
-				}
-				continue
+		switch {
+		case err == nil:
+			// OK
+		case ctxerr.Cause(err) == sql.ErrNoRows:
+			if spec.Name == "" {
+				return fleet.NewInvalidArgumentError("name", "name may not be empty")
 			}
-
+			create = true
+		default:
 			return err
 		}
 
-		team.Name = spec.Name
-		team.Config.AgentOptions = spec.AgentOptions
-		if len(secrets) > 0 {
-			team.Secrets = secrets
+		if spec.AgentOptions != nil {
+			if err := fleet.ValidateJSONAgentOptions(*spec.AgentOptions); err != nil {
+				if applyOpts.Force && !applyOpts.DryRun {
+					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+				}
+				if !applyOpts.Force {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+				}
+			}
 		}
 
-		_, err = svc.ds.SaveTeam(ctx, team)
-		if err != nil {
-			return err
+		if applyOpts.DryRun {
+			continue
 		}
 
-		// only replace enroll secrets if at least one is provided (#6774)
-		if len(secrets) > 0 {
-			err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets)
+		if create {
+			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
+			details = append(details, activityDetail{
+				ID:   team.ID,
+				Name: team.Name,
+			})
+			continue
+		}
+
+		if err := svc.editTeamFromSpec(ctx, team, spec, secrets); err != nil {
+			return ctxerr.Wrap(ctx, err, "editing team from spec")
+		}
+
+		details = append(details, activityDetail{
+			ID:   team.ID,
+			Name: team.Name,
+		})
+	}
+
+	if len(details) > 0 {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeAppliedSpecTeam,
+			&map[string]interface{}{"teams": details},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+		}
+	}
+	return nil
+}
+
+func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret) (*fleet.Team, error) {
+	agentOptions := spec.AgentOptions
+	if agentOptions == nil {
+		agentOptions = defaults.AgentOptions
+	}
+
+	// if a team spec is not provided, use the global features, otherwise
+	// build a new config from the spec with default values applied.
+	var err error
+	features := defaults.Features
+	if spec.Features != nil {
+		features, err = unmarshalWithGlobalDefaults(spec.Features)
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	return svc.ds.NewTeam(ctx, &fleet.Team{
+		Name: spec.Name,
+		Config: fleet.TeamConfig{
+			AgentOptions: agentOptions,
+			Features:     features,
+		},
+		Secrets: secrets,
+	})
+}
+
+func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
+	team.Name = spec.Name
+	team.Config.AgentOptions = spec.AgentOptions
+
+	// replace (don't merge) the features with the new ones, using a config
+	// that has the global defaults applied.
+	features, err := unmarshalWithGlobalDefaults(spec.Features)
+	if err != nil {
+		return err
+	}
+	team.Config.Features = features
+
+	if len(secrets) > 0 {
+		team.Secrets = secrets
+	}
+
+	if _, err := svc.ds.SaveTeam(ctx, team); err != nil {
+		return err
+	}
+
+	// only replace enroll secrets if at least one is provided (#6774)
+	if len(secrets) > 0 {
+		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// unmarshalWithGlobalDefaults unmarshals features from a team spec, and
+// assigns default values based on the global defaults for missing fields
+func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
+	// build a default config with default values applied
+	defaults := &fleet.Features{}
+	defaults.ApplyDefaultsForNewInstalls()
+
+	// unmarshal the features from the spec into the defaults
+	if b != nil {
+		if err := json.Unmarshal(*b, defaults); err != nil {
+			return fleet.Features{}, err
+		}
+	}
+
+	return *defaults, nil
 }

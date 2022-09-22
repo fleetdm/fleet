@@ -1,14 +1,16 @@
 # How to install osquery and enroll macOS devices into Fleet
 
-The easiest way to install osquery and enroll macOS devices into your Fleet instance is to use the Fleet osquery installer.
-
-Alternatively, you can run a preview environment of Fleet locally (which automatically adds your device to the locally running Fleet server). Check out the [Getting Started](https://fleetdm.com/get-started) guide for instructions on setting that up.
+Here, we will cover enrolling macOS devices to an existing Fleet server. If you don’t have a Fleet
+server configured already, check out [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). If you’re still getting to know
+Fleet
+and would like to skip the server setup process and try Fleet, you can [try Fleet in a temporary cloud instance](https://fleetdm.com/try-fleet/register).
 
 ## Prerequisites
 
-Before installing osquery on macOS and enrolling that macOS device, you will need to have access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render) for an example.)
+1. Access to an existing Fleet server
+2. The `fleetctl` command line tool
 
-You will also need to install the `fleetctl` CLI tool if you don’t have it already. `fleetctl` can be installed via `npm` by running the command below:
+If you don’t already have it, `fleetctl` can be installed via npm by running the following command:
 
 ```
 npm i -g fleetctl
@@ -35,7 +37,7 @@ fleetctl.exe - version 4.8.0
 
 ## Installing osquery
 
-Head over to the Hosts page on Fleet and click on the “Generate installer” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “macOS” tab and click on the clipboard icon to copy the installation command for macOS.
+Head to the Fleet UI **Hosts** page and click the **"Add hosts"** button. From the pop-up, choose the type of installer you want to generate. Make sure you are on the **"macOS"** tab and click on the clipboard icon to copy the installation command for macOS.
 
 ![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1-454x225@2x.png)
 *Generate installer for osquery on macOS*

@@ -88,7 +88,7 @@ data "aws_iam_policy_document" "jitprovisioner" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [var.kms_key.arn]
+    resources = [var.kms_key.arn, var.mysql_secret_kms.arn]
   }
 
   statement {
@@ -98,6 +98,21 @@ data "aws_iam_policy_document" "jitprovisioner" {
 
   statement {
     actions   = ["states:DescribeExecution"]
+    resources = ["*"]
+  }
+
+  statement {
+    actions = [
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:ListSecretVersionIds"
+    ]
+    resources = [var.mysql_secret.arn]
+  }
+
+  statement {
+    actions   = ["secretsmanager:ListSecrets"]
     resources = ["*"]
   }
 }
@@ -131,6 +146,7 @@ resource "aws_lambda_function" "jitprovisioner" {
       LIFECYCLE_SFN            = aws_sfn_state_machine.main.arn
       FLEET_BASE_URL           = "${var.base_domain}"
       AUTHORIZATION_PSK        = random_password.authorization.result
+      MYSQL_SECRET             = var.mysql_secret.arn
     }
   }
 }
@@ -150,10 +166,18 @@ resource "random_uuid" "jitprovisioner" {
   }
 }
 
+resource "local_file" "standard-query-library" {
+  content  = file("${path.module}/../../../docs/01-Using-Fleet/standard-query-library/standard-query-library.yml")
+  filename = "${path.module}/lambda/standard-query-library.yml"
+}
+
 data "archive_file" "jitprovisioner" {
   type        = "zip"
   output_path = "${path.module}/.jitprovisioner.zip"
   source_dir  = "${path.module}/lambda"
+  depends_on = [
+    local_file.standard-query-library
+  ]
 }
 
 resource "docker_registry_image" "jitprovisioner" {
@@ -163,7 +187,11 @@ resource "docker_registry_image" "jitprovisioner" {
   build {
     context     = "${path.module}/lambda/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
+  depends_on = [
+    local_file.standard-query-library
+  ]
 }
 
 resource "aws_security_group" "jitprovisioner" {

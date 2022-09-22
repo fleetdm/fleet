@@ -2,16 +2,24 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
+	"os"
+	"regexp"
+	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -25,8 +33,17 @@ type withDS struct {
 }
 
 func (ts *withDS) SetupSuite(dbName string) {
-	ts.ds = mysql.CreateNamedMySQLDS(ts.s.T(), dbName)
-	test.AddAllHostsLabel(ts.s.T(), ts.ds)
+	t := ts.s.T()
+	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	test.AddAllHostsLabel(t, ts.ds)
+
+	// setup the required fields on AppConfig
+	appConf, err := ts.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConf.OrgInfo.OrgName = "FleetTest"
+	appConf.ServerSettings.ServerURL = "https://example.org"
+	err = ts.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
 }
 
 func (ts *withDS) TearDownSuite() {
@@ -55,6 +72,62 @@ func (ts *withServer) SetupSuite(dbName string) {
 
 func (ts *withServer) TearDownSuite() {
 	ts.withDS.TearDownSuite()
+}
+
+func (ts *withServer) commonTearDownTest(t *testing.T) {
+	ctx := context.Background()
+
+	u := ts.users["admin1@example.com"]
+	filter := fleet.TeamFilter{User: &u}
+	hosts, err := ts.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	for _, host := range hosts {
+		require.NoError(t, ts.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
+		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
+	}
+
+	// recalculate software counts will remove the software entries
+	require.NoError(t, ts.ds.SyncHostsSoftware(context.Background(), time.Now()))
+
+	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, lbl := range lbls {
+		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			require.NoError(t, err)
+		}
+	}
+
+	users, err := ts.ds.ListUsers(ctx, fleet.UserListOptions{})
+	require.NoError(t, err)
+	for _, u := range users {
+		if _, ok := ts.users[u.Email]; !ok {
+			err := ts.ds.DeleteUser(ctx, u.ID)
+			require.NoError(t, err)
+		}
+	}
+
+	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := ts.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx)
+	require.NoError(t, err)
+	if len(globalPolicies) > 0 {
+		var globalPolicyIDs []uint
+		for _, gp := range globalPolicies {
+			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
+		}
+		_, err = ts.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
+		require.NoError(t, err)
+	}
+
+	// SyncHostsSoftware performs a cleanup.
+	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -171,4 +244,58 @@ func (ts *withServer) getConfig() *appConfigResponse {
 	var responseBody *appConfigResponse
 	ts.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &responseBody)
 	return responseBody
+}
+
+func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
+	t := ts.s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	var resIni initiateSSOResponse
+	ts.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
+
+	resp, err := client.Get(resIni.URL)
+	require.NoError(t, err)
+
+	// From the redirect Location header we can get the AuthState and the URL to
+	// which we submit the credentials
+	parsed, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	data := url.Values{
+		"username":  {username},
+		"password":  {password},
+		"AuthState": {parsed.Query().Get("AuthState")},
+	}
+	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
+	require.NoError(t, err)
+
+	// The response is an HTML form, we can extract the base64-encoded response
+	// to submit to the Fleet server from here
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	re := regexp.MustCompile(`value="(.*)"`)
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	rawSSOResp := string(matches[1])
+
+	auth, err := sso.DecodeAuthResponse(rawSSOResp)
+	require.NoError(t, err)
+	q := url.QueryEscape(rawSSOResp)
+	res := ts.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+q, nil, http.StatusOK)
+
+	defer res.Body.Close()
+	body, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	return auth, string(body)
 }

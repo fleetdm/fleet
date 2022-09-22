@@ -61,8 +61,8 @@
 {{ define "fleet_detail_query_os_version" -}}
 [
   {
-    "name":"Ubuntu 21.4.0",
-    "version":"Ubuntu 21.4.0",
+    "name":"Ubuntu",
+    "version":"21.4.0",
     "major":"",
     "minor":"",
     "patch":"",
@@ -70,6 +70,23 @@
     "platform":"ubuntu",
     "platform_like":"ubuntu",
     "codename":""
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Ubuntu",
+    "version":"21.4.0",
+    "major":"",
+    "minor":"",
+    "patch":"",
+    "build":"",
+    "platform":"ubuntu",
+    "platform_like":"ubuntu",
+    "codename":"",
+    "kernel_version":""
   }
 ]
 {{- end }}
@@ -93,38 +110,3 @@
 ]
 {{- end }}
 
-{{ define "fleet_detail_query_users" -}}
-[
-  {{ range $index, $item := .HostUsersMacOS }}
-  {{if $index}},{{end}}
-  {
-    "uid": "{{ .Uid }}",
-    "username": "{{ .Username }}",
-    "type": "{{ .Type }}",
-    "groupname": "{{ .GroupName }}",
-    "shell": "{{ .Shell }}"
-  }
-  {{- end }}
-]
-{{- end }}
-
-{{ define "fleet_detail_query_software_linux" -}}
-[
-  {{ range $index, $item := .SoftwareUbuntu2104 }}
-  {{if $index}},{{end}}
-  {
-    "name": "{{ .Name }}",
-    "version": "{{ .Version }}",
-    "type": "Application",
-    "bundle_identifier": "{{ .BundleIdentifier }}",
-    "source": "apps",
-    {{/* Note that in Go < 1.18, `{{ or (and .LastOpendedAt .LastOpenedAt.Unix) "" }}` won't work as expected because "and" and "or" don't short circuit. This was changed in Go 1.18 */}}
-    {{if .LastOpenedAt}}
-    "last_opened_at": "{{ .LastOpenedAt.Unix }}"
-    {{else}}
-    "last_opened_at": "-1"
-    {{end}}
-  }
-  {{- end }}
-]
-{{- end }}

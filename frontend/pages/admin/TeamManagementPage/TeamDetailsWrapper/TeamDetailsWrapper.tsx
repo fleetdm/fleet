@@ -4,7 +4,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Link, RouteProps } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
-import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -32,10 +31,10 @@ import MainContent from "components/MainContent";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
-import DeleteSecretModal from "../../../../components/DeleteSecretModal";
-import SecretEditorModal from "../../../../components/SecretEditorModal";
+import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
+import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../../components/EnrollSecretModal";
+import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
 
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
@@ -127,9 +126,8 @@ const TeamDetailsWrapper = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [teamIsRemoving, setTeamIsRemoving] = useState<boolean>(false);
-  const [teamIsEditing, setTeamIsEditing] = useState<boolean>(false);
-
+  const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState(false);
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
@@ -235,7 +233,7 @@ const TeamDetailsWrapper = ({
     if (enrollSecretString) {
       newSecrets.push({ secret: enrollSecretString });
     }
-
+    setIsUpdatingSecret(true);
     try {
       await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
@@ -254,6 +252,8 @@ const TeamDetailsWrapper = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -264,7 +264,7 @@ const TeamDetailsWrapper = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
-
+    setIsUpdatingSecret(true);
     try {
       await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
@@ -274,6 +274,8 @@ const TeamDetailsWrapper = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -282,7 +284,7 @@ const TeamDetailsWrapper = ({
       return false;
     }
 
-    setTeamIsRemoving(true);
+    setIsUpdatingTeams(true);
 
     try {
       await teamsAPI.destroy(currentTeam.id);
@@ -294,7 +296,7 @@ const TeamDetailsWrapper = ({
       return false;
     } finally {
       toggleDeleteTeamModal();
-      setTeamIsRemoving(false);
+      setIsUpdatingTeams(false);
     }
   }, [toggleDeleteTeamModal, currentTeam?.id]);
 
@@ -313,7 +315,7 @@ const TeamDetailsWrapper = ({
         return;
       }
 
-      setTeamIsEditing(true);
+      setIsUpdatingTeams(true);
 
       try {
         await teamsAPI.update(updatedAttrs, currentTeam.id);
@@ -342,7 +344,7 @@ const TeamDetailsWrapper = ({
 
         return false;
       } finally {
-        setTeamIsEditing(false);
+        setIsUpdatingTeams(false);
       }
     },
     [toggleEditTeamModal, currentTeam, setBackendValidators]
@@ -411,7 +413,7 @@ const TeamDetailsWrapper = ({
                   selectedTeamId={toNumber(routeParams.team_id)}
                   currentUserTeams={adminTeams || []}
                   isDisabled={isLoadingTeams}
-                  disableAll
+                  includeAll={false}
                   onChange={(newSelectedValue: number) =>
                     handleTeamSelect(newSelectedValue)
                   }
@@ -503,6 +505,7 @@ const TeamDetailsWrapper = ({
             onSaveSecret={onSaveSecret}
             toggleSecretEditorModal={toggleSecretEditorModal}
             selectedSecret={selectedSecret}
+            isUpdatingSecret={isUpdatingSecret}
           />
         )}
         {showDeleteSecretModal && (
@@ -511,6 +514,7 @@ const TeamDetailsWrapper = ({
             selectedTeam={teamIdFromURL}
             teams={teams || []}
             toggleDeleteSecretModal={toggleDeleteSecretModal}
+            isUpdatingSecret={isUpdatingSecret}
           />
         )}
         {showDeleteTeamModal && (
@@ -518,7 +522,7 @@ const TeamDetailsWrapper = ({
             onCancel={toggleDeleteTeamModal}
             onSubmit={onDeleteSubmit}
             name={currentTeam.name}
-            isLoading={teamIsRemoving}
+            isUpdatingTeams={isUpdatingTeams}
           />
         )}
         {showEditTeamModal && (
@@ -527,7 +531,7 @@ const TeamDetailsWrapper = ({
             onSubmit={onEditSubmit}
             defaultName={currentTeam.name}
             backendValidators={backendValidators}
-            isLoading={teamIsEditing}
+            isUpdatingTeams={isUpdatingTeams}
           />
         )}
         {children}
