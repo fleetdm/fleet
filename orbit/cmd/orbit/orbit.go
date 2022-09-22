@@ -699,34 +699,34 @@ func getUUID(osqueryPath string) (string, error) {
 		}
 		uuidOutputStr := string(out)
 		if len(uuidOutputStr) == 0 {
-			return "", fmt.Errorf("get UUID: output from wmi is empty")
+			return "", errors.New("get UUID: output from wmi is empty")
 		}
 		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
 		if len(outputByLines) < 2 {
-			return "", fmt.Errorf("get UUID: unexpected output")
+			return "", errors.New("get UUID: unexpected output")
 		}
 		return strings.TrimSpace(outputByLines[1]), nil
-	} else {
-		type UuidOutput struct {
-			UuidString string `json:"uuid"`
-		}
-
-		args := []string{"-S", "--json", "select uuid from system_info"}
-		out, err := exec.Command(osqueryPath, args...).Output()
-		if err != nil {
-			return "", err
-		}
-		var uuids []UuidOutput
-		err = json.Unmarshal(out, &uuids)
-		if err != nil {
-			return "", err
-		}
-
-		if len(uuids) != 1 {
-			return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
-		}
-		return uuids[0].UuidString, nil
 	}
+	type UuidOutput struct {
+		UuidString string `json:"uuid"`
+	}
+
+	args := []string{"-S", "--json", "select uuid from system_info"}
+	out, err := exec.Command(osqueryPath, args...).Output()
+	if err != nil {
+		return "", err
+	}
+	var uuids []UuidOutput
+	err = json.Unmarshal(out, &uuids)
+	if err != nil {
+		return "", err
+	}
+
+	if len(uuids) != 1 {
+		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
+	}
+	return uuids[0].UuidString, nil
+
 }
 
 // getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
