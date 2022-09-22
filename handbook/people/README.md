@@ -8,6 +8,10 @@ This person is accountable for accomplishing goals and making decisions about a 
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
 
+<!-- TODO: Replace most of the rows of this table with a link to website/config/custom.js and CODEOWNERS. -->
+
+<!-- TODO: Move this table to "Why this way?" to prepare for this handbook page changing. -->
+
 |    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
 | Wireframes (Figma)| Noah Talerman |
@@ -22,8 +26,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Quality of core product UI | Luke Heath |
 | Ticket movement from product to engineering | Luke Heath |
 | Lead engineering together and release retrospective | Zach Wasserman* |
-| Customer Slack channels | Tony Gauda |
-| Customer renewals | Tony Gauda |
+| Customer Slack channels | Kathy Satterlee |
+| Customer renewals | Mike McNeil |
 | Quality of core product backend | Tomás Touceda |
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |

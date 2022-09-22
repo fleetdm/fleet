@@ -270,7 +270,7 @@ func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(t, ds, nil, nil)
 
-	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
+	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
 			OnlineCount:      1,
 			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
@@ -284,7 +284,7 @@ func TestGetHostSummary(t *testing.T) {
 		return []*fleet.LabelSummary{{ID: 1, Name: "All hosts", Description: "All hosts enrolled in Fleet", LabelType: fleet.LabelTypeBuiltIn}, {ID: 10, Name: "Other label", Description: "Not a builtin label", LabelType: fleet.LabelTypeRegular}}, nil
 	}
 
-	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil, nil)
+	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil, nil, nil)
 	require.NoError(t, err)
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
@@ -294,14 +294,15 @@ func TestGetHostSummary(t *testing.T) {
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
 	require.Len(t, summary.Platforms, 4)
 	require.Equal(t, uint(9), summary.AllLinuxCount)
+	require.Nil(t, summary.LowDiskSpaceCount)
 	require.Len(t, summary.BuiltinLabels, 1)
 	require.Equal(t, "All hosts", summary.BuiltinLabels[0].Name)
 
-	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil, nil)
+	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil, nil, nil)
 	require.NoError(t, err)
 
 	// a user is required
-	_, err = svc.GetHostSummary(context.Background(), nil, nil)
+	_, err = svc.GetHostSummary(context.Background(), nil, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }

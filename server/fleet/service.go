@@ -274,7 +274,7 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier.
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
@@ -326,7 +326,7 @@ type Service interface {
 
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
-	ModifyAppConfig(ctx context.Context, p []byte) (info *AppConfig, err error)
+	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -429,7 +429,7 @@ type Service interface {
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.
-	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
+	ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions ApplySpecOptions) (*Team, error)
 	// AddTeamUsers adds users to an existing team.
 	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeamUsers deletes users from an existing team.
@@ -447,7 +447,7 @@ type Service interface {
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService

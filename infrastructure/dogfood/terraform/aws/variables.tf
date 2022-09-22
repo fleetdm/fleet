@@ -125,3 +125,7 @@ variable "extra_security_group_cidrs" {
     error_message = "The extra security groups must be a list of valid CIDRs."
   }
 }
+
+variable "rds_initial_snapshot" {
+  default = null
+}
