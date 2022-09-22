@@ -26,6 +26,7 @@ const WebAddress = ({
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+    setFormErrors({});
   };
 
   const validateForm = () => {
