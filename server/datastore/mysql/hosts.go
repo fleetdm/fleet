@@ -644,7 +644,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
     `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, displayNameJoin, ds.whereFilterHostsByTeams(filter, "h"),
-		softwareFilter, munkiFilter,lowDiskSpaceFilter,
+		softwareFilter, munkiFilter, lowDiskSpaceFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
@@ -2698,7 +2698,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			host.PublicIP,
 			host.RefetchRequested,
 
-			host.OrbitNodeKey,host.ID,
+			host.OrbitNodeKey, host.ID,
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
