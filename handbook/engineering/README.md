@@ -263,6 +263,50 @@ Besides that, you should consider the answer(s) to the following question: how c
 
 This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
 
+## Connecting to Dogfood MySQL & Redis
+
+### Prerequisites
+
+1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
+2. Configure [SSO](https://github.com/fleetdm/fleet-infra/tree/master/sso#how-to-use-sso)
+
+### Connecting
+
+#### MySQL
+
+Get the database host:
+```shell
+DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].Endpoint" --output=text)
+```
+
+Get the database user:
+```shell
+DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].MasterUsername" --output=text)
+```
+
+Get the database password:
+```shell
+DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /fleet/database/password/master --query "SecretString" --output=text)
+```
+
+Connect:
+```shell
+mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
+```
+
+#### Redis
+
+Get the Redis Host:
+```shell
+REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
+```
+
+Connect:
+```shell
+redis-cli -h "${REDIS_HOST}"
+```
+
+
 ## Foreign keys and locking
 
 Among the first things you learn in database data modeling is: that if one table references a row in another, that reference should be a foreign key. This provides a lot of assurances and makes coding basic things much simpler.
