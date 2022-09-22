@@ -50,7 +50,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
    Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
    is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-   Afte the tag is pushed, GitHub Actions will automatically begin building the new release.
+   After the tag is pushed, GitHub Actions will automatically begin building the new release.
 
    ***
 
@@ -113,20 +113,17 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
 #### Process
 
 1. The DRI for release testing/QA notifies the [directly responsible individual (DRI) for creating the patch release branch](https://fleetdm.com/handbook/engineering#rituals) to create the new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `4.3.1`:
-
    ```
    git checkout fleet-v4.3.0
    git checkout --branch patch-fleet-v4.3.1
    ```
 
 2. The DRI for creating the patch release branch cherry picks the necessary commits into the new branch:
-
    ```
    git cherry-pick d34db33f
    ```
 
 3. The DRI for creating the patch release branch pushes the branch to github.com/fleetdm/fleet:
-
    ```
    git push origin patch-fleet-v4.3.1
    ```

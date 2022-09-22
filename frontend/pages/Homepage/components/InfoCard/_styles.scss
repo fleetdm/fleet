@@ -54,17 +54,6 @@
     p {
       margin: 8px 0 0 0;
     }
-
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none !important;
-    }
-    img {
-      width: 12px;
-      margin-left: 2px;
-    }
   }
 
   &__action-button {
@@ -74,12 +63,18 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
+
+    &:focus-visible {
+      outline: 1px solid $core-vibrant-blue;
+    }
   }
   &__action-button-text {
     text-align: right;
   }
 
   #link-arrow {
-    transform: scale(0.5);
+    height: 10px;
+    width: 18px;
+    margin-left: $pad-small;
   }
 }

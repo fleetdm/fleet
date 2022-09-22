@@ -25,6 +25,9 @@ export default {
   PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}`;
   },
+  EDIT_LABEL: (labelId: number): string => {
+    return `${URL_PREFIX}/labels/${labelId}`;
+  },
   EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;
   },
@@ -39,6 +42,11 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
+  MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
+    return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
+  },
+  MANAGE_HOSTS_ONLINE: `${URL_PREFIX}/hosts/manage/online`,
+  MANAGE_HOSTS_OFFLINE: `${URL_PREFIX}/hosts/manage/offline`,
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
@@ -63,6 +71,7 @@ export default {
     return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
+  NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,

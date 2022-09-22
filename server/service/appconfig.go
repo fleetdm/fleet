@@ -12,10 +12,12 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/kolide/kit/version"
 )
 
@@ -25,7 +27,11 @@ import (
 
 type appConfigResponse struct {
 	fleet.AppConfig
+	appConfigResponseFields
+}
 
+// appConfigResponseFields are grouped separately to aid with JSON unmarshaling
+type appConfigResponseFields struct {
 	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
 	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
 
@@ -37,6 +43,23 @@ type appConfigResponse struct {
 	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
 
 	Err error `json:"error,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
+// both AppConfig and appConfigResponseFields properly:
+//
+// - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.UnmarshalJSON doesn't get
+// called.
+func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &r.AppConfig); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &r.appConfigResponseFields); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -86,12 +109,12 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
-	hostSettings := config.HostSettings
+	features := config.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
 			OrgInfo:               config.OrgInfo,
 			ServerSettings:        config.ServerSettings,
-			HostSettings:          hostSettings,
+			Features:              features,
 			VulnerabilitySettings: config.VulnerabilitySettings,
 
 			SMTPSettings:       smtpSettings,
@@ -104,11 +127,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
 		},
-		UpdateInterval:  updateIntervalConfig,
-		Vulnerabilities: vulnConfig,
-		License:         license,
-		Logging:         loggingConfig,
-		SandboxEnabled:  svc.SandboxEnabled(),
+		appConfigResponseFields: appConfigResponseFields{
+			UpdateInterval:  updateIntervalConfig,
+			Vulnerabilities: vulnConfig,
+			License:         license,
+			Logging:         loggingConfig,
+			SandboxEnabled:  svc.SandboxEnabled(),
+		},
 	}
 	return response, nil
 }
@@ -149,14 +174,19 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
+	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
+	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	json.RawMessage
 }
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*modifyAppConfigRequest)
-	config, err := svc.ModifyAppConfig(ctx, req.RawMessage)
+	config, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
+		Force:  req.Force,
+		DryRun: req.DryRun,
+	})
 	if err != nil {
-		return appConfigResponse{Err: err}, nil
+		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -168,8 +198,10 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 	response := appConfigResponse{
 		AppConfig: *config,
-		License:   license,
-		Logging:   loggingConfig,
+		appConfigResponseFields: appConfigResponseFields{
+			License: license,
+			Logging: loggingConfig,
+		},
 	}
 
 	if response.SMTPSettings.SMTPPassword != "" {
@@ -183,7 +215,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	return response, nil
 }
 
-func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
+func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -201,6 +233,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
+	oldAgentOptions := ""
+	if appConfig.AgentOptions != nil {
+		oldAgentOptions = string(*appConfig.AgentOptions)
+	}
 
 	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
 	if err != nil {
@@ -218,7 +254,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
 	if newAppConfig.FleetDesktop.TransparencyURL != "" {
@@ -238,16 +274,57 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	// We apply the config that is incoming to the old one
-	decoder := json.NewDecoder(bytes.NewReader(p))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&appConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
+	appConfig.EnableStrictDecoding()
+	if err := json.Unmarshal(p, &appConfig); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+	}
+	var legacyUsedWarning error
+	if appConfig.DidUnmarshalLegacySettings() {
+		// this "warning" is returned only in dry-run mode, and if no other errors
+		// were encountered.
+		legacyUsedWarning = &fleet.BadRequestError{
+			Message: "warning: deprecated settings were used in the configuration; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings",
+		}
+	}
+
+	// required fields must be set, ensure they haven't been removed by applying
+	// the new config
+	if appConfig.OrgInfo.OrgName == "" {
+		invalid.Append("org_name", "organization name must be present")
+	}
+	if appConfig.ServerSettings.ServerURL == "" {
+		invalid.Append("server_url", "Fleet server URL must be present")
+	}
+
+	if newAppConfig.AgentOptions != nil {
+		// if there were Agent Options in the new app config, then it replaced the
+		// agent options in the resulting app config, so validate those.
+		if err := fleet.ValidateJSONAgentOptions(*appConfig.AgentOptions); err != nil {
+			if applyOpts.Force && !applyOpts.DryRun {
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
+			}
+			if !applyOpts.Force {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+			}
+		}
 	}
 
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
+	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// do not send a test email in dry-run mode, so this is a good place to stop
+	// (we also delete the removed integrations after that, which we don't want
+	// to do in dry-run mode).
+	if applyOpts.DryRun {
+		if legacyUsedWarning != nil {
+			return nil, legacyUsedWarning
+		}
+		// must reload to get the unchanged app config
+		return svc.AppConfig(ctx)
 	}
 
 	// ignore the values for SMTPEnabled and SMTPConfigured
@@ -269,7 +346,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 	}
@@ -278,7 +355,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
@@ -304,6 +381,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	obfuscatedConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// if the agent options changed, create the corresponding activity
+	newAgentOptions := ""
+	if obfuscatedConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	}
+	if oldAgentOptions != newAgentOptions {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedAgentOptions,
+			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	return obfuscatedConfig, nil
@@ -557,4 +650,16 @@ func encodePEMCertificate(buf io.Writer, cert *x509.Certificate) error {
 		Bytes: cert.Raw,
 	}
 	return pem.Encode(buf, block)
+}
+
+func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.Features, error) {
+	if svc.EnterpriseOverrides != nil {
+		return svc.EnterpriseOverrides.HostFeatures(ctx, host)
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &appConfig.Features, nil
 }

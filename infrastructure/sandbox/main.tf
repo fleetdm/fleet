@@ -29,8 +29,8 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/sandbox"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/${local.env_specific[data.aws_caller_identity.current.account_id]["state_name"]}/sandbox/terraform.tfstate"
     }
   }
 }
@@ -40,10 +40,15 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/sandbox"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/${local.env_specific[data.aws_caller_identity.current.account_id]["state_name"]}/sandbox/terraform.tfstate"
     }
   }
+}
+
+provider "aws" {
+  alias  = "tmp"
+  region = "us-east-2"
 }
 
 provider "cloudflare" {}
@@ -62,15 +67,31 @@ provider "docker" {
 
 provider "git" {}
 
-data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {
+  provider = aws.tmp
+}
 
 data "git_repository" "tf" {
   path = "${path.module}/../../"
 }
 
 locals {
-  prefix      = "sandbox-prod"
-  base_domain = "sandbox.fleetdm.com"
+  env_specific = {
+    411315989055 = {
+      "state_name"  = "fleet-cloud-sandbox-prod"
+      "prefix"      = "sandbox-prod",
+      "base_domain" = "sandbox.fleetdm.com",
+      "subnet"      = "11",
+    },
+    968703308407 = {
+      "state_name"  = "fleet-cloud-sandbox-dev"
+      "prefix"      = "sandbox-dev",
+      "base_domain" = "sandbox-dev.fleetdm.com",
+      "subnet"      = "13",
+    },
+  }
+  prefix      = local.env_specific[data.aws_caller_identity.current.account_id]["prefix"]
+  base_domain = local.env_specific[data.aws_caller_identity.current.account_id]["base_domain"]
 }
 
 data "aws_iam_policy_document" "kms" {
@@ -109,14 +130,30 @@ module "vpc" {
   version = "3.12.0"
 
   name = local.prefix
-  cidr = "10.11.0.0/16"
+  cidr = "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.0.0/16"
 
   # TODO hard coded AZs
-  azs                 = ["us-east-2a", "us-east-2b", "us-east-2c"]
-  private_subnets     = ["10.11.16.0/20", "10.11.32.0/20", "10.11.48.0/20"]
-  public_subnets      = ["10.11.128.0/24", "10.11.129.0/24", "10.11.130.0/24"]
-  database_subnets    = ["10.11.131.0/24", "10.11.132.0/24", "10.11.133.0/24"]
-  elasticache_subnets = ["10.11.134.0/24", "10.11.135.0/24", "10.11.136.0/24"]
+  azs = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  private_subnets = [
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.16.0/20",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.32.0/20",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.48.0/20",
+  ]
+  public_subnets = [
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.128.0/24",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.129.0/24",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.130.0/24",
+  ]
+  database_subnets = [
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.131.0/24",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.132.0/24",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.133.0/24",
+  ]
+  elasticache_subnets = [
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.134.0/24",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.135.0/24",
+    "10.${local.env_specific[data.aws_caller_identity.current.account_id]["subnet"]}.136.0/24",
+  ]
 
   create_database_subnet_group       = false
   create_database_subnet_route_table = true
@@ -160,18 +197,19 @@ module "pre-provisioner" {
 }
 
 module "jit-provisioner" {
-  source         = "./JITProvisioner"
-  prefix         = local.prefix
-  vpc            = module.vpc
-  kms_key        = aws_kms_key.main
-  dynamodb_table = aws_dynamodb_table.lifecycle-table
-  remote_state   = module.remote_state
-  mysql_secret   = module.shared-infrastructure.mysql_secret
-  eks_cluster    = module.shared-infrastructure.eks_cluster
-  redis_cluster  = module.shared-infrastructure.redis_cluster
-  alb_listener   = module.shared-infrastructure.alb_listener
-  ecs_cluster    = aws_ecs_cluster.main
-  base_domain    = local.base_domain
+  source           = "./JITProvisioner"
+  prefix           = local.prefix
+  vpc              = module.vpc
+  kms_key          = aws_kms_key.main
+  dynamodb_table   = aws_dynamodb_table.lifecycle-table
+  remote_state     = module.remote_state
+  mysql_secret     = module.shared-infrastructure.mysql_secret
+  mysql_secret_kms = module.shared-infrastructure.mysql_secret_kms
+  eks_cluster      = module.shared-infrastructure.eks_cluster
+  redis_cluster    = module.shared-infrastructure.redis_cluster
+  alb_listener     = module.shared-infrastructure.alb_listener
+  ecs_cluster      = aws_ecs_cluster.main
+  base_domain      = local.base_domain
 }
 
 module "monitoring" {

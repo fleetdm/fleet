@@ -103,11 +103,17 @@ Examples:
 aws eks update-kubeconfig --region us-east-2 --name sandbox-prod
 # List pods (We currently use the default namespace)
 kubectl get pods # Search in there which one it is. There will be 2 instances + a migrations one
-# Obtain Logs. You can also use `--previous` to obtain logs from a previous pod crash if desired.
-kubectl logs <id for the pod here>
+# Obtain Logs from all pods for the release. You can also use `--previous` to obtain logs from a previous pod crash if desired.
+kubectl logs -l release=<instance id>
 ```
 We do not use eksctl since we use terraform managed resources.
 
 #### Database debugging
 Database debugging is accessed through the rds console: https://us-east-2.console.aws.amazon.com/rds/home?region=us-east-2#database:id=sandbox-prod;is-cluster=true
 Currently only database metrics are available because performance insights is not available for serverless RDS
+
+If you need to access a specific database for any reason (such as to obtain an email address to reach out in case of an issue), the database name is the same as the instance id.  Using the database access method above, you could use the following example to obtain said email address:
+
+```bash
+mysql -h"${DBHOST}" -u"${DBUSER}" -p"${DBPASSWORD}" -D"<instance id>" <<<"SELECT email FROM users;"
+``` 

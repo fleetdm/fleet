@@ -1,2 +1,0 @@
-* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". To turn off usage statistics in the Fleet UI, head to **Settings > Organization settings > Usage statistics**, de-select the "Enable usage statistics" checkbox, and select **Save**.
-

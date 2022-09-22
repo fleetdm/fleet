@@ -45,10 +45,21 @@ $base-class: "button";
   height: 38px;
   top: 0;
   border: 0;
+  position: relative;
   cursor: pointer;
 
   &:focus {
     outline: none;
+  }
+
+  .transparent-text {
+    opacity: 0;
+  }
+
+  .children-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
   }
 
   &--brand {
@@ -57,6 +68,7 @@ $base-class: "button";
       $core-vibrant-blue-over,
       $core-vibrant-blue-down
     );
+    display: flex;
   }
 
   &--success {
@@ -69,6 +81,15 @@ $base-class: "button";
       $core-vibrant-red-over,
       $core-vibrant-red-down
     );
+    display: flex;
+
+    .loading-spinner {
+      &__ring {
+        div {
+          border-color: $ui-error transparent transparent transparent;
+        }
+      }
+    }
   }
 
   &--blue-green {
@@ -273,14 +294,11 @@ $base-class: "button";
     padding: 0;
     height: auto;
     line-height: normal;
+    font-weight: normal;
 
     &:active {
       box-shadow: none;
       top: 0;
-    }
-
-    &:focus {
-      outline: none;
     }
   }
 
@@ -312,6 +330,27 @@ $base-class: "button";
     &:focus {
       background-color: $ui-vibrant-blue-10;
       box-shadow: none;
+    }
+
+    .children-wrapper {
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+
+      .info {
+        &__header {
+          display: block;
+          width: 100%;
+          text-align: left;
+        }
+        &__data {
+          display: block;
+          width: 100%;
+          font-weight: normal;
+          text-align: left;
+          margin-top: 10px;
+        }
+      }
     }
   }
 

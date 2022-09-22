@@ -310,16 +310,13 @@ This setting should not usually be used.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  msyql:
-    address: localhost:3306
-    database: fleet
-    password: fleet
-    max_open_conns: 50
-    max_idle_conns: 50
-    conn_max_lifetime: 50
+mysql:
+  address: localhost:3306
+  database: fleet
+  password: fleet
+  max_open_conns: 50
+  max_idle_conns: 50
+  conn_max_lifetime: 50
 ```
 
 #### Redis
@@ -613,15 +610,12 @@ A value of 0 means no timeout.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  redis:
-    address: localhost:7369
-    password: foobar
-    database: 14
-    connect_timeout: 10s
-    connect_retry_attempts: 2
+redis:
+  address: localhost:7369
+  password: foobar
+  database: 14
+  connect_timeout: 10s
+  connect_retry_attempts: 2
 ```
 
 ### Server
@@ -719,15 +713,12 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  server:
-    address: 0.0.0.0:443
-    password: foobar
-    cert: /tmp/fleet.crt
-    key: /tmp/fleet.key
-    invite_token_validity_period: 1d
+server:
+  address: 0.0.0.0:443
+  password: foobar
+  cert: /tmp/fleet.crt
+  key: /tmp/fleet.key
+  invite_token_validity_period: 1d
 ```
 
 #### Auth
@@ -759,12 +750,9 @@ The key size of the salt which is generated when hashing user passwords.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  auth:
-    bcrypt_cost: 14
-    salt_key_size: 36
+auth:
+  bcrypt_cost: 14
+  salt_key_size: 36
 ```
 
 #### App
@@ -808,13 +796,10 @@ Determines whether Fleet gets scheduled query statistics from hosts or not.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  app:
-    token_key_size: 36
-    salt_key_size: 36
-    invite_token_validity_period: 1d
+app:
+  token_key_size: 36
+  salt_key_size: 36
+  invite_token_validity_period: 1d
 ```
 
 #### License
@@ -846,12 +831,9 @@ Whether Fleet should enforce the host limit of the license, if true, attempting 
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
- license:
-    key: foobar
-    enforce_host_limit: false
+license:
+  key: foobar
+  enforce_host_limit: false
 ```
 
 #### Session
@@ -885,11 +867,8 @@ Valid time units are `s`, `m`, `h`.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  session:
-  	duration: 4h
+session:
+  duration: 4h
 ```
 
 #### Osquery
@@ -1180,15 +1159,12 @@ The minimum time difference between the software's "last opened at" timestamp re
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    host_identifier: uuid
-    policy_update_interval: 30m
-    duration: 4h
-    status_log_plugin: firehose
-    result_log_plugin: firehose
+osquery:
+  host_identifier: uuid
+  policy_update_interval: 30m
+  duration: 4h
+  status_log_plugin: firehose
+  result_log_plugin: firehose
 ```
 
 #### Logging (Fleet server logging)
@@ -1246,13 +1222,10 @@ and a negative value to disable storage of errors in Redis.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  logging:
-    disable_banner: true
-    policy_update_interval: 30m
-    error_retention_period: 1h
+logging:
+  disable_banner: true
+  policy_update_interval: 30m
+  error_retention_period: 1h
 ```
 #### Filesystem
 
@@ -1316,16 +1289,13 @@ This flag will cause the rotated logs to be compressed with gzip.
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    osquery_status_log_plugin: filesystem
-    osquery_result_log_plugin: filesystem
-  filesystem:
-    status_log_file: /var/log/osquery/status.log
-    result_log_file: /var/log/osquery/result.log
-    enable_log_rotation: true
+osquery:
+  osquery_status_log_plugin: filesystem
+  osquery_result_log_plugin: filesystem
+filesystem:
+  status_log_file: /var/log/osquery/status.log
+  result_log_file: /var/log/osquery/result.log
+  enable_log_rotation: true
 ```
 
 #### Firehose
@@ -1432,19 +1402,16 @@ the stream listed:
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    osquery_status_log_plugin: firehose
-    osquery_result_log_plugin: firehose
-  firehose:
-    region: ca-central-1
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-    status_stream: osquery_status
-    result_stream: osquery_result
+osquery:
+  osquery_status_log_plugin: firehose
+  osquery_result_log_plugin: firehose
+firehose:
+  region: ca-central-1
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_stream: osquery_status
+  result_stream: osquery_result
 ```
 
 #### Kinesis
@@ -1556,20 +1523,17 @@ the stream listed:
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    osquery_status_log_plugin: kinesis
-    osquery_result_log_plugin: kinesis
-  kinesis:
-    region: ca-central-1
-    result_log_file: /var/log/osquery/result.log
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-    status_stream: osquery_status
-    result_stream: osquery_result
+osquery:
+  osquery_status_log_plugin: kinesis
+  osquery_result_log_plugin: kinesis
+kinesis:
+  region: ca-central-1
+  result_log_file: /var/log/osquery/result.log
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_stream: osquery_status
+  result_stream: osquery_result
 ```
 
 
@@ -1650,7 +1614,7 @@ Name of the Lambda function to write osquery status logs received from clients.
 - Config file format:
   ```
   lambda:
-  	status_function: statusFunction
+    status_function: statusFunction
   ```
 
 The IAM role used to send to Lambda must allow the following permissions on
@@ -1680,19 +1644,16 @@ the function listed:
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    osquery_status_log_plugin: lamda
-    osquery_result_log_plugin: lamda
-  lamda:
-    region: ca-central-1
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-    status_function: statusFunction
-    result_function: resultFunction
+osquery:
+  osquery_status_log_plugin: lambda
+  osquery_result_log_plugin: lambda
+lambda:
+  region: ca-central-1
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_function: statusFunction
+  result_function: resultFunction
 ```
 
 #### PubSub
@@ -1767,19 +1728,16 @@ This feature is useful when combined with [subscription filters](https://cloud.g
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    osquery_status_log_plugin: pubsub
-    osquery_result_log_plugin: pubsub
-  pubsub:
-    project: my-gcp-project
-    result_topic: osquery_result
-    status_topic: osquery_status
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-    status_function: statusFunction
-    result_function: resultFunction
+osquery:
+  osquery_status_log_plugin: pubsub
+  osquery_result_log_plugin: pubsub
+pubsub:
+  project: my-gcp-project
+  result_topic: osquery_result
+  status_topic: osquery_status
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  status_function: statusFunction
+  result_function: resultFunction
 ```
 
 #### Kafka REST Proxy logging
@@ -1858,16 +1816,13 @@ can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.ht
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  osquery:
-    osquery_status_log_plugin: kafkarest
-    osquery_result_log_plugin: kafkarest
-  kafkarest:
-    proxyhost: "https://localhost:8443"
-    result_topic: osquery_result
-    status_topic: osquery_status
+osquery:
+  osquery_status_log_plugin: kafkarest
+  osquery_result_log_plugin: kafkarest
+kafkarest:
+  proxyhost: "https://localhost:8443"
+  result_topic: osquery_result
+  status_topic: osquery_status
 ```
 #### S3 file carving backend
 
@@ -1997,16 +1952,13 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  s3:
-    bucket: some-carve-bucket
-    prefix: carves-go-here/
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-    region: us-east-1
+s3:
+  bucket: some-carve-bucket
+  prefix: carves-go-here/
+  access_key_id: AKIAIOSFODNN7EXAMPLE
+  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  region: us-east-1
 ```
 
 #### Upgrades
@@ -2019,11 +1971,8 @@ If set then `fleet serve` will run even if there are database migrations missing
 - Environment variable: `FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS`
 - Config file format:
   ```
-  apiVersion: v1
-    kind: config
-    spec:
-      upgrades:
-        allow_missing_migrations: true
+  upgrades:
+    allow_missing_migrations: true
   ```
 
 #### Vulnerabilities
@@ -2056,7 +2005,10 @@ How often vulnerabilities are checked. This is also the interval at which the co
 
 ##### cpe_database_url
 
-URL to fetch the CPE dictionary database from. Some users want to control where Fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+You can fetch the CPE dictionary database from this URL. Some users want to control where Fleet gets its database.
+When Fleet sees this value defined, it downloads the file directly.
+It expects a file in the same format that can be found in https://github.com/fleetdm/nvd/releases.
+If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
@@ -2066,16 +2018,35 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
   	cpe_database_url: ""
   ```
 
+##### cpe_translations_url
+
+You can fetch the CPE translations from this URL.
+Translations are used when matching software to CPE entries in the CPE database that would otherwise be missed for various reasons.
+When Fleet sees this value defined, it downloads the file directly.
+It expects a file in the same format that can be found in https://github.com/fleetdm/nvd/releases.
+If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+
+- Default value: `""`
+- Environment variable: `FLEET_VULNERABILITIES_CPE_TRANSLATIONS_URL`
+- Config file format:
+  ```
+  vulnerabilities:
+  	cpe_translations_url: ""
+  ```
+
 ##### cve_feed_prefix_url
 
-Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
+Like the CPE dictionary, we allow users to define where to get the CVE feeds.
+In this case, the URL should be a host that serves the files in the path /feeds/json/cve/1.1/.
+Fleet expects to find all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds.
+When not defined, Fleet downloads from the nvd.nist.gov host.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
 - Config file format:
   ```
   vulnerabilities:
-  	cve_database_url: ""
+  	cve_feed_prefix_url: ""
   ```
 
 ##### current_instance_checks
@@ -2118,16 +2089,28 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
        recent_vulnerability_max_age: 48h
   ```
 
+### disable_win_os_vulnerabilities
+
+If using osquery 5.4 or later, Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
+vulnerabilities — which might be a writing-intensive process (depending on the number of Windows hosts
+in your Fleet). Setting this to true will cause Fleet to skip both processes.
+
+- Default value: false
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_WIN_OS_VULNERABILITIES`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_win_os_vulnerabilities: true
+  ```
+
+
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  vulnerabilities:
-    databases_path: /some/path
-    current_instance_checks: yes
-    disable_data_sync: true
+vulnerabilities:
+  databases_path: /some/path
+  current_instance_checks: yes
+  disable_data_sync: true
 ```
 
 #### GeoIP
@@ -2143,11 +2126,8 @@ on the Fleet web server.
 - Environment variable: `FLEET_GEOIP_DATABASE_PATH`
 - Config file format:
   ```yaml
-  apiVersion: v1
-  kind: config
-  spec:
-    geoip:
-      database_path: /some/path
+  geoip:
+    database_path: /some/path
   ```
 
 
@@ -2232,101 +2212,7 @@ Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**_
-
-##### sso_settings.enable_sso
-
-Configures if single sign-on is enabled.
-
-- default value: false
-- config file format:
-  ```
-  sso_settings:
-    enable_sso: true
-  ```
-
-##### sso_settings.enable_sso_idp_login
-
-Allow single sign-on login initiated by identity provider.
-
-- default value: false
-- config file format:
-  ```
-  sso_settings:
-    enable_sso_idp_login: true
-  ```
-
-##### sso_settings.enable_jit_provisioning
-
-Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning)
-
-- default value: false
-- config file format:
-  ```
-  sso_settings:
-    enable_jit_provisioning: true
-  ```
-
-##### sso_settings.entity_id
-
-The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    entity_id: "https://example.com"
-
-##### sso_settings.idp_image_url
-
-An optional link to an image such as a logo for the identity provider.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    idp_image_url: "https://example.com/logo"
-
-##### sso_settings.idp_name
-
-A required human friendly name for the identity provider that will provide single sign-on authentication.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    idp_name: "SimpleSAML"
-
-##### sso_settings.issuer_uri
-
-The issuer URI supplied by the identity provider.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    issuer_uri: "https://example.com/saml2/sso-service"
-
-##### sso_settings.metadata
-
-Metadata provided by the identity provider. Either metadata or a metadata url must be provided.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    metadata: ""
-
-##### sso_settings.metadata_url
-
-A URL that references the identity provider metadata.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    metadata: "https://example.com/saml2/metadata"
-
+**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**
 
 ### Identity provider (IDP) configuration
 
@@ -2387,11 +2273,13 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 ### Just-in-time (JIT) user provisioning
 
+`Applies only to Fleet Premium`
+
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
-Accounts created via JIT provisioning are assigned the (Observer role)[https://fleetdm.com/docs/using-fleet/permissions]. The new account's email and full name are copied from the user data in the SSO response.
+Accounts created via JIT provisioning are assigned the [Observer role](https://fleetdm.com/docs/using-fleet/permissions). The new account's email and full name are copied from the user data in the SSO response.
 
-To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Automatically create Observer user on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
@@ -2687,15 +2575,12 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 ##### Example YAML
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  packaging:
-    s3:
-      bucket: some-bucket
-      prefix: installers-go-here/
-      access_key_id: AKIAIOSFODNN7EXAMPLE
-      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-      region: us-east-1
+packaging:
+  s3:
+    bucket: some-bucket
+    prefix: installers-go-here/
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    region: us-east-1
 ```

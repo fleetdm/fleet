@@ -16,20 +16,25 @@ jobs:
     strategy:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
-        os: [ubuntu-20.04, ubuntu-18.04, macos-11, macos-12]
+        os: [ubuntu-20.04, ubuntu-22.04, macos-11, macos-12]
     runs-on: ${{ matrix.os }}
     steps:
+
+    # Docker needs to be installed manually on macOS.
+    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
     - name: Install Docker
-      # Docker needs to be installed manually on macOS.
+      timeout-minutes: 20
       if: contains(matrix.os, 'macos')
-      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
-        # fixme: lock Docker version to 4.10.0 as newer versions fail to initialize
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb && brew install docker.rb
+        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
+        brew install --cask docker.rb
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
+          sleep 1;
+        done
         echo "Docker is ready."
 
     - name: Start tunnel

@@ -19,7 +19,6 @@ const DISPLAY_ORDER = [
   "darwin",
   "linux",
   "windows",
-  // "freebsd",
   // "None",
   // "Invalid query",
 ];

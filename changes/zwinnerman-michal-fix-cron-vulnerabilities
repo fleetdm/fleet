@@ -1,1 +1,0 @@
-* Vulnerabilities cron is able to pickup changes in app config at runtime.

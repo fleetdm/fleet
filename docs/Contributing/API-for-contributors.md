@@ -464,11 +464,14 @@ If the `name` is not already associated with an existing team, this API route cr
 
 #### Parameters
 
-| Name          | Type   | In   | Description                                                                                                                                                                                                                                             |
-| ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
-| agent_options | string | body | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                     |
-| secrets       | list   | body | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                                     |
+| Name          | Type   | In    | Description                                                                                                                                                                                                                         |
+| ------------- | ------ | ----  | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name          | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
+| agent_options | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
+| features      | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
+| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                 |
+| force         | bool   | query | Force apply the options even if there are validation errors.                                                                                                                                                                        |
+| dry_run       | bool   | query | Validate the options and return any validation errors, but do not apply the changes.                                                                                                                                                |
 
 #### Example
 
@@ -481,6 +484,13 @@ If the `name` is not already associated with an existing team, this API route cr
   "specs": [
     {
       "name": "Client Platform Engineering",
+      "features": {
+        "enable_host_users": false,
+        "enable_software_inventory": true,
+        "additional_queries": {
+          "foo": "SELECT * FROM bar;"
+        }
+      },
       "agent_options": {
         "spec": {
           "config": {
@@ -1611,6 +1621,36 @@ Same as [Get host's mobile device management and Munki information](../Using-Fle
 | --------------- | ------ | ----- | ---------------------------------------|
 | token           | string | path  | The device's authentication token.     |
 
+
+#### Get Fleet Desktop information
+_Available in Fleet Premium_
+
+Gets all information required by Fleet Desktop to notify the user if there are any failing policies.
+
+`GET /api/v1/fleet/device/{token}/desktop`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/desktop`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "failing_policies_count": 3
+}
+```
+
+
+
 #### Get device's policies
 
 _Available in Fleet Premium_
@@ -1749,7 +1789,7 @@ If an installer with the provided parameters is found, the installer is returned
 This error occurs if an installer with the provided parameters doesn't exist.
 
 
-### Check if an installer exists 
+### Check if an installer exists
 
 Checks if a pre-built fleet-osquery installer with the given parameters exists.
 

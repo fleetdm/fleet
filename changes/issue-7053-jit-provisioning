@@ -1,1 +1,0 @@
-* Added support for JIT (just in time) user provisioning via SSO, this allows user accounts to be created the first time users try to log in via SSO.

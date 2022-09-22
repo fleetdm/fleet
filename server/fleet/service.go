@@ -10,6 +10,14 @@ import (
 	"github.com/kolide/kit/version"
 )
 
+// EnterpriseOverrides contains the methods that can be overriden by the
+// enterprise service
+//
+// TODO: find if there's a better way to accomplish this and standardize.
+type EnterpriseOverrides struct {
+	HostFeatures func(context context.Context, host *Host) (*Features, error)
+}
+
 type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
@@ -41,6 +49,12 @@ type OsqueryService interface {
 
 type Service interface {
 	OsqueryService
+
+	// SetEnterpriseOverrides allows the enterprise service to override specific methods
+	// that can't be easily overridden via embedding.
+	//
+	// TODO: find if there's a better way to accomplish this and standardize.
+	SetEnterpriseOverrides(overrides EnterpriseOverrides)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.
@@ -279,12 +293,17 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+
+	// FailingPoliciesCount returns the number of failling policies for 'host'
+	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
-	AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*AggregatedMDMSolutions, error)
+	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
+	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
@@ -296,7 +315,7 @@ type Service interface {
 
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
-	ModifyAppConfig(ctx context.Context, p []byte) (info *AppConfig, err error)
+	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -399,7 +418,7 @@ type Service interface {
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.
-	ModifyTeamAgentOptions(ctx context.Context, id uint, options json.RawMessage) (*Team, error)
+	ModifyTeamAgentOptions(ctx context.Context, id uint, teamOptions json.RawMessage, applyOptions ApplySpecOptions) (*Team, error)
 	// AddTeamUsers adds users to an existing team.
 	AddTeamUsers(ctx context.Context, teamID uint, users []TeamUser) (*Team, error)
 	// DeleteTeamUsers deletes users from an existing team.
@@ -417,7 +436,7 @@ type Service interface {
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
-	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec) error
+	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplySpecOptions) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService

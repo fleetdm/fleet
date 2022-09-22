@@ -49,15 +49,11 @@ class ChangePasswordForm extends Component {
           label="New password confirmation"
           type="password"
         />
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button type="submit" variant="brand" className={`${baseClass}__btn`}>
+        <div className="modal-cta-wrap">
+          <Button type="submit" variant="brand">
             Change password
           </Button>
-          <Button
-            onClick={onCancel}
-            variant="inverse"
-            className={`${baseClass}__btn`}
-          >
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>

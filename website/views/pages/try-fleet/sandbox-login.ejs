@@ -5,11 +5,11 @@
     </div>
     <div style="max-width: 400px;" class="flex-column d-flex">
       <h2>Play in Fleet Sandbox</h2>
-      <p>
-        Fleet Sandbox is designed for testing Fleet features only.<br>
-        <a href="/docs/deploying">Click here</a> for production-ready deployments.
+      <p class="pt-3">
+        Fleet Sandbox is designed for testing Fleet features only.
+<a href="https://fleetdm.com/docs/deploying">Click here</a> for production-ready deployments.
       </p>
-      <div class="pt-4">
+      <div class="pt-3">
         <ajax-form action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedLoginForm()" >
           <div class="form-group mb-3">
             <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Email">
@@ -37,6 +37,15 @@
       </div>
     </div>
   </div>
+  <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>
+    <div style="height: 100%;" class="d-flex flex-column align-items-center justify-content-center">
+      <div purpose="embedded-content" class="container-lg">
+        <iframe id="ytplayer" type="text/html"
+        src="https://www.youtube.com/embed/iQtdpZYxiqI?autoplay=1&controls=1&modestbranding=1&playsinline=1&color=white"
+        frameborder="0" allowfullscreen autoplay></iframe>
+      </div>
+    </div>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
 

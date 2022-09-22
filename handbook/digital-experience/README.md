@@ -28,7 +28,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 |:------ |:-----------------|:-------------------------------|-----------|
 | Articles | **Queued** – see [How to submit and publish an article](./how-to-submit-and-publish-an-article). | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
+| Docs | **Gated**. Request review from Chris McGillicuddy – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
 | Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
@@ -168,6 +168,14 @@ A hyphen is unnecessary when not modifying a noun:
 
 ## For editors
 
+### In this section
+
+- [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
+- [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
+- [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
+- [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
+- [How to edit social media posts](#how-to-edit-social-media-posts)
+
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
 
 The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
@@ -217,18 +225,11 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 ### How to edit articles, release posts, and press releases
 
-This type of content comes in two flavors: draft articles and published articles. 
+Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
 
-For draft articles, please refer to [Publishing articles on fleetdm.com.](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) 
+* For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article#review-process).
 
-For making edits to published articles:
-
-1. Log in to [Medium](https://fleetdm.com/blog).
-2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
-3. Scan for typos and grammatical errors.
-4. Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
-5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
-6. Hit "Save and publish," and you're all done.
+* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
 
 ### How to edit social media posts
 
@@ -387,15 +388,14 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Chris McGillicuddy |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Chris McGillicuddy |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
-| Docs editor pass | Weekly | Edit two sections a week until completed. | Desmi Dizney |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
-| Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
+| Handbook editor pass | Monthly | Edit for copy and content. | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
@@ -415,6 +415,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
 | `#help-operations-and-contract-reviews`          | Nathan Holliday
+| `#help-travel`              | Nathan Holliday
+| `#help-ceo`                  | Charlie Chance
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

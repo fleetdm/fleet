@@ -48,7 +48,7 @@ func main() {
 	onReady := func() {
 		log.Info().Msg("ready")
 
-		systray.SetTooltip("Fleet Device Management Menu.")
+		systray.SetTooltip("Fleet Desktop")
 		systray.SetTemplateIcon(iconLight, iconLight)
 
 		// Theme detection is currently only on Windows. On macOS we use template icons (which
@@ -98,18 +98,15 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.ListDevicePolicies()
+					_, err := client.GetDesktopPayload()
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
-						myDeviceItem.SetTooltip("")
 						transparencyItem.Enable()
 						return
 					}
 
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 
 					<-ticker.C
@@ -127,7 +124,7 @@ func main() {
 			for {
 				<-tic.C
 
-				policies, err := client.ListDevicePolicies()
+				res, err := client.GetDesktopPayload()
 				switch {
 				case err == nil:
 					// OK
@@ -135,33 +132,28 @@ func main() {
 					myDeviceItem.SetTitle("My device")
 					continue
 				default:
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 					continue
 				}
 
-				failedPolicyCount := 0
-				for _, policy := range policies {
-					if policy.Response != "pass" {
-						failedPolicyCount++
-					}
-				}
-
-				if failedPolicyCount > 0 {
+				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
 					if runtime.GOOS == "windows" {
 						// Windows (or maybe just the systray library?) doesn't support color emoji
 						// in the system tray menu, so we use text as an alternative.
-						if failedPolicyCount == 1 {
+						if *res.FailingPolicies == 1 {
 							myDeviceItem.SetTitle("My device (1 issue)")
 						} else {
-							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failedPolicyCount))
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", *res.FailingPolicies))
 						}
 					} else {
-						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
 					}
 				} else {
-					myDeviceItem.SetTitle("🟢 My device")
+					if runtime.GOOS == "windows" {
+						myDeviceItem.SetTitle("My device")
+					} else {
+						myDeviceItem.SetTitle("🟢 My device")
+					}
 				}
 				myDeviceItem.Enable()
 			}

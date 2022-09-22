@@ -26,7 +26,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
-  const [loginVisible, setLoginVisible] = useState<boolean>(true);
+  const [loginVisible, setLoginVisible] = useState(true);
 
   const onSubmit = async (formData: ILoginData) => {
     const { HOME } = paths;

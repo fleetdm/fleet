@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -32,95 +33,84 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	ctxerr.Handle(ctx, err)
 }
 
+func startVulnerabilitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config *config.VulnerabilitiesConfig,
+	license *fleet.LicenseInfo,
+) *schedule.Schedule {
+	interval := config.Periodicity
+	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
+	s := schedule.New(
+		ctx, "vulnerabilities", instanceID, interval, ds,
+		schedule.WithLogger(vulnerabilitiesLogger),
+		schedule.WithJob(
+			"cron_vulnerabilities",
+			func(ctx context.Context) error {
+				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
+				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config, license)
+			},
+		),
+		schedule.WithJob(
+			"cron_sync_host_software",
+			func(ctx context.Context) error {
+				return ds.SyncHostsSoftware(ctx, time.Now())
+			},
+		),
+	)
+	s.Start()
+	return s
+}
+
 func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	config *config.VulnerabilitiesConfig,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
-
+	license *fleet.LicenseInfo,
+) error {
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
-		return
+		return nil
 	}
-
-	// release the lock when this function exits
-	defer func() {
-		// use a different context that won't be cancelled when shutting down
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		err := ds.Unlock(ctx, lockKeyVulnerabilities, identifier)
-		if err != nil {
-			errHandler(ctx, logger, "error releasing lock", err)
-		}
-	}()
 
 	level.Info(logger).Log("periodicity", config.Periodicity)
 
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(config.Periodicity)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-
-		if config.CurrentInstanceChecks == "auto" {
-			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
-				errHandler(ctx, logger, "error acquiring lock", err)
-				continue
-			} else if !locked {
-				level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-				continue
-			}
-		}
-
-		appConfig, err := ds.AppConfig(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "couldn't read app config", err)
-			continue
-		}
-
-		if !appConfig.HostSettings.EnableSoftwareInventory {
-			level.Info(logger).Log("msg", "software inventory not configured")
-			continue
-		}
-
-		var vulnPath string
-		switch {
-		case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
-			vulnPath = config.DatabasesPath
-			level.Info(logger).Log(
-				"msg", "fleet config takes precedence over app config when both are configured",
-				"databases_path", vulnPath,
-			)
-		case config.DatabasesPath != "":
-			vulnPath = config.DatabasesPath
-		case appConfig.VulnerabilitySettings.DatabasesPath != "":
-			vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
-		default:
-			level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
-		}
-		if vulnPath != "" {
-			level.Info(logger).Log("msg", "scanning vulnerabilities")
-			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
-				errHandler(ctx, logger, "scanning vulnerabilities", err)
-			}
-		}
-
-		if err := ds.SyncHostsSoftware(ctx, time.Now()); err != nil {
-			errHandler(ctx, logger, "calculating hosts count per software", err)
-		}
-
-		level.Debug(logger).Log("loop", "done")
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
 	}
+
+	if !appConfig.Features.EnableSoftwareInventory {
+		level.Info(logger).Log("msg", "software inventory not configured")
+		return nil
+	}
+
+	var vulnPath string
+	switch {
+	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
+		vulnPath = config.DatabasesPath
+		level.Info(logger).Log(
+			"msg", "fleet config takes precedence over app config when both are configured",
+			"databases_path", vulnPath,
+		)
+	case config.DatabasesPath != "":
+		vulnPath = config.DatabasesPath
+	case appConfig.VulnerabilitySettings.DatabasesPath != "":
+		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
+	default:
+		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
+	}
+	if vulnPath != "" {
+		level.Info(logger).Log("msg", "scanning vulnerabilities")
+		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
+			return fmt.Errorf("scanning vulnerabilities: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func scanVulnerabilities(
@@ -130,6 +120,7 @@ func scanVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
+	license *fleet.LicenseInfo,
 ) error {
 	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
@@ -171,22 +162,31 @@ func scanVulnerabilities(
 
 	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-	collectVulns := vulnAutomationEnabled != ""
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-	recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
 
-	if len(recentVulns) > 0 {
+	if len(vulns) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
+			args := webhooks.VulnArgs{
+				Vulnerablities: vulns,
+				Meta:           meta,
+				AppConfig:      appConfig,
+				Time:           time.Now(),
+			}
+			mapper := webhooks.NewMapper()
+			if license.IsPremium() {
+				mapper = eewebhooks.NewMapper()
+			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
 				ctx,
 				ds,
 				kitlog.With(logger, "webhook", "vulnerabilities"),
-				recentVulns,
-				appConfig,
-				time.Now()); err != nil {
+				args,
+				mapper,
+			); err != nil {
 				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 			}
 
@@ -196,7 +196,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
-				recentVulns,
+				vulns,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -207,7 +207,7 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
-				recentVulns,
+				vulns,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -221,47 +221,48 @@ func scanVulnerabilities(
 	return nil
 }
 
-func filterRecentVulns(
+// recentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
+// (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
+// and their meta data.
+func recentVulns(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	nvdVulns []fleet.SoftwareVulnerability,
 	ovalVulns []fleet.SoftwareVulnerability,
 	maxAge time.Duration,
-) []fleet.SoftwareVulnerability {
+) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
 	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	recent, err := ds.ListCVEs(ctx, maxAge)
+	meta, err := ds.ListCVEs(ctx, maxAge)
 	if err != nil {
-		errHandler(ctx, logger, "could not fetch recent CVEs", err)
-		return nil
+		errHandler(ctx, logger, "could not fetch CVE meta", err)
+		return nil, nil
 	}
 
-	lookup := make(map[string]bool)
-	for _, r := range recent {
-		lookup[r.CVE] = true
+	recent := make(map[string]fleet.CVEMeta)
+	for _, r := range meta {
+		recent[r.CVE] = r
 	}
 
-	filtered := make(map[string]fleet.SoftwareVulnerability)
+	seen := make(map[string]bool)
+	var vulns []fleet.SoftwareVulnerability
 	for _, v := range nvdVulns {
-		if _, ok := lookup[v.CVE]; ok {
-			filtered[v.Key()] = v
+		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			vulns = append(vulns, v)
 		}
 	}
 	for _, v := range ovalVulns {
-		if _, ok := lookup[v.CVE]; ok {
-			filtered[v.Key()] = v
+		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
+			seen[v.Key()] = true
+			vulns = append(vulns, v)
 		}
 	}
 
-	result := make([]fleet.SoftwareVulnerability, 0, len(filtered))
-	for _, v := range filtered {
-		result = append(result, v)
-	}
-
-	return result
+	return vulns, recent
 }
 
 func checkOvalVulnerabilities(
@@ -323,7 +324,13 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		err := vulnerabilities.Sync(vulnPath, config.CPEDatabaseURL)
+		opts := vulnerabilities.SyncOptions{
+			VulnPath:           config.DatabasesPath,
+			CPEDBURL:           config.CPEDatabaseURL,
+			CPETranslationsURL: config.CPETranslationsURL,
+			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
+		}
+		err := vulnerabilities.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			return nil
@@ -350,114 +357,67 @@ func checkNVDVulnerabilities(
 	return vulns
 }
 
-func cronWebhooks(
+func startAutomationsSchedule(
 	ctx context.Context,
+	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-	failingPoliciesSet fleet.FailingPolicySet,
 	intervalReload time.Duration,
-) {
+	failingPoliciesSet fleet.FailingPolicySet,
+) (*schedule.Schedule, error) {
+	const defaultAutomationsInterval = 24 * time.Hour
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
+		return nil, fmt.Errorf("getting app config: %w", err)
 	}
-
-	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	level.Debug(logger).Log("interval", interval.String())
-	ticker := time.NewTicker(interval)
-	start := time.Now()
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		case <-time.After(intervalReload):
-			// Reload interval and check if it has been reduced.
+	s := schedule.New(
+		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
+		ctx, "automations", instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultAutomationsInterval), ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "automations")),
+		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
-				level.Error(logger).Log("config", "couldn't read app config", "err", err)
-				continue
+				return 0, err
 			}
-			if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
-				continue
-			}
-		}
-
-		// Reread app config to be able to read latest data used by the webhook
-		// and update the ticker for the next run.
-		appConfig, err = ds.AppConfig(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "couldn't read app config", err)
-		} else {
-			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
-			start = time.Now()
-		}
-
-		// We set the db lock durations to match the intervalReload.
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesAutomation(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
-
-		level.Debug(logger).Log("loop", "done")
-	}
+			newInterval := appConfig.WebhookSettings.Interval.ValueOr(defaultAutomationsInterval)
+			return newInterval, nil
+		}),
+		schedule.WithJob(
+			"host_status_webhook",
+			func(ctx context.Context) error {
+				return webhooks.TriggerHostStatusWebhook(
+					ctx, ds, kitlog.With(logger, "automation", "host_status"),
+				)
+			},
+		),
+		schedule.WithJob(
+			"failing_policies_automation",
+			func(ctx context.Context) error {
+				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
+			},
+		),
+	)
+	s.Start()
+	return s, nil
 }
 
-func maybeTriggerHostStatus(
+func triggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksHostStatus)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerHostStatusWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-	); err != nil {
-		errHandler(ctx, logger, "triggering host status webhook", err)
-	}
-}
-
-func maybeTriggerFailingPoliciesAutomation(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksFailingPolicies)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
+) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("getting app config: %w", err)
 	}
-
 	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
 	if err != nil {
-		errHandler(ctx, logger, "parsing appConfig.ServerSettings.ServerURL", err)
-		return
+		return fmt.Errorf("parsing appConfig.ServerSettings.ServerURL: %w", err)
 	}
 
-	logger = kitlog.With(logger, "webhook", "failing_policies")
-	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
@@ -490,8 +450,10 @@ func maybeTriggerFailingPoliciesAutomation(
 		return nil
 	})
 	if err != nil {
-		errHandler(ctx, logger, "triggering failing policies automation", err)
+		return fmt.Errorf("triggering failing policies automation: %w", err)
 	}
+
+	return nil
 }
 
 func cronWorker(
@@ -642,7 +604,7 @@ func startCleanupsAndAggregationSchedule(
 		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
 		// Run cleanup jobs first.
 		schedule.WithJob(
-			"distributed_query_campaings",
+			"distributed_query_campaigns",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 				return err

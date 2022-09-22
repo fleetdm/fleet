@@ -9,7 +9,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import Spinner from "components/Spinner";
 
 export interface INewQueryModalProps {
   baseClass: string;
@@ -39,9 +38,9 @@ const NewQueryModal = ({
   setIsSaveModalOpen,
   backendValidators,
 }: INewQueryModalProps): JSX.Element => {
-  const [name, setName] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [observerCanRun, setObserverCanRun] = useState<boolean>(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [observerCanRun, setObserverCanRun] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -114,22 +113,17 @@ const NewQueryModal = ({
             where they have access.
           </p>
           <hr />
-          <div
-            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
-          >
+          <div className="modal-cta-wrap">
             <Button
-              className={`${baseClass}__btn`}
-              onClick={() => setIsSaveModalOpen(false)}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
-            <Button
-              className={`${baseClass}__btn ${baseClass}__save-modal__btn`}
               type="submit"
               variant="brand"
+              className="save-query-loading"
+              isLoading={isLoading}
             >
-              {isLoading ? <Spinner /> : "Save query"}
+              Save query
+            </Button>
+            <Button onClick={() => setIsSaveModalOpen(false)} variant="inverse">
+              Cancel
             </Button>
           </div>
         </form>

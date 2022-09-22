@@ -171,13 +171,13 @@ For PRs that will not be merged:
 - Thank the contributor for their effort and explain why the changes won't be merged.
 - Close the PR.
 
-## Updating Docs and FAQ
+## Updating docs and FAQ
 
 When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
 
-> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Chris McGillicuddy, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
 
 ### Tracking
 

@@ -194,7 +194,7 @@ describe("Hosts flow", () => {
         });
       });
     });
-    it("renders and searches the host's software,  links to filter hosts by software", () => {
+    it("renders and searches the host's software, links to filter hosts by software", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
         cy.findByText(/software/i).click();
       });
@@ -223,11 +223,7 @@ describe("Hosts flow", () => {
           });
         cy.getAttached(".software-link").first().click({ force: true });
       });
-      cy.getAttached(".manage-hosts__software-filter-block").within(() => {
-        cy.getAttached(".manage-hosts__software-filter-name-card").should(
-          "exist"
-        );
-      });
+      cy.findByText(/libacl1 2.2.53-6/i).should("exist");
       cy.getAttached(".data-table").within(() => {
         cy.findByText(hostname).should("exist");
       });
@@ -248,7 +244,7 @@ describe("Hosts flow", () => {
         cy.findByText(/failing 1 policy/i).should("exist");
         cy.getAttached(".policy-link").first().click({ force: true });
       });
-      cy.getAttached(".manage-hosts__policies-filter-name-card").should(
+      cy.findAllByText(/Is Filevault enabled on macOS devices/i).should(
         "exist"
       );
       cy.getAttached(".data-table").within(() => {

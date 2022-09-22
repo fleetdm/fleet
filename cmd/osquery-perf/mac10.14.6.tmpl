@@ -213,7 +213,25 @@
     "build":"18G3020",
     "platform":"darwin",
     "platform_like":"darwin",
-    "codename":""
+    "codename":"",
+    "arch":"x86_64"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Mac OS X",
+    "version":"10.14.6",
+    "major":"10",
+    "minor":"14",
+    "patch":"6",
+    "build":"18G3020",
+    "platform":"darwin",
+    "platform_like":"darwin",
+    "codename":"",
+    "arch":"x86_64",
+    "kernel_version":"18.7.0"
   }
 ]
 {{- end }}
@@ -284,21 +302,6 @@
 ]
 {{- end }}
 
-{{ define "fleet_detail_query_users" -}}
-[
-  {{ range $index, $item := .HostUsersMacOS }}
-  {{if $index}},{{end}}
-  {
-    "uid": "{{ .Uid }}",
-    "username": "{{ .Username }}",
-    "type": "{{ .Type }}",
-    "groupname": "{{ .GroupName }}",
-    "shell": "{{ .Shell }}"
-  }
-  {{- end }}
-]
-{{- end }}
-
 {{/* all hosts */}}
 {{ define "fleet_label_query_6" -}}
 [
@@ -342,23 +345,3 @@
 []
 {{- end }}
 
-{{ define "fleet_detail_query_software_macos" -}}
-[
-  {{ range $index, $item := .SoftwareMacOS }}
-  {{if $index}},{{end}}
-  {
-    "name": "{{ .Name }}",
-    "version": "{{ .Version }}",
-    "type": "Application (macOS)",
-    "bundle_identifier": "{{ .BundleIdentifier }}",
-    "source": "apps",
-    {{/* Note that in Go < 1.18, `{{ or (and .LastOpendedAt .LastOpenedAt.Unix) "" }}` won't work as expected because "and" and "or" don't short circuit. This was changed in Go 1.18 */}}
-    {{if .LastOpenedAt}}
-    "last_opened_at": "{{ .LastOpenedAt.Unix }}"
-    {{else}}
-    "last_opened_at": "-1"
-    {{end}}
-  }
-  {{- end }}
-]
-{{- end }}

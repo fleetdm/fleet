@@ -72,8 +72,14 @@ type listHostsResponse struct {
 	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
 	// filter if one is provided with the request (and it exists in the
 	// database). It is nil otherwise and absent of the JSON response payload.
-	MDMSolution *fleet.AggregatedMDMSolutions `json:"mobile_device_management_solution,omitempty"`
-	Err         error                         `json:"error,omitempty"`
+	MDMSolution *fleet.MDMSolution `json:"mobile_device_management_solution,omitempty"`
+	// MunkiIssue is populated with the munki issue corresponding to the
+	// munki_issue_id filter if one is provided with the request (and it exists
+	// in the database). It is nil otherwise and absent of the JSON response
+	// payload.
+	MunkiIssue *fleet.MunkiIssue `json:"munki_issue,omitempty"`
+
+	Err error `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -90,11 +96,20 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 	}
 
-	var mdmSolution *fleet.AggregatedMDMSolutions
+	var mdmSolution *fleet.MDMSolution
 	if req.Opts.MDMIDFilter != nil {
 		var err error
-		mdmSolution, err = svc.AggregatedMDMSolutions(ctx, req.Opts.TeamFilter, *req.Opts.MDMIDFilter)
-		if err != nil {
+		mdmSolution, err = svc.GetMDMSolution(ctx, *req.Opts.MDMIDFilter)
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the MDM solution in that case
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var munkiIssue *fleet.MunkiIssue
+	if req.Opts.MunkiIssueIDFilter != nil {
+		var err error
+		munkiIssue, err = svc.GetMunkiIssue(ctx, *req.Opts.MunkiIssueIDFilter)
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the munki issue in that case
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -113,39 +128,28 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses, Software: software, MDMSolution: mdmSolution}, nil
+	return listHostsResponse{
+		Hosts:       hostResponses,
+		Software:    software,
+		MDMSolution: mdmSolution,
+		MunkiIssue:  munkiIssue,
+	}, nil
 }
 
-func (svc *Service) AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*fleet.AggregatedMDMSolutions, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+func (svc *Service) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
+	return svc.ds.GetMDMSolution(ctx, mdmID)
+}
 
-	if teamID != nil {
-		_, err := svc.ds.Team(ctx, *teamID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// it is expected that there will be relatively few MDM solutions. This
-	// returns the slice of all aggregated stats (one entry per mdm_id), and we
-	// then iterate to return only the one that was requested (the slice is
-	// stored as-is in a JSON field in the database).
-	sols, _, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
-	if err != nil {
+func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
-
-	for _, sol := range sols {
-		// don't take the address of the loop variable (although it could be ok
-		// here, but just bad practice)
-		sol := sol
-		if sol.ID == mdmID {
-			return &sol, nil
-		}
-	}
-	return nil, nil
+	return svc.ds.GetMunkiIssue(ctx, munkiIssueID)
 }
 
 func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -204,7 +208,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 	}
 
 	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
-		return &badRequestError{"Cannot specify a list of ids and filters at the same time"}
+		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
 	if len(ids) > 0 {
@@ -931,7 +935,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var munkiInfo *fleet.HostMunkiInfo
-	switch version, err := svc.ds.GetMunkiVersion(ctx, id); {
+	switch version, err := svc.ds.GetHostMunkiVersion(ctx, id); {
 	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
 	case err == nil:
@@ -939,20 +943,29 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var mdm *fleet.HostMDM
-	switch hmdm, err := svc.ds.GetMDM(ctx, id); {
+	switch hmdm, err := svc.ds.GetHostMDM(ctx, id); {
 	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
 	case err == nil:
 		mdm = hmdm
 	}
 
-	if munkiInfo == nil && mdm == nil {
+	var munkiIssues []*fleet.HostMunkiIssue
+	switch issues, err := svc.ds.GetHostMunkiIssues(ctx, id); {
+	case err != nil:
+		return nil, err
+	case err == nil:
+		munkiIssues = issues
+	}
+
+	if munkiInfo == nil && mdm == nil && len(munkiIssues) == 0 {
 		return nil, nil
 	}
 
 	data := &fleet.MacadminsData{
-		Munki: munkiInfo,
-		MDM:   mdm,
+		Munki:       munkiInfo,
+		MDM:         mdm,
+		MunkiIssues: munkiIssues,
 	}
 
 	return data, nil
@@ -1002,6 +1015,12 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MunkiVersions = versions
 
+	issues, munkiIssUpdatedAt, err := svc.ds.AggregatedMunkiIssues(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiIssues = issues
+
 	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
 	if err != nil {
 		return nil, err
@@ -1015,6 +1034,9 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	agg.MDMSolutions = solutions
 
 	agg.CountsUpdatedAt = munkiUpdatedAt
+	if munkiIssUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = munkiIssUpdatedAt
+	}
 	if mdmUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = mdmUpdatedAt
 	}
@@ -1105,7 +1127,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 						// duplicating the list of columns from the Host's struct tags to a
 						// map and keep this in sync, for what is essentially a programmer
 						// mistake that should be caught and corrected early.
-						encodeError(ctx, &badRequestError{message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
 						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])
@@ -1225,11 +1247,11 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	if name != nil && version == nil {
-		return nil, &badRequestError{"Cannot specify os_name without os_version"}
+		return nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
 	}
 
 	if name == nil && version != nil {
-		return nil, &badRequestError{"Cannot specify os_version without os_name"}
+		return nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)

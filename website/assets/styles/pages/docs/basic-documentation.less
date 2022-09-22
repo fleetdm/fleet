@@ -405,7 +405,6 @@
       [purpose='demo-cta'] {
         display: flex;
         border: 1px solid #E3E3E3;
-        background: linear-gradient(270deg, #201E43 0%, #353D62 100%);
         box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
         border-radius: 6px;
         padding: 20px 16px;
@@ -413,21 +412,21 @@
         width: 100%;
         a {
           text-decoration: none;
-          color: #FFF;
+          color: @core-fleet-black;
           &:hover {
-            color: #FFF;
+            color: @core-fleet-black;
           }
         }
         p {
           font-weight: 700;
           font-size: 14px;
-          line-height: 24px;
+          line-height: 18px;
         }
         span {
           text-align: center;
           font-size: 14px;
           line-height: 19px;
-          color: #FFF;
+          color: @core-fleet-black;
         }
       }
     }
@@ -514,7 +513,7 @@
         border: 1px solid @core-vibrant-blue-50;
         padding: 16px;
         border-radius: 8px;
-        display: inline-flex;
+        display: flex;
         img {
           display: flex;
           margin: 4px 12px 0 0;
@@ -524,9 +523,18 @@
         }
         p {
           display: block;
-          margin-bottom: 0px;
+          margin-bottom: 16px;
           line-height: 24px;
           font-size: 16px;
+        }
+        p:last-child {
+          margin-bottom: 0px;
+        }
+        ul:last-child {
+          margin-bottom: 0px;
+        }
+        li:last-child {
+          padding-bottom: 0px;
         }
       }
 
@@ -679,23 +687,18 @@
         max-height: calc(~'100vh - 140px');
       }
       [purpose='left-sidebar'] {
-        position: sticky;
-        top: 118px;
         height: fit-content;
-        overflow-y: auto;
+        min-width: 216px;
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 500ms;
-        &:not(.scrolled) {
-          max-height: calc(~'100vh - 205px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
-        }
       }
 
       [purpose='right-sidebar'] {
         p {
           line-height: 21px;
         }
-        min-width: 216px;
+        min-width: 190px;
         position: sticky;
         top: 118px;
         height: fit-content;

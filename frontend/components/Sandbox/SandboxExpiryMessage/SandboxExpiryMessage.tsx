@@ -1,6 +1,6 @@
 import React from "react";
 
-import ExternalURLIcon from "../../../../assets/images/icon-external-url-black-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-black-12x12@2x.png";
 
 const baseClass = "sandbox-expiry-message";
 
@@ -19,11 +19,7 @@ const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
       <p>Your Fleet Sandbox expires in {expiry}.</p>
       <span>
         Learn how to deploy Fleet
-        <img
-          alt="Open external link"
-          className="icon-external"
-          src={ExternalURLIcon}
-        />
+        <img alt="Open external link" src={ExternalLinkIcon} />
       </span>
     </a>
   );

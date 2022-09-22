@@ -54,8 +54,13 @@ h1 {
 
 a {
   color: $core-vibrant-blue;
-  font-weight: bold;
+  font-weight: $bold;
+  font-size: $x-small;
   text-decoration: none;
+}
+
+.no-wrap {
+  white-space: nowrap;
 }
 
 .body-wrap {
