@@ -2628,8 +2628,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			refetch_requested = ?,
 			gigs_disk_space_available = ?,
 			percent_disk_space_available = ?,
-		  orbit_node_key = ?
-			refetch_requested = ?
+			orbit_node_key = ?
 		WHERE id = ?
 	`
 	_, err := ds.writer.ExecContext(ctx, sqlStatement,
