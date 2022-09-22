@@ -78,7 +78,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 	svc.authz.SkipAuthorization(ctx)
 	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID)
 
-	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
 		return "", orbitError{message: "orbit enroll failed: " + err.Error()}
 	}
@@ -88,7 +88,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey)
+	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}

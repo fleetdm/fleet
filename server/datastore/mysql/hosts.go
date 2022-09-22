@@ -496,6 +496,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
+	h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
@@ -837,13 +838,13 @@ func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
 	return *currentTeamID != *newTeamID
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
 
 	if hardwareUUID == "" {
-		return nil, ctxerr.New(ctx, "harware uuid is empty")
+		return nil, ctxerr.New(ctx, "hardware uuid is empty")
 	}
 
 	var host fleet.Host
@@ -876,7 +877,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 					orbit_node_key
 				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
 			`
-			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, nil, orbitNodeKey)
+			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
@@ -1003,6 +1004,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
         h.team_id,
         h.policy_updated_at,
         h.public_ip,
+		h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
       FROM
@@ -1083,6 +1085,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
+      h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
     FROM
@@ -1270,6 +1273,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
+	h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time
@@ -1371,6 +1375,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
+	  h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) AS seen_time
