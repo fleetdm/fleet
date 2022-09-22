@@ -5574,8 +5574,14 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	r := s.DoRaw("HEAD", "/api/latest/fleet/orbit_ping", nil, http.StatusOK)
 	require.Equal(t, "token_rotation", r.Header.Get(fleet.CapabilitiesHeader))
 
+	// unauthenticated works too
+	r = s.DoRawNoAuth("HEAD", "/api/latest/fleet/orbit_ping", nil, http.StatusOK)
+	require.Equal(t, "token_rotation", r.Header.Get(fleet.CapabilitiesHeader))
+
 	// desktop doesn't have capabilities as of now, just test that the endpoint works
-	s.DoRaw("HEAD", "/api/latest/fleet/desktop_ping", nil, http.StatusOK)
+	s.DoRaw("HEAD", "/api/latest/fleet/device_ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device_ping", nil, http.StatusOK)
 }
 
 // this test can be deleted once the "v1" version is removed.
