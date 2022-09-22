@@ -163,9 +163,7 @@ func (svc *Service) GetOrbitFlags(ctx context.Context) (json.RawMessage, error) 
 // Ping orbit endpoint
 /////////////////////////////////////////////////////////////////////////////////
 
-type orbitPingRequest struct {
-	Token string `url:"token"`
-}
+type orbitPingRequest struct{}
 
 type orbitPingResponse struct{}
 

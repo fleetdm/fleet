@@ -13,9 +13,7 @@ import (
 // Ping device endpoint
 /////////////////////////////////////////////////////////////////////////////////
 
-type devicePingRequest struct {
-	Token string `url:"token"`
-}
+type devicePingRequest struct{}
 
 type devicePingResponse struct{}
 
