@@ -47,7 +47,6 @@ jobs:
     # We should add a Slack notification or something similar for
     # when this check fails on `main`.
     - name: Check migration order
-      shell: bash {0}
       run: |
         all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
         new_migrations=($(git diff --name-only origin/${{github.base_ref}} -- server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
@@ -59,5 +58,5 @@ jobs:
             echo "please update the timestamp of $migration"
             exit 1
           fi
-          ((index++))
+          index=$((index+1))
         done
