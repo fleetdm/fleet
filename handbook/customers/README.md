@@ -80,7 +80,7 @@ This way, the Fleet team can constantly improve the effectiveness and experience
 
 When a customer encounters an unexpected error on fleetdm.com, it is important that we contact them quickly to resolve the issue. 
 
-If you need to reach out to a customer to resolve an error, you can use one of the templates below. The full list of response email templates is availiable in this [Google doc](https://docs.google.com/document/d/1-DvPSBnFbsa2hlr02rAGy2GBTwE0Gx03jV94AStTYf4/edit).
+If you need to reach out to a customer to resolve an error, you can use one of the templates below. The full list of response email templates is available in this [Google doc](https://docs.google.com/document/d/1-DvPSBnFbsa2hlr02rAGy2GBTwE0Gx03jV94AStTYf4/edit).
 
 #### Error while purchasing a Fleet Premium license
 
