@@ -554,7 +554,7 @@ module.exports = {
                 } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
                   let fleetColumn = Object.assign({}, osquerySchemaColumn);
                   if(columnHasFleetOverrides.platforms !== undefined) {
-                    platformWithNormalizedNames = [];
+                    let platformWithNormalizedNames = [];
                     for(let platform of columnHasFleetOverrides.platforms){
                       if(platform === 'darwin') {
                         platformWithNormalizedNames.push('macOS');
