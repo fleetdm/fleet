@@ -603,7 +603,7 @@ module.exports = {
               if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
                 let columnDescriptionForTable = column.description;// Set the initial value of the description that will be added to the table for this column.
                 if(typeof columnDescriptionForTable === 'String'){ // Replacing pipe characters with an html entity in column descriptions to keep it from breaking markdown tables.
-                  columnDescriptionForTable = columnDescriptionForTable.replace('|', '&#124;');
+                  columnDescriptionForTable = columnDescriptionForTable.replaceAll('|', '&#124;');
                 }
                 keywordsForSyntaxHighlighting.push(column.name);
                 if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
