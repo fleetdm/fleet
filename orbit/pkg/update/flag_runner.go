@@ -210,6 +210,7 @@ func (r *FlagRunner) updateOrbitNodeKey() (string, error) {
 		if err := os.WriteFile(nodeKeyFilePath, []byte(newOrbitNodeKey), constant.DefaultFileMode); err != nil {
 			log.Info().Err(err).Msg("failed to write orbit node key to disk")
 			time.Sleep(constant.OrbitEnrollRetrySleep)
+			continue
 		}
 		return newOrbitNodeKey, nil
 	}
