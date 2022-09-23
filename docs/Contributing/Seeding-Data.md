@@ -3,7 +3,7 @@
 When developing Fleet, it may be useful to create seed data that includes users and teams.
 
 
-> In order to run scripts that make use of premium features, make sure you have started the server with the correct flags as described in [Testing](./testing-and-local-development.md#license-key). Note that [SMTP must be enabled](./testing-and-local-development#manually-testing-email-with-mail-hog) prior to seeding users on a team. Failure to do so will result in premium users being assigned Global roles.
+> In order to run scripts that make use of premium features, make sure you have started the server with the correct flags as described in [Testing](./testing-and-local-development.md#license-key).
 
 Check out this Loom demo video that walks through creating teams seed data:
 https://www.loom.com/share/1c41a1540e8f41328a7a6cfc56ad0a01
@@ -41,7 +41,7 @@ Finally, run one of the bash scripts located in the [/tools/api](../../tools/api
 The `fleet/create_free` script will generate an environment to roughly reflect an installation of Fleet Free. The script creates three users with different roles.
 
 ```
-bash ./tools/api/fleet/teams/create_free
+./tools/api/fleet/teams/create_free
 ```
 
 <img width="1175" alt="Screen Shot 2022-09-23 at 10 20 42 AM" src="https://user-images.githubusercontent.com/71795832/191982367-f89b3d6e-085b-4be3-be64-f3e725d31fa5.png">
@@ -51,7 +51,7 @@ bash ./tools/api/fleet/teams/create_free
 The `fleet/create_premium` script will generate an environment to roughly reflect an installation of Fleet Premium. The script will create two teams of seven users with different roles.
 
 ```
-bash ./tools/api/fleet/teams/create_premium
+./tools/api/fleet/teams/create_premium
 ```
 
 <img width="1176" alt="premium seeded users" src="https://user-images.githubusercontent.com/71795832/191981351-930d7f4d-5343-4fc3-974a-07238456ed26.png">
@@ -61,7 +61,7 @@ bash ./tools/api/fleet/teams/create_premium
 The `fleet/create_figma` script will generate an environment to reflect the mockups in the Fleet EE (current) Figma file. The script creates three teams and twelve users with different roles.
 
 ```
-bash ./tools/api/fleet/teams/create_figma
+./tools/api/fleet/teams/create_figma
 ```
 
 <img width="1173" alt="Screen Shot 2022-09-23 at 10 27 02 AM" src="https://user-images.githubusercontent.com/71795832/191983900-1df77482-1c2c-47f0-a36f-bf20fcc68a61.png">
