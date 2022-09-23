@@ -514,44 +514,73 @@ module.exports = {
 
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
 
-        let urlOfOsquerySchemaJson = 'https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/5.4.0.json';
-        let rawOsqueryTables = await sails.helpers.http.get(urlOfOsquerySchemaJson);
+        let osquerySchemaJsonPath = path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json');
+        let rawOsqueryTables = await sails.helpers.fs.readJson(osquerySchemaJsonPath);
         let fleetOverridesForTables = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
 
         let expandedTables = []; // create an empty array for the merged schema.
 
         for(let osquerySchemaTable of rawOsqueryTables) {
-          let expandedTableToPush = osquerySchemaTable; // Set the initial value for the table in the merged JSON
-          for(let fleetTable of fleetOverridesForTables){
-            if(fleetTable.name === osquerySchemaTable.name) { // If a table name matches, we'll iterate though the columns in the table.
-              if(fleetTable.platforms) { // If this table has an array of platforms in the Fleet schema JSON, we'll overwrite platforms in the merged schema
-                osquerySchemaTable.platforms = fleetTable.platforms;
-              }
-              osquerySchemaTable.columns.forEach((osquerySchemaColumn, i)=>{ // iterate through the columns in the osquery schema table
-                let columnToMerge = {}; // Set an empty object to keep track of any columns that will need to be merged.
-                if(fleetTable.columns) { // If the fleet schema JSON has columns data for this table, we'll iterate though them to merge the values
-                  for(let fleetSchemaColumn of fleetTable.columns) {// Iterate through the array of column objects
-                    if(osquerySchemaColumn.name === fleetSchemaColumn.name) { // If the name is the same, we'll merge the columns in the final schema
-                      columnToMerge = _.merge(osquerySchemaColumn, fleetSchemaColumn); //
-                      osquerySchemaTable.columns[i] = columnToMerge; //
-                    }
-                  }
-                }
-              });
-              expandedTableToPush = _.merge(osquerySchemaTable, fleetTable); // Merges a table in the JSON
-            }
 
+          let fleetOverridesForTable = _.find(fleetOverridesForTables, {'name': osquerySchemaTable.name}); // Setting a flag if this table exists in the Fleet overrrides JSON
+          let expandedTableToPush = Object.assign({}, osquerySchemaTable);
+
+          if(fleetOverridesForTable) { // If this table exists in the Fleet overrides schema, we'll override the values
+            if(fleetOverridesForTable.platforms) {
+              expandedTableToPush.platforms = _.clone(fleetOverridesForTable.platforms);
+            }
+            if(fleetOverridesForTable.description){
+              expandedTableToPush.description = _.clone(fleetOverridesForTable.description);
+            }
+            if(fleetOverridesForTable.examples){
+              expandedTableToPush.examples = _.clone(fleetOverridesForTable.examples);
+            }
+            if(fleetOverridesForTable.notes){
+              expandedTableToPush.notes = _.clone(fleetOverridesForTable.notes);
+            }
+            let mergedTableColumns = [];
+            for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
+              if(!fleetOverridesForTable.columns) { // If there are no column overrides for this table, we'll add the columns unchanged.
+                mergedTableColumns.push(osquerySchemaColumn); //
+              } else {// If the fleet overrides JSON has columns data for this table, we'll find the matching columns and use the values from the Fleet overrides in the final schema.
+
+                let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});
+
+                if(!columnHasFleetOverrides) {// If this column has no fleet overrides, we'll add it to the final schema unchanged
+                  mergedTableColumns.push(osquerySchemaColumn);
+                } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
+                  let fleetColumn = Object.assign({}, osquerySchemaColumn);
+                  if(columnHasFleetOverrides.platforms !== undefined) {
+                    fleetColumn.platforms = _.clone(columnHasFleetOverrides.platforms);
+                  }
+                  if(columnHasFleetOverrides.description !== undefined) {
+                    fleetColumn.platforms = _.clone(columnHasFleetOverrides.description);
+                  }
+                  if(columnHasFleetOverrides.type !== undefined) {
+                    fleetColumn.type = _.clone(columnHasFleetOverrides.type);
+                  }
+                  if(columnHasFleetOverrides.hidden !== true) { // If the overrides don't explicitly hide a column, we'll set the value to false to make sure the column is visible on fleetdm.com
+                    fleetColumn.hidden = false;
+                  }
+                  if(columnHasFleetOverrides.required !== undefined) {
+                    fleetColumn.required = _.clone(columnHasFleetOverrides.required);
+                  }
+                  mergedTableColumns.push(fleetColumn);
+                }
+              }
+            }
+            expandedTableToPush.columns = mergedTableColumns;
           }
           expandedTables.push(expandedTableToPush);
         }
 
         // After we've gone through the tables in the Osquery schema, we'll go through the tables in the Fleet schema JSON, and add any tables that don't exist in the osquery schema.
-        for (let fleetTable of fleetOverridesForTables) {
+        for (let fleetOverridesForTable of fleetOverridesForTables) {
           let fleetSchemaTableExistsInOsquerySchema = _.find(rawOsqueryTables, (table)=>{
-            return fleetTable.name === table.name;
+            return fleetOverridesForTable.name === table.name;
           });
           if(!fleetSchemaTableExistsInOsquerySchema) { // If a table in the Fleet schema does not exist in the osquery schema, we'll add it to the final schema.
-            expandedTables.push(fleetTable);
+            expandedTables.push(fleetOverridesForTable);
           }
         }
 
@@ -572,10 +601,10 @@ module.exports = {
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of table.columns) {
               if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
-                let columnDescriptionForTable = column.description; // Set the initial value of the description that will be added to the table for this column.
+                let columnDescriptionForTable = column.description.replaceAll('|', 'or'); // Set the initial value of the description that will be added to the table for this column. Note: We're replacing pipe characters ('|') with "or".
                 keywordsForSyntaxHighlighting.push(column.name);
                 if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
-                  columnDescriptionForTable += '<br> **Required in WHERE clause** ';
+                  columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
                 }
                 if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
                   columnDescriptionForTable += '<br> **Defaults to root** ';
@@ -594,25 +623,19 @@ module.exports = {
                   platformString += ' devices.** ';
                   columnDescriptionForTable += platformString; // Add the platform string to the column's description.
                 }
-                // if(!column.type || !column.description){
-                //   // If any columns are missing a type or description, we'll throw an error.
-                //   throw new Error(`Could not merge osquery schema with Fleet schema JSON, a column is missing a description. to resolve, add a column description to the column in the fleet_schema.JSON file. Column that caused this error: ${column.name} in the ${table.name} table`);
-                // }
-                // Add the table row for this column to the markdown string.
                 tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
               }
             }
             if(table.examples) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
-              // table.examples = table.examples.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
 
               tableMdString += '\n### Example\n\n'+table.examples+'\n';
             }
-            if(table.notes) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
+            if(table.notes) { // If this table has a notes value (These will be in the Fleet schema JSON) We'll add the notes to the markdown string.
               tableMdString += '\n### Notes\n\n'+table.notes+'\n';
             }
             // Determine the htmlId for table
             let htmlId = (
-              _.last(table.name.split(/\//)).slice(0,20)+
+              table.name+
               '--'+
               sails.helpers.strings.random.with({len:10})
             ).replace(/[^a-z0-9\-]/ig,'');
@@ -640,7 +663,6 @@ module.exports = {
             });
           }
         }
-
         // Attach partials dir path in what will become configuration for the Sails app.
         // (This is for easier access later, without defining this constant in more than one place.)
         builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
