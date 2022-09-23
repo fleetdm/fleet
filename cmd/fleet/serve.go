@@ -400,10 +400,12 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
-			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, instanceID)
 			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, failingPolicySet, instanceID); err != nil {
 				initFatal(err, "failed to register schedules")
 			}
+
+			// StartCollectors starts a goroutine per collector, using ctx to cancel.
+			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -652,26 +654,6 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 	}
 }
 
-const (
-	lockKeyWorker = "worker"
-)
-
-// runCrons runs cron jobs not yet ported to use the schedule package (startSchedules)
-func runCrons(
-	ctx context.Context,
-	ds fleet.Datastore,
-	task *async.Task,
-	logger kitlog.Logger,
-	config configpkg.FleetConfig,
-	license *fleet.LicenseInfo,
-	ourIdentifier string,
-) {
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
-
-	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
-}
-
 func startSchedules(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -686,6 +668,9 @@ func startSchedules(
 	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 	startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
 	if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPoliciesSet); err != nil {
+		return err
+	}
+	if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
 		return err
 	}
 	return nil
