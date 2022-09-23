@@ -694,9 +694,6 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
 		require.NoError(t, err)
-		if err != nil {
-			return
-		}
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -1008,9 +1005,6 @@ func testHostsListMissing(t *testing.T, ds *Datastore) {
 			NodeKey:       fmt.Sprintf("%d", i),
 		})
 		require.NoError(t, err)
-		if err != nil {
-			return
-		}
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
