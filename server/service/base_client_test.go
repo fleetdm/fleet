@@ -114,7 +114,7 @@ func TestClientCapabilities(t *testing.T) {
 		expected     string
 	}{
 		{"no capabilities", fleet.CapabilityMap{}, ""},
-		{"one capability", fleet.CapabilityMap{fleet.Capability("test_capability"): {}}, "token_rotation"},
+		{"one capability", fleet.CapabilityMap{fleet.Capability("test_capability"): {}}, "test_capability"},
 		{
 			"multiple capabilities",
 			fleet.CapabilityMap{
