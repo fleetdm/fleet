@@ -887,14 +887,11 @@ func (f *featuresChecker) execute() error {
 		select {
 		case <-featuresCheckTicker.C:
 			oldCapabilities := f.client.GetServerCapabilities()
-			log.Info().Msgf("oldCapabilitiesbefore :%v ", oldCapabilities)
 			if err := f.client.Ping(); err != nil {
 				log.Error().Err(err).Msg("fetching API features from server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()
-			log.Info().Msgf("oldCapabilities:%v ", oldCapabilities)
-			log.Info().Msgf("newCapabilities:%v ", newCapabilities)
 
 			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
 				log.Info().Msg("orbit endpoints capability enabled, restarting")
