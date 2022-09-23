@@ -17,7 +17,9 @@ export enum ActivityType {
   AppliedSpecPack = "applied_spec_pack",
   AppliedSpecPolicy = "applied_spec_policy",
   AppliedSpecSavedQuery = "applied_spec_saved_query",
+  AppliedSpecTeam = "applied_spec_team",
   UserAddedBySSO = "user_added_by_sso",
+  EditedAgentOptions = "edited_agent_options",
 }
 export interface IActivity {
   created_at: string;
@@ -40,4 +42,5 @@ export interface IActivityDetails {
   team_name?: string;
   targets_count?: number;
   specs?: IQuery[] | IPolicy[];
+  global?: boolean;
 }

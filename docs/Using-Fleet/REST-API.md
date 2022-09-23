@@ -7,7 +7,6 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
-- [Packs](#packs)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule](#schedule)
@@ -18,42 +17,9 @@
 - [Translator](#translator)
 - [Users](#users)
 
-## Overview
+Use the Fleet APIs to automate Fleet.
 
-Fleet is powered by a Go API server which serves three types of endpoints:
-
-- Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
-- Endpoints starting with `/api/v1/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
-- All other endpoints are served by the React single page application bundle.
-  The React app uses React Router to determine whether or not the URI is a valid
-  route and what to do.
-
-### fleetctl
-
-Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./fleetctl-CLI.md) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
-
-### Current API
-
-The general idea with the current API is that there are many entities throughout the Fleet application, such as:
-
-- Queries
-- Packs
-- Labels
-- Hosts
-
-Each set of objects follows a similar REST access pattern.
-
-- You can `GET /api/v1/fleet/packs` to get all packs
-- You can `GET /api/v1/fleet/packs/1` to get a specific pack.
-- You can `DELETE /api/v1/fleet/packs/1` to delete a specific pack.
-- You can `POST /api/v1/fleet/packs` (with a valid body) to create a new pack.
-- You can `PATCH /api/v1/fleet/packs/1` (with a valid body) to modify a specific pack.
-
-Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
-
-All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
-
-> [Check out Fleet v3's REST API documentation](https://github.com/fleetdm/fleet/blob/0bd6903b2df084c9c727f281e86dff0cbc2e0c25/docs/1-Using-Fleet/3-REST-API.md), if you're using a version of Fleet below 4.0.0. Warning: Fleet v3's documentation is no longer being maintained.
+This page includes a list of available resources and their API routes.
 
 ## Authentication
 
@@ -1740,6 +1706,7 @@ None.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1875,11 +1842,12 @@ Response payload with the `munki_issue_id` filter provided:
 | os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, mdm or munki filters.                                                                                                                                                                                                                                                                        |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, low_disk_space, mdm or munki filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1915,14 +1883,15 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name     | Type    | In    | Description                                                                     |
-| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
-| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| Name            | Type    | In    | Description                                                                     |
+| --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -1937,6 +1906,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "mia_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
+  "low_disk_space_count": 12,
   "builtin_labels": [
     {
       "id": 6,
@@ -1997,16 +1967,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 ### Get host
 
 Returns the information of the specified host.
-
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../Deploying/Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
-
-All the scheduled queries that are configured to run on the host (and their stats) are returned in
-`pack_stats`. The `pack_stats[i].type` field can have the following values:
-1. `"global"`: identifies the global pack.
-2. `"team-$TEAM_ID"`: identifies a team's pack.
-3. `"pack"`: identifies a user created pack.
-
-If the scheduled queries haven't run on the host yet, the stats have zero values.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -3169,507 +3129,6 @@ Deletes the label specified by ID.
 
 ---
 
-## Packs
-
-- [Create pack](#create-pack)
-- [Modify pack](#modify-pack)
-- [Get pack](#get-pack)
-- [List packs](#list-packs)
-- [Delete pack](#delete-pack)
-- [Delete pack by ID](#delete-pack-by-id)
-- [Get scheduled queries in a pack](#get-scheduled-queries-in-a-pack)
-- [Add scheduled query to a pack](#add-scheduled-query-to-a-pack)
-- [Get scheduled query](#get-scheduled-query)
-- [Modify scheduled query](#modify-scheduled-query)
-- [Delete scheduled query](#delete-scheduled-query)
-
-### Create pack
-
-`POST /api/v1/fleet/packs`
-
-#### Parameters
-
-| Name        | Type   | In   | Description                                                             |
-| ----------- | ------ | ---- | ----------------------------------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.                                          |
-| description | string | body | The pack's description.                                                 |
-| host_ids    | list   | body | A list containing the targeted host IDs.                                |
-| label_ids   | list   | body | A list containing the targeted label's IDs.                             |
-| team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
-
-#### Example
-
-`POST /api/v1/fleet/packs`
-
-##### Request query parameters
-
-```json
-{
-  "description": "Collects osquery data.",
-  "host_ids": [],
-  "label_ids": [6],
-  "name": "query_pack_1"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 17,
-    "name": "query_pack_1",
-    "description": "Collects osquery data.",
-    "query_count": 0,
-    "total_hosts_count": 223,
-    "host_ids": [],
-    "label_ids": [
-      6
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### Modify pack
-
-`PATCH /api/v1/fleet/packs/{id}`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                             |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                                            |
-| name        | string  | body | The pack's name.                                                        |
-| description | string  | body | The pack's description.                                                 |
-| host_ids    | list    | body | A list containing the targeted host IDs.                                |
-| label_ids   | list    | body | A list containing the targeted label's IDs.                             |
-| team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
-
-#### Example
-
-`PATCH /api/v1/fleet/packs/{id}`
-
-##### Request query parameters
-
-```json
-{
-  "description": "MacOS hosts are targeted",
-  "host_ids": [],
-  "label_ids": [7]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "2021-01-25T22:32:45Z",
-    "updated_at": "2021-01-25T22:32:45Z",
-    "id": 17,
-    "name": "Title2",
-    "description": "MacOS hosts are targeted",
-    "query_count": 0,
-    "total_hosts_count": 110,
-    "host_ids": [],
-    "label_ids": [
-      7
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### Get pack
-
-`GET /api/v1/fleet/packs/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's id. |
-
-#### Example
-
-`GET /api/v1/fleet/packs/17`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "2021-01-25T22:32:45Z",
-    "updated_at": "2021-01-25T22:32:45Z",
-    "id": 17,
-    "name": "Title2",
-    "description": "MacOS hosts are targeted",
-    "disabled": false,
-    "type": null,
-    "query_count": 0,
-    "total_hosts_count": 110,
-    "host_ids": [],
-    "label_ids": [
-      7
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### List packs
-
-`GET /api/v1/fleet/packs`
-
-#### Parameters
-
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the packs table.                                                               |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-
-#### Example
-
-`GET /api/v1/fleet/packs`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "packs": [
-    {
-      "created_at": "2021-01-05T21:13:04Z",
-      "updated_at": "2021-01-07T19:12:54Z",
-      "id": 1,
-      "name": "pack_number_one",
-      "description": "This pack has a description",
-      "disabled": true,
-      "query_count": 1,
-      "total_hosts_count": 53,
-      "host_ids": [],
-      "label_ids": [
-        8
-      ],
-      "team_ids": [],
-    },
-    {
-      "created_at": "2021-01-19T17:08:31Z",
-      "updated_at": "2021-01-19T17:08:31Z",
-      "id": 2,
-      "name": "query_pack_2",
-      "query_count": 5,
-      "total_hosts_count": 223,
-      "host_ids": [],
-      "label_ids": [
-        6
-      ],
-      "team_ids": []
-    },
-  ]
-}
-```
-
-### Delete pack
-
-Delete pack by name.
-
-`DELETE /api/v1/fleet/packs/{name}`
-
-#### Parameters
-
-| Name | Type   | In   | Description                    |
-| ---- | ------ | ---- | ------------------------------ |
-| name | string | path | **Required.** The pack's name. |
-
-#### Example
-
-`DELETE /api/v1/fleet/packs/pack_number_one`
-
-##### Default response
-
-`Status: 200`
-
-
-### Delete pack by ID
-
-`DELETE /api/v1/fleet/packs/id/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/packs/id/1`
-
-##### Default response
-
-`Status: 200`
-
-
-### Get scheduled queries in a pack
-
-`GET /api/v1/fleet/packs/{id}/scheduled`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/packs/1/scheduled`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 49,
-      "pack_id": 15,
-      "name": "new_query",
-      "query_id": 289,
-      "query_name": "new_query",
-      "query": "SELECT * FROM osquery_info",
-      "interval": 456,
-      "snapshot": false,
-      "removed": true,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 50,
-      "pack_id": 15,
-      "name": "new_title_for_my_query",
-      "query_id": 288,
-      "query_name": "new_title_for_my_query",
-      "query": "SELECT * FROM osquery_info",
-      "interval": 677,
-      "snapshot": true,
-      "removed": false,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 51,
-      "pack_id": 15,
-      "name": "osquery_info",
-      "query_id": 22,
-      "query_name": "osquery_info",
-      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
-      "interval": 6667,
-      "snapshot": true,
-      "removed": false,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    }
-  ]
-}
-```
-
-### Add scheduled query to a pack
-
-`POST /api/v1/fleet/schedule`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| pack_id  | integer | body | **Required.** The pack's ID.                                                                                  |
-| query_id | integer | body | **Required.** The query's ID.                                                                                 |
-| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                 |
-| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                  |
-| removed  | boolean | body | **Required.** Whether "removed" actions should be logged.                                                     |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`POST /api/v1/fleet/schedule`
-
-#### Request body
-
-```json
-{
-  "interval": 120,
-  "pack_id": 15,
-  "query_id": 23,
-  "removed": true,
-  "shard": null,
-  "snapshot": false,
-  "version": "4.5.0",
-  "platform": "windows"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "windows",
-    "version": "4.5.0",
-    "shard": 10
-  }
-}
-```
-
-### Get scheduled query
-
-`GET /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/schedule/56`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "windows",
-    "version": "4.5.0",
-    "shard": 10,
-    "denylist": null
-  }
-}
-```
-
-### Modify scheduled query
-
-`PATCH /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
-| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
-| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
-| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`PATCH /api/v1/fleet/schedule/56`
-
-#### Request body
-
-```json
-{
-  "platform": ""
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "2021-01-28T19:40:04Z",
-    "updated_at": "2021-01-28T19:40:04Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "",
-    "version": "4.5.0",
-    "shard": 10
-  }
-}
-```
-
-### Delete scheduled query
-
-`DELETE /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/schedule/56`
-
-##### Default response
-
-`Status: 200`
-
----
-
 ## Policies
 
 - [List policies](#list-policies)
@@ -4648,11 +4107,9 @@ load balancer timeout.
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
 
-`In Fleet 4.1.0, the Schedule feature was introduced.`
+Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
-Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
-
-For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+These API routes let you control your scheduled queries.
 
 ### Get schedule
 
@@ -4781,7 +4238,7 @@ None.
 }
 ```
 
-> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses [osquery query packs](https://osquery.readthedocs.io/en/stable/deployment/configuration/#query-packs) under the hood.
 
 ### Edit query in schedule
 

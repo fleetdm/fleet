@@ -354,11 +354,15 @@ module.exports = {
               // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
               let embeddedMetadata = {};
-              for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
-                let name = tag.match(/name="([^">]+)"/i)[1];
-                let value = tag.match(/value="([^">]+)"/i)[1];
-                embeddedMetadata[name] = value;
-              }//∞
+              try {
+                for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
+                  let name = tag.match(/name="([^">]+)"/i)[1];
+                  let value = tag.match(/value="([^">]+)"/i)[1];
+                  embeddedMetadata[name] = value;
+                }//∞
+              } catch (err) {
+                throw new Error(`An error occured while parsing <meta> tags in Markdown in "${path.join(topLvlRepoPath, pageSourcePath)}". Tip: Check the markdown being changed and make sure it doesn\'t contain any code snippets with <meta> inside, as this can fool the build script. Full error: ${err.message}`);
+              }
               if (Object.keys(embeddedMetadata).length >= 1) {
                 sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
               }//ﬁ
@@ -459,6 +463,10 @@ module.exports = {
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
                     throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
+                }
+                if(embeddedMetadata.description && embeddedMetadata.description.length > 150) {
+                  // Throwing an error if the article's description meta tag value is over 150 characters long
+                  throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
                 }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'

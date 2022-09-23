@@ -1,0 +1,1 @@
+* Orbit now enrolls with fleet using it's own orbit_node_key, and periodically checks for new flags (using the new API), and applies them to osquery
