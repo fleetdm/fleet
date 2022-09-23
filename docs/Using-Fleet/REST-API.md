@@ -23,6 +23,7 @@ This page includes a list of available resources and their API routes.
 
 ## Authentication
 
+- [Retrieve your API token](#retrieve-your-api-token)
 - [Log in](#log-in)
 - [Log out](#log-out)
 - [Forgot password](#forgot-password)
@@ -32,6 +33,8 @@ This page includes a list of available resources and their API routes.
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
 - [SSO callback](#sso-callback)
+
+### Retrieve your API token
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
