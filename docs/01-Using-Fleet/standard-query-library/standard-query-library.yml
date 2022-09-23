@@ -942,3 +942,14 @@ spec:
   purpose: Informational
   tags: compliance, hunting
   contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Identify the default mail, http and ftp applications
+  platforms: macOS
+  description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
+  query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: GuillaumeRoss
