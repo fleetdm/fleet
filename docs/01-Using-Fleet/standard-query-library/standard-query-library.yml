@@ -920,3 +920,25 @@ spec:
   tags: compliance, built-in
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover TLS certificates
+  platforms: Linux, Windows, macOS
+  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
+  query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  purpose: Informational
+  tags: network, tls
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover Python Packages from Running Python Interpreters
+  platforms: Linux, macOS
+  description: Attempt to discover Python environments (in cwd, path to the python binary, and process command line) from running python interpreters and collect Python packages from those environments.
+  query: SELECT * FROM python_packages WHERE directory IN (SELECT DISTINCT directory FROM (SELECT SUBSTR(path,0,INSTR(path,'/bin/'))||'/lib' AS directory FROM processes WHERE path LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT SUBSTR(cmdline,0,INSTR(cmdline,'/bin/'))||'/lib' AS directory FROM processes WHERE cmdline LIKE '%python%' AND cmdline LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT cwd||'/lib' AS directory FROM processes WHERE path LIKE '%python%'));
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: nabilschear

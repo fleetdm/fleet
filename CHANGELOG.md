@@ -1,5 +1,9 @@
 ## Fleet 4.20.1 (Sep 15, 2022)
 
+**This is a security release.**
+
+* **Security**: Upgrade Go to 1.19.1 to resolve a possible HTTP denial of service vulnerability ([CVE-2022-27664](https://nvd.nist.gov/vuln/detail/CVE-2022-27664)).
+
 * Fixed a bug in which [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations) sent duplicate webhooks.
 
 * Fixed a bug in which logging in with single sign-on (SSO) did not work after a failed authorization attempt.

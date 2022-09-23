@@ -15,8 +15,12 @@ func TriggerHostStatusWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	appConfig *fleet.AppConfig,
 ) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
 	if !appConfig.WebhookSettings.HostStatusWebhook.Enable {
 		return nil
 	}

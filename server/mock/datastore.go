@@ -15,6 +15,14 @@ type Store struct {
 	DataStore
 }
 
+func (m *Store) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+	return nil, nil
+}
+
+func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
+	return nil, nil
+}
+
 func (m *Store) Drop() error                             { return nil }
 func (m *Store) MigrateTables(ctx context.Context) error { return nil }
 func (m *Store) MigrateData(ctx context.Context) error   { return nil }

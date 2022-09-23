@@ -263,7 +263,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					default:
 						queryValInt, err = strconv.Atoi(queryVal)
 						if err != nil {
-							return nil, fmt.Errorf("parsing uint from query: %w", err)
+							return nil, fmt.Errorf("parsing int from query: %w", err)
 						}
 					}
 					field.SetInt(int64(queryValInt))
@@ -316,6 +316,19 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedHost(svc, logger, next)
+	}
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedOrbitHost(svc, logger, next)
 	}
 	return &authEndpointer{
 		svc:      svc,

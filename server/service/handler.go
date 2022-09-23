@@ -454,6 +454,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	he.WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 
+	// orbit authenticated endpoints
+	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
+	oe.POST("/api/fleet/orbit/config", getOrbitConfigEndpoint, orbitGetConfigRequest{})
+
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
@@ -461,6 +465,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+
+	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, enrollOrbitRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.

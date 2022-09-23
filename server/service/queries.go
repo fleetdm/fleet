@@ -145,8 +145,8 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("query payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
 	}
 
@@ -226,8 +226,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("query payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
 	}
 
@@ -473,8 +473,8 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 
 	for _, query := range queries {
 		if err := query.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, &badRequestError{
-				message: fmt.Sprintf("query payload verification: %s", err),
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("query payload verification: %s", err),
 			})
 		}
 

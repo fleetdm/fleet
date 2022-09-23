@@ -6,6 +6,7 @@ import "text/template"
 // http://s.sudre.free.fr/Stuff/Ivanhoe/FLAT.html
 var macosPackageInfoTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
 	`<pkg-info format-version="2" identifier="{{.Identifier}}.base.pkg" version="{{.Version}}" install-location="/" auth="root">
+  <payload/>
   <scripts>
     <postinstall file="./postinstall"/>
   </scripts>
