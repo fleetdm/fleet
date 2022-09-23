@@ -263,7 +263,10 @@ const ManageHostsPage = ({
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams?.munki_issue_id, 10)
       : undefined;
-  const lowDiskSpaceHosts = queryParams?.lowDiskSpace;
+  const lowDiskSpaceHosts =
+    queryParams?.low_disk_space !== undefined
+      ? parseInt(queryParams?.low_disk_space, 10)
+      : undefined;
   const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
@@ -795,7 +798,7 @@ const ManageHostsPage = ({
           break;
         case !!lowDiskSpaceHosts:
           if (lowDiskSpaceHosts) {
-            newQueryParams.low_disk_space = lowDiskSpaceHosts;
+            newQueryParams.low_disk_space = 32;
           }
           break;
         case !!(osId || (osName && osVersion)):
@@ -1657,7 +1660,6 @@ const ManageHostsPage = ({
         mdm_id,
         mdm_enrollment_status,
         low_disk_space,
-        status,
       } = queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||

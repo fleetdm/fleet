@@ -24,7 +24,7 @@ export interface IHostCountLoadOptions {
   policyResponse?: string;
   softwareId?: number;
   missingHosts?: boolean;
-  lowDiskSpaceHosts?: boolean;
+  lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;

@@ -136,8 +136,10 @@ const Homepage = (): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
-        setMissingCount(data.mia_count); // TODO: change to missing_10_days_count when backend is merged
-        setLowDiskSpaceCount(data.mia_count); // TODO: change to low_disk_space_count when backend is merged
+        if (isPremiumTier && data.low_disk_space_count) {
+          setMissingCount(data.mia_count); // TODO: change to missing_10_days_count when backend is merged
+          setLowDiskSpaceCount(data.low_disk_space_count);
+        }
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
@@ -354,7 +356,7 @@ const Homepage = (): JSX.Element => {
     !software?.software &&
     software?.counts_updated_at === null;
 
-  const HostsStatusCard = useInfoCard({
+  const MissingHostsCard = useInfoCard({
     title: "",
     children: (
       <MissingHosts

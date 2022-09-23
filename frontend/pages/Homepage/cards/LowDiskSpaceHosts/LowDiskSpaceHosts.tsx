@@ -25,7 +25,7 @@ const LowDiskSpaceHosts = ({
       showUI={showHostsUI}
       title="Low disk space hosts"
       tooltip="Hosts that have 32 GB or less disk space available."
-      path={`${PATHS.MANAGE_HOSTS}?low_disk_space=true`}
+      path={`${PATHS.MANAGE_HOSTS}?low_disk_space=32`}
     />
   );
 };

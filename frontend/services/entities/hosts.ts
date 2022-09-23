@@ -26,7 +26,7 @@ export interface ILoadHostsOptions {
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  lowDiskSpaceHosts?: boolean;
+  lowDiskSpaceHosts?: number;
   osId?: number;
   osName?: string;
   osVersion?: string;
@@ -50,7 +50,7 @@ export interface IExportHostsOptions {
   mdmId?: number;
   munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
-  lowDiskSpaceHosts?: boolean;
+  lowDiskSpaceHosts?: number;
   osId?: number;
   osName?: string;
   osVersion?: string;
