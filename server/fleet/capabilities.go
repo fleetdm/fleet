@@ -34,7 +34,7 @@ func (c *CapabilityMap) String() string {
 	return strings.Join(capabilities, ",")
 }
 
-// HasCapability returns true if the CapabilityMap contains the given capability.
+// Has returns true if the CapabilityMap contains the given capability.
 func (c CapabilityMap) Has(capability Capability) bool {
 	_, ok := c[capability]
 	return ok

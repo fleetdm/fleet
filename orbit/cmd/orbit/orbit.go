@@ -552,8 +552,8 @@ func main() {
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
-		featuresChecker := newFeaturesChecker(orbitClient)
-		g.Add(featuresChecker.actor())
+		capabilitiesChecker := newCapabilitiesChecker(orbitClient)
+		g.Add(capabilitiesChecker.actor())
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -852,43 +852,42 @@ var versionCommand = &cli.Command{
 	},
 }
 
-// featuresChecker is a helper to restart Orbit as soon as certain capabilities
-// are change in the server.
+// capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
+// are changed in the server.
 //
 // This struct and its methods are designed to play nicely with `oklog.Group`.
-type featuresChecker struct {
+type capabilitiesChecker struct {
 	client        *service.OrbitClient
 	interruptCh   chan struct{} // closed when interrupt is triggered
 	executeDoneCh chan struct{} // closed when execute returns
 }
 
-// newFeaturesChecker returns a new featuresChecker.
-func newFeaturesChecker(client *service.OrbitClient) *featuresChecker {
-	return &featuresChecker{
+func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
+	return &capabilitiesChecker{
 		client:        client,
 		interruptCh:   make(chan struct{}),
 		executeDoneCh: make(chan struct{}),
 	}
 }
 
-func (f *featuresChecker) actor() (func() error, func(error)) {
+func (f *capabilitiesChecker) actor() (func() error, func(error)) {
 	return f.execute, f.interrupt
 }
 
-// execute will poll the server for features and emit a stop signal to restart
+// execute will poll the server for capabilities and emit a stop signal to restart
 // Orbit if certain capabilities are enabled.
 //
 // You need to add an explicit check for each capability you want to watch for
-func (f *featuresChecker) execute() error {
+func (f *capabilitiesChecker) execute() error {
 	defer close(f.executeDoneCh)
-	featuresCheckTicker := time.NewTicker(5 * time.Minute)
+	capabilitiesCHeckTicker := time.NewTicker(5 * time.Minute)
 
 	for {
 		select {
-		case <-featuresCheckTicker.C:
+		case <-capabilitiesCHeckTicker.C:
 			oldCapabilities := f.client.GetServerCapabilities()
 			if err := f.client.Ping(); err != nil {
-				log.Error().Err(err).Msg("fetching API features from server")
+				log.Error().Err(err).Msg("pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()
@@ -903,8 +902,8 @@ func (f *featuresChecker) execute() error {
 	}
 }
 
-func (f *featuresChecker) interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt featuresChecker")
+func (f *capabilitiesChecker) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
 }
