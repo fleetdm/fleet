@@ -19,7 +19,7 @@ Whitney Champion is a co-founder and the lead architect at Recon InfoSec. She ha
 
 ### Where to get in touch:
 
-- [Find Whitney on Twitter](https://twitter.com/shortxstack)
+- [Find Whitney Champion on Twitter](https://twitter.com/shortxstack).
 - [Find Recon InfoSec on Twitter](https://twitter.com/Recon_InfoSec).
 - [Visit the Recon InfoSec blog](https://www.reconinfosec.com/).
 - [Find Recon InfoSec on LinkedIn](https://www.linkedin.com/company/recon-infosec/).
