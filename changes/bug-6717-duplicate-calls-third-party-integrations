@@ -1,2 +1,0 @@
-* If the same vulnerability was detected in more than one Software, duplicate calls were being
-issued to third party integrations.

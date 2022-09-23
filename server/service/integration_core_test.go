@@ -45,60 +45,7 @@ func (s *integrationTestSuite) SetupSuite() {
 }
 
 func (s *integrationTestSuite) TearDownTest() {
-	t := s.T()
-	ctx := context.Background()
-
-	u := s.users["admin1@example.com"]
-	filter := fleet.TeamFilter{User: &u}
-	hosts, err := s.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
-	require.NoError(t, err)
-	for _, host := range hosts {
-		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
-		require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
-	}
-
-	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, lbl := range lbls {
-		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.ds.DeleteLabel(ctx, lbl.Name)
-			require.NoError(t, err)
-		}
-	}
-
-	users, err := s.ds.ListUsers(ctx, fleet.UserListOptions{})
-	require.NoError(t, err)
-	for _, u := range users {
-		if _, ok := s.users[u.Email]; !ok {
-			err := s.ds.DeleteUser(ctx, u.ID)
-			require.NoError(t, err)
-		}
-	}
-
-	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, tm := range teams {
-		err := s.ds.DeleteTeam(ctx, tm.ID)
-		require.NoError(t, err)
-	}
-
-	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
-	require.NoError(t, err)
-	if len(globalPolicies) > 0 {
-		var globalPolicyIDs []uint
-		for _, gp := range globalPolicies {
-			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
-		}
-		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
-		require.NoError(t, err)
-	}
-
-	// SyncHostsSoftware performs a cleanup.
-	err = s.ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	s.withServer.commonTearDownTest(s.T())
 }
 
 func TestIntegrations(t *testing.T) {
@@ -361,9 +308,14 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.True(t, config.Features.EnableSoftwareInventory)
 
 	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
+	var previousRawConfig string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(context.Background(), q, &previousRawConfig, "SELECT json_value FROM app_config_json")
+		if err != nil {
+			return err
+		}
 		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
-		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, `
+		_, err = q.ExecContext(context.Background(), insertAppConfigQuery, `
     {
       "host_settings": {
         "enable_host_users": false,
@@ -379,6 +331,13 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.False(t, resp.Features.EnableHostUsers)
 	require.True(t, resp.Features.EnableSoftwareInventory)
 	require.NotNil(t, resp.Features.AdditionalQueries)
+
+	// restore the previous appconfig so that other tests are not impacted
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, previousRawConfig)
+		return err
+	})
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -877,10 +836,14 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 
-func (s *integrationTestSuite) TestCountSoftware() {
+func (s *integrationTestSuite) TestHostsCount() {
 	t := s.T()
 
 	hosts := s.createHosts(t)
+
+	// set disk space information for some hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
 
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -907,6 +870,12 @@ func (s *integrationTestSuite) TestCountSoftware() {
 		"label_id", fmt.Sprint(label.ID),
 	)
 	assert.Equal(t, 1, resp.Count)
+
+	// filter by low_disk_space criteria is ignored (premium-only filter)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
+	require.Equal(t, len(hosts), resp.Count)
+	// but it is still validated for a correct value when provided (as that happens in a middleware before the handler)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "123456") // TODO: status code to be fixed with #4406
 
 	// filter by MDM criteria without any host having such information
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
@@ -1011,8 +980,27 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	hosts := s.createHosts(t)
 
+	// set disk space information for some hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
+
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+	for _, h := range resp.Hosts {
+		switch h.ID {
+		case hosts[0].ID:
+			assert.Equal(t, 10.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+		case hosts[1].ID:
+			assert.Equal(t, 40.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+		}
+	}
+
+	// setting the low_disk_space criteria is ignored (premium-only)
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Len(t, resp.Hosts, len(hosts))
 
 	resp = listHostsResponse{}
@@ -1468,21 +1456,32 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
 
-	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
-	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team2"})
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{hosts[0].ID}))
+
+	// set disk space information for hosts [0] and [1]
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
+	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
+	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
 
 	var resp getHostSummaryResponse
 
 	// no team filter
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp)
 	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
+	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 3)
 	gotPlatforms, wantPlatforms := make([]string, 3), []string{"linux", "debian", "rhel"}
 	for i, p := range resp.Platforms {
@@ -1515,9 +1514,10 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
-	// team filter, one host
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
+	// team filter, one host, low_disk_count is ignored as not premium
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
@@ -1549,6 +1549,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
 	require.Equal(t, resp.AllLinuxCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
+
+	// invalid low_disk_space value is still validated and results in error
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusInternalServerError, &resp, "low_disk_space", "1234") // TODO: should be 400, see #4406
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
@@ -3122,6 +3125,90 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
+func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
+	t := s.T()
+
+	// enable with valid config
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+     	 		"destination_url": "http://some/url",
+				  "host_percentage": 2,
+					"days_count": 1
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config := s.getConfig()
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
+
+	// update without a destination url
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+     	 		"destination_url": "",
+				  "host_percentage": 2,
+					"days_count": 1
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// update without a negative days count
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+					"destination_url": "http://other/url",
+				  "host_percentage": 2,
+					"days_count": -123
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// update with 0%
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": true,
+					"destination_url": "http://other/url",
+				  "host_percentage": 0,
+					"days_count": 12
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusUnprocessableEntity)
+
+	// config left unmodified since last successful call
+	config = s.getConfig()
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
+
+	// disabling ignores the invalid parameters
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"webhook_settings": {
+    		"host_status_webhook": {
+     	 		"enable_host_status_webhook": false,
+     	 		"destination_url": "",
+				  "host_percentage": 0
+    		},
+    		"interval": "1h"
+  		}
+	}`), http.StatusOK)
+
+	config = s.getConfig()
+	require.False(t, config.WebhookSettings.HostStatusWebhook.Enable)
+}
+
 func (s *integrationTestSuite) TestVulnerabilitiesWebhookConfig() {
 	t := s.T()
 
@@ -4251,7 +4338,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.Equal(t, "free", acResp.License.Tier)
-	assert.Equal(t, "", acResp.OrgInfo.OrgName)
+	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint
@@ -4274,13 +4361,71 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// test a change that does modify the agent options.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-    "agent_options": { "foo": 1 }
+		"agent_options": { "config": {"views": {"foo": "bar"}} }
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+
+	// try to set invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"nope": true} }
+  }`), http.StatusBadRequest, &acResp)
+	// did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// try to set an invalid agent options logger_tls_endpoint (must start with "/")
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"options": {"logger_tls_endpoint": "not-a-rooted-path"}} }
+  }`), http.StatusBadRequest, &acResp)
+	// did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"not-a-rooted-path"`)
+
+	// try to set a valid agent options logger_tls_endpoint
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"options": {"logger_tls_endpoint": "/rooted-path"}} }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"/rooted-path"`)
+
+	// force-set invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"nope": true} }
+  }`), http.StatusOK, &acResp, "force", "true")
+	require.Contains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// dry-run valid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"views":{"yep": "ok"}} }
+  }`), http.StatusOK, &acResp, "dry_run", "true")
+	require.NotContains(t, string(*acResp.AgentOptions), `"yep"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"nope"`)
+
+	// dry-run invalid agent options
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "config": {"invalid": true} }
+  }`), http.StatusBadRequest, &acResp, "dry_run", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
+
+	// dry-run valid appconfig that uses legacy settings (returns error)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"host_settings": { "additional_queries": {"foo": "bar"} }
+  }`), http.StatusBadRequest, &acResp, "dry_run", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Nil(t, acResp.Features.AdditionalQueries)
+
+	// without dry-run, the valid appconfig that uses legacy settings is accepted
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"host_settings": { "additional_queries": {"foo": "bar"} }
+  }`), http.StatusOK, &acResp, "dry_run", "false")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp.Features.AdditionalQueries)
+	require.Contains(t, string(*acResp.Features.AdditionalQueries), `"foo": "bar"`)
 
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
@@ -4311,6 +4456,15 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
+
+	// test setting the default app config we use for new installs (this check
+	// ensures that the default config passes the validation)
+	var defAppCfg fleet.AppConfig
+	defAppCfg.ApplyDefaultsForNewInstalls()
+	// must set org name and server settings
+	defAppCfg.OrgInfo.OrgName = acResp.OrgInfo.OrgName
+	defAppCfg.ServerSettings.ServerURL = acResp.ServerSettings.ServerURL
+	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestQuerySpecs() {
@@ -4629,13 +4783,28 @@ func (s *integrationTestSuite) TestSearchTargets() {
 
 func (s *integrationTestSuite) TestSearchHosts() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
+
+	// set disk space information for hosts [0] and [1]
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
 
 	// no search criteria
 	var searchResp searchHostsResponse
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, len(hosts)) // no request params
+	for _, h := range searchResp.Hosts {
+		switch h.ID {
+		case hosts[0].ID:
+			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+		case hosts[1].ID:
+			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+		}
+	}
 
 	searchResp = searchHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
@@ -5161,6 +5330,10 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	})
 	require.NoError(t, err)
 
+	// set disk space information for hosts [0] and [1]
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
 		Message string `json:"message"`
@@ -5184,21 +5357,25 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	t.Log(rows[0])
 
 	const (
-		idCol     = 2
-		issuesCol = 40
+		idCol       = 2
+		issuesCol   = 40
+		gigsDiskCol = 38
+		pctDiskCol  = 39
 	)
 
-	// find the row for hosts[1], it should have issues=1 (1 failing policy)
+	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
 	for _, row := range rows[1:] {
 		if row[idCol] == fmt.Sprint(hosts[1].ID) {
 			require.Equal(t, "1", row[issuesCol], row)
+			require.Equal(t, "3", row[gigsDiskCol], row)
+			require.Equal(t, "4", row[pctDiskCol], row)
 		} else {
 			require.Equal(t, "0", row[issuesCol], row)
 		}
 	}
 
 	// valid format, some columns
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "gigs_disk_space_available", "percent_disk_space_available")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)

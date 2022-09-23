@@ -331,7 +331,7 @@ func TestModifyAppConfigPatches(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(t, ds, nil, nil)
 
-	storedConfig := &fleet.AppConfig{}
+	storedConfig := &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "FleetTest"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return storedConfig, nil
@@ -345,14 +345,14 @@ func TestModifyAppConfigPatches(t *testing.T) {
 	configJSON := []byte(`{"org_info": { "org_name": "Acme", "org_logo_url": "somelogo.jpg" }}`)
 
 	ctx := test.UserContext(test.UserAdmin)
-	_, err := svc.ModifyAppConfig(ctx, configJSON)
+	_, err := svc.ModifyAppConfig(ctx, configJSON, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "Acme", storedConfig.OrgInfo.OrgName)
 
 	configJSON = []byte(`{"server_settings": { "server_url": "http://someurl" }}`)
 
-	_, err = svc.ModifyAppConfig(ctx, configJSON)
+	_, err = svc.ModifyAppConfig(ctx, configJSON, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "Acme", storedConfig.OrgInfo.OrgName)

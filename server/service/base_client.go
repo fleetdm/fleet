@@ -114,6 +114,5 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		insecureSkipVerify: insecureSkipVerify,
 		urlPrefix:          urlPrefix,
 	}
-
 	return client, nil
 }

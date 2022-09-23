@@ -25,17 +25,19 @@ parasails.registerPage('basic-handbook', {
   mounted: async function() {
 
     // Algolia DocSearch
-    docsearch({
-      appId: 'NZXAYZXDGH',
-      apiKey: 'f3c02b646222734376a5e94408d6fead',
-      indexName: 'fleetdm',
-      inputSelector: '#docsearch-query',
-      debug: false,
-      clickAnalytics: true,
-      algoliaOptions: {
-        facetFilters: ['section:handbook']
-      },
-    });
+    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        inputSelector: '#docsearch-query',
+        debug: false,
+        clickAnalytics: true,
+        algoliaOptions: {
+          facetFilters: ['section:handbook']
+        },
+      });
+    }
 
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){

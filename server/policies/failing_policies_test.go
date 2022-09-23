@@ -140,6 +140,10 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		},
 	}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return ac, nil
+	}
+
 	// add a failing policy host for every known policy
 	failingPolicySet := service.NewMemFailingPolicySet()
 	for polID := range pols {
@@ -161,7 +165,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		automation FailingPolicyAutomationType
 	}
 	var triggerCalls []policyAutomation
-	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
 
 		hosts, err := failingPolicySet.ListHosts(pol.ID)
@@ -207,7 +211,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// policy sets should be empty (no host to process).
 	var countHosts int
 	triggerCalls = triggerCalls[:0]
-	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		hosts, err := failingPolicySet.ListHosts(pol.ID)
 		require.NoError(t, err)
 		countHosts += len(hosts)

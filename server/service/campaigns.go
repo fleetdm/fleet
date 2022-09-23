@@ -147,8 +147,8 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 	}
 
 	if len(hostIDs) == 0 {
-		return nil, &badRequestError{
-			message: "no hosts targeted",
+		return nil, &fleet.BadRequestError{
+			Message: "no hosts targeted",
 		}
 	}
 
