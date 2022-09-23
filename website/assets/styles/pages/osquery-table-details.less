@@ -5,6 +5,7 @@
     height: 1px;
     border-top: 1px solid @border-lt-gray;
   }
+
   [purpose='search-and-filters'] {
     [purpose='filter-row'] {
       max-width: 1200px;
@@ -155,8 +156,10 @@
       border: 1px solid @border-lt-gray;
       color: @core-fleet-black-75;
       font-size: 13px;
-      padding: 4px 8px;
+      padding: 2px 6px;
       line-height: 16px;
+      font-weight: 400;
+      border-radius: 4px;
     }
   }
 
@@ -252,6 +255,12 @@
         border: 1px solid @border-lt-gray;
         padding: 8px;
         max-height: 100px;
+        strong {
+          font-style: italic;
+          code {
+            font-style: normal;
+          }
+        }
       }
     }
     li, p, h4 {

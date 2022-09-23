@@ -50,11 +50,12 @@ parasails.registerPage('osquery-table-details', {
         window.hljs.highlightBlock(block);
       });
       $('.hljs').each((i, el)=>{
-        for(let keyword of keywordsForThisTable) {
-          if(_.includes(el.innerText, keyword)) {
-            let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
-            $(el).html(replacementHMTL);
-          }
+        let keywordsInExample = _.filter(keywordsForThisTable, (word)=>{
+          return _.includes(_.words(el.innerText, /[^, ]+/g), word);
+        });
+        for(let keyword of keywordsInExample) {
+          let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
+          $(el).html(replacementHMTL);
         }
       });
     })();
