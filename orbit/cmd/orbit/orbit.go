@@ -894,7 +894,7 @@ func (f *featuresChecker) execute() error {
 			newCapabilities := f.client.GetServerCapabilities()
 
 			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
-				log.Info().Msg("orbit endpoints capability enabled, restarting")
+				log.Info().Msg("orbit endpoints capability changed, restarting")
 				return nil
 			}
 		case <-f.interruptCh:
