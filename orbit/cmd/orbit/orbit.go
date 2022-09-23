@@ -487,6 +487,7 @@ func main() {
 		capabilities := fleet.CapabilityMap{}
 
 		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
