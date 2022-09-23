@@ -601,7 +601,10 @@ module.exports = {
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of table.columns) {
               if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
-                let columnDescriptionForTable = column.description.replaceAll('|', 'or'); // Set the initial value of the description that will be added to the table for this column. Note: We're replacing pipe characters ('|') with "or".
+                let columnDescriptionForTable = column.description;// Set the initial value of the description that will be added to the table for this column.
+                if(typeof columnDescriptionForTable === 'String'){ // Replacing pipe characters with an html entity in column descriptions to keep it from breaking markdown tables.
+                  columnDescriptionForTable = columnDescriptionForTable.replace('|', '&#124;');
+                }
                 keywordsForSyntaxHighlighting.push(column.name);
                 if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
                   columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
