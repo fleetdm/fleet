@@ -186,6 +186,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	if err != nil {
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
+	level.Info(svc.logger).Log("login", user.Email)
 
 	return user, session, nil
 }

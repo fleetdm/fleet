@@ -68,31 +68,39 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 
 	logs := s.buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
-	assert.Len(t, parts, 3)
+	assert.Len(t, parts, 4)
 	for i, part := range parts {
 		kv := make(map[string]string)
 		err := json.Unmarshal([]byte(part), &kv)
 		require.NoError(t, err)
 
-		assert.NotEqual(t, "", kv["took"])
-
 		switch i {
 		case 0:
 			assert.Equal(t, "info", kv["level"])
+			assert.Equal(t, "admin1@example.com", kv["login"])
+
+		case 1:
+			assert.Equal(t, "info", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/login", kv["uri"])
-		case 1:
+			assert.NotEqual(t, "", kv["took"])
+
+		case 2:
 			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "GET", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/config", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
-		case 2:
+			assert.NotEqual(t, "", kv["took"])
+
+		case 3:
 			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/queries", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
 			assert.Equal(t, "somequery", kv["name"])
 			assert.Equal(t, "select 1 from osquery;", kv["sql"])
+			assert.NotEqual(t, "", kv["took"])
+
 		default:
 			t.Fail()
 		}

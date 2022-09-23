@@ -1,17 +1,22 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -98,7 +103,7 @@ func TestAuthenticate(t *testing.T) {
 	svc := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 
-	var loginTests = []struct {
+	loginTests := []struct {
 		name     string
 		email    string
 		password string
@@ -184,4 +189,37 @@ func TestGetSessionByKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoginLogger(t *testing.T) {
+	ds := new(mock.Store)
+	buf := new(bytes.Buffer)
+	logger := kitlog.NewLogfmtLogger(buf)
+	cfg := config.TestConfig()
+	svc := newTestService(t, ds, nil, nil, &TestServerOpts{Logger: logger})
+	lc := &logging.LoggingContext{}
+	ctx := logging.NewContext(context.Background(), lc)
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email != "user@example.com" {
+			var nfe fleet.NotFoundError
+			return nil, nfe
+		}
+		user := &fleet.User{ID: uint(1), Email: email}
+		user.SetPassword("password123#", cfg.Auth.SaltKeySize, cfg.Auth.BcryptCost)
+		return user, nil
+	}
+	ds.NewSessionFunc = func(ctx context.Context, id uint, key string) (*fleet.Session, error) {
+		return &fleet.Session{}, nil
+	}
+
+	checkLogEnds := func(t *testing.T, logLine string, expected string) bool {
+		return assert.True(t, strings.HasSuffix(strings.TrimSpace(logLine), expected), logLine)
+	}
+
+	user, _, err := svc.Login(ctx, "user@example.com", "password123#")
+	require.NoError(t, err)
+
+	logLine := buf.String()
+	checkLogEnds(t, logLine, fmt.Sprintf("login=%s", user.Email))
 }
