@@ -216,16 +216,17 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID            *uint                  `json:"team_id,omitempty" db:"-"`
-	TotalsHostsCount  uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount       uint                   `json:"online_count" db:"online"`
-	OfflineCount      uint                   `json:"offline_count" db:"offline"`
-	MIACount          uint                   `json:"mia_count" db:"mia"`
-	NewCount          uint                   `json:"new_count" db:"new"`
-	AllLinuxCount     uint                   `json:"all_linux_count" db:"-"`
-	LowDiskSpaceCount *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
-	BuiltinLabels     []*LabelSummary        `json:"builtin_labels" db:"-"`
-	Platforms         []*HostSummaryPlatform `json:"platforms" db:"-"`
+	TeamID             *uint                  `json:"team_id,omitempty" db:"-"`
+	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount        uint                   `json:"online_count" db:"online"`
+	OfflineCount       uint                   `json:"offline_count" db:"offline"`
+	MIACount           uint                   `json:"mia_count" db:"mia"`
+	Missing10DaysCount uint                   `json:"missing_10_days_count" db:"missing_10_days_count"`
+	NewCount           uint                   `json:"new_count" db:"new"`
+	AllLinuxCount      uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount  *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels      []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms          []*HostSummaryPlatform `json:"platforms" db:"-"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,

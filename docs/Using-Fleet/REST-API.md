@@ -1905,6 +1905,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
+  "missing_10_days_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
   "low_disk_space_count": 12,
