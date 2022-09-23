@@ -28,7 +28,7 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-func TestDeviceClientGetDesktopPayload(t *testing.T) {
+func TestDeviceClientListPolicies(t *testing.T) {
 	client, err := NewDeviceClient("https://test.com", "test-token", true, "")
 	require.NoError(t, err)
 
@@ -37,15 +37,24 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 
 	t.Run("with wrong license", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusPaymentRequired
-		_, err = client.GetDesktopPayload()
+		_, err = client.ListDevicePolicies()
 		require.ErrorIs(t, err, ErrMissingLicense)
 	})
 
-	t.Run("with failing policies", func(t *testing.T) {
+	t.Run("with empty policies", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusOK
-		mockRequestDoer.resBody = `{"failing_policies_count": 1}`
-		res, err := client.GetDesktopPayload()
+		mockRequestDoer.resBody = `{"policies": []}`
+		policies, err := client.ListDevicePolicies()
 		require.NoError(t, err)
-		require.Equal(t, uint(1), *res.FailingPolicies)
+		require.Len(t, policies, 0)
+	})
+
+	t.Run("with policies", func(t *testing.T) {
+		mockRequestDoer.statusCode = http.StatusOK
+		mockRequestDoer.resBody = `{"policies": [{"id": 1}]}`
+		policies, err := client.ListDevicePolicies()
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, uint(1), policies[0].ID)
 	})
 }
