@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // Device client is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
@@ -46,14 +48,13 @@ func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string)
 	}, nil
 }
 
-// Get fetches payload used by Fleet Desktop.
-func (dc *DeviceClient) GetDesktopPayload() (*FleetDesktopResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/desktop"
-
-	var r FleetDesktopResponse
-	err := dc.request(verb, path, "", &r)
+// ListDevicePolicies fetches all policies for the device with the provided token
+func (dc *DeviceClient) ListDevicePolicies() ([]*fleet.HostPolicy, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/policies"
+	var responseBody listDevicePoliciesResponse
+	err := dc.request(verb, path, "", &responseBody)
 	if err != nil {
 		return nil, err
 	}
-	return &r, nil
+	return responseBody.Policies, nil
 }

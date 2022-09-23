@@ -83,7 +83,7 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.GetDesktopPayload()
+					_, err := client.ListDevicePolicies()
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
@@ -109,7 +109,7 @@ func main() {
 			for {
 				<-tic.C
 
-				res, err := client.GetDesktopPayload()
+				policies, err := client.ListDevicePolicies()
 				switch {
 				case err == nil:
 					// OK
@@ -121,8 +121,15 @@ func main() {
 					continue
 				}
 
-				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
+				failedPolicyCount := 0
+				for _, policy := range policies {
+					if policy.Response != "pass" {
+						failedPolicyCount++
+					}
+				}
+
+				if failedPolicyCount > 0 {
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
 				} else {
 					myDeviceItem.SetTitle("🟢 My device")
 				}
