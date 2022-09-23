@@ -166,7 +166,7 @@ func TestServerCapabilities(t *testing.T) {
 	response = &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
-		Header:     http.Header{fleet.CapabilitiesHeader: []string{"token_rotation,test_capability"}},
+		Header:     http.Header{fleet.CapabilitiesHeader: []string{"test_capability,test_capability_2"}},
 	}
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
