@@ -393,6 +393,8 @@ type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
+type LoadHostByOrbitNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
+
 type HostLiteFunc func(ctx context.Context, hostID uint) (*fleet.Host, error)
 
 type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error
@@ -436,6 +438,8 @@ type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fle
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+
+type EnrollOrbitFunc func(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1022,6 +1026,9 @@ type DataStore struct {
 	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
 	LoadHostByNodeKeyFuncInvoked bool
 
+	LoadHostByOrbitNodeKeyFunc        LoadHostByOrbitNodeKeyFunc
+	LoadHostByOrbitNodeKeyFuncInvoked bool
+
 	HostLiteFunc        HostLiteFunc
 	HostLiteFuncInvoked bool
 
@@ -1087,6 +1094,9 @@ type DataStore struct {
 
 	EnrollHostFunc        EnrollHostFunc
 	EnrollHostFuncInvoked bool
+
+	EnrollOrbitFunc        EnrollOrbitFunc
+	EnrollOrbitFuncInvoked bool
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
@@ -2060,6 +2070,11 @@ func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
 }
 
+func (s *DataStore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	s.LoadHostByOrbitNodeKeyFuncInvoked = true
+	return s.LoadHostByOrbitNodeKeyFunc(ctx, nodeKey)
+}
+
 func (s *DataStore) HostLite(ctx context.Context, hostID uint) (*fleet.Host, error) {
 	s.HostLiteFuncInvoked = true
 	return s.HostLiteFunc(ctx, hostID)
@@ -2168,6 +2183,11 @@ func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	s.EnrollHostFuncInvoked = true
 	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
+}
+
+func (s *DataStore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+	s.EnrollOrbitFuncInvoked = true
+	return s.EnrollOrbitFunc(ctx, hardwareUUID, orbitNodeKey, teamID)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
