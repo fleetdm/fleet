@@ -34,19 +34,10 @@ func (c *CapabilityMap) String() string {
 	return strings.Join(capabilities, ",")
 }
 
-// The following are the capabilities that Fleet supports. These can be used by
-// the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
-// is supported.
-const (
-	// CapabilityTokenRotation is the ability to rotate and expire host device
-	// tokens over a given period of time.
-	CapabilityTokenRotation Capability = "token_rotation"
-)
-
 // ServerOrbitCapabilities is a set of capabilities that server-side,
 // Orbit-related endpoint supports.
 // **it shouldn't be modified at runtime**
-var ServerOrbitCapabilities = CapabilityMap{CapabilityTokenRotation: {}}
+var ServerOrbitCapabilities = CapabilityMap{}
 
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.

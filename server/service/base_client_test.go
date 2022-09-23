@@ -114,14 +114,14 @@ func TestClientCapabilities(t *testing.T) {
 		expected     string
 	}{
 		{"no capabilities", fleet.CapabilityMap{}, ""},
-		{"one capability", fleet.CapabilityMap{fleet.CapabilityTokenRotation: {}}, "token_rotation"},
+		{"one capability", fleet.CapabilityMap{fleet.Capability("test_capability"): {}}, "token_rotation"},
 		{
 			"multiple capabilities",
 			fleet.CapabilityMap{
-				fleet.CapabilityTokenRotation:       {},
-				fleet.Capability("test_capability"): {},
+				fleet.Capability("test_capability"):   {},
+				fleet.Capability("test_capability_2"): {},
 			},
-			"token_rotation,test_capability"},
+			"test_capability,test_capability_2"},
 	}
 
 	for _, c := range cases {
@@ -141,15 +141,15 @@ func TestServerCapabilities(t *testing.T) {
 	response := &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
-		Header:     http.Header{fleet.CapabilitiesHeader: []string{"token_rotation"}},
+		Header:     http.Header{fleet.CapabilitiesHeader: []string{"test_capability"}},
 	}
 	bc, err := newBaseClient("https://test.com", true, "", "", fleet.CapabilityMap{})
 	require.NoError(t, err)
+	testCapability := fleet.Capability("test_capability")
 
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
-	require.Equal(t, fleet.CapabilityMap{fleet.CapabilityTokenRotation: {}}, bc.serverCapabilities)
-	require.True(t, bc.HasServerCapability(fleet.CapabilityTokenRotation))
+	require.True(t, bc.HasServerCapability(testCapability))
 
 	// later on, the server is downgraded and no longer has the capability
 	response = &http.Response{
@@ -160,7 +160,7 @@ func TestServerCapabilities(t *testing.T) {
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
 	require.Equal(t, fleet.CapabilityMap{}, bc.serverCapabilities)
-	require.False(t, bc.HasServerCapability(fleet.CapabilityTokenRotation))
+	require.False(t, bc.HasServerCapability(testCapability))
 
 	// after an upgrade, the server has many capabilities
 	response = &http.Response{
@@ -171,9 +171,9 @@ func TestServerCapabilities(t *testing.T) {
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
 	require.Equal(t, fleet.CapabilityMap{
-		fleet.CapabilityTokenRotation:       {},
-		fleet.Capability("test_capability"): {},
+		testCapability:                        {},
+		fleet.Capability("test_capability_2"): {},
 	}, bc.serverCapabilities)
-	require.True(t, bc.HasServerCapability(fleet.CapabilityTokenRotation))
+	require.True(t, bc.HasServerCapability(testCapability))
 	require.True(t, bc.HasServerCapability(fleet.Capability("test_capability")))
 }
