@@ -361,7 +361,7 @@ module.exports = {
                   embeddedMetadata[name] = value;
                 }//∞
               } catch (err) {
-                throw new Error('An error occured while parsing <meta> tags in Markdown. Tip: Check the markdown being changed and make sure it doesn\'t contain any code snippets with <meta> inside, as this can fool the build script. Full error: '+err);
+                throw new Error(`An error occured while parsing <meta> tags in Markdown in "${path.join(topLvlRepoPath, pageSourcePath)}". Tip: Check the markdown being changed and make sure it doesn\'t contain any code snippets with <meta> inside, as this can fool the build script. Full error: ${err.message}`);
               }
               if (Object.keys(embeddedMetadata).length >= 1) {
                 sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
