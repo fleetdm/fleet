@@ -23,7 +23,7 @@
 - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
 - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
 - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
-- [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
+- [Why is my host not updating a policy's response.](#why-is-my-host-not-updating-a-policys-response)
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
