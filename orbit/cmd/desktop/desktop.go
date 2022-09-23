@@ -147,13 +147,13 @@ func main() {
 					if runtime.GOOS == "windows" {
 						// Windows (or maybe just the systray library?) doesn't support color emoji
 						// in the system tray menu, so we use text as an alternative.
-						if *res.FailingPolicies == 1 {
+						if failedPolicyCount == 1 {
 							myDeviceItem.SetTitle("My device (1 issue)")
 						} else {
-							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", *res.FailingPolicies))
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failedPolicyCount))
 						}
 					} else {
-						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
 					}
 				} else {
 					if runtime.GOOS == "windows" {
