@@ -1,7 +1,6 @@
 # Configuration files
 
 - [Queries](#queries)
-- [Packs](#packs)
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
 - [Teams](#teams)
@@ -46,40 +45,6 @@ spec:
 Continued edits and applications to this file will update the queries. 
 
 If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
-
-## Packs
-
-To define query packs (packs), reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
-
-```yaml
-apiVersion: v1
-kind: pack
-spec:
-  name: osquery_monitoring
-  disabled: false
-  targets:
-    labels:
-      - All Hosts
-  queries:
-    - query: osquery_version
-      name: osquery_version_differential
-      interval: 7200
-    - query: osquery_version
-      name: osquery_version_snapshot
-      interval: 7200
-      snapshot: true
-    - query: osquery_schedule
-      interval: 7200
-      removed: false
-    - query: osquery_events
-      interval: 86400
-      removed: false
-    - query: osquery_info
-      interval: 600
-      removed: false
-```
-
-The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
 
 ### Labels
 
