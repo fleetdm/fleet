@@ -205,6 +205,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	}
 
+	switch m := r.URL.Query().Get("missing_10_days"); m {
+	case "", "false":
+		// don't filter
+	case "true":
+		hopt.Missing10Days = true
+	default:
+		return fleet.HostListOptions{}, ctxerr.Errorf(r.Context(), "invalid missing_10_days filter %s", m)
+	}
+
 	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
 	if additionalInfoFiltersString != "" {
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
