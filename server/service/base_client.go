@@ -53,17 +53,19 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 		)
 	}
 
-	if err := json.NewDecoder(response.Body).Decode(&responseDest); err != nil {
-		return fmt.Errorf("decode %s %s response: %w", verb, path, err)
-	}
+	bc.setServerCapabilities(response)
 
-	if e, ok := responseDest.(errorer); ok {
-		if e.error() != nil {
-			return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+	if responseDest != nil {
+		if err := json.NewDecoder(response.Body).Decode(&responseDest); err != nil {
+			return fmt.Errorf("decode %s %s response: %w", verb, path, err)
+		}
+
+		if e, ok := responseDest.(errorer); ok {
+			if e.error() != nil {
+				return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+			}
 		}
 	}
-
-	bc.setServerCapabilities(response)
 
 	return nil
 }
@@ -82,11 +84,8 @@ func (bc *baseClient) setServerCapabilities(response *http.Response) {
 	bc.serverCapabilities.PopulateFromString(capabilities)
 }
 
-// HasServerCapability returns a boolean indicating if the server supports the
-// given capability
-func (bc *baseClient) HasServerCapability(capability fleet.Capability) bool {
-	_, ok := bc.serverCapabilities[capability]
-	return ok
+func (bc *baseClient) GetServerCapabilities() fleet.CapabilityMap {
+	return bc.serverCapabilities
 }
 
 // setClientCapabilities header is used to set a header with the client
@@ -155,6 +154,7 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		insecureSkipVerify: insecureSkipVerify,
 		urlPrefix:          urlPrefix,
 		clientCapabilities: capabilities,
+		serverCapabilities: fleet.CapabilityMap{},
 	}
 	return client, nil
 }

@@ -490,27 +490,35 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
-		orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
-		if err != nil {
-			return fmt.Errorf("error enroll: %w", err)
+
+		if err := orbitClient.Ping(); err != nil {
+			return fmt.Errorf("error pinging the server: %w", err)
 		}
 
-		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
-			CheckInterval: orbitFlagsUpdateInterval,
-			RootDir:       c.String("root-dir"),
-			OrbitNodeKey:  orbitNodeKey,
-		})
-		if err != nil {
-			return err
+		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) {
+			log.Info().Msg("Orbit endpoints are enabled")
+			orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
+			if err != nil {
+				return fmt.Errorf("error enroll: %w", err)
+			}
+
+			const orbitFlagsUpdateInterval = 30 * time.Second
+			flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+				CheckInterval: orbitFlagsUpdateInterval,
+				RootDir:       c.String("root-dir"),
+				OrbitNodeKey:  orbitNodeKey,
+			})
+			if err != nil {
+				return err
+			}
+			// do the initial flags update
+			_, err = flagRunner.DoFlagsUpdate()
+			if err != nil {
+				// just log, OK to continue, since we will retry
+				log.Info().Err(err).Msg("Initial flags update failed")
+			}
+			g.Add(flagRunner.Execute, flagRunner.Interrupt)
 		}
-		// do the initial flags update
-		_, err = flagRunner.DoFlagsUpdate()
-		if err != nil {
-			// just log, OK to continue, since we will retry
-			log.Info().Err(err).Msg("Initial flags update failed")
-		}
-		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
@@ -543,6 +551,9 @@ func main() {
 		g.Add(r.Execute, r.Interrupt)
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+
+		featuresChecker := newFeaturesChecker(orbitClient)
+		g.Add(featuresChecker.actor())
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -839,4 +850,64 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
+}
+
+// featuresChecker is a helper to restart Orbit as soon as certain capabilities
+// are change in the server.
+//
+// This struct and its methods are designed to play nicely with `oklog.Group`.
+type featuresChecker struct {
+	client        *service.OrbitClient
+	interruptCh   chan struct{} // closed when interrupt is triggered
+	executeDoneCh chan struct{} // closed when execute returns
+}
+
+// newFeaturesChecker returns a new featuresChecker.
+func newFeaturesChecker(client *service.OrbitClient) *featuresChecker {
+	return &featuresChecker{
+		client:        client,
+		interruptCh:   make(chan struct{}),
+		executeDoneCh: make(chan struct{}),
+	}
+}
+
+func (f *featuresChecker) actor() (func() error, func(error)) {
+	return f.execute, f.interrupt
+}
+
+// execute will poll the server for features and emit a stop signal to restart
+// Orbit if certain capabilities are enabled.
+//
+// You need to add an explicit check for each capability you want to watch for
+func (f *featuresChecker) execute() error {
+	defer close(f.executeDoneCh)
+	featuresCheckTicker := time.NewTicker(5 * time.Minute)
+
+	for {
+		select {
+		case <-featuresCheckTicker.C:
+			oldCapabilities := f.client.GetServerCapabilities()
+			log.Info().Msgf("oldCapabilitiesbefore :%v ", oldCapabilities)
+			if err := f.client.Ping(); err != nil {
+				log.Error().Err(err).Msg("fetching API features from server")
+				continue
+			}
+			newCapabilities := f.client.GetServerCapabilities()
+			log.Info().Msgf("oldCapabilities:%v ", oldCapabilities)
+			log.Info().Msgf("newCapabilities:%v ", newCapabilities)
+
+			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
+				log.Info().Msg("orbit endpoints capability enabled, restarting")
+				return nil
+			}
+		case <-f.interruptCh:
+			return nil
+		}
+	}
+}
+
+func (f *featuresChecker) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt featuresChecker")
+	close(f.interruptCh) // Signal execute to return.
+	<-f.executeDoneCh    // Wait for execute to return.
 }
