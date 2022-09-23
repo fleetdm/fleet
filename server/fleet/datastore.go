@@ -605,7 +605,7 @@ type Datastore interface {
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
-	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string) (*Host, error)
+	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 

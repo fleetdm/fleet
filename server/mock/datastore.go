@@ -15,7 +15,7 @@ type Store struct {
 	DataStore
 }
 
-func (m *Store) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string) (*fleet.Host, error) {
+func (m *Store) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	return nil, nil
 }
 
