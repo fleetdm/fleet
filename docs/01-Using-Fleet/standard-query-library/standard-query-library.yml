@@ -952,4 +952,4 @@ spec:
   query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
   purpose: Informational
   tags: compliance, hunting
-  contributors: GuillaumeRoss
+  contributors: brunerd
