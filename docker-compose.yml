@@ -16,7 +16,7 @@ services:
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
         "--server-id=master-01",
-        "--max_allowed_packet=1073741824"
+        "--max_allowed_packet=536870912"
       ]
     environment:
       &mysql-default-environment
@@ -43,7 +43,7 @@ services:
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
         "--server-id=master-01",
-        "--max_allowed_packet=1073741824"
+        "--max_allowed_packet=536870912"
       ]
     environment: *mysql-default-environment
     ports:

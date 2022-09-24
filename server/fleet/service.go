@@ -517,6 +517,7 @@ type Service interface {
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
 	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
 	GetMDMAppleInstallerByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
 	GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
 	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)

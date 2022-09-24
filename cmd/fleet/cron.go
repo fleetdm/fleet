@@ -804,10 +804,32 @@ func startAppleMDMDepProfileAssigner(
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)
-
+	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
 	schedule.New(
 		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")),
-		schedule.WithJob("dep_syncer", syncer.Run),
+		schedule.WithLogger(logger),
+		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			if profileUUID == "" {
+				logger.Log("msg", "DEP profile not set, nothing to do")
+				return nil
+			}
+			cursor, cursorModTime, err := depStorage.RetrieveCursor(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			// If the DEP Profile was changed since last sync then we clear
+			// the cursor and perform a full sync of all devices and profile assigning.
+			if cursor != "" && profileModTime.After(cursorModTime) {
+				logger.Log("msg", "clearing device syncer cursor")
+				if err := depStorage.StoreCursor(ctx, apple_mdm.DEPName, ""); err != nil {
+					return err
+				}
+			}
+			return syncer.Run(ctx)
+		}),
 	).Start()
 }

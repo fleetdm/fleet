@@ -463,6 +463,8 @@ type MDMAppleInstallerFunc func(ctx context.Context, token string) (*fleet.MDMAp
 
 type MDMAppleInstallerDetailsByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
 
+type DeleteMDMAppleInstallerFunc func(ctx context.Context, id uint) error
+
 type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
 
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
@@ -1144,6 +1146,9 @@ type DataStore struct {
 
 	MDMAppleInstallerDetailsByIDFunc        MDMAppleInstallerDetailsByIDFunc
 	MDMAppleInstallerDetailsByIDFuncInvoked bool
+
+	DeleteMDMAppleInstallerFunc        DeleteMDMAppleInstallerFunc
+	DeleteMDMAppleInstallerFuncInvoked bool
 
 	MDMAppleInstallerDetailsByTokenFunc        MDMAppleInstallerDetailsByTokenFunc
 	MDMAppleInstallerDetailsByTokenFuncInvoked bool
@@ -2278,6 +2283,11 @@ func (s *DataStore) MDMAppleInstaller(ctx context.Context, token string) (*fleet
 func (s *DataStore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
 	s.MDMAppleInstallerDetailsByIDFuncInvoked = true
 	return s.MDMAppleInstallerDetailsByIDFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
+	s.DeleteMDMAppleInstallerFuncInvoked = true
+	return s.DeleteMDMAppleInstallerFunc(ctx, id)
 }
 
 func (s *DataStore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {

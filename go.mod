@@ -19,6 +19,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/go-units v0.4.0
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.1
@@ -171,7 +172,6 @@ require (
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
-	github.com/docker/go-units v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/go-licenser v0.3.1 // indirect
 	github.com/elastic/go-sysinfo v1.1.1 // indirect
@@ -319,6 +319,6 @@ replace github.com/kolide/kit => github.com/zwass/kit v0.0.0-20210625184505-ec5b
 
 replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20220919192759-fdba75c813ef
 
-replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20220919174611-6952196b3d20
+replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20220924173619-ab8e18f66311
 
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03

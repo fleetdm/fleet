@@ -142,6 +142,13 @@ func (ds *Datastore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) 
 	return &installer, nil
 }
 
+func (ds *Datastore) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
+	if _, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_installers WHERE id = ?`, id); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return nil
+}
+
 func (ds *Datastore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
 	var installer fleet.MDMAppleInstaller
 	if err := sqlx.GetContext(

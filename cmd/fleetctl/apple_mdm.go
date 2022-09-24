@@ -1041,7 +1041,7 @@ func appleMDMInstallersListCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("create client: %w", err)
 			}
-			installers, err := fleet.ListInstallers()
+			installers, err := fleet.ListMDMAppleInstallers()
 			if err != nil {
 				return fmt.Errorf("list installers: %w", err)
 			}
@@ -1077,8 +1077,13 @@ func appleMDMInstallersDeleteCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			// TODO(lucas): Implement command.
-			fmt.Println("Not implemented yet.")
+			fleet, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+			if err := fleet.MDMDeleteAppleInstaller(installerID); err != nil {
+				return fmt.Errorf("delete installer: %w", err)
+			}
 			return nil
 		},
 	}

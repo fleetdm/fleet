@@ -774,7 +774,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
 	man.addConfigString("mdm.apple.dep.server_url", "", "URL of the Fleet server to be set in the DEP profile")
 	man.addConfigString("mdm.apple.dep.token", "", "MDM DEP Auth Token")
-	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 5*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 }
 
 // LoadConfig will load the config variables into a fully initialized

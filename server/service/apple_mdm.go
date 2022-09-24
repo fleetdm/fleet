@@ -332,6 +332,35 @@ func (svc *Service) GetMDMAppleInstallerByID(ctx context.Context, id uint) (*fle
 	return inst, nil
 }
 
+type deleteAppleInstallerDetailsRequest struct {
+	ID uint `url:"installer_id"`
+}
+
+type deleteAppleInstallerDetailsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteAppleInstallerDetailsResponse) error() error { return r.Err }
+
+func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*deleteAppleInstallerDetailsRequest)
+	if err := svc.DeleteMDMAppleInstaller(ctx, req.ID); err != nil {
+		return deleteAppleInstallerDetailsResponse{Err: err}, nil
+	}
+	return &deleteAppleInstallerDetailsResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.ds.DeleteMDMAppleInstaller(ctx, id); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return nil
+}
+
 type listMDMAppleDevicesRequest struct{}
 
 type listMDMAppleDevicesResponse struct {

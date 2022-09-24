@@ -155,11 +155,22 @@ func (c *Client) DEPListDevices() ([]fleet.MDMAppleDEPDevice, error) {
 	return responseBody.Devices, nil
 }
 
-func (c *Client) ListInstallers() ([]fleet.MDMAppleInstaller, error) {
+func (c *Client) ListMDMAppleInstallers() ([]fleet.MDMAppleInstaller, error) {
 	request := listMDMAppleInstallersRequest{}
 	var response listMDMAppleInstallersResponse
 	if err := c.authenticatedRequest(request, "GET", "/api/latest/fleet/mdm/apple/installers", &response); err != nil {
 		return nil, fmt.Errorf("request: %w", err)
 	}
 	return response.Installers, nil
+}
+
+func (c *Client) MDMDeleteAppleInstaller(id uint) error {
+	verb, path := http.MethodDelete, fmt.Sprintf("/api/latest/fleet/mdm/apple/installers/%d", id)
+
+	var responseBody deleteAppleInstallerDetailsResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	return nil
 }
