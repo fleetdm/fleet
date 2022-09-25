@@ -22,6 +22,447 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCPE(t *testing.T) {
+	testCases := []struct {
+		software          fleet.Software
+		sanitizedName     string
+		nameVariations    []string
+		productVariations []string
+		cpe               string
+	}{
+		{
+			software: fleet.Software{
+				Name:    "1Password",
+				Version: "8.9.5",
+				Vendor:  "AgileBits Inc.",
+				Source:  "programs",
+			},
+			sanitizedName:     "1password",
+			nameVariations:    nil,
+			productVariations: nil,
+			cpe:               "cpe:2.3:a:1password:1password:8.9.5:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "1Password – Password Manager",
+				Version: "2.3.8",
+				Source:  "chrome_extensions",
+			},
+			sanitizedName: "1password",
+			cpe:           "cpe:2.3:a:1password:1password:8.9.5:*:*:*:*:chrome:*:*",
+		},
+
+		{
+			software: fleet.Software{
+				Name:    "Adblock Plus - free ad blocker",
+				Version: "3.14.2",
+				Source:  "chrome_extensions",
+			},
+			sanitizedName: "adblock plus",
+			cpe:           "cpe:2.3:a:adblockplus:adblock_plus:3.14.2:*:*:*:*:chrome:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "AdBlock — best ad blocker",
+				Version: "5.1.1",
+				Vendor:  "",
+				Source:  "chrome_extensions",
+			},
+			sanitizedName: "adblock",
+			cpe:           "cpe:2.3:a:getadblock:adblock:5.1.1:*:*:*:*:chrome:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Adobe Acrobat DC (64-bit)",
+				Version: "22.002.20212",
+				Vendor:  "Adobe",
+				Source:  "programs",
+			},
+			sanitizedName: "acrobat dc",
+			cpe:           "cpe:2.3:a:adobe:acrobat_dc:22.002.20212:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Bing",
+				Version: "1.3",
+				Vendor:  "",
+				Source:  "firefox_addons",
+			},
+			sanitizedName: "bing",
+			cpe:           "cpe:2.3:a:microsoft:bing:1.3:*:*:*:*:firefox:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Brave",
+				Version: "105.1.43.93",
+				Vendor:  "Brave Software Inc",
+				Source:  "programs",
+			},
+			sanitizedName: "brave",
+			cpe:           "cpe:2.3:a:brave:brave:105.1.43.93:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Docker Desktop",
+				Version: "4.12.0",
+				Vendor:  "Docker Inc.",
+				Source:  "programs",
+			},
+			sanitizedName: "docker desktop",
+			cpe:           "cpe:2.3:a:docker:desktop:4.12.0:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Dropbox",
+				Version: "157.4.4808",
+				Vendor:  "Dropbox, Inc.",
+				Source:  "programs",
+			},
+			sanitizedName: "dropbox",
+			cpe:           "cpe:2.3:a:dropbox:dropbox:157.4.4808:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "DuckDuckGo",
+				Version: "1.1",
+				Vendor:  "",
+				Source:  "firefox_addons",
+			},
+			sanitizedName: "duckduckgo",
+			cpe:           "cpe:2.3:a:duckduckgo:duckduckgo:1.1:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Git",
+				Version: "2.37.1",
+				Vendor:  "The Git Development Community",
+				Source:  "programs",
+			},
+			sanitizedName: "git",
+			cpe:           "cpe:2.3:a:git:git:2.37.1:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Google Chrome",
+				Version: "105.0.5195.127",
+				Vendor:  "Google LLC",
+				Source:  "programs",
+			},
+			sanitizedName: "google chrome",
+			cpe:           "cpe:2.3:a:google:chrome:105.0.5195.127:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Microsoft Edge",
+				Version: "105.0.1343.50",
+				Vendor:  "Microsoft Corporation",
+				Source:  "programs",
+			},
+			sanitizedName: "microsoft edge",
+			cpe:           "cpe:2.3:a:microsoft:edge:105.0.1343.50:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Microsoft OneDrive",
+				Version: "22.181.0828.0002",
+				Vendor:  "Microsoft Corporation",
+				Source:  "programs",
+			},
+			sanitizedName: "microsoft onedrive",
+			cpe:           "cpe:2.3:a:microsoft:onedrive:22.181.0828.0002:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Microsoft Visual Studio Code (User)",
+				Version: "1.71.2",
+				Vendor:  "Microsoft Corporation",
+				Source:  "programs",
+			},
+			sanitizedName: "microsoft visual studio code",
+			cpe:           "cpe:2.3:a:microsoft:visual_studio_code:1.71.2:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Mozilla Firefox (x64 en-US)",
+				Version: "105.0.1",
+				Vendor:  "Mozilla",
+				Source:  "programs",
+			},
+			sanitizedName: "firefox",
+			cpe:           "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Oracle VM VirtualBox 6.1.38",
+				Version: "6.1.38",
+				Vendor:  "Oracle Corporation",
+				Source:  "programs",
+			},
+			sanitizedName: "oracle vm virtualbox",
+			cpe:           "cpe:2.3:a:oracle:vm_virtualbox:6.1.38:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "pip",
+				Version: "22.2.1",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "pip",
+			cpe:           "cpe:2.3:a:pypa:pip:22.2.1:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.10.6 (64-bit)",
+				Version: "3.10.6150.0",
+				Vendor:  "Python Software Foundation",
+				Source:  "programs",
+			},
+			sanitizedName: "python",
+			cpe:           "cpe:2.3:a:python:python:3.10.6150.0:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "setuptools",
+				Version: "63.2.0",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "setuptools",
+			cpe:           "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Steam",
+				Version: "2.10.91.91",
+				Vendor:  "Valve Corporation",
+				Source:  "programs",
+			},
+			sanitizedName: "steam",
+			cpe:           " ",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Visual Studio Community 2022",
+				Version: "17.2.5",
+				Vendor:  "Microsoft Corporation",
+				Source:  "programs",
+			},
+			sanitizedName: "visual studio community",
+			cpe:           "cpe:2.3:a:microsoft:visual_studio_community:17.2.5:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "VLC media player",
+				Version: "3.0.17.4",
+				Vendor:  "VideoLAN",
+				Source:  "programs",
+			},
+			sanitizedName: "vlc media player",
+			cpe:           "cpe:2.3:a:videolan:vlc:3.0.17.4:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Zoom",
+				Version: "5.11.1 (6602)",
+				Vendor:  "Zoom Video Communications, Inc.",
+				Source:  "programs",
+			},
+			sanitizedName: "zoom",
+			cpe:           "cpe:2.3:*:zoom:zoom:5.11.1.6602:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "attrs",
+				Version: "21.2.0",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "attrs",
+			cpe:           "cpe:2.3:a:attrs_project:attrs:21.2.0:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Brotli",
+				Version: "1.0.9",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "brotli",
+			cpe:           "cpe:2.3:a:google:brotli:1.0.9:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "cryptography",
+				Version: "3.4.8",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "cryptography",
+			cpe:           "cpe:2.3:a:cryptography.io:cryptography:3.4.8:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "decorator",
+				Version: "4.4.2",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "decorator",
+			cpe:           "cpe:2.3:*:python:decorator:4.4.2:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "duplicity",
+				Version: "0.8.21",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "duplicity",
+			cpe:           "cpe:2.3:*:debian:duplicity:0.8.21:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "feedparser",
+				Version: "6.0.8",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "feedparser",
+			cpe:           "cpe:2.3:*:mark_pilgrim:feedparser:6.0.8:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "html5lib",
+				Version: "1.1",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+
+			sanitizedName: "html5lib",
+			cpe:           "cpe:2.3:a:html5lib:html5lib:1.1:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "httplib2",
+				Version: "0.20.2",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			cpe:           "cpe:2.3:a:httplib2_project:httplib2:0.20.2:*:*:*:*:python:*:*",
+			sanitizedName: "httplib2",
+		},
+		{
+			software: fleet.Software{
+				Name:    "ipython",
+				Version: "7.31.1",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "ipython",
+			cpe:           "cpe:2.3:a:ipython:ipython:7.31.1:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "keyring",
+				Version: "23.5.0",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "keyring",
+			cpe:           "cpe:2.3:*:python:keyring:23.5.0:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "lxml",
+				Version: "4.8.0",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "lxml",
+			cpe:           "cpe:2.3:a:lxml:lxml:4.8.0:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "lz4",
+				Version: "3.1.3+dfsg",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "lz4",
+			cpe:           "cpe:2.3:a:lz4_project:lz4:3.1.3.dfsg:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Mako",
+				Version: "1.1.3",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "mako",
+			cpe:           "cpe:2.3:a:sqlalchemy:mako:1.1.3:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "mechanize",
+				Version: "0.4.7",
+				Vendor:  "",
+				Source:  "python_packages",
+			},
+			sanitizedName: "mechanize",
+			cpe:           "cpe:2.3:a:mechanize_project:mechanize:0.4.7:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "1Password 7.app",
+				Version: "7.9.6",
+				Vendor:  "",
+				Source:  "apps",
+			},
+			sanitizedName: "1password",
+
+			cpe: "cpe:2.3:a:1password:1password:7.9.6:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "AirDrop.app",
+				Version: "1.0",
+				Vendor:  "",
+				Source:  "apps",
+			},
+			sanitizedName: "airdop",
+			cpe:           "cpe:2.3:a:airdrop_project:airdrop:1.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Finder.app",
+				Version: "12.5",
+				Vendor:  "",
+				Source:  "apps",
+			},
+			sanitizedName: "finder",
+			cpe:           "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox.app",
+				Version: "105.0.1",
+				Vendor:  "",
+				Source:  "apps",
+			},
+			sanitizedName: "firefox",
+			cpe:           "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
+		},
+	}
+
+	t.Run("sanitizedProductName", func(t *testing.T) {
+		for _, tc := range testCases {
+			actual := sanitizedProductName(&tc.software)
+			require.Equal(t, tc.sanitizedName, actual)
+		}
+	})
+}
+
 func TestCPEFromSoftware(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -168,7 +609,8 @@ func TestSyncCPEDatabase(t *testing.T) {
 	// and this works afterwards
 	reCache := newRegexpCache()
 
-	software := &fleet.Software{Name: "1Password.app",
+	software := &fleet.Software{
+		Name:             "1Password.app",
 		Version:          "7.2.3",
 		BundleIdentifier: "com.1password.1password",
 		Source:           "apps",
@@ -320,7 +762,6 @@ func TestSyncsCPEFromURL(t *testing.T) {
 }
 
 func TestLegacyCPEDB(t *testing.T) {
-
 	// Older versions of fleet used "select * ..." when querying from the cpe and cpe_search tables
 	// Ensure that this still works when generating the new cpe database.
 	type IndexedCPEItem struct {

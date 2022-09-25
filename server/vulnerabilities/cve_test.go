@@ -24,6 +24,7 @@ var cvetests = []struct {
 }{
 	{"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*", "CVE-2012-6369"},
 	{"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*", "CVE-2012-6369"},
+	{"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:*:*:*", "CVE-2019-20916"},
 }
 
 func printMemUsage() {

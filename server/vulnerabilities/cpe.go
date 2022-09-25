@@ -342,11 +342,12 @@ var stopWords = map[string]bool{
 	"Corp":         true,
 	"Foundation":   true,
 	"Software":     true,
+	"com":          true,
+	"org":          true,
 }
 
 var langCodes = map[string]bool{
 	"af-ZA": true,
-	"ar":    true,
 	"bg-BG": true,
 	"ca-AD": true,
 	"cs-CZ": true,
@@ -357,7 +358,6 @@ var langCodes = map[string]bool{
 	"en-US": true,
 	"es-ES": true,
 	"et-EE": true,
-	"eu":    true,
 	"fa-IR": true,
 	"fi-FI": true,
 	"fr-FR": true,
@@ -371,7 +371,6 @@ var langCodes = map[string]bool{
 	"ja-JP": true,
 	"km-KH": true,
 	"ko-KR": true,
-	"la":    true,
 	"lt-LT": true,
 	"lv-LV": true,
 	"mn-MN": true,
@@ -395,14 +394,23 @@ var langCodes = map[string]bool{
 
 func sanitizedProductName(s *fleet.Software) string {
 	archs := regexp.MustCompile(` \(?x64\)?|\(?64-bit\)?|\(?64bit\)?|\(?amd64\)? `)
-	ver := regexp.MustCompile(` \.?\(?(\d+\.)?(\d+\.)?(\*|\d+)\)? `)
+	ver := regexp.MustCompile(` \.?\(?(\d+\.)?(\d+\.)?(\*|\d+)\)?\s?`)
 	gen := regexp.MustCompile(` \(\w+\)\s?`)
 	comments := regexp.MustCompile(` (-|:)\s?.+`)
 
-	r := s.Name
-	r = strings.Replace(r, s.Vendor, "", -1)
+	r := strings.ToLower(s.Name)
+	r = strings.TrimSuffix(r, ".app")
+
+	r = strings.Replace(r, strings.ToLower(s.Vendor), "", -1)
 	if len(r) == 0 {
-		r = s.Name
+		r = strings.ToLower(s.Name)
+	}
+
+	for _, v := range strings.Split(s.BundleIdentifier, ".") {
+		r = strings.Replace(r, strings.ToLower(v), "", -1)
+	}
+	if len(r) == 0 {
+		r = strings.ToLower(s.Name)
 	}
 
 	r = archs.ReplaceAllString(r, "")
@@ -420,7 +428,6 @@ func sanitizedProductName(s *fleet.Software) string {
 	r = strings.Replace(r, "(", " ", -1)
 	r = strings.Replace(r, ")", " ", -1)
 	r = strings.Join(strings.Fields(r), " ")
-	r = strings.ToLower(r)
 
 	return r
 }
@@ -452,7 +459,7 @@ func productVariations(s *fleet.Software) []string {
 func vendorVariations(s *fleet.Software) []string {
 	var r []string
 
-	if s.Vendor == "" {
+	if s.Vendor == "" && s.BundleIdentifier == "" {
 		return r
 	}
 
@@ -460,6 +467,13 @@ func vendorVariations(s *fleet.Software) []string {
 	r = append(r, strings.ToLower(s.Vendor))
 
 	for _, v := range strings.Split(s.Vendor, " ") {
+		if !stopWords[v] {
+			r = append(r, v)
+			r = append(r, strings.ToLower(v))
+		}
+	}
+
+	for _, v := range strings.Split(s.BundleIdentifier, ".") {
 		if !stopWords[v] {
 			r = append(r, v)
 			r = append(r, strings.ToLower(v))
@@ -532,13 +546,14 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			// - mac_os
 			// - mac_os_x
 			// - macos
-			ds = ds.Where(
-				goqu.L("? LIKE '%' || c.vendor || '%'", software.BundleIdentifier),
-				goqu.Or(
-					goqu.I("c.target_sw").Eq(""),
-					goqu.I("c.target_sw").Like("mac%"),
-				),
-			)
+			// ds = ds.Where(
+			// 	goqu.L("? LIKE '%' || c.vendor || '%'", software.BundleIdentifier),
+			// 	goqu.Or(
+			// 		goqu.I("c.target_sw").Eq(""),
+			// 		goqu.I("c.target_sw").Like("mac%"),
+			// 	),
+			// )
+			targetSW = "mac"
 		case "python_packages":
 			targetSW = "python"
 		case "chrome_extensions":
@@ -550,6 +565,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		case "npm_packages":
 			targetSW = `node.js`
 		case "programs":
+			targetSW = "windows"
 		}
 
 		dialect := goqu.Dialect("sqlite")
@@ -654,19 +670,28 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 	}
 
-	// if there are any non-deprecated cpes, return the first one
 	for _, item := range indexedCPEs {
 		if !item.Deprecated {
+			hasAllTerms := true
 
-			// In case we got a match using Free text, check the product name.
-			if strings.Index(strings.ToLower(software.Name), item.Product) == -1 &&
-				strings.Index(strings.ToLower(software.Name), strings.Replace(item.Product, "_", " ", -1)) == -1 {
-				continue
+			sName := strings.ToLower(software.Name)
+			for _, sN := range strings.Split(item.Product, "_") {
+				hasAllTerms = hasAllTerms && strings.Index(sName, sN) != -1
 			}
 
-			if software.Vendor != "" &&
-				strings.Index(strings.ToLower(software.Vendor), item.Vendor) == -1 &&
-				strings.Index(strings.ToLower(software.Vendor), strings.Replace(item.Vendor, "_", " ", -1)) == -1 {
+			sVendor := strings.ToLower(software.Vendor)
+			sBundle := strings.ToLower(software.BundleIdentifier)
+			for _, sV := range strings.Split(item.Vendor, "_") {
+				if sVendor != "" {
+					hasAllTerms = hasAllTerms && strings.Index(sVendor, sV) != -1
+				}
+
+				if sBundle != "" {
+					hasAllTerms = hasAllTerms && strings.Index(sBundle, sV) != -1
+				}
+			}
+
+			if !hasAllTerms {
 				continue
 			}
 
@@ -730,7 +755,7 @@ func TranslateSoftwareToCPE(
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	// Skip software from platforms for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedHostPlatforms)
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedSoftwareSources)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "all software iterator")
 	}
