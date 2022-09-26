@@ -51,61 +51,6 @@ func (s *integrationLoggerTestSuite) TearDownTest() {
 	s.buf.Reset()
 }
 
-func (s *integrationLoggerTestSuite) TestLoggerLogin() {
-	s.SetupSuite()
-	t := s.T()
-
-	testEmail := "admin1@example.com"
-
-	type logEntry struct {
-		key string
-		val string
-	}
-
-	testCases := []struct {
-		loginRequest   loginRequest
-		expectedStatus int
-		expectedLogs   []logEntry
-	}{
-		{
-			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
-			expectedStatus: http.StatusOK,
-			expectedLogs:   []logEntry{{"user", testEmail}},
-		},
-		{
-			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
-			expectedStatus: http.StatusUnauthorized,
-			expectedLogs: []logEntry{
-				{"user", testEmail},
-				{"level", "error"},
-				{"internal", "invalid password"},
-			},
-		},
-		{
-			loginRequest:   loginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
-			expectedStatus: http.StatusUnauthorized,
-			expectedLogs: []logEntry{
-				{"user", "h4x0r@3x4mp13.c0m"},
-				{"level", "error"},
-				{"internal", "user not found"},
-			},
-		},
-	}
-	var resp loginResponse
-	for _, tt := range testCases {
-		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
-		logString := s.buf.String()
-		parts := strings.Split(strings.TrimSpace(logString), "\n")
-		require.Len(t, parts, 1)
-		logData := make(map[string]string)
-		require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-		for _, e := range tt.expectedLogs {
-			assert.Equal(t, logData[e.key], e.val)
-		}
-		s.buf.Reset()
-	}
-}
-
 func (s *integrationLoggerTestSuite) TestLogger() {
 	t := s.T()
 
@@ -123,30 +68,24 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 
 	logs := s.buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
-	assert.Len(t, parts, 4)
+	assert.Len(t, parts, 3)
 	for i, part := range parts {
 		kv := make(map[string]string)
 		err := json.Unmarshal([]byte(part), &kv)
 		require.NoError(t, err)
 
+		assert.NotEqual(t, "", kv["took"])
+
 		switch i {
 		case 0:
 			assert.Equal(t, "info", kv["level"])
-			assert.Equal(t, "admin1@example.com", kv["login"])
-
-		case 1:
-			assert.Equal(t, "info", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/login", kv["uri"])
-			assert.NotEqual(t, "", kv["took"])
-
-		case 2:
+		case 1:
 			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "GET", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/config", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
-			assert.NotEqual(t, "", kv["took"])
-
 		case 3:
 			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
@@ -154,11 +93,64 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 			assert.Equal(t, "admin1@example.com", kv["user"])
 			assert.Equal(t, "somequery", kv["name"])
 			assert.Equal(t, "select 1 from osquery;", kv["sql"])
-			assert.NotEqual(t, "", kv["took"])
-
 		default:
 			t.Fail()
 		}
+	}
+}
+
+func (s *integrationLoggerTestSuite) TestLoggerLogin() {
+	t := s.T()
+
+	type logEntry struct {
+		key string
+		val string
+	}
+
+	testCases := []struct {
+		loginRequest   loginRequest
+		expectedStatus int
+		expectedLogs   []logEntry
+	}{
+		{
+			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			expectedStatus: http.StatusOK,
+			expectedLogs:   []logEntry{{"email", testUsers["admin1"].Email}},
+		},
+		{
+			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			expectedStatus: http.StatusUnauthorized,
+			expectedLogs: []logEntry{
+				{"email", testUsers["admin1"].Email},
+				{"level", "error"},
+				{"internal", "invalid password"},
+			},
+		},
+		{
+			loginRequest:   loginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			expectedStatus: http.StatusUnauthorized,
+			expectedLogs: []logEntry{
+				{"email", "h4x0r@3x4mp13.c0m"},
+				{"level", "error"},
+				{"internal", "user not found"},
+			},
+		},
+	}
+	var resp loginResponse
+	for _, tt := range testCases {
+		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
+		logString := s.buf.String()
+		parts := strings.Split(strings.TrimSpace(logString), "\n")
+		require.Len(t, parts, 1)
+		logData := make(map[string]string)
+		require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+
+		require.NotContains(t, logData, "user") // logger context is set to skip user
+
+		for _, e := range tt.expectedLogs {
+			assert.Equal(t, logData[e.key], e.val)
+		}
+		s.buf.Reset()
 	}
 }
 

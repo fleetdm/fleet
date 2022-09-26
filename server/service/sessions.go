@@ -153,7 +153,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithUserEmail(ctx, email), level.Info)
+	logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx), "email", email), level.Info)
 
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will

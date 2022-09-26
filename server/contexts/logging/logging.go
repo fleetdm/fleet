@@ -67,14 +67,6 @@ func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) con
 	return ctx
 }
 
-// WithUserEmail returns a context with logging.userEmail set as provided.
-func WithUserEmail(ctx context.Context, email string) context.Context {
-	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.SetUserEmail(email)
-	}
-	return ctx
-}
-
 // LoggingContext contains the context information for logging the current request
 type LoggingContext struct {
 	l sync.Mutex
@@ -84,7 +76,6 @@ type LoggingContext struct {
 	Extras     []interface{}
 	SkipUser   bool
 	ForceLevel func(kitlog.Logger) kitlog.Logger
-	userEmail  string
 }
 
 func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) {
@@ -117,12 +108,6 @@ func (l *LoggingContext) SetErrs(err ...error) {
 	l.Errs = append(l.Errs, err...)
 }
 
-func (l *LoggingContext) SetUserEmail(email string) {
-	l.l.Lock()
-	defer l.l.Unlock()
-	l.userEmail = email
-}
-
 // Log logs the data within the context
 func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	l.l.Lock()
@@ -140,14 +125,12 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	var keyvals []interface{}
 
 	if !l.SkipUser {
-		if l.userEmail == "" {
-			l.userEmail = "unauthenticated"
-		}
+		loggedInUser := "unauthenticated"
 		vc, ok := viewer.FromContext(ctx)
 		if ok {
-			l.userEmail = vc.Email()
+			loggedInUser = vc.Email()
 		}
-		keyvals = append(keyvals, "user", l.userEmail)
+		keyvals = append(keyvals, "user", loggedInUser)
 	}
 	requestMethod, ok := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 	if !ok {
