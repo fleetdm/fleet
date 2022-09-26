@@ -41,9 +41,6 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Set up gotestfmt
-      run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@v2.3.2
-
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
@@ -76,7 +73,7 @@ jobs:
           MYSQL_TEST=1 \
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
-          make test-go 2>&1 | tee /tmp/gotest.log | gotestfmt
+          make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378
