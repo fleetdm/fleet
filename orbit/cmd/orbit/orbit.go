@@ -492,7 +492,6 @@ func main() {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
 
-		// ping the server to get the latest capabilities
 		if err := orbitClient.Ping(); err != nil {
 			return fmt.Errorf("error pinging the server: %w", err)
 		}
@@ -888,7 +887,6 @@ func (f *capabilitiesChecker) execute() error {
 		select {
 		case <-capabilitiesCHeckTicker.C:
 			oldCapabilities := f.client.GetServerCapabilities()
-			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
 				log.Error().Err(err).Msg("pinging the server")
 				continue
