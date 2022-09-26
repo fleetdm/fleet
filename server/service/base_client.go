@@ -67,6 +67,8 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 		}
 	}
 
+	bc.setServerCapabilities(response)
+
 	return nil
 }
 

@@ -52,7 +52,13 @@ const (
 // ServerOrbitCapabilities is a set of capabilities that server-side,
 // Orbit-related endpoint supports.
 // **it shouldn't be modified at runtime**
-var ServerOrbitCapabilities = CapabilityMap{CapabilityOrbitEndpoints: {}}
+var ServerOrbitCapabilities = CapabilityMap{
+	// CapabilityOrbitEndpoints denotes the presence of server endpoints
+	// dedicated to communicating with Orbit. These endpoints start with
+	// `/api/fleet/orbit`, and allow enrolling a host through Orbit among other
+	// functionality.
+	CapabilityOrbitEndpoints: {},
+}
 
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.

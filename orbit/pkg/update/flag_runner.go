@@ -95,6 +95,14 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 
 	// next GetConfig from Fleet API
 	flagsJSON, err := r.orbitClient.GetConfig(r.opt.OrbitNodeKey)
+	// on 401 unauthenticated error, re-enroll and update orbit node key
+	if errors.Is(err, service.ErrUnauthenticated) {
+		r.opt.OrbitNodeKey, err = r.updateOrbitNodeKey()
+		if err != nil {
+			return false, err
+		}
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("error getting flags from fleet %w", err)
 	}
@@ -187,4 +195,24 @@ func readFlagFile(rootDir string) (map[string]string, error) {
 		}
 	}
 	return result, nil
+}
+
+// updateOrbitNodeKey does re-enrolls by calling the /enroll API and writes the response to disk
+func (r *FlagRunner) updateOrbitNodeKey() (string, error) {
+	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
+		newOrbitNodeKey, err := r.orbitClient.DoEnroll()
+		if err != nil {
+			log.Info().Err(err).Msg("re-enroll failed, retrying")
+			time.Sleep(constant.OrbitEnrollRetrySleep)
+			continue
+		}
+		nodeKeyFilePath := filepath.Join(r.opt.RootDir, constant.OrbitNodeKeyFileName)
+		if err := os.WriteFile(nodeKeyFilePath, []byte(newOrbitNodeKey), constant.DefaultFileMode); err != nil {
+			log.Info().Err(err).Msg("failed to write orbit node key to disk")
+			time.Sleep(constant.OrbitEnrollRetrySleep)
+			continue
+		}
+		return newOrbitNodeKey, nil
+	}
+	return "", fmt.Errorf("orbit re-enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 }
