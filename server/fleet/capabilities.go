@@ -44,8 +44,10 @@ func (c CapabilityMap) Has(capability Capability) bool {
 // the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
 // is supported.
 const (
-	// CapabilityTokenRotation is the ability to rotate and expire host device
-	// tokens over a given period of time.
+	// CapabilityOrbitEndpoints denotes the presence of server endpoints
+	// dedicated to communicating with Orbit. These endpoints start with
+	// `/api/fleet/orbit`, and allow enrolling a host through Orbit among other
+	// functionality.
 	CapabilityOrbitEndpoints Capability = "orbit_endpoints"
 )
 
@@ -53,10 +55,6 @@ const (
 // Orbit-related endpoint supports.
 // **it shouldn't be modified at runtime**
 var ServerOrbitCapabilities = CapabilityMap{
-	// CapabilityOrbitEndpoints denotes the presence of server endpoints
-	// dedicated to communicating with Orbit. These endpoints start with
-	// `/api/fleet/orbit`, and allow enrolling a host through Orbit among other
-	// functionality.
 	CapabilityOrbitEndpoints: {},
 }
 
