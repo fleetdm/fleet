@@ -63,6 +63,9 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 			time.Sleep(500 * time.Millisecond)
 
 			// Drastic teardown
+			// This will generate an internal signal that will be caught by
+			// the app SignalHandler() runner, which will end up forcing
+			// the interrupt method to run on all runners
 			os.Exit(0)
 
 		default:
@@ -79,17 +82,17 @@ func SetupServiceManagement(serviceName string, serviceRootDir string) {
 	if (serviceName != "") && (serviceRootDir != "") {
 		// Ensuring that we are only calling the SCM if running as a service
 		isWindowsService, err := svc.IsWindowsService()
-		if err == nil {
-			if isWindowsService {
-				srvData := windowsService{rootDir: serviceRootDir}
-				// Registering our service into the SCM
-				err := svc.Run(serviceName, &srvData)
-				if err != nil {
-					log.Info().Err(err).Msg("SCM registration failed")
-				}
-			}
-		} else {
+		if err != nil {
 			log.Info().Err(err).Msg("couldn't determine if running as a service")
+		}
+
+		if isWindowsService {
+			srvData := windowsService{rootDir: serviceRootDir}
+			// Registering our service into the SCM
+			err := svc.Run(serviceName, &srvData)
+			if err != nil {
+				log.Info().Err(err).Msg("SCM registration failed")
+			}
 		}
 	}
 }

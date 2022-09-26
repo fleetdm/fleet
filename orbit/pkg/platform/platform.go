@@ -18,7 +18,7 @@ var ErrProcessNotFound = errors.New("process not found")
 // Kills a single process by its name
 func KillProcessByName(name string) error {
 	if name == "" {
-		return fmt.Errorf("Invalid argument was provided")
+		return fmt.Errorf("process name should not be empty")
 	}
 
 	foundProcess, err := GetProcessByName(name)
@@ -36,7 +36,7 @@ func KillProcessByName(name string) error {
 // Gets a single process object by its name
 func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if name == "" {
-		return nil, fmt.Errorf("Invalid argument was provided")
+		return nil, fmt.Errorf("process name should not be empty")
 	}
 
 	processes, err := gopsutil_process.Processes()
@@ -67,8 +67,13 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 
 // Reads a PID from a file
 func ReadPidFromFile(destDir string, destFile string) (int, error) {
-	if (destDir == "") || (destFile == "") {
-		return 0, fmt.Errorf("Invalid arguments were provided")
+	// Defense programming - sanity checks on inputs
+	if destDir == "" {
+		return 0, fmt.Errorf(" destination directory should not be empty")
+	}
+
+	if destFile == "" {
+		return 0, fmt.Errorf(" destination file should not be empty")
 	}
 
 	pidFilePath := filepath.Join(destDir, destFile)
@@ -84,8 +89,12 @@ func ReadPidFromFile(destDir string, destFile string) (int, error) {
 // the executable name (case insensitive).
 // If there's no process running with the given pid then (false, nil) is returned.
 func ProcessNameMatches(pid int, expectedPrefix string) (bool, error) {
-	if (pid == 0) || (expectedPrefix == "") {
-		return false, fmt.Errorf("Invalid arguments were provided")
+	if pid == 0 {
+		return false, fmt.Errorf("process id should not be zero")
+	}
+
+	if expectedPrefix == "" {
+		return false, fmt.Errorf("expected prefix should not be empty")
 	}
 
 	process, err := ps.FindProcess(pid)
@@ -103,7 +112,7 @@ func ProcessNameMatches(pid int, expectedPrefix string) (bool, error) {
 // Kills a process by PID
 func KillPID(pid int32) error {
 	if pid == 0 {
-		return fmt.Errorf("Invalid arguments were provided")
+		return fmt.Errorf("process id should not be zero")
 	}
 
 	processes, err := gopsutil_process.Processes()
@@ -123,8 +132,16 @@ func KillPID(pid int32) error {
 
 // Kills a process taking the PID value from a file
 func KillFromPIDFile(destDir string, pidFileName string, expectedExecName string) error {
-	if (destDir == "") || (pidFileName == "") || (expectedExecName == "") {
-		return fmt.Errorf("Invalid arguments were provided")
+	if destDir == "" {
+		return fmt.Errorf("destination directory should not be empty")
+	}
+
+	if pidFileName == "" {
+		return fmt.Errorf("PID file name hould not be empty")
+	}
+
+	if expectedExecName == "" {
+		return fmt.Errorf("expected executable name should not be empty")
 	}
 
 	pid, err := ReadPidFromFile(destDir, pidFileName)
