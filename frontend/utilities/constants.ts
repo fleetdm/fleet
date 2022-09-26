@@ -357,6 +357,7 @@ export const DEFAULT_POLICIES = [
       "Checks for the existence of a Group Policy that enables the Private Profile for Windows Defender Firewall.",
     resolution:
       "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Private Profile for Windows Defender Firewall.",
+    platform: "windows",
   },
  {
     key: 33,
@@ -367,6 +368,7 @@ export const DEFAULT_POLICIES = [
       "Checks for the existence of a Group Policy that enables the Public Profile for Windows Defender Firewall.",
     resolution:
       "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Public Profile for Windows Defender Firewall.",
+    platform: "windows",
   },
  {
     key: 34,
@@ -377,6 +379,7 @@ export const DEFAULT_POLICIES = [
       "Checks that the SMBv1 client is disabled.",
     resolution:
       "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+    platform: "windows",
   },
  {
     key: 35,
@@ -387,6 +390,7 @@ export const DEFAULT_POLICIES = [
       "Checks that the SMBv1 server is disabled.",
     resolution:
       "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+    platform: "windows",
   },
  {
     key: 36,
@@ -397,6 +401,7 @@ export const DEFAULT_POLICIES = [
       "Checks for the existence of a Group Policy that disables LLMNR.",
     resolution:
       "Contact your IT administrator to discuss disabling LLMNR on your system.",
+    platform: "windows",
   },
  {
     key: 37,
@@ -407,6 +412,7 @@ export const DEFAULT_POLICIES = [
       "Checks for the existence of a Group Policy that enables Windows automatic updates.",
     resolution:
       "Contact your IT administrator to ensure your Windows system is receiving a Group policy that enables Windows automatic updates.",
+    platform: "windows",
   },
 ] as IPolicyNew[];
 
