@@ -865,7 +865,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.diskSpace()
 		}
 		return true, results, &ss
-	case name == hostDetailQueryPrefix+"kubequery_info":
+	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
 		// Real osquery running on hosts would return no results if it was not
 		// running kubequery (due to discovery query). Returning true here so that
 		// the caller knows it is handled, will not try to return lorem-ipsum-style
