@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/service"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -30,7 +32,6 @@ import (
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -254,6 +255,9 @@ func main() {
 			desktopPath  string
 			g            run.Group
 		)
+
+		// Setting up the system service management early on the process lifetime
+		go service.SetupServiceManagement(constant.SystemServiceName, opt.RootDirectory)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -604,10 +608,10 @@ func (d *desktopRunner) execute() error {
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
 		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
-			switch _, err := getProcessByName(constant.DesktopAppExecName); {
+			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
-			case errors.Is(err, errProcessNotFound):
+			case errors.Is(err, platform.ErrProcessNotFound):
 				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
 				return false // process is not running, do not retry.
 			default:
@@ -646,7 +650,7 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
+	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }
@@ -669,42 +673,6 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 	default:
 		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
 	}
-}
-
-func killProcessByName(name string) error {
-	foundProcess, err := getProcessByName(name)
-	if err != nil {
-		return fmt.Errorf("get process: %w", err)
-	}
-	if err := foundProcess.Kill(); err != nil {
-		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-	}
-	return nil
-}
-
-var errProcessNotFound = errors.New("process not found")
-
-func getProcessByName(name string) (*gopsutil_process.Process, error) {
-	processes, err := gopsutil_process.Processes()
-	if err != nil {
-		return nil, err
-	}
-	var foundProcess *gopsutil_process.Process
-	for _, process := range processes {
-		processName, err := process.Name()
-		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
-			continue
-		}
-		if strings.HasPrefix(processName, name) {
-			foundProcess = process
-			break
-		}
-	}
-	if foundProcess == nil {
-		return nil, errProcessNotFound
-	}
-	return foundProcess, nil
 }
 
 var versionCommand = &cli.Command{
