@@ -942,3 +942,88 @@ spec:
   purpose: Informational
   tags: compliance, hunting
   contributors: nabilschear
+  ---
+apiVersion: v1
+kind: policy
+spec:
+  name: Windows Firewall, Domain Profile enabled (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks for the existence of a Group Policy that enables the Domain Profile for Windows Defender Firewall."
+  resolution: "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Domain profile for Windows Defender Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.1.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Windows Firewall, Private Profile enabled (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks for the existence of a Group Policy that enables the Private Profile for Windows Defender Firewall."
+  resolution: "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Private Profile for Windows Defender Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.2.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Windows Firewall, Public Profile enabled (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks for the existence of a Group Policy that enables the Public Profile for Windows Defender Firewall."
+  resolution: "Contact your IT administrator to ensure your Windows system is receiving a that enables the Public Profile for Windows Defender Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.3.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: SMBv1 client driver disabled (Windows)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
+  description: "Checks that the SMBv1 client is disabled."
+  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.3.2
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: SMBv1 server disabled (Windows)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1
+  description: "Checks that the SMBv1 server is disabled."
+  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.3.3
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: LLMNR disabled (Windows)
+  query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
+  description: "Checks for the existence of a GPO that disables LLMNR."
+  resolution: "Contact your IT administrator to discuss disabling LLMNR on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.5.4.2
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic updates enabled (Windows)
+  query:   SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
+  description: "Checks for the existence of a Group Policy that enables Windows automatic updates."
+  resolution: "Contact your IT administrator to ensure your Windows system is receiving a Group policy that enables Windows automatic updates."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.9.108.2.1
+  platform: windows
+  contributors: defensivedepth
+
