@@ -5569,13 +5569,13 @@ func (s *integrationTestSuite) TestOSVersions() {
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {
-	s.DoRaw("HEAD", "/api/latest/fleet/orbit_ping", nil, http.StatusOK)
+	s.DoRaw("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
 	// unauthenticated works too
-	s.DoRawNoAuth("HEAD", "/api/latest/fleet/orbit_ping", nil, http.StatusOK)
+	s.DoRawNoAuth("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
 
-	s.DoRaw("HEAD", "/api/latest/fleet/device_ping", nil, http.StatusOK)
+	s.DoRaw("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 	// unauthenticated works too
-	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device_ping", nil, http.StatusOK)
+	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
 // this test can be deleted once the "v1" version is removed.
