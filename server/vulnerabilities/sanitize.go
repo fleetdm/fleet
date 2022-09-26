@@ -7,6 +7,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+var nonAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+var sanitizeVersionRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
 var stopWords = map[string]bool{
 	".":            true,
 	"THE":          true,
@@ -86,12 +90,8 @@ func sanitizeSoftwareName(s *fleet.Software) string {
 	r := strings.ToLower(s.Name)
 	r = strings.TrimSuffix(r, ".app")
 
+	// Remove vendor, for 'apps' the vendor name is usually after the top level domain part.
 	r = strings.Replace(r, strings.ToLower(s.Vendor), "", -1)
-	if len(r) == 0 {
-		r = strings.ToLower(s.Name)
-	}
-
-	// Company name is usually after the top level domain part
 	bundleParts := strings.Split(s.BundleIdentifier, ".")
 	if len(bundleParts) > 2 {
 		r = strings.Replace(r, strings.ToLower(bundleParts[1]), "", -1)
@@ -181,8 +181,6 @@ func vendorVariations(s *fleet.Software) []string {
 	return r
 }
 
-var nonAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
-
 // sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all non alpha numeric characters with spaces.
 func sanitizeMatch(s string) string {
 	s = strings.TrimSuffix(s, ".app")
@@ -190,11 +188,29 @@ func sanitizeMatch(s string) string {
 	return s
 }
 
-var sanitizeVersionRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
-
 // sanitizeVersion attempts to sanitize versions and attempt to make it dot separated.
 // Eg Zoom reports version as "5.11.1 (8356)". In the NVD CPE dictionary it should be 5.11.1.8356.
 func sanitizeVersion(version string) string {
 	parts := sanitizeVersionRe.Split(version, -1)
 	return strings.Trim(strings.Join(parts, "."), ".")
+}
+
+func targetSW(s *fleet.Software) string {
+	switch s.Source {
+	case "apps":
+		return "macos"
+	case "python_packages":
+		return "python"
+	case "chrome_extensions":
+		return "chrome"
+	case "firefox_addons":
+		return "firefox"
+	case "safari_extensions":
+		return "safari"
+	case "npm_packages":
+		return `node.js`
+	case "programs":
+		return "windows"
+	}
+	return "*"
 }
