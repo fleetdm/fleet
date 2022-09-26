@@ -49,6 +49,8 @@ export default {
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
 
+    console.log("lowDiskSpaceHosts", lowDiskSpaceHosts);
+
     const queryParams = {
       query: globalFilter,
       team_id: teamId,
@@ -59,17 +61,11 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-<<<<<<< HEAD
-        softwareId
-      ),
-      status,
-=======
+        softwareId,
+        status,
         missingHosts,
         lowDiskSpaceHosts,
-        softwareId,
       }),
-      status: getStatusParam(selectedLabels),
->>>>>>> 135223629 (Missing hosts and low disk space hosts params added)
       label_id: label,
     };
 

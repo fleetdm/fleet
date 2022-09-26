@@ -125,7 +125,6 @@ const ManageHostsPage = ({
   location,
 }: IManageHostsProps): JSX.Element => {
   const queryParams = location.query;
-
   console.log("queryParams", queryParams);
 
   const {
@@ -767,7 +766,6 @@ const ManageHostsPage = ({
           if (currentTeam) {
             newQueryParams.team_id = currentTeam.id;
           }
-          break;
         case !!policyId && !!policyResponse:
           newQueryParams.policy_id = policyId;
           newQueryParams.policy_response = policyResponse;
@@ -776,6 +774,7 @@ const ManageHostsPage = ({
           if (softwareId) {
             newQueryParams.software_id = softwareId;
           }
+          break;
         case !!mdmId:
           if (mdmId) {
             newQueryParams.mdm_id = mdmId;
@@ -809,6 +808,7 @@ const ManageHostsPage = ({
           }
       }
 
+      console.log("newQueryParams", newQueryParams);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
