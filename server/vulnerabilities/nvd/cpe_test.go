@@ -1,4 +1,4 @@
-package vulnerabilities
+package nvd
 
 import (
 	"compress/gzip"
@@ -208,7 +208,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 
 	cpe, err = CPEFromSoftware(db, software, nil, reCache)
 	require.NoError(t, err)
-	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
+	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// let some time pass
 	time.Sleep(2 * time.Second)

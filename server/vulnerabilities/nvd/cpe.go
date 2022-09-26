@@ -1,4 +1,4 @@
-package vulnerabilities
+package nvd
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/doug-martin/goqu/v9"
-	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -31,14 +30,6 @@ const (
 )
 
 var cpeDBRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
-
-type IndexedCPEItem struct {
-	ID         int    `json:"id" db:"rowid"`
-	Product    string `json:"product" db:"product"`
-	Vendor     string `json:"vendor" db:"vendor"`
-	Deprecated bool   `json:"deprecated" db:"deprecated"`
-	Weight     int    `db:"weight"`
-}
 
 func GetLatestNVDRelease(client *http.Client) (*github.RepositoryRelease, error) {
 	ghclient := github.NewClient(client)
@@ -159,16 +150,6 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 	return stm, args, nil
 }
 
-func cpeFmtString(s *fleet.Software, m IndexedCPEItem) string {
-	cpe := wfn.NewAttributesWithAny()
-	cpe.Part = "a"
-	cpe.Vendor = m.Vendor
-	cpe.Product = m.Product
-	cpe.Version = sanitizeVersion(s.Version)
-	cpe.TargetSW = targetSW(s)
-	return cpe.BindToFmtString()
-}
-
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product, vendor, target_sw, and version.
@@ -218,7 +199,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		}
 
 		if result.ID != 0 {
-			return cpeFmtString(software, result), nil
+			return result.FmtStr(software), nil
 		}
 	} else {
 		stm, args, err := cpeGeneralSearchQuery(software)
@@ -261,7 +242,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 					continue
 				}
 
-				return cpeFmtString(software, item), nil
+				return item.FmtStr(software), nil
 			}
 		}
 
@@ -299,7 +280,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 					continue
 				}
 
-				return cpeFmtString(software, deprecation), nil
+				return deprecation.FmtStr(software), nil
 			}
 		}
 	}
@@ -307,7 +288,8 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	return "", nil
 }
 
-func TranslateSoftwareToCPE(ctx context.Context,
+func TranslateSoftwareToCPE(
+	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
