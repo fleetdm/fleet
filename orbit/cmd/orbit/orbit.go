@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,11 +10,16 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -26,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -199,7 +204,7 @@ func main() {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
 
-			b, err := ioutil.ReadFile(c.String("enroll-secret-path"))
+			b, err := os.ReadFile(c.String("enroll-secret-path"))
 			if err != nil {
 				return fmt.Errorf("read enroll secret file: %w", err)
 			}
@@ -350,6 +355,13 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
+		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
+		uuidStr, err := getUUID(osquerydPath)
+		if err != nil {
+			return fmt.Errorf("get UUID: %w", err)
+		}
+		log.Debug().Msg("UUID is " + uuidStr)
+
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
@@ -373,6 +385,7 @@ func main() {
 			)
 		}
 
+		var certPath string
 		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
@@ -395,10 +408,16 @@ func main() {
 				},
 			)
 
-			certPath := filepath.Join(os.TempDir(), "fleet.crt")
+			// Directory to store proxy related assets
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+			}
+
+			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
-			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -437,7 +456,7 @@ func main() {
 				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 			)
 
-			if certPath := c.String("fleet-certificate"); certPath != "" {
+			if certPath = c.String("fleet-certificate"); certPath != "" {
 				// Check and log if there are any errors with TLS connection.
 				pool, err := certificate.LoadPEM(certPath)
 				if err != nil {
@@ -451,7 +470,7 @@ func main() {
 					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
-				certPath := filepath.Join(c.String("root-dir"), "certs.pem")
+				certPath = filepath.Join(c.String("root-dir"), "certs.pem")
 				if exists, err := file.Exists(certPath); err == nil && exists {
 					_, err = certificate.LoadPEM(certPath)
 					if err != nil {
@@ -462,6 +481,45 @@ func main() {
 					log.Info().Msg("No cert chain available. Relying on system store.")
 				}
 			}
+
+		}
+
+		capabilities := fleet.CapabilityMap{}
+
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+
+		if err != nil {
+			return fmt.Errorf("error new orbit client: %w", err)
+		}
+
+		// ping the server to get the latest capabilities
+		if err := orbitClient.Ping(); err != nil {
+			return fmt.Errorf("error pinging the server: %w", err)
+		}
+
+		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) {
+			log.Info().Msg("Orbit endpoints are enabled")
+			orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
+			if err != nil {
+				return fmt.Errorf("error enroll: %w", err)
+			}
+
+			const orbitFlagsUpdateInterval = 30 * time.Second
+			flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+				CheckInterval: orbitFlagsUpdateInterval,
+				RootDir:       c.String("root-dir"),
+				OrbitNodeKey:  orbitNodeKey,
+			})
+			if err != nil {
+				return err
+			}
+			// do the initial flags update
+			_, err = flagRunner.DoFlagsUpdate()
+			if err != nil {
+				// just log, OK to continue, since we will retry
+				log.Info().Err(err).Msg("Initial flags update failed")
+			}
+			g.Add(flagRunner.Execute, flagRunner.Interrupt)
 		}
 
 		// --force is sometimes needed when an older osquery process has not
@@ -495,6 +553,13 @@ func main() {
 		g.Add(r.Execute, r.Interrupt)
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+
+		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		if err != nil {
+			return fmt.Errorf("new client for capabilities checker: %w", err)
+		}
+		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
+		g.Add(capabilitiesChecker.actor())
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -645,6 +710,82 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
+// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
+func getUUID(osqueryPath string) (string, error) {
+	if runtime.GOOS == "windows" {
+		args := []string{"/C", "wmic csproduct get UUID"}
+		out, err := exec.Command("cmd", args...).Output()
+		if err != nil {
+			return "", err
+		}
+		uuidOutputStr := string(out)
+		if len(uuidOutputStr) == 0 {
+			return "", errors.New("get UUID: output from wmi is empty")
+		}
+		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
+		if len(outputByLines) < 2 {
+			return "", errors.New("get UUID: unexpected output")
+		}
+		return strings.TrimSpace(outputByLines[1]), nil
+	}
+	type UuidOutput struct {
+		UuidString string `json:"uuid"`
+	}
+
+	args := []string{"-S", "--json", "select uuid from system_info"}
+	out, err := exec.Command(osqueryPath, args...).Output()
+	if err != nil {
+		return "", err
+	}
+	var uuids []UuidOutput
+	err = json.Unmarshal(out, &uuids)
+	if err != nil {
+		return "", err
+	}
+
+	if len(uuids) != 1 {
+		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
+	}
+	return uuids[0].UuidString, nil
+
+}
+
+// getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
+// otherwise it enrolls the host with Fleet and saves the node key to disk
+func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (string, error) {
+	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
+	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
+	switch {
+	case err == nil:
+		return string(orbitNodeKey), nil
+	case errors.Is(err, fs.ErrNotExist):
+		// OK
+	default:
+		return "", fmt.Errorf("read orbit node key file: %w", err)
+	}
+	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
+		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath)
+		if err != nil {
+			log.Info().Err(err).Msg("enroll failed, retrying")
+			time.Sleep(constant.OrbitEnrollRetrySleep)
+			continue
+		}
+		return orbitNodeKey, nil
+	}
+	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
+}
+
+func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath string) (string, error) {
+	orbitNodeKey, err := orbitClient.DoEnroll()
+	if err != nil {
+		return "", fmt.Errorf("enroll request: %w", err)
+	}
+	if err := os.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("write orbit node key file: %w", err)
+	}
+	return orbitNodeKey, nil
+}
+
 func loadOrGenerateToken(rootDir string) (string, error) {
 	filePath := filepath.Join(rootDir, "identifier")
 	id, err := ioutil.ReadFile(filePath)
@@ -656,7 +797,7 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("generate identifier: %w", err)
 		}
-		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+		if err := os.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
 			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
 		}
 		return id.String(), nil
@@ -711,4 +852,61 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
+}
+
+// capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
+// are changed in the server.
+//
+// This struct and its methods are designed to play nicely with `oklog.Group`.
+type capabilitiesChecker struct {
+	client        *service.OrbitClient
+	interruptCh   chan struct{} // closed when interrupt is triggered
+	executeDoneCh chan struct{} // closed when execute returns
+}
+
+func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
+	return &capabilitiesChecker{
+		client:        client,
+		interruptCh:   make(chan struct{}),
+		executeDoneCh: make(chan struct{}),
+	}
+}
+
+func (f *capabilitiesChecker) actor() (func() error, func(error)) {
+	return f.execute, f.interrupt
+}
+
+// execute will poll the server for capabilities and emit a stop signal to restart
+// Orbit if certain capabilities are enabled.
+//
+// You need to add an explicit check for each capability you want to watch for
+func (f *capabilitiesChecker) execute() error {
+	defer close(f.executeDoneCh)
+	capabilitiesCHeckTicker := time.NewTicker(5 * time.Minute)
+
+	for {
+		select {
+		case <-capabilitiesCHeckTicker.C:
+			oldCapabilities := f.client.GetServerCapabilities()
+			// ping the server to get the latest capabilities
+			if err := f.client.Ping(); err != nil {
+				log.Error().Err(err).Msg("pinging the server")
+				continue
+			}
+			newCapabilities := f.client.GetServerCapabilities()
+
+			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
+				log.Info().Msg("orbit endpoints capability changed, restarting")
+				return nil
+			}
+		case <-f.interruptCh:
+			return nil
+		}
+	}
+}
+
+func (f *capabilitiesChecker) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
+	close(f.interruptCh) // Signal execute to return.
+	<-f.executeDoneCh    // Wait for execute to return.
 }

@@ -155,13 +155,13 @@ How to deploy a new release to dogfood:
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 
-## On-call rotation
+## Oncall rotation
 
 ### In this section
 
 - [Responsibilities](#responsibilities)
 - [Clearing the plate](#clearing-the-plate)
-- [How to reach the on-call engineer](#how-to-reach-the-on-call-engineer)
+- [How to reach the oncall engineer](#how-to-reach-the-oncall-engineer)
 - [Handoff](#handoff)
 - [The rotation](#the-rotation)
 
@@ -169,35 +169,35 @@ How to deploy a new release to dogfood:
 
 #### 1. Second-line response
 
-The on-call engineer is a second-line responder to questions raised by customers and community members.
+The oncall engineer is a second-line responder to questions raised by customers and community members.
 
 The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy is also responsible for the first response to messages in private customer Slack channels.
 
-We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly. When Kathy is unavailable, the on-call engineer may sometimes be asked to take over the first response duties.
+We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties.
 
 #### 2. PR reviews
 
-Pull requests may be routed through the on-call engineer for review.
+Pull requests may be routed through the oncall engineer for review.
 
-For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the on-call. For all PRs to the Fleet documentation, the content editor ([Chris McGillicuddy](https://github.com/chris-mcgillicuddy)) will either merge (for typo fixes, when only documentation files are changed) or request a review from the current on-call (for changes to code samples, or to the meaning of the text).
+For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. For all PRs to the Fleet documentation, the content editor ([Chris McGillicuddy](https://github.com/chris-mcgillicuddy)) will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
 
-In either case, if the on-call engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the on-call engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
+In either case, if the oncall engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
 
 #### 3. Customer success meetings
 
-The on-call engineer is asked to attend all the customer success meetings during the week.
+The oncall engineer is asked to attend all the customer success meetings during the week.
 
 The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
 
 #### 4. Improve documentation
 
-The on-call engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
+The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
 
 ### Clearing the plate
 
-Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering managers are asked to be aware of the [oncall rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are oncall. While it varies week to week considerably, the oncall responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-### How to reach the on-call engineer
+### How to reach the oncall engineer
 
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
 
@@ -210,12 +210,12 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the
+2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
-   these threads and the new on-call can select "Get notified about new replies" in the "..." menu.
+   these threads and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
-   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former on-call engineer.
+   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall engineer.
 
 ### The rotation
 
@@ -262,6 +262,50 @@ Besides that, you should consider the answer(s) to the following question: how c
 ## What have we learned so far?
 
 This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
+
+## Connecting to Dogfood MySQL & Redis
+
+### Prerequisites
+
+1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
+2. Configure [SSO](https://github.com/fleetdm/fleet-infra/tree/master/sso#how-to-use-sso)
+
+### Connecting
+
+#### MySQL
+
+Get the database host:
+```shell
+DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].Endpoint" --output=text)
+```
+
+Get the database user:
+```shell
+DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleetdm-mysql-iam --query "DBClusters[0].MasterUsername" --output=text)
+```
+
+Get the database password:
+```shell
+DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /fleet/database/password/master --query "SecretString" --output=text)
+```
+
+Connect:
+```shell
+mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
+```
+
+#### Redis
+
+Get the Redis Host:
+```shell
+REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
+```
+
+Connect:
+```shell
+redis-cli -h "${REDIS_HOST}"
+```
+
 
 ## Foreign keys and locking
 
@@ -394,7 +438,7 @@ Fleet documentation explains how to use, deploy, and contribute to Fleet as simp
 
 ### How to request a review for Markdown changes to the docs
 
-When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
+When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [oncall engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
 
 ### Writing documentation
 
@@ -640,9 +684,39 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Zach Wasserman |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| On-call handoff               | Weekly              | Hand off the on-call engineering responsibilities to the next on-call engineer.                                                        | Zach Wasserman |
+| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Zach Wasserman |
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
+
+## Fleet Sandbox Oncall
+
+Oncall for Sandbox will happen in shifts of 1 week. The people involved in them will be:
+
+First responders:
+
+- Zachary Winnerman
+- Robert Fairburn
+
+Escalations (in order):
+
+- Tomas Touceda
+- Zach Wasserman
+
+The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
+
+Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
+
+If the issue is non user facing (provisioner/deprovisioner/temporary errors in osquery/etc), we'll proceed to address the issue. If the issue is user facing (as in, the user noticed this error first hand through the Fleet UI), then we'll proceed to identify the user and ping Mike McNeil in #help-p1 with information about the error (see below) so that he can contact them letting them know that we are aware of this issue and working on it.
+
+We should collect both the email for the customer and information for the error. If the error happens in work hours, we should make a best effort to understand where in the app the error might have occurred. For this, the oncall engineer will post in `#help-engineering` the data they know of the issue and see if anybody in the frontend team can help identify what might be causing it. It’s more helpful to say “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”, but sometimes it’s not exactly clear where the API might be used exactly.
+
+Escalation of issues will be done by hand for the moment.
+
+All infrastructure alarms will go to #g-infrastructure.
+
+The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
+
+There will not be updates on the Fleet version running in sandbox on Fridays unless there's a critical issue being fixed.
 
 ## Slack channels
 

@@ -41,10 +41,13 @@ func TriggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	appConfig *fleet.AppConfig,
 	failingPoliciesSet fleet.FailingPolicySet,
 	sendFunc func(*fleet.Policy, FailingPolicyAutomationConfig) error,
 ) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
 
 	// build the global automation configuration
 	var globalCfg FailingPolicyAutomationConfig

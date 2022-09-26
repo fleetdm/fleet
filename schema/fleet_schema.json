@@ -1,0 +1,961 @@
+[
+  {
+    "name": "account_policy_data",
+    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data\n```"
+  },
+  {
+    "name": "alf",
+    "examples": "See the state of the Application Layer Firewall on a Mac. A result of 0 means it is disabled, 1 means it is enabled, and 2 means it is enabled and blocking all inbound connections. See our standard query library for an example policy query using this.\n```\nSELECT global_state FROM alf\n```"
+  },
+  {
+    "name": "alf_exceptions",
+    "examples": "List applications that are able to receive inbound connections across the firewall. This is practically useful when looking to see if vulnerable software is exposed to networks. A state of 0 means ____ and a state of 3 means ____\n```\nSELECT * FROM alf_exceptions\n```"
+  },
+  {
+    "name": "app_schemes",
+    "examples": "List applications that have registered the URL scheme \"mailto\" to handle email links.\n```\nSELECT * FROM app_schemes WHERE scheme='mailto'\n```"
+  },
+  {
+    "name": "apps",
+    "examples": "See the last time applications were used. Useful to know if a vulnerable application is being used as well as for licensing purposes.\n```\nSELECT *, strftime('%Y-%m-%d %H:%M:%S',last_opened_time,'unixepoch') as LastUseDate FROM apps WHERE last_opened_time!='-1.0'\n```"
+  },
+  {
+    "name": "arp_cache",
+    "examples": "List the content of the ARP cache. On systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address.\n```\nSELECT address, interface, mac FROM arp_cache\n```"
+  },
+  {
+    "name": "authorization_mechanisms",
+    "examples": "Discover privileged macOS authorization mechanisms, which could include third party software. Finding third party software using this means it is likely an important piece of software that should be kept very up to date.\n```\nSELECT * FROM authorization_mechanisms WHERE privileged='true'\n```"
+  },
+  {
+    "name": "authorizations",
+    "examples": "See macOS authorizations that have been modified since their creation. Useful for threat hunting.\n```\nSELECT * FROM authorizations WHERE created!=modified\n```"
+  },
+  {
+    "name": "etc_hosts",
+    "examples": "Identify host\"name\"s pointed to IP addresses using the hosts file. This technique is often abused by malware, but can also indicate services that do not have proper DNS configuration to be reached from workstations.\n```\nSELECT * FROM etc_hosts WHERE address!='127.0.0.1' AND address!='::1' AND address!='255.255.255.255'\n```",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "block_devices",
+    "examples": "Identify USB storage in use\n```\nSELECT * FROM block_devices WHERE type='USB'\n```"
+  },
+  {
+    "name": "certificates",
+    "examples": "Replace 1QAZ2WSX with your Apple Developer ID, if you have one. This query will then let you identify Macs that have a copy of your code signing and notarization certificates.\n```\nSELECT * FROM certificates WHERE common_\"name\" LIKE '%%1QAZ2SWX%%'\n```",
+    "columns": [
+      {
+        "name": "sid",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "store_location",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "store",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "username",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "store_id",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "issuer2",
+        "platforms": [
+          "linux",
+          "darwin"
+        ]
+      },
+      {
+        "name": "subject2",
+        "platforms": [
+          "linux",
+          "darwin"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "cpu_time",
+    "examples": "Identify overworked CPUs using a ratio of system to user CPU usage. Here, a ratio of 2 was arbitrarily chosen.\n```\nSELECT * FROM cpu_time WHERE user/system>2\n```"
+  },
+  {
+    "name": "cups_destinations",
+    "examples": "Identify the types of printers connected to computers. This query works for both network and local printers.\n```\nSELECT * FROM cups_destinations WHERE option_\"name\"='printer-info'\n```"
+  },
+  {
+    "name": "cups_jobs",
+    "examples": "See what file format are being printed to what printer. This is useful for identifying systems that print a lot, which can help you ensure they have access to faster printers. Using this table, you could also highlight slow print jobs that might benefit from troubleshooting.\n```\nSELECT destination, format, strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationDate FROM cups_jobs \n```"
+  },
+  {
+    "name": "cpuid",
+    "examples": "Identify Intel powered Macs that support a specific Intel CPU feature, such as sgx1.\n```\nSELECT * from cpuid WHERE feature='sgx1'\n```"
+  },
+  {
+    "name": "device_firmware",
+    "examples": "Identify the firmware version of hardware on a Mac, such as the SSD controller in this case. Older versions might indicate a problem with software updates, and this information can be useful when troubleshooting various issues.\n```\nSELECT * FROM device_firmware WHERE device='AppleANS3NVMeController'\n```"
+  },
+  {
+    "name": "disk_encryption",
+    "examples": "A policy query to check if Filevault disk encryption is enabled on a Mac.\n```\nSELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1\n```",
+    "columns":[
+      {
+        "name": "uid",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "user_uuid",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "filevault_status",
+        "platforms": [
+          "darwin"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "disk_events",
+    "examples": "This is an evented table, and as such, is more useful if you are sending osquery logs to a SIEM or other centralized destination via Fleet. Events must be enabled. This query will contain the list of all actions related to connecting and removing disks, including SMB drives and USB storage, which can be very useful for investigative purposes.\n```\nSELECT * FROM disk_events\n```"
+  },
+  {
+    "name": "groups",
+    "columns": [
+      {
+        "name": "group_sid",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "comment",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "is_hidden",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ],
+    "notes": "* On Windows, `gid` and `gid_signed` are always the same"
+  },
+  {
+    "name": "hash",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mount_namespace_id",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "interface_addresses",
+    "columns": [
+      {
+        "name": "friendly_name",
+        "platforms": [
+          "windows"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "interface_details",
+    "columns": [
+      {
+        "name": "link_speed",
+        "platforms": [
+          "linux",
+          "darwin"
+        ]
+      },
+      {
+        "name": "pci_slot",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "friendly_name",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "description",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "manufacturer",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "connection_id",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "connection_status",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "enabled",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "physical_adapter",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "speed",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "service",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dhcp_enabled",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dhcp_lease_expires",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dhcp_lease_obtained",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dhcp_server",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dns_domain",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dns_domain_suffix_search_order",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dns_host_name",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "dns_server_search_order",
+        "platforms": [
+          "windows"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "apt_sources",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "deb_packages",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mount_namespace_id",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "rpm_packages",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mount_namespace_id",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "yum_sources",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "listening_ports",
+    "columns": [
+      {
+        "name": "net_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "logged_in_users",
+    "columns": [
+      {
+        "name": "sid",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "registry_hive",
+        "platforms": [
+          "windows"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "npm_packages",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mount_namespace_id",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "os_version",
+    "columns": [
+      {
+        "name": "install_date",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mount_namespace_id",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "authorized_keys",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "crontab",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "windows"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "dns_resolvers",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "docker_containers",
+    "columns": [
+      {
+        "name": "cgroup_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "ipc_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mnt_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "net_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "pid_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "user_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "uts_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "pci_devices",
+    "columns": [
+      {
+        "name": "pci_class_id",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "pci_subclass_id",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "pci_subclass",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "subsystem_vendor_id",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "subsystem_vendor",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "subsystem_model_id",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "subsystem_model",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "process_events",
+    "columns": [
+      {
+        "name": "status",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "fsuid",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "suid",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "fsgid",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "sgid",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "syscall",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "suid_bin",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "system_controls",
+    "columns": [
+      {
+        "name": "field_name",
+        "platforms": [
+          "darwin"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "process_open_sockets",
+    "columns": [
+      {
+        "name": "state",
+        "platforms": [
+          "windows",
+          "linux",
+          "darwin"
+        ]
+      },
+      {
+        "name": "net_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "processes",
+    "columns": [
+      {
+        "name": "elevated_token",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "secure_process",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "protection_type",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "virtual_process",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "elapsed_time",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "handle_count",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "percent_processor_time",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "upid",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "uppid",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "cpu_type",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "cpu_subtype",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "translated",
+        "platforms": [
+          "darwin"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "python_packages",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "routes",
+    "columns": [
+      {
+        "name": "hopcount",
+        "platforms": [
+          "linux",
+          "darwin"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "user_ssh_keys",
+    "columns": [
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "users",
+    "columns": [
+      {
+        "name": "type",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "is_hidden",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "file",
+    "columns": [
+      {
+        "name": "attributes",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "volume_serial",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "file_id",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "file_version",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "product_version",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "original_filename",
+        "platforms": [
+          "windows"
+        ]
+      },
+      {
+        "name": "bsd_flags",
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "pid_with_namespace",
+        "platforms": [
+          "linux"
+        ]
+      },
+      {
+        "name": "mount_namespace_id",
+        "platforms": [
+          "linux"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "time",
+    "columns": [
+      {
+        "name": "win_timestamp",
+        "platforms": [
+          "windows"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "atom_packages",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "chrome_extension_content_scripts",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "chrome_extensions",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "crashes",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "preferences",
+    "columns": [
+      {
+        "name": "username",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "safari_extensions",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "firefox_addons",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "known_hosts",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "shell_history",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  },
+  {
+    "name": "ssh_configs",
+    "columns": [
+      {
+        "name": "uid",
+        "requires_user_context": true
+      }
+    ]
+  }
+]

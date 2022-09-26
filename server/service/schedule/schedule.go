@@ -59,6 +59,7 @@ type Job struct {
 // Locker allows a Schedule to acquire a lock before running jobs.
 type Locker interface {
 	Lock(ctx context.Context, scheduleName string, scheduleInstanceID string, expiration time.Duration) (bool, error)
+	Unlock(ctx context.Context, scheduleName string, scheduleInstanceID string) error
 }
 
 // Option allows configuring a Schedule.
@@ -211,6 +212,7 @@ func (s *Schedule) Start() {
 		for {
 			select {
 			case <-s.ctx.Done():
+				level.Info(s.logger).Log("msg", "done")
 				return
 			case <-configTicker.C:
 				level.Debug(s.logger).Log("msg", "config reload check")
