@@ -5568,6 +5568,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
 }
 
+func (s *integrationTestSuite) TestPingEndpoints() {
+	s.DoRaw("HEAD", "/api/latest/fleet/orbit_ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/orbit_ping", nil, http.StatusOK)
+
+	s.DoRaw("HEAD", "/api/latest/fleet/device_ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device_ping", nil, http.StatusOK)
+}
+
 // this test can be deleted once the "v1" version is removed.
 func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	t := s.T()

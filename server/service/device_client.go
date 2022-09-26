@@ -25,6 +25,7 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 		return err
 	}
 
+	dc.setClientCapabilitiesHeader(request)
 	response, err := dc.http.Do(request)
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
@@ -36,8 +37,8 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 
 // NewDeviceClient instantiates a new client to perform requests against device
 // endpoints
-func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "")
+func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string, capabilities fleet.CapabilityMap) (*DeviceClient, error) {
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
 	if err != nil {
 		return nil, err
 	}

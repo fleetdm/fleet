@@ -307,6 +307,10 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
+	// DisableAuthForPing is used by the /orbit_ping and /device_ping endpoints
+	// to bypass authentication, as they are public
+	DisableAuthForPing(ctx context.Context)
+
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
