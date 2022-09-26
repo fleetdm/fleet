@@ -34,10 +34,29 @@ func (c *CapabilityMap) String() string {
 	return strings.Join(capabilities, ",")
 }
 
+// Has returns true if the CapabilityMap contains the given capability.
+func (c CapabilityMap) Has(capability Capability) bool {
+	_, ok := c[capability]
+	return ok
+}
+
+// The following are the capabilities that Fleet supports. These can be used by
+// the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
+// is supported.
+const (
+	// CapabilityOrbitEndpoints denotes the presence of server endpoints
+	// dedicated to communicating with Orbit. These endpoints start with
+	// `/api/fleet/orbit`, and allow enrolling a host through Orbit among other
+	// functionality.
+	CapabilityOrbitEndpoints Capability = "orbit_endpoints"
+)
+
 // ServerOrbitCapabilities is a set of capabilities that server-side,
 // Orbit-related endpoint supports.
 // **it shouldn't be modified at runtime**
-var ServerOrbitCapabilities = CapabilityMap{}
+var ServerOrbitCapabilities = CapabilityMap{
+	CapabilityOrbitEndpoints: {},
+}
 
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.

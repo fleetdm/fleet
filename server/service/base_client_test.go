@@ -149,7 +149,7 @@ func TestServerCapabilities(t *testing.T) {
 
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
-	require.True(t, bc.HasServerCapability(testCapability))
+	require.True(t, bc.GetServerCapabilities().Has(testCapability))
 
 	// later on, the server is downgraded and no longer has the capability
 	response = &http.Response{
@@ -160,7 +160,7 @@ func TestServerCapabilities(t *testing.T) {
 	err = bc.parseResponse("", "", response, &struct{}{})
 	require.NoError(t, err)
 	require.Equal(t, fleet.CapabilityMap{}, bc.serverCapabilities)
-	require.False(t, bc.HasServerCapability(testCapability))
+	require.False(t, bc.GetServerCapabilities().Has(testCapability))
 
 	// after an upgrade, the server has many capabilities
 	response = &http.Response{
@@ -174,6 +174,6 @@ func TestServerCapabilities(t *testing.T) {
 		testCapability:                        {},
 		fleet.Capability("test_capability_2"): {},
 	}, bc.serverCapabilities)
-	require.True(t, bc.HasServerCapability(testCapability))
-	require.True(t, bc.HasServerCapability(fleet.Capability("test_capability")))
+	require.True(t, bc.GetServerCapabilities().Has(testCapability))
+	require.True(t, bc.GetServerCapabilities().Has(fleet.Capability("test_capability")))
 }
