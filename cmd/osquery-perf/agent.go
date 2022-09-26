@@ -786,6 +786,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		hostDetailQueryPrefix = "fleet_detail_query_"
 	)
 	statusOK := fleet.StatusOK
+	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
@@ -864,6 +865,12 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.diskSpace()
 		}
 		return true, results, &ss
+	case name == hostDetailQueryPrefix+"kubequery_info":
+		// Real osquery running on hosts would return no results if it was not
+		// running kubequery (due to discovery query). Returning true here so that
+		// the caller knows it is handled, will not try to return lorem-ipsum-style
+		// results.
+		return true, nil, &statusNotOK
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
