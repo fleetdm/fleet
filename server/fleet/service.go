@@ -50,6 +50,13 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
+	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
+	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
+	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
+	// GetOrbitFlags returns team specific flags in agent options if the team id is not nil for host, otherwise it returns flags from global agent options
+	GetOrbitFlags(ctx context.Context) (flags json.RawMessage, err error)
+
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.
 	//
@@ -267,7 +274,7 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier.
 	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
@@ -299,6 +306,10 @@ type Service interface {
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+
+	// DisableAuthForPing is used by the /orbit_ping and /device_ping endpoints
+	// to bypass authentication, as they are public
+	DisableAuthForPing(ctx context.Context)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)

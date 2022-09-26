@@ -386,7 +386,7 @@ the way that the Fleet server works.
 			}
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
+			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage, mdmStorage, mdmLogger, mdmPushService)
@@ -405,11 +405,18 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
-			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
 
 			startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
 			startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 			startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
+			if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet); err != nil {
+				initFatal(err, "failed to register automations schedule")
+			}
+			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
+				initFatal(err, "failed to register integrations schedule")
+			}
+			// StartCollectors starts a goroutine per collector, using ctx to cancel.
+			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 			startAppleMDMDepProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 
 			// Flush seen hosts every second
@@ -694,30 +701,6 @@ func migrationStatusCheck(status *fleet.MigrationStatus, allowMissingMigrations,
 			dbName, os.Args[0])
 		os.Exit(1)
 	}
-}
-
-const (
-	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
-	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
-	lockKeyWorker                  = "worker"
-)
-
-// runCrons runs cron jobs not yet ported to use the schedule package.
-func runCrons(
-	ctx context.Context,
-	ds fleet.Datastore,
-	task *async.Task,
-	logger kitlog.Logger,
-	config configpkg.FleetConfig,
-	license *fleet.LicenseInfo,
-	failingPoliciesSet fleet.FailingPolicySet,
-	ourIdentifier string,
-) {
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
-
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
-	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

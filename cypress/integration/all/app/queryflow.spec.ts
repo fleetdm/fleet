@@ -58,7 +58,7 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".name__cell .button--text-link").first().click();
       cy.findByText(/run query/i).click();
       cy.findByText(/all hosts/i).click();
-      cy.findByText(/hosts targeted/i).should("exist");
+      cy.findByText(/host targeted/i).should("exist");
       cy.findByText(/run/i).click();
       // Ensures live query runs
       cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting

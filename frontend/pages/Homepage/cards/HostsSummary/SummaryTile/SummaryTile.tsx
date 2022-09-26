@@ -4,13 +4,14 @@ import Button from "components/buttons/Button";
 import { kebabCase } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
+import { StringDecoder } from "string_decoder";
 
 interface ISummaryTileProps {
   count: number;
   isLoading: boolean;
   showUI: boolean;
   title: string;
-  icon?: any;
+  icon?: string;
   tooltip?: string;
   path: string;
 }

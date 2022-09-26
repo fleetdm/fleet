@@ -28,7 +28,7 @@ export default {
   },
   initializeSSO: (relay_url: string) => {
     const { SSO } = endpoints;
-    return sendRequest("POST", SSO, JSON.stringify({ relay_url }));
+    return sendRequest("POST", SSO, { relay_url });
   },
   ssoSettings: () => {
     const { SSO } = endpoints;

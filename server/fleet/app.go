@@ -565,8 +565,3 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }
-
-// DeviceAPIFeatures specifies a list of features supported
-// by the current API version. Each field in the struct is
-// meant to be a boolean value.
-type DeviceAPIFeatures struct{}

@@ -18,6 +18,10 @@ func (nopLocker) Lock(context.Context, string, string, time.Duration) (bool, err
 	return true, nil
 }
 
+func (nopLocker) Unlock(context.Context, string, string) error {
+	return nil
+}
+
 func TestNewSchedule(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -52,6 +56,10 @@ func (l *counterLocker) Lock(context.Context, string, string, time.Duration) (bo
 
 	l.count = l.count + 1
 	return true, nil
+}
+
+func (l *counterLocker) Unlock(context.Context, string, string) error {
+	return nil
 }
 
 func TestScheduleLocker(t *testing.T) {
