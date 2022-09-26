@@ -1,69 +1,99 @@
 # Fleet UI
-- [Scheduling queries](#scheduling-queries)
-- [Configuring agent options](#configuring-agent-options)
+- [Creating a query](#create-a-query)
+- [Running a query](#run-a-query)
+- [Scheduling a query](#schedule-a-query)
+- [Update agent options](#update-agent-options)
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
 </div>
 
-## Scheduling queries
+## Create a query
 
-The Fleet application allows you to schedule queries. This way these queries will run on an ongoing basis against the hosts that you have installed osquery on. To schedule specific queries in Fleet,you can organize these queries into "Query Packs". To view all saved packs and perhaps create a new pack, select "Schedule" from the top navigation and then click on the "Advanced" link on the top right of the page.
+Queries in Fleet allow you to ask a multitude of questions to help you manage, monitor, and identify threats on your devices. 
 
-![Manage Packs](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs.png)
+If you're unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries). There you'll find common queries that have been tested by members of our community.
 
-If you select a pack from the list by clicking on the checkbox next to it's name, you can quickly enable and disable the entire pack, or you can click on the pack name to edit it further.
+How to create a query:
 
-![Manage Packs With Pack Selected](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/manage-packs-with-pack-selected.png)
+1. In the top navigation, select **Queries**.
 
-When you edit a pack, you can decide which targets you would like to execute the pack. This is a similar selection experience to the target selection process that you use to execute a new query.
+2. Select **Create new query** to navigate to the query console.
 
-![Edit Pack Targets](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/edit-pack-targets.png)
+3. In the **Query** field, enter your query. Remember, you can find common queries in [Fleet's library](https://fleetdm.com/queries).
 
-To add queries to a pack, click on the "Add query +" link on the edit pack page. You will be presented with a modal where can take an existing scheduled query and add it to the pack. You can also define a few key details such as:
+4. Select **Save**, enter a name and description for your query, and select **Save query**.
 
-- interval: how often should the query be executed?
-- logging: which osquery logging format would you like to use?
-- platform: which operating system platforms should execute this query?
-- minimum osquery version: if the table was introduced in a newer version of osquery, you may want to ensure that only sufficiently recent version of osquery execute the query.
-- shard: from 0 to 100, what percent of hosts should execute this query?
+## Run a query
 
-![Schedule Query Modal](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)
+Run a live query to get answers for all of your online hosts.
 
+> Offline hosts won’t respond to a live query because they may be shut down, asleep, or not connected to the internet.
 
-Once you've scheduled queries and curated your packs, you can read our guide to [Working With Osquery Logs](../Using-Fleet/Osquery-logs.md).
+How to run a query:
 
-## Configuring agent options
+1. In the top navigation, select **Queries**.
 
-The Fleet application allows you to specify options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options.
+2. In the **Queries** table, find the query you'd like to run and select the query's name to navigate to the query console.
 
-### Global agent options
+3. Select **Run query** to navigate to the target picker. Select **All hosts** and select **Run**. This will run the query against all your hosts.
 
-Global agent options are applied to all hosts enrolled in Fleet.
+The query may take several seconds to complete because Fleet has to wait for the hosts to respond with results.
 
-Only user's with the Admin role can edit global agent options.
+> Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
-To configure global agent options, head to **Settings > Organization settings > Global agent options**.
+## Schedule a query
 
-![Global agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/global-agent-options.png)
+Fleet allows you to schedule queries. Scheduled queries will send data to your log destination automatically.
 
-### Team level agent options
+The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
 
-`Applies only to Fleet Premium`
+How to schedule a query:
 
-```
-ℹ️  In Fleet 4.0, Teams were introduced.
-```
+1. In the top navigation, select **Schedule**.
 
-Team agent options are applied to all hosts assigned to a specific team in Fleet.
+2. Select **Schedule a query**.
 
-Team agent options *override* global agent options.
+3. Select the **Select query** dropdown and choose the query that you'd like to run on a schedule. 
 
-Let's say you have two teams in Fleet. One team is named "Workstations" and the other named "Servers." If you edit the agent options for the "Workstations" team, the hosts assigned to this team will now receive these agent options *instead of* the global agent options. The hosts assigned to the "Servers" team will still receive the global agent options.
+4. Select the **Frequency** dropdown and choose how often you'd like the query to run and send results to your log destination. **Every hour** is a good frequency to start. You can change this later.
 
-To configure team agent options, head to **Settings > Teams > `Team-name-here` > Agent options**.
+5. Select **Schedule**.
 
-![Team agent options](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/team-agent-options.png)
+With [the teams feature](./Teams.md), you can schedule queries for groups of hosts. This allows you to collect different data for each group.
+
+> In Fleet, groups of hosts are called "teams."
+
+How to use teams to schedule queries for a group of hosts:
+
+1. If you haven't already, first [create a team](./Teams.md#create-a-team) and [transfer hosts](./Teams.md#transfer-hosts-to-a-team) to the team.
+
+2. In the **Teams** dropdown below the top navigation, select the team.
+
+3. Follow the "How to schedule a query" instructions above.
+
+## Update agent options
+
+<!-- Heading is kept so that the link from the Fleet UI still works -->
+<span id="configuring-agent-options" name="configuring-agent-options"></span>
+
+Fleet allows you to update the settings of the agent installed on all your hosts at once. In Fleet, these settings are called "agent options."
+
+The default agent options are good to start. 
+
+How to update agent options:
+
+1. In the top navigation, select your avatar and select **Settings**. Only users with the [admin role](./Permissions.md) can access the pages in **Settings**.
+
+2. On the Organization settings page, select **Agent options** on the left side of the page.
+
+3. To see all agent options, head to the [agent options documentation](./configuration-files/README.md#agent-options).
+
+4. Place your new setting one level below the `options` key. The new setting's key should be below and one tab to the right of `options`.
+
+5. Select **Save**.
+
+The agents may take several seconds to update because Fleet has to wait for the hosts to check in.
 
 <meta name="title" value="Fleet UI">
 

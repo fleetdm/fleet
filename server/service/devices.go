@@ -3,12 +3,73 @@ package service
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
+
+/////////////////////////////////////////////////////////////////////////////////
+// Ping device endpoint
+/////////////////////////////////////////////////////////////////////////////////
+
+type devicePingRequest struct{}
+
+type devicePingResponse struct{}
+
+func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	writeCapabilitiesHeader(w, fleet.ServerDeviceCapabilities)
+}
+
+// NOTE: we're intentionally not reading the capabilities header in this
+// endpoint as is unauthenticated and we don't want to trust whatever comes in
+// there.
+func devicePingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	svc.DisableAuthForPing(ctx)
+	return devicePingResponse{}, nil
+}
+
+func (svc *Service) DisableAuthForPing(ctx context.Context) {
+	// skipauth: this endpoint is intentionally public to allow devices to ping
+	// the server and among other things, get the fleet.Capabilities header to
+	// determine which capabilities are enabled in the server.
+	svc.authz.SkipAuthorization(ctx)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Fleet Desktop endpoints
+/////////////////////////////////////////////////////////////////////////////////
+
+type FleetDesktopResponse struct {
+	Err             error `json:"error,omitempty"`
+	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
+}
+
+type getFleetDesktopRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getFleetDesktopRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+// getFleetDesktopEndpoint is meant to be the only API endpoint used by Fleet Desktop. This
+// endpoint should not include any kind of identifying information about the host.
+func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	host, ok := hostctx.FromContext(ctx)
+
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return FleetDesktopResponse{Err: err}, nil
+	}
+
+	r, err := svc.FailingPoliciesCount(ctx, host)
+	if err != nil {
+		return FleetDesktopResponse{Err: err}, nil
+	}
+
+	return FleetDesktopResponse{FailingPolicies: &r}, nil
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Host
@@ -77,8 +138,6 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 // token, along with a boolean indicating if debug logging is enabled for that
 // host.
 func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*fleet.Host, bool, error) {
-	const deviceAuthTokenTTL = time.Hour
-
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -86,7 +145,7 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing device authentication token"))
 	}
 
-	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL)
+	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken)
 	switch {
 	case err == nil:
 		// OK
@@ -219,27 +278,12 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	return nil, fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Device API features
-////////////////////////////////////////////////////////////////////////////////
+func (svc *Service) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-type deviceAPIFeaturesRequest struct {
-	Token string `url:"token"`
-}
-
-func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
-	return r.Token
-}
-
-type deviceAPIFeaturesResponse struct {
-	Err      error                   `json:"error,omitempty"`
-	Features fleet.DeviceAPIFeatures `json:"features"`
-}
-
-func (r deviceAPIFeaturesResponse) error() error { return r.Err }
-
-func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
+	return 0, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

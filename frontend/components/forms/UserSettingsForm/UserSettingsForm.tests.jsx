@@ -1,6 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+
+import { renderWithSetup } from "test/testingUtils";
 
 import UserSettingsForm from "components/forms/UserSettingsForm";
 
@@ -39,41 +40,42 @@ describe("UserSettingsForm - component", () => {
   });
 
   it("should throw validation error when invalid email is entered", async () => {
-    render(<UserSettingsForm {...{ ...defaultProps, smtpConfigured: true }} />);
+    const { user } = renderWithSetup(
+      <UserSettingsForm {...{ ...defaultProps, smtpConfigured: true }} />
+    );
 
-    // when
-    userEvent.type(
+    await user.type(
       screen.getByRole("textbox", { name: /email \(required\)/i }),
       "invalid-email"
     );
-    fireEvent.click(screen.getByRole("button", { name: "Update" }));
-    // then
+    await user.click(screen.getByRole("button", { name: "Update" }));
+
+    const emailError = screen.getByText("invalid-email is not a valid email");
+
     expect(defaultProps.handleSubmit).not.toHaveBeenCalled();
-    expect(
-      await screen.findByText("invalid-email is not a valid email")
-    ).toBeInTheDocument();
+    expect(emailError).toBeInTheDocument();
   });
 
-  it("calls the handleSubmit props with form data", () => {
+  it("calls the handleSubmit props with form data", async () => {
     const expectedFormData = {
       email: "email@example.com",
       name: "Jim Example",
     };
 
-    render(<UserSettingsForm {...{ ...defaultProps, smtpConfigured: true }} />);
+    const { user } = renderWithSetup(
+      <UserSettingsForm {...{ ...defaultProps, smtpConfigured: true }} />
+    );
 
-    // when
-    userEvent.type(
+    await user.type(
       screen.getByRole("textbox", { name: /email \(required\)/i }),
       expectedFormData.email
     );
-    userEvent.type(
+    await user.type(
       screen.getByRole("textbox", { name: /full name \(required\)/i }),
       expectedFormData.name
     );
-    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+    await user.click(screen.getByRole("button", { name: "Update" }));
 
-    // then
     expect(defaultProps.handleSubmit).toHaveBeenCalledWith(expectedFormData);
   });
 

@@ -8,6 +8,10 @@ This person is accountable for accomplishing goals and making decisions about a 
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
 
+<!-- TODO: Replace most of the rows of this table with a link to website/config/custom.js and CODEOWNERS. -->
+
+<!-- TODO: Move this table to "Why this way?" to prepare for this handbook page changing. -->
+
 |    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
 | Wireframes (Figma)| Noah Talerman |
@@ -22,8 +26,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Quality of core product UI | Luke Heath |
 | Ticket movement from product to engineering | Luke Heath |
 | Lead engineering together and release retrospective | Zach Wasserman* |
-| Customer Slack channels | Tony Gauda |
-| Customer renewals | Tony Gauda |
+| Customer Slack channels | Kathy Satterlee |
+| Customer renewals | Mike McNeil |
 | Quality of core product backend | Tomás Touceda |
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |
@@ -88,7 +92,7 @@ We highly recommend you order a physical Brex card if you do not have one before
 
 ### Coworking
 
-Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the CEO via direct message in Slack.
+Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the Charlie Chance via direct message in Slack.
 
 Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
 
@@ -415,7 +419,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The walkie talkies (DMs).
   - The watering hole (#oooh-, #random, #news, #help-).
 
-## Onboarding a new advisor
+### Onboarding a new advisor
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
 template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
@@ -427,7 +431,7 @@ Once you send the agreement, add a new row to the [advisory board spreadsheet](h
 
 When you complete the agreement, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
 
-## Onboarding a new consultant
+### Onboarding a new consultant
 
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 There are some defaults that we use for these agreements:
@@ -439,7 +443,7 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
 
-## Updating a consultant's fee
+### Updating a consultant's fee
 
  - Direct message Charlie with rate change information.
  - Charlie will post the information to `#g-people` and tag the CEO for approval.
@@ -456,6 +460,8 @@ Then hit send!  After all of the signatures are there, the completed document wi
 | Ramp                         | "Off-cycle" payroll          | Charlie 
 | Accelerations                | "Off-cycle" payroll          | Charlie
 
+Add the amount to be paid to the "Gross" line.
+
 For Fleet's US contractors, running payroll is a manual process. 
 The steps for doing this are highlighted in this loom, TODO. 
 1. Time tools
@@ -465,7 +471,7 @@ The steps for doing this are highlighted in this loom, TODO.
 5. Sync hours
 6. Run contractor payroll
 
-## Zapier and DocuSign
+### Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 
@@ -488,7 +494,7 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
-## Adding Salesforce licenses
+### Adding Salesforce licenses
 
 We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
 
@@ -497,6 +503,14 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 3. Add the number of licenses.
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
+
+## Communicating departures
+
+Although it's sad to see you go, Fleet understands that not everything is meant to be forever like open-source is. There are a few steps that we'll need to take to communicate to the team of your departure. 
+
+1. Direct team: The CEO will reach out to the departing teammember's direct reports in 1:1 calls.
+2. Key stakeholders: The CEO will reach out to his direct reports about the departing teammember's departure.
+3. Announcement: Charlie will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 ## PeopleOps
 
@@ -572,6 +586,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
 | Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
+| OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
 
 
 ## Slack channels

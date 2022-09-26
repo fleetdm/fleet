@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -6,7 +6,9 @@ import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blu
 
 interface IInfoCardProps {
   title: string;
+  titleDetail?: JSX.Element | string | null;
   description?: JSX.Element | string;
+  actionUrl?: string;
   children: React.ReactChild | React.ReactChild[];
   action?:
     | {
@@ -27,19 +29,29 @@ const baseClass = "homepage-info-card";
 
 const useInfoCard = ({
   title,
+  titleDetail: defaultTitleDetail,
   description: defaultDescription,
+  actionUrl: defaultActionUrl,
   children,
   action,
   total_host_count,
   showTitle = true,
 }: IInfoCardProps): JSX.Element => {
-  const [actionLink, setActionURL] = useState<string | null>(null);
+  const [actionLink, setActionURL] = useState<string | null>(
+    defaultActionUrl || null
+  );
   const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
-    null
+    defaultTitleDetail || null
   );
   const [description, setDescription] = useState<JSX.Element | string | null>(
     defaultDescription || null
   );
+
+  useEffect(() => {
+    if (defaultTitleDetail) {
+      setTitleDetail(defaultTitleDetail);
+    }
+  }, [defaultTitleDetail]);
 
   const renderAction = () => {
     if (action) {

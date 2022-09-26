@@ -7,7 +7,6 @@
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
-- [Packs](#packs)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule](#schedule)
@@ -18,42 +17,9 @@
 - [Translator](#translator)
 - [Users](#users)
 
-## Overview
+Use the Fleet APIs to automate Fleet.
 
-Fleet is powered by a Go API server which serves three types of endpoints:
-
-- Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
-- Endpoints starting with `/api/v1/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
-- All other endpoints are served by the React single page application bundle.
-  The React app uses React Router to determine whether or not the URI is a valid
-  route and what to do.
-
-### fleetctl
-
-Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./fleetctl-CLI.md) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
-
-### Current API
-
-The general idea with the current API is that there are many entities throughout the Fleet application, such as:
-
-- Queries
-- Packs
-- Labels
-- Hosts
-
-Each set of objects follows a similar REST access pattern.
-
-- You can `GET /api/v1/fleet/packs` to get all packs
-- You can `GET /api/v1/fleet/packs/1` to get a specific pack.
-- You can `DELETE /api/v1/fleet/packs/1` to delete a specific pack.
-- You can `POST /api/v1/fleet/packs` (with a valid body) to create a new pack.
-- You can `PATCH /api/v1/fleet/packs/1` (with a valid body) to modify a specific pack.
-
-Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
-
-All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
-
-> [Check out Fleet v3's REST API documentation](https://github.com/fleetdm/fleet/blob/0bd6903b2df084c9c727f281e86dff0cbc2e0c25/docs/1-Using-Fleet/3-REST-API.md), if you're using a version of Fleet below 4.0.0. Warning: Fleet v3's documentation is no longer being maintained.
+This page includes a list of available resources and their API routes.
 
 ## Authentication
 
@@ -981,58 +947,60 @@ Modifies the Fleet's configuration with the supplied information.
 
 #### Parameters
 
-| Name                  | Type    | In   | Description                                                                                                                                                                            |
-| --------------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_name              | string  | body | _Organization information_. The organization name.                                                                                                                                     |
-| org_logo_url          | string  | body | _Organization information_. The URL for the organization logo.                                                                                                                         |
-| server_url            | string  | body | _Server settings_. The Fleet server URL.                                                                                                                                               |
-| live_query_disabled   | boolean | body | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
-| enable_smtp           | boolean | body | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
-| sender_address        | string  | body | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
-| server                | string  | body | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
-| port                  | integer | body | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
-| authentication_type   | string  | body | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
-| username_name         | string  | body | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
-| password              | string  | body | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
-| enable_ssl_tls        | boolean | body | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
-| authentication_method | string  | body | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
-| domain                | string  | body | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
-| verify_ssl_certs      | boolean | body | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enabled_start_tls     | boolean | body | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
-| enabled_sso           | boolean | body | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
-| entity_id             | string  | body | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
-| issuer_uri            | string  | body | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
-| idp_image_url         | string  | body | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
-| metadata              | string  | body | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
-| metadata_url          | string  | body | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
-| host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
-| host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
-| agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| transparency_url      | string  | body | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
-| enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
-| destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
-| host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count            | integer | body | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
-| enable_failing_policies_webhook   | boolean | body | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
-| destination_url       | string | body | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| policy_ids            | array | body | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
-| host_batch_size       | integer | body | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| enable_vulnerabilities_webhook   | boolean | body | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
-| destination_url       | string | body | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
-| host_batch_size       | integer | body | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
-| enable_software_vulnerabilities | boolean | body | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies | boolean | body | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| url                   | string | body | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
-| username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
-| api_token             | string | body | _integrations.jira[] settings_. The API token of the Jira username to use for this Jira integration. |
-| project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
-| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies | boolean | body | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| url                   | string | body | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
-| email              | string | body | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
-| api_token              | string | body | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
-| group_id           | integer | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
-| additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
+| Name                              | Type    | In    | Description                                                                                                                                                                            |
+| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| org_name                          | string  | body  | _Organization information_. The organization name.                                                                                                                                     |
+| org_logo_url                      | string  | body  | _Organization information_. The URL for the organization logo.                                                                                                                         |
+| server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
+| live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
+| enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
+| sender_address                    | string  | body  | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
+| server                            | string  | body  | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
+| port                              | integer | body  | _SMTP settings_. The SMTP port for the Fleet app.                                                                                                                                      |
+| authentication_type               | string  | body  | _SMTP settings_. The authentication type used by the SMTP server. Options include `"authtype_username_and_password"` or `"none"`                                                       |
+| username_name                     | string  | body  | _SMTP settings_. The username used to authenticate requests made to the SMTP server.                                                                                                   |
+| password                          | string  | body  | _SMTP settings_. The password used to authenticate requests made to the SMTP server.                                                                                                   |
+| enable_ssl_tls                    | boolean | body  | _SMTP settings_. Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
+| authentication_method             | string  | body  | _SMTP settings_. The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
+| domain                            | string  | body  | _SMTP settings_. The domain for the SMTP server.                                                                                                                                       |
+| verify_ssl_certs                  | boolean | body  | _SMTP settings_. Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
+| enabled_start_tls                 | boolean | body  | _SMTP settings_. Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| enabled_sso                       | boolean | body  | _SSO settings_. Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| entity_id                         | string  | body  | _SSO settings_. The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
+| issuer_uri                        | string  | body  | _SSO settings_. The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
+| idp_image_url                     | string  | body  | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
+| metadata                          | string  | body  | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
+| metadata_url                      | string  | body  | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| host_expiry_enabled               | boolean | body  | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
+| host_expiry_window                | integer | body  | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| transparency_url                  | string  | body  | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
+| enable_host_status_webhook        | boolean | body  | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
+| destination_url                   | string  | body  | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
+| host_percentage                   | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
+| days_count                        | integer | body  | _webhook_settings.host_status_webhook settings_. The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| enable_failing_policies_webhook   | boolean | body  | _webhook_settings.failing_policies_webhook settings_. Whether or not the failing policies webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.failing_policies_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| policy_ids                        | array   | body  | _webhook_settings.failing_policies_webhook settings_. List of policy IDs to enable failing policies webhook.                                                              |
+| host_batch_size                   | integer | body  | _webhook_settings.failing_policies_webhook settings_. Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| enable_vulnerabilities_webhook    | boolean | body  | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
+| host_batch_size                   | integer | body  | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| enable_software_vulnerabilities   | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies           | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| url                               | string  | body  | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
+| username                          | string  | body  | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
+| api_token                         | string  | body  | _integrations.jira[] settings_. The API token of the Jira username to use for this Jira integration. |
+| project_key                       | string  | body  | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| enable_software_vulnerabilities   | boolean | body  | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| enable_failing_policies           | boolean | body  | _integrations.zendesk[] settings_. Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| url                               | string  | body  | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
+| email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
+| api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
+| group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
+| force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
+| dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
 #### Example
 
@@ -1738,6 +1706,7 @@ None.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1873,11 +1842,12 @@ Response payload with the `munki_issue_id` filter provided:
 | os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, mdm or munki filters.                                                                                                                                                                                                                                                                        |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, low_disk_space, mdm or munki filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1913,14 +1883,15 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name     | Type    | In    | Description                                                                     |
-| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
-| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| Name            | Type    | In    | Description                                                                     |
+| --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -1935,6 +1906,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "mia_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
+  "low_disk_space_count": 12,
   "builtin_labels": [
     {
       "id": 6,
@@ -1995,16 +1967,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 ### Get host
 
 Returns the information of the specified host.
-
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../Deploying/Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
-
-All the scheduled queries that are configured to run on the host (and their stats) are returned in
-`pack_stats`. The `pack_stats[i].type` field can have the following values:
-1. `"global"`: identifies the global pack.
-2. `"team-$TEAM_ID"`: identifies a team's pack.
-3. `"pack"`: identifies a user created pack.
-
-If the scheduled queries haven't run on the host yet, the stats have zero values.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -3167,507 +3129,6 @@ Deletes the label specified by ID.
 
 ---
 
-## Packs
-
-- [Create pack](#create-pack)
-- [Modify pack](#modify-pack)
-- [Get pack](#get-pack)
-- [List packs](#list-packs)
-- [Delete pack](#delete-pack)
-- [Delete pack by ID](#delete-pack-by-id)
-- [Get scheduled queries in a pack](#get-scheduled-queries-in-a-pack)
-- [Add scheduled query to a pack](#add-scheduled-query-to-a-pack)
-- [Get scheduled query](#get-scheduled-query)
-- [Modify scheduled query](#modify-scheduled-query)
-- [Delete scheduled query](#delete-scheduled-query)
-
-### Create pack
-
-`POST /api/v1/fleet/packs`
-
-#### Parameters
-
-| Name        | Type   | In   | Description                                                             |
-| ----------- | ------ | ---- | ----------------------------------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.                                          |
-| description | string | body | The pack's description.                                                 |
-| host_ids    | list   | body | A list containing the targeted host IDs.                                |
-| label_ids   | list   | body | A list containing the targeted label's IDs.                             |
-| team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
-
-#### Example
-
-`POST /api/v1/fleet/packs`
-
-##### Request query parameters
-
-```json
-{
-  "description": "Collects osquery data.",
-  "host_ids": [],
-  "label_ids": [6],
-  "name": "query_pack_1"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 17,
-    "name": "query_pack_1",
-    "description": "Collects osquery data.",
-    "query_count": 0,
-    "total_hosts_count": 223,
-    "host_ids": [],
-    "label_ids": [
-      6
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### Modify pack
-
-`PATCH /api/v1/fleet/packs/{id}`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                             |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                                            |
-| name        | string  | body | The pack's name.                                                        |
-| description | string  | body | The pack's description.                                                 |
-| host_ids    | list    | body | A list containing the targeted host IDs.                                |
-| label_ids   | list    | body | A list containing the targeted label's IDs.                             |
-| team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
-
-#### Example
-
-`PATCH /api/v1/fleet/packs/{id}`
-
-##### Request query parameters
-
-```json
-{
-  "description": "MacOS hosts are targeted",
-  "host_ids": [],
-  "label_ids": [7]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "2021-01-25T22:32:45Z",
-    "updated_at": "2021-01-25T22:32:45Z",
-    "id": 17,
-    "name": "Title2",
-    "description": "MacOS hosts are targeted",
-    "query_count": 0,
-    "total_hosts_count": 110,
-    "host_ids": [],
-    "label_ids": [
-      7
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### Get pack
-
-`GET /api/v1/fleet/packs/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's id. |
-
-#### Example
-
-`GET /api/v1/fleet/packs/17`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "2021-01-25T22:32:45Z",
-    "updated_at": "2021-01-25T22:32:45Z",
-    "id": 17,
-    "name": "Title2",
-    "description": "MacOS hosts are targeted",
-    "disabled": false,
-    "type": null,
-    "query_count": 0,
-    "total_hosts_count": 110,
-    "host_ids": [],
-    "label_ids": [
-      7
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### List packs
-
-`GET /api/v1/fleet/packs`
-
-#### Parameters
-
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the packs table.                                                               |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-
-#### Example
-
-`GET /api/v1/fleet/packs`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "packs": [
-    {
-      "created_at": "2021-01-05T21:13:04Z",
-      "updated_at": "2021-01-07T19:12:54Z",
-      "id": 1,
-      "name": "pack_number_one",
-      "description": "This pack has a description",
-      "disabled": true,
-      "query_count": 1,
-      "total_hosts_count": 53,
-      "host_ids": [],
-      "label_ids": [
-        8
-      ],
-      "team_ids": [],
-    },
-    {
-      "created_at": "2021-01-19T17:08:31Z",
-      "updated_at": "2021-01-19T17:08:31Z",
-      "id": 2,
-      "name": "query_pack_2",
-      "query_count": 5,
-      "total_hosts_count": 223,
-      "host_ids": [],
-      "label_ids": [
-        6
-      ],
-      "team_ids": []
-    },
-  ]
-}
-```
-
-### Delete pack
-
-Delete pack by name.
-
-`DELETE /api/v1/fleet/packs/{name}`
-
-#### Parameters
-
-| Name | Type   | In   | Description                    |
-| ---- | ------ | ---- | ------------------------------ |
-| name | string | path | **Required.** The pack's name. |
-
-#### Example
-
-`DELETE /api/v1/fleet/packs/pack_number_one`
-
-##### Default response
-
-`Status: 200`
-
-
-### Delete pack by ID
-
-`DELETE /api/v1/fleet/packs/id/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/packs/id/1`
-
-##### Default response
-
-`Status: 200`
-
-
-### Get scheduled queries in a pack
-
-`GET /api/v1/fleet/packs/{id}/scheduled`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/packs/1/scheduled`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 49,
-      "pack_id": 15,
-      "name": "new_query",
-      "query_id": 289,
-      "query_name": "new_query",
-      "query": "SELECT * FROM osquery_info",
-      "interval": 456,
-      "snapshot": false,
-      "removed": true,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 50,
-      "pack_id": 15,
-      "name": "new_title_for_my_query",
-      "query_id": 288,
-      "query_name": "new_title_for_my_query",
-      "query": "SELECT * FROM osquery_info",
-      "interval": 677,
-      "snapshot": true,
-      "removed": false,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 51,
-      "pack_id": 15,
-      "name": "osquery_info",
-      "query_id": 22,
-      "query_name": "osquery_info",
-      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
-      "interval": 6667,
-      "snapshot": true,
-      "removed": false,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    }
-  ]
-}
-```
-
-### Add scheduled query to a pack
-
-`POST /api/v1/fleet/schedule`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| pack_id  | integer | body | **Required.** The pack's ID.                                                                                  |
-| query_id | integer | body | **Required.** The query's ID.                                                                                 |
-| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                 |
-| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                  |
-| removed  | boolean | body | **Required.** Whether "removed" actions should be logged.                                                     |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`POST /api/v1/fleet/schedule`
-
-#### Request body
-
-```json
-{
-  "interval": 120,
-  "pack_id": 15,
-  "query_id": 23,
-  "removed": true,
-  "shard": null,
-  "snapshot": false,
-  "version": "4.5.0",
-  "platform": "windows"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "windows",
-    "version": "4.5.0",
-    "shard": 10
-  }
-}
-```
-
-### Get scheduled query
-
-`GET /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/schedule/56`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "windows",
-    "version": "4.5.0",
-    "shard": 10,
-    "denylist": null
-  }
-}
-```
-
-### Modify scheduled query
-
-`PATCH /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
-| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
-| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
-| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`PATCH /api/v1/fleet/schedule/56`
-
-#### Request body
-
-```json
-{
-  "platform": ""
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "2021-01-28T19:40:04Z",
-    "updated_at": "2021-01-28T19:40:04Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "",
-    "version": "4.5.0",
-    "shard": 10
-  }
-}
-```
-
-### Delete scheduled query
-
-`DELETE /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/schedule/56`
-
-##### Default response
-
-`Status: 200`
-
----
-
 ## Policies
 
 - [List policies](#list-policies)
@@ -4646,11 +4107,9 @@ load balancer timeout.
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
 
-`In Fleet 4.1.0, the Schedule feature was introduced.`
+Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
-Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
-
-For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+These API routes let you control your scheduled queries.
 
 ### Get schedule
 
@@ -4779,7 +4238,7 @@ None.
 }
 ```
 
-> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses [osquery query packs](https://osquery.readthedocs.io/en/stable/deployment/configuration/#query-packs) under the hood.
 
 ### Edit query in schedule
 
@@ -5374,6 +4833,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Get team](#get-team)
 - [Create team](#create-team)
 - [Modify team](#modify-team)
+- [Modify team's agent options](#modify-teams-agent-options)
 - [Delete team](#delete-team)
 
 ### List teams
@@ -5489,9 +4949,9 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id   | string | body | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                          |
+| ---- | ------  | ---- | ------------------------------------ |
+| id   | integer | path | **Required.** The desired team's ID. |
 
 #### Example
 
@@ -5629,7 +5089,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                  |
 | ---                                                     | ---     | ---  | ---                                                                                                                                                          |
-| id                                                      | string  | body | **Required.** The desired team's ID.                                                                                                                         |
+| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                         |
 | name                                                    | string  | body | The team's name.                                                                                                                                             |
 | host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                     |
 | user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                |
@@ -5769,37 +5229,48 @@ _Available in Fleet Premium_
 }
 ```
 
-#### Example (edit agent options for a team)
+### Modify team's agent options
 
-`PATCH /api/v1/fleet/teams/1`
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/teams/{id}/agent_options`
+
+#### Parameters
+
+| Name                             | Type    | In    | Description                                                                                                                                                  |
+| ---                              | ---     | ---   | ---                                                                                                                                                          |
+| id                               | integer | path  | **Required.** The desired team's ID.                                                                                                                         |
+| force                            | bool    | query | Force apply the options even if there are validation errors.                                                                                                 |
+| dry_run                          | bool    | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
+| _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](./configuration-files/README.md#agent-options) for details.                              |
+
+#### Example
+
+`POST /api/v1/fleet/teams/1/agent_options`
 
 ##### Request body
 
 ```json
 {
-  "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 20,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 60,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {}
-    }
-  }
+	"config": {
+		"options": {
+			"logger_plugin": "tls",
+			"pack_delimiter": "/",
+			"logger_tls_period": 20,
+			"distributed_plugin": "tls",
+			"disable_distributed": false,
+			"logger_tls_endpoint": "/api/v1/osquery/log",
+			"distributed_interval": 60,
+			"distributed_tls_max_attempts": 3
+		},
+		"decorators": {
+			"load": [
+				"SELECT uuid AS host_uuid FROM system_info;",
+				"SELECT hostname AS hostname FROM system_info;"
+			]
+		}
+	},
+	"overrides": {}
 }
 ```
 
@@ -5859,9 +5330,9 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id   | string | body | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                          |
+| ---- | ------  | ---- | ------------------------------------ |
+| id   | integer | path | **Required.** The desired team's ID. |
 
 #### Example
 

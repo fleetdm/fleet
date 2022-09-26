@@ -2,17 +2,24 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -20,13 +27,11 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -213,6 +218,11 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
+		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		if err != nil {
+			return fmt.Errorf("load identifier file: %w", err)
+		}
+
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
 		if err != nil {
 			log.Fatal().Err(err).Msg("create local metadata store")
@@ -345,6 +355,13 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
+		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
+		uuidStr, err := getUUID(osquerydPath)
+		if err != nil {
+			return fmt.Errorf("get UUID: %w", err)
+		}
+		log.Debug().Msg("UUID is " + uuidStr)
+
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
@@ -368,6 +385,7 @@ func main() {
 			)
 		}
 
+		var certPath string
 		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
@@ -390,7 +408,13 @@ func main() {
 				},
 			)
 
-			certPath := filepath.Join(os.TempDir(), "fleet.crt")
+			// Directory to store proxy related assets
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+			}
+
+			certPath = filepath.Join(proxyDirectory, "fleet.crt")
 
 			// Write cert that proxy uses
 			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
@@ -432,7 +456,7 @@ func main() {
 				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 			)
 
-			if certPath := c.String("fleet-certificate"); certPath != "" {
+			if certPath = c.String("fleet-certificate"); certPath != "" {
 				// Check and log if there are any errors with TLS connection.
 				pool, err := certificate.LoadPEM(certPath)
 				if err != nil {
@@ -446,7 +470,7 @@ func main() {
 					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
-				certPath := filepath.Join(c.String("root-dir"), "certs.pem")
+				certPath = filepath.Join(c.String("root-dir"), "certs.pem")
 				if exists, err := file.Exists(certPath); err == nil && exists {
 					_, err = certificate.LoadPEM(certPath)
 					if err != nil {
@@ -457,6 +481,45 @@ func main() {
 					log.Info().Msg("No cert chain available. Relying on system store.")
 				}
 			}
+
+		}
+
+		capabilities := fleet.CapabilityMap{}
+
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+
+		if err != nil {
+			return fmt.Errorf("error new orbit client: %w", err)
+		}
+
+		// ping the server to get the latest capabilities
+		if err := orbitClient.Ping(); err != nil {
+			return fmt.Errorf("error pinging the server: %w", err)
+		}
+
+		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) {
+			log.Info().Msg("Orbit endpoints are enabled")
+			orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
+			if err != nil {
+				return fmt.Errorf("error enroll: %w", err)
+			}
+
+			const orbitFlagsUpdateInterval = 30 * time.Second
+			flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+				CheckInterval: orbitFlagsUpdateInterval,
+				RootDir:       c.String("root-dir"),
+				OrbitNodeKey:  orbitNodeKey,
+			})
+			if err != nil {
+				return err
+			}
+			// do the initial flags update
+			_, err = flagRunner.DoFlagsUpdate()
+			if err != nil {
+				// just log, OK to continue, since we will retry
+				log.Info().Err(err).Msg("Initial flags update failed")
+			}
+			g.Add(flagRunner.Execute, flagRunner.Interrupt)
 		}
 
 		// --force is sometimes needed when an older osquery process has not
@@ -489,60 +552,17 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		client, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+
+		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
 		if err != nil {
-			return fmt.Errorf("initializing client: %w", err)
+			return fmt.Errorf("new client for capabilities checker: %w", err)
 		}
-		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
-		if err := trw.LoadOrGenerate(); err != nil {
-			return fmt.Errorf("initializing token read writer: %w", err)
-		}
-		// perform an initial check to see if the token
-		// has not been revoked by the server
-		if err := client.Check(trw.GetCached()); err != nil {
-			trw.Rotate()
-		}
-		go func() {
-			// This timer is used to check if the token should be rotated if  at
-			// least one hour has passed since the last modification of the token
-			// file.
-			//
-			// This is better than using a ticker that ticks every hour because the
-			// we can't ensure the tick actually runs every hour (eg: the computer is
-			// asleep).
-			rotationDuration := 30 * time.Second
-			rotationTicker := time.NewTicker(rotationDuration)
-			defer rotationTicker.Stop()
-
-			// This timer is used to periodically check if the token is valid. The
-			// server might deem a toked as invalid for reasons out of our control,
-			// for example if the database is restored to a back-up or if somebody
-			// manually invalidates the token in the db.
-			remoteCheckDuration := 5 * time.Minute
-			remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-			defer remoteCheckTicker.Stop()
-
-			for {
-				select {
-				case <-rotationTicker.C:
-					if trw.HasExpired() {
-						log.Info().Msg("token TTL expired, rotating token")
-						trw.Rotate()
-					}
-				case <-remoteCheckTicker.C:
-					log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
-					if err := client.Check(trw.GetCached()); err != nil {
-						log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-						trw.Rotate()
-					}
-				}
-			}
-		}()
-
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), trw)
+		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
+		g.Add(capabilitiesChecker.actor())
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, trw.Path, c.String("fleet-certificate"), c.Bool("insecure"), trw)
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -563,34 +583,32 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath string, trw *token.ReadWriter) {
+func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
 	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
-		trw: trw,
+		deviceAuthToken: deviceAuthToken,
 	}))
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
 type desktopRunner struct {
-	desktopPath    string
-	fleetURL       string
-	identifierPath string
-	fleetRootCA    string
-	insecure       bool
-	trw            *token.ReadWriter
-	interruptCh    chan struct{} // closed when interrupt is triggered
-	executeDoneCh  chan struct{} // closed when execute returns
+	desktopPath     string
+	fleetURL        string
+	deviceAuthToken string
+	fleetRootCA     string
+	insecure        bool
+	interruptCh     chan struct{} // closed when interrupt is triggered
+	executeDoneCh   chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, identifierPath, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string, insecure bool) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:    desktopPath,
-		fleetURL:       fleetURL,
-		identifierPath: identifierPath,
-		fleetRootCA:    fleetRootCA,
-		insecure:       insecure,
-		trw:            trw,
-		interruptCh:    make(chan struct{}),
-		executeDoneCh:  make(chan struct{}),
+		desktopPath:     desktopPath,
+		fleetURL:        fleetURL,
+		deviceAuthToken: deviceAuthToken,
+		fleetRootCA:     fleetRootCA,
+		insecure:        insecure,
+		interruptCh:     make(chan struct{}),
+		executeDoneCh:   make(chan struct{}),
 	}
 }
 
@@ -615,17 +633,9 @@ func (d *desktopRunner) execute() error {
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
-	deviceURL, err := url.Parse(d.fleetURL)
-	if err != nil {
-		return fmt.Errorf("invalid fleet-url: %w", err)
-	}
-	deviceURL.Path = path.Join(url.Path, "device", d.trw.GetCached())
+	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
-		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.identifierPath),
-		// TODO(roperzh): this env var is keept only for backwards compatibility,
-		// we should remove it once we think is safe
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
@@ -700,6 +710,102 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
+// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
+func getUUID(osqueryPath string) (string, error) {
+	if runtime.GOOS == "windows" {
+		args := []string{"/C", "wmic csproduct get UUID"}
+		out, err := exec.Command("cmd", args...).Output()
+		if err != nil {
+			return "", err
+		}
+		uuidOutputStr := string(out)
+		if len(uuidOutputStr) == 0 {
+			return "", errors.New("get UUID: output from wmi is empty")
+		}
+		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
+		if len(outputByLines) < 2 {
+			return "", errors.New("get UUID: unexpected output")
+		}
+		return strings.TrimSpace(outputByLines[1]), nil
+	}
+	type UuidOutput struct {
+		UuidString string `json:"uuid"`
+	}
+
+	args := []string{"-S", "--json", "select uuid from system_info"}
+	out, err := exec.Command(osqueryPath, args...).Output()
+	if err != nil {
+		return "", err
+	}
+	var uuids []UuidOutput
+	err = json.Unmarshal(out, &uuids)
+	if err != nil {
+		return "", err
+	}
+
+	if len(uuids) != 1 {
+		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
+	}
+	return uuids[0].UuidString, nil
+
+}
+
+// getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
+// otherwise it enrolls the host with Fleet and saves the node key to disk
+func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (string, error) {
+	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
+	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
+	switch {
+	case err == nil:
+		return string(orbitNodeKey), nil
+	case errors.Is(err, fs.ErrNotExist):
+		// OK
+	default:
+		return "", fmt.Errorf("read orbit node key file: %w", err)
+	}
+	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
+		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath)
+		if err != nil {
+			log.Info().Err(err).Msg("enroll failed, retrying")
+			time.Sleep(constant.OrbitEnrollRetrySleep)
+			continue
+		}
+		return orbitNodeKey, nil
+	}
+	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
+}
+
+func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath string) (string, error) {
+	orbitNodeKey, err := orbitClient.DoEnroll()
+	if err != nil {
+		return "", fmt.Errorf("enroll request: %w", err)
+	}
+	if err := os.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("write orbit node key file: %w", err)
+	}
+	return orbitNodeKey, nil
+}
+
+func loadOrGenerateToken(rootDir string) (string, error) {
+	filePath := filepath.Join(rootDir, "identifier")
+	id, err := ioutil.ReadFile(filePath)
+	switch {
+	case err == nil:
+		return string(id), nil
+	case errors.Is(err, os.ErrNotExist):
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return "", fmt.Errorf("generate identifier: %w", err)
+		}
+		if err := os.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
+		}
+		return id.String(), nil
+	default:
+		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
+	}
+}
+
 func killProcessByName(name string) error {
 	foundProcess, err := getProcessByName(name)
 	if err != nil {
@@ -746,4 +852,61 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
+}
+
+// capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
+// are changed in the server.
+//
+// This struct and its methods are designed to play nicely with `oklog.Group`.
+type capabilitiesChecker struct {
+	client        *service.OrbitClient
+	interruptCh   chan struct{} // closed when interrupt is triggered
+	executeDoneCh chan struct{} // closed when execute returns
+}
+
+func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
+	return &capabilitiesChecker{
+		client:        client,
+		interruptCh:   make(chan struct{}),
+		executeDoneCh: make(chan struct{}),
+	}
+}
+
+func (f *capabilitiesChecker) actor() (func() error, func(error)) {
+	return f.execute, f.interrupt
+}
+
+// execute will poll the server for capabilities and emit a stop signal to restart
+// Orbit if certain capabilities are enabled.
+//
+// You need to add an explicit check for each capability you want to watch for
+func (f *capabilitiesChecker) execute() error {
+	defer close(f.executeDoneCh)
+	capabilitiesCHeckTicker := time.NewTicker(5 * time.Minute)
+
+	for {
+		select {
+		case <-capabilitiesCHeckTicker.C:
+			oldCapabilities := f.client.GetServerCapabilities()
+			// ping the server to get the latest capabilities
+			if err := f.client.Ping(); err != nil {
+				log.Error().Err(err).Msg("pinging the server")
+				continue
+			}
+			newCapabilities := f.client.GetServerCapabilities()
+
+			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
+				log.Info().Msg("orbit endpoints capability changed, restarting")
+				return nil
+			}
+		case <-f.interruptCh:
+			return nil
+		}
+	}
+}
+
+func (f *capabilitiesChecker) interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
+	close(f.interruptCh) // Signal execute to return.
+	<-f.executeDoneCh    // Wait for execute to return.
 }

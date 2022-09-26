@@ -1,1 +1,0 @@
-* Implemented retries as a workaround for transient failures when building MSI packages on Apple M1.

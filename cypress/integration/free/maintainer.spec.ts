@@ -92,7 +92,6 @@ describe(
           cy.findByText(/fleet test/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-munki").should("exist");
           cy.getAttached(".home-mdm").should("exist");
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
@@ -241,9 +240,9 @@ describe(
         cy.findByText(/run query/i).click({ force: true });
         cy.findByText(/select targets/i).should("exist");
         cy.findByText(/all hosts/i).click();
-        cy.findByText(/hosts targeted/i).should("exist"); // target count
+        cy.findByText(/host targeted/i).should("exist"); // target count
         cy.findByText(/run/i).click();
-        cy.findByText(/querying selected hosts/i).should("exist"); // target count
+        cy.findByText(/querying selected host/i).should("exist"); // target count
       });
     });
     describe("Manage policies page", () => {

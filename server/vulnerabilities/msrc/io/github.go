@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,36 +14,60 @@ import (
 	"github.com/google/go-github/v37/github"
 )
 
-type MSRCGithubAPI interface {
-	Download(SecurityBulletinName, string) error
+// ReleaseLister interface around github.NewClient(...).Repositories.
+type ReleaseLister interface {
+	ListReleases(
+		context.Context,
+		string,
+		string,
+		*github.ListOptions,
+	) ([]*github.RepositoryRelease, *github.Response, error)
+}
+
+// GitHubAPI allows users to interact with the MSRC artifacts published on Github.
+type GitHubAPI interface {
+	Download(string) (string, error)
 	Bulletins() (map[SecurityBulletinName]string, error)
 }
 
-type MSRCGithubClient struct {
-	client *http.Client
-	dstDir string
+type GitHubClient struct {
+	httpClient *http.Client
+	releases   ReleaseLister
+	workDir    string
 }
 
-func NewMSRCGithubClient(client *http.Client, dir string) MSRCGithubClient {
-	return MSRCGithubClient{client: client, dstDir: dir}
-}
-
-// Downloads the security bulletin to 'dir'.
-func (gh MSRCGithubClient) Download(b SecurityBulletinName, urlStr string) error {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return err
+// NewGitHubClient returns a new GithubClient, 'workDir' will be used as the destination directory for
+// downloading artifacts.
+func NewGitHubClient(client *http.Client, releases ReleaseLister, workDir string) GitHubClient {
+	return GitHubClient{
+		httpClient: client,
+		releases:   releases,
+		workDir:    workDir,
 	}
-	path := filepath.Join(gh.dstDir, string(b))
-	return download.DownloadAndExtract(gh.client, u, path)
 }
 
-// Bulletins returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
-func (gh MSRCGithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
+// Download downloads the security bulletin located at 'URL' in 'workDir', returns the path of
+// the downloaded bulletin.
+func (gh GitHubClient) Download(URL string) (string, error) {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return "", err
+	}
+
+	fPath := filepath.Join(gh.workDir, path.Base(u.Path))
+	if err := download.Download(gh.httpClient, u, fPath); err != nil {
+		return "", err
+	}
+
+	return fPath, nil
+}
+
+// Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
+func (gh GitHubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	releases, r, err := github.NewClient(gh.client).Repositories.ListReleases(
+	releases, r, err := gh.releases.ListReleases(
 		ctx,
 		"fleetdm",
 		"nvd",
@@ -58,11 +83,9 @@ func (gh MSRCGithubClient) Bulletins() (map[SecurityBulletinName]string, error) 
 
 	results := make(map[SecurityBulletinName]string)
 
-	// TODO (juan): Since the nvd repo includes both NVD and MSRC assets, we will need to do some
-	// filtering logic here. To be done in https://github.com/fleetdm/fleet/issues/7394.
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
-		if strings.HasPrefix(name, MSRCFilePrefix) {
+		if strings.HasPrefix(name, mSRCFilePrefix) {
 			results[NewSecurityBulletinName(name)] = e.GetBrowserDownloadURL()
 		}
 	}

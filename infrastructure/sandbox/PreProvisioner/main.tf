@@ -13,6 +13,8 @@ terraform {
 
 data "aws_region" "current" {}
 
+data "aws_caller_identity" "current" {}
+
 locals {
   name      = "preprovisioner"
   full_name = "${var.prefix}-${local.name}"
@@ -255,7 +257,7 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "QUEUED_INSTANCES"
-            value = "20"
+            value = data.aws_caller_identity.current.account_id == 411315989055 ? "20" : "5"
           },
           {
             name  = "TF_VAR_redis_address"

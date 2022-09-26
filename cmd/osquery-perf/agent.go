@@ -631,7 +631,7 @@ func (a *agent) runPolicy(query string) []map[string]string {
 			{"1": "1"},
 		}
 	}
-	return nil
+	return []map[string]string{}
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
@@ -770,6 +770,16 @@ func (a *agent) batteries() []map[string]string {
 	return result
 }
 
+func (a *agent) diskSpace() []map[string]string {
+	// between 1-100 gigs, between 0-99 percentage available
+	gigs := rand.Intn(100)
+	gigs++
+	pct := rand.Intn(100)
+	return []map[string]string{
+		{"percent_disk_space_available": strconv.Itoa(gigs), "gigs_disk_space_available": strconv.Itoa(pct)},
+	}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -846,6 +856,12 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			case "ubuntu_22.04":
 				results = a.softwareUbuntu2204()
 			}
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskSpace()
 		}
 		return true, results, &ss
 	default:

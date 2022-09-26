@@ -1,42 +1,540 @@
 # API for contributors
 
+- [Packs](#packs)
+- [Get or apply configuration files](#get-or-apply-configuration-files) 
+- [Live query](#live-query)
+- [Device-authenticated routes](#device-authenticated-routes)
+- [Downloadable installers](#downloadable-installers)
+- [Setup](#setup)
+
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
 Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
 
-- [Get queries spec](#get-queries-spec)
-- [Get query spec](#get-query-spec)
-- [Apply queries spec](#apply-queries-spec)
-- [Get packs spec](#get-packs-spec)
-- [Apply packs spec](#apply-packs-spec)
-- [Get pack spec by name](#get-pack-spec-by-name)
-- [Apply team spec](#apply-team-spec)
-- [Apply labels spec](#apply-labels-spec)
-- [Get labels spec](#get-labels-spec)
-- [Get label spec](#get-label-spec)
+## Packs
+
+Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](../Using-Fleet/Fleet-UI.md#schedule-a-query).
+
+The API routes to control packs are supported for backwards compatibility.
+
+- [Create pack](#create-pack)
+- [Modify pack](#modify-pack)
+- [Get pack](#get-pack)
+- [List packs](#list-packs)
+- [Delete pack](#delete-pack)
+- [Delete pack by ID](#delete-pack-by-id)
+- [Get scheduled queries in a pack](#get-scheduled-queries-in-a-pack)
+- [Add scheduled query to a pack](#add-scheduled-query-to-a-pack)
+- [Get scheduled query](#get-scheduled-query)
+- [Modify scheduled query](#modify-scheduled-query)
+- [Delete scheduled query](#delete-scheduled-query)
+
+### Create pack
+
+`POST /api/v1/fleet/packs`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                             |
+| ----------- | ------ | ---- | ----------------------------------------------------------------------- |
+| name        | string | body | **Required**. The pack's name.                                          |
+| description | string | body | The pack's description.                                                 |
+| host_ids    | list   | body | A list containing the targeted host IDs.                                |
+| label_ids   | list   | body | A list containing the targeted label's IDs.                             |
+| team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
+
+#### Example
+
+`POST /api/v1/fleet/packs`
+
+##### Request query parameters
+
+```json
+{
+  "description": "Collects osquery data.",
+  "host_ids": [],
+  "label_ids": [6],
+  "name": "query_pack_1"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "pack": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 17,
+    "name": "query_pack_1",
+    "description": "Collects osquery data.",
+    "query_count": 0,
+    "total_hosts_count": 223,
+    "host_ids": [],
+    "label_ids": [
+      6
+    ],
+    "team_ids": []
+  }
+}
+```
+
+### Modify pack
+
+`PATCH /api/v1/fleet/packs/{id}`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                                             |
+| ----------- | ------- | ---- | ----------------------------------------------------------------------- |
+| id          | integer | path | **Required.** The pack's id.                                            |
+| name        | string  | body | The pack's name.                                                        |
+| description | string  | body | The pack's description.                                                 |
+| host_ids    | list    | body | A list containing the targeted host IDs.                                |
+| label_ids   | list    | body | A list containing the targeted label's IDs.                             |
+| team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
+
+#### Example
+
+`PATCH /api/v1/fleet/packs/{id}`
+
+##### Request query parameters
+
+```json
+{
+  "description": "MacOS hosts are targeted",
+  "host_ids": [],
+  "label_ids": [7]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "pack": {
+    "created_at": "2021-01-25T22:32:45Z",
+    "updated_at": "2021-01-25T22:32:45Z",
+    "id": 17,
+    "name": "Title2",
+    "description": "MacOS hosts are targeted",
+    "query_count": 0,
+    "total_hosts_count": 110,
+    "host_ids": [],
+    "label_ids": [
+      7
+    ],
+    "team_ids": []
+  }
+}
+```
+
+### Get pack
+
+`GET /api/v1/fleet/packs/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's id. |
+
+#### Example
+
+`GET /api/v1/fleet/packs/17`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "pack": {
+    "created_at": "2021-01-25T22:32:45Z",
+    "updated_at": "2021-01-25T22:32:45Z",
+    "id": 17,
+    "name": "Title2",
+    "description": "MacOS hosts are targeted",
+    "disabled": false,
+    "type": null,
+    "query_count": 0,
+    "total_hosts_count": 110,
+    "host_ids": [],
+    "label_ids": [
+      7
+    ],
+    "team_ids": []
+  }
+}
+```
+
+### List packs
+
+`GET /api/v1/fleet/packs`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string | query | What to order results by. Can be any column in the packs table.                                                               |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/packs`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "packs": [
+    {
+      "created_at": "2021-01-05T21:13:04Z",
+      "updated_at": "2021-01-07T19:12:54Z",
+      "id": 1,
+      "name": "pack_number_one",
+      "description": "This pack has a description",
+      "disabled": true,
+      "query_count": 1,
+      "total_hosts_count": 53,
+      "host_ids": [],
+      "label_ids": [
+        8
+      ],
+      "team_ids": [],
+    },
+    {
+      "created_at": "2021-01-19T17:08:31Z",
+      "updated_at": "2021-01-19T17:08:31Z",
+      "id": 2,
+      "name": "query_pack_2",
+      "query_count": 5,
+      "total_hosts_count": 223,
+      "host_ids": [],
+      "label_ids": [
+        6
+      ],
+      "team_ids": []
+    },
+  ]
+}
+```
+
+### Delete pack
+
+Delete pack by name.
+
+`DELETE /api/v1/fleet/packs/{name}`
+
+#### Parameters
+
+| Name | Type   | In   | Description                    |
+| ---- | ------ | ---- | ------------------------------ |
+| name | string | path | **Required.** The pack's name. |
+
+#### Example
+
+`DELETE /api/v1/fleet/packs/pack_number_one`
+
+##### Default response
+
+`Status: 200`
+
+
+### Delete pack by ID
+
+`DELETE /api/v1/fleet/packs/id/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's ID. |
+
+#### Example
+
+`DELETE /api/v1/fleet/packs/id/1`
+
+##### Default response
+
+`Status: 200`
+
+
+### Get scheduled queries in a pack
+
+`GET /api/v1/fleet/packs/{id}/scheduled`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required.** The pack's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/packs/1/scheduled`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 49,
+      "pack_id": 15,
+      "name": "new_query",
+      "query_id": 289,
+      "query_name": "new_query",
+      "query": "SELECT * FROM osquery_info",
+      "interval": 456,
+      "snapshot": false,
+      "removed": true,
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 50,
+      "pack_id": 15,
+      "name": "new_title_for_my_query",
+      "query_id": 288,
+      "query_name": "new_title_for_my_query",
+      "query": "SELECT * FROM osquery_info",
+      "interval": 677,
+      "snapshot": true,
+      "removed": false,
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 51,
+      "pack_id": 15,
+      "name": "osquery_info",
+      "query_id": 22,
+      "query_name": "osquery_info",
+      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
+      "interval": 6667,
+      "snapshot": true,
+      "removed": false,
+      "platform": "windows",
+      "version": "4.6.0",
+      "shard": null,
+      "denylist": null
+    }
+  ]
+}
+```
+
+### Add scheduled query to a pack
+
+`POST /api/v1/fleet/schedule`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| pack_id  | integer | body | **Required.** The pack's ID.                                                                                  |
+| query_id | integer | body | **Required.** The query's ID.                                                                                 |
+| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                 |
+| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                  |
+| removed  | boolean | body | **Required.** Whether "removed" actions should be logged.                                                     |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/schedule`
+
+#### Request body
+
+```json
+{
+  "interval": 120,
+  "pack_id": 15,
+  "query_id": 23,
+  "removed": true,
+  "shard": null,
+  "snapshot": false,
+  "version": "4.5.0",
+  "platform": "windows"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 56,
+    "pack_id": 17,
+    "name": "osquery_events",
+    "query_id": 23,
+    "query_name": "osquery_events",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
+    "interval": 120,
+    "snapshot": false,
+    "removed": true,
+    "platform": "windows",
+    "version": "4.5.0",
+    "shard": 10
+  }
+}
+```
+
+### Get scheduled query
+
+`GET /api/v1/fleet/schedule/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
+| id   | integer | path | **Required.** The scheduled query's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/schedule/56`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 56,
+    "pack_id": 17,
+    "name": "osquery_events",
+    "query_id": 23,
+    "query_name": "osquery_events",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
+    "interval": 120,
+    "snapshot": false,
+    "removed": true,
+    "platform": "windows",
+    "version": "4.5.0",
+    "shard": 10,
+    "denylist": null
+  }
+}
+```
+
+### Modify scheduled query
+
+`PATCH /api/v1/fleet/schedule/{id}`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                   |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
+| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
+| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
+| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
+| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
+| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
+| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
+
+#### Example
+
+`PATCH /api/v1/fleet/schedule/56`
+
+#### Request body
+
+```json
+{
+  "platform": ""
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scheduled": {
+    "created_at": "2021-01-28T19:40:04Z",
+    "updated_at": "2021-01-28T19:40:04Z",
+    "id": 56,
+    "pack_id": 17,
+    "name": "osquery_events",
+    "query_id": 23,
+    "query_name": "osquery_events",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
+    "interval": 120,
+    "snapshot": false,
+    "removed": true,
+    "platform": "",
+    "version": "4.5.0",
+    "shard": 10
+  }
+}
+```
+
+### Delete scheduled query
+
+`DELETE /api/v1/fleet/schedule/{id}`
+
+#### Parameters
+
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
+| id   | integer | path | **Required.** The scheduled query's ID. |
+
+#### Example
+
+`DELETE /api/v1/fleet/schedule/56`
+
+##### Default response
+
+`Status: 200`
+
+---
+
+## Get or apply configuration files
+
+These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](../Using-Fleet/configuration-files/README.md).
+
+- [Get queries](#get-queries)
+- [Get query](#get-query)
+- [Apply queries](#apply-queries)
+- [Apply policies](#aaply-policies) 
+- [Get packs](#get-packs)
+- [Apply packs](#apply-packs)
+- [Get pack by name](#get-pack-by-name)
+- [Apply team](#apply-team)
+- [Apply labels](#apply-labels)
+- [Get labels](#get-labels)
+- [Get label](#get-label-spec)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
-- [Search hosts to target for live query](#search-targets)
-- [Count targets for live query](#count-targets)
-- [Check live query status](#check-live-query-status)
-- [Check result store status](#check-result-store-status)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
-- [Run live query by name](#run-live-query-by-name)
-- [Apply policies spec](#apply-policies-spec)
-- [Device-authenticated routes](#device-authenticated-routes)
-    - [Get device's host](#get-devices-host)
-    - [Refetch device's host](#refetch-devices-host)
-    - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
-    - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
-    - [Get device's policies](#get-devices-policies)
-    - [Get device's API features](#get-devices-api-features)
-    - [Get device's transparency URL](#get-devices-transparency-url)
-- [Check if an installer exists](#check-if-an-installer-exists)
-- [Download an installer](#download-an-installer)
-- [Setup Fleet instance](#setup-fleet-instance)
 
-### Get queries spec
+### Get queries
 
 Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
 
@@ -71,7 +569,7 @@ None.
 }
 ```
 
-### Get query spec
+### Get query
 
 Returns the name, description, and SQL of the query specified by name.
 
@@ -101,9 +599,9 @@ Returns the name, description, and SQL of the query specified by name.
 }
 ```
 
-### Apply queries spec
+### Apply queries
 
-Creates and/or modifies the queries included in the specs list. To modify an existing query, the name of the query included in `specs` must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
+Creates and/or modifies the queries included in the list. To modify an existing query, the name of the query must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
 
 `POST /api/v1/fleet/spec/queries`
 
@@ -140,9 +638,9 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 `Status: 200`
 
-### Get packs spec
+### Get packs
 
-Returns the specs for all packs in the Fleet instance.
+Returns all packs in the Fleet instance.
 
 `GET /api/v1/fleet/spec/packs`
 
@@ -256,9 +754,53 @@ Returns the specs for all packs in the Fleet instance.
 }
 ```
 
-### Apply packs spec
+### Apply policies
 
-The following returns the specs for all packs in the Fleet instance.
+Creates and/or modifies the policies included in the list. To modify an existing policy, the name of the policy included in the list must already be used by an existing policy. If a policy with the specified name doesn't exist in Fleet, a new policy will be created.
+
+NOTE: when updating a policy, team and platform will be ignored.
+
+`POST /api/v1/fleet/spec/policies`
+
+#### Parameters
+
+| Name  | Type | In   | Description                                                       |
+| ----- | ---- | ---- | ----------------------------------------------------------------- |
+| specs | list | body | **Required.** The list of the policies to be created or modified. |
+
+#### Example
+
+`POST /api/v1/fleet/spec/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "new policy",
+      "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
+      "query": "SELECT * FROM osquery_info",
+      "resolution": "some resolution steps here"
+    },
+    {
+      "name": "Is FileVault enabled on macOS devices?",
+      "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
+      "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
+      "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+      "platform": "darwin"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Apply packs
+
+Creates and/or modifies the packs included in the list.
 
 `POST /api/v1/fleet/spec/packs`
 
@@ -365,9 +907,9 @@ The following returns the specs for all packs in the Fleet instance.
 
 `Status: 200`
 
-### Get pack spec by name
+### Get pack by name
 
-Returns the spec for the specified pack by pack name.
+Returns a pack.
 
 `GET /api/v1/fleet/spec/packs/{name}`
 
@@ -452,7 +994,7 @@ Returns the spec for the specified pack by pack name.
 }
 ```
 
-### Apply team spec
+### Apply team
 
 _Available in Fleet Premium_
 
@@ -464,12 +1006,14 @@ If the `name` is not already associated with an existing team, this API route cr
 
 #### Parameters
 
-| Name          | Type   | In   | Description                                                                                                                                                                                                                         |
-| ------------- | ------ | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name          | string | body | **Required.** The team's name.                                                                                                                                                                                                      |
-| agent_options | string | body | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
-| features      | object | body | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
-| secrets       | list   | body | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                 |
+| Name          | Type   | In    | Description                                                                                                                                                                                                                         |
+| ------------- | ------ | ----  | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name          | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
+| agent_options | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
+| features      | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
+| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                 |
+| force         | bool   | query | Force apply the options even if there are validation errors.                                                                                                                                                                        |
+| dry_run       | bool   | query | Validate the options and return any validation errors, but do not apply the changes.                                                                                                                                                |
 
 #### Example
 
@@ -529,9 +1073,9 @@ If the `name` is not already associated with an existing team, this API route cr
 
 `Status: 200`
 
-### Apply labels spec
+### Apply labels
 
-Applies the supplied labels specs to Fleet. Each label requires the `name`, and `label_membership_type` properties.
+Adds the supplied labels to Fleet. Each label requires the `name`, and `label_membership_type` properties.
 
 If the `label_membership_type` is set to `dynamic`, the `query` property must also be specified with the value set to a query in SQL syntax.
 
@@ -574,7 +1118,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 `Status: 200`
 
-### Get labels spec
+### Get labels
 
 `GET /api/v1/fleet/spec/labels`
 
@@ -647,9 +1191,9 @@ None.
 }
 ```
 
-### Get label spec
+### Get label
 
-Returns the spec for the label specified by name.
+Returns the label specified by name.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
@@ -741,6 +1285,57 @@ This replaces the active global enroll secrets with the secrets specified.
 ```
 
 `POST /api/v1/fleet/spec/enroll_secret`
+
+##### Default response
+
+`Status: 200`
+
+---
+
+## Live query
+
+These API routes are used by the Fleet UI.
+
+- [Check live query status](#check-live-query-status)
+- [Check result store status](#check-result-store-status)
+- [Search targets](#search-targets)
+- [Count targets](#count-targets)
+- [Run live query](#run-live-query)
+- [Run live query by name](#run-live-query-by-name)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
+
+### Check live query status
+
+This checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
+
+`GET /api/v1/fleet/status/live_query`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/live_query`
+
+##### Default response
+
+`Status: 200`
+
+### Check result store status
+
+This checks Fleet's result store status. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
+
+`GET /api/v1/fleet/status/result_store`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/status/result_store`
 
 ##### Default response
 
@@ -867,42 +1462,6 @@ Counts the number of online and offline hosts included in a given set of selecte
   "targets_online": 0
 }
 ```
-
-### Check live query status
-
-This checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
-
-`GET /api/v1/fleet/status/live_query`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/status/live_query`
-
-##### Default response
-
-`Status: 200`
-
-### Check result store status
-
-This checks Fleet's result store status. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
-
-`GET /api/v1/fleet/status/result_store`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/status/result_store`
-
-##### Default response
-
-`Status: 200`
 
 ### Run live query
 
@@ -1375,53 +1934,17 @@ o
 ]
 ```
 
-### Apply policies spec
-
-Creates and/or modifies the policies included in the specs list. To modify an existing policy, the name of the query included in `specs` must already be used by an existing policy. If a policy with the specified name doesn't exist in Fleet, a new policy will be created.
-
-NOTE: when updating a policy, team and platform will be ignored.
-
-`POST /api/v1/fleet/spec/policies`
-
-#### Parameters
-
-| Name  | Type | In   | Description                                                       |
-| ----- | ---- | ---- | ----------------------------------------------------------------- |
-| specs | list | body | **Required.** The list of the policies to be created or modified. |
-
-#### Example
-
-`POST /api/v1/fleet/spec/policies`
-
-##### Request body
-
-```json
-{
-  "specs": [
-    {
-      "name": "new policy",
-      "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
-      "query": "SELECT * FROM osquery_info",
-      "resolution": "some resolution steps here"
-    },
-    {
-      "name": "Is FileVault enabled on macOS devices?",
-      "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
-      "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
-      "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin"
-    }
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
 ### Device-authenticated routes
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+
+- [Get device's host](#get-devices-host)
+- [Refetch device's host](#refetch-devices-host)
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+- [Get device's policies](#get-devices-policies)
+- [Get device's API features](#get-devices-api-features)
+- [Get device's transparency URL](#get-devices-transparency-url)
 
 #### Get device's host
 
@@ -1619,6 +2142,36 @@ Same as [Get host's mobile device management and Munki information](../Using-Fle
 | --------------- | ------ | ----- | ---------------------------------------|
 | token           | string | path  | The device's authentication token.     |
 
+
+#### Get Fleet Desktop information
+_Available in Fleet Premium_
+
+Gets all information required by Fleet Desktop to notify the user if there are any failing policies.
+
+`GET /api/v1/fleet/device/{token}/desktop`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/desktop`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "failing_policies_count": 3
+}
+```
+
+
+
 #### Get device's policies
 
 _Available in Fleet Premium_
@@ -1723,11 +2276,20 @@ Returns the URL to open when clicking the "Transparency" menu item in Fleet Desk
 
 Redirects to the transparency URL.
 
+---
+
+## Downloadable installers
+
+These API routes are used by the UI in Fleet Sandbox.
+
+- [Download an installer](#download-an-installer)
+- [Check if an installer exists](#check-if-an-installer-exists)
+
 ### Download an installer
 
 Downloads a pre-built fleet-osquery installer with the given parameters.
 
-`POST /api/_version_/fleet/download_installer/{kind}`
+`POST /api/v1/fleet/download_installer/{kind}`
 
 #### Parameters
 
@@ -1757,11 +2319,11 @@ If an installer with the provided parameters is found, the installer is returned
 This error occurs if an installer with the provided parameters doesn't exist.
 
 
-### Check if an installer exists 
+### Check if an installer exists
 
 Checks if a pre-built fleet-osquery installer with the given parameters exists.
 
-`HEAD /api/_version_/fleet/download_installer/{kind}`
+`HEAD /api/v1/fleet/download_installer/{kind}`
 
 #### Parameters
 
@@ -1783,11 +2345,11 @@ If an installer with the provided parameters is found.
 
 If an installer with the provided parameters doesn't exist.
 
-### Setup Fleet instance
+### Setup
 
 Sets up a new Fleet instance with the given parameters.
 
-`POST /api/_version_/setup`
+`POST /api/v1/setup`
 
 #### Parameters
 

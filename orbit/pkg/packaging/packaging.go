@@ -227,6 +227,7 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 
 // Embed the certs file that osquery uses so that we can drop it into our installation packages.
 // This file copied from https://raw.githubusercontent.com/osquery/osquery/master/tools/deployment/certs.pem
+//
 //go:embed certs.pem
 var osqueryCerts []byte
 
