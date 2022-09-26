@@ -126,12 +126,12 @@ const Homepage = (): JSX.Element => {
     isFetching: isHostSummaryFetching,
     error: errorHosts,
   } = useQuery<IHostSummary, Error, IHostSummary>(
-    ["host summary", currentTeam, selectedPlatform],
+    ["host summary", currentTeam, isPremiumTier, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
         teamId: currentTeam?.id,
         platform: selectedPlatform,
-        lowDiskSpace: 32,
+        lowDiskSpace: isPremiumTier ? 32 : undefined,
       }),
     {
       select: (data: IHostSummary) => data,

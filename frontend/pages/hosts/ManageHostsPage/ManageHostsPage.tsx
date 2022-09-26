@@ -790,13 +790,15 @@ const ManageHostsPage = ({
             newQueryParams.munki_issue_id = munkiIssueId;
           }
           break;
+        // Premium feature only
         case !!missingHosts:
           if (missingHosts) {
             newQueryParams.status = "missing";
           }
           break;
+        // Premium feature only
         case !!lowDiskSpaceHosts:
-          if (lowDiskSpaceHosts) {
+          if (lowDiskSpaceHosts && isPremiumTier) {
             newQueryParams.low_disk_space = 32;
           }
           break;
