@@ -29,5 +29,35 @@
       "product": ["node.js"],
       "vendor": ["nodejs"]
     }
+  },
+  {
+    "software": {
+      "name": ["/1Password/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["1password"],
+      "vendor": ["1password"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/Node\\.js/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["node.js"],
+      "vendor": ["nodejs"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/7-Zip/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["7-zip"],
+      "vendor": ["7-zip"]
+    }
   }
 ]

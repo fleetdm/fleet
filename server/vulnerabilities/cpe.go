@@ -2,6 +2,7 @@ package vulnerabilities
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -109,26 +110,6 @@ type IndexedCPEItem struct {
 	CPE23      string  `json:"cpe23" db:"cpe23"`
 	Deprecated bool    `json:"deprecated" db:"deprecated"`
 	Weight     int     `db:"weight"`
-}
-
-func cleanAppName(appName string) string {
-	return strings.TrimSuffix(appName, ".app")
-}
-
-var nonAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
-
-// sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all non alpha numeric characters with spaces.
-func sanitizeMatch(s string) string {
-	return nonAlphaNumeric.ReplaceAllString(s, " ")
-}
-
-var sanitizeVersionRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
-
-// sanitizeVersion attempts to sanitize versions and attempt to make it dot separated.
-// Eg Zoom reports version as "5.11.1 (8356)". In the NVD CPE dictionary it should be 5.11.1.8356.
-func sanitizeVersion(version string) string {
-	parts := sanitizeVersionRe.Split(version, -1)
-	return strings.Trim(strings.Join(parts, "."), ".")
 }
 
 const cpeTranslationsFilename = "cpe_translations.json"
@@ -331,161 +312,6 @@ type CPETranslation struct {
 	TargetSW []string `json:"target_sw"`
 }
 
-var stopWords = map[string]bool{
-	".":            true,
-	"THE":          true,
-	"The":          true,
-	"Inc":          true,
-	"Inc.":         true,
-	"Incorporated": true,
-	"Corporation":  true,
-	"Corp":         true,
-	"Foundation":   true,
-	"Software":     true,
-	"com":          true,
-	"org":          true,
-}
-
-var langCodes = map[string]bool{
-	"af-ZA": true,
-	"bg-BG": true,
-	"ca-AD": true,
-	"cs-CZ": true,
-	"cy-GB": true,
-	"da-DK": true,
-	"de-DE": true,
-	"el-GR": true,
-	"en-US": true,
-	"es-ES": true,
-	"et-EE": true,
-	"fa-IR": true,
-	"fi-FI": true,
-	"fr-FR": true,
-	"he-IL": true,
-	"hi-IN": true,
-	"hr-HR": true,
-	"hu-HU": true,
-	"id-ID": true,
-	"is-IS": true,
-	"it-IT": true,
-	"ja-JP": true,
-	"km-KH": true,
-	"ko-KR": true,
-	"lt-LT": true,
-	"lv-LV": true,
-	"mn-MN": true,
-	"nb-NO": true,
-	"nl-NL": true,
-	"nn-NO": true,
-	"pl-PL": true,
-	"pt-PT": true,
-	"ro-RO": true,
-	"ru-RU": true,
-	"sk-SK": true,
-	"sl-SI": true,
-	"sr-RS": true,
-	"sv-SE": true,
-	"th-TH": true,
-	"tr-TR": true,
-	"uk-UA": true,
-	"vi-VN": true,
-	"zh-CN": true,
-}
-
-func sanitizedProductName(s *fleet.Software) string {
-	archs := regexp.MustCompile(` \(?x64\)?|\(?64-bit\)?|\(?64bit\)?|\(?amd64\)? `)
-	ver := regexp.MustCompile(` \.?\(?(\d+\.)?(\d+\.)?(\*|\d+)\)?\s?`)
-	gen := regexp.MustCompile(` \(\w+\)\s?`)
-	comments := regexp.MustCompile(` (-|:)\s?.+`)
-
-	r := strings.ToLower(s.Name)
-	r = strings.TrimSuffix(r, ".app")
-
-	r = strings.Replace(r, strings.ToLower(s.Vendor), "", -1)
-	if len(r) == 0 {
-		r = strings.ToLower(s.Name)
-	}
-
-	for _, v := range strings.Split(s.BundleIdentifier, ".") {
-		r = strings.Replace(r, strings.ToLower(v), "", -1)
-	}
-	if len(r) == 0 {
-		r = strings.ToLower(s.Name)
-	}
-
-	r = archs.ReplaceAllString(r, "")
-	r = ver.ReplaceAllString(r, "")
-	r = gen.ReplaceAllString(r, "")
-
-	r = strings.ReplaceAll(r, "—", "-")
-	r = strings.ReplaceAll(r, "–", "-")
-	r = comments.ReplaceAllString(r, "")
-
-	for l := range langCodes {
-		r = strings.Replace(r, l, "", -1)
-	}
-
-	r = strings.Replace(r, "(", " ", -1)
-	r = strings.Replace(r, ")", " ", -1)
-	r = strings.Join(strings.Fields(r), " ")
-
-	return r
-}
-
-func productVariations(s *fleet.Software) []string {
-	var r []string
-
-	r = append(r, s.Name)
-	r = append(r, strings.ToLower(s.Name))
-
-	withoutVendorParts := sanitizedProductName(s)
-	for _, p := range strings.Split(s.Vendor, " ") {
-		pL := strings.ToLower(p)
-		withoutVendorParts = strings.Join(strings.Fields(strings.Replace(withoutVendorParts, pL, "", -1)), " ")
-	}
-	if withoutVendorParts != "" {
-		r = append(r, withoutVendorParts)
-		r = append(r, strings.Replace(withoutVendorParts, " ", "", -1))
-		r = append(r, strings.Replace(withoutVendorParts, " ", "_", -1))
-	}
-
-	r = append(r, sanitizedProductName(s))
-	r = append(r, strings.Replace(sanitizedProductName(s), " ", "_", -1))
-	r = append(r, strings.Replace(sanitizedProductName(s), " ", "", -1))
-
-	return r
-}
-
-func vendorVariations(s *fleet.Software) []string {
-	var r []string
-
-	if s.Vendor == "" && s.BundleIdentifier == "" {
-		return r
-	}
-
-	r = append(r, s.Vendor)
-	r = append(r, strings.ToLower(s.Vendor))
-
-	for _, v := range strings.Split(s.Vendor, " ") {
-		if !stopWords[v] {
-			r = append(r, v)
-			r = append(r, strings.ToLower(v))
-		}
-	}
-
-	for _, v := range strings.Split(s.BundleIdentifier, ".") {
-		if !stopWords[v] {
-			r = append(r, v)
-			r = append(r, strings.ToLower(v))
-		}
-	}
-
-	r = append(r, strings.ToLower(strings.Replace(s.Vendor, " ", "_", -1)))
-	r = append(r, strings.ToLower(strings.Replace(s.Vendor, " ", "", -1)))
-
-	return r
-}
-
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product, vendor, target_sw, and version.
@@ -498,10 +324,10 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			"c.vendor",
 			"c.cpe23",
 			"c.deprecated",
-			"1 as weight",
+			goqu.L("1 as weight"),
 		)
 
-	var sql string
+	var stm string
 	var args []interface{}
 
 	translation, match, err := translations.Translate(reCache, software)
@@ -531,9 +357,30 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			ds = ds.Where(goqu.Or(exps...))
 		}
 
+		stm, args, _ = ds.ToSQL()
+
+		var indexedCPEs []IndexedCPEItem
+		err = db.Select(&indexedCPEs, stm, args...)
+		if err != nil {
+			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
+		}
+
+		// fmt.Println(software.Name, software.Vendor, stm)
+		// fmt.Print("\n\n\n")
+
+		for _, item := range indexedCPEs {
+			if !item.Deprecated {
+				cpeParsed := wfn.NewAttributesWithAny()
+				cpeParsed.Vendor = item.Vendor
+				cpeParsed.Product = item.Product
+				cpeParsed.Version = sanitizeVersion(software.Version)
+				return cpeParsed.BindToFmtString(), nil
+			}
+		}
+
 	} else {
-		var targetSW string
-		fmt.Println(targetSW)
+		// var targetSW string
+		// fmt.Println(targetSW)
 
 		switch software.Source {
 		case "apps":
@@ -553,19 +400,19 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			// 		goqu.I("c.target_sw").Like("mac%"),
 			// 	),
 			// )
-			targetSW = "mac"
+			// targetSW = "macos"
 		case "python_packages":
-			targetSW = "python"
+			// targetSW = "python"
 		case "chrome_extensions":
-			targetSW = "chrome"
+			// targetSW = "chrome"
 		case "firefox_addons":
-			targetSW = "firefox"
+			// targetSW = "firefox"
 		case "safari_extensions":
-			targetSW = "safari"
+			// targetSW = "safari"
 		case "npm_packages":
-			targetSW = `node.js`
+			// targetSW = `node.js`
 		case "programs":
-			targetSW = "windows"
+			// targetSW = "windows"
 		}
 
 		dialect := goqu.Dialect("sqlite")
@@ -611,7 +458,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 				goqu.L("2 as weight"),
 			).
 			Where(
-				goqu.L("c.product = ?", sanitizedProductName(software)),
+				goqu.L("c.product = ?", sanitizeSoftwareName(software)),
 			)
 		// if targetSW != "" {
 		// 	p = p.Where(
@@ -657,17 +504,21 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			args = append(args, a...)
 		}
 
-		sql = strings.Join(sqlParts, " UNION ")
-		sql += "ORDER BY weight ASC"
+		stm = strings.Join(sqlParts, " UNION ")
+		stm += "ORDER BY weight ASC"
 	}
 
-	fmt.Println(software.Name, software.Vendor, sql)
-	fmt.Print("\n\n\n")
+	// if software.Name == "Node.js" || software.Name == "Mozilla Firefox (x64 en-US)" {
+	// 	fmt.Println(software.Name, software.Vendor, stm)
+	// 	fmt.Print("\n\n\n")
+	// }
 
 	var indexedCPEs []IndexedCPEItem
-	err = db.Select(&indexedCPEs, sql, args...)
+	err = db.Select(&indexedCPEs, stm, args...)
 	if err != nil {
-		return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
+		if err != sql.ErrNoRows {
+			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
+		}
 	}
 
 	for _, item := range indexedCPEs {
@@ -699,6 +550,11 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			cpeParsed.Vendor = item.Vendor
 			cpeParsed.Product = item.Product
 			cpeParsed.Version = sanitizeVersion(software.Version)
+
+			// fmt.Printf("%+v\n", software)
+			// fmt.Println("vendorVariations", vendorVariations(software))
+			// fmt.Println("productVariations", productVariations(software))
+			// fmt.Print("\n")
 
 			return cpeParsed.BindToFmtString(), nil
 		}

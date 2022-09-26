@@ -430,7 +430,7 @@ func TestCPE(t *testing.T) {
 				Vendor:  "",
 				Source:  "apps",
 			},
-			sanitizedName: "airdop",
+			sanitizedName: "airdrop",
 			cpe:           "cpe:2.3:a:airdrop_project:airdrop:1.0:*:*:*:*:macos:*:*",
 		},
 		{
@@ -457,7 +457,7 @@ func TestCPE(t *testing.T) {
 
 	t.Run("sanitizedProductName", func(t *testing.T) {
 		for _, tc := range testCases {
-			actual := sanitizedProductName(&tc.software)
+			actual := sanitizeSoftwareName(&tc.software)
 			require.Equal(t, tc.sanitizedName, actual)
 		}
 	})
