@@ -16,7 +16,7 @@ CREATE TABLE nano_devices (
 
     -- The last raw Authenticate for this device
     authenticate    TEXT      NOT NULL,
-    authenticate_at TIMESTAMP NOT NULL,
+    authenticate_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     -- The last raw TokenUpdate for this device
     token_update    TEXT      NULL,
     token_update_at TIMESTAMP NULL,
