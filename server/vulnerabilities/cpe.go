@@ -217,8 +217,9 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			return "", fmt.Errorf("getting CPE for: %s: %w", software.Name, err)
 		}
 
-		return cpeFmtString(software, result), nil
-
+		if result.ID != 0 {
+			return cpeFmtString(software, result), nil
+		}
 	} else {
 		stm, args, err := cpeGeneralSearchQuery(software)
 		if err != nil {
@@ -227,10 +228,12 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 
 		var results []IndexedCPEItem
 		err = db.Select(&results, stm, args...)
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+
 		if err != nil {
-			if err != sql.ErrNoRows {
-				return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
-			}
+			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 		}
 
 		for _, item := range results {
@@ -285,6 +288,9 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 					`,
 					deprecatedItem.ID,
 				)
+				if err == sql.ErrNoRows {
+					break
+				}
 				if err != nil {
 					return "", fmt.Errorf("getting deprecation: %w", err)
 				}
