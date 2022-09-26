@@ -553,7 +553,11 @@ func main() {
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
-		capabilitiesChecker := newCapabilitiesChecker(orbitClient)
+		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		if err != nil {
+			return fmt.Errorf("new client for capabilities checker: %w", err)
+		}
+		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
 		g.Add(capabilitiesChecker.actor())
 
 		if c.Bool("fleet-desktop") {
