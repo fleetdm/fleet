@@ -96,6 +96,16 @@ func TestValidateAgentOptions(t *testing.T) {
 				"pack1": 1
 			}
 		}}`, `invalid number value`},
+		{"option added in osquery 5.5.1", `{"config":{
+			"options": {
+				"malloc_trim_threshold": 100
+			}
+		}}`, ``},
+		{"option removed in osquery 5.5.1", `{"config":{
+			"options": {
+				"yara_malloc_trim": true
+			}
+		}}`, `unknown field "yara_malloc_trim"`},
 	}
 
 	for _, c := range cases {
