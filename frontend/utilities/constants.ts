@@ -337,6 +337,77 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
     platform: "darwin",
   },
+  {
+    key: 31,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;",
+    name: "Windows Firewall, Domain Profile enabled (Windows)",
+    description:
+      "Checks for the existence of a Group Policy that enables the Domain Profile for Windows Defender Firewall.",
+    resolution:
+      "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Domain profile for Windows Defender Firewall.",
+    platform: "windows",
+  },
+  {
+    key: 32,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;",
+    name: "Windows Firewall, Private Profile enabled (Windows)",
+    description:
+      "Checks for the existence of a Group Policy that enables the Private Profile for Windows Defender Firewall.",
+    resolution:
+      "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Private Profile for Windows Defender Firewall.",
+  },
+ {
+    key: 33,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;",
+    name: "Windows Firewall, Public Profile enabled (Windows)",
+    description:
+      "Checks for the existence of a Group Policy that enables the Public Profile for Windows Defender Firewall.",
+    resolution:
+      "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Public Profile for Windows Defender Firewall.",
+  },
+ {
+    key: 34,
+    query:
+      "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;",
+    name: "SMBv1 client driver disabled (Windows)",
+    description:
+      "Checks that the SMBv1 client is disabled.",
+    resolution:
+      "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+  },
+ {
+    key: 35,
+    query:
+      "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1",
+    name: "SMBv1 server disabled (Windows)",
+    description:
+      "Checks that the SMBv1 server is disabled.",
+    resolution:
+      "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+  },
+ {
+    key: 36,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;",
+    name: "LLMNR disabled (Windows)",
+    description:
+      "Checks for the existence of a Group Policy that disables LLMNR.",
+    resolution:
+      "Contact your IT administrator to discuss disabling LLMNR on your system.",
+  },
+ {
+    key: 37,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;",
+    name: "Automatic updates enabled (Windows)",
+    description:
+      "Checks for the existence of a Group Policy that enables Windows automatic updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Windows system is receiving a Group policy that enables Windows automatic updates.",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
