@@ -131,6 +131,7 @@ const Homepage = (): JSX.Element => {
       hostSummaryAPI.getSummary({
         teamId: currentTeam?.id,
         platform: selectedPlatform,
+        lowDiskSpace: 32,
       }),
     {
       select: (data: IHostSummary) => data,

@@ -463,7 +463,7 @@ const ManageHostsPage = ({
     if (queryParams.team_id) {
       options.teamId = queryParams.team_id;
     }
-
+    console.log("hostCountoptions", options);
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);
@@ -1490,7 +1490,7 @@ const ManageHostsPage = ({
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
-      lowDiskSpaceHosts,
+      lowDiskSpaceHosts: 32,
       os_id: osId,
       os_name: osName,
       os_version: osVersion,
