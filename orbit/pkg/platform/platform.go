@@ -15,10 +15,80 @@ import (
 
 var ErrProcessNotFound = errors.New("process not found")
 
-// Kills a single process by its name
+// readPidFromFile reads a PID from a file
+func readPidFromFile(destDir string, destFile string) (int32, error) {
+	// Defense programming - sanity checks on inputs
+	if destDir == "" {
+		return 0, errors.New(" destination directory should not be empty")
+	}
+
+	if destFile == "" {
+		return 0, errors.New(" destination file should not be empty")
+	}
+
+	pidFilePath := filepath.Join(destDir, destFile)
+	data, err := os.ReadFile(pidFilePath)
+	if err != nil {
+		return 0, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
+	}
+
+	intNumber, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("error converting pidfile %s: %w", pidFilePath, err)
+	}
+
+	return int32(intNumber), err
+}
+
+// processNameMatches returns whether the process running with the given pid matches
+// the executable name (case insensitive).
+// If there's no process running with the given pid then (false, nil) is returned.
+func processNameMatches(pid int, expectedPrefix string) (bool, error) {
+	if pid == 0 {
+		return false, errors.New("process id should not be zero")
+	}
+
+	if expectedPrefix == "" {
+		return false, errors.New("expected prefix should not be empty")
+	}
+
+	process, err := ps.FindProcess(pid)
+	if err != nil {
+		return false, fmt.Errorf("find process: %d: %w", pid, err)
+	}
+
+	if process == nil {
+		return false, nil
+	}
+
+	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
+}
+
+// killPID kills a process by PID
+func killPID(pid int32) error {
+	if pid == 0 {
+		return errors.New("process id should not be zero")
+	}
+
+	processes, err := gopsutil_process.Processes()
+	if err != nil {
+		return err
+	}
+
+	for _, process := range processes {
+		if pid == process.Pid {
+			process.Kill()
+			break
+		}
+	}
+
+	return nil
+}
+
+// KillProcessByName kills a single process by its name
 func KillProcessByName(name string) error {
 	if name == "" {
-		return fmt.Errorf("process name should not be empty")
+		return errors.New("process name should not be empty")
 	}
 
 	foundProcess, err := GetProcessByName(name)
@@ -33,10 +103,10 @@ func KillProcessByName(name string) error {
 	return nil
 }
 
-// Gets a single process object by its name
+// GetProcessByName gets a single process object by its name
 func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if name == "" {
-		return nil, fmt.Errorf("process name should not be empty")
+		return nil, errors.New("process name should not be empty")
 	}
 
 	processes, err := gopsutil_process.Processes()
@@ -65,86 +135,21 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	return foundProcess, nil
 }
 
-// Reads a PID from a file
-func ReadPidFromFile(destDir string, destFile string) (int, error) {
-	// Defense programming - sanity checks on inputs
-	if destDir == "" {
-		return 0, fmt.Errorf(" destination directory should not be empty")
-	}
-
-	if destFile == "" {
-		return 0, fmt.Errorf(" destination file should not be empty")
-	}
-
-	pidFilePath := filepath.Join(destDir, destFile)
-	data, err := os.ReadFile(pidFilePath)
-	if err != nil {
-		return 0, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
-	}
-
-	return strconv.Atoi(strings.TrimSpace(string(data)))
-}
-
-// ProcessNameMatches returns whether the process running with the given pid matches
-// the executable name (case insensitive).
-// If there's no process running with the given pid then (false, nil) is returned.
-func ProcessNameMatches(pid int, expectedPrefix string) (bool, error) {
-	if pid == 0 {
-		return false, fmt.Errorf("process id should not be zero")
-	}
-
-	if expectedPrefix == "" {
-		return false, fmt.Errorf("expected prefix should not be empty")
-	}
-
-	process, err := ps.FindProcess(pid)
-	if err != nil {
-		return false, fmt.Errorf("find process: %d: %w", pid, err)
-	}
-
-	if process == nil {
-		return false, nil
-	}
-
-	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
-}
-
-// Kills a process by PID
-func KillPID(pid int32) error {
-	if pid == 0 {
-		return fmt.Errorf("process id should not be zero")
-	}
-
-	processes, err := gopsutil_process.Processes()
-	if err != nil {
-		return err
-	}
-
-	for _, process := range processes {
-		if pid == process.Pid {
-			process.Kill()
-			break
-		}
-	}
-
-	return nil
-}
-
-// Kills a process taking the PID value from a file
+// KillFromPIDFile kills a process taking the PID value from a file
 func KillFromPIDFile(destDir string, pidFileName string, expectedExecName string) error {
 	if destDir == "" {
-		return fmt.Errorf("destination directory should not be empty")
+		return errors.New("destination directory should not be empty")
 	}
 
 	if pidFileName == "" {
-		return fmt.Errorf("PID file name hould not be empty")
+		return errors.New("PID file name should not be empty")
 	}
 
 	if expectedExecName == "" {
-		return fmt.Errorf("expected executable name should not be empty")
+		return errors.New("expected executable name should not be empty")
 	}
 
-	pid, err := ReadPidFromFile(destDir, pidFileName)
+	pid, err := readPidFromFile(destDir, pidFileName)
 	switch {
 	case err == nil:
 		// OK
@@ -154,7 +159,7 @@ func KillFromPIDFile(destDir string, pidFileName string, expectedExecName string
 		return fmt.Errorf("reading pid from: %s: %w", destDir, err)
 	}
 
-	matches, err := ProcessNameMatches(pid, expectedExecName)
+	matches, err := processNameMatches(int(pid), expectedExecName)
 	if err != nil {
 		return fmt.Errorf("inspecting process %d: %w", pid, err)
 	}
@@ -165,7 +170,7 @@ func KillFromPIDFile(destDir string, pidFileName string, expectedExecName string
 		return nil
 	}
 
-	if err := KillPID(int32(pid)); err != nil {
+	if err := killPID(pid); err != nil {
 		return fmt.Errorf("killing %d: %w", pid, err)
 	}
 

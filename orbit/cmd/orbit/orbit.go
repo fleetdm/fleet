@@ -26,8 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/service"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -262,7 +262,7 @@ func main() {
 		)
 
 		// Setting up the system service management early on the process lifetime
-		go service.SetupServiceManagement(constant.SystemServiceName, opt.RootDirectory)
+		go osservice.SetupServiceManagement(constant.SystemServiceName, opt.RootDirectory, c.Bool("fleet-desktop"))
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -491,7 +491,6 @@ func main() {
 		capabilities := fleet.CapabilityMap{}
 
 		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
-
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
@@ -751,7 +750,6 @@ func getUUID(osqueryPath string) (string, error) {
 		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
 	}
 	return uuids[0].UuidString, nil
-
 }
 
 // getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk

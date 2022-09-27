@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package service
+package osservice
 
 import (
 	"os"
@@ -11,23 +11,27 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 )
 
 type windowsService struct {
-	rootDir string
+	rootDir             string
+	fleetDesktopPresent bool
 }
 
-func (m *windowsService) bestEffortShutdown(serviceRootDir string) {
-	err := platform.KillProcessByName(constant.DesktopAppExecName)
-	if err != nil {
-		log.Info().Err(err).Msg("The desktop app couldn't be killed")
+func (m *windowsService) bestEffortShutdown() {
+	if m.fleetDesktopPresent {
+		err := platform.KillProcessByName(constant.DesktopAppExecName)
+		if err != nil {
+			log.Error().Err(err).Msg("The desktop app couldn't be killed")
+		}
 	}
 
-	if serviceRootDir != "" {
-		err = platform.KillFromPIDFile(serviceRootDir, constant.OsqueryPidfile, constant.OsquerydName)
+	if m.rootDir != "" {
+		err := platform.KillFromPIDFile(m.rootDir, constant.OsqueryPidfile, constant.OsquerydName)
 		if err != nil {
-			log.Info().Err(err).Msg("The osquery daemon process couldn't be killed")
+			log.Error().Err(err).Msg("The osquery daemon process couldn't be killed")
 		}
 	}
 }
@@ -54,7 +58,7 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 			changes <- svc.Status{State: svc.StopPending}
 
 			// Best effort tear down
-			m.bestEffortShutdown(m.rootDir)
+			m.bestEffortShutdown()
 
 			// Updating the service state to indicate that stop finished
 			changes <- svc.Status{State: svc.Stopped}
@@ -66,33 +70,46 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 			// This will generate an internal signal that will be caught by
 			// the app SignalHandler() runner, which will end up forcing
 			// the interrupt method to run on all runners
-			os.Exit(0)
+			os.Exit(windows.NO_ERROR)
 
 		default:
-			return false, 1052 // 1052: ERROR_INVALID_SERVICE_CONTROL
+			return false, uint32(windows.ERROR_INVALID_SERVICE_CONTROL)
 		}
 	}
 
 	return false, 0
 }
 
-// This function implements the dispatcher and notification logic to
+// SetupServiceManagement implements the dispatcher and notification logic to
 // interact with the Windows Service Control Manager (SCM)
-func SetupServiceManagement(serviceName string, serviceRootDir string) {
-	if (serviceName != "") && (serviceRootDir != "") {
-		// Ensuring that we are only calling the SCM if running as a service
-		isWindowsService, err := svc.IsWindowsService()
-		if err != nil {
-			log.Info().Err(err).Msg("couldn't determine if running as a service")
+func SetupServiceManagement(serviceName string, serviceRootDir string, fleetDesktopPresent bool) {
+	if serviceName == "" {
+		log.Error().Msg(" service name should not be empty")
+		return
+	}
+
+	if serviceRootDir == "" {
+		log.Error().Msg(" service root dir should not be empty")
+		return
+	}
+
+	// Ensuring that we are only calling the SCM if running as a service
+	isWindowsService, err := svc.IsWindowsService()
+	if err != nil {
+		log.Error().Err(err).Msg("couldn't determine if running as a service")
+		return
+	}
+
+	if isWindowsService {
+		srvData := windowsService{
+			rootDir:             serviceRootDir,
+			fleetDesktopPresent: fleetDesktopPresent,
 		}
 
-		if isWindowsService {
-			srvData := windowsService{rootDir: serviceRootDir}
-			// Registering our service into the SCM
-			err := svc.Run(serviceName, &srvData)
-			if err != nil {
-				log.Info().Err(err).Msg("SCM registration failed")
-			}
+		// Registering our service into the SCM
+		err := svc.Run(serviceName, &srvData)
+		if err != nil {
+			log.Info().Err(err).Msg("SCM registration failed")
 		}
 	}
 }
