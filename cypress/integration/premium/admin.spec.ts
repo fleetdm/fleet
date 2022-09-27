@@ -418,8 +418,8 @@ describe("Premium tier - Global Admin user", () => {
   describe("Manage policies page", () => {
     beforeEach(() => managePoliciesPage.visitManagePoliciesPage());
     it("allows global admin to add a new policy", () => {
-      managePoliciesPage.allowsAddPolicy();
-      managePoliciesPage.verifiesAddedPolicy();
+      managePoliciesPage.allowsAddDefaultPolicy();
+      managePoliciesPage.verifiesAddedDefaultPolicy();
     });
     it("allows global admin to automate a global policy", () => {
       managePoliciesPage.allowsAutomatePolicy();
@@ -440,7 +440,7 @@ describe("Premium tier - Global Admin user", () => {
     it("allows global admin to edit a team policy", () => {
       managePoliciesPage.visitManagePoliciesPage();
       teamsDropdown.switchTeams("All teams", "Apples");
-      managePoliciesPage.allowsSelectRunSavePolicy();
+      managePoliciesPage.allowsSelectRunSavePolicy("filevault");
     });
   });
   describe("Manage policies page (mock integrations)", () => {

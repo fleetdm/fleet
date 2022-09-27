@@ -8,7 +8,7 @@ const managePoliciesPage = {
   },
 
   allowsAddDefaultPolicy: () => {
-    cy.getAttached(".button-wrap")
+    cy.getAttached(".policies-table__action-button-container")
       .findByRole("button", { name: /add a policy/i })
       .click();
     // Add a default policy
@@ -70,9 +70,9 @@ const managePoliciesPage = {
     cy.findByText(/backup/i).should("not.exist");
   },
 
-  allowsSelectRunSavePolicy: () => {
+  allowsSelectRunSavePolicy: (name = "gatekeeper") => {
     cy.getAttached(".data-table__table").within(() => {
-      cy.findByRole("button", { name: /gatekeeper/i }).click();
+      cy.findByRole("button", { name: RegExp(name, "i") }).click();
     });
     cy.getAttached(".policy-form__button-wrap").within(() => {
       cy.findByRole("button", { name: /run/i }).should("exist");

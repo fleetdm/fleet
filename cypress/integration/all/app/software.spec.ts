@@ -197,7 +197,6 @@ describe("Software", () => {
     cy.logout();
   });
 
-  // TODO: Software list and details test coverage (Issue #3954)
   // describe("Manage software page", () => {
   //   beforeEach(() => {
   //     cy.loginWithCySession();

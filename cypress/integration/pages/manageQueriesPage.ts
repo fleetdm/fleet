@@ -131,12 +131,12 @@ const manageQueriesPage = {
     cy.findByRole("button", { name: /run query/i }).click();
     cy.findByText(/select targets/i).should("exist");
     cy.findByText(/all hosts/i).click();
-    cy.findByText(/hosts targeted/i).should("exist"); // target count
+    cy.findByText(/host targeted/i).should("exist"); // target count
   },
 
   verifiesRanQuery: () => {
     cy.findByRole("button", { name: /run/i }).click();
-    cy.findByText(/querying selected hosts/i).should("exist"); // target count
+    cy.findByText(/querying selected host/i).should("exist"); // target count
   },
 
   allowsViewRanQuery: () => {

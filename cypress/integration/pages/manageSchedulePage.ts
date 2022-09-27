@@ -25,7 +25,7 @@ const manageSchedulePage = {
   },
 
   allowsAddSchedule: () => {
-    cy.findByRole("button", { name: "Schedule" }).click();
+    cy.findByRole("button", { name: "Schedule a query" }).click();
     cy.getAttached(".schedule-editor-modal__form").within(() => {
       cy.findByText(/select query/i).click();
       cy.findByText(/get local/i).click();
@@ -72,8 +72,8 @@ const manageSchedulePage = {
         cy.findByText(/edit/i).click();
       });
     cy.getAttached(".schedule-editor-modal__form").within(() => {
-      cy.findByText(/every day/i).click();
       cy.findByText(/every 6 hours/i).click();
+      cy.findByText(/every day/i).click();
 
       cy.getAttached(".modal-cta-wrap").within(() => {
         cy.findByRole("button", { name: /schedule/i }).should("be.enabled");

@@ -1,11 +1,11 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
-import managePoliciesPage from "../pages/managePoliciesPage";
 import manageHostsPage from "../pages/manageHostsPage";
-import manageSoftwarePage from "../pages/manageSoftwarePage";
+import managePoliciesPage from "../pages/managePoliciesPage";
 import manageQueriesPage from "../pages/manageQueriesPage";
-import userProfilePage from "../pages/userProfilePage";
 import manageSchedulePage from "../pages/manageSchedulePage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
+import userProfilePage from "../pages/userProfilePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -208,8 +208,8 @@ describe("Premium tier - Team Admin user", () => {
   describe("Manage policies page", () => {
     beforeEach(() => managePoliciesPage.visitManagePoliciesPage());
     it("allows team admin to add a new policy", () => {
-      managePoliciesPage.allowsAddPolicy();
-      managePoliciesPage.verifiesAddedPolicy();
+      managePoliciesPage.allowsAddDefaultPolicy();
+      managePoliciesPage.verifiesAddedDefaultPolicy();
     });
     it("allows team admin to edit a team policy", () => {
       managePoliciesPage.visitManagePoliciesPage();
