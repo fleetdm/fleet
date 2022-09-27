@@ -50,7 +50,9 @@ func main() {
 		log.Info().Msg("ready")
 
 		systray.SetTooltip("Fleet Desktop")
-		systray.SetTemplateIcon(iconLight, iconLight)
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
 
 		// Theme detection is currently only on Windows. On macOS we use template icons (which
 		// automatically change), and on Linux we don't handle it yet (Ubuntu doesn't seem to change

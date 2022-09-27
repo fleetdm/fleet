@@ -20,4 +20,13 @@ const (
 	OrbitEnrollMaxRetries = 10
 	// OrbitEnrollRetrySleep is the time duration to sleep between retries
 	OrbitEnrollRetrySleep = 5 * time.Second
+	// OsquerydName is the name of osqueryd binary
+	// We use osqueryd as name to properly identify the process when listing
+	// running processes/tasks.
+	OsquerydName = "osqueryd"
+	// OsqueryPidfile is the file containing the PID of the running osqueryd process
+	OsqueryPidfile = "osquery.pid"
+	// SystemServiceName is the name of Orbit system service
+	// The service name is used by the OS service management framework
+	SystemServiceName = "Fleet osquery"
 )
