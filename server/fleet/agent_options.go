@@ -62,7 +62,7 @@ func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 // See https://osquery.readthedocs.io/en/stable/deployment/configuration/#configuration-specification
 //
 // NOTE: Update the following line with the version used for validation.
-// Current version: 5.4.0
+// Current version: 5.5.1
 type osqueryAgentOptions struct {
 	Options osqueryOptions `json:"options"`
 
@@ -196,6 +196,7 @@ type osqueryOptions struct {
 	DisableHashCache                    bool   `json:"disable_hash_cache"`
 	DisableLogging                      bool   `json:"disable_logging"`
 	DisableMemory                       bool   `json:"disable_memory"`
+	DistributedDenylistDuration         uint64 `json:"distributed_denylist_duration"`
 	DistributedInterval                 uint64 `json:"distributed_interval"`
 	DistributedLoginfo                  bool   `json:"distributed_loginfo"`
 	DistributedPlugin                   string `json:"distributed_plugin"`
@@ -237,6 +238,7 @@ type osqueryOptions struct {
 	LoggerTlsMaxLinesize                uint64 `json:"logger_tls_max_linesize"`
 	LoggerTlsPeriod                     uint64 `json:"logger_tls_period"`
 	LxdSocket                           string `json:"lxd_socket"`
+	MallocTrimThreshold                 uint64 `json:"malloc_trim_threshold"`
 	Nullvalue                           string `json:"nullvalue"`
 	NumericMonitoringFilesystemPath     string `json:"numeric_monitoring_filesystem_path"`
 	NumericMonitoringPlugins            string `json:"numeric_monitoring_plugins"`
@@ -265,7 +267,6 @@ type osqueryOptions struct {
 	Verbose                             bool   `json:"verbose"`
 	WorkerThreads                       int32  `json:"worker_threads"`
 	YaraDelay                           uint32 `json:"yara_delay"`
-	YaraMallocTrim                      bool   `json:"yara_malloc_trim"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
