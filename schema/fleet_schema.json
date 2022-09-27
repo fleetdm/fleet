@@ -1,7 +1,7 @@
 [
   {
     "name": "account_policy_data",
-    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data\n```"
+    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data\n```\nFind out when users last changed their passwords to evaluate how fresh the password is.\n\n```SELECT *, strftime('%Y-%m-%d %H:%M:%S', account_policy_data.password_last_set_time, 'unixepoch') AS password_last_set_time FROM account_policy_data CROSS JOIN users USING (uid) ORDER BY password_last_set_time ASC;```\n"
   },
   {
     "name": "alf",
