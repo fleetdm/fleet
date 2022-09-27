@@ -12,7 +12,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
-import { debug } from "webpack";
 
 const baseClass = "integration-form";
 
