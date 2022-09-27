@@ -18,10 +18,22 @@ var (
 	structTpl = template.Must(template.New("struct").Funcs(template.FuncMap{
 		"camelCase": camelCaseOptionName,
 	}).Parse(`
-type osqueryOptions struct { {{ range $name, $type := . }}
+// NOTE: generate automatically with ` + "`go run ./tools/osquery-agent-options/main.go`" + `
+type osqueryOptions struct { {{ range $name, $type := .Options }}
 	{{camelCase $name}} {{$type}} ` + "`json:\"{{$name}}\"`" + `{{end}}
-}`))
+}
+
+// NOTE: generate automatically with ` + "`go run ./tools/osquery-agent-options/main.go`" + `
+type osqueryCommandLineFlags struct { {{ range $name, $type := .Flags }}
+	{{camelCase $name}} {{$type}} ` + "`json:\"{{$name}}\"`" + `{{end}}
+}
+`))
 )
+
+type templateData struct {
+	Options map[string]string
+	Flags   map[string]string
+}
 
 func main() {
 	// get the list of flags that are valid as configuration options
@@ -30,8 +42,8 @@ func main() {
 		log.Fatalf("failed to run osqueryd --help: %v", err)
 	}
 
-	var optionsStarted, optionsSeen bool
-	var optionNames []string
+	var optionsStarted, optionsSeen, optionsDone bool
+	var optionNames, allNames []string
 
 	s := bufio.NewScanner(bytes.NewReader(b))
 	for s.Scan() {
@@ -40,24 +52,28 @@ func main() {
 		if !optionsStarted {
 			if strings.Contains(line, "osquery configuration options") {
 				optionsStarted = true
+				continue
 			}
-			continue
 		}
 
 		if line == "" {
 			if optionsSeen {
-				// we're done, empty line after an option has been seen
-				break
+				// we're done for options, empty line after an option has been seen
+				optionsDone = true
 			}
 			continue
 		}
 
-		optionsSeen = true
 		matches := rxOption.FindStringSubmatch(line)
 		if matches == nil {
-			log.Fatalf("failed to find an option name in line: %s", line)
+			continue
 		}
-		optionNames = append(optionNames, matches[1])
+
+		if optionsStarted && !optionsDone {
+			optionsSeen = true
+			optionNames = append(optionNames, matches[1])
+		}
+		allNames = append(allNames, matches[1])
 	}
 	if err := s.Err(); err != nil {
 		log.Fatalf("failed to read osqueryd --help output: %v", err)
@@ -82,13 +98,24 @@ func main() {
 		allOptions[nt.Name] = nt.Type
 	}
 
-	// keep only the valid config options
+	// identify the valid config options
 	validOptions := make(map[string]string, len(optionNames))
 	for _, nm := range optionNames {
-		validOptions[nm] = allOptions[nm]
+		ot, ok := allOptions[nm]
+		if ok {
+			validOptions[nm] = ot
+		}
+	}
+	// identify the valid command-line flags
+	validFlags := make(map[string]string, len(allNames))
+	for _, nm := range allNames {
+		ot, ok := allOptions[nm]
+		if ok {
+			validFlags[nm] = ot
+		}
 	}
 
-	if err := structTpl.Execute(os.Stdout, validOptions); err != nil {
+	if err := structTpl.Execute(os.Stdout, templateData{Options: validOptions, Flags: validFlags}); err != nil {
 		log.Fatalf("failed to execute template: %v", err)
 	}
 }
