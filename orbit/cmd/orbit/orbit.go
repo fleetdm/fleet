@@ -640,7 +640,7 @@ func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-	if err := killProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, errProcessNotFound) {
+	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, platform.ErrProcessNotFound) {
 		log.Error().Err(err).Msg("killProcess")
 	}
 
