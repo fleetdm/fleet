@@ -163,11 +163,9 @@ const IntegrationsPage = (): JSX.Element => {
         })
         .catch((addError: { data: IApiError }) => {
           if (addError.data?.message.includes("Validation Failed")) {
-            renderFlash("error", VALIDATION_FAILED_ERROR);
-          } else if (addError.data?.message.includes("Bad request")) {
             if (
               addError.data?.errors[0].reason.includes(
-                "duplicate Jira integration for project key"
+                "duplicate Jira integration"
               )
             ) {
               renderFlash(
@@ -189,8 +187,10 @@ const IntegrationsPage = (): JSX.Element => {
                 </>
               );
             } else {
-              renderFlash("error", BAD_REQUEST_ERROR);
+              renderFlash("error", VALIDATION_FAILED_ERROR);
             }
+          } else if (addError.data?.message.includes("Bad request")) {
+            renderFlash("error", BAD_REQUEST_ERROR);
           } else if (addError.data?.message.includes("Unknown Error")) {
             renderFlash("error", UNKNOWN_ERROR);
           } else {
