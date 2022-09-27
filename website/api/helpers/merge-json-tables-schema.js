@@ -1,24 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Merge osquery schema with fleet overrides',
+  friendlyName: 'Merge JSON Schema Tables',
 
 
-  description: '',
-
-
-  inputs: {
-
-    baseSchemaPath: {
-      type: 'string',
-      description: 'The JSON array that will be used as the base, values will be overwritten by the overrideSchema'
-    },
-    overrideSchemaPath: {
-      type: 'string',
-      description: 'The repo-relative path of the JSON array that will be merged on top of the baseSchema'
-    }
-
-  },
+  description: 'Merges the osquery schema JSON with Fleet\'s overrides, and returns the merged JSON array',
 
 
   exits: {
@@ -30,7 +16,7 @@ module.exports = {
   },
 
 
-  fn: async function (inputs) {
+  fn: async function () {
       let path = require('path');
       let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
       let rawOsqueryTables = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json'));
@@ -41,7 +27,7 @@ module.exports = {
       for(let osquerySchemaTable of rawOsqueryTables) {
 
         let fleetOverridesForTable = _.find(fleetOverridesForTables, {'name': osquerySchemaTable.name}); // Setting a flag if this table exists in the Fleet overrrides JSON
-        let expandedTableToPush = Object.assign({}, osquerySchemaTable);
+        let expandedTableToPush = _.clone(osquerySchemaTable);
 
         if(!fleetOverridesForTable) {
           if(_.endsWith(osquerySchemaTable.name, '_events')) {// Make sure that all tables that have names ending in '_events' have evented: true
@@ -105,7 +91,8 @@ module.exports = {
                 mergedTableColumns.push(fleetColumn);
               }
             }
-          }//∞ After each column in base schema
+          }//∞ After each column in osquery schema table
+
           // Now iterate through the columns in the Fleet overrides, adding any columns that doesnt exist in the base osquery schema.
           if(fleetOverridesForTable.columns) {
             for(let fleetOverrideColumn of fleetOverridesForTable.columns) {
@@ -121,12 +108,12 @@ module.exports = {
                 }
                 mergedTableColumns.push(overrideColumnToAdd);
               }
-            }//∞ After each column in Fleet overrides
+            }//∞ After each column in Fleet overrides table
           }
           expandedTableToPush.columns = mergedTableColumns;
           expandedTables.push(expandedTableToPush);
         }
-      }//∞ After each table
+      }//∞ After each table in osquery schema
 
       // After we've gone through the tables in the Osquery schema, we'll go through the tables in the Fleet schema JSON, and add any tables that don't exist in the osquery schema.
       for (let fleetOverridesForTable of fleetOverridesForTables) {
@@ -137,6 +124,7 @@ module.exports = {
           expandedTables.push(fleetOverridesForTable);
         }
       }
+
 
       // Return the merged schema
       return expandedTables;
