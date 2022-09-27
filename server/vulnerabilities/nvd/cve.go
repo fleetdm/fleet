@@ -130,21 +130,21 @@ func TranslateCPEToCVE(
 			meta:        attr,
 		})
 
-		attrAll := wfn.NewAttributesWithAny()
-		attrAll.Part = attr.Part
-		attrAll.Vendor = attr.Vendor
-		attrAll.Product = attr.Product
+		// attrAll := wfn.NewAttributesWithAny()
+		// attrAll.Part = attr.Part
+		// attrAll.Vendor = attr.Vendor
+		// attrAll.Product = attr.Product
 
-		softwareCPEAll := fleet.SoftwareCPE{
-			SoftwareID: CPE.SoftwareID,
-			ID:         CPE.ID,
-			CPE:        attrAll.BindToURI(),
-		}
+		// softwareCPEAll := fleet.SoftwareCPE{
+		// 	SoftwareID: CPE.SoftwareID,
+		// 	ID:         CPE.ID,
+		// 	CPE:        attrAll.BindToURI(),
+		// }
 
-		parsed = append(parsed, softwareCPEWithNVDMeta{
-			SoftwareCPE: softwareCPEAll,
-			meta:        attrAll,
-		})
+		// parsed = append(parsed, softwareCPEWithNVDMeta{
+		// 	SoftwareCPE: softwareCPEAll,
+		// 	meta:        attrAll,
+		// })
 	}
 
 	if len(parsed) == 0 {

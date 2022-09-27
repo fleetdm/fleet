@@ -20,11 +20,56 @@ import (
 )
 
 var cvetests = []struct {
-	cpe, cve string
+	cpe  string
+	cves []string
 }{
-	{"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*", "CVE-2012-6369"},
-	{"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*", "CVE-2012-6369"},
-	{"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:*:*:*", "CVE-2019-20916"},
+	{
+		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*",
+		[]string{"CVE-2012-6369"},
+	},
+	{
+		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*",
+		[]string{"CVE-2012-6369"},
+	},
+
+	{
+		"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*",
+		[]string{
+			"CVE-2019-20916",
+			"CVE-2021-3572",
+		},
+	},
+	{
+		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*",
+		[]string{
+			// "CVE-2021-38505",
+			// "CVE-2021-38510",
+			// "CVE-2021-43530",
+
+			"CVE-2021-43540",
+			"CVE-2021-38503",
+			"CVE-2021-38504",
+			"CVE-2021-38506",
+			"CVE-2021-38507",
+			"CVE-2021-38508",
+			"CVE-2021-38509",
+			"CVE-2021-43534",
+			"CVE-2021-43532",
+			"CVE-2021-43531",
+			"CVE-2021-43533",
+
+			"CVE-2021-43538",
+			"CVE-2021-43542",
+			"CVE-2021-43543",
+			"CVE-2021-30547",
+			"CVE-2021-43546",
+			"CVE-2021-43537",
+			"CVE-2021-43541",
+			"CVE-2021-43536",
+			"CVE-2021-43545",
+			"CVE-2021-43539",
+		},
+	},
 }
 
 func printMemUsage() {
@@ -59,7 +104,7 @@ func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fl
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	nettest.Run(t)
+	// nettest.Run(t)
 
 	tempDir := t.TempDir()
 
@@ -97,7 +142,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 			printMemUsage()
 
-			require.Equal(t, []string{tt.cve}, cvesFound)
+			require.ElementsMatch(t, cvesFound, tt.cves, tt.cpe)
 		})
 	}
 
