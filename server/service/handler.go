@@ -427,9 +427,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_policies", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_api_features", desktopQuota),
-	).GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
-	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
@@ -506,6 +503,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Fleet Sandbox demo login (always errors unless config.server.sandbox_enabled is set)
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
+
+	ne.WithCustomMiddleware(
+		errorLimiter.Limit("ping_device", desktopQuota),
+	).HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
+
+	ne.WithCustomMiddleware(
+		errorLimiter.Limit("ping_orbit", desktopQuota),
+	).HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
+
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {

@@ -3,8 +3,11 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type OrbitClient struct {
@@ -31,6 +34,7 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	if err != nil {
 		return err
 	}
+	oc.setClientCapabilitiesHeader(request)
 	response, err := oc.http.Do(request)
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
@@ -40,8 +44,8 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return oc.parseResponse(verb, path, response, resp)
 }
 
-func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool, enrollSecret, hardwareUUID string) (*OrbitClient, error) {
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "")
+func NewOrbitClient(addr string, rootCA string, insecureSkipVerify bool, enrollSecret, hardwareUUID string, capabilities fleet.CapabilityMap) (*OrbitClient, error) {
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
 	if err != nil {
 		return nil, err
 	}
@@ -74,4 +78,16 @@ func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 	}
 
 	return resp.Flags, nil
+}
+
+func (oc *OrbitClient) Ping() error {
+	verb, path := "HEAD", "/api/fleet/orbit/ping"
+	err := oc.request(verb, path, nil, nil)
+
+	if err == nil || errors.Is(err, notFoundErr{}) {
+		// notFound is ok, it means an old server without the capabilities header
+		return nil
+	}
+
+	return err
 }

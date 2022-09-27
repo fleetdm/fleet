@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
 	"github.com/rs/zerolog"
@@ -49,7 +50,9 @@ func main() {
 		log.Info().Msg("ready")
 
 		systray.SetTooltip("Fleet Desktop")
-		systray.SetTemplateIcon(iconLight, iconLight)
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
 
 		// Theme detection is currently only on Windows. On macOS we use template icons (which
 		// automatically change), and on Linux we don't handle it yet (Ubuntu doesn't seem to change
@@ -82,7 +85,9 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		capabilities := fleet.CapabilityMap{}
+
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA, capabilities)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}

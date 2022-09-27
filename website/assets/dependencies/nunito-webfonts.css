@@ -31,5 +31,12 @@
     font-weight: 800;
     font-style: normal;
 }
-
+@font-face{
+    font-family:'Nunito Sans';
+    src:url('/fonts/nunito-sans/Nunito-Sans-Bold-Italic.eot') format('embedded-opentype'),
+        url('/fonts/nunito-sans/Nunito-Sans-Bold-Italic.woff') format('woff'),
+        url('/fonts/nunito-sans/Nunito-Sans-Bold-Italic.tff') format('truetype');
+    font-weight: 700;
+    font-style: italic;
+}
 

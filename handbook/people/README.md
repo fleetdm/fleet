@@ -69,10 +69,10 @@ Operations will review the expense and reach out to the team member if they have
 ### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `@charlottechance` will reach out to the new team member to start this process. `@charlottechance` will work with the new team member to get their laptop purchased and shipped to them.
-
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
-
 When selecting your new laptop, we ask that you optimize your configuration to have a large hard drive and be available for delivery or pickup quickly, without waiting for customization.
+
+New equipment for projects are requested in #help-operations-and-contract review, please tag `@charlottechance` in your post. Include device requested (specs), reason for request, and timeline for when the device is needed. 
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
