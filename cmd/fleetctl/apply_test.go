@@ -818,6 +818,34 @@ spec:
 			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
 		},
 		{
+			desc: "invalid team agent options command-line flag",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      command_line_flags:
+        no_such_flag: 123
+`,
+			wantErr: `400 Bad request: command-line flags: json: unknown field "no_such_flag"`,
+		},
+		{
+			desc: "valid team agent options command-line flag",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      command_line_flags:
+        enable_tables: "abc"
+`,
+			wantOutput: `[+] applied 1 teams`,
+		},
+		{
 			desc: "invalid agent options field type in overrides",
 			spec: `
 apiVersion: v1
