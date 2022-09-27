@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"syscall"
 
 	"github.com/oklog/run"
 )
