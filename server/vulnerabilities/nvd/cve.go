@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/facebookincubator/nvdtools/cvefeed"
-	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -117,7 +116,6 @@ func TranslateCPEToCVE(
 
 	var parsed []softwareCPEWithNVDMeta
 	for _, CPE := range CPEs {
-
 		attr, err := wfn.Parse(CPE.CPE)
 		if err != nil {
 			return nil, err
@@ -163,8 +161,8 @@ func checkCVEs(
 	// cache.Idx = cvefeed.NewIndex(dict)
 
 	softwareCPECh := make(chan softwareCPEWithNVDMeta)
+	foundVulnsBySoftware := make(map[string]fleet.SoftwareVulnerability)
 
-	var results []fleet.SoftwareVulnerability
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
@@ -187,47 +185,18 @@ func checkCVEs(
 
 					cacheHits := cache.Get([]*wfn.Attributes{softwareCPE.meta})
 					for _, matches := range cacheHits {
-						ml := len(matches.CPEs)
-						if ml == 0 {
+						if len(matches.CPEs) == 0 {
 							continue
 						}
 
-						matchingVulns := make([]fleet.SoftwareVulnerability, 0, ml)
-						cveID := matches.CVE.ID()
-						for _, attr := range matches.CPEs {
-							if attr == nil {
-								level.Error(logger).Log("matches nil CPE", cveID)
-								continue
-							}
-							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
-								SoftwareID: softwareCPE.SoftwareID,
-								CVE:        cveID,
-							})
+						mu.Lock()
+						vuln := fleet.SoftwareVulnerability{
+							SoftwareID: softwareCPE.SoftwareID,
+							CVE:        matches.CVE.ID(),
 						}
+						foundVulnsBySoftware[vuln.Key()] = vuln
+						mu.Unlock()
 
-						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVDSource)
-						if err != nil {
-							level.Error(logger).Log("cpe processing", "error", "err", err)
-							continue // do not report a recent vuln that failed to be inserted in the DB
-						}
-
-						// collect vuln only if newCount > 0, otherwise we would send
-						// webhook requests for the same vulnerability over and over again until
-						// it is older than 2 days.
-						if collectVulns && newCount > 0 {
-							_, ok := matches.CVE.(*feednvd.Vuln)
-							if !ok {
-								level.Error(logger).Log(
-									"recent vuln", "unexpected type for Vuln interface",
-									"cve", cveID,
-									"type", fmt.Sprintf("%T", matches.CVE))
-								continue
-							}
-
-							mu.Lock()
-							results = append(results, matchingVulns...)
-							mu.Unlock()
-						}
 					}
 				case <-ctx.Done():
 					level.Debug(logger).Log(logKey, "quitting")
@@ -242,9 +211,24 @@ func checkCVEs(
 		softwareCPECh <- cpe
 	}
 	close(softwareCPECh)
-
 	level.Debug(logger).Log("pushing cpes", "done")
-
 	wg.Wait()
-	return results, nil
+
+	var newVulns []fleet.SoftwareVulnerability
+	for _, vuln := range foundVulnsBySoftware {
+		newCount, err := ds.InsertVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
+		if err != nil {
+			level.Error(logger).Log("cpe processing", "error", "err", err)
+			continue
+		}
+
+		// collect vuln only if newCount > 0, otherwise we would send
+		// webhook requests for the same vulnerability over and over again until
+		// it is older than 2 days.
+		if collectVulns && newCount > 0 {
+			newVulns = append(newVulns, vuln)
+		}
+	}
+
+	return newVulns, nil
 }
