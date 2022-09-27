@@ -204,7 +204,6 @@ const IntegrationsPage = (): JSX.Element => {
                 . Please try again.
               </>
             );
-            toggleAddIntegrationModal();
           }
         })
         .finally(() => {
