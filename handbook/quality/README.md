@@ -41,7 +41,7 @@ The lifecycle stages of a bug at Fleet are:
 5. Awaiting QA
 
 The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of Github labels, assignees, and board memberships. 
-See [Appendix A](#appendix-a) at the end of this document for a description of these states and a convenience link to each github filter.
+See [Appendix A](#appendix-a) at the end of this document for a description of these states and a convenience link to each GitHub filter.
 
 ### Inbox
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
