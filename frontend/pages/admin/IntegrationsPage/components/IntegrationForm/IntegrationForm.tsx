@@ -11,6 +11,8 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
+import { debug } from "webpack";
 
 const baseClass = "integration-form";
 
@@ -31,6 +33,7 @@ interface IIntegrationFormProps {
   integrationEnableSoftwareVulnerabilities?: boolean;
   integrationEditingType?: string;
   destination?: string;
+  testingConnection?: boolean;
 }
 
 interface IFormField {
@@ -52,6 +55,7 @@ const IntegrationForm = ({
   integrationEnableSoftwareVulnerabilities,
   integrationEditingType,
   destination,
+  testingConnection,
 }: IIntegrationFormProps): JSX.Element => {
   const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
   const [formData, setFormData] = useState<IIntegrationFormData>({
@@ -157,112 +161,106 @@ const IntegrationForm = ({
     return onSubmit(createSubmitData(), integrationDestination);
   };
 
+  if (testingConnection) {
+    return (
+      <div className={`${baseClass}__testing-connection`}>
+        <b>Testing connection</b>
+        <Spinner />
+      </div>
+    );
+  }
+
   return (
-    <form
-      className={`${baseClass}__form`}
-      onSubmit={onFormSubmit}
-      autoComplete="off"
-    >
-      <InputField
-        autofocus
-        name="url"
-        onChange={onInputChange}
-        label="URL"
-        placeholder={
-          integrationDestination === "jira"
-            ? "https://example.atlassian.net"
-            : "https://example.zendesk.com"
+    <>
+      <form
+        className={
+          testingConnection ? `${baseClass}__hide-form` : `${baseClass}__form`
         }
-        parseTarget
-        value={url}
-        error={urlError}
-        onBlur={validateForm}
-      />
-      {integrationDestination === "jira" ? (
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
         <InputField
-          name="username"
+          autofocus
+          name="url"
           onChange={onInputChange}
-          label="Username"
-          placeholder="name@example.com"
+          label="URL"
+          placeholder={
+            integrationDestination === "jira"
+              ? "https://example.atlassian.net"
+              : "https://example.zendesk.com"
+          }
           parseTarget
-          value={username}
+          value={url}
+          error={urlError}
+          onBlur={validateForm}
         />
-      ) : (
+        {integrationDestination === "jira" ? (
+          <InputField
+            name="username"
+            onChange={onInputChange}
+            label="Username"
+            placeholder="name@example.com"
+            parseTarget
+            value={username}
+          />
+        ) : (
+          <InputField
+            name="email"
+            onChange={onInputChange}
+            label="Email"
+            placeholder="name@example.com"
+            parseTarget
+            value={email}
+          />
+        )}
         <InputField
-          name="email"
+          name="apiToken"
           onChange={onInputChange}
-          label="Email"
-          placeholder="name@example.com"
+          label="API token"
           parseTarget
-          value={email}
+          value={apiToken}
         />
-      )}
-      <InputField
-        name="apiToken"
-        onChange={onInputChange}
-        label="API token"
-        parseTarget
-        value={apiToken}
-      />
-      {integrationDestination === "jira" ? (
-        <InputField
-          name="projectKey"
-          onChange={onInputChange}
-          label="Project key"
-          placeholder="JRAEXAMPLE"
-          parseTarget
-          value={projectKey}
-          tooltip={
-            "\
+        {integrationDestination === "jira" ? (
+          <InputField
+            name="projectKey"
+            onChange={onInputChange}
+            label="Project key"
+            placeholder="JRAEXAMPLE"
+            parseTarget
+            value={projectKey}
+            tooltip={
+              "\
               To find the Jira project key, head to your project in <br /> \
               Jira. Your project key is in URL. For example, in <br /> \
               “jira.example.com/projects/JRAEXAMPLE,” <br /> \
               “JRAEXAMPLE” is your project key. \
             "
-          }
-        />
-      ) : (
-        <InputField
-          name="groupId"
-          onChange={onInputChange}
-          label="Group ID"
-          placeholder="28134038"
-          type="number"
-          parseTarget
-          value={groupId === 0 ? null : groupId}
-          tooltip={
-            "\
+            }
+          />
+        ) : (
+          <InputField
+            name="groupId"
+            onChange={onInputChange}
+            label="Group ID"
+            placeholder="28134038"
+            type="number"
+            parseTarget
+            value={groupId === 0 ? null : groupId}
+            tooltip={
+              "\
               To find the Zendesk group ID, select <b>Admin > <br /> \
               People > Groups</b>. Find the group and select it. <br /> \
               The group ID will appear in the search field. \
             "
-          }
-        />
-      )}
-      <div className="modal-cta-wrap">
-        <div
-          data-tip
-          data-for="create-integration-button"
-          data-tip-disable={
-            !(integrationDestination === "jira"
-              ? formData.url === "" ||
-                formData.url.slice(0, 8) !== "https://" ||
-                formData.username === "" ||
-                formData.apiToken === "" ||
-                formData.projectKey === ""
-              : formData.url === "" ||
-                formData.url.slice(0, 8) !== "https://" ||
-                formData.email === "" ||
-                formData.apiToken === "" ||
-                formData.groupId === 0)
-          }
-          className={"tooltip"}
-        >
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={
-              integrationDestination === "jira"
+            }
+          />
+        )}
+        <div className="modal-cta-wrap">
+          <div
+            data-tip
+            data-for="create-integration-button"
+            data-tip-disable={
+              !(integrationDestination === "jira"
                 ? formData.url === "" ||
                   formData.url.slice(0, 8) !== "https://" ||
                   formData.username === "" ||
@@ -272,29 +270,48 @@ const IntegrationForm = ({
                   formData.url.slice(0, 8) !== "https://" ||
                   formData.email === "" ||
                   formData.apiToken === "" ||
-                  formData.groupId === 0
+                  formData.groupId === 0)
             }
+            className={"tooltip"}
           >
-            Save
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={
+                integrationDestination === "jira"
+                  ? formData.url === "" ||
+                    formData.url.slice(0, 8) !== "https://" ||
+                    formData.username === "" ||
+                    formData.apiToken === "" ||
+                    formData.projectKey === ""
+                  : formData.url === "" ||
+                    formData.url.slice(0, 8) !== "https://" ||
+                    formData.email === "" ||
+                    formData.apiToken === "" ||
+                    formData.groupId === 0
+              }
+            >
+              Save
+            </Button>
+          </div>
+          <ReactTooltip
+            className={`create-integration-tooltip`}
+            place="bottom"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="create-integration-button"
+            data-html
+          >
+            <>
+              Complete all fields to save <br /> the integration.
+            </>
+          </ReactTooltip>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
           </Button>
         </div>
-        <ReactTooltip
-          className={`create-integration-tooltip`}
-          place="bottom"
-          effect="solid"
-          backgroundColor="#3e4771"
-          id="create-integration-button"
-          data-html
-        >
-          <>
-            Complete all fields to save <br /> the integration.
-          </>
-        </ReactTooltip>
-        <Button onClick={onCancel} variant="inverse">
-          Cancel
-        </Button>
-      </div>
-    </form>
+      </form>
+    </>
   );
 };
 
