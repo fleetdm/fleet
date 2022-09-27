@@ -58,6 +58,11 @@ parasails.registerPage('osquery-table-details', {
           $(el).html(replacementHMTL);
         }
       });
+      $('.hljs-keyword').each((i, el)=>{
+        for(i in el.innerText.match(/select|where|from|join/gi)) {
+          $(el).addClass('line-break');
+        }
+      });
     })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
     (()=>{

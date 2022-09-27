@@ -46,6 +46,7 @@
       border: 1px solid @core-vibrant-blue;
     }
     [purpose='mobile-nav'] {
+      scrollbar-width: none;
       padding-top: 16px;
       overflow-y: scroll;
       height: 100%;
@@ -72,10 +73,11 @@
     font-size: 14px;
     line-height: 14px;
   }
-  [purpose='left-sidebar']::-webkit-scrollbar, [purpose='table-of-contents']::-webkit-scrollbar {
+  [purpose='left-sidebar']::-webkit-scrollbar, [purpose='table-of-contents']::-webkit-scrollbar, [purpose='mobile-nav']::-webkit-scrollbar {
     display: none;
   }
   [purpose='left-sidebar'] {
+    scrollbar-width: none;
     background: #FFF;
     min-width: 245px;
     max-width: 250px;
@@ -89,6 +91,7 @@
     }
   }
   [purpose='table-of-contents'] {
+    scrollbar-width: none;
     padding-top: 16px;
     padding-bottom: 120px;
     margin-top: 16px;
@@ -201,9 +204,8 @@
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
           color: #AE6DDF;
           white-space: pre;
-          break-before: always;
         }
-        .hljs-keyword:not(:first-of-type)::before {
+        .line-break:not(:first-of-type)::before {
           content: '\a';
         }
         .hljs-attr { // For table and column names
