@@ -48,10 +48,6 @@ jobs:
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist -f orbit/.goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Notarize macOS binaries
-        run: ./orbit/tools/build/sign-macos.sh dist/orbit-macos_darwin_all/orbit
-        env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
