@@ -51,3 +51,10 @@ jobs:
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notarize macOS binaries
+        run: ./orbit/tools/build/sign-macos.sh dist/orbit-macos_darwin_all/orbit
+        env:
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
