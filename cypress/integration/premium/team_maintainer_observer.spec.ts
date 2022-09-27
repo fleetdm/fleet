@@ -1,4 +1,5 @@
 import CONSTANTS from "../../support/constants";
+import dashboardPage from "../pages/dashboardPage";
 import manageHostsPage from "../pages/manageHostsPage";
 import managePacksPage from "../pages/managePacksPage";
 import managePoliciesPage from "../pages/managePoliciesPage";
@@ -44,7 +45,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
       });
     });
     describe("Dashboard", () => {
-      beforeEach(() => cy.visit("/dashboard"));
+      beforeEach(() => dashboardPage.visitsDashboardPage());
       it("displays cards for all platforms", () => {
         cy.getAttached(".homepage__wrapper").within(() => {
           cy.findByText(/apples/i).should("exist");
@@ -56,47 +57,16 @@ describe("Premium tier - Team observer/maintainer user", () => {
         });
       });
       it("displays cards for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/windows/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/apples/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
+        dashboardPage.switchesPlatform("Windows");
+        dashboardPage.displaysCards("Windows");
       });
       it("displays cards for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/linux/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/apples/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
+        dashboardPage.switchesPlatform("Linux");
+        dashboardPage.displaysCards("Linux");
       });
       it("displays cards for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/macos/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/apples/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-mdm").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
+        dashboardPage.switchesPlatform("macOS");
+        dashboardPage.displaysCards("macOS");
       });
       it("views all hosts for all platforms", () => {
         cy.findByText(/view all hosts/i).click();
@@ -171,7 +141,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
     // 403 error overlay which will hide the nav and make the test fail
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {
-        cy.visit("/dashboard");
+        dashboardPage.visitsDashboardPage();
         cy.findByText(/settings/i).should("not.exist");
         cy.findByText(/schedule/i).should("exist");
         cy.visit("/settings/organization");
@@ -242,7 +212,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
     // 403 error overlay which will hide the nav and make the test fail
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {
-        cy.visit("/dashboard");
+        dashboardPage.visitsDashboardPage();
 
         cy.contains("h2", "Hosts").should("exist");
         cy.getAttached("nav").within(() => {

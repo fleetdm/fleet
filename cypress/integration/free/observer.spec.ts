@@ -1,4 +1,5 @@
 import CONSTANTS from "../../support/constants";
+import dashboardPage from "../pages/dashboardPage";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
 import managePacksPage from "../pages/managePacksPage";
@@ -29,7 +30,7 @@ describe("Free tier - Observer user", () => {
   describe("Navigation", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/dashboard");
+      dashboardPage.visitsDashboardPage();
     });
     it("displays intended global observer top navigation", () => {
       cy.getAttached(".site-nav-container").within(() => {
@@ -47,95 +48,26 @@ describe("Free tier - Observer user", () => {
   describe("Dashboard", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/dashboard");
+      dashboardPage.visitsDashboardPage();
     });
-    it("displays cards for all platforms", () => {
-      cy.getAttached(".homepage__wrapper").within(() => {
-        cy.findByText(/fleet test/i).should("exist");
-        cy.getAttached(".hosts-summary").should("exist");
-        cy.getAttached(".hosts-status").should("exist");
-        cy.getAttached(".home-software").should("exist");
-        cy.getAttached(".activity-feed").should("exist");
-      });
+    it("displays cards for all platforms and does not filter host platform", () => {
+      dashboardPage.displaysCards("All");
+      dashboardPage.verifiesFilteredHostByPlatform("none");
     });
-    it("displays cards for windows only", () => {
-      cy.getAttached(".homepage__platforms").within(() => {
-        cy.getAttached(".Select-control").click();
-        cy.findByText(/windows/i).click();
-      });
-      cy.getAttached(".homepage__wrapper").within(() => {
-        cy.findByText(/fleet test/i).should("exist");
-        cy.getAttached(".hosts-summary").should("exist");
-        cy.getAttached(".hosts-status").should("exist");
-        // "get" because we expect it not to exist
-        cy.get(".home-software").should("not.exist");
-        cy.get(".activity-feed").should("not.exist");
-      });
+    it("displays cards for windows only and filters hosts by Windows platform", () => {
+      dashboardPage.switchesPlatform("Windows");
+      dashboardPage.displaysCards("Windows");
+      dashboardPage.verifiesFilteredHostByPlatform("Windows");
     });
-    it("displays cards for linux only", () => {
-      cy.getAttached(".homepage__platforms").within(() => {
-        cy.getAttached(".Select-control").click();
-        cy.findByText(/linux/i).click();
-      });
-      cy.getAttached(".homepage__wrapper").within(() => {
-        cy.findByText(/fleet test/i).should("exist");
-        cy.getAttached(".hosts-summary").should("exist");
-        cy.getAttached(".hosts-status").should("exist");
-        // "get" because we expect it not to exist
-        cy.get(".home-software").should("not.exist");
-        cy.get(".activity-feed").should("not.exist");
-      });
+    it("displays cards for linux only and filters hosts by Linux platform", () => {
+      dashboardPage.switchesPlatform("Linux");
+      dashboardPage.displaysCards("Linux");
+      dashboardPage.verifiesFilteredHostByPlatform("Linux");
     });
-    it("displays cards for macOS only", () => {
-      cy.getAttached(".homepage__platforms").within(() => {
-        cy.getAttached(".Select-control").click();
-        cy.findByText(/macos/i).click();
-      });
-      cy.getAttached(".homepage__wrapper").within(() => {
-        cy.findByText(/fleet test/i).should("exist");
-        cy.getAttached(".hosts-summary").should("exist");
-        cy.getAttached(".hosts-status").should("exist");
-        cy.getAttached(".home-mdm").should("exist");
-        // "get" because we expect it not to exist
-        cy.get(".home-software").should("not.exist");
-        cy.get(".activity-feed").should("not.exist");
-      });
-    });
-    it("views all hosts for all platforms", () => {
-      cy.findByText(/view all hosts/i).click();
-      cy.findByRole("status", { name: /hosts filtered by/i }).should(
-        "not.exist"
-      );
-    });
-    it("views all hosts for windows only", () => {
-      cy.getAttached(".homepage__platforms").within(() => {
-        cy.getAttached(".Select-control").click();
-        cy.findByText(/windows/i).click();
-      });
-      cy.findByText(/view all hosts/i).click();
-      cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
-        "exist"
-      );
-    });
-    it("views all hosts for linux only", () => {
-      cy.getAttached(".homepage__platforms").within(() => {
-        cy.getAttached(".Select-control").click();
-        cy.findByText(/linux/i).click();
-      });
-      cy.findByText(/view all hosts/i).click();
-      cy.findByRole("status", { name: /hosts filtered by linux/i }).should(
-        "exist"
-      );
-    });
-    it("views all hosts for macOS only", () => {
-      cy.getAttached(".homepage__platforms").within(() => {
-        cy.getAttached(".Select-control").click();
-        cy.findByText(/macos/i).click();
-      });
-      cy.findByText(/view all hosts/i).click();
-      cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
-        "exist"
-      );
+    it("displays cards for macOS only and filters hosts by macOS platform", () => {
+      dashboardPage.switchesPlatform("macOS");
+      dashboardPage.displaysCards("macOS");
+      dashboardPage.verifiesFilteredHostByPlatform("macOS");
     });
   });
   describe("Manage hosts page", () => {

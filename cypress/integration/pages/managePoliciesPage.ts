@@ -8,9 +8,7 @@ const managePoliciesPage = {
   },
 
   allowsAddDefaultPolicy: () => {
-    cy.getAttached(".policies-table__action-button-container")
-      .findByRole("button", { name: /add a policy/i })
-      .click();
+    cy.findByRole("button", { name: /add a policy/i }).click();
     // Add a default policy
     cy.findByText(/gatekeeper enabled/i).click();
     cy.getAttached(".policy-form__button-wrap").within(() => {
