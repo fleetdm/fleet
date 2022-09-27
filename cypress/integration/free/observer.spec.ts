@@ -1,8 +1,12 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
 import manageHostsPage from "../pages/manageHostsPage";
+import managePacksPage from "../pages/managePacksPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
 import manageQueriesPage from "../pages/manageQueriesPage";
+import manageSchedulePage from "../pages/manageSchedulePage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
+import userProfilePage from "../pages/userProfilePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -160,7 +164,7 @@ describe("Free tier - Observer user", () => {
       hostDetailsPage.hidesButton("Transfer");
       hostDetailsPage.hidesButton("Query");
       hostDetailsPage.hidesButton("Delete");
-      hostDetailsPage.hidesCreatingOSPolicy();
+      hostDetailsPage.hidesCreateOSPolicy();
     });
   });
   describe("Manage software page", () => {
@@ -177,7 +181,7 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
       manageQueriesPage.visitManageQueriesPage();
     });
-    it("hides create a query button", () => {
+    it("hides 'Create a query' button", () => {
       manageQueriesPage.hidesButton("Create new query");
     });
     it("verifies observer can select a query and only run it", () => {
@@ -196,49 +200,25 @@ describe("Free tier - Observer user", () => {
   describe("Manage policies page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/policies/manage");
+      managePoliciesPage.visitManagePoliciesPage();
     });
     it("hides manage automations button", () => {
-      cy.findByText(/manage automations/i).should("not.exist");
+      managePoliciesPage.hidesButton("Manage automations");
     });
-    it("hides add a policy button", () => {
-      cy.findByText(/add a policy/).should("not.exist");
+    it("hides 'Add a policy' button", () => {
+      managePoliciesPage.hidesButton("Add a policy");
     });
-    it("hides run, edit, or delete a policy", () => {
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.get(".fleet-checkbox__input").should("not.exist");
-          });
-      });
-      cy.getAttached(".data-table__table").within(() => {
-        cy.findByRole("button", {
-          name: /filevault enabled/i,
-        }).click();
-      });
-      cy.getAttached(".policy-form__wrapper").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("not.exist");
-        cy.findByRole("button", { name: /save/i }).should("not.exist");
-      });
+    it("hides 'Run', 'Edit', and 'Delete' a policy", () => {
+      managePoliciesPage.allowsViewPolicyOnly();
     });
   });
   describe("User profile page", () => {
     beforeEach(() => {
       cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
-      cy.visit("/profile");
+      userProfilePage.visitUserProfilePage();
     });
-    it("verifies teams is disabled for the Profile page", () => {
-      cy.getAttached(".user-side-panel").within(() => {
-        cy.findByText(/teams/i).should("not.exist");
-      });
-    });
-    it("renders elements according to role-based access controls", () => {
-      cy.getAttached(".user-side-panel").within(() => {
-        cy.findByText("Role")
-          .next()
-          .contains(/observer/i);
-      });
+    it("verifies user role and teams is disabled", () => {
+      userProfilePage.showRole("Observer");
     });
   });
 
@@ -259,9 +239,9 @@ describe("Free tier - Observer user", () => {
       cy.findByText(/schedule/i).should("not.exist");
       cy.visit("/settings/organization");
       cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/packs/manage");
+      managePacksPage.visitsManagePacksPage();
       cy.findByText(/you do not have permissions/i).should("exist");
-      cy.visit("/schedule/manage");
+      manageSchedulePage.visitManageSchedulePage();
       cy.findByText(/you do not have permissions/i).should("exist");
     });
   });

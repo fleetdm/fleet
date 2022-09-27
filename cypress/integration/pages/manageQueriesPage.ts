@@ -1,3 +1,6 @@
+import * as path from "path";
+import { format } from "date-fns";
+
 const manageQueriesPage = {
   visitManageQueriesPage: () => {
     cy.visit("/queries/manage");
@@ -7,11 +10,11 @@ const manageQueriesPage = {
     cy.contains("button", text).should("not.exist");
   },
 
-  createsNewQuery: () => {
+  allowsCreateNewQuery: () => {
     cy.findByRole("button", { name: /new query/i }).click();
     cy.getAttached(".ace_scroller")
       .click({ force: true })
-      .type("{selectall}SELECT * FROM windows_crashes;", { force: true });
+      .type("{selectall}SELECT * FROM windows_crashes;");
     cy.findByRole("button", { name: /save/i }).click();
     cy.getAttached(".modal__background").within(() => {
       cy.getAttached(".modal__modal_container").within(() => {
@@ -22,6 +25,17 @@ const manageQueriesPage = {
               .click()
               .type("Cypress test of create new query flow.");
             cy.findByLabelText(/observers can run/i).click({ force: true });
+          });
+        });
+      });
+    });
+  },
+
+  verifiesCreatedNewQuery: () => {
+    cy.getAttached(".modal__background").within(() => {
+      cy.getAttached(".modal__modal_container").within(() => {
+        cy.getAttached(".modal__content").within(() => {
+          cy.getAttached("form").within(() => {
             cy.findByRole("button", { name: /save query/i }).click();
           });
         });
@@ -31,6 +45,68 @@ const manageQueriesPage = {
     cy.getAttached(".query-form__query-name").within(() => {
       cy.findByText(/cypress test query/i).should("exist");
     });
+  },
+
+  allowsEditExistingQuery: () => {
+    cy.getAttached(".name__cell .button--text-link")
+      .first()
+      .click({ force: true });
+    cy.getAttached(".ace_text-input")
+      .click({ force: true })
+      .clear({ force: true })
+      .type("SELECT 1 FROM cypress;", {
+        force: true,
+      });
+  },
+
+  verifiesEditedExistingQuery: () => {
+    cy.findByRole("button", { name: "Save" }).click(); // we have 'save as new' also
+    cy.findByText(/query updated/i).should("be.visible");
+  },
+
+  allowsSaveAsNewQuery: () => {
+    cy.getAttached(".name__cell .button--text-link")
+      .eq(1)
+      .within(() => {
+        cy.findByText(/get authorized/i).click();
+      });
+    cy.findByRole("button", { name: /run query/i }).should("exist");
+    cy.getAttached(".ace_scroller")
+      .click()
+      .type("{selectall}SELECT datetime, username FROM windows_crashes;");
+    cy.findByRole("button", { name: /save as new/i }).should("be.enabled");
+  },
+
+  verifiesSavedAsNewQuery: () => {
+    cy.findByRole("button", { name: /save as new/i }).click();
+    cy.findByText(/successfully added query/i).should("be.visible");
+    cy.findByText(/copy of/i).should("be.visible");
+  },
+
+  allowsDeleteExistingQuery: () => {
+    cy.findByText(/detect presence of authorized ssh keys/i)
+      .parent()
+      .parent()
+      .parent()
+      .within(() => {
+        cy.getAttached(".fleet-checkbox__input").check({
+          force: true,
+        });
+      });
+    cy.findByRole("button", { name: /delete/i }).click();
+    cy.getAttached(".delete-query-modal .modal-cta-wrap").within(() => {
+      cy.findByRole("button", { name: /delete/i }).should("exist");
+    });
+  },
+
+  verifiesDeletedExistingQuery: () => {
+    cy.getAttached(".delete-query-modal .modal-cta-wrap").within(() => {
+      cy.findByRole("button", { name: /delete/i }).click();
+    });
+    cy.findByText(/successfully deleted query/i).should("be.visible");
+    cy.findByText(/detect presence of authorized ssh keys/i).should(
+      "not.exist"
+    );
   },
 
   allowsSelectTeamTargets: () => {
@@ -48,6 +124,41 @@ const manageQueriesPage = {
     });
     cy.contains("h3", /teams/i).should("exist");
     cy.contains(".selector-name", /apples/i).should("exist");
+  },
+
+  allowsRunQuery: () => {
+    cy.getAttached(".name__cell .button--text-link").first().click();
+    cy.findByRole("button", { name: /run query/i }).click();
+    cy.findByText(/select targets/i).should("exist");
+    cy.findByText(/all hosts/i).click();
+    cy.findByText(/hosts targeted/i).should("exist"); // target count
+  },
+
+  verifiesRanQuery: () => {
+    cy.findByRole("button", { name: /run/i }).click();
+    cy.findByText(/querying selected hosts/i).should("exist"); // target count
+  },
+
+  allowsViewRanQuery: () => {
+    // Ensures live query runs
+    cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
+    cy.getAttached(".table-container").within(() => {
+      cy.findByRole("button", { name: /show query/i }).click();
+    });
+    cy.getAttached(".show-query-modal").within(() => {
+      cy.findByRole("button", { name: /done/i }).click();
+    });
+  },
+
+  allowsExportQueryResults: () => {
+    cy.getAttached(".table-container").within(() => {
+      cy.findByRole("button", { name: /export results/i }).click();
+      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
+      const filename = `Query Results (${formattedTime}).csv`;
+      cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
+        timeout: 5000,
+      });
+    });
   },
 };
 

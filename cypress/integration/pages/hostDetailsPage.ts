@@ -18,14 +18,28 @@ const hostDetailsPage = {
     cy.contains("button", text).should("not.exist");
   },
 
-  deletesHost: () => {
+  allowsDeleteHost: () => {
     cy.findByRole("button", { name: /delete/i }).click();
-    cy.findByText(/delete host/i).should("exist");
-    cy.findByRole("button", { name: /cancel/i }).click();
+    cy.getAttached(".modal__modal_container").within(() => {
+      cy.findByRole("button", { name: /delete/i }).should("be.enabled");
+    });
   },
 
-  transfersHost: () => {
-    cy.getAttached(".host-details__transfer-button").click();
+  verifiesDeletedHost: (hostname: string) => {
+    cy.getAttached(".modal__modal_container")
+      .within(() => {
+        cy.findByRole("button", { name: /delete/i }).click();
+      })
+      .then(() => {
+        cy.findByText(/add your devices to fleet/i).should("exist");
+        cy.findByText(/add hosts/i).should("exist");
+        cy.findByText(/about this host/i).should("not.exist");
+        cy.findByText(hostname).should("not.exist");
+      });
+  },
+
+  allowsTransferHost: () => {
+    cy.findByRole("button", { name: /transfer/i }).click();
     cy.findByText(/create a team/i).should("exist");
     cy.getAttached(".Select-control").click();
     cy.getAttached(".Select-menu").within(() => {
@@ -35,36 +49,44 @@ const hostDetailsPage = {
     });
     cy.getAttached(".transfer-host-modal .modal-cta-wrap")
       .contains("button", /transfer/i)
+      .should("be.enabled");
+  },
+
+  verifiesTransferredHost: () => {
+    cy.getAttached(".transfer-host-modal .modal-cta-wrap")
+      .contains("button", /transfer/i)
       .click();
     cy.findByText(/transferred to apples/i).should("exist");
     cy.findByText(/team/i).next().contains("Apples");
   },
 
-  queriesHost: () => {
+  allowsCustomQueryHost: () => {
     cy.findByRole("button", { name: /query/i }).click();
-    cy.findByRole("button", { name: /create custom query/i }).should("exist");
+    cy.findByRole("button", { name: /create custom query/i }).should(
+      "be.enabled"
+    );
     cy.getAttached(".modal__ex").within(() => {
       cy.findByRole("button").click();
     });
   },
 
-  hidesCustomQuery: () => {
-    cy.getAttached(".host-details__query-button").click();
+  hidesCustomQueryHost: () => {
+    cy.findByRole("button", { name: /query/i }).click();
     cy.contains("button", /create custom query/i).should("not.exist");
     cy.getAttached(".modal__ex").click();
   },
 
-  createOperatingSystemPolicy: () => {
+  allowsCreateOsPolicy: () => {
     cy.getAttached(".info-flex").within(() => {
       cy.findByText(/ubuntu/i).should("exist");
       cy.getAttached(".host-summary__os-policy-button").click();
     });
     cy.getAttached(".modal__content")
       .findByRole("button", { name: /create new policy/i })
-      .should("exist");
+      .should("be.enabled");
   },
 
-  hidesCreatingOSPolicy: () => {
+  hidesCreateOSPolicy: () => {
     cy.getAttached(".info-flex").within(() => {
       cy.findByText("Operating system")
         .next()

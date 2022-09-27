@@ -1,5 +1,11 @@
 import CONSTANTS from "../../support/constants";
 import manageHostsPage from "../pages/manageHostsPage";
+import managePacksPage from "../pages/managePacksPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
+import manageSchedulePage from "../pages/manageSchedulePage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
+import teamsDropdown from "../pages/teamsDropdown";
+import userProfilePage from "../pages/userProfilePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -137,41 +143,28 @@ describe("Premium tier - Team observer/maintainer user", () => {
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
         manageHostsPage.visitsManageHostsPage();
+
+        cy.contains(/apples/i).should("exist");
         manageHostsPage.includesTeamColumn();
 
-        cy.findByText(/add label/i).should("not.exist");
-
-        // On observing team, not see the "add hosts" and "Manage enroll secret" buttons
-        cy.contains(/apples/i).should("exist");
+        manageHostsPage.hidesButton("Add label");
         manageHostsPage.hidesButton("Add hosts");
         manageHostsPage.hidesButton("Manage enroll secrets");
       });
     });
     describe("Manage policies page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/policies/manage");
-        // On observing team, not see the "Add a policy" and "Manage automations" button
-        cy.findByText(/apples/i).should("exist");
-        cy.findByText(/manage automations/i).should("not.exist");
-        cy.findByText(/add a policy/i).should("not.exist");
+        managePoliciesPage.visitManagePoliciesPage();
+        cy.contains(/apples/i).should("exist");
+
+        managePoliciesPage.hidesButton("Manage automations");
+        managePoliciesPage.hidesButton("Add a policy");
       });
     });
     describe("Policy detail page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/policies/manage");
-        // Navigate to policy detail page for first policy in manage policies table
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.contains(".fleet-checkbox__input").should("not.exist");
-              cy.findByText(/filevault enabled/i).click();
-            });
-        });
-        cy.getAttached(".policy-form__wrapper").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("not.exist");
-          cy.findByRole("button", { name: /save/i }).should("not.exist");
-        });
+        managePoliciesPage.visitManagePoliciesPage();
+        managePoliciesPage.allowsViewPolicyOnly();
       });
     });
     // nav restrictions are at the end because we expect to see a
@@ -183,7 +176,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.findByText(/schedule/i).should("exist");
         cy.visit("/settings/organization");
         cy.findByText(/you do not have permissions/i).should("exist");
-        cy.visit("/packs/manage");
+        managePacksPage.visitsManagePacksPage();
         cy.findByText(/you do not have permissions/i).should("exist");
       });
     });
@@ -207,86 +200,42 @@ describe("Premium tier - Team observer/maintainer user", () => {
         manageHostsPage.hidesButton("Add label");
 
         // On maintaining team, see the "add hosts" and "Manage enroll secret" buttons
-        cy.getAttached(".manage-hosts__header").within(() => {
-          cy.contains("Apples").click({ force: true });
-          cy.contains("Oranges").click({ force: true });
-        });
-        manageHostsPage.ensuresTeamDropdownLoads("Apples");
+        teamsDropdown.switchTeams("Apples", "Oranges");
+        manageHostsPage.includesTeamDropdown("Oranges");
         manageHostsPage.allowsAddHosts();
         manageHostsPage.allowsManageAndAddSecrets();
       });
     });
     describe("Manage software page", () => {
-      beforeEach(() => cy.visit("/software/manage"));
+      beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());
       it("hides manage automations button", () => {
-        cy.getAttached(".manage-software-page__header-wrap").within(() => {
-          cy.findByRole("button", { name: /manage automations/i }).should(
-            "not.exist"
-          );
-        });
+        manageSoftwarePage.hidesButton("Manage automations");
       });
     });
     describe("Manage schedule page", () => {
       it("should render elements according to role-based access controls", () => {
-        cy.visit("/schedule/manage");
-        cy.contains(/oranges/i).should("exist");
-        cy.getAttached(".no-schedule__cta-buttons").within(() => {
-          cy.contains(/advanced/i).should("not.exist");
-        });
-        cy.getAttached(".no-schedule__schedule-button").click();
-        // Schedule a query on maintaining team
-        cy.getAttached(".schedule-editor-modal__form").within(() => {
-          cy.findByText(/select query/i).click();
-          cy.findByText(/detect presence/i).click();
-          cy.findByText(/every day/i).click();
-          cy.findByText(/every 6 hours/i).click();
-          cy.getAttached(".modal-cta-wrap").within(() => {
-            cy.findByRole("button", { name: /schedule/i }).click();
-          });
-        });
-        cy.findByText(/successfully added/i).should("be.visible");
-        cy.getAttached("tbody>tr").should("have.length", 1);
+        manageSchedulePage.visitManageSchedulePage();
+        manageSchedulePage.confirmsTeam("Oranges");
+        manageSchedulePage.hidesButton("Advanced");
+        manageSchedulePage.allowsAddSchedule();
+        manageSchedulePage.verifiesAddedSchedule();
       });
     });
     describe("Manage policies page", () => {
-      it("should render elements according to role-based access controls", () => {
-        cy.visit("/policies/manage");
-        // Switch to from team apples to team oranges
-        cy.findByText(/apples/i).click();
-        cy.findByText(/oranges/i).click();
+      it("allows team maintainer to add, edit, run, and save a policy, but not manage automation", () => {
+        managePoliciesPage.visitManagePoliciesPage();
+        teamsDropdown.switchTeams("Apples", "Oranges");
 
-        // On maintaining team, should not see the "Manage automations" button
-        cy.findByText(/manage automations/i).should("not.exist");
-        // On maintaining team, should see "add a policy" and "save" a policy
-        cy.findByText(/add a policy/i).click();
-
-        // Add a default policy
-        cy.findByText(/gatekeeper enabled/i).click();
-        cy.findByRole("button", { name: /save/i }).click();
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /save policy/i }).click();
-        });
-        cy.findByText(/policy created/i).should("exist");
-
-        // On maintaining team, should see "save" and "run" for a new policy
-        cy.getAttached(".policy-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save/i }).should("exist");
-        });
+        managePoliciesPage.hidesButton("Manage automations");
+        managePoliciesPage.allowsAddDefaultPolicy();
+        managePoliciesPage.verifiesAddedDefaultPolicy();
+        managePoliciesPage.allowsSelectRunSavePolicy();
       });
     });
     describe("User profile page", () => {
-      it("should render elements according to role-based access controls", () => {
-        cy.visit("/profile");
-        // See 2 Teams in the Team section and Various in the Role section
-        cy.getAttached(".user-side-panel").within(() => {
-          cy.findByText("Teams")
-            .next()
-            .contains(/2 teams/i);
-          cy.findByText("Role")
-            .next()
-            .contains(/various/i);
-        });
+      it("verifies user role and team", () => {
+        userProfilePage.visitUserProfilePage();
+        userProfilePage.showRole("Various", "2 teams");
       });
     });
     // nav restrictions are at the end because we expect to see a

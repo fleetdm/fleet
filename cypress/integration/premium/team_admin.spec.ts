@@ -1,7 +1,11 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
 import manageHostsPage from "../pages/manageHostsPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
+import manageQueriesPage from "../pages/manageQueriesPage";
+import userProfilePage from "../pages/userProfilePage";
+import manageSchedulePage from "../pages/manageSchedulePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -164,22 +168,9 @@ describe("Premium tier - Team Admin user", () => {
     });
   });
   describe("Query pages", () => {
-    beforeEach(() => cy.visit("/queries/manage"));
+    beforeEach(() => manageQueriesPage.visitManageQueriesPage());
     it("allows team admin to select teams targets for query", () => {
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({ force: true });
-          });
-        cy.findAllByText(/detect presence/i).click();
-      });
-
-      cy.getAttached(".query-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).click();
-      });
-      cy.contains("h3", /teams/i).should("exist");
-      cy.contains(".selector-name", /apples/i).should("exist");
+      manageQueriesPage.allowsSelectTeamTargets();
     });
     it("disables team admin from deleting or editing a query not authored by them", () => {
       cy.getAttached("tbody").within(() => {
@@ -195,129 +186,41 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("Manage schedules page", () => {
     beforeEach(() => {
-      cy.visit("/schedule/manage");
+      manageSchedulePage.visitManageSchedulePage();
     });
     it("hides advanced button when team admin", () => {
-      cy.getAttached(".manage-schedule-page__header-wrap").within(() => {
-        cy.findByText(/apples/i).should("exist");
-      });
-      cy.findByText(/advanced/i).should("not.exist");
+      manageSchedulePage.confirmsTeam("Apples");
+      manageSchedulePage.hidesButton("Advanced");
     });
     it("creates a new team scheduled query", () => {
-      cy.getAttached(".no-schedule__cta-buttons").should("exist");
-      cy.getAttached(".no-schedule__schedule-button").click();
-      cy.getAttached(".schedule-editor-modal__form").within(() => {
-        cy.findByText(/select query/i).click();
-        cy.findByText(/detect presence/i).click();
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /schedule/i }).click();
-        });
-      });
-      cy.findByText(/successfully added/i).should("be.visible");
+      manageSchedulePage.allowsAddSchedule();
+      manageSchedulePage.verifiesAddedSchedule();
     });
     it("edit a team's scheduled query successfully", () => {
-      cy.getAttached(".manage-schedule-page");
-      cy.getAttached("tbody>tr")
-        .should("have.length", 1)
-        .within(() => {
-          cy.findByText(/action/i).click();
-          cy.findByText(/edit/i).click();
-        });
-      cy.getAttached(".schedule-editor-modal__form").within(() => {
-        cy.findByText(/every day/i).click();
-        cy.findByText(/every 6 hours/i).click();
-
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /schedule/i }).click();
-        });
-      });
-      cy.findByText(/successfully updated/i).should("be.visible");
+      manageSchedulePage.allowsEditSchedule();
+      manageSchedulePage.verifiesEditedSchedule();
     });
     it("remove a team's scheduled query successfully", () => {
-      cy.getAttached(".manage-schedule-page");
-      cy.getAttached("tbody>tr")
-        .should("have.length", 1)
-        .within(() => {
-          cy.findByText(/6 hours/i).should("exist");
-          cy.getAttached(".Select-placeholder").within(() => {
-            cy.findByText(/action/i).click();
-          });
-          cy.getAttached(".Select-menu").within(() => {
-            cy.findByText(/remove/i).click();
-          });
-        });
-      cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
-        () => {
-          cy.findByRole("button", { name: /remove/i }).click();
-        }
-      );
-      cy.findByText(/successfully removed/i).should("be.visible");
+      manageSchedulePage.allowsRemoveSchedule();
+      manageSchedulePage.verifiesRemovedSchedule();
     });
   });
   describe("Manage policies page", () => {
-    beforeEach(() => cy.visit("/policies/manage"));
+    beforeEach(() => managePoliciesPage.visitManagePoliciesPage());
     it("allows team admin to add a new policy", () => {
-      cy.getAttached(".button-wrap")
-        .findByRole("button", { name: /add a policy/i })
-        .click();
-      // Add a default policy
-      cy.findByText(/gatekeeper enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save/i }).click();
-      });
-      cy.getAttached(".modal-cta-wrap").within(() => {
-        cy.findByRole("button", { name: /save policy/i }).click();
-      });
-      cy.findByText(/policy created/i).should("exist");
+      managePoliciesPage.allowsAddPolicy();
+      managePoliciesPage.verifiesAddedPolicy();
     });
     it("allows team admin to edit a team policy", () => {
-      cy.visit("policies/manage");
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({
-              force: true,
-            });
-          });
-      });
-      cy.findByText(/filevault enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save/i }).should("exist");
-      });
+      managePoliciesPage.visitManagePoliciesPage();
+      managePoliciesPage.allowsSelectRunSavePolicy();
     });
     it("allows team admin to automate a team policy", () => {
-      cy.getAttached(".button-wrap")
-        .findByRole("button", { name: /manage automations/i })
-        .click();
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached(".fleet-checkbox__input").check({ force: true });
-        cy.getAttached("#webhook-url")
-          .clear()
-          .type("https://example.com/team_admin");
-        cy.findByText(/save/i).click();
-      });
-      cy.findByText(/successfully updated policy automations/i).should("exist");
+      managePoliciesPage.allowsAutomatePolicy();
+      managePoliciesPage.verifiesAutomatedPolicy();
     });
     it("allows team admin to delete a team policy", () => {
-      cy.visit("/policies/manage");
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({
-              force: true,
-            });
-          });
-      });
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".delete-policy-modal").within(() => {
-        cy.findByRole("button", { name: /delete/i }).should("exist");
-        cy.findByRole("button", { name: /cancel/i }).click();
-      });
+      managePoliciesPage.allowsDeletePolicy();
     });
   });
   describe("Team admin settings page", () => {
@@ -367,13 +270,8 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("User profile page", () => {
     it("should render elements according to role-based access controls", () => {
-      cy.visit("/profile");
-      cy.getAttached(".user-side-panel").within(() => {
-        cy.findByText(/team/i)
-          .next()
-          .contains(/mystic/i); // Updated team name
-        cy.findByText("Role").next().contains(/admin/i);
-      });
+      userProfilePage.visitUserProfilePage();
+      userProfilePage.showRole("Admin", "Mystic");
     });
   });
 });

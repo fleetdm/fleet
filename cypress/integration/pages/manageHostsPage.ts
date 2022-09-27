@@ -4,14 +4,16 @@ const manageHostsPage = {
   },
 
   allowsManageAndAddSecrets: () => {
-    cy.contains("button", /manage enroll secret/i).click();
+    cy.getAttached(".button-wrap")
+      .contains("button", /manage enroll secret/i)
+      .click();
     cy.contains("button", /add secret/i).click();
     cy.contains("button", /save/i).click();
     cy.contains("button", /done/i).click();
   },
 
   allowsAddHosts: () => {
-    cy.getAttached(".team-details__action-buttons--primary")
+    cy.getAttached(".button-wrap")
       .contains("button", /add hosts/i)
       .click();
     cy.getAttached(".modal__content").contains("button", /done/i).click();
@@ -20,7 +22,10 @@ const manageHostsPage = {
   allowsAddLabelForm: () => {
     cy.getAttached(".label-filter-select__control").click();
     cy.findByRole("button", { name: /add label/i }).click();
-    cy.findByText(/New Label/i).should("exist");
+    cy.findByText(/new label/i).should("exist");
+    cy.getAttached(".label-form__button-wrap")
+      .contains("button", /cancel/i)
+      .click();
   },
 
   hidesButton: (text: string) => {
@@ -38,7 +43,7 @@ const manageHostsPage = {
     });
   },
 
-  ensuresTeamDropdownLoads: (teamName = "All teams") => {
+  includesTeamDropdown: (teamName = "All teams") => {
     cy.getAttached(".Select-value-label").contains(teamName);
   },
 

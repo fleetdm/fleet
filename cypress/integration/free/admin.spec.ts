@@ -1,8 +1,10 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
 import manageHostsPage from "../pages/manageHostsPage";
 import manageQueriesPage from "../pages/manageQueriesPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
+import userProfilePage from "../pages/userProfilePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -152,7 +154,7 @@ describe(
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         manageHostsPage.visitsManageHostsPage();
       });
-      it("verifies teams is disabled on Manage Host page", () => {
+      it("verifies teams is disabled on Manage hosts page", () => {
         manageHostsPage.verifiesTeamsIsDisabled();
       });
       it("allows admin to see and click CTA buttons", () => {
@@ -171,10 +173,10 @@ describe(
         hostDetailsPage.hidesButton("Transfer");
       });
       it("allows admin to delete the host", () => {
-        hostDetailsPage.deletesHost;
+        hostDetailsPage.allowsDeleteHost();
       });
       it("allows admin to custom query the host", () => {
-        hostDetailsPage.queriesHost();
+        hostDetailsPage.allowsCustomQueryHost();
       });
     });
     describe("Manage software page", () => {
@@ -198,67 +200,36 @@ describe(
         manageQueriesPage.visitManageQueriesPage();
       });
       it("allows admin add a new query", () => {
-        manageQueriesPage.createsNewQuery();
+        manageQueriesPage.allowsCreateNewQuery();
+        manageQueriesPage.verifiesCreatedNewQuery();
       });
       it("allows admin to edit a query", () => {
-        cy.findByText(/cypress test query/i).click({ force: true });
-        cy.getAttached(".ace_text-input")
-          .click({ force: true })
-          .clear({ force: true })
-          .type("SELECT 1 FROM cypress;", {
-            force: true,
-          });
-        cy.findByText("Save").click(); // we have 'save as new' also
-        cy.findByText(/query updated/i).should("exist");
+        manageQueriesPage.allowsEditExistingQuery();
+        manageQueriesPage.verifiesEditedExistingQuery();
       });
       it("allows admin to run a query", () => {
-        cy.findByText(/cypress test query/i).click({ force: true });
-        cy.findByText(/run query/i).click({ force: true });
-        cy.findByText(/select targets/i).should("exist");
-        cy.findByText(/all hosts/i).click();
-        cy.findByText(/host targeted/i).should("exist"); // target count
-        cy.findByText(/run/i).click();
-        cy.findByText(/querying selected host/i).should("exist"); // target count
+        manageQueriesPage.allowsRunQuery();
+        manageQueriesPage.verifiesRanQuery();
       });
     });
     describe("Manage policies page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
-        cy.visit("/policies/manage");
+        managePoliciesPage.visitManagePoliciesPage();
       });
       it("allows admin to click 'Manage automations' button", () => {
-        cy.findByRole("button", { name: /manage automations/i }).click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+        managePoliciesPage.allowsAutomatePolicy();
+        managePoliciesPage.verifiesAutomatedPolicy();
       });
       it("allows admin to add a new policy", () => {
-        cy.findByRole("button", { name: /add a policy/i }).click();
-        cy.getAttached(".modal__ex").within(() => {
-          cy.findByRole("button").click();
-        });
+        managePoliciesPage.allowsAddDefaultPolicy();
+        managePoliciesPage.verifiesAddedDefaultPolicy();
       });
       it("allows admin to delete a policy", () => {
-        // select checkmark on table
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({ force: true });
-            });
-        });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".delete-policy-modal").within(() => {
-          cy.findByRole("button", { name: /delete/i }).should("exist");
-          cy.findByRole("button", { name: /cancel/i }).click();
-        });
+        managePoliciesPage.allowsDeletePolicy();
       });
       it("allows admin to select a policy and see CTAs to run and save", () => {
-        cy.getAttached(".data-table__table").within(() => {
-          cy.findByRole("button", { name: /filevault enabled/i }).click();
-        });
-        cy.getAttached(".policy-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save/i }).should("exist");
-        });
+        managePoliciesPage.allowsSelectRunSavePolicy();
       });
     });
     describe("Admin settings page", () => {
@@ -323,17 +294,10 @@ describe(
     describe("User profile page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
-        cy.visit("/profile");
+        userProfilePage.visitUserProfilePage();
       });
-      it("verifies teams is disabled for the Profile page", () => {
-        cy.getAttached(".user-side-panel").within(() => {
-          cy.findByText(/teams/i).should("not.exist");
-        });
-      });
-      it("renders elements according to role-based access controls", () => {
-        cy.getAttached(".user-side-panel").within(() => {
-          cy.findByText("Role").next().contains(/admin/i);
-        });
+      it("verifies admin role and team", () => {
+        userProfilePage.showRole("Admin");
       });
     });
   }

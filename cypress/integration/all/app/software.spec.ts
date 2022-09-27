@@ -1,4 +1,5 @@
 import CONSTANTS from "../../../support/constants";
+import manageSoftwarePage from "../../pages/manageSoftwarePage";
 
 const {
   CONFIG_INTEGRATIONS_AUTOMATIONS,
@@ -201,7 +202,7 @@ describe("Software", () => {
   //   beforeEach(() => {
   //     cy.loginWithCySession();
   //     cy.viewport(1600, 900);
-  //     cy.visit("/software/manage");
+  //     manageSoftwarePage.visitManageSoftwarePage();
   //   });
   //   it("renders and searches the host's software,  links to filter hosts by software", () => {
   //     // cy.getAttached(".manage-software-page__count").within(() => {
@@ -245,7 +246,7 @@ describe("Software", () => {
         "/api/latest/fleet/config",
         CONFIG_INTEGRATIONS_AUTOMATIONS
       ).as("getIntegrations");
-      cy.visit("/software/manage");
+      manageSoftwarePage.visitManageSoftwarePage();
       cy.wait("@getIntegrations").then((configStub) => {
         console.log(JSON.stringify(configStub));
       });
@@ -319,7 +320,7 @@ describe("Software", () => {
         "/api/latest/fleet/config",
         enableJiraSoftwareIntegration
       ).as("getIntegrations");
-      cy.visit("/software/manage");
+      manageSoftwarePage.visitManageSoftwarePage();
       cy.wait("@getIntegrations").then((configStub) => {
         console.log(JSON.stringify(configStub));
       });
@@ -367,7 +368,7 @@ describe("Software", () => {
         "/api/latest/fleet/config",
         enableZendeskSoftwareIntegration
       ).as("getIntegrations");
-      cy.visit("/software/manage");
+      manageSoftwarePage.visitManageSoftwarePage();
       cy.wait("@getIntegrations").then((configStub) => {
         console.log(JSON.stringify(configStub));
       });

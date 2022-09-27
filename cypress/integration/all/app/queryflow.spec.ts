@@ -1,6 +1,5 @@
-import * as path from "path";
-import { format } from "date-fns";
 import manageQueriesPage from "../../pages/manageQueriesPage";
+import manageSchedulePage from "../../pages/manageSchedulePage";
 
 describe("Query flow (empty)", () => {
   before(() => {
@@ -18,7 +17,8 @@ describe("Query flow (empty)", () => {
       manageQueriesPage.visitManageQueriesPage();
     });
     it("creates a new query", () => {
-      manageQueriesPage.createsNewQuery();
+      manageQueriesPage.allowsCreateNewQuery();
+      manageQueriesPage.verifiesCreatedNewQuery();
     });
   });
 });
@@ -41,108 +41,33 @@ describe("Query flow (seeded)", () => {
     });
     it("runs a live query", () => {
       cy.addDockerHost();
-      cy.getAttached(".name__cell .button--text-link").first().click();
-      cy.findByText(/run query/i).click();
-      cy.findByText(/all hosts/i).click();
-      cy.findByText(/host targeted/i).should("exist");
-      cy.findByText(/run/i).click();
-      // Ensures live query runs
-      cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.getAttached(".table-container").within(() => {
-        cy.findByText(/show query/i).click();
-      });
-      cy.getAttached(".show-query-modal").within(() => {
-        cy.findByText(/done/i).click();
-      });
-      cy.getAttached(".table-container").within(() => {
-        const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-        cy.findByText(/export results/i).click();
-        const filename = `Query Results (${formattedTime}).csv`;
-        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
-          timeout: 5000,
-        });
-      });
+      manageQueriesPage.allowsRunQuery();
+      manageQueriesPage.verifiesRanQuery();
+      manageQueriesPage.allowsViewRanQuery();
+      manageQueriesPage.allowsExportQueryResults();
       cy.stopDockerHost();
     });
     it("edits an existing query", () => {
-      cy.getAttached(".name__cell .button--text-link").first().click();
-      cy.findByText(/run query/i).should("exist");
-      cy.getAttached(".ace_scroller")
-        .click()
-        .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.findByRole("button", { name: "Save" }).click();
-      cy.findByText(/query updated/i).should("be.visible");
+      manageQueriesPage.allowsEditExistingQuery();
+      manageQueriesPage.verifiesEditedExistingQuery();
     });
     it("saves an existing query as new query", () => {
-      cy.getAttached(".name__cell .button--text-link")
-        .eq(1)
-        .within(() => {
-          cy.findByText(/get authorized/i).click();
-        });
-      cy.findByText(/run query/i).should("exist");
-      cy.getAttached(".ace_scroller")
-        .click()
-        .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.findByRole("button", { name: /save as new/i }).click();
-      cy.findByText(/copy of/i).should("be.visible");
+      manageQueriesPage.allowsSaveAsNewQuery();
+      manageQueriesPage.verifiesSavedAsNewQuery();
     });
     it("deletes an existing query", () => {
-      cy.findByText(/detect presence of authorized ssh keys/i)
-        .parent()
-        .parent()
-        .parent()
-        .within(() => {
-          cy.getAttached(".fleet-checkbox__input").check({
-            force: true,
-          });
-        });
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".delete-query-modal .modal-cta-wrap").within(() => {
-        cy.findByRole("button", { name: /delete/i }).click();
-      });
-      cy.findByText(/successfully deleted query/i).should("be.visible");
-      cy.findByText(/detect presence of authorized ssh keys/i).should(
-        "not.exist"
-      );
+      manageQueriesPage.allowsDeleteExistingQuery();
+      manageQueriesPage.verifiesDeletedExistingQuery();
     });
   });
   describe("Manage schedules page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/schedule/manage");
+      manageSchedulePage.visitManageSchedulePage();
     });
     it("creates a new scheduled query", () => {
-      cy.getAttached(".no-schedule__schedule-button").click();
-      cy.getAttached(".schedule-editor-modal__form").within(() => {
-        cy.findByText(/select query/i).click();
-        cy.findByText(/get local/i).click();
-        cy.findByText(/every day/i).click();
-        cy.findByText(/every 6 hours/i).click();
-        cy.findByText(/show advanced options/i).click();
-        cy.findByText(/snapshot/i).click();
-        cy.findByText(/ignore removals/i).click();
-        cy.getAttached(".schedule-editor-modal__form-field--platform").within(
-          () => {
-            cy.findByText(/all/i).click();
-            cy.findByText(/linux/i).click();
-          }
-        );
-        cy.getAttached(
-          ".schedule-editor-modal__form-field--osquer-vers"
-        ).within(() => {
-          cy.findByText(/all/i).click();
-          cy.findByText(/4.6.0/i).click();
-        });
-        cy.getAttached(".schedule-editor-modal__form-field--shard").within(
-          () => {
-            cy.getAttached(".input-field").click().type("50");
-          }
-        );
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /schedule/i }).click();
-        });
-      });
-      cy.findByText(/successfully added/i).should("be.visible");
+      manageSchedulePage.allowsAddSchedule();
+      manageSchedulePage.verifiesAddedSchedule();
     });
 
     it("shows sql of a scheduled query successfully", () => {
@@ -155,43 +80,19 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".show-query-modal").within(() => {
         cy.getAttached(".ace_content").within(() => {
           cy.findByText(/select/i).should("exist");
-          cy.findByText(/datetime/i).should("exist");
+          cy.findByText(/cypress/i).should("exist");
         });
       });
     });
 
     it("edit a scheduled query successfully", () => {
-      cy.getAttached("tbody>tr")
-        .should("have.length", 1)
-        .within(() => {
-          cy.findByText(/action/i).click();
-          cy.findByText(/edit/i).click();
-        });
-      cy.getAttached(".schedule-editor-modal__form").within(() => {
-        cy.findByText(/every 6 hours/i).click();
-        cy.findByText(/every day/i).click();
-
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /schedule/i }).click();
-        });
-      });
-      cy.findByText(/successfully updated/i).should("be.visible");
+      manageSchedulePage.allowsEditSchedule();
+      manageSchedulePage.verifiesEditedSchedule();
     });
 
     it("remove a scheduled query successfully", () => {
-      cy.getAttached("tbody>tr")
-        .should("have.length", 1)
-        .within(() => {
-          cy.findByText(/1 day/i).should("exist");
-          cy.findByText(/action/i).click();
-          cy.findByText(/remove/i).click();
-        });
-      cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
-        () => {
-          cy.findByRole("button", { name: /remove/i }).click();
-        }
-      );
-      cy.findByText(/successfully removed/i).should("be.visible");
+      manageSchedulePage.allowsRemoveSchedule();
+      manageSchedulePage.verifiesRemovedSchedule();
     });
   });
 });

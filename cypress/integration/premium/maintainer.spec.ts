@@ -1,8 +1,11 @@
 import CONSTANTS from "../../support/constants";
 import hostDetailsPage from "../pages/hostDetailsPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
 import manageHostsPage from "../pages/manageHostsPage";
 import manageQueriesPage from "../pages/manageQueriesPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
+import teamsDropdown from "../pages/teamsDropdown";
+import userProfilePage from "../pages/userProfilePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -134,7 +137,7 @@ describe("Premium tier - Maintainer user", () => {
     describe("Manage hosts page", () => {
       beforeEach(() => manageHostsPage.visitsManageHostsPage());
       it("renders team elements", () => {
-        manageHostsPage.ensuresTeamDropdownLoads();
+        manageHostsPage.includesTeamDropdown();
         manageHostsPage.includesTeamColumn();
       });
       it("renders 'Add hosts', 'Add label', and 'Manage enroll secrets' buttons", () => {
@@ -148,16 +151,17 @@ describe("Premium tier - Maintainer user", () => {
         hostDetailsPage.visitsHostDetailsPage(1);
       });
       it("allows global maintainer to transfer host to an existing team", () => {
-        hostDetailsPage.transfersHost();
+        hostDetailsPage.allowsTransferHost();
+        hostDetailsPage.verifiesTransferredHost();
       });
       it("allows global maintainer to create an operating system policy", () => {
-        hostDetailsPage.createOperatingSystemPolicy();
+        hostDetailsPage.allowsCreateOsPolicy();
       });
       it("allows global maintainer to custom query a host", () => {
-        hostDetailsPage.queriesHost();
+        hostDetailsPage.allowsCustomQueryHost();
       });
       it("allows global maintainer to delete a host", () => {
-        hostDetailsPage.deletesHost();
+        hostDetailsPage.allowsDeleteHost();
       });
     });
     describe("Manage software page", () => {
@@ -173,79 +177,27 @@ describe("Premium tier - Maintainer user", () => {
       });
     });
     describe("Manage policies page", () => {
-      beforeEach(() => cy.visit("/policies/manage"));
+      beforeEach(() => managePoliciesPage.visitManagePoliciesPage());
       it("hides manage automations button", () => {
-        cy.findByText(/manage hosts/i).should("not.exist");
+        managePoliciesPage.hidesButton("Manage automations");
       });
       it("allows global maintainer to add a new policy", () => {
-        cy.getAttached(".policies-table__action-button-container")
-          .findByRole("button", { name: /add a policy/i })
-          .click();
-        // Add a default policy
-        cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save/i }).click();
-        });
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /save policy/i }).click();
-        });
-        cy.findByText(/policy created/i).should("exist");
+        managePoliciesPage.allowsAddDefaultPolicy();
+        managePoliciesPage.verifiesAddedDefaultPolicy();
       });
       it("allows global maintainer to delete a team policy", () => {
-        cy.visit("/policies/manage");
-        cy.getAttached(".Select-control").within(() => {
-          cy.findByText(/all teams/i).click();
-        });
-        cy.getAttached(".Select-menu")
-          .contains(/apples/i)
-          .click();
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({
-                force: true,
-              });
-            });
-        });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".delete-policy-modal").within(() => {
-          cy.findByRole("button", { name: /delete/i }).should("exist");
-          cy.findByRole("button", { name: /cancel/i }).click();
-        });
+        teamsDropdown.switchTeams("All teams", "Apples");
+        managePoliciesPage.allowsDeletePolicy();
       });
       it("allows global maintainer to edit a team policy", () => {
-        cy.visit("policies/manage");
-        cy.findByText(/all teams/i).click();
-        cy.findByText(/apples/i).click();
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({
-                force: true,
-              });
-            });
-        });
-        cy.findByText(/filevault enabled/i).click();
-        cy.getAttached(".policy-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save/i }).should("exist");
-        });
+        teamsDropdown.switchTeams("All teams", "Apples");
+        managePoliciesPage.allowsSelectRunSavePolicy();
       });
     });
     describe("User profile page", () => {
-      it("renders elements according to role-based access controls", () => {
-        cy.visit("/profile");
-        cy.getAttached(".user-side-panel").within(() => {
-          cy.findByText(/team/i)
-            .next()
-            .contains(/global/i);
-          cy.findByText("Role")
-            .next()
-            .contains(/maintainer/i);
-        });
+      it("verifies user role and global access", () => {
+        userProfilePage.visitUserProfilePage();
+        userProfilePage.showRole("Maintainer", "Global");
       });
     });
   });
