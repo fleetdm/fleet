@@ -36,7 +36,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Node
-      uses: actions/setup-node@1f8c6b94b26d0feae1e387ca63ccbdc44d27b561 # v2
+      uses: actions/setup-node@969bd2663942d722d85b6a8626225850c2f7be4b # v2
       with:
         node-version: '14'
     - name: Install Go
