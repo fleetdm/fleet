@@ -22,6 +22,6 @@ fi
 
 codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime "$1"
 zip -r dist/orbit-macos_darwin_all dist/orbit-macos_darwin_all
-go run github.com/mitchellh/gon/cmd/gon orbit/.gon.hcl
+xcrun notarytool submit dist/orbit-macos_darwin_all.zip --apple-id "$AC_USERNAME" --password "$AC_PASSWORD" --team-id "$AC_TEAM_ID" --wait
 
 echo "Signed successfully"
