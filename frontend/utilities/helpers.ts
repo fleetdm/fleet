@@ -200,6 +200,7 @@ export const formatConfigDataForServer = (config: any): any => {
 };
 
 // TODO: Finalize interface for config - see frontend\interfaces\config.ts
+// TODO(mna): this appears to be unused?
 export const frontendFormattedConfig = (config: IConfig) => {
   const {
     org_info: orgInfo,
