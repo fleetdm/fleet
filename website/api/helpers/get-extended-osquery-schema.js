@@ -1,17 +1,19 @@
 module.exports = {
 
 
-  friendlyName: 'Merge JSON Schema Tables',
+  friendlyName: 'Get extended osquery schema',
 
 
-  description: 'Merges the osquery schema JSON with Fleet\'s overrides, and returns the merged JSON array',
+  description: 'Get the extended osquery schema and documentation supported by Fleet by reading the raw osquery tables and Fleet\'s overrides from disk, then returning the extended set of tables.',
 
 
   exits: {
 
     success: {
-      description: 'All done.',
-    },
+      outputFriendlyName: 'Extended tables',
+      outputType: [ {} ],
+    }
+
 
   },
 
