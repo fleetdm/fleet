@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var rawJSONFlags = json.RawMessage(`{"verbose":true, "num":5, "hello":"world"}`)
+var rawJSONFlags = json.RawMessage(`{"verbose":true, "num":5, "hello":"world", "largeNum":1234567890}`)
 
 func TestGetFlagsFromJson(t *testing.T) {
 	flagsJson, err := getFlagsFromJSON(rawJSONFlags)
@@ -38,6 +38,14 @@ func TestGetFlagsFromJson(t *testing.T) {
 	}
 	if value != "world" {
 		t.Errorf(`expected "world", got %s`, value)
+	}
+
+	value, ok = flagsJson["--largeNum"]
+	if !ok {
+		t.Errorf(`key "--largeNum" expected but not found`)
+	}
+	if value != "1234567890" {
+		t.Errorf(`expected "1234567890", got %s`, value)
 	}
 }
 
