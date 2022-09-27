@@ -580,7 +580,7 @@ func main() {
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
+		g.Add(signalHandler(ctx))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
@@ -638,6 +638,11 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 // NOTE(lucas): This logic could be improved to detect if there's a valid session or not first.
 func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
+
+	log.Info().Msg("killing any pre-existing fleet-desktop instances")
+	if err := killProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, errProcessNotFound) {
+		log.Error().Err(err).Msg("killProcess")
+	}
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
