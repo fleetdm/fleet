@@ -152,7 +152,7 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
-// any translations, and then lookup in the cpe database based on the title, product, vendor, target_sw, and version.
+// any translations, and then lookup in the cpe database based on the title, product and vendor.
 func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {
@@ -296,7 +296,7 @@ func TranslateSoftwareToCPE(
 ) error {
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
-	// Skip software from platforms for which we will be using OVAL for vulnerability detection.
+	// Skip software from sources for which we will be using OVAL for vulnerability detection.
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedSoftwareSources)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "all software iterator")
