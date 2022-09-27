@@ -22,7 +22,7 @@
         <div class="d-flex">
           <div purpose="search">
             <img style="height: 16px; width: 16px;" class="d-inline mr-2" alt="search" src="/images/icon-search-16x16@2x.png">
-            <input placeholder="Search tables" v-model="search">
+            <input placeholder="Search tables" v-model="search" @input="showTableNav = true">
           </div>
         </div>
       </div>
