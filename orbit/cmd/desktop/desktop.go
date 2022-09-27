@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
 	"github.com/rs/zerolog"
@@ -82,7 +83,9 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		capabilities := fleet.CapabilityMap{}
+
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA, capabilities)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
@@ -98,7 +101,7 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.GetDesktopPayload()
+					_, err := client.ListDevicePolicies()
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
@@ -124,7 +127,7 @@ func main() {
 			for {
 				<-tic.C
 
-				res, err := client.GetDesktopPayload()
+				policies, err := client.ListDevicePolicies()
 				switch {
 				case err == nil:
 					// OK
@@ -136,17 +139,24 @@ func main() {
 					continue
 				}
 
-				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
+				failedPolicyCount := 0
+				for _, policy := range policies {
+					if policy.Response != "pass" {
+						failedPolicyCount++
+					}
+				}
+
+				if failedPolicyCount > 0 {
 					if runtime.GOOS == "windows" {
 						// Windows (or maybe just the systray library?) doesn't support color emoji
 						// in the system tray menu, so we use text as an alternative.
-						if *res.FailingPolicies == 1 {
+						if failedPolicyCount == 1 {
 							myDeviceItem.SetTitle("My device (1 issue)")
 						} else {
-							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", *res.FailingPolicies))
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failedPolicyCount))
 						}
 					} else {
-						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
 					}
 				} else {
 					if runtime.GOOS == "windows" {

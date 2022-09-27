@@ -427,9 +427,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_policies", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_api_features", desktopQuota),
-	).GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
-	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
@@ -454,6 +451,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	he.WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 
+	// orbit authenticated endpoints
+	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
+	oe.POST("/api/fleet/orbit/config", getOrbitConfigEndpoint, orbitGetConfigRequest{})
+
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
@@ -461,6 +462,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+
+	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, enrollOrbitRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.
@@ -500,6 +503,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Fleet Sandbox demo login (always errors unless config.server.sandbox_enabled is set)
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
+
+	ne.WithCustomMiddleware(
+		errorLimiter.Limit("ping_device", desktopQuota),
+	).HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
+
+	ne.WithCustomMiddleware(
+		errorLimiter.Limit("ping_orbit", desktopQuota),
+	).HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
+
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
