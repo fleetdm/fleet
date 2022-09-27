@@ -392,7 +392,6 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Noah Talerman                                                       |
-| `#help-qa`                          | Reed Haynes                                                         |
 | `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |

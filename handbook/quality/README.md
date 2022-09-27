@@ -125,3 +125,22 @@ Bugs which do not have the reproduce label and do exist on the release board, bu
 ### All bugs
 [See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
 
+## Rituals
+
+Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
+| Bug Review                   | Weekly                   | Review bugs that are in QA's inbox                  | Reed Haynes       |
+
+## Slack channels
+
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#why-group-slack-channels):
+
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#help-qa`                          | Reed Haynes                                                         |
+| `#help-release`                     | Reed Haynes                                                         |
+
+<meta name="maintainedBy" value="zhumo">
+<meta name="title" value="🪢Quality">
