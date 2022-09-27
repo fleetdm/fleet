@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -77,4 +78,16 @@ func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 	}
 
 	return resp.Flags, nil
+}
+
+func (oc *OrbitClient) Ping() error {
+	verb, path := "HEAD", "/api/fleet/orbit/ping"
+	err := oc.request(verb, path, nil, nil)
+
+	if err == nil || errors.Is(err, notFoundErr{}) {
+		// notFound is ok, it means an old server without the capabilities header
+		return nil
+	}
+
+	return err
 }
