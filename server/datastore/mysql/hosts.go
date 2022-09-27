@@ -849,10 +849,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE uuid = ?`, hardwareUUID)
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE osquery_host_id = ?`, hardwareUUID)
 		switch {
 		case err == nil:
-			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE uuid = ? `
+			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE osquery_host_id = ? `
 			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
