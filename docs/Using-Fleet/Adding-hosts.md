@@ -283,12 +283,12 @@ Preferences*, run this query from Fleet:
 SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
 ```
 
-If this query returns files, the profile was applied, as *Downloads* is a
+If this query returns files, the profile was applied, as **Downloads** is a
 protected location. You can now enjoy the benefits of osquery on all system files and start
-using the *es_process_events* table!
+using the **es_process_events** table!
 
-If this query does not return data, you can look at operating system logs to confirm that full disk
-access is not applied.
+If this query does not return data, you can look at operating system logs to confirm whether or not full disk
+access has been applied.
 
 See the last hour of logs related to TCC permissions with this command:
 
