@@ -101,10 +101,10 @@ module.exports = {
               let overrideColumnToAdd = _.clone(fleetOverrideColumn);
               // Make sure the column we're adding has all the information we need, if it is missing a description or a type, we'll throw an error.
               if(!overrideColumnToAdd.description) {
-                throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a description in the Fleet overrides schema. To reolve, add a description for this column to the Fleet overrides schema.`);
+                throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a description in the Fleet overrides schema. To resolve, add a description for this column to the Fleet overrides schema.`);
               }
               if(overrideColumnToAdd.type) {
-                throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a "type" in the Fleet overrides schema. To reolve, add a type for this column to the Fleet overrides schema.`);
+                throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a "type" in the Fleet overrides schema. To resolve, add a type for this column to the Fleet overrides schema.`);
               }
               mergedTableColumns.push(overrideColumnToAdd);
             }
