@@ -1147,6 +1147,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 
 	cpeTranslationsPath := filepath.Join(".", cpeTranslationsFilename)
 	cpeTranslations, err := loadCPETranslations(cpeTranslationsPath)
+	require.NoError(t, err)
+
 	reCache := newRegexpCache()
 
 	for _, tt := range testCases {
