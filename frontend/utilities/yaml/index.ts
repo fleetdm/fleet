@@ -10,7 +10,7 @@ export const constructErrorString = (yamlError: IYAMLError) => {
   return `${yamlError.name}: ${yamlError.reason} at line ${yamlError.line}`;
 };
 
-export const agentOptionsToYaml = (agentOpts) => {
+export const agentOptionsToYaml = (agentOpts: any) => {
   // hide the "overrides" key if it is empty
   if (!agentOpts.overrides || Object.keys(agentOpts.overrides).length === 0) {
     delete agentOpts.overrides;
