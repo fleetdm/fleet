@@ -970,7 +970,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Windows Firewall, Public Profile enabled (Windows)
+  name: Firewall enabled, public profile (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;
   description: "Checks for the existence of a Group Policy that enables the Public Profile for Windows Defender Firewall."
   resolution: "Contact your IT administrator to ensure your Windows system is receiving a that enables the Public Profile for Windows Defender Firewall."
