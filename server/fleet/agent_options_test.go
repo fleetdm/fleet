@@ -106,6 +106,15 @@ func TestValidateAgentOptions(t *testing.T) {
 				"yara_malloc_trim": true
 			}
 		}}`, `unknown field "yara_malloc_trim"`},
+		{"valid command-line flag", `{"command_line_flags":{
+			"alarm_timeout": 1
+		}}`, ``},
+		{"invalid command-line flag", `{"command_line_flags":{
+			"no_such_flag": true
+		}}`, `unknown field "no_such_flag"`},
+		{"invalid command-line value", `{"command_line_flags":{
+			"enable_tables": 123
+		}}`, `cannot unmarshal number into Go struct field osqueryCommandLineFlags.enable_tables of type string`},
 	}
 
 	for _, c := range cases {
