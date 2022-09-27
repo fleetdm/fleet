@@ -942,7 +942,7 @@ spec:
   purpose: Informational
   tags: compliance, hunting
   contributors: nabilschear
-  ---
+---
 apiVersion: v1
 kind: policy
 spec:
@@ -987,7 +987,7 @@ spec:
   description: "Checks that the SMBv1 client is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platforms: Windows
-  tags: compliance, CIS, CIS18.3.2
+  tags: compliance, CIS, CIS18.3.2, built-in
   platform: windows
   contributors: defensivedepth
 ---
@@ -999,14 +999,14 @@ spec:
   description: "Checks that the SMBv1 server is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platforms: Windows
-  tags: compliance, CIS, CIS18.3.3
+  tags: compliance, CIS, CIS18.3.3, built-in
   platform: windows
   contributors: defensivedepth
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: LLMNR disabled (Windows)
+  name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
   query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
   description: "Checks for the existence of a GPO that disables LLMNR."
   resolution: "Contact your IT administrator to discuss disabling LLMNR on your system."
