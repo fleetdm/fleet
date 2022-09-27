@@ -42,10 +42,6 @@ var cvetests = []struct {
 	{
 		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*",
 		[]string{
-			// "CVE-2021-38505",
-			// "CVE-2021-38510",
-			// "CVE-2021-43530",
-
 			"CVE-2021-43540",
 			"CVE-2021-38503",
 			"CVE-2021-38504",
@@ -104,7 +100,7 @@ func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fl
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	// nettest.Run(t)
+	nettest.Run(t)
 
 	tempDir := t.TempDir()
 

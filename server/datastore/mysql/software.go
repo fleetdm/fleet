@@ -735,6 +735,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.vendor",
 			"s.arch",
 			"scv.cve",
+			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),

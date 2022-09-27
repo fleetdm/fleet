@@ -118,33 +118,15 @@ func TranslateCPEToCVE(
 	var parsed []softwareCPEWithNVDMeta
 	for _, CPE := range CPEs {
 
-		// CPE.CPE = "cpe:2.3:a:zoom:meetings:5.7.4:*:*:*:*:windows:*:*"
-		// CPE.CPE = "cpe:2.3:a:zoom:meetings:5.11.1:*:*:*:*:windows:*:*"
-
 		attr, err := wfn.Parse(CPE.CPE)
 		if err != nil {
 			return nil, err
 		}
+
 		parsed = append(parsed, softwareCPEWithNVDMeta{
 			SoftwareCPE: CPE,
 			meta:        attr,
 		})
-
-		// attrAll := wfn.NewAttributesWithAny()
-		// attrAll.Part = attr.Part
-		// attrAll.Vendor = attr.Vendor
-		// attrAll.Product = attr.Product
-
-		// softwareCPEAll := fleet.SoftwareCPE{
-		// 	SoftwareID: CPE.SoftwareID,
-		// 	ID:         CPE.ID,
-		// 	CPE:        attrAll.BindToURI(),
-		// }
-
-		// parsed = append(parsed, softwareCPEWithNVDMeta{
-		// 	SoftwareCPE: softwareCPEAll,
-		// 	meta:        attrAll,
-		// })
 	}
 
 	if len(parsed) == 0 {
