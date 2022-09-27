@@ -958,7 +958,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Windows Firewall, Private Profile enabled (Windows)
+  name: Firewall enabled, private profile (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;
   description: "Checks for the existence of a Group Policy that enables the Private Profile for Windows Defender Firewall."
   resolution: "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Private Profile for Windows Defender Firewall."
