@@ -103,6 +103,63 @@ func KillProcessByName(name string) error {
 	return nil
 }
 
+// getProcessesByName gets a single process object by its name
+func getProcessesByName(name string) ([]gopsutil_process.Process, error) {
+	if name == "" {
+		return nil, errors.New("process name should not be empty")
+	}
+
+	processes, err := gopsutil_process.Processes()
+	if err != nil {
+		return nil, err
+	}
+
+	var foundProcesses []gopsutil_process.Process
+	for _, process := range processes {
+		processName, err := process.Name()
+		if err != nil {
+			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
+			continue
+		}
+
+		if strings.HasPrefix(processName, name) {
+			foundProcesses = append(foundProcesses, *process)
+		}
+	}
+
+	if len(foundProcesses) == 0 {
+		return nil, ErrProcessNotFound
+	}
+
+	return foundProcesses, nil
+}
+
+// KillAllProcessByName kills all process found by their name
+func KillAllProcessByName(name string) error {
+	if name == "" {
+		return errors.New("process name should not be empty")
+	}
+
+	foundProcesses, err := getProcessesByName(name)
+	if err != nil {
+		return fmt.Errorf("get process: %w", err)
+	}
+
+	// Killing found processes
+	for _, foundProcess := range foundProcesses {
+
+		name, _ := foundProcess.Name()
+		pid := foundProcess.Pid
+		log.Printf("Process to kill %s - %d", name, pid)
+
+		if err := foundProcess.Kill(); err != nil {
+			return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
+		}
+	}
+
+	return nil
+}
+
 // GetProcessByName gets a single process object by its name
 func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if name == "" {

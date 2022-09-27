@@ -261,8 +261,11 @@ func main() {
 			g            run.Group
 		)
 
+		// List of interrupt functions to call during service teardown
+		var interruptFunctions []func(err error)
+
 		// Setting up the system service management early on the process lifetime
-		go osservice.SetupServiceManagement(constant.SystemServiceName, opt.RootDirectory, c.Bool("fleet-desktop"))
+		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &interruptFunctions)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -301,6 +304,7 @@ func main() {
 				log.Info().Msg("exiting due to successful early update")
 				return nil
 			}
+
 			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
 			osquerydLocalTarget, err := updater.Get("osqueryd")
@@ -554,6 +558,10 @@ func main() {
 			return fmt.Errorf("create osquery runner: %w", err)
 		}
 		g.Add(r.Execute, r.Interrupt)
+
+		// Only osquery runner is being interrupted
+		// This ends up forcing the rest of the interrupt functions in the runner group to get called
+		interruptFunctions = append(interruptFunctions, r.Interrupt)
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 

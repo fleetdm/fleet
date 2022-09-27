@@ -5,5 +5,5 @@ package osservice
 
 // SetupServiceManagement is currently a placeholder for non-windows OSes
 // system service configuration
-func SetupServiceManagement(serviceName string, serviceRootDir string, fleetDesktopPresent bool) {
+func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdownFunctions *[]func(err error)) {
 }

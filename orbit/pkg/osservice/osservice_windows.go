@@ -4,6 +4,7 @@
 package osservice
 
 import (
+	"errors"
 	"os"
 	"time"
 
@@ -16,11 +17,19 @@ import (
 )
 
 type windowsService struct {
-	rootDir             string
+	shutdownFunctions   *[]func(err error)
 	fleetDesktopPresent bool
 }
 
 func (m *windowsService) bestEffortShutdown() {
+	serviceShutdown := errors.New("service is shutting down")
+
+	// Calling interrupt functions to gracefully shutdown runners
+	for _, interruptFn := range *m.shutdownFunctions {
+		interruptFn(serviceShutdown)
+	}
+
+	// Now ensuring that no child process are left
 	if m.fleetDesktopPresent {
 		err := platform.KillProcessByName(constant.DesktopAppExecName)
 		if err != nil {
@@ -28,11 +37,9 @@ func (m *windowsService) bestEffortShutdown() {
 		}
 	}
 
-	if m.rootDir != "" {
-		err := platform.KillFromPIDFile(m.rootDir, constant.OsqueryPidfile, constant.OsquerydName)
-		if err != nil {
-			log.Error().Err(err).Msg("The osquery daemon process couldn't be killed")
-		}
+	err := platform.KillAllProcessByName(constant.OsquerydName)
+	if err != nil {
+		log.Error().Err(err).Msg("The child osqueryd processes cannot be killed")
 	}
 }
 
@@ -54,22 +61,17 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 		case svc.Stop, svc.Shutdown:
 
 			// Service shutdown was requested
-			// Updating the service state to indicate stop op started
-			changes <- svc.Status{State: svc.StopPending}
+			// Updating the service state to indicate stop
+			changes <- svc.Status{State: svc.Stopped, Win32ExitCode: 0}
 
 			// Best effort tear down
+			// Runner group's interrupt functions will be called here
 			m.bestEffortShutdown()
-
-			// Updating the service state to indicate that stop finished
-			changes <- svc.Status{State: svc.Stopped}
 
 			// Dummy delay to allow the SCM to pick up the changes
 			time.Sleep(500 * time.Millisecond)
 
 			// Drastic teardown
-			// This will generate an internal signal that will be caught by
-			// the app SignalHandler() runner, which will end up forcing
-			// the interrupt method to run on all runners
 			os.Exit(windows.NO_ERROR)
 
 		default:
@@ -82,14 +84,9 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 
 // SetupServiceManagement implements the dispatcher and notification logic to
 // interact with the Windows Service Control Manager (SCM)
-func SetupServiceManagement(serviceName string, serviceRootDir string, fleetDesktopPresent bool) {
+func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdownFunctions *[]func(err error)) {
 	if serviceName == "" {
 		log.Error().Msg(" service name should not be empty")
-		return
-	}
-
-	if serviceRootDir == "" {
-		log.Error().Msg(" service root dir should not be empty")
 		return
 	}
 
@@ -102,7 +99,7 @@ func SetupServiceManagement(serviceName string, serviceRootDir string, fleetDesk
 
 	if isWindowsService {
 		srvData := windowsService{
-			rootDir:             serviceRootDir,
+			shutdownFunctions:   shutdownFunctions,
 			fleetDesktopPresent: fleetDesktopPresent,
 		}
 
