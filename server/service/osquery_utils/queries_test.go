@@ -466,26 +466,6 @@ func TestDirectIngestMDM(t *testing.T) {
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }
 
-func TestDirectIngestOrbitInfo(t *testing.T) {
-	ds := new(mock.Store)
-	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
-		require.Equal(t, hostID, uint(1))
-		require.Equal(t, authToken, "foo")
-		return nil
-	}
-
-	host := fleet.Host{
-		ID: 1,
-	}
-
-	err := directIngestOrbitInfo(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{{
-		"version":           "42",
-		"device_auth_token": "foo",
-	}}, true)
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
-}
-
 func TestDirectIngestChromeProfiles(t *testing.T) {
 	ds := new(mock.Store)
 	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping) error {
