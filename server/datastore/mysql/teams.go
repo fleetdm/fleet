@@ -272,7 +272,7 @@ func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, m
 
 func (ds *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	sql := `
-		SELECT * FROM enroll_secrets
+		SELECT secret, team_id, created_at FROM enroll_secrets
 		WHERE team_id = ?
 	`
 	var secrets []*fleet.EnrollSecret

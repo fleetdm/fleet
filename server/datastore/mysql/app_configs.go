@@ -91,6 +91,11 @@ func (ds *Datastore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secre
 }
 
 func applyEnrollSecretsDB(ctx context.Context, exec sqlx.ExecerContext, teamID *uint, secrets []*fleet.EnrollSecret) error {
+	// TODO(mna): do not delete existing secrets, only ones not present in the
+	// secrets array. For the others, insert the new and no-op update the
+	// existing (keep its existing created_at timestamp).
+	// This is the common implementation for both teams and appconfig.
+
 	if teamID != nil {
 		sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
 		if _, err := exec.ExecContext(ctx, sql, teamID); err != nil {
@@ -121,7 +126,7 @@ func (ds *Datastore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fle
 
 func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([]*fleet.EnrollSecret, error) {
 	var args []interface{}
-	sql := "SELECT * FROM enroll_secrets WHERE "
+	sql := "SELECT secret, team_id, created_at FROM enroll_secrets WHERE "
 	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
 	if teamID == nil {
 		sql += "team_id IS NULL"
