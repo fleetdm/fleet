@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Build merged schema',
+  friendlyName: 'Generate merged schema',
 
 
   description: 'Merges the osquery schema located at /frontend/osquery_tables.json with Fleet\'s overrides (/schema/fleet_schema.json) and save the merged schema to /schema/merged_schema.json',
