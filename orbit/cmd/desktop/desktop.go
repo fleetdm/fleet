@@ -51,6 +51,7 @@ func setupRunners() {
 	)
 
 	if err := runnerGroup.Run(); err != nil {
+		log.Error().Err(err).Msg("Fleet Desktop runners terminated")
 		return
 	}
 }
