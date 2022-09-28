@@ -815,7 +815,9 @@ The `agent_options` key controls the settings applied to the agent on all your h
 
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
 
-For "team" and "config" file kinds (see [configuration files](#configuration-files) if you're not familiar with those), the `agent_options` section is validated against the configuration options of the latest version of osquery (the one available at the time of the Fleet release). You can verify that such a configuration is valid by using [the fleetctl apply command](../../Using-Fleet/fleetctl-CLI.md#fleetctl-apply) with the `--dry-run` flag, which will report any error and do nothing if the configuration was valid, and you can force-apply a configuration that would otherwise be rejected by using the `--force` flag. Use this flag with care, as failing validations mean that the configuration is invalid for the latest osquery version (but it may be valid for older osquery versions, which is when this flag comes in handy).
+Agent options are validated using the latest version of osquery. 
+
+You can verify that your agent options are valid by using [the fleetctl apply command](../../Using-Fleet/fleetctl-CLI.md#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 
