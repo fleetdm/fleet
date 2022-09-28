@@ -6,7 +6,7 @@
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
 
-Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files. 
+Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
 
 Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](../../Using-Fleet/fleetctl-CLI.md#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
 
@@ -42,7 +42,7 @@ spec:
   query: select name, publisher, type, subscriptions, events, active from osquery_events;
 ```
 
-Continued edits and applications to this file will update the queries. 
+Continued edits and applications to this file will update the queries.
 
 If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
 
@@ -811,9 +811,11 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 
 #### Agent options
 
-The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in. 
+The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in.
 
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
+
+For "team" and "config" file kinds (see [configuration files](#configuration-files) if you're not familiar with those), the `agent_options` section is validated against the configuration options of the latest version of osquery (the one available at the time of the Fleet release). You can verify that such a configuration is valid by using [the fleetctl apply command](../../Using-Fleet/fleetctl-CLI.md#fleetctl-apply) with the `--dry-run` flag, which will report any error and do nothing if the configuration was valid, and you can force-apply a configuration that would otherwise be rejected by using the `--force` flag. Use this flag with care, as failing validations mean that the configuration is invalid for the latest osquery version (but it may be valid for older osquery versions, which is when this flag comes in handy).
 
 Existing options will be overwritten by the application of this file.
 
