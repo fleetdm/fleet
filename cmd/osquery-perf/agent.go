@@ -273,7 +273,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	configTicker := time.Tick(a.ConfigInterval)
 	liveQueryTicker := time.Tick(a.QueryInterval)
-	orbitTicker := time.Tick(a.OrbitEnrollInterval)
+	orbitTicker := time.Tick(a.OrbitInterval)
 	for {
 		select {
 		case <-configTicker:
@@ -286,7 +286,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				a.DistributedWrite(resp.Queries)
 			}
 		case <-orbitTicker:
-			err := a.orbitCofig()
+			err := a.orbitConfig()
 			if err != nil {
 				log.Println(err)
 			}
@@ -321,6 +321,44 @@ type orbitGetConfigRequest struct {
 type orbitGetConfigResponse struct {
 	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
 	Err   error           `json:"error,omitempty"`
+}
+
+func (a *agent) orbitConfig() error {
+	if !a.IsOrbit {
+		return nil
+	}
+	params := orbitGetConfigRequest{OrbitNodeKey: *a.orbitNodeKey}
+
+	req := fasthttp.AcquireRequest()
+	body, err := json.Marshal(params)
+	if err != nil {
+		log.Println("orbit get config json marshall:", err)
+		return err
+	}
+
+	req.SetBody(body)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("application/json")
+	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
+
+	resp := fasthttp.AcquireResponse()
+
+	a.waitingDo(req, resp)
+	defer fasthttp.ReleaseResponse(resp)
+
+	if resp.StatusCode() != http.StatusOK {
+		log.Println("orbit config status:", resp.StatusCode())
+		return fmt.Errorf("status code: %d", resp.StatusCode())
+	}
+
+	var parsedResp orbitGetConfigResponse
+	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
+		log.Println("orbit config parse:", err)
+		return err
+	}
+
+	// we don't really care about the response
+	return nil
 }
 
 func (a *agent) orbitEnroll() error {
