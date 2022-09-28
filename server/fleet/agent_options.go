@@ -244,7 +244,6 @@ type osqueryOptions struct {
 	LoggerTlsMaxLinesize                uint64 `json:"logger_tls_max_linesize"`
 	LoggerTlsPeriod                     uint64 `json:"logger_tls_period"`
 	LxdSocket                           string `json:"lxd_socket"`
-	MallocTrimThreshold                 uint64 `json:"malloc_trim_threshold"`
 	Nullvalue                           string `json:"nullvalue"`
 	NumericMonitoringFilesystemPath     string `json:"numeric_monitoring_filesystem_path"`
 	NumericMonitoringPlugins            string `json:"numeric_monitoring_plugins"`
@@ -273,6 +272,11 @@ type osqueryOptions struct {
 	Verbose                             bool   `json:"verbose"`
 	WorkerThreads                       int32  `json:"worker_threads"`
 	YaraDelay                           uint32 `json:"yara_delay"`
+
+	// embed the os-specific structs
+	OsqueryCommandLineFlagsLinux
+	OsqueryCommandLineFlagsWindows
+	OsqueryCommandLineFlagsMacOS
 }
 
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
@@ -417,7 +421,6 @@ type osqueryCommandLineFlags struct {
 	LoggerTlsPeriod                     uint64 `json:"logger_tls_period"`
 	Logtostderr                         bool   `json:"logtostderr"`
 	LxdSocket                           string `json:"lxd_socket"`
-	MallocTrimThreshold                 uint64 `json:"malloc_trim_threshold"`
 	Nullvalue                           string `json:"nullvalue"`
 	NumericMonitoringFilesystemPath     string `json:"numeric_monitoring_filesystem_path"`
 	NumericMonitoringPlugins            string `json:"numeric_monitoring_plugins"`
@@ -464,6 +467,11 @@ type osqueryCommandLineFlags struct {
 	WatchdogUtilizationLimit            uint64 `json:"watchdog_utilization_limit"`
 	WorkerThreads                       int32  `json:"worker_threads"`
 	YaraDelay                           uint32 `json:"yara_delay"`
+
+	// embed the os-specific structs
+	OsqueryCommandLineFlagsLinux
+	OsqueryCommandLineFlagsWindows
+	OsqueryCommandLineFlagsMacOS
 }
 
 // the following structs are for OS-specific command-line flags supported by

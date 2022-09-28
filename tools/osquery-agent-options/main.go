@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var (
@@ -21,11 +23,21 @@ var (
 // NOTE: generate automatically with ` + "`go run ./tools/osquery-agent-options/main.go`" + `
 type osqueryOptions struct { {{ range $name, $type := .Options }}
 	{{camelCase $name}} {{$type}} ` + "`json:\"{{$name}}\"`" + `{{end}}
+
+	// embed the os-specific structs
+	OsqueryCommandLineFlagsLinux
+	OsqueryCommandLineFlagsWindows
+	OsqueryCommandLineFlagsMacOS
 }
 
 // NOTE: generate automatically with ` + "`go run ./tools/osquery-agent-options/main.go`" + `
 type osqueryCommandLineFlags struct { {{ range $name, $type := .Flags }}
 	{{camelCase $name}} {{$type}} ` + "`json:\"{{$name}}\"`" + `{{end}}
+
+	// embed the os-specific structs
+	OsqueryCommandLineFlagsLinux
+	OsqueryCommandLineFlagsWindows
+	OsqueryCommandLineFlagsMacOS
 }
 `))
 )
@@ -36,8 +48,27 @@ type templateData struct {
 }
 
 func main() {
+	// marshal/unmarshal the OS-specific structs into a map so we have all their
+	// keys and we can ignore them in the auto-generated structs (because we
+	// can't auto- generate those, we'd only see the ones that exist on the
+	// current OS)
+	var allOSSpecific struct {
+		fleet.OsqueryCommandLineFlagsLinux
+		fleet.OsqueryCommandLineFlagsWindows
+		fleet.OsqueryCommandLineFlagsMacOS
+	}
+	b, err := json.Marshal(allOSSpecific)
+	if err != nil {
+		log.Fatalf("failed to marshal os-specific structs: %v", err)
+	}
+
+	var osSpecificNames map[string]interface{}
+	if err := json.Unmarshal(b, &osSpecificNames); err != nil {
+		log.Fatalf("failed to unmarshal os-specific structs to get the list of keys: %v", err)
+	}
+
 	// get the list of flags that are valid as configuration options
-	b, err := exec.Command("osqueryd", "--help").Output()
+	b, err = exec.Command("osqueryd", "--help").Output()
 	if err != nil {
 		log.Fatalf("failed to run osqueryd --help: %v", err)
 	}
@@ -101,6 +132,11 @@ func main() {
 	// identify the valid config options
 	validOptions := make(map[string]string, len(optionNames))
 	for _, nm := range optionNames {
+		// ignore the os-specific options
+		if _, ok := osSpecificNames[nm]; ok {
+			continue
+		}
+
 		ot, ok := allOptions[nm]
 		if ok {
 			validOptions[nm] = ot
@@ -109,6 +145,11 @@ func main() {
 	// identify the valid command-line flags
 	validFlags := make(map[string]string, len(allNames))
 	for _, nm := range allNames {
+		// ignore the os-specific options
+		if _, ok := osSpecificNames[nm]; ok {
+			continue
+		}
+
 		ot, ok := allOptions[nm]
 		if ok {
 			validFlags[nm] = ot
