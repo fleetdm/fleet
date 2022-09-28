@@ -564,6 +564,10 @@ func main() {
 			return fmt.Errorf("initializing client: %w", err)
 		}
 
+		if err := deviceClient.Ping(); err != nil {
+			return fmt.Errorf("pinging server: %w", err)
+		}
+
 		trw := token.NewReadWriter(
 			filepath.Join(c.String("root-dir"), "identifier"),
 			func(token string) error {
@@ -579,7 +583,7 @@ func main() {
 				return orbitClient.SetOrUpdateDeviceToken(orbitNodeKey, token)
 			})
 
-		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
+		if deviceClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
 			log.Info().Msg("token rotation is enabled")
 
 			if err := trw.LoadOrGenerate(); err != nil {
