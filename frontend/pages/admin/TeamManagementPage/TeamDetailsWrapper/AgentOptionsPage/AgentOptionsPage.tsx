@@ -4,6 +4,7 @@ import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
 
 import { NotificationContext } from "context/notification";
+import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
@@ -62,16 +63,18 @@ const AgentOptionsPage = ({
       return renderFlash("error", error.reason);
     }
 
-    try {
-      await osqueryOptionsAPI.update(
-        updatedForm,
-        TEAMS_AGENT_OPTIONS(teamIdFromURL)
-      );
-      return renderFlash("success", "Successfully saved agent options");
-    } catch (response) {
-      console.error(response);
-      return renderFlash("error", "Could not save agent options");
-    }
+    osqueryOptionsAPI
+      .update(updatedForm, TEAMS_AGENT_OPTIONS(teamIdFromURL))
+      .then(() => {
+        renderFlash("success", "Successfully saved agent options");
+      })
+      .catch((response: { data: IApiError }) => {
+        console.error(response);
+        return renderFlash(
+          "error",
+          `Could not update agent options. ${response.data.errors[0].reason}`
+        );
+      });
   };
 
   return (
