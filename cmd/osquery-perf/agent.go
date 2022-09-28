@@ -186,6 +186,7 @@ type agent struct {
 	ConfigInterval      time.Duration
 	QueryInterval       time.Duration
 	OrbitEnrollInterval time.Duration
+	IsOrbit             bool
 }
 
 type entityCount struct {
@@ -209,8 +210,10 @@ func newAgent(
 	munkiIssueProb float64, munkiIssueCount int,
 ) *agent {
 	var deviceAuthToken *string
+	var isOrbit bool
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
+		isOrbit = true
 	}
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
@@ -237,6 +240,7 @@ func newAgent(
 		QueryInterval:       queryInterval,
 		OrbitEnrollInterval: orbitEnrollInterval,
 		UUID:                uuid.New().String(),
+		IsOrbit:             isOrbit,
 	}
 }
 
@@ -249,10 +253,11 @@ type distributedReadResponse struct {
 }
 
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
-	if err := a.enroll(i, onlyAlreadyEnrolled); err != nil {
+	if err := a.orbitEnroll(); err != nil {
 		return
 	}
-	if err := a.orbitEnroll(); err != nil {
+
+	if err := a.enroll(i, onlyAlreadyEnrolled); err != nil {
 		return
 	}
 
@@ -268,7 +273,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	configTicker := time.Tick(a.ConfigInterval)
 	liveQueryTicker := time.Tick(a.QueryInterval)
-	orbitEnrollTicker := time.Tick(a.OrbitEnrollInterval)
+	orbitTicker := time.Tick(a.OrbitEnrollInterval)
 	for {
 		select {
 		case <-configTicker:
@@ -280,10 +285,10 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			} else if len(resp.Queries) > 0 {
 				a.DistributedWrite(resp.Queries)
 			}
-		case <-orbitEnrollTicker:
-			err := a.orbitEnroll()
+		case <-orbitTicker:
+			err := a.orbitCofig()
 			if err != nil {
-				return
+				log.Println(err)
 			}
 		}
 	}
@@ -319,13 +324,16 @@ type orbitGetConfigResponse struct {
 }
 
 func (a *agent) orbitEnroll() error {
+	if !a.IsOrbit {
+		return nil
+	}
 	params := enrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
 
 	req := fasthttp.AcquireRequest()
 
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
-		log.Println("orbit json marsshall:", err)
+		log.Println("orbit json marshall:", err)
 		return err
 	}
 
@@ -999,7 +1007,7 @@ func main() {
 	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-	orbitEnrollInterval := flag.Duration("query_interval", 10*time.Second, "Interval for orbit enroll requests")
+	orbitEnrollInterval := flag.Duration("orbit_interval", 10*time.Second, "Interval for orbit enroll requests")
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
