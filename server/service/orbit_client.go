@@ -80,6 +80,16 @@ func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 	return resp.Flags, nil
 }
 
+func (oc *OrbitClient) SetOrUpdateDeviceToken(orbitNodeKey string, deviceAuthToken string) error {
+	verb, path := "POST", "/api/latest/fleet/orbit/device_token"
+	params := setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    orbitNodeKey,
+		DeviceAuthToken: deviceAuthToken,
+	}
+	var resp setOrUpdateDeviceTokenResponse
+	return oc.request(verb, path, params, &resp)
+}
+
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)
