@@ -71,9 +71,9 @@ After it is in a release formally, the bug should be treated like any other piec
 Fleeties do not have to wait for QA to reproduce the bug. If you are confident it is reproducible, is a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 ### Release testing
-When a release is in testing, QA should use the the Slack channel #help-release to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
+When a release is in testing, QA should use the the Slack channel #help-release-bugs to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the #help-release channel, product may decide whether the bug is a release blocker. When a release blocking bug is found, the product is responsible for communicating the delay to company stakeholders. 
+In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release blocking bug is found, the product is responsible for communicating the delay to company stakeholders. 
 
 Release blockers include:
 1. Critical bugs (defined below)
@@ -152,7 +152,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-qa`                          | Reed Haynes                                                         |
-| `#help-release`                     | Reed Haynes                                                         |
+| `#help-release-bugs`                | Reed Haynes                                                         |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="🪢Quality">
