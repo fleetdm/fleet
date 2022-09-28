@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -9,12 +10,14 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
+	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -22,6 +25,35 @@ import (
 
 // version is set at compile time via -ldflags
 var version = "unknown"
+
+func setupRunners() {
+	var runnerGroup run.Group
+
+	// Install a signal handler runner
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var execFn func() error
+	var interrFn func(error)
+
+	if runtime.GOOS == "windows" {
+		execFn, interrFn = run.SignalHandler(ctx, os.Interrupt, os.Kill)
+	} else {
+		execFn, interrFn = run.SignalHandler(ctx, os.Interrupt, os.Kill, syscall.SIGTERM)
+	}
+
+	runnerGroup.Add(
+		execFn,
+		func(err error) {
+			interrFn(err)
+			systray.Quit()
+		},
+	)
+
+	if err := runnerGroup.Run(); err != nil {
+		return
+	}
+}
 
 func main() {
 	setupLogs()
@@ -45,6 +77,9 @@ func main() {
 	basePath := deviceURL.Scheme + "://" + deviceURL.Host
 	deviceToken := path.Base(deviceURL.Path)
 	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
+
+	// Setting up working runners such as signalHandler runner
+	go setupRunners()
 
 	onReady := func() {
 		log.Info().Msg("ready")
