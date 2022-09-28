@@ -40,7 +40,8 @@ The lifecycle stages of a bug at Fleet are:
 4. In Engineering Process
 5. Awaiting QA
 
-The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of Github labels, assignees, and board memberships. 
+The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and board memberships. 
+
 See [Appendix A](#appendix-a) at the end of this document for a description of these states and a convenience link to each GitHub filter.
 
 ### Inbox
@@ -71,7 +72,7 @@ After it is in a release formally, the bug should be treated like any other piec
 Fleeties do not have to wait for QA to reproduce the bug. If you are confident it is reproducible, is a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 ### During release testing
-When release is in testing, QA should use the the slack channel #help-release to keep everyone aware of issues found. All bugs related to a release should be reported in the channel after creating the bug first.
+When release is in testing, QA should use the the Slack channel #help-release to keep everyone aware of issues found. All bugs related to a release should be reported in the channel after creating the bug first.
 
 In the release channel, product may decide whether the bug is a release blocker. Release blockers must be fixed before a release can be cut.
 
@@ -81,7 +82,7 @@ A critical bug is defined as: “a bug that causes users to be unable to use a w
 The key thing about a critical bug is that we need to immediately inform customers and the community about it so they don’t trigger it themselves. When bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm immediately.
 Raising an alarm means: pinging @here in the #help-product channel with the filed bug.
 
-If the “bug finder” is not a Fleetie (such as community-reported), then whoever sees the critical bug should raise the alarm. (We would expect this to be CX in the community slack or QA in the bug inbox, though it could be anyone.)
+If the “bug finder” is not a Fleetie (such as community-reported), then whoever sees the critical bug should raise the alarm. (We would expect this to be CX in the community Slack or QA in the bug inbox, though it could be anyone.)
 Note that the “bug finder” here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical but it has not been escalated, raise the alarm!
 
 Once raised, product confirms whether it is critical or not, and defines expected behavior.
@@ -103,26 +104,26 @@ Every week, the head of product is responsible for reviewing these two states to
 ### Inbox
 The bug has just come in. 
 
-If using the standard bug report, the bug is labeled “bug” and “reproduce” and not assigned to anyone and not on a board. [See on Github](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+sort%3Aupdated-asc).
+If using the standard bug report, the bug is labeled “bug” and “reproduce” and not assigned to anyone and not on a board. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+sort%3Aupdated-asc).
 
 ### Acknowledged 
 QA has gone through the inbox and has accepted it as a bug to be reproduced. 
 
-QA assigns themselves and adds it to the Release board under “awaiting QA”. [See on Github](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+sort%3Aupdated-asc).
+QA assigns themselves and adds it to the Release board under “awaiting QA”. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+sort%3Aupdated-asc).
 
 ### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering to work on. 
 
-Remove the “reproduce” label and add the label of the relevant team (#agent, #platform, #interface) and assign it to the relevant engineering manager (make your best guess as to which team – the EM will re-assign if they think it belongs to another team). Move it to “Ready” in the Release board. [See on Github](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+sort%3Aupdated-asc).
+Remove the “reproduce” label and add the label of the relevant team (#agent, #platform, #interface) and assign it to the relevant engineering manager (make your best guess as to which team – the EM will re-assign if they think it belongs to another team). Move it to “Ready” in the Release board. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+sort%3Aupdated-asc).
 
 ### Orphans 
-Bugs which do not have the reproduce label and do not exist on the release board. This filter serves as a sanity check. There should be no bugs in this state, because it means this bug is likely to be forgotten by our process. [See on Github](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+).
+Bugs which do not have the reproduce label and do not exist on the release board. This filter serves as a sanity check. There should be no bugs in this state, because it means this bug is likely to be forgotten by our process. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+).
 
 ### Reproduced orphans 
-Bugs which do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on Github](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+-label%3A%23interface+-label%3A%23platform+-label%3A%23agent+).
+Bugs which do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+-label%3A%23interface+-label%3A%23platform+-label%3A%23agent+).
 
 ### All bugs
-[See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+[See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
 
 ## Rituals
 
