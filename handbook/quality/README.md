@@ -89,7 +89,7 @@ A critical bug is defined as: behavior that causes users to:
 * causes irreversible damage such as loss of data
 * introduces a security vulnerability
 
-The key thing about a critical bug is that we need to immediately inform customers and the community about it so they don’t trigger it themselves. When bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm immediately.
+The key thing about a critical bug is that we need to immediately inform customers and the community about it so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm immediately.
 Raising an alarm means: pinging @here in the #help-product channel with the filed bug.
 
 If the “bug finder” is not a Fleetie (such as community-reported), then whoever sees the critical bug should raise the alarm. (We would expect this to be CX in the community Slack or QA in the bug inbox, though it could be anyone.)
