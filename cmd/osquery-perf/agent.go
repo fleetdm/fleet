@@ -181,12 +181,12 @@ type agent struct {
 
 	// The following are exported to be used by the templates.
 
-	EnrollSecret        string
-	UUID                string
-	ConfigInterval      time.Duration
-	QueryInterval       time.Duration
-	OrbitEnrollInterval time.Duration
-	IsOrbit             bool
+	EnrollSecret   string
+	UUID           string
+	ConfigInterval time.Duration
+	QueryInterval  time.Duration
+	OrbitInterval  time.Duration
+	IsOrbit        bool
 }
 
 type entityCount struct {
@@ -204,7 +204,7 @@ type softwareEntityCount struct {
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval, orbitEnrollInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
+	configInterval, queryInterval, orbitInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
@@ -235,12 +235,12 @@ func newAgent(
 		deviceAuthToken: deviceAuthToken,
 		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
-		EnrollSecret:        enrollSecret,
-		ConfigInterval:      configInterval,
-		QueryInterval:       queryInterval,
-		OrbitEnrollInterval: orbitEnrollInterval,
-		UUID:                uuid.New().String(),
-		IsOrbit:             isOrbit,
+		EnrollSecret:   enrollSecret,
+		ConfigInterval: configInterval,
+		QueryInterval:  queryInterval,
+		OrbitInterval:  orbitInterval,
+		UUID:           uuid.New().String(),
+		IsOrbit:        isOrbit,
 	}
 }
 
@@ -1021,7 +1021,7 @@ func main() {
 	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-	orbitEnrollInterval := flag.Duration("orbit_interval", 10*time.Second, "Interval for orbit enroll requests")
+	orbitInterval := flag.Duration("orbit_interval", 10*time.Second, "Interval for orbit enroll requests")
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
@@ -1082,7 +1082,7 @@ func main() {
 		if strings.HasPrefix(tmpl.Name(), "partial") {
 			continue
 		}
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *orbitEnrollInterval,
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *orbitInterval,
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,
