@@ -188,6 +188,10 @@ type setOrUpdateDeviceTokenRequest struct {
 	DeviceAuthToken string `json:"device_auth_token"`
 }
 
+func (r *setOrUpdateDeviceTokenRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
 type setOrUpdateDeviceTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }

@@ -18,10 +18,9 @@ type ReadWriter struct {
 	remoteUpdate remoteUpdaterFunc
 }
 
-func NewReadWriter(path string, remoteUpdate remoteUpdaterFunc) *ReadWriter {
+func NewReadWriter(path string) *ReadWriter {
 	return &ReadWriter{
-		Reader:       &Reader{Path: path},
-		remoteUpdate: remoteUpdate,
+		Reader: &Reader{Path: path},
 	}
 }
 
@@ -61,8 +60,10 @@ func (rw *ReadWriter) Rotate() error {
 	attempts := 3
 	interval := 5 * time.Second
 	err = retry.Do(func() error {
-		if err := rw.remoteUpdate(id); err != nil {
-			return err
+		if rw.remoteUpdate != nil {
+			if err := rw.remoteUpdate(id); err != nil {
+				return err
+			}
 		}
 
 		if err := rw.write(id); err != nil {
@@ -77,6 +78,10 @@ func (rw *ReadWriter) Rotate() error {
 	}
 
 	return nil
+}
+
+func (rw *ReadWriter) SetRemoteUpdateFunc(f remoteUpdaterFunc) {
+	rw.remoteUpdate = f
 }
 
 func (rw *ReadWriter) write(id string) error {
