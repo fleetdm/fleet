@@ -339,7 +339,7 @@ func (a *agent) orbitConfig() error {
 	req.SetBody(body)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
-	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
+	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/config")
 
 	resp := fasthttp.AcquireResponse()
 
