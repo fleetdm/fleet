@@ -3,14 +3,13 @@ import React, { useState, useEffect } from "react";
 import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import Spinner from "components/Spinner";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
 import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
-const baseClass = "create-integration-modal";
+const baseClass = "add-integration-modal";
 
-interface ICreateIntegrationModalProps {
+interface IAddIntegrationModalProps {
   onCancel: () => void;
   onSubmit: (
     integrationSubmitData: IIntegration[],
@@ -27,13 +26,13 @@ const destinationOptions = [
   { label: "Zendesk", value: "zendesk" },
 ];
 
-const CreateIntegrationModal = ({
+const AddIntegrationModal = ({
   onCancel,
   onSubmit,
   backendValidators,
   integrations,
   testingConnection,
-}: ICreateIntegrationModalProps): JSX.Element => {
+}: IAddIntegrationModalProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -49,13 +48,8 @@ const CreateIntegrationModal = ({
 
   return (
     <Modal title={"Add integration"} onExit={onCancel} className={baseClass}>
-      {testingConnection ? (
-        <div className={`${baseClass}__testing-connection`}>
-          <b>Testing connection</b>
-          <Spinner />
-        </div>
-      ) : (
-        <>
+      <>
+        {!testingConnection && (
           <div className={`${baseClass}__info-header`}>
             <Dropdown
               label="Ticket destination"
@@ -75,16 +69,17 @@ const CreateIntegrationModal = ({
               <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </div>
-          <IntegrationForm
-            onCancel={onCancel}
-            onSubmit={onSubmit}
-            integrations={integrations}
-            destination={destination}
-          />
-        </>
-      )}
+        )}
+        <IntegrationForm
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+          integrations={integrations}
+          destination={destination}
+          testingConnection={testingConnection}
+        />
+      </>
     </Modal>
   );
 };
 
-export default CreateIntegrationModal;
+export default AddIntegrationModal;
