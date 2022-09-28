@@ -72,7 +72,7 @@ const AgentOptionsPage = ({
         console.error(response);
         return renderFlash(
           "error",
-          `Could not update agent options. ${response.data.errors[0].reason}`
+          `Could not update team agent options. ${response.data.errors[0].reason}`
         );
       });
   };
