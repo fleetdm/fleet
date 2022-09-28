@@ -22,16 +22,14 @@ export const agentOptionsToYaml = (agentOpts: any) => {
     !agentOpts.command_line_flags ||
     Object.keys(agentOpts.command_line_flags).length === 0
   ) {
-    agentOpts.command_line_flags = {};
+    // delete it so it does not render, and will add it explicitly after (along with the comment)
+    delete agentOpts.command_line_flags;
     addFlagsComment = true;
   }
 
   let yamlString = yaml.dump(agentOpts);
   if (addFlagsComment) {
-    yamlString = yamlString.replace(
-      "command_line_flags: {}\n",
-      "command_line_flags: {} # requires Orbit\n"
-    );
+    yamlString += "command_line_flags: {} # requires Orbit\n";
   }
 
   return yamlString;
