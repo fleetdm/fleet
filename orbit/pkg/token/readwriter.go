@@ -11,19 +11,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type remote interface {
-	SetOrUpdateDeviceToken(token string) error
-}
+type remoteUpdaterFunc func(token string) error
 
 type ReadWriter struct {
-	remote
 	*Reader
+	remoteUpdate remoteUpdaterFunc
 }
 
-func NewReadWriter(path string, client remote) *ReadWriter {
+func NewReadWriter(path string, remoteUpdate remoteUpdaterFunc) *ReadWriter {
 	return &ReadWriter{
-		Reader: &Reader{Path: path},
-		remote: client,
+		Reader:       &Reader{Path: path},
+		remoteUpdate: remoteUpdate,
 	}
 }
 
@@ -63,7 +61,7 @@ func (rw *ReadWriter) Rotate() error {
 	attempts := 3
 	interval := 5 * time.Second
 	err = retry.Do(func() error {
-		if err := rw.SetOrUpdateDeviceToken(id); err != nil {
+		if err := rw.remoteUpdate(id); err != nil {
 			return err
 		}
 

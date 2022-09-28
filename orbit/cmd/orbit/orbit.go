@@ -564,7 +564,20 @@ func main() {
 			return fmt.Errorf("initializing client: %w", err)
 		}
 
-		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"), orbitClient)
+		trw := token.NewReadWriter(
+			filepath.Join(c.String("root-dir"), "identifier"),
+			func(token string) error {
+				if !orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) {
+					return nil
+				}
+
+				orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
+				if err != nil {
+					return fmt.Errorf("error enroll: %w", err)
+				}
+
+				return orbitClient.SetOrUpdateDeviceToken(orbitNodeKey, token)
+			})
 
 		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
 			log.Info().Msg("token rotation is enabled")

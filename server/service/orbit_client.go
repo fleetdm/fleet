@@ -81,7 +81,7 @@ func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 }
 
 func (oc *OrbitClient) SetOrUpdateDeviceToken(orbitNodeKey string, deviceAuthToken string) error {
-	verb, path := "POST", "/api/latest/fleet/orbit/device_token"
+	verb, path := "POST", "/api/fleet/orbit/device_token"
 	params := setOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    orbitNodeKey,
 		DeviceAuthToken: deviceAuthToken,
