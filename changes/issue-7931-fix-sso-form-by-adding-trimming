@@ -1,0 +1,1 @@
+- update SSO form values in Fleet UI so that they are trimmed before being sent to the server
