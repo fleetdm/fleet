@@ -9,19 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockClient struct{}
-
-func (m *mockClient) SetOrUpdateDeviceToken(token string) error {
-	return nil
-}
-
 func TestLoadOrGenerate(t *testing.T) {
 	t.Run("creates file if it doesn't exist", func(t *testing.T) {
 		dir := os.TempDir()
 		file := filepath.Join(dir, "identifier")
 		defer os.Remove(file)
 
-		rw := NewReadWriter(file, &mockClient{})
+		rw := NewReadWriter(file)
 		rw.LoadOrGenerate()
 		token, err := rw.Read()
 		require.NoError(t, err)
@@ -42,7 +36,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, err)
 		oldMtime := stat.ModTime()
 
-		rw := NewReadWriter(file.Name(), &mockClient{})
+		rw := NewReadWriter(file.Name())
 		rw.LoadOrGenerate()
 		token, err := rw.Read()
 		require.NoError(t, err)
@@ -67,7 +61,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 
-		rw := NewReadWriter(file.Name(), &mockClient{})
+		rw := NewReadWriter(file.Name())
 		rw.LoadOrGenerate()
 		token, err := rw.Read()
 		require.NoError(t, err)
@@ -86,7 +80,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		file.Chmod(0x600)
 		defer os.Remove(file.Name())
 
-		rw := NewReadWriter(file.Name(), &mockClient{})
+		rw := NewReadWriter(file.Name())
 		rw.LoadOrGenerate()
 		token, err := rw.Read()
 		require.Error(t, err)
@@ -98,7 +92,7 @@ func TestRotate(t *testing.T) {
 	file, err := os.CreateTemp("", t.Name())
 	require.NoError(t, err)
 	defer os.Remove(file.Name())
-	rw := NewReadWriter(file.Name(), &mockClient{})
+	rw := NewReadWriter(file.Name())
 
 	token, err := rw.Read()
 	require.NoError(t, err)
