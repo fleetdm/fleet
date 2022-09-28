@@ -63,17 +63,19 @@ func init() {
 type Stats struct {
 	errors            int
 	enrollments       int
+	orbitenrollments  int
 	distributedwrites int
 
 	l sync.Mutex
 }
 
-func (s *Stats) RecordStats(errors int, enrollments int, distributedwrites int) {
+func (s *Stats) RecordStats(errors int, enrollments int, orbitenrollments int, distributedwrites int) {
 	s.l.Lock()
 	defer s.l.Unlock()
 
 	s.errors += errors
 	s.enrollments += enrollments
+	s.orbitenrollments += orbitenrollments
 	s.distributedwrites += distributedwrites
 }
 
@@ -82,10 +84,11 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	fmt.Printf(
-		"%s :: error rate: %.2f \t enrollments: %d \t writes: %d\n",
+		"%s :: error rate: %.2f \t enrollments: %d \t orbit enrollments: %d \t writes: %d\n",
 		time.Now().String(),
 		float64(s.errors)/float64(s.enrollments),
 		s.enrollments,
+		s.orbitenrollments,
 		s.distributedwrites,
 	)
 }
@@ -172,15 +175,17 @@ type agent struct {
 	// Non-nil means the agent is identified as orbit osquery,
 	// nil means the agent is identified as vanilla osquery.
 	deviceAuthToken *string
+	orbitNodeKey    *string
 
 	scheduledQueries []string
 
 	// The following are exported to be used by the templates.
 
-	EnrollSecret   string
-	UUID           string
-	ConfigInterval time.Duration
-	QueryInterval  time.Duration
+	EnrollSecret        string
+	UUID                string
+	ConfigInterval      time.Duration
+	QueryInterval       time.Duration
+	OrbitEnrollInterval time.Duration
 }
 
 type entityCount struct {
@@ -198,7 +203,7 @@ type softwareEntityCount struct {
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
+	configInterval, queryInterval, orbitEnrollInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
@@ -227,10 +232,11 @@ func newAgent(
 		deviceAuthToken: deviceAuthToken,
 		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
-		EnrollSecret:   enrollSecret,
-		ConfigInterval: configInterval,
-		QueryInterval:  queryInterval,
-		UUID:           uuid.New().String(),
+		EnrollSecret:        enrollSecret,
+		ConfigInterval:      configInterval,
+		QueryInterval:       queryInterval,
+		OrbitEnrollInterval: orbitEnrollInterval,
+		UUID:                uuid.New().String(),
 	}
 }
 
@@ -246,6 +252,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	if err := a.enroll(i, onlyAlreadyEnrolled); err != nil {
 		return
 	}
+	if err := a.orbitEnroll(); err != nil {
+		return
+	}
 
 	a.config()
 	resp, err := a.DistributedRead()
@@ -259,6 +268,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	configTicker := time.Tick(a.ConfigInterval)
 	liveQueryTicker := time.Tick(a.QueryInterval)
+	orbitEnrollTicker := time.Tick(a.OrbitEnrollInterval)
 	for {
 		select {
 		case <-configTicker:
@@ -270,6 +280,11 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			} else if len(resp.Queries) > 0 {
 				a.DistributedWrite(resp.Queries)
 			}
+		case <-orbitEnrollTicker:
+			err := a.orbitEnroll()
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -278,16 +293,72 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 	err := a.fastClient.Do(req, res)
 	for err != nil || res.StatusCode() != http.StatusOK {
 		fmt.Println(err, res.StatusCode())
-		a.stats.RecordStats(1, 0, 0)
+		a.stats.RecordStats(1, 0, 0, 0)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
 		err = a.fastClient.Do(req, res)
 	}
 }
 
+type enrollOrbitRequest struct {
+	EnrollSecret string `json:"enroll_secret"`
+	HardwareUUID string `json:"hardware_uuid"`
+}
+
+type enrollOrbitResponse struct {
+	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
+	Err          error  `json:"error,omitempty"`
+}
+
+type orbitGetConfigRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+type orbitGetConfigResponse struct {
+	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
+	Err   error           `json:"error,omitempty"`
+}
+
+func (a *agent) orbitEnroll() error {
+	params := enrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
+
+	req := fasthttp.AcquireRequest()
+
+	jsonBytes, err := json.Marshal(params)
+	if err != nil {
+		log.Println("orbit json marsshall:", err)
+		return err
+	}
+
+	req.SetBody(jsonBytes)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("application/json")
+	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
+
+	resp := fasthttp.AcquireResponse()
+
+	a.waitingDo(req, resp)
+	defer fasthttp.ReleaseResponse(resp)
+
+	if resp.StatusCode() != http.StatusOK {
+		log.Println("orbit enroll status:", resp.StatusCode())
+		return fmt.Errorf("status code: %d", resp.StatusCode())
+	}
+
+	var parsedResp enrollOrbitResponse
+	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
+		log.Println("orbit json parse:", err)
+		return err
+	}
+
+	a.orbitNodeKey = &parsedResp.OrbitNodeKey
+	a.stats.RecordStats(0, 0, 1, 0)
+	return nil
+}
+
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.nodeKey = a.nodeKeyManager.Get(i)
 	if a.nodeKey != "" {
-		a.stats.RecordStats(0, 1, 0)
+		a.stats.RecordStats(0, 1, 0, 0)
 		return nil
 	}
 
@@ -326,7 +397,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	}
 
 	a.nodeKey = parsedResp.NodeKey
-	a.stats.RecordStats(0, 1, 0)
+	a.stats.RecordStats(0, 1, 0, 0)
 
 	a.nodeKeyManager.Add(a.nodeKey)
 
@@ -930,7 +1001,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
-	a.stats.RecordStats(0, 0, 1)
+	a.stats.RecordStats(0, 0, 0, 1)
 	// No need to read the distributed write body
 }
 
@@ -942,6 +1013,7 @@ func main() {
 	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+	orbitEnrollInterval := flag.Duration("query_interval", 10*time.Second, "Interval for orbit enroll requests")
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
@@ -1002,7 +1074,7 @@ func main() {
 		if strings.HasPrefix(tmpl.Name(), "partial") {
 			continue
 		}
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *orbitEnrollInterval,
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,
