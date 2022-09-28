@@ -222,7 +222,7 @@ The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` comm
 
 ### Fleetctl apply
 
-The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
+The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file. For "team" and "config" file kinds (see [configuration files](./configuration-files/README.md) if you're not familiar with those), the `agent_options` section is validated against the configuration options of the latest version of osquery (the one available at the time of the Fleet release). You can verify that such a configuration is valid by using the `--dry-run` flag, which will report any error and do nothing if the configuration was valid, and you can force-apply a configuration that would otherwise be rejected by using the `--force` flag. Use this flag with care, as failing validations mean that the configuration is invalid for the latest osquery version (but it may be valid for older osquery versions, which is when this flag comes in handy).
 
 Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
 
