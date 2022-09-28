@@ -1,3 +1,34 @@
+## Fleet 4.21.0 (Sep 28, 2022)
+
+* Fix side panel tooltips to not be wider than side panel causing scroll bug
+
+* Add support for [kubequery](https://github.com/Uptycs/kubequery).
+
+* Added validation to raise errors if unknown keys or invalid values are passed to update the organization settings (including the agent options) or the team's agent options.
+
+* Fix an error generating Windows packages with `fleetctl package` on non-English localizations of Windows.
+
+* Indicate hoverable text on host details/ device user details
+
+* Fixes bug which small screen overlay is shown when trying to print
+
+* Fix error in adding a new integration to not clear form
+
+* This fixes the UI bug where the label filter dropdown goes under the table header and add a "no custom labels" state that shows when the user has not created any custom labels yet.
+
+* Added logging to capture user email upon successful login
+
+* Placeholder text size small not extra small
+
+* adds a custom activity details text for edit agent options for global and team contexts.
+
+* Added new EE endpoint at '/api/v1/fleet/device/{token}/desktop' to be used by Fleet Desktop
+to get the number of failing policies.
+
+* Dashboard summary tiles now clickable
+
+* Add es_process_file_events, password_policy and windows_update_history to osquery tables
+
 ## Fleet 4.20.1 (Sep 15, 2022)
 
 **This is a security release.**
