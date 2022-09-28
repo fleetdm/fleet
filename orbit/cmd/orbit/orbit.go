@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,16 +9,11 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -34,6 +28,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -219,9 +216,13 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
-		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		deviceAuthToken, err := loadOrGenerateSecret(c.String("root-dir"), "identifier")
 		if err != nil {
 			return fmt.Errorf("load identifier file: %w", err)
+		}
+		specifiedIdentifier, err := loadOrGenerateSecret(c.String("root-dir"), "specified_identifier")
+		if err != nil {
+			return fmt.Errorf("load host_identifier file: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -363,13 +364,6 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
-		uuidStr, err := getUUID(osquerydPath)
-		if err != nil {
-			return fmt.Errorf("get UUID: %w", err)
-		}
-		log.Debug().Msg("UUID is " + uuidStr)
-
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
@@ -447,7 +441,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(parsedURL, specifiedIdentifier)),
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else if fleetURL != "https://" {
@@ -461,7 +455,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(parsedURL, specifiedIdentifier)),
 			)
 
 			if certPath = c.String("fleet-certificate"); certPath != "" {
@@ -494,7 +488,7 @@ func main() {
 
 		capabilities := fleet.CapabilityMap{}
 
-		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, specifiedIdentifier, capabilities)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
@@ -565,7 +559,7 @@ func main() {
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
-		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, specifiedIdentifier, capabilities)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
 		}
@@ -726,45 +720,6 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
-func getUUID(osqueryPath string) (string, error) {
-	if runtime.GOOS == "windows" {
-		args := []string{"/C", "wmic csproduct get UUID"}
-		out, err := exec.Command("cmd", args...).Output()
-		if err != nil {
-			return "", err
-		}
-		uuidOutputStr := string(out)
-		if len(uuidOutputStr) == 0 {
-			return "", errors.New("get UUID: output from wmi is empty")
-		}
-		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
-		if len(outputByLines) < 2 {
-			return "", errors.New("get UUID: unexpected output")
-		}
-		return strings.TrimSpace(outputByLines[1]), nil
-	}
-	type UuidOutput struct {
-		UuidString string `json:"uuid"`
-	}
-
-	args := []string{"-S", "--json", "select uuid from system_info"}
-	out, err := exec.Command(osqueryPath, args...).Output()
-	if err != nil {
-		return "", err
-	}
-	var uuids []UuidOutput
-	err = json.Unmarshal(out, &uuids)
-	if err != nil {
-		return "", err
-	}
-
-	if len(uuids) != 1 {
-		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
-	}
-	return uuids[0].UuidString, nil
-}
-
 // getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
 // otherwise it enrolls the host with Fleet and saves the node key to disk
 func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (string, error) {
@@ -801,8 +756,8 @@ func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath
 	return orbitNodeKey, nil
 }
 
-func loadOrGenerateToken(rootDir string) (string, error) {
-	filePath := filepath.Join(rootDir, "identifier")
+func loadOrGenerateSecret(rootDir string, filename string) (string, error) {
+	filePath := filepath.Join(rootDir, filename)
 	id, err := ioutil.ReadFile(filePath)
 	switch {
 	case err == nil:

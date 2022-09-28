@@ -6,11 +6,13 @@ import (
 )
 
 // FleetFlags is the set of flags to pass to osquery when connecting to Fleet.
-func FleetFlags(fleetURL *url.URL) []string {
+func FleetFlags(fleetURL *url.URL, specifiedIdentifier string) []string {
 	hostname, prefix := fleetURL.Host, fleetURL.Path
 	return []string{
-		// Use uuid as the default identifier -- users can override this in their flagfile
-		"--host_identifier=uuid",
+		// We've decided to use a synthetic UUID instead of using `--host_identifier=uuid` (i.e. hardware UUID)
+		// because we've seen osquery deployments with hosts that have duplicated hardware UUIDs.
+		"--host_identifier=specified",
+		"--specified_identifier=" + specifiedIdentifier,
 		"--tls_hostname=" + hostname,
 		"--enroll_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/enroll"),
 		"--config_plugin=tls",

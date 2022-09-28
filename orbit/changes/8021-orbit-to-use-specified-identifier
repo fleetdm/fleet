@@ -1,0 +1,1 @@
+* Orbit now uses `--host_identifier=specified` instead of `--host_identifier=uuid` to support environments with duplicate hardware UUIDs.
