@@ -31,6 +31,7 @@ const AgentOptionsPage = ({
   const teamIdFromURL = parseInt(team_id, 10);
   const { renderFlash } = useContext(NotificationContext);
 
+  const [teamName, setTeamName] = useState("");
   const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
 
@@ -46,6 +47,7 @@ const AgentOptionsPage = ({
           setFormData({
             osquery_options: yaml.dump(selected.agent_options),
           });
+          setTeamName(selected.name);
         } else {
           handlePageError({ status: 404 });
         }
@@ -72,7 +74,7 @@ const AgentOptionsPage = ({
         console.error(response);
         return renderFlash(
           "error",
-          `Could not update team agent options. ${response.data.errors[0].reason}`
+          `Could not update ${teamName} team agent options. ${response.data.errors[0].reason}`
         );
       });
   };
