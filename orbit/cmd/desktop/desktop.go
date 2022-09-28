@@ -4,13 +4,12 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -33,18 +32,15 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
-	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
-	if devURL == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
-	}
-	deviceURL, err := url.Parse(devURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid URL argument")
+	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
+	if identifierPath == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	}
 
-	basePath := deviceURL.Scheme + "://" + deviceURL.Host
-	deviceToken := path.Base(deviceURL.Path)
-	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
+	fleetURL := os.Getenv("FLEET_DESKTOP_FLEET_URL")
+	if fleetURL == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
+	}
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -74,10 +70,15 @@ func main() {
 		versionItem.Disable()
 		systray.AddSeparator()
 
-		myDeviceItem := systray.AddMenuItem("Initializing...", "")
+		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
+
+		tokenReader := token.Reader{Path: identifierPath}
+		if _, err := tokenReader.Read(); err != nil {
+			log.Fatal().Err(err).Msg("error reading device token from file")
+		}
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
@@ -86,15 +87,33 @@ func main() {
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
 		capabilities := fleet.CapabilityMap{}
-
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA, capabilities)
+		client, err := service.NewDeviceClient(
+			fleetURL,
+			insecureSkipVerify,
+			rootCA,
+			capabilities,
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
 
-		// Perform API test call to enable the "My device" item as soon
-		// as the device auth token is registered by Fleet.
-		deviceEnabledChan := func() <-chan interface{} {
+		refetchToken := func() {
+			if _, err := tokenReader.Read(); err != nil {
+				log.Error().Err(err).Msg("refetch token")
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
+		}
+
+		disableTray := func() {
+			log.Debug().Msg("disabling tray items")
+			myDeviceItem.SetTitle("Connecting...")
+			myDeviceItem.Disable()
+			transparencyItem.Disable()
+		}
+
+		// checkToken performs API test calls to enable the "My device" item as
+		// soon as the device auth token is registered by Fleet.
+		checkToken := func() <-chan interface{} {
 			done := make(chan interface{})
 
 			go func() {
@@ -103,9 +122,11 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.ListDevicePolicies()
+					refetchToken()
+					_, err := client.ListDevicePolicies(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
+						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
@@ -119,6 +140,32 @@ func main() {
 			}()
 
 			return done
+		}
+
+		// start a check as soon as the app starts
+		deviceEnabledChan := checkToken()
+
+		// this loop checks the `mtime` value of the token file and:
+		// 1. if the token file was modified, it disables the tray items until we
+		// verify the token is valid
+		// 2. calls (blocking) `checkToken` to verify the token is valid
+		go func() {
+			<-deviceEnabledChan
+			tic := time.NewTicker(1 * time.Second)
+			defer tic.Stop()
+
+			for {
+				<-tic.C
+				expired, err := tokenReader.HasChanged()
+				switch {
+				case err != nil:
+					log.Error().Err(err).Msg("check token file")
+				case expired:
+					log.Info().Msg("token file changed, rechecking")
+					disableTray()
+					<-checkToken()
+				}
+			}
 		}()
 
 		go func() {
@@ -127,14 +174,16 @@ func main() {
 			defer tic.Stop()
 
 			for {
-				<-tic.C
-
-				policies, err := client.ListDevicePolicies()
+				policies, err := client.ListDevicePolicies(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
+					continue
+				case errors.Is(err, service.ErrUnauthenticated):
+					disableTray()
+					<-checkToken()
 					continue
 				default:
 					log.Error().Err(err).Msg("get device URL")
@@ -168,6 +217,8 @@ func main() {
 					}
 				}
 				myDeviceItem.Enable()
+
+				<-tic.C
 			}
 		}()
 
@@ -175,11 +226,11 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					if err := open.Browser(deviceURL.String()); err != nil {
+					if err := open.Browser(client.DeviceURL(tokenReader.GetCached())); err != nil {
 						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser(transparencyURL); err != nil {
+					if err := open.Browser(client.TransparencyURL(tokenReader.GetCached())); err != nil {
 						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}

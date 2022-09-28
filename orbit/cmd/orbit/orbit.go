@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
@@ -217,11 +218,6 @@ func main() {
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
-		}
-
-		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
-		if err != nil {
-			return fmt.Errorf("load identifier file: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -563,7 +559,65 @@ func main() {
 		// This ends up forcing the rest of the interrupt functions in the runner group to get called
 		interruptFunctions = append(interruptFunctions, r.Interrupt)
 
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+		deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"), capabilities)
+		if err != nil {
+			return fmt.Errorf("initializing client: %w", err)
+		}
+
+		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"), orbitClient)
+
+		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
+			log.Info().Msg("token rotation is enabled")
+
+			if err := trw.LoadOrGenerate(); err != nil {
+				return fmt.Errorf("initializing token read writer: %w", err)
+			}
+
+			// perform an initial check to see if the token
+			// has not been revoked by the server
+			if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
+				trw.Rotate()
+			}
+
+			go func() {
+				// This timer is used to check if the token should be rotated if  at
+				// least one hour has passed since the last modification of the token
+				// file.
+				//
+				// This is better than using a ticker that ticks every hour because the
+				// we can't ensure the tick actually runs every hour (eg: the computer is
+				// asleep).
+				rotationDuration := 30 * time.Second
+				rotationTicker := time.NewTicker(rotationDuration)
+				defer rotationTicker.Stop()
+
+				// This timer is used to periodically check if the token is valid. The
+				// server might deem a toked as invalid for reasons out of our control,
+				// for example if the database is restored to a back-up or if somebody
+				// manually invalidates the token in the db.
+				remoteCheckDuration := 5 * time.Minute
+				remoteCheckTicker := time.NewTicker(remoteCheckDuration)
+				defer remoteCheckTicker.Stop()
+
+				for {
+					select {
+					case <-rotationTicker.C:
+						if trw.HasExpired() {
+							log.Info().Msg("token TTL expired, rotating token")
+							trw.Rotate()
+						}
+					case <-remoteCheckTicker.C:
+						log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
+						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
+							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
+							trw.Rotate()
+						}
+					}
+				}
+			}()
+		}
+
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), trw)
 
 		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
 		if err != nil {
@@ -573,7 +627,7 @@ func main() {
 		g.Add(capabilitiesChecker.actor())
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), trw)
 			g.Add(desktopRunner.actor())
 		}
 
@@ -594,32 +648,32 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
+func registerExtensionRunner(g *run.Group, extSockPath string, trw *token.ReadWriter) {
 	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
-		deviceAuthToken: deviceAuthToken,
+		trw: trw,
 	}))
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
 type desktopRunner struct {
-	desktopPath     string
-	fleetURL        string
-	deviceAuthToken string
-	fleetRootCA     string
-	insecure        bool
-	interruptCh     chan struct{} // closed when interrupt is triggered
-	executeDoneCh   chan struct{} // closed when execute returns
+	desktopPath   string
+	fleetURL      string
+	trw           *token.ReadWriter
+	fleetRootCA   string
+	insecure      bool
+	interruptCh   chan struct{} // closed when interrupt is triggered
+	executeDoneCh chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, fleetRootCA string, insecure bool, trw *token.ReadWriter) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:     desktopPath,
-		fleetURL:        fleetURL,
-		deviceAuthToken: deviceAuthToken,
-		fleetRootCA:     fleetRootCA,
-		insecure:        insecure,
-		interruptCh:     make(chan struct{}),
-		executeDoneCh:   make(chan struct{}),
+		desktopPath:   desktopPath,
+		fleetURL:      fleetURL,
+		trw:           trw,
+		fleetRootCA:   fleetRootCA,
+		insecure:      insecure,
+		interruptCh:   make(chan struct{}),
+		executeDoneCh: make(chan struct{}),
 	}
 }
 
@@ -649,9 +703,17 @@ func (d *desktopRunner) execute() error {
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
-	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
+	deviceURL, err := url.Parse(d.fleetURL)
+	if err != nil {
+		return fmt.Errorf("invalid fleet-url: %w", err)
+	}
+	deviceURL.Path = path.Join(url.Path, "device", d.trw.GetCached())
 	opts := []execuser.Option{
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.trw.Path),
+		// TODO(roperzh): this env var is keept only for backwards compatibility,
+		// we should remove it once we think is safe
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", deviceURL.String()),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))

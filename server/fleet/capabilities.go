@@ -49,6 +49,9 @@ const (
 	// `/api/fleet/orbit`, and allow enrolling a host through Orbit among other
 	// functionality.
 	CapabilityOrbitEndpoints Capability = "orbit_endpoints"
+	// CapabilityTokenRotation denotes the ability of the server to support
+	// periodic rotation of device tokens
+	CapabilityTokenRotation Capability = "token_rotation"
 )
 
 // ServerOrbitCapabilities is a set of capabilities that server-side,
@@ -61,7 +64,9 @@ var ServerOrbitCapabilities = CapabilityMap{
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.
 // **it shouldn't be modified at runtime**
-var ServerDeviceCapabilities = CapabilityMap{}
+var ServerDeviceCapabilities = CapabilityMap{
+	CapabilityTokenRotation: {},
+}
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.
 const CapabilitiesHeader = "X-Fleet-Capabilities"
