@@ -221,7 +221,6 @@ type osqueryOptions struct {
 	EventsMax                           uint64 `json:"events_max"`
 	EventsOptimize                      bool   `json:"events_optimize"`
 	ExtensionsDefaultIndex              bool   `json:"extensions_default_index"`
-	HardwareDisabledTypes               string `json:"hardware_disabled_types"`
 	HashCacheMax                        uint32 `json:"hash_cache_max"`
 	HostIdentifier                      string `json:"host_identifier"`
 	LoggerEventType                     bool   `json:"logger_event_type"`
@@ -389,7 +388,6 @@ type osqueryCommandLineFlags struct {
 	ExtensionsSocket                    string `json:"extensions_socket"`
 	ExtensionsTimeout                   string `json:"extensions_timeout"`
 	Force                               bool   `json:"force"`
-	HardwareDisabledTypes               string `json:"hardware_disabled_types"`
 	HashCacheMax                        uint32 `json:"hash_cache_max"`
 	HostIdentifier                      string `json:"host_identifier"`
 	Install                             bool   `json:"install"`
@@ -466,6 +464,33 @@ type osqueryCommandLineFlags struct {
 	WatchdogUtilizationLimit            uint64 `json:"watchdog_utilization_limit"`
 	WorkerThreads                       int32  `json:"worker_threads"`
 	YaraDelay                           uint32 `json:"yara_delay"`
+}
+
+// the following structs are for OS-specific command-line flags supported by
+// osquery. They are exported so they can be used by the
+// tools/osquery-agent-options script.
+type OsqueryCommandLineFlagsLinux struct {
+	MallocTrimThreshold   uint64 `json:"malloc_trim_threshold"`
+	HardwareDisabledTypes string `json:"hardware_disabled_types"`
+}
+
+type OsqueryCommandLineFlagsWindows struct {
+	UsersServiceDelay                uint64 `json:"users_service_delay"`
+	UsersServiceInterval             uint64 `json:"users_service_interval"`
+	GroupsServiceDelay               uint64 `json:"groups_service_delay"`
+	GroupsServiceInterval            uint64 `json:"groups_service_interval"`
+	EnableNtfsEventPublisher         bool   `json:"enable_ntfs_event_publisher"`
+	EnablePowershellEventsSubscriber bool   `json:"enable_powershell_events_subscriber"`
+	EnableWindowsEventsPublisher     bool   `json:"enable_windows_events_publisher"`
+	EnableWindowsEventsSubscriber    bool   `json:"enable_windows_events_subscriber"`
+	WindowsEventChannels             string `json:"windows_event_channels"`
+}
+
+type OsqueryCommandLineFlagsMacOS struct {
+	DisableEndpointsecurity    bool   `json:"disable_endpointsecurity"`
+	DisableEndpointsecurityFim bool   `json:"disable_endpointsecurity_fim"`
+	EsFimMutePathLiteral       string `json:"es_fim_mute_path_literal"`
+	EsFimMutePathPrefix        string `json:"es_fim_mute_path_prefix"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
