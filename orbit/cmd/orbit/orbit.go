@@ -861,11 +861,15 @@ func (f *capabilitiesChecker) actor() (func() error, func(error)) {
 // You need to add an explicit check for each capability you want to watch for
 func (f *capabilitiesChecker) execute() error {
 	defer close(f.executeDoneCh)
-	capabilitiesCHeckTicker := time.NewTicker(5 * time.Minute)
+	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
+
+	if err := f.client.Ping(); err != nil {
+		log.Error().Err(err).Msg("pinging the server")
+	}
 
 	for {
 		select {
-		case <-capabilitiesCHeckTicker.C:
+		case <-capabilitiesCheckTicker.C:
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
