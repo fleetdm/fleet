@@ -219,9 +219,13 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
-		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		deviceAuthToken, err := loadOrGenerateSecret(c.String("root-dir"), "identifier")
 		if err != nil {
 			return fmt.Errorf("load identifier file: %w", err)
+		}
+		hostIdentifier, err := loadOrGenerateSecret(c.String("root-dir"), "host_identifier")
+		if err != nil {
+			return fmt.Errorf("load host_identifier file: %w", err)
 		}
 
 		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
@@ -447,7 +451,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(parsedURL, hostIdentifier)),
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else if fleetURL != "https://" {
@@ -461,7 +465,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(parsedURL, hostIdentifier)),
 			)
 
 			if certPath = c.String("fleet-certificate"); certPath != "" {
@@ -494,7 +498,7 @@ func main() {
 
 		capabilities := fleet.CapabilityMap{}
 
-		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, hostIdentifier, capabilities)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
@@ -565,7 +569,7 @@ func main() {
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
-		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, hostIdentifier, capabilities)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
 		}
@@ -801,8 +805,8 @@ func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath
 	return orbitNodeKey, nil
 }
 
-func loadOrGenerateToken(rootDir string) (string, error) {
-	filePath := filepath.Join(rootDir, "identifier")
+func loadOrGenerateSecret(rootDir string, filename string) (string, error) {
+	filePath := filepath.Join(rootDir, filename)
 	id, err := ioutil.ReadFile(filePath)
 	switch {
 	case err == nil:
