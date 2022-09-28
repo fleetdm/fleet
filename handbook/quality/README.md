@@ -19,14 +19,13 @@ The goal of quality assurance is to catch unexpected behavior before release:
 - Perceived data freshness
 - Product’s ability to save users from themselves
 
-## Collecting bugs
+## Finding bugs
 
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
 To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
 
 To start preview without starting the simulated hosts, use the `--no-hosts` flag (e.g., `fleetctl preview --no-hosts`).
-
 
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug.
 
@@ -48,7 +47,7 @@ See [Appendix A](#appendix-a) at the end of this document for a description of t
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
 
-> Some bugs may also be the domain of the digital-experience team. If QA believes this is the case, then QA should put the bug onto the g-digital-experience board and assign it to ... TODO. The digital experience team has their own bug process which is not governed by this process.
+> Some bugs may also be the domain of the digital-experience team. If QA believes this is the case, then QA should put the bug onto the g-digital-experience board and assign it to the g-digital-experience DRI. The digital experience team has their own bug process which is not governed by this process.
 
 ### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
@@ -71,13 +70,24 @@ After it is in a release formally, the bug should be treated like any other piec
 ### Fast track for Fleeties
 Fleeties do not have to wait for QA to reproduce the bug. If you are confident it is reproducible, is a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
-### During release testing
-When release is in testing, QA should use the the Slack channel #help-release to keep everyone aware of issues found. All bugs related to a release should be reported in the channel after creating the bug first.
+### Release testing
+When a release is in testing, QA should use the the Slack channel #help-release to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the release channel, product may decide whether the bug is a release blocker. Release blockers must be fixed before a release can be cut.
+In the #help-release channel, product may decide whether the bug is a release blocker. When a release blocking bug is found, the product is responsible for communicating the delay to company stakeholders. 
+
+Release blockers include:
+1. Critical bugs (defined below)
+2. New functionality which impacts previous stable functionality
+3. Incomplete features as defined or implied in the specs
+
+Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard bug process (defined above).
 
 ### Critical bugs
-A critical bug is defined as: “a bug that causes users to be unable to use a workflow, upgrade Fleet, or causes irreversible damage such as loss of data.”
+A critical bug is defined as: behavior that causes users to: 
+* be unable to use a workflow
+* be unable to upgrade Fleet
+* causes irreversible damage such as loss of data
+* introduces a security vulnerability
 
 The key thing about a critical bug is that we need to immediately inform customers and the community about it so they don’t trigger it themselves. When bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm immediately.
 Raising an alarm means: pinging @here in the #help-product channel with the filed bug.
@@ -90,6 +100,8 @@ When outside of working hours for the product team or if no one from product res
 
 Once the critical bug is confirmed, customer experience needs to ping both customers and the community to warn them. If CX is not available, the oncall engineer is responsible for doing this.
 If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
+
+When a critical bug is identified, we will then follow the patch release process as documented [here](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases).
 
 ### Measurement
 We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
