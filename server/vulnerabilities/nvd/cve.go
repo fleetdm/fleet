@@ -189,11 +189,12 @@ func checkCVEs(
 							continue
 						}
 
-						mu.Lock()
 						vuln := fleet.SoftwareVulnerability{
 							SoftwareID: softwareCPE.SoftwareID,
 							CVE:        matches.CVE.ID(),
 						}
+
+						mu.Lock()
 						foundVulnsBySoftware[vuln.Key()] = vuln
 						mu.Unlock()
 
