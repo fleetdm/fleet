@@ -44,9 +44,9 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 ## Schedule a query
 
-Fleet allows you to schedule queries. Scheduled queries will run and send results to your log destination automatically.
+Fleet allows you to schedule queries. Scheduled queries will send data to your log destination automatically.
 
-The default log destination, **filesystem**, is good to start. With this set, results are sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
+The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
 
 How to schedule a query:
 
@@ -59,6 +59,18 @@ How to schedule a query:
 4. Select the **Frequency** dropdown and choose how often you'd like the query to run and send results to your log destination. **Every hour** is a good frequency to start. You can change this later.
 
 5. Select **Schedule**.
+
+With [the teams feature](./Teams.md), you can schedule queries for groups of hosts. This allows you to collect different data for each group.
+
+> In Fleet, groups of hosts are called "teams."
+
+How to use teams to schedule queries for a group of hosts:
+
+1. If you haven't already, first [create a team](./Teams.md#create-a-team) and [transfer hosts](./Teams.md#transfer-hosts-to-a-team) to the team.
+
+2. In the **Teams** dropdown below the top navigation, select the team.
+
+3. Follow the "How to schedule a query" instructions above.
 
 ## Update agent options
 

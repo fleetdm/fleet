@@ -1,13 +1,12 @@
 # Configuration files
 
 - [Queries](#queries)
-- [Packs](#packs)
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
 
-Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files. 
+Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
 
 Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](../../Using-Fleet/fleetctl-CLI.md#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
 
@@ -43,43 +42,9 @@ spec:
   query: select name, publisher, type, subscriptions, events, active from osquery_events;
 ```
 
-Continued edits and applications to this file will update the queries. 
+Continued edits and applications to this file will update the queries.
 
 If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
-
-## Packs
-
-To define query packs (packs), reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
-
-```yaml
-apiVersion: v1
-kind: pack
-spec:
-  name: osquery_monitoring
-  disabled: false
-  targets:
-    labels:
-      - All Hosts
-  queries:
-    - query: osquery_version
-      name: osquery_version_differential
-      interval: 7200
-    - query: osquery_version
-      name: osquery_version_snapshot
-      interval: 7200
-      snapshot: true
-    - query: osquery_schedule
-      interval: 7200
-      removed: false
-    - query: osquery_events
-      interval: 86400
-      removed: false
-    - query: osquery_info
-      interval: 600
-      removed: false
-```
-
-The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
 
 ### Labels
 
@@ -846,9 +811,13 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 
 #### Agent options
 
-The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in. 
+The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in.
 
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
+
+Agent options are validated using the latest version of osquery. 
+
+You can verify that your agent options are valid by using [the fleetctl apply command](../../Using-Fleet/fleetctl-CLI.md#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 

@@ -496,6 +496,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
+	h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
@@ -837,6 +838,60 @@ func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
 	return *currentTeamID != *newTeamID
 }
 
+func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+	if orbitNodeKey == "" {
+		return nil, ctxerr.New(ctx, "orbit node key is empty")
+	}
+
+	if hardwareUUID == "" {
+		return nil, ctxerr.New(ctx, "hardware uuid is empty")
+	}
+
+	var host fleet.Host
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE osquery_host_id = ?`, hardwareUUID)
+		switch {
+		case err == nil:
+			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE osquery_host_id = ? `
+			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
+			}
+		case errors.Is(err, sql.ErrNoRows):
+			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
+			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
+			// so that the frontend automatically starts background checks to update the page whenever
+			// the refetch is completed.
+			// We are also initially setting node_key to be the same as orbit_node_key because node_key has a unique
+			// constraint
+			sqlInsert := `
+				INSERT INTO hosts (
+					last_enrolled_at,               
+					detail_updated_at,
+					label_updated_at,
+					policy_updated_at,
+					osquery_host_id,
+					node_key,
+					team_id,
+					refetch_requested,
+					orbit_node_key
+				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+			`
+			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
+			}
+		default:
+			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &host, nil
+}
+
 // EnrollHost enrolls a host
 func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
@@ -869,9 +924,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
+				level.Info(ds.logger).Log("hostIDError", err.Error())
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			hostID, _ = result.LastInsertId()
+			level.Info(ds.logger).Log("hostID", hostID)
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
@@ -947,6 +1004,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
         h.team_id,
         h.policy_updated_at,
         h.public_ip,
+		h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
       FROM
@@ -1027,6 +1085,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
+      h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
     FROM
@@ -1034,6 +1093,22 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
     LEFT OUTER JOIN
       host_disks hd ON hd.host_id = h.id
     WHERE node_key = ?`
+
+	var host fleet.Host
+	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
+	case err == nil:
+		return &host, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrap(ctx, notFound("Host"))
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "find host")
+	}
+}
+
+// LoadHostByOrbitNodeKey loads the whole host identified by the node key.
+// If the node key is invalid it returns a NotFoundError.
+func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	query := `SELECT * FROM hosts WHERE orbit_node_key = ?`
 
 	var host fleet.Host
 	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
@@ -1198,6 +1273,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
+	h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time
@@ -1299,6 +1375,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
+	  h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) AS seen_time
@@ -2553,7 +2630,8 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			primary_ip = ?,
 			primary_mac = ?,
 			public_ip = ?,
-			refetch_requested = ?
+			refetch_requested = ?,
+			orbit_node_key = ?
 		WHERE id = ?
 	`
 	_, err := ds.writer.ExecContext(ctx, sqlStatement,
@@ -2589,6 +2667,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 		host.PrimaryMac,
 		host.PublicIP,
 		host.RefetchRequested,
+		host.OrbitNodeKey,
 		host.ID,
 	)
 	if err != nil {

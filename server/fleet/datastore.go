@@ -519,6 +519,10 @@ type Datastore interface {
 	// If the node key is invalid it returns a NotFoundError.
 	LoadHostByNodeKey(ctx context.Context, nodeKey string) (*Host, error)
 
+	// LoadHostByOrbitNodeKey loads the whole host identified by the node key.
+	// If the node key is invalid it returns a NotFoundError.
+	LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error)
+
 	// HostLite will load the primary data of the host with the given id.
 	// We define "primary data" as all host information except the
 	// details (like cpu, memory, gigs_disk_space_available, etc.).
@@ -599,6 +603,9 @@ type Datastore interface {
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+
+	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
+	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
