@@ -109,13 +109,10 @@ const manageQueriesPage = {
     );
   },
 
+  // TODO: Allows delete of self authored query only (Team Admin, team maintainer)
+
   allowsSelectTeamTargets: () => {
     cy.getAttached("tbody").within(() => {
-      cy.getAttached("tr")
-        .first()
-        .within(() => {
-          cy.getAttached(".fleet-checkbox__input").check({ force: true });
-        });
       cy.findAllByText(/detect presence/i).click();
     });
 

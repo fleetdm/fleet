@@ -39,7 +39,7 @@ describe("Query flow (seeded)", () => {
       cy.loginWithCySession();
       manageQueriesPage.visitManageQueriesPage();
     });
-    it("runs a live query", () => {
+    it("runs a live query and allows exporting results", () => {
       cy.addDockerHost();
       manageQueriesPage.allowsRunQuery();
       manageQueriesPage.verifiesRanQuery();

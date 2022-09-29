@@ -107,6 +107,7 @@ describe("Premium tier - Maintainer user", () => {
       it("allows global maintainer to select teams targets for query", () => {
         manageQueriesPage.allowsSelectTeamTargets();
       });
+      // TODO: Allowed to delete self-authored query only
     });
     describe("Manage policies page", () => {
       beforeEach(() => managePoliciesPage.visitManagePoliciesPage());

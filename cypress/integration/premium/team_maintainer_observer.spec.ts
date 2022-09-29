@@ -123,7 +123,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
       });
     });
     describe("Manage policies page", () => {
-      it("should render elements according to role-based access controls", () => {
+      it("hides 'Manage automation' and 'Add a policy' buttons", () => {
         managePoliciesPage.visitManagePoliciesPage();
         cy.contains(/apples/i).should("exist");
 
@@ -132,9 +132,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
       });
     });
     describe("Policy detail page", () => {
-      it("should render elements according to role-based access controls", () => {
+      it("allows view policy only", () => {
         managePoliciesPage.visitManagePoliciesPage();
-        managePoliciesPage.allowsViewPolicyOnly();
+        managePoliciesPage.allowsViewPolicyOnly("filevault");
       });
     });
     // nav restrictions are at the end because we expect to see a
@@ -192,14 +192,13 @@ describe("Premium tier - Team observer/maintainer user", () => {
       });
     });
     describe("Manage policies page", () => {
-      it("allows team maintainer to add, edit, run, and save a policy, but not manage automation", () => {
+      it("allows team maintainer to add, edit a policy, but not manage automation", () => {
         managePoliciesPage.visitManagePoliciesPage();
         teamsDropdown.switchTeams("Apples", "Oranges");
 
         managePoliciesPage.hidesButton("Manage automations");
         managePoliciesPage.allowsAddDefaultPolicy();
         managePoliciesPage.verifiesAddedDefaultPolicy();
-        managePoliciesPage.allowsSelectRunSavePolicy();
       });
     });
     describe("User profile page", () => {

@@ -25,7 +25,9 @@ const manageSchedulePage = {
   },
 
   allowsAddSchedule: () => {
-    cy.findByRole("button", { name: "Schedule a query" }).click();
+    cy.getAttached(".no-schedule__cta-buttons").within(() => {
+      cy.findByRole("button", { name: /schedule a query/i }).click();
+    });
     cy.getAttached(".schedule-editor-modal__form").within(() => {
       cy.findByText(/select query/i).click();
       cy.findByText(/get local/i).click();

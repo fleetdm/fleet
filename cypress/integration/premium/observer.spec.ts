@@ -99,7 +99,7 @@ describe("Premium tier - Observer user", () => {
     });
     describe("Query pages", () => {
       beforeEach(() => manageQueriesPage.visitManageQueriesPage());
-      it("allows global maintainer to select teams targets for query", () => {
+      it("allows global observer to select teams targets for query", () => {
         manageQueriesPage.allowsSelectTeamTargets();
       });
     });
@@ -117,7 +117,7 @@ describe("Premium tier - Observer user", () => {
         managePoliciesPage.hidesButton("Manage automations");
         managePoliciesPage.hidesButton("Add a policy");
 
-        managePoliciesPage.allowsViewPolicyOnly();
+        managePoliciesPage.allowsViewPolicyOnly("filevault");
       });
     });
   });

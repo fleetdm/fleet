@@ -412,6 +412,7 @@ describe("Premium tier - Global Admin user", () => {
     it("allows global admin to select teams targets for query", () => {
       manageQueriesPage.allowsSelectTeamTargets();
     });
+    // TODO: Allowed to delete self-authored query only
   });
   // Global Admin schedule tested in integration/free/admin.spec.ts
   // Team Admin team schedule tested below in integration/premium/admin.spec.ts
