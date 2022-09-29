@@ -17,7 +17,6 @@ The goal of quality assurance is to catch unexpected behavior before release:
 - Simplicity
 - Data accuracy
 - Perceived data freshness
-- Product’s ability to save users from themselves
 
 ## Finding bugs
 
@@ -105,7 +104,13 @@ When a critical bug is identified, we will then follow the patch release process
 
 ### Measurement
 We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
-The metrics are: Total # bugs open. Bugs in each state (inbox, acknowledged, reproduced). Each week these are tracked and shared in the weekly update by Charlie Chance.
+The metrics are: 
+* # bugs opened this week
+* total # bugs open 
+* bugs in each state (inbox, acknowledged, reproduced) 
+* # bugs closed this week
+
+Each week these are tracked and shared in the weekly update by Charlie Chance.
 
 ### Orphans
 Occasionally, bugs may get lost if, for example, a label is misapplied. Miscategorized issues may slip through the filters and languish in a grey zone. The “orphans” and “reproduced orphans” states exist to catch these issues. 
@@ -136,6 +141,12 @@ Bugs which do not have the reproduce label and do exist on the release board, bu
 
 ### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+
+### Bugs opened this week
+This filter returns all "bug" issues opened after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug+created%3A%3EREPLACE_ME_YYYY-MM-DD).
+
+### Bugs closed this week
+This filter returns all "bug" issues closed after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aclosed+label%3Abug+closed%3A%3EREPLACE_ME_YYYY-MM-DD).
 
 ## DRIs
 
