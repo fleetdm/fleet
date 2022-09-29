@@ -270,7 +270,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -409,7 +409,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -487,6 +487,8 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 }
 
 func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirectURL string) (*fleet.SSOSession, error) {
+	logging.WithExtras(ctx, "email", user.Email)
+
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
 		err := ctxerr.New(ctx, "user not configured to use sso")
@@ -530,7 +532,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
