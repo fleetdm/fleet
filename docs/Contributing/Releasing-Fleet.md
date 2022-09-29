@@ -11,7 +11,7 @@ The current release cadence is once every three weeks and concentrates around We
 To make sure we build quality releases, Fleet has a freeze period for testing prior to each release. 
 Effective at the start of the freeze period, we will not merge new feature work.
 
-When bugs are found during release testing, use the process documented [here](fleetdm.com/handbook/quality#release-testing).
+When bugs are found during release testing, use the process documented in [our handbook](fleetdm.com/handbook/quality#release-testing).
 Release bugs are exempt from the freeze period.
 
 ### What to do?
@@ -100,7 +100,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 
 ### Patch releases
 
-A patch release is required when a critical bug is found. Critical bugs are defined [here](fleetdm.com/handbook/quality#critical-bugs).
+A patch release is required when a critical bug is found. Critical bugs are defined in [our handbook](fleetdm.com/handbook/quality#critical-bugs).
 
 #### Process
 
