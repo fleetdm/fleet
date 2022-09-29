@@ -55,10 +55,10 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //}
 
 variable "db_instance_type_writer" {
-  default = "db.t4g.medium"
+  default = "db.t4g.large"
 }
 variable "db_instance_type_reader" {
-  default = "db.t4g.medium"
+  default = "db.t4g.large"
 }
 
 module "aurora_mysql" {
@@ -110,10 +110,20 @@ resource "aws_db_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-db-mysql-parameter-group"
   family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-db-mysql-parameter-group"
+
+  parameter {
+    name  = "max_allowed_packet"
+    value = "536870912"
+  }
 }
 
 resource "aws_rds_cluster_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-mysql-cluster-parameter-group"
   family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-mysql-cluster-parameter-group"
+
+  parameter {
+    name  = "max_allowed_packet"
+    value = "536870912"
+  }
 }

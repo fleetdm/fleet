@@ -28,7 +28,7 @@ variable "fleet_backend_cpu" {
 }
 
 variable "fleet_backend_mem" {
-  default = 512
+  default = 1024
   type    = number
 }
 
