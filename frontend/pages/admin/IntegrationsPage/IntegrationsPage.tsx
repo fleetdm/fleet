@@ -20,7 +20,7 @@ import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import AddIntegrationModal from "./components/CreateIntegrationModal";
+import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
 import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
@@ -130,7 +130,7 @@ const IntegrationsPage = (): JSX.Element => {
     ]
   );
 
-  const onCreateSubmit = useCallback(
+  const onAddSubmit = useCallback(
     (integrationSubmitData: IIntegration[], integrationDestination: string) => {
       // Updates either integrations.jira or integrations.zendesk
       const destination = () => {
@@ -161,19 +161,17 @@ const IntegrationsPage = (): JSX.Element => {
           toggleAddIntegrationModal();
           refetchIntegrations();
         })
-        .catch((createError: { data: IApiError }) => {
-          if (createError.data.message.includes("Validation Failed")) {
-            renderFlash("error", VALIDATION_FAILED_ERROR);
-          } else if (createError.data.message.includes("Bad request")) {
+        .catch((addError: { data: IApiError }) => {
+          if (addError.data?.message.includes("Validation Failed")) {
             if (
-              createError.data.errors[0].reason.includes(
-                "duplicate Jira integration for project key"
+              addError.data?.errors[0].reason.includes(
+                "duplicate Jira integration"
               )
             ) {
               renderFlash(
                 "error",
                 <>
-                  Could not add add{" "}
+                  Could not add{" "}
                   <b>
                     {
                       integrationSubmitData[integrationSubmitData.length - 1]
@@ -189,9 +187,11 @@ const IntegrationsPage = (): JSX.Element => {
                 </>
               );
             } else {
-              renderFlash("error", BAD_REQUEST_ERROR);
+              renderFlash("error", VALIDATION_FAILED_ERROR);
             }
-          } else if (createError.data.message.includes("Unknown Error")) {
+          } else if (addError.data?.message.includes("Bad request")) {
+            renderFlash("error", BAD_REQUEST_ERROR);
+          } else if (addError.data?.message.includes("Unknown Error")) {
             renderFlash("error", UNKNOWN_ERROR);
           } else {
             renderFlash(
@@ -204,7 +204,6 @@ const IntegrationsPage = (): JSX.Element => {
                 . Please try again.
               </>
             );
-            toggleAddIntegrationModal();
           }
         })
         .finally(() => {
@@ -384,7 +383,7 @@ const IntegrationsPage = (): JSX.Element => {
             </p>
             <Button
               variant="brand"
-              className={`${noIntegrationsClass}__create-button`}
+              className={`${noIntegrationsClass}__add-button`}
               onClick={toggleAddIntegrationModal}
             >
               Add integration
@@ -428,7 +427,7 @@ const IntegrationsPage = (): JSX.Element => {
       {showAddIntegrationModal && (
         <AddIntegrationModal
           onCancel={toggleAddIntegrationModal}
-          onSubmit={onCreateSubmit}
+          onSubmit={onAddSubmit}
           backendValidators={backendValidators}
           integrations={integrations || { jira: [], zendesk: [] }}
           testingConnection={testingConnection}
