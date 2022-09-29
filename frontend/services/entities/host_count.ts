@@ -72,7 +72,7 @@ export default {
     const queryString = buildQueryStringFromParams(queryParams);
     const endpoint = endpoints.HOSTS_COUNT;
     const path = `${endpoint}?${queryString}`;
-
+    console.log("path", path);
     return sendRequest("GET", path);
   },
 };

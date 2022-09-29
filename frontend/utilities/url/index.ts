@@ -12,7 +12,6 @@ interface IMutuallyExclusiveHostParams {
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
-  missingHosts?: boolean;
   lowDiskSpaceHosts?: number;
   softwareId?: number;
   osId?: number;
@@ -62,7 +61,6 @@ export const reconcileMutuallyExclusiveHostParams = ({
   mdmId,
   mdmEnrollmentStatus,
   munkiIssueId,
-  missingHosts,
   lowDiskSpaceHosts,
   softwareId,
   osId,
@@ -86,9 +84,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:
-      return { low_disk_space: 32 };
-    case !!missingHosts:
-      return { status: "missing" };
+      return { low_disk_space: lowDiskSpaceHosts };
     default:
       return {};
   }

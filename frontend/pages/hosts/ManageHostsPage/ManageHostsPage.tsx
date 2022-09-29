@@ -10,7 +10,6 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
   ILoadHostsOptions,
   ISortOption,
@@ -761,11 +760,11 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
+      if (currentTeam) {
+        newQueryParams.team_id = currentTeam.id;
+      }
+
       switch (true) {
-        case !!currentTeam?.id:
-          if (currentTeam) {
-            newQueryParams.team_id = currentTeam.id;
-          }
         case !!policyId && !!policyResponse:
           newQueryParams.policy_id = policyId;
           newQueryParams.policy_response = policyResponse;
@@ -799,7 +798,7 @@ const ManageHostsPage = ({
         // Premium feature only
         case !!lowDiskSpaceHosts:
           if (lowDiskSpaceHosts && isPremiumTier) {
-            newQueryParams.low_disk_space = 32;
+            newQueryParams.low_disk_space = lowDiskSpaceHosts;
           }
           break;
         case !!(osId || (osName && osVersion)):
@@ -810,7 +809,6 @@ const ManageHostsPage = ({
           }
       }
 
-      console.log("newQueryParams", newQueryParams);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -1316,7 +1314,7 @@ const ManageHostsPage = ({
   const renderLowDiskSpaceFilterBlock = () => {
     const TooltipDescription = (
       <span className={`tooltip__tooltip-text`}>
-        Hosts that have 32 GB or less <br />
+        Hosts that have {lowDiskSpaceHosts} GB or less <br />
         disk space available.
       </span>
     );
@@ -1492,7 +1490,7 @@ const ManageHostsPage = ({
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
-      lowDiskSpaceHosts: 32,
+      lowDiskSpaceHosts,
       os_id: osId,
       os_name: osName,
       os_version: osVersion,
