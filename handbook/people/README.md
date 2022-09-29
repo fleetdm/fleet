@@ -83,7 +83,7 @@ When attending a conference or traveling for Fleet, please make a post in [#help
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
 - The price of the admission fees if attending a conference.
-- Per diem of $100 for food and beverage **(movies, and mini bars are not allowed)**.
+- $100 allowance per day for food and beverage **(movies, and mini bars are not allowed)**.
 - Customer/Partner Facing Events:
   - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
 
