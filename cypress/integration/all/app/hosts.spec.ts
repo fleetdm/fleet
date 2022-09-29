@@ -71,7 +71,6 @@ describe("Hosts flow", () => {
       }
     });
     it(`exports hosts to CSV`, () => {
-      manageHostsPage.visitsManageHostsPage();
       cy.getAttached(".manage-hosts").within(() => {
         cy.getAttached(".manage-hosts__export-btn").click();
       });
@@ -85,7 +84,6 @@ describe("Hosts flow", () => {
       }
     });
     it(`hides and shows "Used by" column`, () => {
-      manageHostsPage.visitsManageHostsPage();
       cy.getAttached("thead").within(() =>
         cy.findByText(/used by/i).should("not.exist")
       );
