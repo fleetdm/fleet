@@ -73,7 +73,7 @@ Fleeties do not have to wait for QA to reproduce the bug. If you are confident i
 ### Release testing
 When a release is in testing, QA should use the the Slack channel #help-release-bugs to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release blocking bug is found, the product is responsible for communicating the delay to company stakeholders. 
+In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
 
 Release blockers include:
 1. Critical bugs (defined below)
@@ -136,6 +136,11 @@ Bugs which do not have the reproduce label and do exist on the release board, bu
 
 ### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+
+## DRIs
+
+In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
+In the above process, any reference to "QA" refers to: Reed Haynes, QA Engineer.
 
 ## Rituals
 
