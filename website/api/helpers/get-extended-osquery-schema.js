@@ -119,14 +119,28 @@ module.exports = {
 
     // After we've gone through the tables in the Osquery schema, we'll go through the tables in the Fleet schema JSON, and add any tables that don't exist in the osquery schema.
     for (let fleetOverridesForTable of fleetOverridesForTables) {
+      if(!fleetOverridesForTable.name){
+        throw new Error(`A table in the Fleet overrides schema is missing a 'name' (${fleetOverridesForTable}). To resolve, add the name of this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json')}`);
+      }
       let fleetSchemaTableExistsInOsquerySchema = _.find(rawOsqueryTables, (table)=>{
         return fleetOverridesForTable.name === table.name;
       });
-      if(!fleetSchemaTableExistsInOsquerySchema) { // If a table in the Fleet schema does not exist in the osquery schema, we'll add it to the final schema.
+      if(!fleetSchemaTableExistsInOsquerySchema) { // If a table in the Fleet schema does not exist in the osquery schema, we'll add it to the final schema after making sure that it has the required values.
+        if(!fleetOverridesForTable.description) {
+          throw new Error(`When adding a new table from the Fleet overrides to final merged schema. The "${fleetOverridesForTable.name}" table is missing a 'description' value. To resolve, add a description to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json')}.\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at ${path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json')}.`);
+        }
+        if(!fleetOverridesForTable.platforms) {
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema. The "${fleetOverridesForTable.name}" table is missing a 'platforms' array. To resolve, add an array of platforms to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json')}.\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at ${path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json')}.`);
+        }
+        if(!fleetOverridesForTable.evented) {
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema. The "${fleetOverridesForTable.name}" table is missing a 'platforms' array. To resolve, add an evented value to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json')}.\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at ${path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json')}.`);
+        }
+        if(!fleetOverridesForTable.columns) {
+          throw new Error({message:`Could not add a new table from the Fleet overrides to final merged schema. The "${fleetOverridesForTable.name}" table is missing a "columns" value. To resolve, add an array of columns to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json')}.\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at ${path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json')}.`});
+        }
         expandedTables.push(fleetOverridesForTable);
       }
     }
-
     // Return the merged schema
     return expandedTables;
   }
