@@ -123,7 +123,7 @@ describe("Premium tier - Maintainer user", () => {
       });
       it("allows global maintainer to edit a team policy", () => {
         teamsDropdown.switchTeams("All teams", "Apples");
-        managePoliciesPage.allowsSelectRunSavePolicy();
+        managePoliciesPage.allowsSelectRunSavePolicy("filevault");
       });
     });
     describe("User profile page", () => {

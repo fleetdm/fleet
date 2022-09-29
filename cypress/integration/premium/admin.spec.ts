@@ -374,7 +374,7 @@ describe("Premium tier - Global Admin user", () => {
   describe("Host details page", () => {
     beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
     it("allows global admin to transfer host to an existing team", () => {
-      hostDetailsPage.allowsTransferHost();
+      hostDetailsPage.allowsTransferHost("andCreate");
       hostDetailsPage.verifiesTransferredHost();
     });
     it("allows global admin to create an operating system policy", () => {

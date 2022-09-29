@@ -141,7 +141,7 @@ describe("Free tier - Observer user", () => {
       managePoliciesPage.hidesButton("Add a policy");
     });
     it("hides 'Run', 'Edit', and 'Delete' a policy", () => {
-      managePoliciesPage.allowsViewPolicyOnly();
+      managePoliciesPage.allowsViewPolicyOnly("filevault");
     });
   });
   describe("User profile page", () => {

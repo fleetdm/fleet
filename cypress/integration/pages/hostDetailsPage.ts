@@ -38,9 +38,13 @@ const hostDetailsPage = {
       });
   },
 
-  allowsTransferHost: () => {
+  allowsTransferHost: (create: boolean) => {
     cy.findByRole("button", { name: /transfer/i }).click();
-    cy.findByText(/create a team/i).should("exist");
+    if (create) {
+      cy.findByText(/create a team/i).should("exist");
+    } else {
+      cy.findByText(/create a team/i).should("not.exist");
+    }
     cy.getAttached(".Select-control").click();
     cy.getAttached(".Select-menu").within(() => {
       cy.findByText(/no team/i).should("exist");

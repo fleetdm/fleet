@@ -12,18 +12,9 @@ const dashboardPage = {
 
   displaysCards: (platform: string) => {
     switch (platform) {
-      case "All":
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
-        });
-        break;
       case "macOS":
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
+          cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-mdm").should("exist");
@@ -35,7 +26,7 @@ const dashboardPage = {
         break;
       case "Windows":
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
+          cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".operating-systems").should("exist");
@@ -46,12 +37,21 @@ const dashboardPage = {
         break;
       case "Linux":
         cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
+          cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
           cy.get(".activity-feed").should("not.exist");
+        });
+        break;
+      default:
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/platform/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.getAttached(".activity-feed").should("exist");
         });
         break;
     }
