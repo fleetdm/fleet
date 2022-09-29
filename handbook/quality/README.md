@@ -53,7 +53,7 @@ QA has weekly check-in with product to go over the inbox items. QA is responsibl
 
 Requesters have six weeks to provide follow-up information for each request. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but requesters are welcome to re-open and provide context.
 
-QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior which is not according to spec or implied by spec.” Thereafter, it is assigned to the relevant product manager for them to decide on its priority.
+QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
 
 ### Acknowledging bugs
 If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
@@ -72,7 +72,7 @@ Fleeties do not have to wait for QA to reproduce the bug. If you're confident it
 ### Release testing
 When a release is in testing, QA should use the the Slack channel #help-release-bugs to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
+In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release-blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
 
 Release blockers include:
 1. Critical bugs (defined below)
@@ -82,8 +82,8 @@ Release blockers include:
 Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard bug process (defined above).
 
 ### Critical bugs
-A critical bug is defined as: behavior that causes users to: 
-* be unable to use a workflow
+A critical bug is defined as behavior that: 
+* Blocks the normal use a workflow
 * Prevents upgrades to Fleet
 * Causes irreversible damage, such as data loss
 * Introduces a security vulnerability
