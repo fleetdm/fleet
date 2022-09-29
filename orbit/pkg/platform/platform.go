@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-ps"
-	"github.com/rs/zerolog/log"
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 )
 
@@ -118,7 +117,7 @@ func getProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	for _, process := range processes {
 		processName, err := process.Name()
 		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
+			// No need to print errors here as this method might file for system processes
 			continue
 		}
 
@@ -170,7 +169,7 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	for _, process := range processes {
 		processName, err := process.Name()
 		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
+			// No need to print errors here as this method might file for system processes
 			continue
 		}
 

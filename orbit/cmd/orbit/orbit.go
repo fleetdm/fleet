@@ -640,9 +640,6 @@ func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, platform.ErrProcessNotFound) {
-		log.Error().Err(err).Msg("killProcess")
-	}
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
@@ -721,7 +718,7 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil {
+	if err := platform.GracefulProcessKillByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }

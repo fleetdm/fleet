@@ -6,6 +6,7 @@ package execuser
 // To view what was modified/added, you can use the execuser_windows_diff.sh script.
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"unsafe"
@@ -25,6 +26,8 @@ var (
 	procDuplicateTokenEx             *windows.LazyProc = modadvapi32.NewProc("DuplicateTokenEx")
 	procCreateEnvironmentBlock       *windows.LazyProc = moduserenv.NewProc("CreateEnvironmentBlock")
 	procCreateProcessAsUser          *windows.LazyProc = modadvapi32.NewProc("CreateProcessAsUserW")
+	procImpersonateLoggedOnUser      *windows.LazyProc = modadvapi32.NewProc("ImpersonateLoggedOnUser")
+	procRevertToSelf                 *windows.LazyProc = modadvapi32.NewProc("RevertToSelf")
 )
 
 const (
@@ -226,6 +229,60 @@ func startProcessAsCurrentUser(appPath, cmdLine, workDir string) error {
 		uintptr(creationFlags), uintptr(envInfo), workingDir, uintptr(unsafe.Pointer(&startupInfo)), uintptr(unsafe.Pointer(&processInfo)),
 	); returnCode == 0 {
 		return fmt.Errorf("create process as user: %s", err)
+	}
+
+	return nil
+}
+
+// StartLoggedOnUserImpersonation will attempt to impersonate the active logged on user
+func StartLoggedOnUserImpersonation() error {
+	var (
+		sessionId          windows.Handle
+		primaryToken       windows.Token
+		impersonationToken windows.Token
+
+		err error
+	)
+
+	// getting active user session ID
+	if sessionId, err = getCurrentUserSessionId(); err != nil {
+		return err
+	}
+
+	// sanity check on windows handle
+	if sessionId == windows.InvalidHandle {
+		return errors.New("the sessionId handle is invalid")
+	}
+
+	// grabing session token from active session ID
+	if returnCode, _, err := procWTSQueryUserToken.Call(uintptr(sessionId), uintptr(unsafe.Pointer(&primaryToken))); returnCode == 0 {
+		return fmt.Errorf("call native WTSQueryUserToken: %s", err)
+	}
+
+	// ensuring token handle is released so there are no handle leaks
+	defer primaryToken.Close()
+
+	// converting the primary token into an impersonation token
+	if returnCode, _, err := procDuplicateTokenEx.Call(uintptr(primaryToken), 0, 0, uintptr(SecurityImpersonation), uintptr(TokenImpersonazion), uintptr(unsafe.Pointer(&impersonationToken))); returnCode == 0 {
+		return fmt.Errorf("call native DuplicateTokenEx: %s", err)
+	}
+
+	// ensuring token handle is released so there are no handle leaks
+	defer impersonationToken.Close()
+
+	// using the impersonation token to impersonate running thread
+	if returnCode, _, err := procImpersonateLoggedOnUser.Call(uintptr(impersonationToken)); returnCode == 0 {
+		return fmt.Errorf("call native procImpersonateLoggedOnUser: %s", err)
+	}
+
+	return nil
+}
+
+// StopImpersonation will terminate the running impersonation
+func StopImpersonation() error {
+	// just call evertToSelf() to remove the impersonation token from running thread
+	if returnCode, _, err := procRevertToSelf.Call(); returnCode == 0 {
+		return fmt.Errorf("call native procRevertToSelf: %s", err)
 	}
 
 	return nil
