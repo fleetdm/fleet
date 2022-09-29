@@ -15,6 +15,7 @@ on:
   pull_request:
     paths:
       - 'orbit/**.go'
+      - '.github/workflows/fleet-and-orbit.yml'
   workflow_dispatch: # Manual
 
 permissions:
@@ -194,21 +195,11 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
-    # Docker needs to be installed manually on macOS.
-    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
     - name: Install Docker
       timeout-minutes: 20
       run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
+        brew install docker colima
+        colima start
 
     - name: Build Repository and run TUF server
       env:
