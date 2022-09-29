@@ -46,7 +46,7 @@ jobs:
       timeout-minutes: 20
       if: contains(matrix.os, 'macos')
       run: |
-        brew install docker colima
+        brew install docker docker-compose colima
         colima start
 
     - name: Install Go

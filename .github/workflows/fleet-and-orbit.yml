@@ -198,7 +198,7 @@ jobs:
     - name: Install Docker
       timeout-minutes: 20
       run: |
-        brew install docker colima
+        brew install docker docker-compose colima
         colima start
 
     - name: Build Repository and run TUF server
