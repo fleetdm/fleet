@@ -248,10 +248,6 @@ func checkWinVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.OSVulnerability {
-	if config.DisableDataSync || config.DisableWinOSVulnerabilities {
-		return nil
-	}
-
 	var results []fleet.OSVulnerability
 
 	// Get OS
@@ -261,27 +257,31 @@ func checkWinVulnerabilities(
 		return nil
 	}
 
-	// Sync MSRC definitions
-	client := fleethttp.NewClient()
-	err = msrc.Sync(ctx, client, vulnPath, os)
-	if err != nil {
-		errHandler(ctx, logger, "updating msrc definitions", err)
+	if !config.DisableDataSync {
+		// Sync MSRC definitions
+		client := fleethttp.NewClient()
+		err = msrc.Sync(ctx, client, vulnPath, os)
+		if err != nil {
+			errHandler(ctx, logger, "updating msrc definitions", err)
+		}
 	}
 
 	// Analyze all Win OS using the synched MSRC artifact.
-	for _, o := range os {
-		start := time.Now()
-		r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
-		elapsed := time.Since(start)
-		level.Debug(logger).Log(
-			"msg", "msrc-analysis-done",
-			"os name", o.Name,
-			"os version", o.Version,
-			"elapsed", elapsed,
-			"found new", len(r))
-		results = append(results, r...)
-		if err != nil {
-			errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+	if !config.DisableWinOSVulnerabilities {
+		for _, o := range os {
+			start := time.Now()
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			elapsed := time.Since(start)
+			level.Debug(logger).Log(
+				"msg", "msrc-analysis-done",
+				"os name", o.Name,
+				"os version", o.Version,
+				"elapsed", elapsed,
+				"found new", len(r))
+			results = append(results, r...)
+			if err != nil {
+				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+			}
 		}
 	}
 
