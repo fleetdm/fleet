@@ -587,7 +587,7 @@ module.exports = {
             ).replace(/[^a-z0-9\-]/ig,'');
 
             // Convert the markdown string to HTML.
-            let htmlString = await sails.helpers.strings.toHtml(tableMdString);
+            let htmlString = await sails.helpers.strings.toHtml.with({mdString: tableMdString, addIdsToHeadings: false});
 
             // Add the language-sql class to codeblocks in generated HTML partial for syntax highlighting.
             htmlString = htmlString.replace(/(<pre><code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3');
