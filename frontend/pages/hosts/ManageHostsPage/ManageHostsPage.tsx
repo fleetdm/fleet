@@ -1625,7 +1625,14 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (!config || !currentUser || !hosts || !teamSync) {
+    if (
+      !config ||
+      !currentUser ||
+      !hosts ||
+      !teamSync ||
+      isHostCountLoading ||
+      isHostsLoading
+    ) {
       return <Spinner />;
     }
 
@@ -1635,12 +1642,11 @@ const ManageHostsPage = ({
 
     // There are no hosts for this instance yet
     if (
-      status === ALL_HOSTS_LABEL &&
-      !isHostCountLoading &&
+      !status &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
-      !isHostsLoading &&
-      teamSync
+      teamSync &&
+      !labelID
     ) {
       const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
         queryParams || {};
@@ -1770,7 +1776,14 @@ const ManageHostsPage = ({
               {!isSandboxMode &&
                 canEnrollHosts &&
                 !hasHostErrors &&
-                !hasHostCountErrors && (
+                !hasHostCountErrors &&
+                !(
+                  !status &&
+                  filteredHostCount === 0 &&
+                  searchQuery === "" &&
+                  teamSync &&
+                  !labelID
+                ) && (
                   <Button
                     onClick={() => setShowEnrollSecretModal(true)}
                     className={`${baseClass}__enroll-hosts button`}
@@ -1782,11 +1795,12 @@ const ManageHostsPage = ({
               {canEnrollHosts &&
                 !hasHostErrors &&
                 !hasHostCountErrors &&
-                !(status === ALL_HOSTS_LABEL && selectedLabel?.count === 0) &&
                 !(
-                  status === ALL_HOSTS_LABEL &&
+                  !status &&
                   filteredHostCount === 0 &&
-                  searchQuery === ""
+                  searchQuery === "" &&
+                  teamSync &&
+                  !labelID
                 ) && (
                   <Button
                     onClick={toggleAddHostsModal}
