@@ -249,6 +249,7 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
+  const status = queryParams?.status !== "" ? queryParams?.status : undefined;
   const mdmId =
     queryParams?.mdm_id !== undefined
       ? parseInt(queryParams?.mdm_id, 10)
@@ -265,7 +266,6 @@ const ManageHostsPage = ({
   const selectedFilters: string[] = [];
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
   activeLabel && selectedFilters.push(activeLabel);
-  !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL); // "all-hosts" should always be alone
   // ===== end filter matching
 
   const canEnrollHosts =
@@ -402,10 +402,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const getStatusSelected = () => {
-    return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
-  };
-
   const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
 
@@ -515,6 +511,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
       osId,
@@ -688,14 +685,16 @@ const ManageHostsPage = ({
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
-    // we want the full label object
-    const isAll = statusName === ALL_HOSTS_LABEL;
-    const selected = isAll
-      ? find(labels, { type: "all" })
-      : find(labels, { id: statusName });
     handleResetPageIndex();
 
-    handleLabelChange(selected as ILabel);
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: { ...queryParams, status: statusName },
+      })
+    );
   };
 
   const onAddLabelClick = () => {
@@ -773,6 +772,10 @@ const ManageHostsPage = ({
         newQueryParams.policy_id = policyId;
       }
 
+      if (status) {
+        newQueryParams.status = status;
+      }
+
       if (policyResponse) {
         newQueryParams.policy_response = policyResponse;
       }
@@ -828,6 +831,7 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
       osId,
@@ -993,22 +997,21 @@ const ManageHostsPage = ({
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let status = "";
+      let acceptableStatus = "";
       let labelId = null;
-      const selectedStatus = getStatusSelected();
 
-      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
-        status = getStatusSelected() || "";
+      if (status && isAcceptableStatus(status)) {
+        acceptableStatus = status || "";
       } else {
         labelId = selectedLabel?.id as number;
       }
 
-      action = hostsAPI.transferToTeamByFilter(
+      action = hostsAPI.transferToTeamByFilter({
         teamId,
-        searchQuery,
-        status,
-        labelId
-      );
+        query: searchQuery,
+        status: acceptableStatus,
+        labelId,
+      });
     }
 
     try {
@@ -1029,6 +1032,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        status,
         mdmId,
         mdmEnrollmentStatus,
         osId,
@@ -1053,18 +1057,22 @@ const ManageHostsPage = ({
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let status = "";
+      let acceptableStatus = "";
       let labelId = null;
       const teamId = currentTeam?.id || null;
-      const selectedStatus = getStatusSelected();
 
-      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
-        status = getStatusSelected() || "";
+      if (status && isAcceptableStatus(status)) {
+        acceptableStatus = status || "";
       } else {
         labelId = selectedLabel?.id as number;
       }
 
-      action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
+      action = hostsAPI.destroyByFilter({
+        teamId,
+        query: searchQuery,
+        status: acceptableStatus,
+        labelId,
+      });
     }
 
     try {
@@ -1084,6 +1092,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        status,
         mdmId,
         mdmEnrollmentStatus,
         osId,
@@ -1480,6 +1489,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
       os_id: osId,
@@ -1606,7 +1616,7 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
-          value={getStatusSelected() || ALL_HOSTS_LABEL}
+          value={status || ALL_HOSTS_LABEL}
           className={`${baseClass}__status_dropdown`}
           options={HOST_SELECT_STATUSES}
           searchable={false}
@@ -1642,7 +1652,7 @@ const ManageHostsPage = ({
 
     // There are no hosts for this instance yet
     if (
-      getStatusSelected() === ALL_HOSTS_LABEL &&
+      status === ALL_HOSTS_LABEL &&
       !isHostCountLoading &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
@@ -1789,12 +1799,9 @@ const ManageHostsPage = ({
               {canEnrollHosts &&
                 !hasHostErrors &&
                 !hasHostCountErrors &&
+                !(status === ALL_HOSTS_LABEL && selectedLabel?.count === 0) &&
                 !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  selectedLabel?.count === 0
-                ) &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  status === ALL_HOSTS_LABEL &&
                   filteredHostCount === 0 &&
                   searchQuery === ""
                 ) && (

@@ -5,7 +5,6 @@ import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
-  getStatusParam,
 } from "utilities/url";
 
 export interface ISortOption {
@@ -18,7 +17,7 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: string;
+  status?: "online" | "offline" | "missing_10_days_count" | "new";
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
@@ -39,6 +38,7 @@ export default {
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const softwareId = options?.softwareId;
+    const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const munkiIssueId = options?.munkiIssueId;
@@ -56,7 +56,7 @@ export default {
         munkiIssueId,
         softwareId
       ),
-      status: getStatusParam(selectedLabels),
+      status,
       label_id: label,
     };
 

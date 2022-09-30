@@ -1,4 +1,4 @@
-export const ALL_HOSTS_LABEL = "all-hosts";
+export const ALL_HOSTS_LABEL = "";
 export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "hostname";
