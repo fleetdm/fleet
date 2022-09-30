@@ -444,31 +444,56 @@ var extraDetailQueries = map[string]DetailQuery{
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
 		Query: `
+WITH dv AS (
 	SELECT
-		os.name,
-		os.arch,
-		os.platform,
-		dv.data AS display_version,
-		rid.data AS release_id,
-		k.version AS kernel_version
+		data
 	FROM
-		os_version os,
-		kernel_info k,
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+),
+rid AS (
+	SELECT
+		data
+	FROM
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+)
+SELECT
+	os.name,
+	os.platform,
+	os.arch,
+	k.version as kernel_version,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			dv) THEN
 		(
 			SELECT
 				data
 			FROM
-				registry
-			WHERE
-				path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') dv,
+				dv)
+		ELSE
+			""
+	END AS display_version,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			rid) THEN
 		(
 			SELECT
 				data
 			FROM
-				registry
-			WHERE
-				path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId') rid`,
-		Platforms:        []string{"windows"},
+				rid)
+		ELSE
+			""
+	END AS release_id
+FROM 
+    os_version os,
+    kernel_info k`,
 		DirectIngestFunc: directIngestOSWindows,
 	},
 	"os_unix_like": {
