@@ -52,8 +52,8 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("Dashboard", () => {
     beforeEach(() => cy.visit("/dashboard"));
-    it("displays cards for all platforms and does not filter host platform", () => {
-      dashboardPage.displaysCards("All");
+    it("displays cards for team only, no activity card, and does not filter host platform", () => {
+      dashboardPage.displaysCards();
       dashboardPage.verifiesFilteredHostByPlatform("none");
     });
     it("displays cards for windows only and filters hosts by Windows platform", () => {

@@ -134,7 +134,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
     describe("Policy detail page", () => {
       it("allows view policy only", () => {
         managePoliciesPage.visitManagePoliciesPage();
-        managePoliciesPage.allowsViewPolicyOnly("filevault");
+        managePoliciesPage.allowsViewPolicyOnly();
       });
     });
     // nav restrictions are at the end because we expect to see a

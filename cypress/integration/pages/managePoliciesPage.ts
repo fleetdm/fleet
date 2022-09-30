@@ -78,13 +78,13 @@ const managePoliciesPage = {
     });
   },
 
-  allowsViewPolicyOnly: (name = "gatekeeper") => {
+  allowsViewPolicyOnly: () => {
     cy.getAttached("tbody").within(() => {
       cy.getAttached("tr")
         .first()
         .within(() => {
           cy.contains(".fleet-checkbox__input").should("not.exist");
-          cy.findByRole("button", { name: RegExp(name, "i") }).click();
+          cy.findByRole("button", { name: /filevault/i }).click();
         });
     });
     cy.getAttached(".policy-form__wrapper").within(() => {

@@ -45,13 +45,23 @@ const dashboardPage = {
           cy.get(".activity-feed").should("not.exist");
         });
         break;
-      default:
+      case "All":
         cy.getAttached(".homepage__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-software").should("exist");
           cy.getAttached(".activity-feed").should("exist");
+        });
+        break;
+      default:
+        // no activity feed on team page
+        cy.getAttached(".homepage__wrapper").within(() => {
+          cy.findByText(/platform/i).should("exist");
+          cy.getAttached(".hosts-summary").should("exist");
+          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".home-software").should("exist");
+          cy.get(".activity-feed").should("not.exist");
         });
         break;
     }
