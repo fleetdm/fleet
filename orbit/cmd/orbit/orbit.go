@@ -505,6 +505,7 @@ func main() {
 			return fmt.Errorf("initializing client: %w", err)
 		}
 
+		// ping the server to get the latest capabilities
 		if err := deviceClient.Ping(); err != nil {
 			return fmt.Errorf("pinging server: %w", err)
 		}
@@ -577,13 +578,19 @@ func main() {
 						case <-rotationTicker.C:
 							if trw.HasExpired() {
 								log.Info().Msg("token TTL expired, rotating token")
-								trw.Rotate()
+
+								if err := trw.Rotate(); err != nil {
+									log.Error().Err(err).Msg("error rotating token")
+								}
 							}
 						case <-remoteCheckTicker.C:
 							log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
 							if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
 								log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-								trw.Rotate()
+
+								if err := trw.Rotate(); err != nil {
+									log.Error().Err(err).Msg("error rotating token")
+								}
 							}
 						}
 					}

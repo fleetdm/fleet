@@ -168,6 +168,8 @@ func main() {
 			}
 		}()
 
+		// poll the server to check the policy status of the host and update the
+		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
 			tic := time.NewTicker(5 * time.Minute)

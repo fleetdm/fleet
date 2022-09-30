@@ -37,7 +37,8 @@ func TestLoadOrGenerate(t *testing.T) {
 		oldMtime := stat.ModTime()
 
 		rw := NewReadWriter(file.Name())
-		rw.LoadOrGenerate()
+		err = rw.LoadOrGenerate()
+		require.NoError(t, err)
 		token, err := rw.Read()
 		require.NoError(t, err)
 		require.Equal(t, "test", token)
@@ -62,7 +63,8 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.Equal(t, os.FileMode(constant.DefaultFileMode), stat.Mode())
 
 		rw := NewReadWriter(file.Name())
-		rw.LoadOrGenerate()
+		err = rw.LoadOrGenerate()
+		require.NoError(t, err)
 		token, err := rw.Read()
 		require.NoError(t, err)
 		require.Equal(t, "test", token)
@@ -81,7 +83,8 @@ func TestLoadOrGenerate(t *testing.T) {
 		defer os.Remove(file.Name())
 
 		rw := NewReadWriter(file.Name())
-		rw.LoadOrGenerate()
+		err = rw.LoadOrGenerate()
+		require.NoError(t, err)
 		token, err := rw.Read()
 		require.Error(t, err)
 		require.Empty(t, token)
@@ -98,7 +101,8 @@ func TestRotate(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, token)
 
-	rw.Rotate()
+	err = rw.Rotate()
+	require.NoError(t, err)
 	token, err = rw.Read()
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
@@ -106,7 +110,8 @@ func TestRotate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(constant.DefaultWorldReadableFileMode), stat.Mode())
 
-	rw.Rotate()
+	err = rw.Rotate()
+	require.NoError(t, err)
 	newToken, err := rw.Read()
 	require.NoError(t, err)
 	require.NotEmpty(t, newToken)
