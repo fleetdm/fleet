@@ -173,7 +173,7 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, len(nvdVulns)+len(ovalVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 
