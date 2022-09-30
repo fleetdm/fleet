@@ -81,7 +81,7 @@ This section explains more about the CEO shadow program.
 - [What to wear](#what-to-wear)
 - [Pre-program tasks](#pre-program-tasks)
 - [What to expect during the program](#what-to-expect-during-the-program)
-- [Meetings and events](#meetings-and-events)
+- [Preparing for meetings and events](#preparing-for-meetings-and-events)
 - [CEO's Calendar](#ceos-calendar)
 - [Responsibilities](#responsibilities)
 - [Considerations for other companies starting CEO shadow programs](#considerations-for-other-companies-starting-ceo-shadow-programs)
@@ -120,8 +120,8 @@ To allow flexibility for parents to participate, there will be some rotations id
 | 2022-12-19	| 2022-12-23	| AVAILABLE | AVAILABLE |
 | 2022-12-26	| 2022-12-30	| AVAILABLE | AVAILABLE |
 
-## Preparing for the program
 
+## Preparing for the program
 ### Important things to note
  1. This is not a performance evaluation.
  2. Plan to observe and ask questions.
@@ -134,21 +134,14 @@ To allow flexibility for parents to participate, there will be some rotations id
  Casual. You do not need to dress formally; business casual clothes are also appropriate.
 
 ### Pre-program tasks
- 1. Create an onboarding issue 
-Outgoing shadows are responsible for training incoming shadows. We currently track onboarding and offboarding in the [ceo-shadow project](https://github.com/orgs/fleetdm/projects/49/views/1).
- 2. Consider creating goals
- For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
- 3. Practice your introduction
- See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
- 4. Coffee chat with co-shadow
-  Try to schedule coffee chats with your co-shadow before you start the program.
- 5. Coffee Chat with CEO shadow alumni
- Feel free to schedule a coffee chat with any of the CEO Shadow Alumni. There's a link to the alumni chart dropped here too. 
+ 1. Create an [onboarding issue](https://github.com/fleetdm/confidential/blob/main/ceo-shadow-onboarding.md). Outgoing shadows are responsible for training incoming shadows. We currently track onboarding and offboarding in the [ceo-shadow project](https://github.com/orgs/fleetdm/projects/49/views/1).
+ 2. Consider creating goals. For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
+ 3. Practice your introduction. See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
+ 4. Coffee chat with co-shadow. Try to schedule coffee chats with your co-shadow before you start the program.
+ 5. Coffee Chat with CEO shadow alumni. Feel free to schedule a coffee chat with any of the [CEO Shadow Alumni](https://fleetdm.com/handbook/people/ceo-handbook#alumni).
  6. Explore the [CEO shadow project](https://github.com/orgs/fleetdm/projects/49/views/1)
- 7. Review the CEO's calendar
- Anticipate your week. Look ahead in the schedule and plan accordingly. 
+ 7. Review the CEO's calendar. Anticipate your week. Look ahead in the schedule and plan accordingly. 
  8. Review the CEO handbook (TODO: insert link here)
- TODO: How to communicate and interact with the CEO.
  9. Review acronyms 
  If you're not familiar with some of the business acronyms, take a bit of time to review them.
  - [KPI (Key Performance Indicator)](https://fleetdm.com/handbook/product#objectives-and-key-results)
@@ -170,11 +163,12 @@ Here are some examples:
 5. Iterate and complete small tasks as they come up. Clear them out immediately to allow for rapid iteration on more crucial tasks.
 6. Provide training to the incoming CEO Shadow(s).
 
-For meetings:
+Here are some examples for meetings:
 1. Prepare for, take notes during, and follow up on meetings. See more details below about your meeting responsibilities as a shadow.
 2. Share thanks in the #thanks channel in Slack when it comes from a customer or wider community member in a meeting.
 
-## Meetings and events
+
+## Preparing for meetings and events
 ### CEO's calendar
  1. Review the [CEO's calendar](https://calendar.google.com/calendar/u/0/r/week).
  2. As a reminder, you should have your title updated within your last name on zoom. During the Shadow rotation update your title to "CEO Shadow".
@@ -192,14 +186,16 @@ Here are the responsibilities shadows have during meetings:
 | Customer Meeting | Yes, please use the externally-shared collaboration doc | Timekeeping |
 | Anything else (unless specified)	| Yes, take notes | Timekeeping |
 
-### Considerations for other companies starting CEO shadow programs
+
+## Considerations for other companies starting CEO shadow programs
 GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
  1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
  2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
  3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
 
-### Alumni 
+
+## Alumni 
 CEO Shadow program alumni are welcome to join the #ceo-shadow-alumni Slack channel to stay in touch after the program.
 | Start date | End date | Name | Title | Takeaways |
 | ---------- | -------- | ---- | ----- | --------- |
