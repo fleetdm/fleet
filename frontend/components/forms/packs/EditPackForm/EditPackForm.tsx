@@ -79,7 +79,9 @@ const EditPackForm = ({
     setPackFormTargets(value);
   };
 
-  const onFormSubmit = (): void => {
+  const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>): void => {
+    evt.preventDefault();
+
     if (packName === "") {
       return setErrors({
         ...errors,
@@ -140,7 +142,7 @@ const EditPackForm = ({
           Cancel
         </Button>
         <Button
-          onClick={onFormSubmit}
+          type="submit"
           variant="brand"
           className="save-loading"
           isLoading={isUpdatingPack}

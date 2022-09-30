@@ -426,11 +426,9 @@ const HostDetailsPage = ({
   };
 
   const onLabelClick = (label: ILabel) => {
-    if (label.name === "All Hosts") {
-      return router.push(PATHS.MANAGE_HOSTS);
-    }
-
-    return router.push(`${PATHS.MANAGE_HOSTS}/labels/${label.id}`);
+    return label.name === "All Hosts"
+      ? router.push(PATHS.MANAGE_HOSTS)
+      : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
   const onQueryHostCustom = () => {

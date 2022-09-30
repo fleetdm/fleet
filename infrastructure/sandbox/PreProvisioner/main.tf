@@ -13,6 +13,8 @@ terraform {
 
 data "aws_region" "current" {}
 
+data "aws_caller_identity" "current" {}
+
 locals {
   name      = "preprovisioner"
   full_name = "${var.prefix}-${local.name}"

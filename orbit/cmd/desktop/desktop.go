@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
 	"github.com/rs/zerolog"
@@ -48,8 +49,25 @@ func main() {
 	onReady := func() {
 		log.Info().Msg("ready")
 
-		systray.SetTemplateIcon(icoBytes, icoBytes)
-		systray.SetTooltip("Fleet Device Management Menu.")
+		systray.SetTooltip("Fleet Desktop")
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
+
+		// Theme detection is currently only on Windows. On macOS we use template icons (which
+		// automatically change), and on Linux we don't handle it yet (Ubuntu doesn't seem to change
+		// systray colors in the default configuration when toggling light/dark).
+		if runtime.GOOS == "windows" {
+			// Set the initial theme, and watch for theme changes.
+			theme, err := getSystemTheme()
+			if err != nil {
+				log.Error().Err(err).Msg("get system theme")
+			}
+			iconManager := newIconManager(theme)
+			go func() {
+				watchSystemTheme(iconManager)
+			}()
+		}
 
 		// Add a disabled menu item with the current version
 		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
@@ -67,7 +85,9 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		capabilities := fleet.CapabilityMap{}
+
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA, capabilities)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
@@ -88,13 +108,10 @@ func main() {
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
-						myDeviceItem.SetTooltip("")
 						transparencyItem.Enable()
 						return
 					}
 
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 
 					<-ticker.C
@@ -120,8 +137,6 @@ func main() {
 					myDeviceItem.SetTitle("My device")
 					continue
 				default:
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 					continue
 				}
@@ -134,9 +149,23 @@ func main() {
 				}
 
 				if failedPolicyCount > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+					if runtime.GOOS == "windows" {
+						// Windows (or maybe just the systray library?) doesn't support color emoji
+						// in the system tray menu, so we use text as an alternative.
+						if failedPolicyCount == 1 {
+							myDeviceItem.SetTitle("My device (1 issue)")
+						} else {
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failedPolicyCount))
+						}
+					} else {
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+					}
 				} else {
-					myDeviceItem.SetTitle("🟢 My device")
+					if runtime.GOOS == "windows" {
+						myDeviceItem.SetTitle("My device")
+					} else {
+						myDeviceItem.SetTitle("🟢 My device")
+					}
 				}
 				myDeviceItem.Enable()
 			}
@@ -237,4 +266,30 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+type iconManager struct {
+	theme theme
+}
+
+func newIconManager(theme theme) *iconManager {
+	m := &iconManager{
+		theme: theme,
+	}
+	m.UpdateTheme(theme)
+	return m
+}
+
+func (m *iconManager) UpdateTheme(theme theme) {
+	m.theme = theme
+	switch theme {
+	case themeDark:
+		systray.SetIcon(iconDark)
+	case themeLight:
+		systray.SetIcon(iconLight)
+	case themeUnknown:
+		log.Debug().Msg("theme unknown, using dark theme")
+	default:
+		log.Error().Str("theme", string(theme)).Msg("tried to set invalid theme")
+	}
 }

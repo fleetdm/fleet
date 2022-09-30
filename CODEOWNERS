@@ -9,6 +9,7 @@ go.mod @fleetdm/go
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
 /.github/ @fleetdm/g-platform
@@ -37,6 +38,12 @@ go.mod @fleetdm/go
 /website/views/ @eashaw
 /website/assets/ @eashaw
 
+# Features table
+# - CEO is DRI for pricing
+# - Mo is DRI for features table
+# - Eric is DRI for website frontend code
+/website/views/pages/pricing.ejs @zhumo @eashaw @mikermcneil
+
 # Website redirects and URLs
 /website/config/routes.js @eashaw
 
@@ -59,7 +66,7 @@ go.mod @fleetdm/go
 /handbook/engineering @zwass
 /handbook/product @noahtalerman
 /handbook/sales @alexmitchelliii
-/handbook/customers @tgauda
+/handbook/customers @ksatter
 /handbook/growth @timmy-k
 /handbook/community @timmy-k
 /handbook/digital-experience @mike-j-thomas @chris-mcgillicuddy

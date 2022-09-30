@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.17.0']
+        go-version: ['^1.19.1']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
@@ -132,7 +132,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.17.0']
+        go-version: ['^1.19.1']
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -180,7 +180,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.17.0']
+        go-version: ['^1.19.1']
     # We can only generate all (PKG, MSI, DEB, RPM) packages from a macOS host.
     runs-on: macos-latest
     needs: gen
@@ -383,6 +383,53 @@ jobs:
       run: |
         "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e "if (.[0]) then true else false end"
 
+    - name: Fleet Service Tests
+      shell: powershell
+      run: |
+        #Tests setup
+        $serviceName = "Fleet osquery"
+        $defaultWaitTime = 2
+        $orbitRequiredInitExtraTime = 20
+
+        #Test 1 - Check that the service starts without issues
+        Stop-Service -Name $serviceName
+        Start-Service -Name $serviceName
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Test #1 failed" } }
+
+        #Test 2 - Check that the service stops without issues
+        Stop-Service -Name $serviceName
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #2 failed" } }
+
+        #Test 3 - Check that no orbit.exe is running after service stop
+        Start-Service -Name $serviceName
+        Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $defaultWaitTime # shutdown wait time
+        Get-Process | %{ if ($_.Name -eq "orbit") { throw "Test #3 failed" } }
+
+        #Test 4 - Check that service starts in less than 3 secs
+        Start-Job { Start-Service -Name $args[0] } -ArgumentList $serviceName | Out-Null #async operation
+        Start-Sleep -Seconds $defaultWaitTime
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Test #4 failed" } }
+
+        #Test 5 - Check that service stops in less than 3 secs
+        Start-Job { Stop-Service -Name $args[0] } -ArgumentList $serviceName  | Out-Null #async operation
+        Start-Sleep -Seconds $defaultWaitTime
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #5 failed" } }
+
+        #Test 6 - Check that no osqueryd process is running once service stops
+        Start-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitRequiredInitExtraTime # orbit takes some time to spawn osquery and desktop app due to update check
+        Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $defaultWaitTime
+        Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Test #6 failed" } }
+
+        #Test 7 - Check that no fleet-desktop process is running once service stops
+        Start-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitRequiredInitExtraTime # orbit takes some time to spawn osquery and desktop app due to update check
+        Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $defaultWaitTime
+        Get-Process | %{ if ($_.Name -eq "fleet-desktop") { throw "Test #7 failed" } }
+        
     - name: Upload Orbit logs
       if: always()
       uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2

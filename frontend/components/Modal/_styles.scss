@@ -16,8 +16,9 @@
       width: 100%;
 
       &::placeholder {
-        font-style: italic;
         font-size: $x-small;
+        font-style: italic;
+        line-height: 24px;
       }
     }
 

@@ -1,5 +1,13 @@
 package parsed
 
+import (
+	"encoding/json"
+	"errors"
+	"os"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
+)
+
 type SecurityBulletin struct {
 	// The 'product' name this bulletin targets (e.g. Windows 10)
 	ProductName string
@@ -21,6 +29,64 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 		Vulnerabities: make(map[string]Vulnerability),
 		VendorFixes:   make(map[int]VendorFix),
 	}
+}
+
+func UnmarshalBulletin(fPath string) (*SecurityBulletin, error) {
+	payload, err := os.ReadFile(fPath)
+	if err != nil {
+		return nil, err
+	}
+
+	bulletin := SecurityBulletin{}
+	err = json.Unmarshal(payload, &bulletin)
+	if err != nil {
+		return nil, err
+	}
+	return &bulletin, nil
+}
+
+// Merge merges in-place the contents of 'other' into the current bulletin.
+func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
+	if b.ProductName != other.ProductName {
+		return errors.New("bulletins are for different products")
+	}
+
+	// Products
+	for pID, pName := range other.Products {
+		if _, ok := b.Products[pID]; !ok {
+			b.Products[pID] = pName
+		}
+	}
+
+	// Vulnerabilities
+	for cve, vuln := range other.Vulnerabities {
+		if _, ok := b.Vulnerabities[cve]; !ok {
+			newVuln := NewVulnerability(vuln.PublishedEpoch)
+			for pID, v := range vuln.ProductIDs {
+				newVuln.ProductIDs[pID] = v
+			}
+			for rID, v := range vuln.RemediatedBy {
+				newVuln.RemediatedBy[rID] = v
+			}
+			b.Vulnerabities[cve] = newVuln
+		}
+	}
+
+	// Vendor fixes
+	for kbID, r := range other.VendorFixes {
+		if _, ok := b.VendorFixes[kbID]; !ok {
+			newVF := NewVendorFix(r.FixedBuild)
+			for pID, v := range r.ProductIDs {
+				newVF.ProductIDs[pID] = v
+			}
+			if r.Supersedes != nil {
+				newVF.Supersedes = ptr.Int(*r.Supersedes)
+			}
+			b.VendorFixes[kbID] = newVF
+		}
+	}
+
+	return nil
 }
 
 type Vulnerability struct {

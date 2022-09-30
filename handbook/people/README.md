@@ -8,6 +8,10 @@ This person is accountable for accomplishing goals and making decisions about a 
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
 
+<!-- TODO: Replace most of the rows of this table with a link to website/config/custom.js and CODEOWNERS. -->
+
+<!-- TODO: Move this table to "Why this way?" to prepare for this handbook page changing. -->
+
 |    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
 | Wireframes (Figma)| Noah Talerman |
@@ -22,8 +26,8 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Quality of core product UI | Luke Heath |
 | Ticket movement from product to engineering | Luke Heath |
 | Lead engineering together and release retrospective | Zach Wasserman* |
-| Customer Slack channels | Tony Gauda |
-| Customer renewals | Tony Gauda |
+| Customer Slack channels | Kathy Satterlee |
+| Customer renewals | Mike McNeil |
 | Quality of core product backend | Tomás Touceda |
 | Quality of fleetctl (and other tools) | Tomás Touceda |
 | Final cut of what goes into each release | Zach Wasserman |
@@ -65,10 +69,10 @@ Operations will review the expense and reach out to the team member if they have
 ### Purchasing a company-issued device
 
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `@charlottechance` will reach out to the new team member to start this process. `@charlottechance` will work with the new team member to get their laptop purchased and shipped to them.
-
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
-
 When selecting your new laptop, we ask that you optimize your configuration to have a large hard drive and be available for delivery or pickup quickly, without waiting for customization.
+
+New equipment for projects are requested in #help-operations-and-contract review, please tag `@charlottechance` in your post. Include device requested (specs), reason for request, and timeline for when the device is needed. 
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
@@ -79,7 +83,7 @@ When attending a conference or traveling for Fleet, please make a post in [#help
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
 - The price of the admission fees if attending a conference.
-- Per diem of $100 for food and beverage **(movies, and mini bars are not allowed)**.
+- $100 allowance per day for food and beverage **(movies, and mini bars are not allowed)**.
 - Customer/Partner Facing Events:
   - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
 
@@ -415,7 +419,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The walkie talkies (DMs).
   - The watering hole (#oooh-, #random, #news, #help-).
 
-## Onboarding a new advisor
+### Onboarding a new advisor
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
 template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
@@ -427,7 +431,7 @@ Once you send the agreement, add a new row to the [advisory board spreadsheet](h
 
 When you complete the agreement, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
 
-## Onboarding a new consultant
+### Onboarding a new consultant
 
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 There are some defaults that we use for these agreements:
@@ -439,7 +443,7 @@ There are some defaults that we use for these agreements:
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
 
-## Updating a consultant's fee
+### Updating a consultant's fee
 
  - Direct message Charlie with rate change information.
  - Charlie will post the information to `#g-people` and tag the CEO for approval.
@@ -467,7 +471,7 @@ The steps for doing this are highlighted in this loom, TODO.
 5. Sync hours
 6. Run contractor payroll
 
-## Zapier and DocuSign
+### Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 
@@ -490,7 +494,7 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
-## Adding Salesforce licenses
+### Adding Salesforce licenses
 
 We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
 
@@ -499,6 +503,14 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 3. Add the number of licenses.
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
+
+## Communicating departures
+
+Although it's sad to see you go, Fleet understands that not everything is meant to be forever like open-source is. There are a few steps that we'll need to take to communicate to the team of your departure. 
+
+1. Direct team: The CEO will reach out to the departing teammember's direct reports in 1:1 calls.
+2. Key stakeholders: The CEO will reach out to his direct reports about the departing teammember's departure.
+3. Announcement: Charlie will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 ## PeopleOps
 
@@ -550,6 +562,10 @@ Create a new issue for the current month and year named "Closing out YYYY-MM" us
 - Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
+## Key Reviews
+Every release cycle a Key Review deck is created and presented to the CEO. In this deck, the department will highlight KPI metrics and progress of OKRs. The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create Key Review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
+
+
 ## Rituals
 
 The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -574,6 +590,8 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
 | Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
+| OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
+| BizOps Key Review | every three weeks | Every release cycle a Key Review deck is prepared and presented | TBD |
 
 
 ## Slack channels
