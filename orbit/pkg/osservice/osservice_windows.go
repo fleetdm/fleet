@@ -31,7 +31,7 @@ func (m *windowsService) bestEffortShutdown() {
 
 	// Now ensuring that no child process are left
 	if m.fleetDesktopPresent {
-		err := platform.GracefulProcessKillByName(constant.DesktopAppExecName)
+		err := platform.KillProcessByName(constant.DesktopAppExecName)
 		if err != nil {
 			log.Error().Err(err).Msg("The desktop app couldn't be killed")
 		}
