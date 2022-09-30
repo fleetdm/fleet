@@ -64,6 +64,11 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	// generate a token for the profile
 	enrollmentPayload.Token = uuid.New().String()
 
@@ -72,21 +77,23 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if profile.DEPProfile != nil {
-		if err := svc.setDEPProfile(ctx, profile); err != nil {
+		if err := svc.setDEPProfile(ctx, profile, appConfig); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
-	profile.EnrollmentURL = svc.mdmAppleEnrollURL(profile.Token)
+
+	profile.EnrollmentURL = svc.mdmAppleEnrollURL(profile.Token, appConfig)
+
 	return profile, nil
 }
 
-func (svc *Service) mdmAppleEnrollURL(token string) string {
-	return fmt.Sprintf("https://%s%s?token=%s", svc.config.MDMApple.ServerAddress, apple_mdm.EnrollPath, token)
+func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) string {
+	return fmt.Sprintf("%s%s?token=%s", appConfig.ServerSettings.ServerURL, apple_mdm.EnrollPath, token)
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
 // sets the returned Profile UUID as the current DEP profile to apply to newly sync DEP devices.
-func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile) error {
+func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile, appConfig *fleet.AppConfig) error {
 	httpClient := fleethttp.NewClient()
 	depTransport := client.NewTransport(httpClient.Transport, httpClient, svc.depStorage, nil)
 	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
@@ -97,7 +104,8 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
 		return fmt.Errorf("invalid DEP profile: %w", err)
 	}
-	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token)
+
+	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
 	depProfileRequest["url"] = enrollURL
 	depProfileRequest["configuration_web_url"] = enrollURL
 	depProfile, err := json.Marshal(depProfileRequest)
@@ -164,12 +172,17 @@ func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	enrollments, err := svc.ds.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	for i := range enrollments {
-		enrollments[i].EnrollmentURL = svc.mdmAppleEnrollURL(enrollments[i].Token)
+		enrollments[i].EnrollmentURL = svc.mdmAppleEnrollURL(enrollments[i].Token, appConfig)
 	}
 	return enrollments, nil
 }
@@ -255,25 +268,34 @@ func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, si
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	urlToken, err := uuid.NewRandom()
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	token := uuid.New().String()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	url := svc.installerURL(token, appConfig)
+
 	var installerBuf bytes.Buffer
-	url := svc.installerURL(urlToken.String())
 	manifest, err := createManifest(size, io.TeeReader(installer, &installerBuf), url)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	inst, err := svc.ds.NewMDMAppleInstaller(ctx, name, size, manifest, installerBuf.Bytes(), urlToken.String())
+
+	inst, err := svc.ds.NewMDMAppleInstaller(ctx, name, size, manifest, installerBuf.Bytes(), token)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
 	return inst, nil
 }
 
-func (svc *Service) installerURL(urlToken string) string {
-	return "https://" + svc.config.MDMApple.ServerAddress + apple_mdm.InstallerPath + "?token=" + urlToken
+func (svc *Service) installerURL(token string, appConfig *fleet.AppConfig) string {
+	return fmt.Sprintf("%s%s?token=%s", appConfig.ServerSettings.ServerURL, apple_mdm.InstallerPath, token)
 }
 
 func createManifest(size int64, installer io.Reader, url string) (string, error) {
@@ -646,8 +668,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	// on enrollments).
 	mobileconfig, err := generateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
-		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.SCEPPath,
-		"https://"+svc.config.MDMApple.ServerAddress+apple_mdm.MDMPath,
+		appConfig.ServerSettings.ServerURL,
 		svc.config.MDMApple.SCEP.Challenge,
 		topic,
 	)
@@ -686,7 +707,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>URL</key>
-				<string>{{ .SCEPServerURL }}</string>
+				<string>{{ .SCEPURL }}</string>
 			</dict>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.fleet.mdm.apple.scep</string>
@@ -699,8 +720,6 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 		<dict>
 			<key>AccessRights</key>
-			<integer>8191</integer>
-			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
 			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
@@ -717,7 +736,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<string>com.apple.mdm.per-user-connections</string>
 			</array>
 			<key>ServerURL</key>
-			<string>{{ .MDMServerURL }}</string>
+			<string>{{ .ServerURL }}</string>
 			<key>SignMessage</key>
 			<true/>
 			<key>Topic</key>
@@ -739,24 +758,27 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 </dict>
 </plist>`))
 
-func generateEnrollmentProfileMobileconfig(orgName, scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
-	var contents bytes.Buffer
-	if err := enrollmentProfileMobileconfigTemplate.Execute(&contents, struct {
+func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
+	scepURL := fleetURL + apple_mdm.SCEPPath
+	serverURL := fleetURL + apple_mdm.MDMPath
+
+	var buf bytes.Buffer
+	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
 		Organization  string
 		SCEPServerURL string
-		MDMServerURL  string
 		SCEPChallenge string
 		Topic         string
+		ServerURL     string
 	}{
 		Organization:  orgName,
-		SCEPServerURL: scepServerURL,
-		MDMServerURL:  mdmServerURL,
+		SCEPServerURL: scepURL,
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
+		ServerURL:     serverURL,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
-	return contents.Bytes(), nil
+	return buf.Bytes(), nil
 }
 
 type mdmAppleGetInstallerRequest struct {
@@ -877,12 +899,17 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	installers, err := svc.ds.ListMDMAppleInstallers(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	for i := range installers {
-		installers[i].URL = svc.installerURL(installers[i].URLToken)
+		installers[i].URL = svc.installerURL(installers[i].URLToken, appConfig)
 	}
 	return installers, nil
 }

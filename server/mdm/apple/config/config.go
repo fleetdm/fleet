@@ -13,9 +13,6 @@ import (
 
 // Verify verifies the Apple MDM configuration.
 func Verify(config configpkg.MDMAppleConfig) error {
-	if config.ServerAddress == "" {
-		return errors.New("missing server address")
-	}
 	if err := verifySCEPConfig(config); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}

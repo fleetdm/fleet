@@ -332,21 +332,12 @@ type MDMAppleConfig struct {
 	// Enable enables MDM functionality on Fleet.
 	Enable bool
 
-	// ServerAddress is the address of Fleet server.
-	//
-	// The address is used in enrollment configurations and is the
-	// address apple devices will use to connect to Fleet.
-	ServerAddress string
-
 	// SCEP holds the SCEP protocol and server configuration.
 	SCEP MDMAppleSCEPConfig
 	// MDM holds the MDM core protocol and server configuration.
 	MDM MDMAppleMDMConfig
 	// DEP holds the MDM DEP configuration.
 	DEP MDMAppleDEP
-
-	// EnrollSecert contains the secret used during MDM enrollment.
-	EnrollSecret string
 }
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
@@ -775,7 +766,6 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple.scep.challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigString("mdm.apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
 	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
-	man.addConfigString("mdm.apple.dep.server_url", "", "URL of the Fleet server to be set in the DEP profile")
 	man.addConfigString("mdm.apple.dep.token", "", "MDM DEP Auth Token")
 	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 }
@@ -989,8 +979,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDMApple: MDMAppleConfig{
-			Enable:        man.getConfigBool("mdm.apple.enable"),
-			ServerAddress: man.getConfigString("mdm.apple.server_address"),
+			Enable: man.getConfigBool("mdm.apple.enable"),
 			SCEP: MDMAppleSCEPConfig{
 				CA: SCEPCAConfig{
 					PEMCert: []byte(man.getConfigString("mdm.apple.scep.ca.cert_pem")),

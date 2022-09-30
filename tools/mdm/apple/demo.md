@@ -8,7 +8,7 @@ flowchart LR
 subgraph Fleet [Fleet Server]
     direction TB;
     subgraph apiEndpoints ["Admin API endpoints"]
-        api["/api/_version_/fleet/mdm/apple/enrollments
+        api["/api/_version_/fleet/mdm/apple/enrollmentprofiles
         /api/_version_/fleet/mdm/apple/enqueue
         /api/_version_/fleet/mdm/apple/commandresults
         /api/_version_/fleet/mdm/apple/installers
@@ -125,17 +125,18 @@ ngrok http https://localhost:8080
 
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
-FLEET_MDM_APPLE_SERVER_ADDRESS=ab51-181-228-157-44.ngrok.io \
-FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) \
-FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) \
-FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) \
-FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.pem) \
-FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.key) \
-./build/fleet serve --dev --dev_license --logging_debug 2>&1 | tee ~/fleet.txt
+    FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
+    FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) \
+    FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) \
+    FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) \
+    FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.pem) \
+    FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.key) \
+    ./build/fleet serve --dev --dev_license --logging_debug 2>&1 | tee ~/fleet.txt
 ```
 
 Run the setup as usual (you will need a user for administrative commands below):
+
+TODO: add server url flag set to ngrok ...
 ```sh
 fleetctl setup --email foo@example.com --name Gandalf --password p4ssw0rd.123 --org-name "Fleet Device Management Inc."
 Fleet Device Management Inc. periodically collects information about your instance.
