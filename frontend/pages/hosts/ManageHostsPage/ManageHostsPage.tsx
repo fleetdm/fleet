@@ -1776,14 +1776,7 @@ const ManageHostsPage = ({
               {!isSandboxMode &&
                 canEnrollHosts &&
                 !hasHostErrors &&
-                !hasHostCountErrors &&
-                !(
-                  !status &&
-                  filteredHostCount === 0 &&
-                  searchQuery === "" &&
-                  teamSync &&
-                  !labelID
-                ) && (
+                !hasHostCountErrors && (
                   <Button
                     onClick={() => setShowEnrollSecretModal(true)}
                     className={`${baseClass}__enroll-hosts button`}
