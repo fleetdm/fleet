@@ -1,33 +1,35 @@
 ## Fleet 4.21.0 (Sep 28, 2022)
 
-* Fix side panel tooltips to not be wider than side panel causing scroll bug
+* Fleet Premium: Added the ability to know how many hosts and which hosts, on a team, are failing a global policy.
 
-* Add support for [kubequery](https://github.com/Uptycs/kubequery).
+* Added validation to the `config` and `teams` configuration files. Fleet can be managed with [configuration files (YAML syntax)](https://fleetdm.com/docs/using-fleet/configuration-files) and the fleetctl command line tool. 
 
-* Added validation to raise errors if unknown keys or invalid values are passed to update the organization settings (including the agent options) or the team's agent options.
+* Added the ability to manage osquery flags remotely. This requires [Orbit, Fleet's agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager). Orbit regularly checks flags from Fleet according to the `distributed_interval` setting. This setting can be modified under the [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) key in the `config` configuration file.
 
-* Fix an error generating Windows packages with `fleetctl package` on non-English localizations of Windows.
+* Added a `/api/v1/fleet/device/{token}/desktop` API route that returns only the number of failing policies for a specific host.
 
-* Indicate hoverable text on host details/ device user details
+* Added support for kubequery.
 
-* Fixes bug which small screen overlay is shown when trying to print
+* Made cards on the **Home** page clickable.
 
-* Fix error in adding a new integration to not clear form
+* Added es_process_file_events, password_policy, and windows_update_history tables to osquery.
 
-* This fixes the UI bug where the label filter dropdown goes under the table header and add a "no custom labels" state that shows when the user has not created any custom labels yet.
+* Added activity items to capture when, and by who, agent options are edited.
 
-* Added logging to capture user email upon successful login
+* Added logging to capture the user’s email upon successful login.
 
-* Placeholder text size small not extra small
+* Increased the size of placeholder text from extra small to small.
 
-* adds a custom activity details text for edit agent options for global and team contexts.
+* Fixed an error that cleared the form when adding a new integration.
 
-* Added new EE endpoint at '/api/v1/fleet/device/{token}/desktop' to be used by Fleet Desktop
-to get the number of failing policies.
+* Fixed an error generating Windows packages with the fleetctl package on non-English localizations of Windows.
 
-* Dashboard summary tiles now clickable
+* Fixed a bug that showed the small screen overlay when trying to print.
 
-* Add es_process_file_events, password_policy and windows_update_history to osquery tables
+* Fixed the UI bug that caused the label filter dropdown to go under the table header.
+
+* Fixed side panel tooltips to not be wider than side panel causing scroll bug.
+
 
 ## Fleet 4.20.1 (Sep 15, 2022)
 
