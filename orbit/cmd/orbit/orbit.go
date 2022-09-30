@@ -256,16 +256,16 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			osquerydPath string
-			desktopPath  string
-			g            run.Group
+			osquerydPath      string
+			desktopPath       string
+			g                 run.Group
+			shutdownFunctions []func(err error) // List of functions to call during service teardown
+			appDoneCh         chan struct{}     // closed when runner run.group.Run() returns
 		)
 
-		// List of interrupt functions to call during service teardown
-		var interruptFunctions []func(err error)
-
 		// Setting up the system service management early on the process lifetime
-		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &interruptFunctions)
+		appDoneCh = make(chan struct{})
+		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &shutdownFunctions, appDoneCh)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -561,7 +561,7 @@ func main() {
 
 		// Only osquery runner is being interrupted
 		// This ends up forcing the rest of the interrupt functions in the runner group to get called
-		interruptFunctions = append(interruptFunctions, r.Interrupt)
+		shutdownFunctions = append(shutdownFunctions, r.Interrupt)
 
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
@@ -586,6 +586,8 @@ func main() {
 			log.Error().Err(err).Msg("unexpected exit")
 		}
 
+		close(appDoneCh) // Signal to indicate runners have just ended
+
 		return nil
 	}
 
@@ -607,6 +609,7 @@ type desktopRunner struct {
 	deviceAuthToken string
 	fleetRootCA     string
 	insecure        bool
+	commChannelID   string
 	interruptCh     chan struct{} // closed when interrupt is triggered
 	executeDoneCh   chan struct{} // closed when execute returns
 }
@@ -618,6 +621,7 @@ func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string
 		deviceAuthToken: deviceAuthToken,
 		fleetRootCA:     fleetRootCA,
 		insecure:        insecure,
+		commChannelID:   "",
 		interruptCh:     make(chan struct{}),
 		executeDoneCh:   make(chan struct{}),
 	}
@@ -667,7 +671,8 @@ func (d *desktopRunner) execute() error {
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
-			if err := execuser.Run(d.desktopPath, opts...); err != nil {
+			d.commChannelID = uuid.New().String()
+			if err := execuser.Run(d.desktopPath, d.commChannelID, opts...); err != nil {
 				log.Debug().Err(err).Msg("execuser.Run")
 				return true
 			}
@@ -721,7 +726,7 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil {
+	if err := platform.SignalProcessBeforeTerminate(d.commChannelID, constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }

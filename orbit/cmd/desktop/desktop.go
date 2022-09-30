@@ -26,10 +26,29 @@ import (
 // version is set at compile time via -ldflags
 var version = "unknown"
 
-func setupRunners() {
+func setupRunners(channelID string) {
 	var runnerGroup run.Group
 
-	// Install a signal handler runner
+	// Setting up a watcher for the communication channel
+	if runtime.GOOS == "windows" {
+		runnerGroup.Add(
+			func() error {
+				// block wait on the communication channel
+				if err := blockWaitForStopEvent(channelID); err != nil {
+					log.Error().Err(err).Msg("There was an error on the desktop communication channel")
+					return err
+				}
+
+				log.Info().Msg("Shutdown was requested!")
+				return nil
+			},
+			func(err error) {
+				systray.Quit()
+			},
+		)
+	}
+
+	// Setting up a signal handler runner
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -66,6 +85,11 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
+	commChannelID := os.Getenv("FLEET_DESKTOP_CHANNEL_ID")
+	if commChannelID == "" {
+		log.Fatal().Msg("missing Channel ID environment FLEET_DESKTOP_CHANNEL_ID")
+	}
+
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
@@ -80,7 +104,7 @@ func main() {
 	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
 	// Setting up working runners such as signalHandler runner
-	go setupRunners()
+	go setupRunners(commChannelID)
 
 	onReady := func() {
 		log.Info().Msg("ready")

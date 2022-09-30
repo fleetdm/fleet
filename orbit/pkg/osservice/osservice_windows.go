@@ -6,10 +6,6 @@ package osservice
 import (
 	"errors"
 	"os"
-	"time"
-
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
@@ -19,27 +15,13 @@ import (
 type windowsService struct {
 	shutdownFunctions   *[]func(err error)
 	fleetDesktopPresent bool
+	appDoneCh           chan struct{}
 }
 
-func (m *windowsService) bestEffortShutdown() {
-	serviceShutdown := errors.New("service is shutting down")
-
+func (m *windowsService) gracefulShutdown() {
 	// Calling interrupt functions to gracefully shutdown runners
-	for _, interruptFn := range *m.shutdownFunctions {
-		interruptFn(serviceShutdown)
-	}
-
-	// Now ensuring that no child process are left
-	if m.fleetDesktopPresent {
-		err := platform.KillProcessByName(constant.DesktopAppExecName)
-		if err != nil {
-			log.Error().Err(err).Msg("The desktop app couldn't be killed")
-		}
-	}
-
-	err := platform.KillAllProcessByName(constant.OsquerydName)
-	if err != nil {
-		log.Error().Err(err).Msg("The child osqueryd processes cannot be killed")
+	for _, shutdownFn := range *m.shutdownFunctions {
+		shutdownFn(errors.New("service graceful shutdown"))
 	}
 }
 
@@ -64,12 +46,12 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 			// Updating the service state to indicate stop
 			changes <- svc.Status{State: svc.Stopped, Win32ExitCode: 0}
 
-			// Best effort tear down
+			// Best effort graceful tear down
 			// Runner group's interrupt functions will be called here
-			m.bestEffortShutdown()
+			m.gracefulShutdown()
 
-			// Dummy delay to allow the SCM to pick up the changes
-			time.Sleep(500 * time.Millisecond)
+			// Wait for runners group to finish
+			<-m.appDoneCh
 
 			// Drastic teardown
 			os.Exit(windows.NO_ERROR)
@@ -84,7 +66,7 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 
 // SetupServiceManagement implements the dispatcher and notification logic to
 // interact with the Windows Service Control Manager (SCM)
-func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdownFunctions *[]func(err error)) {
+func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdownFunctions *[]func(err error), doneCh chan struct{}) {
 	if serviceName == "" {
 		log.Error().Msg(" service name should not be empty")
 		return
@@ -101,6 +83,7 @@ func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdo
 		srvData := windowsService{
 			shutdownFunctions:   shutdownFunctions,
 			fleetDesktopPresent: fleetDesktopPresent,
+			appDoneCh:           doneCh,
 		}
 
 		// Registering our service into the SCM

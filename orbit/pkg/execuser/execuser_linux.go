@@ -13,7 +13,7 @@ import (
 )
 
 // run uses sudo to run the given path as login user.
-func run(path string, opts eopts) error {
+func run(path string, channelID string, opts eopts) error {
 	user, err := getLoginUID()
 	if err != nil {
 		return fmt.Errorf("get user: %w", err)

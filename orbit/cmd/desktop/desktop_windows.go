@@ -5,6 +5,7 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"syscall"
 	"time"
@@ -98,4 +99,46 @@ func watchSystemTheme(iconManager *iconManager) {
 			}
 		}()
 	}
+}
+
+// blockWaitForStopEvent waits for the named event kernel object to be signalled
+func blockWaitForStopEvent(channelId string) error {
+	if channelId == "" {
+		return errors.New("communication channel name should not be empty")
+	}
+
+	// converting go string to UTF16 windows compatible string
+	targetChannel := "Global\\fleet-" + channelId
+	ev, err := windows.UTF16PtrFromString(targetChannel)
+	if err != nil {
+		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
+	}
+
+	// The right to use the object for synchronization
+	// https://learn.microsoft.com/en-us/windows/win32/sync/synchronization-object-security-and-access-rights
+	const EVENT_SYNCHRONIZE = 0x00100000
+
+	// OpenEvent Api opens a named event object from the kernel object manager
+	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openeventw
+	h, err := windows.OpenEvent(EVENT_SYNCHRONIZE, false, ev)
+	if (err != nil) && (err != windows.ERROR_SUCCESS) {
+		return fmt.Errorf("there was a problem calling OpenEvent: %w", err)
+	}
+
+	if h == windows.InvalidHandle {
+		return errors.New("event handle is invalid")
+	}
+
+	// now block waiting for the handle to be signaled by Orbit
+	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
+	s, err := windows.WaitForSingleObject(h, windows.INFINITE)
+	if (err != nil) && (err != windows.ERROR_SUCCESS) {
+		return fmt.Errorf("there was a problem calling CreateEvent: %w", err)
+	}
+
+	if s != windows.WAIT_OBJECT_0 {
+		return fmt.Errorf("event wait was interrupted for unknown reasons: %d", s)
+	}
+
+	return nil
 }

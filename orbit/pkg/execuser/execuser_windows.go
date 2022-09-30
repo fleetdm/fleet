@@ -6,6 +6,7 @@ package execuser
 // To view what was modified/added, you can use the execuser_windows_diff.sh script.
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"unsafe"
@@ -104,7 +105,13 @@ const (
 //	only a few changes, retrieve the current values using GetEnvironmentVariable, save these values,
 //	create an updated block for the child process to inherit, create the child process, and then
 //	restore the saved values using SetEnvironmentVariable, as shown in the following example."
-func run(path string, opts eopts) error {
+func run(path string, channelID string, opts eopts) error {
+	opts.env = append(opts.env, [2]string{"FLEET_DESKTOP_CHANNEL_ID", channelID})
+
+	if err := createSyncChannel(channelID); err != nil {
+		return fmt.Errorf("sync channel creation failed: %w", err)
+	}
+
 	for _, nv := range opts.env {
 		os.Setenv(nv[0], nv[1])
 	}
@@ -226,6 +233,56 @@ func startProcessAsCurrentUser(appPath, cmdLine, workDir string) error {
 		uintptr(creationFlags), uintptr(envInfo), workingDir, uintptr(unsafe.Pointer(&startupInfo)), uintptr(unsafe.Pointer(&processInfo)),
 	); returnCode == 0 {
 		return fmt.Errorf("create process as user: %s", err)
+	}
+
+	return nil
+}
+
+// createSyncChannel creates the synchronization channel through which child process will be
+// signalled for termination. Code is using kernel named object as the sync primitive.
+// https://learn.microsoft.com/en-us/windows/win32/sync/using-event-objects
+func createSyncChannel(channelId string) error {
+	if channelId == "" {
+		return errors.New("communication channel name should not be empty")
+	}
+
+	// Security descriptor to be used with event object
+	// Security descriptor is set to
+	//  - Allow SYSTEM user to have full control
+	//    (SY=SYSTEM, 0x001F0003=EVENT_ALL_ACCESS)
+	//  - Allow Authenticated user to have only SYNCHRONIZE privilege
+	//    (AU=Authenticated Users, 0x00100000=SYNCHRONIZE)
+	// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-security_descriptor
+	sd, err := windows.SecurityDescriptorFromString("D:(A;;0x001F0003;;;SY)(A;;0x00100000;;;AU)")
+	if err != nil {
+		return fmt.Errorf("SddlToSecurityDescriptor failed: %v", err)
+	}
+
+	// Security attributes passed to the event object
+	// https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa379560(v=vs.85)
+	sa := windows.SecurityAttributes{
+		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
+		SecurityDescriptor: sd,
+	}
+
+	// converting go string to UTF16 windows compatible string
+	targetChannel := "Global\\fleet-" + channelId
+	ev, err := windows.UTF16PtrFromString(targetChannel)
+	if (err != nil) && (err != windows.ERROR_SUCCESS) {
+		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
+	}
+
+	// CreateEvent Api creates the named event object on the kernel object manager
+	// handle is not closed on purpose, the lifetime of the event object
+	// is going to be bound to the lifetime of the service
+	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventw
+	h, err := windows.CreateEvent(&sa, 0, 0, ev)
+	if (err != nil) && (err != windows.ERROR_SUCCESS) {
+		return fmt.Errorf("there was a problem calling CreateEvent: %w", err)
+	}
+
+	if h == windows.InvalidHandle {
+		return errors.New("event handle is invalid")
 	}
 
 	return nil
