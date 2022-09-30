@@ -249,7 +249,10 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
-  const status = queryParams?.status !== "" ? queryParams?.status : undefined;
+  const status =
+    queryParams?.status !== "" && isAcceptableStatus(queryParams?.status)
+      ? queryParams?.status
+      : undefined;
   const mdmId =
     queryParams?.mdm_id !== undefined
       ? parseInt(queryParams?.mdm_id, 10)
@@ -997,19 +1000,12 @@ const ManageHostsPage = ({
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let acceptableStatus = "";
-      let labelId = null;
-
-      if (status && isAcceptableStatus(status)) {
-        acceptableStatus = status || "";
-      } else {
-        labelId = selectedLabel?.id as number;
-      }
+      const labelId = selectedLabel?.id as number;
 
       action = hostsAPI.transferToTeamByFilter({
         teamId,
         query: searchQuery,
-        status: acceptableStatus,
+        status,
         labelId,
       });
     }
@@ -1057,20 +1053,14 @@ const ManageHostsPage = ({
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let acceptableStatus = "";
-      let labelId = null;
       const teamId = currentTeam?.id || null;
 
-      if (status && isAcceptableStatus(status)) {
-        acceptableStatus = status || "";
-      } else {
-        labelId = selectedLabel?.id as number;
-      }
+      const labelId = selectedLabel?.id as number;
 
       action = hostsAPI.destroyByFilter({
         teamId,
         query: searchQuery,
-        status: acceptableStatus,
+        status,
         labelId,
       });
     }
