@@ -3,14 +3,14 @@ const dashboardPage = {
     cy.visit("/dashboard");
   },
 
-  switchesPlatform: (platform: string) => {
+  switchesPlatform: (platform = "") => {
     cy.getAttached(".homepage__platform_dropdown").click();
     cy.getAttached(".Select-menu-outer").within(() => {
       cy.findAllByText(platform).click();
     });
   },
 
-  displaysCards: (platform: string) => {
+  displaysCards: (platform = "") => {
     switch (platform) {
       case "macOS":
         cy.getAttached(".homepage__wrapper").within(() => {

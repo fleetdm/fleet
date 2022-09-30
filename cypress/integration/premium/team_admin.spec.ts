@@ -85,11 +85,12 @@ describe("Premium tier - Team Admin user", () => {
   describe("Host details page", () => {
     beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
     it("allows team admin to create an operating system policy", () => {
-      hostDetailsPage.createOperatingSystemPolicy();
+      hostDetailsPage.allowsCreateOsPolicy();
     });
     it("allows team admin to query host, delete host but not transfer host", () => {
-      hostDetailsPage.queriesHost();
-      hostDetailsPage.deletesHost();
+      hostDetailsPage.allowsCustomQueryHost();
+      hostDetailsPage.allowsDeleteHost();
+      hostDetailsPage.verifiesDeletedHost;
       hostDetailsPage.hidesButton("Transfer");
     });
   });
