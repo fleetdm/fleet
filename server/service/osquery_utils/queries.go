@@ -174,28 +174,55 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"os_version_windows": {
 		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
-		Query: `SELECT
-			os.name,
-			dv.data AS display_version,
-			rid.data AS release_id
+		Query: `
+WITH dv AS (
+	SELECT
+		data
+	FROM
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+),
+rid AS (
+	SELECT
+		data
+	FROM
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+)
+SELECT
+	(
+		SELECT
+			name
 		FROM
-			os_version os,
-			(
-				SELECT
-					data
-				FROM
-					registry
-				WHERE
-					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') dv,
-			(
-				SELECT
-					data
-				FROM
-					registry
-				WHERE
-					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId') rid
-
-		LIMIT 1`,
+			os_version) AS name,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			dv) THEN
+		(
+			SELECT
+				data
+			FROM
+				dv)
+		ELSE
+			""
+	END AS display_version,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			rid) THEN
+		(
+			SELECT
+				data
+			FROM
+				rid)
+		ELSE
+			""
+	END AS release_id`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
