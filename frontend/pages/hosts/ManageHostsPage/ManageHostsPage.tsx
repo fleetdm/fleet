@@ -1635,14 +1635,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      !hosts ||
-      selectedFilters.length === 0 ||
-      selectedLabel === undefined ||
-      !teamSync
-    ) {
+    if (!config || !currentUser || !hosts || !teamSync) {
       return <Spinner />;
     }
 
@@ -1777,6 +1770,8 @@ const ManageHostsPage = ({
     return <Spinner />;
   }
 
+  console.log("isHostsLoading?????", isHostsLoading);
+  console.log("isHostCountLoading?????", isHostCountLoading);
   return (
     <>
       <MainContent>
