@@ -141,7 +141,6 @@
     justify-content: space-between;
     margin: 0;
     padding-bottom: 0;
-    margin-top: $pad-small;
 
     .hostname-container {
       display: flex;
@@ -355,17 +354,13 @@
   &__back-link {
     display: flex;
     align-items: center;
+    padding-bottom: $pad-small;
+    height: 16px;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-    height: 20px;
-
-    #back-chevron {
-      width: 16px;
-      height: 16px;
-      margin: 0 $pad-small 0 0;
-    }
+    margin-left: -11px;
   }
 
   &__device_mapping {

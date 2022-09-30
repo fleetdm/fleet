@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { browserHistory, Link } from "react-router";
+import { browserHistory } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -541,10 +541,20 @@ const HostDetailsPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
-          <img src={BackChevron} alt="back chevron" id="back-chevron" />
-          <span>Back to all hosts</span>
-        </Link>
+        <div>
+          <Button
+            variant={"text-icon"}
+            onClick={() => {
+              browserHistory.goBack();
+            }}
+            className={`${baseClass}__back-link`}
+          >
+            <>
+              <img src={BackChevron} alt="back chevron" id="back-chevron" />
+              <span>Back to all hosts</span>
+            </>
+          </Button>
+        </div>
         <HostSummaryCard
           statusClassName={statusClassName}
           titleData={titleData}
