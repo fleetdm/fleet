@@ -891,9 +891,13 @@ The identifier to use when determining uniqueness of hosts.
 
 Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
-This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
+This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. 
 
-Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
+The default value in Fleet is `provided`, which will use the identifier provided by osquery. By default, osquery uses `hostname` as the identifier. 
+
+`instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) for more information.
+
+Users that have duplicate UUIDs in their environment, such as multiple Docker containers running on the same host or cloned virtual machines, may consider from setting this flag to `instance`.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
