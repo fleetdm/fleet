@@ -24,7 +24,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  status?: "online" | "offline" | "missing_10_days_count" | "new";
+  status?: "online" | "offline" | "new";
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   osId?: number;
@@ -46,7 +46,7 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  status?: "online" | "offline" | "missing_10_days_count" | "new";
+  status?: "online" | "offline" | "new";
   mdmId?: number;
   munkiIssueId?: number;
   mdmEnrollmentStatus?: string;

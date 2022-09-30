@@ -1770,8 +1770,6 @@ const ManageHostsPage = ({
     return <Spinner />;
   }
 
-  console.log("isHostsLoading?????", isHostsLoading);
-  console.log("isHostCountLoading?????", isHostCountLoading);
   return (
     <>
       <MainContent>

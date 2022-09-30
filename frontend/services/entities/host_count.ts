@@ -17,7 +17,7 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: "online" | "offline" | "missing_10_days_count" | "new";
+  status?: "online" | "offline" | "new";
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
