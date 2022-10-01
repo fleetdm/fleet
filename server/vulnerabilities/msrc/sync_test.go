@@ -1,6 +1,7 @@
 package msrc
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,7 +22,7 @@ type testData struct {
 
 type ghMock struct{ testData *testData }
 
-func (gh ghMock) Bulletins() (map[io.SecurityBulletinName]string, error) {
+func (gh ghMock) Bulletins(ctx context.Context) (map[io.SecurityBulletinName]string, error) {
 	return gh.testData.remoteList, gh.testData.remoteListError
 }
 
@@ -42,6 +43,7 @@ func (fs fsMock) Delete(d io.SecurityBulletinName) error {
 }
 
 func TestSync(t *testing.T) {
+	ctx := context.Background()
 	t.Run("#sync", func(t *testing.T) {
 		os := []fleet.OperatingSystem{
 			{
@@ -65,7 +67,7 @@ func TestSync(t *testing.T) {
 			localList: []io.SecurityBulletinName{"Windows_10-2022_09_10.json"},
 		}
 
-		err := sync(os, fsMock{testData: &testData}, ghMock{testData: &testData})
+		err := sync(ctx, os, fsMock{testData: &testData}, ghMock{testData: &testData})
 		require.NoError(t, err)
 		require.ElementsMatch(t, testData.remoteDownloaded, []string{"http://somebulletin.com"})
 		require.ElementsMatch(t, testData.localDeleted, []io.SecurityBulletinName{"Windows_10-2022_09_10.json"})

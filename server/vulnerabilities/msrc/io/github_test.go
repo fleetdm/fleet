@@ -72,6 +72,8 @@ func (m mockGHReleaseLister) ListReleases(
 }
 
 func TestGithubClient(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("#Download", func(t *testing.T) {
 		fileName := fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)
 		urlPath := fmt.Sprintf("/fleetdm/nvd/releases/download/202208290017/%s", fileName)
@@ -89,7 +91,7 @@ func TestGithubClient(t *testing.T) {
 		expectedPath := filepath.Join(dstDir, fileName)
 		url := server.URL + urlPath
 
-		sut := NewGitHubClient(context.Background(), server.Client(), mockGHReleaseLister{}, dstDir)
+		sut := NewGitHubClient(server.Client(), mockGHReleaseLister{}, dstDir)
 		actualPath, err := sut.Download(url)
 		require.NoError(t, err)
 		require.Equal(t, expectedPath, actualPath)
@@ -97,9 +99,9 @@ func TestGithubClient(t *testing.T) {
 	})
 
 	t.Run("#Bulletins", func(t *testing.T) {
-		sut := NewGitHubClient(context.Background(), nil, mockGHReleaseLister{}, t.TempDir())
+		sut := NewGitHubClient(nil, mockGHReleaseLister{}, t.TempDir())
 
-		bulletins, err := sut.Bulletins()
+		bulletins, err := sut.Bulletins(ctx)
 		require.NoError(t, err)
 		require.Len(t, bulletins, 2)
 
