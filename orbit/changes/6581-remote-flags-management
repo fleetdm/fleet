@@ -1,1 +1,2 @@
-* Orbit now enrolls with fleet using it's own orbit_node_key, and periodically checks for new flags (using the new API), and applies them to osquery
+* Orbit now enrolls itself to Fleet using osquery's enroll secret, and periodically checks for new osquery startup flags.
+Important note for existing deployments that use Orbit: If an enroll secret has been revoked, Orbit hosts that were deployed with such secret will fail to enroll to Fleet, thus this feature won't be available until this is fixed. See the following instructions on how to fix this issue [here](TODO...).
