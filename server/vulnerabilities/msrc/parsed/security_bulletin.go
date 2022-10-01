@@ -22,7 +22,7 @@ type SecurityBulletin struct {
 	VendorFixes map[uint]VendorFix
 
 	// Data struct used for telling if two KBID are 'connected'
-	vfForest *wUF
+	vfForest *weightedUnionFind
 }
 
 func NewSecurityBulletin(pName string) *SecurityBulletin {
@@ -92,8 +92,8 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	return nil
 }
 
-func (b *SecurityBulletin) initUF() *wUF {
-	uf := &wUF{}
+func (b *SecurityBulletin) initUF() *weightedUnionFind {
+	uf := &weightedUnionFind{}
 
 	uf.ids = make(map[uint]uint, len(b.VendorFixes))
 	uf.size = make(map[uint]uint16, len(b.VendorFixes))
@@ -114,7 +114,7 @@ func (b *SecurityBulletin) initUF() *wUF {
 	return uf
 }
 
-func (b *SecurityBulletin) getVFForest() *wUF {
+func (b *SecurityBulletin) getVFForest() *weightedUnionFind {
 	if b.vfForest == nil {
 		b.vfForest = b.initUF()
 	}
@@ -131,12 +131,12 @@ func (b *SecurityBulletin) KBIDsConnected(p, q uint) bool {
 }
 
 // ----
-// UF
+// UnionFind
 // ----
 
 // We will be using a weighted union-find data struct for determining whether two KBIDs are 'connected',
 // this will be used for handling cumulative updates.
-type wUF struct {
+type weightedUnionFind struct {
 	// Each 'value' points to the parent of 'key', each key is a KBID
 	ids map[uint]uint
 	// The size of each tree by 'KBID'
@@ -144,7 +144,7 @@ type wUF struct {
 }
 
 // union connects two components (KBID)
-func (uf *wUF) union(p uint, q uint) {
+func (uf *weightedUnionFind) union(p uint, q uint) {
 	pRoot := uf.root(p)
 	qRoot := uf.root(q)
 
@@ -158,7 +158,7 @@ func (uf *wUF) union(p uint, q uint) {
 }
 
 // root returns the root of the 'p' tree
-func (uf *wUF) root(p uint) uint {
+func (uf *weightedUnionFind) root(p uint) uint {
 	if _, ok := uf.ids[p]; !ok {
 		return p
 	}
@@ -173,7 +173,7 @@ func (uf *wUF) root(p uint) uint {
 
 // connected returns whether two components are connected, for example:
 // A -> B -> C -> D; connected(A, C) -> true
-func (uf *wUF) connected(p uint, q uint) bool {
+func (uf *weightedUnionFind) connected(p uint, q uint) bool {
 	return uf.root(p) == uf.root(q)
 }
 
