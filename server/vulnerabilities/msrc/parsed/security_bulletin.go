@@ -92,7 +92,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	return nil
 }
 
-func (b *SecurityBulletin) initUF() *weightedUnionFind {
+func (b *SecurityBulletin) initUnionFind() *weightedUnionFind {
 	uf := &weightedUnionFind{}
 
 	uf.ids = make(map[uint]uint, len(b.VendorFixes))
@@ -116,7 +116,7 @@ func (b *SecurityBulletin) initUF() *weightedUnionFind {
 
 func (b *SecurityBulletin) getVFForest() *weightedUnionFind {
 	if b.vfForest == nil {
-		b.vfForest = b.initUF()
+		b.vfForest = b.initUnionFind()
 	}
 	return b.vfForest
 }
