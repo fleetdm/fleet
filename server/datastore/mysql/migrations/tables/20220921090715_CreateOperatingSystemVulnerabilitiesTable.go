@@ -25,7 +25,6 @@ func Up_20220921090715(tx *sql.Tx) error {
 
 			UNIQUE KEY idx_operating_system_vulnerabilities_unq_cve (host_id, cve),
 			INDEX idx_operating_system_vulnerabilities_operating_system_id_cve (operating_system_id, cve),
-			INDEX idx_operating_system_vulnerabilities_cve (cve)
 		)
 	`)
 	if err != nil {
