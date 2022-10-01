@@ -8,7 +8,6 @@ import (
 const SoftwareVendorMaxLength = 114
 const SoftwareVendorMaxLengthFmt = "%.111s..."
 
-// TODO: Do we need this type?
 type Vulnerabilities []CVE
 
 // Software is a named and versioned piece of software installed on a device.
