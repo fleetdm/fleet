@@ -390,6 +390,7 @@ jobs:
         $serviceName = "Fleet osquery"
         $defaultWaitTime = 2
         $orbitRequiredInitExtraTime = 20
+        $orbitRequiredTeardownExtraTime = 10        
 
         #Test 1 - Check that the service starts without issues
         Stop-Service -Name $serviceName
@@ -400,10 +401,10 @@ jobs:
         Stop-Service -Name $serviceName
         Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #2 failed" } }
 
-        #Test 3 - Check that no orbit.exe is running after service stop
+        #Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
         Start-Service -Name $serviceName
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $defaultWaitTime # shutdown wait time
+        Start-Sleep -Seconds $orbitRequiredTeardownExtraTime # shutdown wait time
         Get-Process | %{ if ($_.Name -eq "orbit") { throw "Test #3 failed" } }
 
         #Test 4 - Check that service starts in less than 3 secs
@@ -416,11 +417,11 @@ jobs:
         Start-Sleep -Seconds $defaultWaitTime
         Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #5 failed" } }
 
-        #Test 6 - Check that no osqueryd process is running once service stops
+        #Test 6 - Check that no osqueryd process is running once service stops (updated after graceful shutdown)
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitRequiredInitExtraTime # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $defaultWaitTime
+        Start-Sleep -Seconds $orbitRequiredTeardownExtraTime
         Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Test #6 failed" } }
 
         #Test 7 - Check that no fleet-desktop process is running once service stops
