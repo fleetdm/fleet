@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -90,31 +93,62 @@ func (ds *Datastore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secre
 	})
 }
 
-func applyEnrollSecretsDB(ctx context.Context, exec sqlx.ExecerContext, teamID *uint, secrets []*fleet.EnrollSecret) error {
-	// TODO(mna): do not delete existing secrets, only ones not present in the
-	// secrets array. For the others, insert the new and no-op update the
-	// existing (keep its existing created_at timestamp).
-	// This is the common implementation for both teams and appconfig.
+func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, secrets []*fleet.EnrollSecret) error {
+	// NOTE: this is called from within a transaction (either from
+	// ApplyEnrollSecrets or saveTeamSecretsDB). We don't do a simple DELETE then
+	// INSERT as we need to keep the existing created_at timestamps of
+	// already-existing secrets. We also can't do a DELETE unused ones and then
+	// UPSERT new ones, because we need to fail the INSERT if the secret already
+	// exists for a different team or globally (i.e. the `secret` column is
+	// unique across all values of team_id, NULL or not). An "ON DUPLICATE KEY
+	// UPDATE" clause would silence such errors.
+	//
+	// For this reason, we first read the existing secrets to have their
+	// created_at timestamps, then we delete and re-insert them, failing the call
+	// if the insert failed (due to a secret existing at a different team/global
+	// level).
 
+	var args []interface{}
+	teamWhere := "team_id IS NULL"
 	if teamID != nil {
-		sql := `DELETE FROM enroll_secrets WHERE team_id = ?`
-		if _, err := exec.ExecContext(ctx, sql, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear before insert")
-		}
-	} else {
-		sql := `DELETE FROM enroll_secrets WHERE team_id IS NULL`
-		if _, err := exec.ExecContext(ctx, sql); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear before insert")
-		}
+		teamWhere = "team_id = ?"
+		args = append(args, *teamID)
 	}
 
-	for _, secret := range secrets {
-		sql := `
-				INSERT INTO enroll_secrets (secret, team_id)
-				VALUES ( ?, ? )
-			`
-		if _, err := exec.ExecContext(ctx, sql, secret.Secret, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert secret")
+	// first, load the existing secrets and their created_at timestamp
+	const loadStmt = `SELECT secret, created_at FROM enroll_secrets WHERE `
+	var existingSecrets []*fleet.EnrollSecret
+	if err := sqlx.SelectContext(ctx, q, &existingSecrets, loadStmt+teamWhere, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "load existing secrets")
+	}
+	secretsCreatedAt := make(map[string]*time.Time, len(existingSecrets))
+	for _, es := range existingSecrets {
+		secretsCreatedAt[es.Secret] = &es.CreatedAt
+	}
+
+	// next, remove all existing secrets for that team or global
+	const delStmt = `DELETE FROM enroll_secrets WHERE `
+	if _, err := q.ExecContext(ctx, delStmt+teamWhere, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear before insert")
+	}
+
+	newSecrets := make([]string, len(secrets))
+	for i, s := range secrets {
+		newSecrets[i] = s.Secret
+	}
+
+	// finally, insert the new secrets, using the existing created_at timestamp
+	// if available.
+	const insStmt = `INSERT INTO enroll_secrets (secret, team_id, created_at) VALUES %s`
+	if len(newSecrets) > 0 {
+		var args []interface{}
+		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?,?,?),`, len(newSecrets)), ","))
+
+		for _, s := range secrets {
+			args = append(args, s.Secret, teamID, secretsCreatedAt[s.Secret])
+		}
+		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert secrets")
 		}
 	}
 	return nil
