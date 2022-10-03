@@ -79,8 +79,8 @@ describe("Query flow (seeded)", () => {
         });
       cy.getAttached(".show-query-modal").within(() => {
         cy.getAttached(".ace_content").within(() => {
-          cy.findByText(/select/i).should("exist");
-          cy.findByText(/cypress/i).should("exist");
+          cy.contains(/select/i).should("exist");
+          cy.contains(/cypress/i).should("exist");
         });
       });
     });
