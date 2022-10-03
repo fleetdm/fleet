@@ -29,8 +29,8 @@ type OrbitClient struct {
 	enrolledMu sync.Mutex
 	enrolled   bool
 
-	lastReqErrMu sync.Mutex
-	lastReqErr   error
+	lastRecordedErrMu sync.Mutex
+	lastRecordedErr   error
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
@@ -54,13 +54,13 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	oc.setClientCapabilitiesHeader(request)
 	response, err := oc.http.Do(request)
 	if err != nil {
-		oc.setLastRequestError(err)
+		oc.setLastRecordedError(err)
 		return fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
 
 	if err := oc.parseResponse(verb, path, response, resp); err != nil {
-		oc.setLastRequestError(err)
+		oc.setLastRecordedError(err)
 		return err
 	}
 	return nil
@@ -226,16 +226,16 @@ func (oc *OrbitClient) setEnrolled(v bool) {
 	oc.enrolled = v
 }
 
-func (oc *OrbitClient) LastRequestError() error {
-	oc.lastReqErrMu.Lock()
-	defer oc.lastReqErrMu.Unlock()
+func (oc *OrbitClient) LastRecordedError() error {
+	oc.lastRecordedErrMu.Lock()
+	defer oc.lastRecordedErrMu.Unlock()
 
-	return oc.lastReqErr
+	return oc.lastRecordedErr
 }
 
-func (oc *OrbitClient) setLastRequestError(err error) {
-	oc.lastReqErrMu.Lock()
-	defer oc.lastReqErrMu.Unlock()
+func (oc *OrbitClient) setLastRecordedError(err error) {
+	oc.lastRecordedErrMu.Lock()
+	defer oc.lastRecordedErrMu.Unlock()
 
-	oc.lastReqErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
+	oc.lastRecordedErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
 }

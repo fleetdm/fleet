@@ -29,7 +29,7 @@ func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
 		table.TextColumn("version"),
 		table.TextColumn("device_auth_token"),
 		table.TextColumn("enrolled"),
-		table.TextColumn("last_request_error"),
+		table.TextColumn("last_recorded_error"),
 	}
 }
 
@@ -39,17 +39,17 @@ func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext
 	if v == "" {
 		v = "unknown"
 	}
-	lastRequestError := ""
-	if err := o.orbitClient.LastRequestError(); err != nil {
-		lastRequestError = err.Error()
+	lastRecordedError := ""
+	if err := o.orbitClient.LastRecordedError(); err != nil {
+		lastRecordedError = err.Error()
 	}
 
 	return []map[string]string{
 		{
-			"version":            v,
-			"device_auth_token":  o.deviceAuthToken,
-			"enrolled":           strconv.FormatBool(o.orbitClient.Enrolled()),
-			"last_request_error": lastRequestError,
+			"version":             v,
+			"device_auth_token":   o.deviceAuthToken,
+			"enrolled":            strconv.FormatBool(o.orbitClient.Enrolled()),
+			"last_recorded_error": lastRecordedError,
 		},
 	}, nil
 }
