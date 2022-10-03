@@ -26,7 +26,7 @@ const Agents = ({
   const { ADMIN_TEAMS } = paths;
 
   const [formData, setFormData] = useState<any>({
-    agentOptions: agentOptionsToYaml(appConfig.agent_options) || {},
+    agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
 
   const { agentOptions } = formData;

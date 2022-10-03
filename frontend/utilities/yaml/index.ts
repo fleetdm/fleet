@@ -11,6 +11,8 @@ export const constructErrorString = (yamlError: IYAMLError) => {
 };
 
 export const agentOptionsToYaml = (agentOpts: any) => {
+  agentOpts ||= {};
+
   // hide the "overrides" key if it is empty
   if (!agentOpts.overrides || Object.keys(agentOpts.overrides).length === 0) {
     delete agentOpts.overrides;
