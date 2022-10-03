@@ -65,6 +65,9 @@
   }
 
   &__back-link {
+    display: flex;
+    align-items: center;
+    height: 20px;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
@@ -73,8 +76,7 @@
     #back-chevron {
       width: 16px;
       height: 16px;
-      margin-right: $pad-small;
-      vertical-align: text-top;
+      margin: 0 $pad-small 0 0;
     }
   }
 
