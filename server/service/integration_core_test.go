@@ -83,6 +83,20 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
 }
 
+func (s *integrationTestSuite) TestUserEmailValidation() {
+	params := fleet.UserPayload{
+		Name:       ptr.String("user_invalid_email"),
+		Email:      ptr.String("invalid"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+
+	params.Email = ptr.String("user_valid_mail@example.com")
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
+}
+
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
