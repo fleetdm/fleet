@@ -106,6 +106,31 @@ func TestValidateAgentOptions(t *testing.T) {
 				"yara_malloc_trim": true
 			}
 		}}`, `unknown field "yara_malloc_trim"`},
+		{"valid command-line flag", `{"command_line_flags":{
+			"alarm_timeout": 1
+		}}`, ``},
+		{"invalid command-line flag", `{"command_line_flags":{
+			"no_such_flag": true
+		}}`, `unknown field "no_such_flag"`},
+		{"invalid command-line value", `{"command_line_flags":{
+			"enable_tables": 123
+		}}`, `cannot unmarshal number into Go struct field osqueryCommandLineFlags.enable_tables of type string`},
+		{"setting a valid os-specific flag", `{"command_line_flags":{
+			"users_service_delay": 123
+		}}`, ``},
+		{"setting a valid os-specific option", `{"config":{
+			"options": {
+				"users_service_delay": 123
+			}
+		}}`, ``},
+		{"setting an invalid value for an os-specific flag", `{"command_line_flags":{
+			"disable_endpointsecurity": "ok"
+		}}`, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.disable_endpointsecurity of type bool`},
+		{"setting an invalid value for an os-specific option", `{"config":{
+			"options": {
+				"disable_endpointsecurity": "ok"
+			}
+		}}`, `common config: json: cannot unmarshal string into Go struct field osqueryOptions.options.disable_endpointsecurity of type bool`},
 	}
 
 	for _, c := range cases {
