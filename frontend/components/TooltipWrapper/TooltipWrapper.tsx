@@ -4,7 +4,7 @@ interface ITooltipWrapperProps {
   children: string;
   tipContent: string;
   position?: "top" | "bottom";
-  tipDelay?: boolean;
+  isDelayed?: boolean;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -13,9 +13,9 @@ const TooltipWrapper = ({
   children,
   tipContent,
   position = "bottom",
-  tipDelay,
+  isDelayed,
 }: ITooltipWrapperProps): JSX.Element => {
-  const tipClass = tipDelay
+  const tipClass = isDelayed
     ? `${baseClass}__tip-text delayed-tip`
     : `${baseClass}__tip-text`;
 

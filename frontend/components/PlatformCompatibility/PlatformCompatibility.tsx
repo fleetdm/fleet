@@ -67,7 +67,7 @@ const PlatformCompatibility = ({
       <b>
         <TooltipWrapper
           tipContent="Estimated compatiblity based on <br /> the tables used in the query."
-          tipDelay
+          isDelayed
         >
           Compatible with:
         </TooltipWrapper>
