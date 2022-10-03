@@ -452,6 +452,8 @@ func (e *EnrollSecret) AuthzType() string {
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
+	// Maximum number of enroll secrets that can be set per team, or globally.
+	MaxEnrollSecretsCount = 1000
 )
 
 // EnrollSecretSpec is the fleetctl spec type for enroll secrets.

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -155,6 +156,14 @@ var testUsers = map[string]struct {
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
+}
+
+func createEnrollSecrets(t *testing.T, count int) []*fleet.EnrollSecret {
+	secrets := make([]*fleet.EnrollSecret, count)
+	for i := 0; i < count; i++ {
+		secrets[i] = &fleet.EnrollSecret{Secret: fmt.Sprintf("testSecret%d", i)}
+	}
+	return secrets
 }
 
 type mockMailService struct {

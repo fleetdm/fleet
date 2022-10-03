@@ -4474,6 +4474,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	// apply spec, too many secrets
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
+		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
 	// get enroll secrets, one
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 1)
