@@ -522,90 +522,7 @@ module.exports = {
 
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
 
-        let osquerySchemaJsonPath = path.resolve(topLvlRepoPath+'/frontend', 'osquery_tables.json');
-        let rawOsqueryTables = await sails.helpers.fs.readJson(osquerySchemaJsonPath);
-        let fleetOverridesForTables = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
-
-        let expandedTables = []; // create an empty array for the merged schema.
-
-        for(let osquerySchemaTable of rawOsqueryTables) {
-
-          let fleetOverridesForTable = _.find(fleetOverridesForTables, {'name': osquerySchemaTable.name}); // Setting a flag if this table exists in the Fleet overrrides JSON
-          let expandedTableToPush = Object.assign({}, osquerySchemaTable);
-
-          if(!fleetOverridesForTable) {
-            if(_.endsWith(osquerySchemaTable.name, '_events')) {// Make sure that all tables that have names ending in '_events' have evented: true
-              expandedTableToPush.evented = true;// FUTURE: fix this in the main osquery schema so that they always have evented: true
-            }
-            expandedTables.push(expandedTableToPush);
-          } else { // If this table exists in the Fleet overrides schema, we'll override the values
-            if(fleetOverridesForTable.platforms !== undefined) {
-              expandedTableToPush.platforms = _.clone(fleetOverridesForTable.platforms);
-            }
-            if(fleetOverridesForTable.description !== undefined){
-              expandedTableToPush.description = _.clone(fleetOverridesForTable.description);
-            }
-            if(fleetOverridesForTable.examples !== undefined){
-              expandedTableToPush.examples = _.clone(fleetOverridesForTable.examples);
-            }
-            if(fleetOverridesForTable.notes !== undefined){
-              expandedTableToPush.notes = _.clone(fleetOverridesForTable.notes);
-            }
-            let mergedTableColumns = [];
-            for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
-              if(!fleetOverridesForTable.columns) { // If there are no column overrides for this table, we'll add the column unchanged.
-                mergedTableColumns.push(osquerySchemaColumn);
-              } else {// If the fleet overrides JSON has column data for this table, we'll find the matching column and use the values from the Fleet overrides in the final schema.
-                let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});
-                if(!columnHasFleetOverrides) {// If this column has no fleet overrides, we'll add it to the final schema unchanged
-                  mergedTableColumns.push(osquerySchemaColumn);
-                } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
-                  let fleetColumn = Object.assign({}, osquerySchemaColumn);
-                  if(columnHasFleetOverrides.platforms !== undefined) {
-                    let platformWithNormalizedNames = [];
-                    for(let platform of columnHasFleetOverrides.platforms){
-                      if(platform === 'darwin') {
-                        platformWithNormalizedNames.push('macOS');
-                      } else {
-                        platformWithNormalizedNames.push(_.capitalize(platform));
-                      }
-                    }
-                    fleetColumn.platforms = platformWithNormalizedNames;
-                  }
-                  if(columnHasFleetOverrides.description !== undefined) {
-                    if(typeof columnHasFleetOverrides.description === 'string') {
-                      fleetColumn.description = _.clone(columnHasFleetOverrides.description);
-                    } else {
-                      fleetColumn.description = '';
-                    }
-                  }
-                  if(columnHasFleetOverrides.type !== undefined) {
-                    fleetColumn.type = _.clone(columnHasFleetOverrides.type);
-                  }
-                  if(columnHasFleetOverrides.required !== undefined) {
-                    fleetColumn.required = _.clone(columnHasFleetOverrides.required);
-                  }
-                  if(columnHasFleetOverrides.hidden !== true) { // If the overrides don't explicitly hide a column, we'll set the value to false to make sure the column is visible on fleetdm.com
-                    fleetColumn.hidden = false;
-                  }
-                  mergedTableColumns.push(fleetColumn);
-                }
-              }
-            }//∞ After each column
-            expandedTableToPush.columns = mergedTableColumns;
-            expandedTables.push(expandedTableToPush);
-          }
-        }//∞ After each table
-
-        // After we've gone through the tables in the Osquery schema, we'll go through the tables in the Fleet schema JSON, and add any tables that don't exist in the osquery schema.
-        for (let fleetOverridesForTable of fleetOverridesForTables) {
-          let fleetSchemaTableExistsInOsquerySchema = _.find(rawOsqueryTables, (table)=>{
-            return fleetOverridesForTable.name === table.name;
-          });
-          if(!fleetSchemaTableExistsInOsquerySchema) { // If a table in the Fleet schema does not exist in the osquery schema, we'll add it to the final schema.
-            expandedTables.push(fleetOverridesForTable);
-          }
-        }
+        let expandedTables = await sails.helpers.getExtendedOsquerySchema();
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
@@ -670,7 +587,7 @@ module.exports = {
             ).replace(/[^a-z0-9\-]/ig,'');
 
             // Convert the markdown string to HTML.
-            let htmlString = await sails.helpers.strings.toHtml(tableMdString);
+            let htmlString = await sails.helpers.strings.toHtml.with({mdString: tableMdString, addIdsToHeadings: false});
 
             // Add the language-sql class to codeblocks in generated HTML partial for syntax highlighting.
             htmlString = htmlString.replace(/(<pre><code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3');
@@ -686,9 +603,10 @@ module.exports = {
               url: '/tables/'+encodeURIComponent(table.name),
               title: table.name,
               htmlId: htmlId,
+              evented: table.evented,
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
-              sectionRelativeRepoPath: table.name // Setting the sectionRelativeRepoPath to an arbitratry string to work with existing pages.
+              sectionRelativeRepoPath: table.name // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.
             });
           }
         }

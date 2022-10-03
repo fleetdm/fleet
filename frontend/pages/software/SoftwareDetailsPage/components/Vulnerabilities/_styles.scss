@@ -4,7 +4,7 @@
     display: flex;
     align-items: center;
     padding-bottom: $pad-small;
-    height: 16px;
+    height: 20px;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
@@ -14,7 +14,7 @@
   #back-chevron {
     width: 16px;
     height: 16px;
-    margin-right: $pad-small;
+    margin: 0 $pad-small 0 0;
   }
 
   #right-chevron {

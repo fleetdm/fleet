@@ -132,6 +132,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
 
+	// invalid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"nope": 1}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+
+	// valid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"enable_tables": "abcd"}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"enable_tables": "abcd"`)
+
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)

@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 
@@ -26,6 +25,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -35,7 +36,6 @@ import (
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -260,6 +260,12 @@ func main() {
 			g            run.Group
 		)
 
+		// List of interrupt functions to call during service teardown
+		var interruptFunctions []func(err error)
+
+		// Setting up the system service management early on the process lifetime
+		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &interruptFunctions)
+
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
@@ -297,6 +303,7 @@ func main() {
 				log.Info().Msg("exiting due to successful early update")
 				return nil
 			}
+
 			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
 			osquerydLocalTarget, err := updater.Get("osqueryd")
@@ -484,32 +491,27 @@ func main() {
 
 		}
 
-		capabilities := fleet.CapabilityMap{}
-
-		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
-
+		orbitClient, err := service.NewOrbitClient(
+			c.String("root-dir"),
+			fleetURL,
+			c.String("fleet-certificate"),
+			c.Bool("insecure"),
+			enrollSecret,
+			uuidStr,
+		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
-		orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
-		if err != nil {
-			return fmt.Errorf("error enroll: %w", err)
-		}
-
 		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+		flagRunner := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
 			CheckInterval: orbitFlagsUpdateInterval,
 			RootDir:       c.String("root-dir"),
-			OrbitNodeKey:  orbitNodeKey,
 		})
-		if err != nil {
-			return err
-		}
-		// do the initial flags update
-		_, err = flagRunner.DoFlagsUpdate()
-		if err != nil {
-			// just log, OK to continue, since we will retry
-			log.Info().Err(err).Msg("Initial flags update failed")
+		// Try performing a flags update to use latest configured osquery flags from get-go.
+		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
+			// Just log, OK to continue, since flagRunner will retry
+			// in flagRunner.Execute.
+			log.Info().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
@@ -543,7 +545,18 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
+		// Only osquery runner is being interrupted
+		// This ends up forcing the rest of the interrupt functions in the runner group to get called
+		interruptFunctions = append(interruptFunctions, r.Interrupt)
+
+		registerExtensionRunner(
+			&g,
+			r.ExtensionSocketPath(),
+			table.WithExtension(orbitInfoExtension{
+				orbitClient:     orbitClient,
+				deviceAuthToken: deviceAuthToken,
+			}),
+		)
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -553,7 +566,7 @@ func main() {
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
+		g.Add(signalHandler(ctx))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
@@ -567,10 +580,8 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
-	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
-		deviceAuthToken: deviceAuthToken,
-	}))
+func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt) {
+	ext := table.NewRunner(extSockPath, opts...)
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
@@ -612,6 +623,11 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
 
+	log.Info().Msg("killing any pre-existing fleet-desktop instances")
+	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, platform.ErrProcessNotFound) {
+		log.Error().Err(err).Msg("killProcess")
+	}
+
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -647,10 +663,10 @@ func (d *desktopRunner) execute() error {
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
 		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
-			switch _, err := getProcessByName(constant.DesktopAppExecName); {
+			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
-			case errors.Is(err, errProcessNotFound):
+			case errors.Is(err, platform.ErrProcessNotFound):
 				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
 				return false // process is not running, do not retry.
 			default:
@@ -689,7 +705,7 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
+	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }
@@ -731,43 +747,6 @@ func getUUID(osqueryPath string) (string, error) {
 		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
 	}
 	return uuids[0].UuidString, nil
-
-}
-
-// getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
-// otherwise it enrolls the host with Fleet and saves the node key to disk
-func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (string, error) {
-	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
-	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
-	switch {
-	case err == nil:
-		return string(orbitNodeKey), nil
-	case errors.Is(err, fs.ErrNotExist):
-		// OK
-	default:
-		return "", fmt.Errorf("read orbit node key file: %w", err)
-	}
-	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
-		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath)
-		if err != nil {
-			log.Info().Err(err).Msg("enroll failed, retrying")
-			time.Sleep(constant.OrbitEnrollRetrySleep)
-			continue
-		}
-		return orbitNodeKey, nil
-	}
-	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
-}
-
-func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath string) (string, error) {
-	orbitNodeKey, err := orbitClient.DoEnroll()
-	if err != nil {
-		return "", fmt.Errorf("enroll request: %w", err)
-	}
-	if err := os.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
-		return "", fmt.Errorf("write orbit node key file: %w", err)
-	}
-	return orbitNodeKey, nil
 }
 
 func loadOrGenerateToken(rootDir string) (string, error) {
@@ -788,42 +767,6 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 	default:
 		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
 	}
-}
-
-func killProcessByName(name string) error {
-	foundProcess, err := getProcessByName(name)
-	if err != nil {
-		return fmt.Errorf("get process: %w", err)
-	}
-	if err := foundProcess.Kill(); err != nil {
-		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-	}
-	return nil
-}
-
-var errProcessNotFound = errors.New("process not found")
-
-func getProcessByName(name string) (*gopsutil_process.Process, error) {
-	processes, err := gopsutil_process.Processes()
-	if err != nil {
-		return nil, err
-	}
-	var foundProcess *gopsutil_process.Process
-	for _, process := range processes {
-		processName, err := process.Name()
-		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
-			continue
-		}
-		if strings.HasPrefix(processName, name) {
-			foundProcess = process
-			break
-		}
-	}
-	if foundProcess == nil {
-		return nil, errProcessNotFound
-	}
-	return foundProcess, nil
 }
 
 var versionCommand = &cli.Command{

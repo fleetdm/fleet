@@ -24,6 +24,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// safeStore is a wrapper around mock.Store to allow for concurrent calling to
+// AppConfig, in the past we have seen this test fail with a data race warning.
+//
+// TODO: if we see other tests failing for similar reasons, we should build a
+// more robust pattern instead of doing this everywhere
+type safeStore struct {
+	mock.Store
+	mu sync.Mutex
+}
+
+func (s *safeStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+	s.mu.Lock()
+	s.AppConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigFunc(ctx)
+}
+
 func TestMaybeSendStatistics(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -131,7 +148,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 }
 
 func TestAutomationsSchedule(t *testing.T) {
-	ds := new(mock.Store)
+	ds := new(safeStore)
 
 	endpointCalled := int32(0)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -314,7 +331,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 // for the current automation crons and that their duration is equal to the current
 // schedule interval.
 func TestAutomationsScheduleLockDuration(t *testing.T) {
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	expectedInterval := 1 * time.Second
 
 	intitalConfigLoaded := make(chan struct{}, 1)
@@ -380,7 +397,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 }
 
 func TestAutomationsScheduleIntervalChange(t *testing.T) {
-	ds := new(mock.Store)
+	ds := new(safeStore)
 
 	interval := struct {
 		sync.Mutex

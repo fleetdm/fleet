@@ -307,7 +307,7 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
-	// DisableAuthForPing is used by the /orbit_ping and /device_ping endpoints
+	// DisableAuthForPing is used by the /orbit/ping and /device/ping endpoints
 	// to bypass authentication, as they are public
 	DisableAuthForPing(ctx context.Context)
 

@@ -305,6 +305,7 @@ CREATE TABLE `hosts` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_osquery_host_id` (`osquery_host_id`),
   UNIQUE KEY `idx_host_unique_nodekey` (`node_key`),
+  UNIQUE KEY `idx_host_unique_orbitnodekey` (`orbit_node_key`),
   KEY `fk_hosts_team_id` (`team_id`),
   KEY `hosts_platform_idx` (`platform`),
   FULLTEXT KEY `hosts_search` (`hostname`,`uuid`),

@@ -242,7 +242,7 @@ describe(
         cy.findByText(/all hosts/i).click();
         cy.findByText(/host targeted/i).should("exist"); // target count
         cy.findByText(/run/i).click();
-        cy.findByText(/querying selected hosts/i).should("exist"); // target count
+        cy.findByText(/querying selected host/i).should("exist"); // target count
       });
     });
     describe("Manage policies page", () => {
