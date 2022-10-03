@@ -27,7 +27,7 @@ Conveniently, you can store the `env` file as `fleet_env` in the `path/to/fleet/
 Next, set the `FLEET_ENV_PATH` to point to the `env` file using the command line.
 
 ```
-export FLEET_ENV_PATH=path/to/fleet/code/fleet-api-env/fleet_env
+export FLEET_ENV_PATH=./code/fleet-api-env/fleet_env
 ```
 
 This will let the scripts in the `/tools/api/fleet/` folder source the `env` file.
