@@ -67,7 +67,6 @@ import {
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import {
-  ALL_HOSTS_LABEL,
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
@@ -249,10 +248,9 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
-  const status =
-    queryParams?.status !== "" && isAcceptableStatus(queryParams?.status)
-      ? queryParams?.status
-      : undefined;
+  const status = isAcceptableStatus(queryParams?.status)
+    ? queryParams?.status
+    : undefined;
   const mdmId =
     queryParams?.mdm_id !== undefined
       ? parseInt(queryParams?.mdm_id, 10)
@@ -548,15 +546,10 @@ const ManageHostsPage = ({
     }
 
     const { MANAGE_HOSTS } = PATHS;
-    const isAllHosts = slug === ALL_HOSTS_LABEL;
+    const isAllHosts = !status;
     const newFilters = [...selectedFilters];
 
     if (!isAllHosts) {
-      // always remove "all-hosts" from the filters first because we don't want
-      // something like ["label/8", "all-hosts"]
-      const allIndex = newFilters.findIndex((f) => f.includes(ALL_HOSTS_LABEL));
-      allIndex > -1 && newFilters.splice(allIndex, 1);
-
       // replace slug for new params
       let index;
       if (slug.includes(LABEL_SLUG_PREFIX)) {
@@ -1606,7 +1599,7 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
-          value={status || ALL_HOSTS_LABEL}
+          value={status || ""}
           className={`${baseClass}__status_dropdown`}
           options={HOST_SELECT_STATUSES}
           searchable={false}

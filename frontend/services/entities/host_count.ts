@@ -1,6 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
@@ -17,7 +18,7 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: "online" | "offline" | "new";
+  status?: HostStatus;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;

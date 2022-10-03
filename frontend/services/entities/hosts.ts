@@ -1,12 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IHost } from "interfaces/host";
+import { IHost, HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
-  getStatusParam,
 } from "utilities/url";
 
 export interface ISortOption {
@@ -24,7 +23,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  status?: "online" | "offline" | "new";
+  status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   osId?: number;
@@ -46,7 +45,7 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  status?: "online" | "offline" | "new";
+  status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
