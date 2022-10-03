@@ -142,10 +142,15 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 	const insStmt = `INSERT INTO enroll_secrets (secret, team_id, created_at) VALUES %s`
 	if len(newSecrets) > 0 {
 		var args []interface{}
+		defaultCreatedAt := time.Now()
 		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?,?,?),`, len(newSecrets)), ","))
 
 		for _, s := range secrets {
-			args = append(args, s.Secret, teamID, secretsCreatedAt[s.Secret])
+			secretCreatedAt := defaultCreatedAt
+			if ts := secretsCreatedAt[s.Secret]; ts != nil {
+				secretCreatedAt = *ts
+			}
+			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert secrets")
