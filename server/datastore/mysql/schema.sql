@@ -398,11 +398,16 @@ CREATE TABLE `locks` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `mdm_apple_enrollments` (
+CREATE TABLE `mdm_apple_enrollment_profiles` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `dep_config` json DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `token` varchar(36) DEFAULT NULL,
+  `type` varchar(10) NOT NULL DEFAULT 'automatic',
+  `dep_profile` json DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_type` (`type`),
+  UNIQUE KEY `idx_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
