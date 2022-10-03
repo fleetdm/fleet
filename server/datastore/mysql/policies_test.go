@@ -357,7 +357,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.AuthorID)
 	assert.Equal(t, user1.ID, *p2.AuthorID)
 
-	teamPolicies, err := ds.ListTeamPolicies(context.Background(), team1.ID)
+	teamPolicies, _, err := ds.ListTeamPolicies(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	assert.Equal(t, q.Name, teamPolicies[0].Name)
@@ -366,7 +366,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].AuthorID)
 	require.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
 
-	team2Policies, err := ds.ListTeamPolicies(context.Background(), team2.ID)
+	team2Policies, _, err := ds.ListTeamPolicies(context.Background(), team2.ID)
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	assert.Equal(t, q2.Name, team2Policies[0].Name)
@@ -378,7 +378,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(context.Background(), team1.ID, []uint{teamPolicies[0].ID})
 	require.NoError(t, err)
 
-	teamPolicies, err = ds.ListTeamPolicies(context.Background(), team1.ID)
+	teamPolicies, _, err = ds.ListTeamPolicies(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 0)
 }
@@ -471,7 +471,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p2.AuthorID)
 	assert.Equal(t, user1.ID, *p2.AuthorID)
 
-	teamPolicies, err := ds.ListTeamPolicies(ctx, team1.ID)
+	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	assert.Equal(t, "query1", teamPolicies[0].Name)
@@ -482,7 +482,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].AuthorID)
 	require.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
 
-	team2Policies, err := ds.ListTeamPolicies(context.Background(), team2.ID)
+	team2Policies, _, err := ds.ListTeamPolicies(context.Background(), team2.ID)
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	assert.Equal(t, "query2", team2Policies[0].Name)
@@ -505,7 +505,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 
 	_, err = ds.DeleteTeamPolicies(context.Background(), team1.ID, []uint{teamPolicies[0].ID})
 	require.NoError(t, err)
-	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 0)
 
@@ -517,7 +517,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Resolution:  "query2 other resolution",
 	})
 	require.NoError(t, err)
-	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	assert.Equal(t, "query1", teamPolicies[0].Name)
@@ -977,7 +977,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 
 	checkPassingCount := func(expectedCount uint) {
-		policies, err := ds.ListTeamPolicies(context.Background(), team1.ID)
+		policies, _, err := ds.ListTeamPolicies(context.Background(), team1.ID)
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
 
@@ -988,7 +988,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		require.Len(t, policies, 1)
 		assert.Equal(t, uint(2), policies[0].PassingHostCount)
 
-		policies, err = ds.ListTeamPolicies(context.Background(), team2.ID)
+		policies, _, err = ds.ListTeamPolicies(context.Background(), team2.ID)
 		require.NoError(t, err)
 		require.Len(t, policies, 0)
 	}
@@ -1062,7 +1062,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
 
-	teamPolicies, err := ds.ListTeamPolicies(ctx, team1.ID)
+	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 	assert.Equal(t, "query2", teamPolicies[0].Name)
@@ -1114,7 +1114,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	policies, err = ds.ListGlobalPolicies(ctx)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
-	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 
@@ -1150,7 +1150,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
 
-	teamPolicies, err = ds.ListTeamPolicies(ctx, team1.ID)
+	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 2)
 
@@ -1526,7 +1526,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gpols, 2)
 	// load the team policies
-	tpols, err := ds.ListTeamPolicies(ctx, tm.ID)
+	tpols, _, err := ds.ListTeamPolicies(ctx, tm.ID)
 	require.NoError(t, err)
 	require.Len(t, tpols, 2)
 

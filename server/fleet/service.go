@@ -504,7 +504,7 @@ type Service interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
