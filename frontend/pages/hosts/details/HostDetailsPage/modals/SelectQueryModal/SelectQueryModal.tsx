@@ -93,7 +93,9 @@ const SelectQueryModal = ({
             Expecting to see queries? Try again in a few seconds as the system
             catches up.
           </span>
-          {!isOnlyObserver && customQueryButton()}
+          <div className="modal-cta-wrap">
+            {!isOnlyObserver && customQueryButton()}
+          </div>
         </div>
       );
     }
