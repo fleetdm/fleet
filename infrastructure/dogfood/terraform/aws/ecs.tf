@@ -51,8 +51,13 @@ resource "aws_alb_listener" "https-fleetdm" {
   certificate_arn   = aws_acm_certificate_validation.dogfood_fleetdm_com.certificate_arn
 
   default_action {
-    target_group_arn = aws_alb_target_group.main.arn
-    type             = "forward"
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Unauthorized"
+      status_code  = "401"
+    }
   }
 }
 
@@ -68,6 +73,32 @@ resource "aws_alb_listener" "http" {
       port        = "443"
       protocol    = "HTTPS"
       status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_alb_listener_rule" "only_osquery" {
+  listener_arn = aws_alb_listener.https-fleetdm.arn
+  action {
+    type = "forward"
+    target_group_arn = aws_alb_target_group.main.arn
+  }
+  condition {
+    path_pattern {
+      values = ["/api/v1/osquery*"]
+    }
+  }
+}
+
+resource "aws_alb_listener_rule" "console_access" {
+  listener_arn = aws_alb_listener.https-fleetdm.arn
+  action {
+    type = "forward"
+    target_group_arn = aws_alb_target_group.main.arn
+  }
+  condition {
+    source_ip {
+      values = ["0.0.0.0/0", "10.0.0.0/8"]
     }
   }
 }
