@@ -130,6 +130,7 @@ spec:
           logger_tls_period: 10
           pack_delimiter: /
       overrides: {}
+      command_line_flags: {}
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
@@ -194,6 +195,7 @@ spec:
         logger_tls_period: 10
         pack_delimiter: /
     overrides: {}
+    command_line_flags: {}
   features:
     enable_host_users: true
     enable_software_inventory: true

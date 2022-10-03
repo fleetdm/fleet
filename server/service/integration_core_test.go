@@ -4412,6 +4412,36 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
 
+	// set valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":"table1"}}
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// set invalid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"no_such_flag":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.NotContains(t, string(*acResp.AgentOptions), `"no_such_flag"`)
+
+	// set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// force-set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusOK, &acResp, "force", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": true`)
+
 	// dry-run valid appconfig that uses legacy settings (returns error)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"host_settings": { "additional_queries": {"foo": "bar"} }
