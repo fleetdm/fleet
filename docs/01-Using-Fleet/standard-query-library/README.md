@@ -4,7 +4,7 @@ Fleet's [standard query library](https://fleetdm.com/queries) includes a growing
 
 ## Importing the queries in Fleet
 
-After cloning the fleetdm/fleet repo, import the queries using [fleetctl](../Using-Fleet/fleetctl-CLI.md):
+After cloning the fleetdm/fleet repo, import the queries using [fleetctl](../../Using-Fleet/fleetctl-CLI.md):
 
 ```
 fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
