@@ -33,16 +33,12 @@ func ChmodExecutable(path string) error {
 
 // SignalProcessBeforeTerminate just force terminate the target process
 // Signaling is the child process before termination is not supported on non-windows OSes
-func SignalProcessBeforeTerminate(channelID string, processName string) error {
-	if channelID == "" {
-		return errors.New("channelID should not be empty")
-	}
-
+func SignalProcessBeforeTerminate(processName string) error {
 	if processName == "" {
 		return errors.New("processName should not be empty")
 	}
 
-	if err := KillProcessByName(constant.DesktopAppExecName); err != nil {
+	if err := KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, ErrProcessNotFound) {
 		return fmt.Errorf("There was an error kill target process %s: %w", processName, err)
 	}
 

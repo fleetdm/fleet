@@ -108,30 +108,37 @@ func blockWaitForStopEvent(channelId string) error {
 	}
 
 	// converting go string to UTF16 windows compatible string
-	targetChannel := "Global\\fleet-" + channelId
+	targetChannel := "Global\\comm-" + channelId
 	ev, err := windows.UTF16PtrFromString(targetChannel)
 	if err != nil {
 		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
 	}
 
+	log.Info().Msg("Comm channel was acquired ")
+
 	// The right to use the object for synchronization
 	// https://learn.microsoft.com/en-us/windows/win32/sync/synchronization-object-security-and-access-rights
 	const EVENT_SYNCHRONIZE = 0x00100000
 
-	// OpenEvent Api opens a named event object from the kernel object manager
-	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openeventw
-	h, err := windows.OpenEvent(EVENT_SYNCHRONIZE, false, ev)
-	if (err != nil) && (err != windows.ERROR_SUCCESS) {
-		return fmt.Errorf("there was a problem calling OpenEvent: %w", err)
+	// block wait until channel is available is available
+	var handle windows.Handle = windows.InvalidHandle
+	for {
+		// OpenEvent API opens a named event object from the kernel object manager
+		// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openeventw
+		handle, err = windows.OpenEvent(EVENT_SYNCHRONIZE, false, ev)
+		if (err == nil) && (handle != windows.InvalidHandle) {
+			break
+		}
+
+		// wait before next handle check
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	if h == windows.InvalidHandle {
-		return errors.New("event handle is invalid")
-	}
+	defer windows.CloseHandle(handle)
 
-	// now block waiting for the handle to be signaled by Orbit
+	// now block wait for the handle to be signaled by Orbit
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
-	s, err := windows.WaitForSingleObject(h, windows.INFINITE)
+	s, err := windows.WaitForSingleObject(handle, windows.INFINITE)
 	if (err != nil) && (err != windows.ERROR_SUCCESS) {
 		return fmt.Errorf("there was a problem calling CreateEvent: %w", err)
 	}

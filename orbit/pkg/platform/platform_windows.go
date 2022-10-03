@@ -65,7 +65,7 @@ func signalThroughNamedEvent(channelId string) error {
 	}
 
 	// converting go string to UTF16 windows compatible string
-	targetChannel := "Global\\fleet-" + channelId
+	targetChannel := "Global\\comm-" + channelId
 	ev, err := windows.UTF16PtrFromString(targetChannel)
 	if err != nil {
 		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
@@ -86,7 +86,7 @@ func signalThroughNamedEvent(channelId string) error {
 
 	// signaling the event
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-setevent
-	err = windows.SetEvent(h)
+	err = windows.PulseEvent(h)
 	if (err != nil) && (err != windows.ERROR_SUCCESS) {
 		return fmt.Errorf("there was an issue signaling the event: %w", err)
 	}
@@ -99,20 +99,16 @@ func signalThroughNamedEvent(channelId string) error {
 
 // SignalProcessBeforeTerminate signals a named event kernel object
 // before force terminate a process
-func SignalProcessBeforeTerminate(channelID string, processName string) error {
-	if channelID == "" {
-		return errors.New("channelID should not be empty")
-	}
-
+func SignalProcessBeforeTerminate(processName string) error {
 	if processName == "" {
 		return errors.New("processName should not be empty")
 	}
 
-	if err := signalThroughNamedEvent(channelID); err != nil {
-		return fmt.Errorf("There was an error signalling the named event: %w", err)
+	if err := signalThroughNamedEvent(processName); err != nil {
+		return ErrComChannelNotFound
 	}
 
-	foundProcess, err := GetProcessByName(constant.DesktopAppExecName)
+	foundProcess, err := GetProcessByName(processName)
 	if err != nil {
 		return fmt.Errorf("get process: %w", err)
 	}

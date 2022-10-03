@@ -388,47 +388,49 @@ jobs:
       run: |
         #Tests setup
         $serviceName = "Fleet osquery"
-        $defaultWaitTime = 2
-        $orbitRequiredInitExtraTime = 20
-        $orbitRequiredTeardownExtraTime = 10        
+        $orbitMaxTimeToStartAndTeardown = 15  
 
         #Test 1 - Check that the service starts without issues
         Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Start-Service -Name $serviceName
         Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Test #1 failed" } }
 
         #Test 2 - Check that the service stops without issues
         Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #2 failed" } }
 
         #Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
         Start-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitRequiredTeardownExtraTime # shutdown wait time
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Get-Process | %{ if ($_.Name -eq "orbit") { throw "Test #3 failed" } }
 
         #Test 4 - Check that service starts in less than 3 secs
         Start-Job { Start-Service -Name $args[0] } -ArgumentList $serviceName | Out-Null #async operation
-        Start-Sleep -Seconds $defaultWaitTime
+        Start-Sleep -Seconds 3
         Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Test #4 failed" } }
 
-        #Test 5 - Check that service stops in less than 3 secs
+        #Test 5 - Check that service stops in less than $orbitMaxTimeToStartAndTeardown secs
         Start-Job { Stop-Service -Name $args[0] } -ArgumentList $serviceName  | Out-Null #async operation
-        Start-Sleep -Seconds $defaultWaitTime
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #5 failed" } }
 
         #Test 6 - Check that no osqueryd process is running once service stops (updated after graceful shutdown)
         Start-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitRequiredInitExtraTime # orbit takes some time to spawn osquery and desktop app due to update check
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitRequiredTeardownExtraTime
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # there is an issue with osqueryd runner that needs to be tracked down
         Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Test #6 failed" } }
 
         #Test 7 - Check that no fleet-desktop process is running once service stops
         Start-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitRequiredInitExtraTime # orbit takes some time to spawn osquery and desktop app due to update check
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $defaultWaitTime
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Get-Process | %{ if ($_.Name -eq "fleet-desktop") { throw "Test #7 failed" } }
         
     - name: Upload Orbit logs

@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -26,7 +27,7 @@ import (
 // version is set at compile time via -ldflags
 var version = "unknown"
 
-func setupRunners(channelID string) {
+func setupRunners() {
 	var runnerGroup run.Group
 
 	// Setting up a watcher for the communication channel
@@ -34,7 +35,7 @@ func setupRunners(channelID string) {
 		runnerGroup.Add(
 			func() error {
 				// block wait on the communication channel
-				if err := blockWaitForStopEvent(channelID); err != nil {
+				if err := blockWaitForStopEvent(constant.DesktopAppExecName); err != nil {
 					log.Error().Err(err).Msg("There was an error on the desktop communication channel")
 					return err
 				}
@@ -104,7 +105,7 @@ func main() {
 	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
 	// Setting up working runners such as signalHandler runner
-	go setupRunners(commChannelID)
+	go setupRunners()
 
 	onReady := func() {
 		log.Info().Msg("ready")

@@ -256,16 +256,19 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			osquerydPath      string
-			desktopPath       string
-			g                 run.Group
-			shutdownFunctions []func(err error) // List of functions to call during service teardown
-			appDoneCh         chan struct{}     // closed when runner run.group.Run() returns
+			osquerydPath string
+			desktopPath  string
+			g            run.Group
+			appDoneCh    chan struct{} // closed when runner run.group.Run() returns
 		)
 
 		// Setting up the system service management early on the process lifetime
 		appDoneCh = make(chan struct{})
-		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &shutdownFunctions, appDoneCh)
+
+		// Initializing service runner and system service manager
+		systemChecker := newSystemChecker()
+		g.Add(systemChecker.Execute, systemChecker.Interrupt)
+		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -407,6 +410,7 @@ func main() {
 						Str("target", c.String("fleet-url")).
 						Msg("using insecure TLS proxy")
 					err := proxy.InsecureServeTLS()
+
 					return err
 				},
 				func(error) {
@@ -559,10 +563,6 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		// Only osquery runner is being interrupted
-		// This ends up forcing the rest of the interrupt functions in the runner group to get called
-		shutdownFunctions = append(shutdownFunctions, r.Interrupt)
-
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
@@ -609,7 +609,6 @@ type desktopRunner struct {
 	deviceAuthToken string
 	fleetRootCA     string
 	insecure        bool
-	commChannelID   string
 	interruptCh     chan struct{} // closed when interrupt is triggered
 	executeDoneCh   chan struct{} // closed when execute returns
 }
@@ -621,7 +620,6 @@ func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string
 		deviceAuthToken: deviceAuthToken,
 		fleetRootCA:     fleetRootCA,
 		insecure:        insecure,
-		commChannelID:   "",
 		interruptCh:     make(chan struct{}),
 		executeDoneCh:   make(chan struct{}),
 	}
@@ -644,8 +642,11 @@ func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, platform.ErrProcessNotFound) {
-		log.Error().Err(err).Msg("killProcess")
+
+	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+		!errors.Is(err, platform.ErrProcessNotFound) &&
+		!errors.Is(err, platform.ErrComChannelNotFound) {
+		log.Error().Err(err).Msg("desktop early terminate")
 	}
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
@@ -671,8 +672,7 @@ func (d *desktopRunner) execute() error {
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
-			d.commChannelID = uuid.New().String()
-			if err := execuser.Run(d.desktopPath, d.commChannelID, opts...); err != nil {
+			if err := execuser.Run(d.desktopPath, opts...); err != nil {
 				log.Debug().Err(err).Msg("execuser.Run")
 				return true
 			}
@@ -686,6 +686,7 @@ func (d *desktopRunner) execute() error {
 		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
 			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
+
 				return true // all good, process is running, retry.
 			case errors.Is(err, platform.ErrProcessNotFound):
 				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
@@ -726,8 +727,8 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := platform.SignalProcessBeforeTerminate(d.commChannelID, constant.DesktopAppExecName); err != nil {
-		log.Error().Err(err).Msg("killProcess")
+	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil {
+		log.Error().Err(err).Msg("SignalProcessBeforeTerminate")
 	}
 }
 
@@ -872,6 +873,7 @@ func (f *capabilitiesChecker) execute() error {
 		select {
 		case <-capabilitiesCHeckTicker.C:
 			oldCapabilities := f.client.GetServerCapabilities()
+
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
 				log.Error().Err(err).Msg("pinging the server")
@@ -893,4 +895,38 @@ func (f *capabilitiesChecker) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
+}
+
+// serviceChecker is a helper to gracefully shutdown the runners group when a
+// system service stop request was received.
+//
+// This struct and its methods are designed to play nicely with `oklog.Group`.
+type serviceChecker struct {
+	svcInterruptCh   chan struct{} // closed when system service stop is requested
+	localInterruptCh chan struct{} // closed when serviceChecker interrupt is called
+}
+
+func newSystemChecker() *serviceChecker {
+	return &serviceChecker{
+		svcInterruptCh:   make(chan struct{}),
+		localInterruptCh: make(chan struct{}),
+	}
+}
+
+// execute will just return when required locally or by the service
+func (s *serviceChecker) Execute() error {
+	for {
+		select {
+		case <-s.svcInterruptCh:
+			return errors.New("os service stop request")
+		case <-s.localInterruptCh:
+			return errors.New("internal service interrupt")
+		}
+	}
+}
+
+func (s *serviceChecker) Interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt serviceChecker")
+
+	close(s.localInterruptCh) // Signal execute to return.
 }

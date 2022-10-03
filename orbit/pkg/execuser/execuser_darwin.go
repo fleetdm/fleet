@@ -7,7 +7,7 @@ import (
 )
 
 // run uses macOS open command to start application as the current login user.
-func run(path string, channelID string, opts eopts) error {
+func run(path string, opts eopts) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat path %q: %w", path, err)

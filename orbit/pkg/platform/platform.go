@@ -12,7 +12,10 @@ import (
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 )
 
-var ErrProcessNotFound = errors.New("process not found")
+var (
+	ErrProcessNotFound    = errors.New("process not found")
+	ErrComChannelNotFound = errors.New("comm channel not found")
+)
 
 // readPidFromFile reads a PID from a file
 func readPidFromFile(destDir string, destFile string) (int32, error) {

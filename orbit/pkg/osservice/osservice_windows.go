@@ -4,7 +4,6 @@
 package osservice
 
 import (
-	"errors"
 	"os"
 
 	"github.com/rs/zerolog/log"
@@ -13,16 +12,8 @@ import (
 )
 
 type windowsService struct {
-	shutdownFunctions   *[]func(err error)
-	fleetDesktopPresent bool
-	appDoneCh           chan struct{}
-}
-
-func (m *windowsService) gracefulShutdown() {
-	// Calling interrupt functions to gracefully shutdown runners
-	for _, shutdownFn := range *m.shutdownFunctions {
-		shutdownFn(errors.New("service graceful shutdown"))
-	}
+	interruptCh chan struct{}
+	appDoneCh   chan struct{}
 }
 
 func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
@@ -38,17 +29,18 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 		switch req.Cmd {
 
 		case svc.Interrogate:
+			log.Info().Msg("Service Interrogate Requested")
 			changes <- req.CurrentStatus
 
 		case svc.Stop, svc.Shutdown:
+			log.Info().Msg("Service Stop Requested")
 
-			// Service shutdown was requested
 			// Updating the service state to indicate stop
 			changes <- svc.Status{State: svc.Stopped, Win32ExitCode: 0}
 
 			// Best effort graceful tear down
-			// Runner group's interrupt functions will be called here
-			m.gracefulShutdown()
+			// Runner group's will be interrupted after signaling them
+			close(m.interruptCh)
 
 			// Wait for runners group to finish
 			<-m.appDoneCh
@@ -57,6 +49,7 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 			os.Exit(windows.NO_ERROR)
 
 		default:
+			log.Info().Msg("Unknown service request")
 			return false, uint32(windows.ERROR_INVALID_SERVICE_CONTROL)
 		}
 	}
@@ -66,7 +59,7 @@ func (m *windowsService) Execute(args []string, requests <-chan svc.ChangeReques
 
 // SetupServiceManagement implements the dispatcher and notification logic to
 // interact with the Windows Service Control Manager (SCM)
-func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdownFunctions *[]func(err error), doneCh chan struct{}) {
+func SetupServiceManagement(serviceName string, interruptCh chan struct{}, doneCh chan struct{}) {
 	if serviceName == "" {
 		log.Error().Msg(" service name should not be empty")
 		return
@@ -81,9 +74,8 @@ func SetupServiceManagement(serviceName string, fleetDesktopPresent bool, shutdo
 
 	if isWindowsService {
 		srvData := windowsService{
-			shutdownFunctions:   shutdownFunctions,
-			fleetDesktopPresent: fleetDesktopPresent,
-			appDoneCh:           doneCh,
+			interruptCh: interruptCh,
+			appDoneCh:   doneCh,
 		}
 
 		// Registering our service into the SCM

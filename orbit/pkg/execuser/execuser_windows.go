@@ -11,6 +11,7 @@ import (
 	"os"
 	"unsafe"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"golang.org/x/sys/windows"
 )
 
@@ -105,10 +106,10 @@ const (
 //	only a few changes, retrieve the current values using GetEnvironmentVariable, save these values,
 //	create an updated block for the child process to inherit, create the child process, and then
 //	restore the saved values using SetEnvironmentVariable, as shown in the following example."
-func run(path string, channelID string, opts eopts) error {
-	opts.env = append(opts.env, [2]string{"FLEET_DESKTOP_CHANNEL_ID", channelID})
+func run(path string, opts eopts) error {
+	opts.env = append(opts.env, [2]string{"FLEET_DESKTOP_CHANNEL_ID", constant.DesktopAppExecName})
 
-	if err := createSyncChannel(channelID); err != nil {
+	if err := setupSyncChannel(constant.DesktopAppExecName); err != nil {
 		return fmt.Errorf("sync channel creation failed: %w", err)
 	}
 
@@ -238,12 +239,28 @@ func startProcessAsCurrentUser(appPath, cmdLine, workDir string) error {
 	return nil
 }
 
-// createSyncChannel creates the synchronization channel through which child process will be
+// setupSyncChannel creates the synchronization channel through which child process will be
 // signalled for termination. Code is using kernel named object as the sync primitive.
 // https://learn.microsoft.com/en-us/windows/win32/sync/using-event-objects
-func createSyncChannel(channelId string) error {
+func setupSyncChannel(channelId string) error {
 	if channelId == "" {
 		return errors.New("communication channel name should not be empty")
+	}
+
+	// converting go string to UTF16 windows compatible string
+	targetChannel := "Global\\comm-" + channelId
+	ev, err := windows.UTF16PtrFromString(targetChannel)
+	if (err != nil) && (err != windows.ERROR_SUCCESS) {
+		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
+	}
+
+	// checking first if channel is already present through the OpenEvent API
+	// OpenEvent API opens a named event object from the kernel object manager
+	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-openeventw
+	ha, err := windows.OpenEvent(windows.EVENT_ALL_ACCESS, false, ev)
+	if (ha != windows.InvalidHandle) && (err == nil) {
+		windows.CloseHandle(ha) // closing the handle to avoid handle leaks
+		return nil              // channel is already present - nothing to do here
 	}
 
 	// Security descriptor to be used with event object
@@ -263,13 +280,6 @@ func createSyncChannel(channelId string) error {
 	sa := windows.SecurityAttributes{
 		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
 		SecurityDescriptor: sd,
-	}
-
-	// converting go string to UTF16 windows compatible string
-	targetChannel := "Global\\fleet-" + channelId
-	ev, err := windows.UTF16PtrFromString(targetChannel)
-	if (err != nil) && (err != windows.ERROR_SUCCESS) {
-		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
 	}
 
 	// CreateEvent Api creates the named event object on the kernel object manager
