@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -131,7 +132,7 @@ func TestClientCapabilities(t *testing.T) {
 
 			var req http.Request
 			bc.setClientCapabilitiesHeader(&req)
-			require.Equal(t, c.expected, req.Header.Get(fleet.CapabilitiesHeader))
+			require.ElementsMatch(t, strings.Split(c.expected, ","), strings.Split(req.Header.Get(fleet.CapabilitiesHeader), ","))
 		})
 	}
 }

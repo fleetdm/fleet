@@ -81,7 +81,7 @@ func (oc *OrbitClient) GetConfig(orbitNodeKey string) (json.RawMessage, error) {
 }
 
 func (oc *OrbitClient) Ping() error {
-	verb, path := "HEAD", "/api/latest/fleet/orbit_ping"
+	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)
 
 	if err == nil || errors.Is(err, notFoundErr{}) {

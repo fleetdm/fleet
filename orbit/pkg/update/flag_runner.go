@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/rs/zerolog/log"
 )
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
@@ -144,8 +146,18 @@ func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
 	}
 
 	for k, v := range data {
-		result["--"+k] = fmt.Sprintf("%v", v)
+		switch t := v.(type) {
+		case string:
+			result["--"+k] = t
+		case bool:
+			result["--"+k] = strconv.FormatBool(t)
+		case float64:
+			result["--"+k] = fmt.Sprintf("%.f", v)
+		default:
+			result["--"+k] = fmt.Sprintf("%v", v)
+		}
 	}
+
 	return result, nil
 }
 

@@ -26,6 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -35,7 +37,6 @@ import (
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -260,6 +261,12 @@ func main() {
 			g            run.Group
 		)
 
+		// List of interrupt functions to call during service teardown
+		var interruptFunctions []func(err error)
+
+		// Setting up the system service management early on the process lifetime
+		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &interruptFunctions)
+
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
@@ -297,6 +304,7 @@ func main() {
 				log.Info().Msg("exiting due to successful early update")
 				return nil
 			}
+
 			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
 			osquerydLocalTarget, err := updater.Get("osqueryd")
@@ -487,7 +495,6 @@ func main() {
 		capabilities := fleet.CapabilityMap{}
 
 		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
-
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
@@ -552,6 +559,10 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
+		// Only osquery runner is being interrupted
+		// This ends up forcing the rest of the interrupt functions in the runner group to get called
+		interruptFunctions = append(interruptFunctions, r.Interrupt)
+
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
@@ -569,7 +580,7 @@ func main() {
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
+		g.Add(signalHandler(ctx))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
@@ -628,6 +639,11 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
 
+	log.Info().Msg("killing any pre-existing fleet-desktop instances")
+	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, platform.ErrProcessNotFound) {
+		log.Error().Err(err).Msg("killProcess")
+	}
+
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -663,10 +679,10 @@ func (d *desktopRunner) execute() error {
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
 		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
-			switch _, err := getProcessByName(constant.DesktopAppExecName); {
+			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
-			case errors.Is(err, errProcessNotFound):
+			case errors.Is(err, platform.ErrProcessNotFound):
 				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
 				return false // process is not running, do not retry.
 			default:
@@ -705,7 +721,7 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
+	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }
@@ -747,7 +763,6 @@ func getUUID(osqueryPath string) (string, error) {
 		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
 	}
 	return uuids[0].UuidString, nil
-
 }
 
 // getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
@@ -806,42 +821,6 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 	}
 }
 
-func killProcessByName(name string) error {
-	foundProcess, err := getProcessByName(name)
-	if err != nil {
-		return fmt.Errorf("get process: %w", err)
-	}
-	if err := foundProcess.Kill(); err != nil {
-		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-	}
-	return nil
-}
-
-var errProcessNotFound = errors.New("process not found")
-
-func getProcessByName(name string) (*gopsutil_process.Process, error) {
-	processes, err := gopsutil_process.Processes()
-	if err != nil {
-		return nil, err
-	}
-	var foundProcess *gopsutil_process.Process
-	for _, process := range processes {
-		processName, err := process.Name()
-		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
-			continue
-		}
-		if strings.HasPrefix(processName, name) {
-			foundProcess = process
-			break
-		}
-	}
-	if foundProcess == nil {
-		return nil, errProcessNotFound
-	}
-	return foundProcess, nil
-}
-
 var versionCommand = &cli.Command{
 	Name:  "version",
 	Usage: "Get the orbit version",
@@ -882,11 +861,15 @@ func (f *capabilitiesChecker) actor() (func() error, func(error)) {
 // You need to add an explicit check for each capability you want to watch for
 func (f *capabilitiesChecker) execute() error {
 	defer close(f.executeDoneCh)
-	capabilitiesCHeckTicker := time.NewTicker(5 * time.Minute)
+	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
+
+	if err := f.client.Ping(); err != nil {
+		log.Error().Err(err).Msg("pinging the server")
+	}
 
 	for {
 		select {
-		case <-capabilitiesCHeckTicker.C:
+		case <-capabilitiesCheckTicker.C:
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {

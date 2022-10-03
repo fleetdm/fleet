@@ -506,11 +506,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_device", desktopQuota),
-	).HEAD("/api/_version_/fleet/device_ping", devicePingEndpoint, devicePingRequest{})
+	).HEAD("/api/fleet/device/ping", devicePingEndpoint, devicePingRequest{})
 
 	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_orbit", desktopQuota),
-	).HEAD("/api/_version_/fleet/orbit_ping", orbitPingEndpoint, orbitPingRequest{})
+	).HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
 
 }
 

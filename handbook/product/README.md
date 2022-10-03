@@ -13,10 +13,10 @@ overarching job to be done is the following:
 "I need a way to see what laptops and servers I have and what I need to do to keep them secure and
 compliant."
 
-## Objectives and key results
+## Objectives and key results (OKRs) and Key Performance Indicators (KPIs)
 
 Fleet uses objectives and key results (OKRs) to align the organization with measurable
-goals.
+goals, and key performance indicators (KPIs) to measure the work that achieves the goals of the OKRs. Rephased, the objectives and key results describes what you want to accomplish and the key performance indicators describe how you know you're making progress.
 
 The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
 
