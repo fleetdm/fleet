@@ -98,7 +98,7 @@ module.exports = {
     // Generate the license key for this subscription
     let licenseKey = await sails.helpers.createLicenseKey.with({
       numberOfHosts: quoteRecord.numberOfHosts,
-      organization: this.req.me.organization,
+      organization: this.req.me.organization ? this.req.me.organization : this.req.me.emailAddress,
       validTo: subscription.current_period_end
     });
 

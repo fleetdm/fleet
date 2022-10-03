@@ -11,8 +11,8 @@ import (
 	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
 
-func parseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error) {
-	r, err := os.Open(feedFilePath)
+func ParseFeed(fPath string) (map[string]*parsed.SecurityBulletin, error) {
+	r, err := os.Open(fPath)
 	if err != nil {
 		return nil, fmt.Errorf("msrc parser: %w", err)
 	}
@@ -32,12 +32,17 @@ func parseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error)
 }
 
 func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.SecurityBulletin, error) {
-	// We will have one bulletin for each product.
+	// We will have one bulletin for each product name.
 	bulletins := make(map[string]*parsed.SecurityBulletin)
 	pIDToPName := make(map[string]string, len(rXML.WinProducts))
 
 	for pID, p := range rXML.WinProducts {
 		name := parsed.NewProduct(p.FullName).Name()
+		// If the name could not be determined means that we have an un-supported Windows product
+		if name == "" {
+			continue
+		}
+
 		if bulletins[name] == nil {
 			bulletins[name] = parsed.NewSecurityBulletin(name)
 		}

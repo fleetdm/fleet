@@ -4,9 +4,11 @@
   "experimentalSessionSupport": true,
   "testFiles": "{all,free}/**/*.spec.ts",
   "retries": {
-    "runMode": 1,
+    "runMode": 2,
     "openMode": 0
   },
   "video": false,
-  "videoUploadOnPasses": false
+  "videoUploadOnPasses": false,
+  "projectId": "oteb8z",
+  "defaultCommandTimeout": 8000
 }

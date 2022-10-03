@@ -2,10 +2,11 @@ package service
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,14 +23,14 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 
 	res := &http.Response{
 		StatusCode: m.statusCode,
-		Body:       ioutil.NopCloser(bytes.NewBufferString(m.resBody)),
+		Body:       io.NopCloser(bytes.NewBufferString(m.resBody)),
 	}
 
 	return res, nil
 }
 
-func TestDeviceClientListPolicies(t *testing.T) {
-	client, err := NewDeviceClient("https://test.com", "test-token", true, "")
+func TestDeviceClientGetDesktopPayload(t *testing.T) {
+	client, err := NewDeviceClient("https://test.com", "test-token", true, "", fleet.CapabilityMap{})
 	require.NoError(t, err)
 
 	mockRequestDoer := &mockHttpClient{}

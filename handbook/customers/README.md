@@ -76,6 +76,31 @@ The weekly on-call retro at Fleet provides time to discuss highlights and answer
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
+### Customer support responses
+
+When a customer encounters an unexpected error on fleetdm.com, it is important that we contact them quickly to resolve the issue. 
+
+If you need to reach out to a customer to resolve an error, you can use one of the templates below. The full list of response email templates is available in this [Google doc](https://docs.google.com/document/d/1-DvPSBnFbsa2hlr02rAGy2GBTwE0Gx03jV94AStTYf4/edit).
+
+#### Error while purchasing a Fleet Premium license
+
+"Hi [company name] team, I just noticed you ran into an error signing up for a license key on fleetdm.com. 
+
+I’m so sorry about that! Were fixing the issue now and I’ve refunded your payment and bumped your license to add an additional three hosts for the year as well.
+
+I’ll let you know when your account is sorted and follow up with instructions to access your Fleet Premium licenses.
+
+Thanks for bearing with us, please don’t hesitate to reach out if you have any questions about this, Fleet, osquery, or anything else!"
+
+
+#### Error while running a live query in Fleet Sandbox
+
+"Hey there, the team and I just noticed you experienced a 500 error that may have affected your experience running a live query on https://fleetdm.com/.
+
+I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
+
+Thank you for trying Fleet!"
+
 ## Customer requests
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
 
@@ -139,30 +164,27 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Overnight customer feedback  | Daily | Check Slack for customer feedback that occurred outside of usual business hours.| Tony Gauda       |  
-| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Tony Gauda        |
-| Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Tony Gauda |
-| Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
-| Customer debriefs | Weekly | [Discuss customer questions, requests, and issues with the Product team.](https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing) | Tony Gauda  |
-| Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Tony Gauda |
-| Customer request backlog | Weekly | Check-in before product office hours to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Tony Gauda |
-| Product office hours | Weekly | Present tickets and items brought to Fleet's attention by customers that are interesting from a product perspective and advocate for customer requests. | Tony Gauda |
-| Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Tony Gauda |
-| Product review | Every three weeks | Meet with the Product team to gain product pipeline visibility in order to gather info on new features and fixes in the next release. | Tony Gauda |
-| Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Tony Gauda        |
-| Sales huddle | Bi-monthly | Meet with Sales team to gain sales pipeline visibility for business intelligence and product development purposes, such as testing scalability for potential customer's needs, predicting product success obstacles, etc. | Tony Gauda |
-| Advisory meetings | Quarterly | Peer network feedback and Q& with other industry professionals. Mostly discussions on the refining process. | Tony Gauda |
+| Overnight customer feedback  | Daily | Check Slack for customer feedback that occurred outside of usual business hours.| Kathy Satterlee       |  
+| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Kathy Satterlee        |
+| Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Kathy Satterlee |
+| Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Kathy Satterlee |
+| [Customer voice]((https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing)) | Weekly | Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more. | Kathy Satterlee  |
+| Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Kathy Satterlee |
+| Customer request backlog | Weekly | Check-in before product office hours to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Kathy Satterlee |
+| Product office hours | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
+| Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
+| Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
+
 
 ## Slack channels
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-customer-engineering`           | Tony Gauda                                                          |
-| `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
+| `#g-customer-engineering`           | Kathy Satterlee                                                     |
+| `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
 
 
 
-<meta name="maintainedBy" value="tgauda">
+<meta name="maintainedBy" value="ksatter">
 <meta name="title" value="🎈 Customers">
-

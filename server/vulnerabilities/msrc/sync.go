@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	"github.com/google/go-github/v37/github"
 )
 
 // bulletinsDelta returns what bulletins should be download from GH and what bulletins should be removed
@@ -60,8 +61,9 @@ func bulletinsDelta(
 // bulletin published in Github.
 // If 'os' is nil, then all security bulletins will be synched.
 func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
-	gh := io.NewMSRCGithubClient(client, dstDir)
-	fs := io.NewMSRCFSClient(dstDir)
+	rep := github.NewClient(client).Repositories
+	gh := io.NewGitHubClient(client, rep, dstDir)
+	fs := io.NewFSClient(dstDir)
 
 	if err := sync(os, fs, gh); err != nil {
 		return fmt.Errorf("msrc sync: %w", err)
@@ -72,8 +74,8 @@ func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error 
 
 func sync(
 	os []fleet.OperatingSystem,
-	fsClient io.MSRCFSAPI,
-	ghClient io.MSRCGithubAPI,
+	fsClient io.FSAPI,
+	ghClient io.GitHubAPI,
 ) error {
 	remoteURLs, err := ghClient.Bulletins()
 	if err != nil {
@@ -92,7 +94,7 @@ func sync(
 
 	toDownload, toDelete := bulletinsDelta(os, local, remote)
 	for _, b := range toDownload {
-		if err := ghClient.Download(b, remoteURLs[b]); err != nil {
+		if _, err := ghClient.Download(remoteURLs[b]); err != nil {
 			return err
 		}
 	}

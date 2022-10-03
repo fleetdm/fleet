@@ -5,27 +5,6 @@
     width: 658px;
     padding: $pad-xxlarge;
     border-radius: $pad-small;
-
-    .info {
-      display: flex;
-      flex-direction: column;
-
-      &__header {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: left;
-      }
-      &__data {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: left;
-        margin-top: 10px;
-      }
-    }
   }
 
   &__no-queries {
@@ -72,6 +51,8 @@
   }
 
   &__create-query {
+    display: flex;
+
     span {
       margin: 15px;
       font-weight: bold;

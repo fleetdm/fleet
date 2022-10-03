@@ -8,6 +8,7 @@ interface IInfoCardProps {
   title: string;
   titleDetail?: JSX.Element | string | null;
   description?: JSX.Element | string;
+  actionUrl?: string;
   children: React.ReactChild | React.ReactChild[];
   action?:
     | {
@@ -30,12 +31,15 @@ const useInfoCard = ({
   title,
   titleDetail: defaultTitleDetail,
   description: defaultDescription,
+  actionUrl: defaultActionUrl,
   children,
   action,
   total_host_count,
   showTitle = true,
 }: IInfoCardProps): JSX.Element => {
-  const [actionLink, setActionURL] = useState<string | null>(null);
+  const [actionLink, setActionURL] = useState<string | null>(
+    defaultActionUrl || null
+  );
   const [titleDetail, setTitleDetail] = useState<JSX.Element | string | null>(
     defaultTitleDetail || null
   );

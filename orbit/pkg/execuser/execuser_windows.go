@@ -99,11 +99,11 @@ const (
 // It sets the environment of the current process so that it gets inherited by
 // the child process (see call to CreateEnvironmentBlock).
 // From https://docs.microsoft.com/en-us/windows/win32/procthread/changing-environment-variables:
-// 	"If you want the child process to inherit most of the parent's environment with
+//
+//	"If you want the child process to inherit most of the parent's environment with
 //	only a few changes, retrieve the current values using GetEnvironmentVariable, save these values,
 //	create an updated block for the child process to inherit, create the child process, and then
 //	restore the saved values using SetEnvironmentVariable, as shown in the following example."
-//
 func run(path string, opts eopts) error {
 	for _, nv := range opts.env {
 		os.Setenv(nv[0], nv[1])

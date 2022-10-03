@@ -2,7 +2,7 @@ import CONSTANTS from "../../../support/constants";
 
 const { CONFIG_INTEGRATIONS_AUTOMATIONS } = CONSTANTS;
 
-const createJiraIntegration = {
+const addJiraIntegration = {
   ...CONFIG_INTEGRATIONS_AUTOMATIONS,
   integrations: {
     jira: [
@@ -51,7 +51,7 @@ const deleteJiraIntegration = {
   },
 };
 
-const createZendeskIntegration = {
+const addZendeskIntegration = {
   ...CONFIG_INTEGRATIONS_AUTOMATIONS,
   integrations: {
     zendesk: [
@@ -397,26 +397,24 @@ describe("App settings flow", () => {
       cy.loginWithCySession();
       cy.visit("/settings/integrations");
     });
-    it("creates a new jira integration", () => {
-      cy.getAttached(".no-integrations__create-button").click();
+    it("adds a new jira integration", () => {
+      cy.getAttached(".no-integrations__add-button").click();
       cy.getAttached("#url").click().type("https://fleetdm.atlassian.com");
       cy.getAttached("#username").click().type("jira@example.com");
       cy.getAttached("#apiToken").click().type("jira123");
       cy.getAttached("#projectKey").click().type("PROJECT");
-      cy.intercept(
-        "PATCH",
-        "/api/latest/fleet/config",
-        createJiraIntegration
-      ).as("createIntegration");
-      cy.intercept("GET", "/api/latest/fleet/config", createJiraIntegration).as(
-        "createdIntegration"
+      cy.intercept("PATCH", "/api/latest/fleet/config", addJiraIntegration).as(
+        "addIntegration"
+      );
+      cy.intercept("GET", "/api/latest/fleet/config", addJiraIntegration).as(
+        "addedIntegration"
       );
       cy.findByRole("button", { name: /save/i }).click();
-      cy.wait("@createIntegration").then((configStub) => {
+      cy.wait("@addIntegration").then((configStub) => {
         cy.log(JSON.stringify(configStub));
         console.log(JSON.stringify(configStub));
       });
-      cy.wait("@createdIntegration").then((configStub) => {
+      cy.wait("@addedIntegration").then((configStub) => {
         cy.log(JSON.stringify(configStub));
         console.log(JSON.stringify(configStub));
       });
@@ -425,9 +423,9 @@ describe("App settings flow", () => {
         cy.findByText(/fleetdm.atlassian.com - PROJECT/i).should("exist");
       });
     });
-    it("creates a new zendesk integration", () => {
-      cy.getAttached(".no-integrations__create-button").click();
-      cy.getAttached(".create-integration-modal__form-field--platform").within(
+    it("adds a new zendesk integration", () => {
+      cy.getAttached(".no-integrations__add-button").click();
+      cy.getAttached(".add-integration-modal__form-field--platform").within(
         () => {
           cy.findByText(/jira/i).click();
           cy.findByText(/zendesk/i).click();
@@ -440,19 +438,17 @@ describe("App settings flow", () => {
       cy.intercept(
         "PATCH",
         "/api/latest/fleet/config",
-        createZendeskIntegration
-      ).as("createIntegration");
-      cy.intercept(
-        "GET",
-        "/api/latest/fleet/config",
-        createZendeskIntegration
-      ).as("createdIntegration");
+        addZendeskIntegration
+      ).as("addIntegration");
+      cy.intercept("GET", "/api/latest/fleet/config", addZendeskIntegration).as(
+        "addedIntegration"
+      );
       cy.findByRole("button", { name: /save/i }).click();
-      cy.wait("@createIntegration").then((configStub) => {
+      cy.wait("@addIntegration").then((configStub) => {
         cy.log(JSON.stringify(configStub));
         console.log(JSON.stringify(configStub));
       });
-      cy.wait("@createdIntegration").then((configStub) => {
+      cy.wait("@addedIntegration").then((configStub) => {
         cy.log(JSON.stringify(configStub));
         console.log(JSON.stringify(configStub));
       });

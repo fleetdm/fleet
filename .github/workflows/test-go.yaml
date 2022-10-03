@@ -14,6 +14,7 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/test-go.yaml'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
@@ -26,7 +27,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.17.8']
+        go-version: ['^1.19.1']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
@@ -39,9 +40,6 @@ jobs:
       uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
         go-version: ${{ matrix.go-version }}
-
-    - name: Set up gotestfmt
-      run: go install github.com/haveyoudebuggedit/gotestfmt/v2/cmd/gotestfmt@v2.3.2
 
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
@@ -68,14 +66,14 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        GO_TEST_EXTRA_FLAGS="-v -json -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
-          make test-go 2>&1 | tee /tmp/gotest.log | gotestfmt
+          make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378

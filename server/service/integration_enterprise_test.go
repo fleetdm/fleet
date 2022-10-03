@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -59,6 +60,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
+	s.withServer.commonTearDownTest(s.T())
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
@@ -75,7 +77,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
-	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
+	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
 	features := json.RawMessage(`{
     "enable_host_users": false,
     "enable_software_inventory": false,
@@ -102,6 +104,47 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
+
+	// dry-run with invalid agent options
+	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+
+	// dry-run with valid agent options
+	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+
+	// force with invalid agent options
+	agentOpts = json.RawMessage(`{"config": {"foo": "qux"}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "force", "true")
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
+
+	// invalid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"nope": 1}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+
+	// valid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"enable_tables": "abcd"}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"enable_tables": "abcd"`)
 
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
@@ -483,13 +526,55 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", tm1ID+1), modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: user.ID}}}}, http.StatusNotFound, &tmResp)
 
-	// modify team agent options (options for orbit/osquery)
+	// modify team agent options with invalid options
 	tmResp.Team = nil
-	opts := map[string]string{"x": "y"}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), opts, http.StatusOK, &tmResp)
-	var m map[string]string
-	require.NoError(t, json.Unmarshal(*tmResp.Team.Config.AgentOptions, &m))
-	assert.Equal(t, opts, m)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"x": "y"
+	}`), http.StatusBadRequest, &tmResp)
+
+	// modify team agent options with invalid options, but force-apply them
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"x": "y"
+		}
+	}`), http.StatusOK, &tmResp, "force", "true")
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"x": "y"`)
+
+	// modify team agent options with valid options
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": true
+			}
+		}
+	}`), http.StatusOK, &tmResp)
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`)
+
+	// modify team agent using invalid options with dry-run
+	tmResp.Team = nil
+	resp := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": "not-a-bool"
+			}
+		}
+	}`), http.StatusBadRequest, "dry_run", "true")
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "cannot unmarshal string into Go struct field osqueryOptions.options.aws_debug of type bool")
+
+	// modify team agent using valid options with dry-run
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
+		"config": {
+			"options": {
+				"aws_debug": false
+			}
+		}
+	}`), http.StatusOK, &tmResp, "dry_run", "true")
+	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`) // left unchanged
 
 	// list activities, it should have created one for edited_agent_options
 	var listActivities listActivitiesResponse
@@ -501,7 +586,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID+1), opts, http.StatusNotFound, &tmResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID+1), json.RawMessage(`{}`), http.StatusNotFound, &tmResp)
 
 	// get team enroll secrets
 	var secResp teamEnrollSecretsResponse
@@ -1104,6 +1189,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
+	// add a policy execution
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host,
+		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false))
+
 	// add a policy to team
 	oldToken := s.token
 	t.Cleanup(func() {
@@ -1162,6 +1251,14 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+
+	// GET `/api/_version_/fleet/device/{token}/desktop`
+	getDesktopResp := FleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDesktopResp)
+	res.Body.Close()
+	require.NoError(t, getDesktopResp.Err)
+	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 }
 
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
@@ -1204,7 +1301,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 
 	// set custom url
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": "customURL"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, "customURL", acResp.FleetDesktop.TransparencyURL)
 
@@ -1218,7 +1315,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": ""}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
@@ -1239,19 +1336,17 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
-	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
-			EnableSSO:             true,
-			EntityID:              "https://localhost:8080",
-			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			IDPName:               "SimpleSAML",
-			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			EnableJITProvisioning: false,
-		},
-	}
-
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": false
+		}
+	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -1264,9 +1359,17 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.ErrorAs(t, err, &nfe)
 
 	// enable JIT provisioning
-	config.SSOSettings.EnableJITProvisioning = true
 	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": true
+		}
+	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
 
@@ -1285,7 +1388,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if *a.ActorEmail == auth.UserID() && a.Type == fleet.ActivityTypeUserAddedBySSO {
+			if a.Type == fleet.ActivityTypeUserAddedBySSO && *a.ActorEmail == auth.UserID() {
 				return true
 			}
 		}
@@ -1361,4 +1464,104 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
+}
+
+func (s *integrationEnterpriseTestSuite) TestListHosts() {
+	t := s.T()
+
+	// create a couple of hosts
+	host1, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name() + "2",
+		NodeKey:         t.Name() + "2",
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	host3, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name() + "3",
+		NodeKey:         t.Name() + "3",
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sbaz.local", t.Name()),
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host3)
+
+	// set disk space information for some hosts (none provided for host3)
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0))
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, 3)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
+	assert.Equal(t, 10.0, resp.Hosts[0].GigsDiskSpaceAvailable)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "100")
+	require.Len(t, resp.Hosts, 2)
+
+	// returns an error when the criteria is invalid (outside 1-100)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "101") // TODO: status code to be fixed with #4406
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "0")   // TODO: status code to be fixed with #4406
+
+	// counting hosts works with and without the filter too
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp)
+	require.Equal(t, 3, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "32")
+	require.Equal(t, 1, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "100")
+	require.Equal(t, 2, countResp.Count)
+
+	// host summary returns counts for low disk space
+	var summaryResp getHostSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "low_disk_space", "32")
+	require.Equal(t, uint(3), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(1), *summaryResp.LowDiskSpaceCount)
+
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "platform", "windows", "low_disk_space", "32")
+	require.Equal(t, uint(1), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
+
+	// all possible filters
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux", "low_disk_space", "32")
+	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
+
+	// without low_disk_space, does not return the count
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux")
+	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
+	require.Nil(t, summaryResp.LowDiskSpaceCount)
 }

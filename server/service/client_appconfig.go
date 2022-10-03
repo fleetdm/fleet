@@ -6,10 +6,10 @@ import (
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
-func (c *Client) ApplyAppConfig(payload interface{}) error {
+func (c *Client) ApplyAppConfig(payload interface{}, opts fleet.ApplySpecOptions) error {
 	verb, path := "PATCH", "/api/latest/fleet/config"
 	var responseBody appConfigResponse
-	return c.authenticatedRequest(payload, verb, path, &responseBody)
+	return c.authenticatedRequestWithQuery(payload, verb, path, &responseBody, opts.RawQuery())
 }
 
 // GetAppConfig fetches the application config from the server API

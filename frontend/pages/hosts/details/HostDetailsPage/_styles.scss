@@ -214,6 +214,10 @@
     }
   }
 
+  .tooltip {
+    color: $ui-fleet-black-50;
+  }
+
   .component__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
@@ -356,6 +360,7 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
+    margin-left: -11px;
   }
 
   &__device_mapping {

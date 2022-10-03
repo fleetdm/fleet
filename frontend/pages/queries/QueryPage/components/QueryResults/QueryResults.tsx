@@ -32,10 +32,6 @@ interface IQueryResultsProps {
 
 const baseClass = "query-results";
 const CSV_QUERY_TITLE = "Query Results";
-const PAGE_TITLES = {
-  RUNNING: "Querying selected hosts",
-  FINISHED: "Query finished",
-};
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -82,6 +78,11 @@ const QueryResults = ({
     targetsTotalCount > 0
       ? Math.round((hostsCount.total / targetsTotalCount) * 100)
       : 0;
+
+  const PAGE_TITLES = {
+    RUNNING: `Querying selected host${targetsTotalCount > 1 ? "s" : ""}`,
+    FINISHED: "Query finished",
+  };
 
   const [pageTitle, setPageTitle] = useState(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -133,9 +134,9 @@ const QueryResults = ({
       <p className="no-results-message">
         Your live query returned no results.
         <span>
-          Expecting to see results? Check to see if the hosts you targeted
-          reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
-          table.
+          Expecting to see results? Check to see if the host
+          {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
+          &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo; table.
         </span>
       </p>
     );
@@ -255,7 +256,8 @@ const QueryResults = ({
       <div className={`${baseClass}__wrapper`}>
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
-          <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
+          <span>{targetsTotalCount}</span>&nbsp;host
+          {`${targetsTotalCount > 1 ? "s" : ""}`} targeted&nbsp; (
           {percentResponded}%&nbsp;
           <TooltipWrapper
             tipContent={`
