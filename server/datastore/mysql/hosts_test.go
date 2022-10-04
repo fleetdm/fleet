@@ -61,10 +61,50 @@ var enrollTests = []struct {
 	},
 }
 
-func TestHostFeatureStressTest(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	err := ds.HostFeatureStressTest(context.Background(), nil)
-	require.Error(t, err)
+func TestGenQueries(t *testing.T) {
+	params := []fleet.HostFeatureStressTestQueryParams{
+		{
+			FeatureTable: "host_feature_1",
+		},
+		{
+			FeatureTable: "host_feature_2",
+		},
+	}
+
+	r := genQueries(params)
+	require.Len(t, r, 0)
+}
+
+func TestGenEqColsWhere(t *testing.T) {
+	cols := [][]string{
+		{"col_1"},
+		{"col_2"},
+		{"col_3", "col_4"},
+		{"col_3", "col_4", "col_5"},
+	}
+
+	result := genEqColsWhere(cols, "AND")
+
+	require.Contains(t, result, "col_1 = ?")
+	require.Contains(t, result, "col_2 = ?")
+	require.Contains(t, result, "col_3 = ? AND col_4 = ?")
+	require.Contains(t, result, "col_3 = ? AND col_4 = ? AND col_5 = ?")
+}
+
+func TestGenRangeColsWhere(t *testing.T) {
+	cols := [][]string{
+		{"col_1"},
+		{"col_2"},
+		{"col_3", "col_4"},
+		{"col_3", "col_4", "col_5"},
+	}
+
+	result := genRangeColsWhere(cols, "OR")
+
+	require.Contains(t, result, "(col_1 >= ? AND col_1 <= ?)")
+	require.Contains(t, result, "(col_2 >= ? AND col_2 <= ?)")
+	require.Contains(t, result, "(col_3 >= ? AND col_3 <= ?) OR (col_4 >= ? AND col_4 <= ?)")
+	require.Contains(t, result, "(col_3 >= ? AND col_3 <= ?) OR (col_4 >= ? AND col_4 <= ?) OR (col_5 >= ? AND col_5 <= ?)")
 }
 
 func TestHosts(t *testing.T) {

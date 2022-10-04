@@ -559,5 +559,5 @@ type HostFeatureStressTestQueryParams struct {
 	SomeNumberMin *int
 	SomeNumberMax *int
 
-	FeatureID uint
+	FeatureTable string
 }

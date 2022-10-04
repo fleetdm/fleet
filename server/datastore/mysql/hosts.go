@@ -3061,24 +3061,95 @@ func combinations(set []string, r int) (subsets [][]string) {
 	return subsets
 }
 
-func (ds *Datastore) HostFeatureStressTest(
-	ctx context.Context,
-	params []fleet.HostFeatureStressTestQueryParams,
-) error {
-	var queries []string
+func genEqColsWhere(
+	eqCols [][]string,
+	op string,
+) []string {
+	var filters []string
+	op = fmt.Sprintf(" %s ", op)
 
-	columns := []string{
+	for _, fgrp := range eqCols {
+		var stms []string
+		for _, c := range fgrp {
+			if c == "some_str" {
+				stms = append(stms, fmt.Sprintf("%s LIKE ?", c))
+			} else {
+				stms = append(stms, fmt.Sprintf("%s = ?", c))
+			}
+		}
+		filters = append(filters, strings.Join(stms, op))
+	}
+
+	return filters
+}
+
+func genRangeColsWhere(
+	rangeCols [][]string,
+	op string,
+) []string {
+	var filters []string
+	op = fmt.Sprintf(" %s ", op)
+
+	for _, fgrp := range rangeCols {
+		var stms []string
+		for _, c := range fgrp {
+			if c == "some_enum_str" {
+				stms = append(stms, fmt.Sprintf("%s IN (?)", c))
+			} else {
+				stms = append(stms, fmt.Sprintf("(%s >= ? AND %s <= ?)", c, c))
+			}
+		}
+		filters = append(filters, strings.Join(stms, op))
+	}
+
+	return filters
+}
+
+func genFromStatments(tables []string) string {
+	var result string
+
+	for _, t := range tables {
+		result += fmt.Sprintf(" INNER JOIN %s ON hosts.id = %s.host_id ", t, t)
+	}
+
+	return result
+}
+
+func ns(cols []string, table string) []string {
+	var nsCols []string
+	for _, c := range cols {
+		nsCols = append(nsCols, fmt.Sprintf("%s.%s", table, c))
+	}
+	return nsCols
+}
+
+func genQueries(params []fleet.HostFeatureStressTestQueryParams) []string {
+	queriesSet := make(map[string]bool)
+
+	stm := `
+SELECT %s
+FROM hosts %s
+WHERE host_id = ? AND %s
+ORDER BY %s LIMIT ? OFFSET ?`
+
+	grpStm := `
+SELECT %s, COUNT(1)
+FROM hosts_feature_%d
+WHERE %s
+GROUP BY %s`
+
+	orderdableCols := []string{
 		"some_date",
-		"some_small_str",
-		"some_str",
+		"some_enum_str",
 		"some_bool",
 		"some_decimal",
 		"some_number",
 	}
 
-	eqColumns := []string{
+	columns := []string{
 		"some_date",
-		"some_small_str",
+		"some_enum_str",
+		"some_str",
 		"some_bool",
 		"some_decimal",
 		"some_number",
@@ -3086,83 +3157,108 @@ func (ds *Datastore) HostFeatureStressTest(
 
 	rangebleCols := []string{
 		"some_date",
+		"some_enum_str",
 		"some_decimal",
 		"some_number",
 	}
 
-	orderdableCols := []string{
-		"some_date",
-		"some_small_str",
-		"some_bool",
-		"some_decimal",
-		"some_number",
+	var tables []string
+	for _, p := range params {
+		tables = append(tables, p.FeatureTable)
 	}
 
-	eqStm := `
-SELECT id, %s
-FROM host_feature_1
-WHERE host_id = ? AND %s = ? 
-ORDER BY %s LIMIT ? OFFSET ?`
+	var tableCombinations [][]string
+	for i := 1; i <= len(tables); i++ {
+		tableCombinations = append(tableCombinations, combinations(tables, i)...)
+	}
 
-	rangeStm := `
-SELECT id, %s
-FROM host_feature_1 
-WHERE host_id = ? AND %s >= ? AND %s <= ? 
-ORDER BY %s LIMIT ? OFFSET ?`
+	for _, tc := range tableCombinations {
+		var selectParts []string
+		var fromParts []string
+		var whereParts [][]string
+		var orderByParts []string
 
-	inStm := `
-SELECT id, %s
-FROM host_feature_1 
-WHERE host_id = ? AND some_small_str IN (?) 
-ORDER BY %s LIMIT ? OFFSET ?`
+		for _, t := range tc {
+			nsEqCols := ns(columns, t)
+			nsRgCols := ns(rangebleCols, t)
+			nsOrdCols := ns(orderdableCols, t)
 
-	likeStm := `
-SELECT id, %s
-FROM host_feature_1 
-WHERE host_id = ? AND some_str LIKE ? 
-ORDER BY %s LIMIT ? OFFSET ?`
+			selectParts = append(selectParts, nsEqCols...)
+			orderByParts = append(orderByParts, nsOrdCols...)
 
-	for _, c := range eqColumns {
-		for _, o := range orderdableCols {
-			queries = append(queries, fmt.Sprintf(
-				eqStm,
-				strings.Join(columns, ",\n\t"),
-				c,
-				o,
-			))
+			for _, op := range []string{"AND", "OR"} {
+				// WHERE col_1 = ? AND/OR ... type of queries
+				for i := 1; i <= len(nsEqCols); i++ {
+					comb := combinations(nsEqCols, i)
+					whereParts = append(whereParts, genEqColsWhere(comb, op))
+				}
+
+				// WHERE (col_1 >= val1 AND col_1 <= val1) AND/OR ... type of queries
+				for i := 1; i <= len(nsRgCols); i++ {
+					comb := combinations(nsRgCols, i)
+					whereParts = append(whereParts, genRangeColsWhere(comb, op))
+				}
+			}
+
+			queriesSet[fmt.Sprintf(grpStm,
+				"DATE(some_date)",
+				t,
+				"1 = 1",
+				"DATE(some_date)",
+			)] = true
+
+			queriesSet[fmt.Sprintf(grpStm,
+				"DATE(some_date)",
+				t,
+				"DATE(some_date) <= ?",
+				"DATE(some_date)",
+			)] = true
+
+			queriesSet[fmt.Sprintf(grpStm,
+				"some_bool",
+				t,
+				"1 = 1",
+				"some_bool",
+			)] = true
+
+			queriesSet[fmt.Sprintf(grpStm,
+				"some_enum_str",
+				t,
+				"1 = 1",
+				"some_enum_str",
+			)] = true
+		}
+
+		fromParts = append(fromParts, genFromStatments(tc))
+
+		for _, wgrp := range whereParts {
+			for _, w := range wgrp {
+				for _, o := range orderByParts {
+					q := fmt.Sprintf(
+						stm,
+						strings.Join(selectParts, ","),
+						strings.Join(fromParts, " "),
+						w,
+						o,
+					)
+					queriesSet[q] = true
+				}
+			}
 		}
 	}
 
-	for _, c := range rangebleCols {
-		for _, o := range orderdableCols {
-			queries = append(queries, fmt.Sprintf(
-				rangeStm,
-				strings.Join(columns, ",\n\t"),
-				c,
-				c,
-				o,
-			))
-		}
+	var queries []string
+	for q := range queriesSet {
+		fmt.Println(q)
+		queries = append(queries, q)
 	}
 
-	for _, o := range orderdableCols {
-		queries = append(queries, fmt.Sprintf(
-			inStm,
-			strings.Join(columns, ",\n\t"),
-			o,
-		))
-	}
+	return queries
+}
 
-	for _, o := range orderdableCols {
-		queries = append(queries, fmt.Sprintf(
-			likeStm,
-			strings.Join(columns, ",\n\t"),
-			o,
-		))
-	}
-
-	fmt.Println(len(queries))
-	fmt.Println(queries)
-
+func (ds *Datastore) HostFeatureStressTest(
+	ctx context.Context,
+	params []fleet.HostFeatureStressTestQueryParams,
+) error {
 	return nil
 }
