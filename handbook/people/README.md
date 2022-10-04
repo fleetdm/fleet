@@ -14,7 +14,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 
 |    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
-| Wireframes (Figma)| Noah Talerman |
+| Wireframes (Figma) | Noah Talerman |
 | How the product works | Noah Talerman |
 | fleetctl CLI interface (and other tools) | Tomás Touceda |
 | REST API interface design | Luke Heath |
@@ -36,10 +36,11 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | When a feature is placed behind a feature flag | Zach Wasserman |
 | Release notes | Noah Talerman |
 | Documentation quality | Mike Thomas |
-| Publishing release blog post, and promoting releases | Mike Thomas |
+| Publishing release blog post, and promoting releases | Noah Talerman |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
 | Security disclosure and policy | Guillaume Ross | 
+| Bug process | Mo Zhu |
 
 *Luke Heath is backup 
 
