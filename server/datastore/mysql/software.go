@@ -642,23 +642,17 @@ func (si *softwareIterator) Next() bool {
 }
 
 // AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
-// software entries with CPEs and from the platforms included in the 'excludedPlatforms' param.
-func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+// software entries with CPEs and from the sources included in the 'excludedSources' param.
+func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedSources []string) (fleet.SoftwareIterator, error) {
 	var err error
 	var args []interface{}
 
 	stmt := `SELECT s.* FROM software s LEFT JOIN software_cpe sc ON (s.id=sc.software_id) WHERE sc.id IS NULL`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	if excludedPlatforms != nil {
-		stmt += ` AND s.id NOT IN (
-			SELECT software_id
-			FROM host_software hs
-			INNER JOIN hosts h on hs.host_id = h.id
-			WHERE h.platform IN (?)
-		)`
-
-		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
+	if excludedSources != nil {
+		stmt += ` AND s.source NOT IN (?)`
+		stmt, args, err = sqlx.In(stmt, excludedSources)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 		}
@@ -741,6 +735,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.vendor",
 			"s.arch",
 			"scv.cve",
+			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),

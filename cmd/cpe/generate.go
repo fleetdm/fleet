@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 )
 
 func panicif(err error) {
@@ -66,7 +66,7 @@ func cpe() string {
 
 	fmt.Println("Generating DB...")
 	dbPath := filepath.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
-	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
+	err = nvd.GenerateCPEDB(dbPath, cpeDict)
 	panicif(err)
 
 	file, err := os.Create(filepath.Join(cwd, "etagenv"))
