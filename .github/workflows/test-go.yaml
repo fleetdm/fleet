@@ -65,8 +65,9 @@ jobs:
         echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
     - name: Run Go Tests
+			# bash shell sets -eo pipefail so that the pipe to tee will exit with an error if test-go fails
+      shell: bash
       run: |
-        set -o pipefail
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
