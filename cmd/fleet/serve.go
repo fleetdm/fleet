@@ -417,7 +417,7 @@ the way that the Fleet server works.
 			}
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
-			startAppleMDMDepProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+			startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)

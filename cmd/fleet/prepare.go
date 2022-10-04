@@ -42,10 +42,7 @@ To setup Fleet infrastructure, use one of the available commands.
 				noPrompt = true
 			}
 
-			ds, err := mysql.New(
-				config.Mysql,
-				clock.C,
-			)
+			ds, err := mysql.New(config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}
@@ -55,7 +52,39 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "retrieving migration status")
 			}
 
-			prepareMigrationStatusCheck(status, noPrompt, dev, config.Mysql.Database)
+			switch status.StatusCode {
+			case fleet.NoMigrationsCompleted:
+				// OK
+			case fleet.AllMigrationsCompleted:
+				fmt.Println("Migrations already completed. Nothing to do.")
+				return
+			case fleet.SomeMigrationsCompleted:
+				if !noPrompt {
+					fmt.Printf("################################################################################\n"+
+						"# WARNING:\n"+
+						"#   This will perform Fleet database migrations. Please back up your data before\n"+
+						"#   continuing.\n"+
+						"#\n"+
+						"#   Missing migrations: tables=%v, data=%v.\n"+
+						"#\n"+
+						"#   Press Enter to continue, or Control-c to exit.\n"+
+						"################################################################################\n",
+						status.MissingTable, status.MissingData)
+					bufio.NewScanner(os.Stdin).Scan()
+				}
+			case fleet.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
+					"################################################################################\n",
+					status.UnknownTable, status.UnknownData)
+				if dev {
+					os.Exit(1)
+				}
+			}
 
 			if err := ds.MigrateTables(cmd.Context()); err != nil {
 				initFatal(err, "migrating db schema")
@@ -73,42 +102,5 @@ To setup Fleet infrastructure, use one of the available commands.
 	dbCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
 
 	prepareCmd.AddCommand(dbCmd)
-
 	return prepareCmd
-}
-
-func prepareMigrationStatusCheck(status *fleet.MigrationStatus, noPrompt, dev bool, dbName string) {
-	switch status.StatusCode {
-	case fleet.NoMigrationsCompleted:
-		// OK
-	case fleet.AllMigrationsCompleted:
-		fmt.Printf("Migrations already completed for %q. Nothing to do.\n", dbName)
-		return
-	case fleet.SomeMigrationsCompleted:
-		if !noPrompt {
-			fmt.Printf("################################################################################\n"+
-				"# WARNING:\n"+
-				"#   This will perform %q database migrations. Please back up your data before\n"+
-				"#   continuing.\n"+
-				"#\n"+
-				"#   Missing migrations: tables=%v, data=%v.\n"+
-				"#\n"+
-				"#   Press Enter to continue, or Control-c to exit.\n"+
-				"################################################################################\n",
-				dbName, status.MissingTable, status.MissingData)
-			bufio.NewScanner(os.Stdin).Scan()
-		}
-	case fleet.UnknownMigrations:
-		fmt.Printf("################################################################################\n"+
-			"# WARNING:\n"+
-			"#   Your %q database has unrecognized migrations. This could happen when\n"+
-			"#   running an older version of Fleet on a newer migrated database.\n"+
-			"#\n"+
-			"#   Unknown migrations: tables=%v, data=%v.\n"+
-			"################################################################################\n",
-			dbName, status.UnknownTable, status.UnknownData)
-		if dev {
-			os.Exit(1)
-		}
-	}
 }
