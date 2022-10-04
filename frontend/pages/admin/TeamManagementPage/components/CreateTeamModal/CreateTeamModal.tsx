@@ -67,8 +67,9 @@ const CreateTeamModal = ({
           error={errors.name}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
-          To organize your hosts, create a team, like "Workstations," "Servers,"
-          or "Servers (canary)".
+          To organize your hosts, create a team, like
+          &ldquo;Workstations,&rdquo; &ldquo;Servers,&rdquo; or &ldquo;Servers
+          (canary)&rdquo;.
         </InfoBanner>
         <div className="modal-cta-wrap">
           <Button
