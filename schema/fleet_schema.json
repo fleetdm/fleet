@@ -690,7 +690,7 @@
     "columns": [
       {
         "name": "name",
-        "description": "volume name from `docker volume ls`"
+        "description": "Volume name from `docker volume ls`"
       }
     ]
   },
