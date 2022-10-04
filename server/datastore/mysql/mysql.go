@@ -34,6 +34,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	"github.com/micromdm/nanomdm/cryptoutil"
@@ -111,8 +112,6 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 
 // NewMDMAppleSCEPDepot returns a *scep_mysql.MySQLDepot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-//
-// TODO(lucas): Discuss alternative approaches.
 func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*scep_mysql.MySQLDepot, error) {
 	s, err := scep_mysql.NewMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 	if err != nil {
@@ -121,10 +120,8 @@ func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*s
 	return s, nil
 }
 
-// NewMDMAppleMDMStorage returns a *nanomdm_mysql.MySQLStorage that uses the Datastore
+// NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-//
-// TODO(lucas): Discuss alternative approaches.
 func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
 	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.writer.DB))
 	if err != nil {
@@ -183,10 +180,8 @@ func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []by
 	return errors.New("unimplemented")
 }
 
-// NewMDMAppleDEPStorage returns a *nanodep_mysql.MySQLStorage that uses the Datastore
+// NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-//
-// TODO(lucas): Discuss alternative approaches.
 func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, error) {
 	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.writer.DB))
 	if err != nil {
@@ -203,15 +198,27 @@ func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, e
 	}, nil
 }
 
-// NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides further functionality.
+// NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides functionality to load
+// DEP auth tokens from memory.
 type NanoDEPStorage struct {
 	*nanodep_mysql.MySQLStorage
 
 	tokens nanodep_client.OAuth1Tokens
 }
 
+// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
+//
+// RetrieveAuthTokens returns the DEP auth tokens stored in memory.
 func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
 	return &s.tokens, nil
+}
+
+// StoreAuthTokens partially implements nanodep.AuthTokensStorer.
+//
+// Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
+// instead they are loaded to memory at startup.
+func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *client.OAuth1Tokens) error {
+	return errors.New("unimplemented")
 }
 
 type txFn func(sqlx.ExtContext) error
