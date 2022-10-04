@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import yaml from "js-yaml";
+import { agentOptionsToYaml } from "utilities/yaml";
 
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
@@ -45,7 +45,7 @@ const AgentOptionsPage = ({
 
         if (selected) {
           setFormData({
-            osquery_options: yaml.dump(selected.agent_options),
+            osquery_options: agentOptionsToYaml(selected.agent_options),
           });
           setTeamName(selected.name);
         } else {
