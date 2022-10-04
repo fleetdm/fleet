@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	stdlog "log"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -16,7 +15,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/micromdm/nanomdm/certverify"
 	httpmdm "github.com/micromdm/nanomdm/http/mdm"
-	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
+	nanomdm_log "github.com/micromdm/nanomdm/log"
 	nanomdm_service "github.com/micromdm/nanomdm/service"
 	"github.com/micromdm/nanomdm/service/certauth"
 	"github.com/micromdm/nanomdm/service/nanomdm"
@@ -87,6 +86,31 @@ func registerSCEP(
 	return nil
 }
 
+// NanoLogger is an adapter for nanomdm.
+type NanoLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoLogger(logger kitlog.Logger) *NanoLogger {
+	return &NanoLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+
+}
+
+func (l *NanoLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoLogger{newLogger}
+}
+
 // registerMDM registers the HTTP handlers that serve core MDM services (like checking in for MDM commands).
 func registerMDM(
 	mux *http.ServeMux,
@@ -99,16 +123,7 @@ func registerMDM(
 	if err != nil {
 		return fmt.Errorf("certificate pool verifier: %w", err)
 	}
-	mdmLogger := nanomdm_stdlogfmt.New(
-		nanomdm_stdlogfmt.WithLogger(
-			stdlog.New(
-				kitlog.NewStdlibAdapter(
-					kitlog.With(logger, "component", "http-mdm-apple-mdm")),
-				"", stdlog.LstdFlags,
-			),
-		),
-		nanomdm_stdlogfmt.WithDebugFlag(loggingDebug),
-	)
+	mdmLogger := NewNanoLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.
