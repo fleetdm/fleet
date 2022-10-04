@@ -502,8 +502,12 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	return rawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.logger)
 }
 
-// Copied from https://github.com/fleetdm/nanomdm/blob/a261f081323c80fb7f6575a64ac1a912dffe44ba/http/api/api.go#L134-L261
-// NOTE(lucas): I found no way to reuse Fleet's gokit middlewares with a raw http.Handler like api.RawCommandEnqueueHandler.
+// rawCommandEnqueue enqueues a command to be executed on the given devices.
+//
+// This method was extracted from:
+// https://github.com/fleetdm/nanomdm/blob/a261f081323c80fb7f6575a64ac1a912dffe44ba/http/api/api.go#L134-L261
+// NOTE(lucas): At the time, I found no way to reuse Fleet's gokit middlewares with a raw http.Handler
+// like api.RawCommandEnqueueHandler.
 func rawCommandEnqueue(
 	ctx context.Context,
 	enqueuer storage.CommandEnqueuer,

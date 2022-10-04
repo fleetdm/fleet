@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
-	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
 	"github.com/micromdm/nanomdm/mdm"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	"github.com/stretchr/testify/require"
@@ -51,7 +50,7 @@ func (d dummyMDMPusher) Push(context.Context, []string) (map[string]*nanomdm_pus
 	return nil, nil
 }
 
-func setupAppleMDMService(t *testing.T) (fleet.Datastore, fleet.Service) {
+func setupAppleMDMService(t *testing.T) fleet.Service {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +68,6 @@ func setupAppleMDMService(t *testing.T) (fleet.Datastore, fleet.Service) {
 		MDMStorage:  dummyMDMStorage{},
 		DEPStorage:  dummyDEPStorage{testAuthAddr: ts.URL},
 		MDMPusher:   dummyMDMPusher{},
-		MDMLogger:   &nanomdm_stdlogfmt.Logger{},
 	})
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -122,11 +120,11 @@ func setupAppleMDMService(t *testing.T) (fleet.Datastore, fleet.Service) {
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
-	return ds, svc
+	return svc
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	_, svc := setupAppleMDMService(t)
+	svc := setupAppleMDMService(t)
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
