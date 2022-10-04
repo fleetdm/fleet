@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
-	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 	"github.com/stretchr/testify/assert"
@@ -59,7 +58,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmStorage        nanomdm_storage.AllStorage
 		depStorage        nanodep_storage.AllStorage
 		mdmPusher         nanomdm_push.Pusher
-		mdmLogger         *nanomdm_stdlogfmt.Logger
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -102,11 +100,31 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage = opts[0].DEPStorage
 		// allow to explicitly set mdm pusher to nil
 		mdmPusher = opts[0].MDMPusher
-		// allow to explicitly set mdm logger to nil
-		mdmLogger = opts[0].MDMLogger
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter, depStorage, mdmStorage, mdmPusher, "", mdmLogger)
+	svc, err := NewService(
+		context.Background(),
+		ds,
+		task,
+		rs,
+		logger,
+		osqlogger,
+		fleetConfig,
+		mailer,
+		c,
+		ssoStore,
+		lq,
+		ds,
+		is,
+		*license,
+		failingPolicySet,
+		&fleet.NoOpGeoIP{},
+		enrollHostLimiter,
+		depStorage,
+		mdmStorage,
+		mdmPusher,
+		"",
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -199,7 +217,6 @@ type TestServerOpts struct {
 	MDMStorage          nanomdm_storage.AllStorage
 	DEPStorage          nanodep_storage.AllStorage
 	MDMPusher           nanomdm_push.Pusher
-	MDMLogger           *nanomdm_stdlogfmt.Logger
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
-	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
@@ -59,7 +58,6 @@ type Service struct {
 	mdmStorage       nanomdm_storage.AllStorage
 	mdmPushService   nanomdm_push.Pusher
 	mdmPushCertTopic string
-	mdmLogger        *nanomdm_stdlogfmt.Logger
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -121,7 +119,6 @@ func NewService(
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,
 		mdmStorage:        mdmStorage,
-		mdmLogger:         mdmLogger,
 		mdmPushService:    mdmPushService,
 		mdmPushCertTopic:  mdmPushCertTopic,
 	}

@@ -18,12 +18,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
-	nanomdm_log "github.com/micromdm/nanomdm/log"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
 	"github.com/micromdm/nanomdm/storage"
@@ -490,12 +491,15 @@ func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) EnqueueMDMAppleCommand(
-	ctx context.Context, command *fleet.MDMAppleCommand, deviceIDs []string, noPush bool,
+	ctx context.Context,
+	command *fleet.MDMAppleCommand,
+	deviceIDs []string,
+	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
 	if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err)
 	}
-	return rawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.mdmLogger)
+	return rawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.logger)
 }
 
 // Copied from https://github.com/fleetdm/nanomdm/blob/a261f081323c80fb7f6575a64ac1a912dffe44ba/http/api/api.go#L134-L261
@@ -507,7 +511,7 @@ func rawCommandEnqueue(
 	command *mdm.Command,
 	deviceIDs []string,
 	noPush bool,
-	logger nanomdm_log.Logger,
+	logger kitlog.Logger,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
 	output := fleet.CommandEnqueueResult{
 		Status:      make(fleet.EnrolledAPIResults),
@@ -516,7 +520,8 @@ func rawCommandEnqueue(
 		RequestType: command.Command.RequestType,
 	}
 
-	logger = logger.With(
+	logger = kitlog.With(
+		logger,
 		"command_uuid", command.CommandUUID,
 		"request_type", command.Command.RequestType,
 	)
@@ -539,9 +544,9 @@ func rawCommandEnqueue(
 		logs = append(logs, "errs", len(idErrs))
 	}
 	if err != nil || len(idErrs) > 0 {
-		logger.Info(logs...)
+		level.Info(logger).Log(logs...)
 	} else {
-		logger.Debug(logs...)
+		level.Debug(logger).Log(logs...)
 	}
 	// loop through our command errors, if any, and add to output
 	for id, err := range idErrs {
@@ -557,7 +562,7 @@ func rawCommandEnqueue(
 	if !noPush {
 		pushResp, pushErr = pusher.Push(ctx, deviceIDs)
 		if err != nil {
-			logger.Info("msg", "push", "err", err)
+			level.Info(logger).Log("msg", "push", "err", err)
 			output.PushError = err.Error()
 		}
 	} else {
@@ -591,9 +596,9 @@ func rawCommandEnqueue(
 		logs = append(logs, "errs", pushErrCt)
 	}
 	if pushErr != nil || pushErrCt > 0 {
-		logger.Info(logs...)
+		level.Info(logger).Log(logs...)
 	} else {
-		logger.Debug(logs...)
+		level.Debug(logger).Log(logs...)
 	}
 	// generate response codes depending on if everything succeeded, failed, or parially succedded
 	header := http.StatusInternalServerError
