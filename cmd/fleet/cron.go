@@ -717,7 +717,10 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func startAppleMDMDepProfileAssigner(
+// startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
+// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// the current configured DEP profile to them.
+func startAppleMDMDEPProfileAssigner(
 	ctx context.Context,
 	instanceID string,
 	periodicity time.Duration,
