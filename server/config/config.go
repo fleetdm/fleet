@@ -761,7 +761,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple.server_address", "", "Public address of the server for apple devices to connect to")
 	man.addConfigString("mdm.apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
 	man.addConfigString("mdm.apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
-	man.addConfigInt("mdm.apple.scep.signer.validity_days", 3650, "Days signed client certificates will be valid")
+	man.addConfigInt("mdm.apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm.apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm.apple.scep.challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigString("mdm.apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")

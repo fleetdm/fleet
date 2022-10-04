@@ -510,7 +510,7 @@ the way that the Fleet server works.
 
 			if config.MDMApple.Enable {
 				if err := registerAppleMDMProtocolServices(
-					rootMux, config.MDMApple, mdmStorage, scepStorage, logger, config.Logging.Debug,
+					rootMux, config.MDMApple.SCEP, mdmStorage, scepStorage, logger, config.Logging.Debug,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
