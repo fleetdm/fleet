@@ -1,6 +1,5 @@
 # REST API
 
-- [Overview](#overview)
 - [Authentication](#authentication)
 - [Activities](#activities)
 - [Fleet configuration](#fleet-configuration)
@@ -848,7 +847,8 @@ None.
           ]
         }
       },
-      "overrides": {}
+      "overrides": {},
+      "command_line_flags": {}
     }
   },
   "license": {
@@ -1072,29 +1072,27 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
+    "config": {
+      "options": {
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 10,
+        "distributed_tls_max_attempts": 3
       },
-      "overrides": {}
-    }
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {},
+    "command_line_flags": {}
   },
-    "vulnerability_settings": {
+  "vulnerability_settings": {
     "databases_path": ""
   },
   "webhook_settings": {
@@ -4887,7 +4885,8 @@ _Available in Fleet Premium_
             ]
           }
         },
-        "overrides": {}
+        "overrides": {},
+        "command_line_flags": {}
       },
       "user_count": 0,
       "host_count": 0,
@@ -4924,7 +4923,8 @@ _Available in Fleet Premium_
               ]
             }
           },
-          "overrides": {}
+          "overrides": {},
+          "command_line_flags": {}
         },
         "user_count": 0,
         "host_count": 0,
@@ -4966,32 +4966,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5039,32 +5036,29 @@ _Available in Fleet Premium_
     {
       "name": "workstations",
       "id": 1,
-      "user_ids": [],
-      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
       "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
           },
-          "overrides": {}
-        }
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {},
+        "command_line_flags": {}
       },
       "webhook_settings": {
         "failing_policies_webhook": {
@@ -5130,32 +5124,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5190,32 +5181,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5252,25 +5240,26 @@ _Available in Fleet Premium_
 
 ```json
 {
-	"config": {
-		"options": {
-			"logger_plugin": "tls",
-			"pack_delimiter": "/",
-			"logger_tls_period": 20,
-			"distributed_plugin": "tls",
-			"disable_distributed": false,
-			"logger_tls_endpoint": "/api/v1/osquery/log",
-			"distributed_interval": 60,
-			"distributed_tls_max_attempts": 3
-		},
-		"decorators": {
-			"load": [
-				"SELECT uuid AS host_uuid FROM system_info;",
-				"SELECT hostname AS hostname FROM system_info;"
-			]
-		}
-	},
-	"overrides": {}
+  "config": {
+    "options": {
+      "logger_plugin": "tls",
+      "pack_delimiter": "/",
+      "logger_tls_period": 20,
+      "distributed_plugin": "tls",
+      "disable_distributed": false,
+      "logger_tls_endpoint": "/api/v1/osquery/log",
+      "distributed_interval": 60,
+      "distributed_tls_max_attempts": 3
+    },
+    "decorators": {
+      "load": [
+        "SELECT uuid AS host_uuid FROM system_info;",
+        "SELECT hostname AS hostname FROM system_info;"
+      ]
+    }
+  },
+  "overrides": {},
+  "command_line_flags": {}
 }
 ```
 
@@ -5283,32 +5272,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 20,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 60,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 20,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 60,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {

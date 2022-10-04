@@ -132,7 +132,6 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		}
 		keyvals = append(keyvals, "user", loggedInUser)
 	}
-
 	requestMethod, ok := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 	if !ok {
 		requestMethod = ""

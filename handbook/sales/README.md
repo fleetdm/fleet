@@ -47,7 +47,7 @@ To track the stage of the sales cycle that a lead is at, we use the following st
 | Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
 | SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
-At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [Linkedin post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7?utm_source=linkedin_share&utm_medium=ios_app). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
+At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
 
 - Research each prospect.
 - Praise what’s great about their company.
@@ -57,6 +57,15 @@ At times, our sales team will reach out to prospective customers before they com
 - Keep an enthusiastic and warm tone.
 - Be personable.
 - Ask for the meeting with a proposed time.
+
+Importantly, when we interact with CISOs or, for that matter, any member of a prospective customer organization, we adhere to the principles in this [LinkedIn post](https://www.linkedin.com/pulse/selling-ciso-james-turner). Specifically:
+
+- Be curteous
+- Be honest
+- Show respect
+- Build trust
+- Grow relationships
+- Help people
 
 ## Sales team writing principles
 

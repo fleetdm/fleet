@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 
@@ -492,42 +491,29 @@ func main() {
 
 		}
 
-		capabilities := fleet.CapabilityMap{}
-
-		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
+		orbitClient, err := service.NewOrbitClient(
+			c.String("root-dir"),
+			fleetURL,
+			c.String("fleet-certificate"),
+			c.Bool("insecure"),
+			enrollSecret,
+			uuidStr,
+		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
-
-		// ping the server to get the latest capabilities
-		if err := orbitClient.Ping(); err != nil {
-			return fmt.Errorf("error pinging the server: %w", err)
+		const orbitFlagsUpdateInterval = 30 * time.Second
+		flagRunner := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+			CheckInterval: orbitFlagsUpdateInterval,
+			RootDir:       c.String("root-dir"),
+		})
+		// Try performing a flags update to use latest configured osquery flags from get-go.
+		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
+			// Just log, OK to continue, since flagRunner will retry
+			// in flagRunner.Execute.
+			log.Info().Err(err).Msg("initial flags update failed")
 		}
-
-		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) {
-			log.Info().Msg("Orbit endpoints are enabled")
-			orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"))
-			if err != nil {
-				return fmt.Errorf("error enroll: %w", err)
-			}
-
-			const orbitFlagsUpdateInterval = 30 * time.Second
-			flagRunner, err := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
-				CheckInterval: orbitFlagsUpdateInterval,
-				RootDir:       c.String("root-dir"),
-				OrbitNodeKey:  orbitNodeKey,
-			})
-			if err != nil {
-				return err
-			}
-			// do the initial flags update
-			_, err = flagRunner.DoFlagsUpdate()
-			if err != nil {
-				// just log, OK to continue, since we will retry
-				log.Info().Err(err).Msg("Initial flags update failed")
-			}
-			g.Add(flagRunner.Execute, flagRunner.Interrupt)
-		}
+		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
@@ -563,14 +549,14 @@ func main() {
 		// This ends up forcing the rest of the interrupt functions in the runner group to get called
 		interruptFunctions = append(interruptFunctions, r.Interrupt)
 
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
-
-		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
-		if err != nil {
-			return fmt.Errorf("new client for capabilities checker: %w", err)
-		}
-		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
-		g.Add(capabilitiesChecker.actor())
+		registerExtensionRunner(
+			&g,
+			r.ExtensionSocketPath(),
+			table.WithExtension(orbitInfoExtension{
+				orbitClient:     orbitClient,
+				deviceAuthToken: deviceAuthToken,
+			}),
+		)
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -594,10 +580,8 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
-	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
-		deviceAuthToken: deviceAuthToken,
-	}))
+func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt) {
+	ext := table.NewRunner(extSockPath, opts...)
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
@@ -765,42 +749,6 @@ func getUUID(osqueryPath string) (string, error) {
 	return uuids[0].UuidString, nil
 }
 
-// getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
-// otherwise it enrolls the host with Fleet and saves the node key to disk
-func getOrbitNodeKeyOrEnroll(orbitClient *service.OrbitClient, rootDir string) (string, error) {
-	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
-	orbitNodeKey, err := ioutil.ReadFile(nodeKeyFilePath)
-	switch {
-	case err == nil:
-		return string(orbitNodeKey), nil
-	case errors.Is(err, fs.ErrNotExist):
-		// OK
-	default:
-		return "", fmt.Errorf("read orbit node key file: %w", err)
-	}
-	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
-		orbitNodeKey, err := enrollAndWriteNodeKeyFile(orbitClient, nodeKeyFilePath)
-		if err != nil {
-			log.Info().Err(err).Msg("enroll failed, retrying")
-			time.Sleep(constant.OrbitEnrollRetrySleep)
-			continue
-		}
-		return orbitNodeKey, nil
-	}
-	return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
-}
-
-func enrollAndWriteNodeKeyFile(orbitClient *service.OrbitClient, nodeKeyFilePath string) (string, error) {
-	orbitNodeKey, err := orbitClient.DoEnroll()
-	if err != nil {
-		return "", fmt.Errorf("enroll request: %w", err)
-	}
-	if err := os.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
-		return "", fmt.Errorf("write orbit node key file: %w", err)
-	}
-	return orbitNodeKey, nil
-}
-
 func loadOrGenerateToken(rootDir string) (string, error) {
 	filePath := filepath.Join(rootDir, "identifier")
 	id, err := ioutil.ReadFile(filePath)
@@ -831,61 +779,4 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
-}
-
-// capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
-// are changed in the server.
-//
-// This struct and its methods are designed to play nicely with `oklog.Group`.
-type capabilitiesChecker struct {
-	client        *service.OrbitClient
-	interruptCh   chan struct{} // closed when interrupt is triggered
-	executeDoneCh chan struct{} // closed when execute returns
-}
-
-func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
-	return &capabilitiesChecker{
-		client:        client,
-		interruptCh:   make(chan struct{}),
-		executeDoneCh: make(chan struct{}),
-	}
-}
-
-func (f *capabilitiesChecker) actor() (func() error, func(error)) {
-	return f.execute, f.interrupt
-}
-
-// execute will poll the server for capabilities and emit a stop signal to restart
-// Orbit if certain capabilities are enabled.
-//
-// You need to add an explicit check for each capability you want to watch for
-func (f *capabilitiesChecker) execute() error {
-	defer close(f.executeDoneCh)
-	capabilitiesCHeckTicker := time.NewTicker(5 * time.Minute)
-
-	for {
-		select {
-		case <-capabilitiesCHeckTicker.C:
-			oldCapabilities := f.client.GetServerCapabilities()
-			// ping the server to get the latest capabilities
-			if err := f.client.Ping(); err != nil {
-				log.Error().Err(err).Msg("pinging the server")
-				continue
-			}
-			newCapabilities := f.client.GetServerCapabilities()
-
-			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
-				log.Info().Msg("orbit endpoints capability changed, restarting")
-				return nil
-			}
-		case <-f.interruptCh:
-			return nil
-		}
-	}
-}
-
-func (f *capabilitiesChecker) interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
-	close(f.interruptCh) // Signal execute to return.
-	<-f.executeDoneCh    // Wait for execute to return.
 }

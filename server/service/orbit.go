@@ -13,6 +13,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+type setOrbitNodeKeyer interface {
+	setOrbitNodeKey(nodeKey string)
+}
+
 type orbitError struct {
 	message string
 }
@@ -29,6 +33,10 @@ type enrollOrbitResponse struct {
 
 type orbitGetConfigRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *orbitGetConfigRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
 }
 
 func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
@@ -55,7 +63,7 @@ func (r enrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, osqueryError{message: fmt.Sprintf("orbit enroll failed: %e", err)}, w)
+		encodeError(ctx, osqueryError{message: fmt.Sprintf("orbit enroll failed: %s", err)}, w)
 	}
 }
 
@@ -96,7 +104,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
-		return "", orbitError{message: "orbit enroll failed: " + err.Error()}
+		return "", orbitError{message: err.Error()}
 	}
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)

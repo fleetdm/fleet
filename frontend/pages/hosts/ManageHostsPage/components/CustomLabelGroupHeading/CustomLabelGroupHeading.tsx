@@ -1,3 +1,8 @@
+/**
+ * This component is a custom UI for a React Select group header.
+ * More can be learnt about React Select custom components here:
+ * https://react-select.com/components
+ */
 import Button from "components/buttons/Button";
 import { ILabel } from "interfaces/label";
 import React, { useRef } from "react";
