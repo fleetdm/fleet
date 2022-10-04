@@ -51,6 +51,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/micromdm/nanomdm/cryptoutil"
 	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
@@ -386,11 +387,12 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage    *scep_mysql.MySQLDepot
-				depStorage     *mysql.NanoDEPStorage
-				mdmStorage     *mysql.NanoMDMStorage
-				mdmLogger      *nanomdm_stdlogfmt.Logger
-				mdmPushService *nanomdm_pushsvc.PushService
+				scepStorage      *scep_mysql.MySQLDepot
+				depStorage       *mysql.NanoDEPStorage
+				mdmStorage       *mysql.NanoMDMStorage
+				mdmLogger        *nanomdm_stdlogfmt.Logger
+				mdmPushService   *nanomdm_pushsvc.PushService
+				mdmPushCertTopic string
 			)
 			if config.MDMApple.Enable {
 				if err := config_apple.Verify(config.MDMApple); err != nil {
@@ -409,6 +411,10 @@ the way that the Fleet server works.
 				)
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
+				}
+				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert(config.MDMApple.MDM.PushCert.PEMCert)
+				if err != nil {
+					initFatal(err, "extract topic from mdm push certificate")
 				}
 				depStorage, err = mds.NewMDMAppleDEPStorage(config.MDMApple.DEP.Token)
 				if err != nil {
@@ -432,7 +438,7 @@ the way that the Fleet server works.
 			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage, mdmStorage, mdmLogger, mdmPushService)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage, mdmStorage, mdmPushService, mdmPushCertTopic, mdmLogger)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

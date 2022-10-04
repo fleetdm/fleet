@@ -23,7 +23,6 @@ import (
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
-	"github.com/micromdm/nanomdm/cryptoutil"
 	nanomdm_log "github.com/micromdm/nanomdm/log"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
@@ -439,8 +438,9 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	}
 	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
 
-	// TODO(lucas): Use cursors and limit.
-	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple_mdm.DEPName)
+	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
+	// This single-request version supports up to 1000 devices (max to return in one call).
+	fetchDevicesResponse, err := depClient.FetchDevices(ctx, apple_mdm.DEPName, godep.WithLimit(1000))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -642,7 +642,6 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (profile []byte, err error) {
-
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -652,11 +651,6 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			return nil, fleet.NewAuthFailedError("enrollment profile not found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile")
-	}
-
-	topic, err := cryptoutil.TopicFromPEMCert(svc.config.MDMApple.MDM.PushCert.PEMCert)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -670,7 +664,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
 		svc.config.MDMApple.SCEP.Challenge,
-		topic,
+		svc.mdmPushCertTopic,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -765,13 +759,13 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
 		Organization  string
-		SCEPServerURL string
+		SCEPURL       string
 		SCEPChallenge string
 		Topic         string
 		ServerURL     string
 	}{
 		Organization:  orgName,
-		SCEPServerURL: scepURL,
+		SCEPURL:       scepURL,
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,

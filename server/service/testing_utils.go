@@ -21,6 +21,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
+	nanodep_storage "github.com/micromdm/nanodep/storage"
+	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
+	nanomdm_push "github.com/micromdm/nanomdm/push"
+	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
@@ -52,6 +56,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
 		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
 		is                fleet.InstallerStore
+		mdmStorage        nanomdm_storage.AllStorage
+		depStorage        nanodep_storage.AllStorage
+		mdmPusher         nanomdm_push.Pusher
+		mdmLogger         *nanomdm_stdlogfmt.Logger
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -88,9 +96,17 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 		// allow to explicitly set installer store to nil
 		is = opts[0].Is
+		// allow to explicitly set MDM storage to nil
+		mdmStorage = opts[0].MDMStorage
+		// allow to explicitly set DEP storage to nil
+		depStorage = opts[0].DEPStorage
+		// allow to explicitly set mdm pusher to nil
+		mdmPusher = opts[0].MDMPusher
+		// allow to explicitly set mdm logger to nil
+		mdmLogger = opts[0].MDMLogger
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter, nil, nil, nil, nil)
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter, depStorage, mdmStorage, mdmPusher, "", mdmLogger)
 	if err != nil {
 		panic(err)
 	}
@@ -180,6 +196,10 @@ type TestServerOpts struct {
 	EnrollHostLimiter   fleet.EnrollHostLimiter
 	Is                  fleet.InstallerStore
 	FleetConfig         *config.FleetConfig
+	MDMStorage          nanomdm_storage.AllStorage
+	DEPStorage          nanodep_storage.AllStorage
+	MDMPusher           nanomdm_push.Pusher
+	MDMLogger           *nanomdm_stdlogfmt.Logger
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -37,7 +37,6 @@ import (
 	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
-	"github.com/micromdm/nanomdm/cryptoutil"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -127,15 +126,10 @@ func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte
 	if err != nil {
 		return nil, err
 	}
-	topic, err := cryptoutil.TopicFromPEMCert(pushCertPEM)
-	if err != nil {
-		return nil, err
-	}
 	return &NanoMDMStorage{
-		MySQLStorage:  s,
-		pushCertTopic: topic,
-		pushCertPEM:   pushCertPEM,
-		pushKeyPEM:    pushKeyPEM,
+		MySQLStorage: s,
+		pushCertPEM:  pushCertPEM,
+		pushKeyPEM:   pushKeyPEM,
 	}, nil
 }
 
@@ -143,9 +137,8 @@ func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte
 type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
 
-	pushCertTopic string
-	pushCertPEM   []byte
-	pushKeyPEM    []byte
+	pushCertPEM []byte
+	pushKeyPEM  []byte
 }
 
 // RetrievePushCert partially implements nanomdm_storage.PushCertStore.

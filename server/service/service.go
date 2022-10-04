@@ -12,14 +12,15 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
+	nanodep_storage "github.com/micromdm/nanodep/storage"
 	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
+	nanomdm_push "github.com/micromdm/nanomdm/push"
+	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -54,10 +55,11 @@ type Service struct {
 
 	*fleet.EnterpriseOverrides
 
-	depStorage     *mysql.NanoDEPStorage
-	mdmStorage     *mysql.NanoMDMStorage
-	mdmLogger      *nanomdm_stdlogfmt.Logger
-	mdmPushService *nanomdm_pushsvc.PushService
+	depStorage       nanodep_storage.AllStorage
+	mdmStorage       nanomdm_storage.AllStorage
+	mdmPushService   nanomdm_push.Pusher
+	mdmPushCertTopic string
+	mdmLogger        *nanomdm_stdlogfmt.Logger
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -87,10 +89,11 @@ func NewService(
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
 	enrollHostLimiter fleet.EnrollHostLimiter,
-	depStorage *mysql.NanoDEPStorage,
-	mdmStorage *mysql.NanoMDMStorage,
+	depStorage nanodep_storage.AllStorage,
+	mdmStorage nanomdm_storage.AllStorage,
+	mdmPushService nanomdm_push.Pusher,
+	mdmPushCertTopic string,
 	mdmLogger *nanomdm_stdlogfmt.Logger,
-	mdmPushService *nanomdm_pushsvc.PushService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -121,6 +124,7 @@ func NewService(
 		mdmStorage:        mdmStorage,
 		mdmLogger:         mdmLogger,
 		mdmPushService:    mdmPushService,
+		mdmPushCertTopic:  mdmPushCertTopic,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
