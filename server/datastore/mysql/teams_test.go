@@ -226,6 +226,16 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "team2", teams[1].Name)
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
+
+	// Test that ds.Teams returns the same data as ds.ListTeams
+	// (except list of users).
+	for _, t1 := range teams {
+		t2, err := ds.Team(context.Background(), t1.ID)
+		require.NoError(t, err)
+		t2.Users = nil
+		require.Equal(t, t1, t2)
+	}
+
 }
 
 func testTeamsSummary(t *testing.T, ds *Datastore) {
