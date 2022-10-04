@@ -327,7 +327,6 @@ type PackagingConfig struct {
 }
 
 // MDMAppleConfig holds all the configuration for Apple MDM.
-// TODO(lucas): Allow yaml.
 type MDMAppleConfig struct {
 	// Enable enables MDM functionality on Fleet.
 	Enable bool `yaml:"enable"`
