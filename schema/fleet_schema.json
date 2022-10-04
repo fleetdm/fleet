@@ -686,6 +686,15 @@
     "examples": "See how much storage is used by Docker images. Requires Docker to be running.\n```\nSELECT ROUND(SUM(size_bytes * 10e-10),2) as gigabytes_of_images FROM docker_images; \n```"
   },
   {
+    "name": "docker_volumes",
+    "columns": [
+      {
+        "name": "name",
+        "description": "volume name from `docker volume ls`"
+      }
+    ]
+  },
+  {
     "name": "pci_devices",
     "columns": [
       {
