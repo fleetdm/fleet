@@ -66,6 +66,7 @@ jobs:
 
     - name: Run Go Tests
       run: |
+        set -o pipefail
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
