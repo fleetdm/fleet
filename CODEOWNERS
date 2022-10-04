@@ -30,6 +30,9 @@ go.mod @fleetdm/go
 # Standard query library YAML
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
 
+# Exapnded table documentation
+/schema @guillaumeross
+
 # Articles
 /articles @chris-mcgillicuddy
 
