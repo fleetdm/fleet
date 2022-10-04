@@ -93,7 +93,6 @@ func NewService(
 	mdmStorage nanomdm_storage.AllStorage,
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,
-	mdmLogger *nanomdm_stdlogfmt.Logger,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {

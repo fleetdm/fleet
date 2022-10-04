@@ -31,12 +31,11 @@ func registerAppleMDMProtocolServices(
 	mdmStorage *mysql.NanoMDMStorage,
 	scepStorage *scep_mysql.MySQLDepot,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) error {
-	if err := registerSCEP(mux, config, scepStorage, logger, loggingDebug); err != nil {
+	if err := registerSCEP(mux, config, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, config.CA.PEMCert, mdmStorage, logger, loggingDebug); err != nil {
+	if err := registerMDM(mux, config.CA.PEMCert, mdmStorage, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -49,7 +48,6 @@ func registerSCEP(
 	config config.MDMAppleSCEPConfig,
 	scepStorage *scep_mysql.MySQLDepot,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) error {
 	scepCACrt, scepCAKey, err := scep_ca.Load(
 		config.CA.PEMCert,
@@ -67,9 +65,7 @@ func registerSCEP(
 	if scepChallenge == "" {
 		return errors.New("missing SCEP challenge")
 	}
-	if loggingDebug {
-		logger = level.NewFilter(logger, level.AllowDebug())
-	}
+
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
 	scepService, err := scepserver.NewService(scepCACrt, scepCAKey, signer,
 		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
@@ -86,29 +82,30 @@ func registerSCEP(
 	return nil
 }
 
-// NanoLogger is an adapter for nanomdm.
-type NanoLogger struct {
+// NanoMDMLogger is a logger adapter for nanomdm.
+type NanoMDMLogger struct {
 	logger kitlog.Logger
 }
 
-func NewNanoLogger(logger kitlog.Logger) *NanoLogger {
-	return &NanoLogger{
+func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
+	return &NanoMDMLogger{
 		logger: logger,
 	}
 }
 
-func (l *NanoLogger) Info(keyvals ...interface{}) {
+func (l *NanoMDMLogger) Info(keyvals ...interface{}) {
 	level.Info(l.logger).Log(keyvals...)
-
 }
 
-func (l *NanoLogger) Debug(keyvals ...interface{}) {
+func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
 	level.Debug(l.logger).Log(keyvals...)
 }
 
-func (l *NanoLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
+func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
 	newLogger := kitlog.With(l.logger, keyvals...)
-	return &NanoLogger{newLogger}
+	return &NanoMDMLogger{
+		logger: newLogger,
+	}
 }
 
 // registerMDM registers the HTTP handlers that serve core MDM services (like checking in for MDM commands).
@@ -117,13 +114,12 @@ func registerMDM(
 	scepCAPEM []byte,
 	mdmStorage *mysql.NanoMDMStorage,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) error {
 	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
 	if err != nil {
 		return fmt.Errorf("certificate pool verifier: %w", err)
 	}
-	mdmLogger := NewNanoLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
+	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.

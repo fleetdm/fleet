@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	stdlog "log"
 	"net/url"
 	"os"
 	"strconv"
@@ -29,7 +28,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/micromdm/nanodep/godep"
-	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
+	nanodep_log "github.com/micromdm/nanodep/log"
 	depsync "github.com/micromdm/nanodep/sync"
 )
 
@@ -717,6 +716,32 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
+// NanoDEPLogger is a logger adapter for nanodep.
+type NanoDEPLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
+	return &NanoDEPLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoDEPLogger{
+		logger: newLogger,
+	}
+}
+
 // startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
 // The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
 // the current configured DEP profile to them.
@@ -729,15 +754,10 @@ func startAppleMDMDEPProfileAssigner(
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) {
-	stdLogger := stdlog.New(
-		kitlog.NewStdlibAdapter(
-			kitlog.With(logger, "component", "mdm-apple-dep-routine")),
-		"", stdlog.LstdFlags,
-	)
-	depLogger := nanodep_stdlogfmt.New(stdLogger, loggingDebug)
+
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 	assignerOpts := []depsync.AssignerOption{
-		depsync.WithAssignerLogger(depLogger.With("component", "assigner")),
+		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
 	}
 	if loggingDebug {
 		assignerOpts = append(assignerOpts, depsync.WithDebug())
@@ -752,7 +772,7 @@ func startAppleMDMDEPProfileAssigner(
 		depClient,
 		apple_mdm.DEPName,
 		depStorage,
-		depsync.WithLogger(depLogger.With("component", "syncer")),
+		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),

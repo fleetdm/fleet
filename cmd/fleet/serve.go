@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	stdlog "log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -52,7 +51,6 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
-	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/ngrok/sqlmw"
@@ -390,7 +388,6 @@ the way that the Fleet server works.
 				scepStorage      *scep_mysql.MySQLDepot
 				depStorage       *mysql.NanoDEPStorage
 				mdmStorage       *mysql.NanoMDMStorage
-				mdmLogger        *nanomdm_stdlogfmt.Logger
 				mdmPushService   *nanomdm_pushsvc.PushService
 				mdmPushCertTopic string
 			)
@@ -420,25 +417,38 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize mdm apple dep storage")
 				}
-				mdmLogger = nanomdm_stdlogfmt.New(
-					nanomdm_stdlogfmt.WithLogger(
-						stdlog.New(
-							kitlog.NewStdlibAdapter(
-								kitlog.With(logger, "component", "http-mdm-apple-mdm")),
-							"", stdlog.LstdFlags,
-						),
-					),
-					nanomdm_stdlogfmt.WithDebugFlag(config.Logging.Debug),
-				)
+				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
-				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, mdmLogger.With("service", "push"))
+				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS, depStorage, mdmStorage, mdmPushService, mdmPushCertTopic, mdmLogger)
+			svc, err := service.NewService(
+				ctx,
+				ds,
+				task,
+				resultStore,
+				logger,
+				osqueryLogger,
+				config,
+				mailService,
+				clock.C,
+				ssoSessionStore,
+				liveQueryStore,
+				carveStore,
+				installerStore,
+				*license,
+				failingPolicySet,
+				geoIP,
+				redisWrapperDS,
+				depStorage,
+				mdmStorage,
+				mdmPushService,
+				mdmPushCertTopic,
+			)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -562,7 +572,11 @@ the way that the Fleet server works.
 
 			if config.MDMApple.Enable {
 				if err := registerAppleMDMProtocolServices(
-					rootMux, config.MDMApple.SCEP, mdmStorage, scepStorage, logger, config.Logging.Debug,
+					rootMux,
+					config.MDMApple.SCEP,
+					mdmStorage,
+					scepStorage,
+					logger,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
