@@ -2,6 +2,7 @@ import React from "react";
 
 import { IOsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES, PLATFORM_ICONS } from "utilities/constants";
+import Icon from "components/Icon";
 
 interface IPlatformIconProps {
   platform: IOsqueryPlatform;
@@ -21,7 +22,8 @@ const baseClassListItem = "platform-list-item";
 const PlatformListItem = ({ platform }: IPLatformListItemProps) => {
   return (
     <li key={platform} className={baseClassListItem}>
-      <PlatformIcon platform={platform} />
+      {/* <PlatformIcon platform={platform} /> */}
+      <Icon name={platform} />
       <span>{PLATFORM_DISPLAY_NAMES[platform]}</span>
     </li>
   );
@@ -35,7 +37,7 @@ const baseClass = "query-table-platforms";
 
 const QueryTablePlatforms = ({ platforms }: IQueryTablePlatformsProps) => {
   const platformListItems = platforms.map((platform) => {
-    return <PlatformListItem platform={platform} />;
+    return <PlatformListItem key={platform} platform={platform} />;
   });
 
   return (

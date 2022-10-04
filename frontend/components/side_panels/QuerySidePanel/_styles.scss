@@ -26,18 +26,40 @@
     }
   }
 
-  &__header {
-    margin: 0 0 $pad-small;
-    font-size: $small;
-    font-weight: $bold;
-  }
-
   &__choose-table {
-    margin: 0 0 $pad-xlarge;
+    margin: 0 0 $pad-large;
 
     .form-field {
       margin-bottom: $pad-medium;
     }
+  }
+
+  &__header {
+    margin: 0 0 $pad-medium;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__table-count {
+    margin-left: $pad-small;
+    background-color: $ui-fleet-blue-15;
+    padding: $pad-xsmall $pad-small;
+    border-radius: 8px;
+    font-size: $x-small;
+  }
+
+  &__evented-table-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: $ui-fleet-blue-15;
+    padding: $pad-xsmall $pad-small;
+    border-radius: 6px;
+    font-size: $xxx-small;
+    font-weight: $bold;
+  }
+
+  &__event-icon {
+    margin-right: $pad-small;
   }
 
   &__description {

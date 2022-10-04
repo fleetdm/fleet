@@ -7,6 +7,7 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import FleetMarkdown from "components/FleetMarkdown";
+import Icon from "components/Icon";
 
 import QueryTableColumns from "./QueryTableColumns";
 import QueryTablePlatforms from "./QueryTablePlatforms";
@@ -112,10 +113,6 @@ const QuerySidePanel = ({
       return { label: name, value: name };
     });
 
-    if (!tableNames) {
-      return null;
-    }
-
     return (
       <Dropdown
         options={tableNames}
@@ -140,9 +137,21 @@ const QuerySidePanel = ({
         <img alt="Close sidebar" src={CloseIcon} />
       </div>
       <div className={`${baseClass}__choose-table`}>
-        <h2 className={`${baseClass}__header`}>Tables</h2>
+        <h2 className={`${baseClass}__header`}>
+          Tables
+          <span className={`${baseClass}__table-count`}>
+            {MOCK_TABLE_DATA.length}
+          </span>
+        </h2>
         {renderTableSelect()}
       </div>
+      {/* {selectedOsqueryTable.evented && ( */}
+      {true && (
+        <div className={`${baseClass}__evented-table-tag`}>
+          <Icon name="calendar-check" className={`${baseClass}__event-icon`} />
+          <span>EVENTED TABLE</span>
+        </div>
+      )}
       <div className={`${baseClass}__description`}>
         <FleetMarkdown markdown={MOCK_DATA.description} />
       </div>

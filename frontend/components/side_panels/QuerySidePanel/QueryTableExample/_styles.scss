@@ -7,12 +7,13 @@
 
   &__ace {
     border-radius: $border-radius;
-    // background-color: $ui-light-grey; // copy fleet ace background color
     background-color: $ui-light-grey; // copy fleet ace background color
     padding: $pad-medium;
     border: 1px solid $ui-blue-gray;
 
     .ace_cursor {
+      // We have the !important here as there doesnt seen a way to programatically
+      // hide only the cursor in the editor.
       display: none !important
     }
 
