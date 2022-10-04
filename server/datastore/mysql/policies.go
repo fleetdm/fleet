@@ -268,12 +268,12 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, e
 func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	passFailCounts := `
+	counts := `
     (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
     (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
 `
 	if countsForTeamID != nil {
-		passFailCounts = `
+		counts = `
         (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
         (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
 `
@@ -306,7 +306,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
       %s
     FROM policies p
     LEFT JOIN users u ON p.author_id = u.id
-    WHERE %s`, passFailCounts, teamWhere), args...,
+    WHERE %s`, counts, teamWhere), args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
