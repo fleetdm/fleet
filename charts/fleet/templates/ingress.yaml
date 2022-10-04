@@ -39,7 +39,7 @@ spec:
           service:
             name: fleet
             port:
-              number: fleet
+              number: 8080
         {{- else }}
         backend:
           serviceName: fleet
