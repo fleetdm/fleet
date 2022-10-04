@@ -1,1 +1,0 @@
-* Adding beta headless support for Apple MDM to Fleet, disabled by default. Check <TODO link to `docs/Deploying/Configuration.md`> on how to setup Apple MDM on Fleet. 
