@@ -716,6 +716,8 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 		</dict>
 		<dict>
 			<key>AccessRights</key>
+			<integer>8191</integer>
+			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
 			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>

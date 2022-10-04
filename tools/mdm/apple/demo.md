@@ -166,7 +166,7 @@ fleetctl apply -f config.yaml
 ## 7. Create manual enrollment
 
 ```sh
-fleetctl apple-mdm enrollment-profiles create-manual --name foo
+fleetctl apple-mdm enrollment-profiles create-manual
 Manual enrollment created, URL: https://{{ngrog url}}/api/mdm/apple/enroll?token={{token}}.
 ```
 
@@ -175,10 +175,8 @@ Manual enrollment created, URL: https://{{ngrog url}}/api/mdm/apple/enroll?token
 There is a sample dep profile available at `tools/mdm/apple/dep_sample_profile.json` which can be used to create an automatic (DEP) enrollment profile.
 
 ```sh
-fleetctl apple-mdm enrollment-profiles create-automatic \
-    --name foo \
-    --profile ./tools/mdm/apple/dep_sample_profile.json
-Automatic enrollment created, URL: https://{{ngrok url}}/api/mdm/apple/enroll?token={{token}}.
+fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
+Automatic enrollment profile created, ID: 2
 ```
 
 ## 9. DEP Enroll
