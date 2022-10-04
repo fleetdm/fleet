@@ -40,7 +40,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
 | Security disclosure and policy | Guillaume Ross | 
-| Bug process  | Mo Zhu |
+| Bug process | Mo Zhu |
 
 *Luke Heath is backup 
 

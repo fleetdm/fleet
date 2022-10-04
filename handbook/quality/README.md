@@ -171,4 +171,4 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | `#help-release-bugs`                | Reed Haynes                                                         |
 
 <meta name="maintainedBy" value="zhumo">
-<meta name="title" value="🪢Quality">
+<meta name="title" value="🪢 Quality">
