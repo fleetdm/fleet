@@ -193,6 +193,7 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
           </Link>
         );
       },
+      sortType: "caseInsensitive",
     },
     {
       title: "Version",
