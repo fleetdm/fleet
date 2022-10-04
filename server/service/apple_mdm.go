@@ -233,6 +233,8 @@ type uploadAppleInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
+// TODO(lucas): We parse the whole body before running svc.authz.Authorize.
+// An authenticated but unauthorized user could abuse this.
 func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
