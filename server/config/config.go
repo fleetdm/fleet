@@ -330,63 +330,63 @@ type PackagingConfig struct {
 // TODO(lucas): Allow yaml.
 type MDMAppleConfig struct {
 	// Enable enables MDM functionality on Fleet.
-	Enable bool
+	Enable bool `yaml:"enable"`
 
 	// SCEP holds the SCEP protocol and server configuration.
-	SCEP MDMAppleSCEPConfig
+	SCEP MDMAppleSCEPConfig `yaml:"scep"`
 	// MDM holds the MDM core protocol and server configuration.
-	MDM MDMAppleMDMConfig
+	MDM MDMAppleMDMConfig `yaml:"mdm"`
 	// DEP holds the MDM DEP configuration.
-	DEP MDMAppleDEP
+	DEP MDMAppleDEP `yaml:"dep"`
 }
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
 type MDMAppleDEP struct {
 	// Token holds the tokens to authenticate to ABM:w
-	Token []byte
+	Token []byte `yaml:"token"`
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
-	SyncPeriodicity time.Duration
+	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
 }
 
 // MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
 type MDMAppleMDMConfig struct {
 	// PushCert contains the Apple Push Notification Service (APNS) certificate
-	PushCert MDMApplePushCert
+	PushCert MDMApplePushCert `yaml:"push_cert"`
 }
 
 // MDMApplePushCert holds the Apple Push Notification Service (APNS) certificate.
 type MDMApplePushCert struct {
 	// PEMCert contains the PEM-encoded certificate.
-	PEMCert []byte
+	PEMCert []byte `yaml:"pem_cert"`
 	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey []byte
+	PEMKey []byte `yaml:"pem_key"`
 }
 
 // MDMAppleSCEPConfig holds SCEP protocol and server configuration.
 type MDMAppleSCEPConfig struct {
 	// CA holds all the configuration for the SCEP CA certificate.
-	CA SCEPCAConfig
+	CA SCEPCAConfig `yaml:"ca"`
 	// Signer holds the SCEP signer configuration.
-	Signer SCEPSignerConfig
+	Signer SCEPSignerConfig `yaml:"signer"`
 	// Challenge is the SCEP challenge for SCEP enrollment requests.
-	Challenge string
+	Challenge string `yaml:"challenge"`
 }
 
 // SCEPSignerConfig holds the SCEP signer configuration.
 type SCEPSignerConfig struct {
 	// ValidityDays are the days signed client certificates will be valid.
-	ValidityDays int
+	ValidityDays int `yaml:"validity_days"`
 	// AllowRenewalDays are the allowable renewal days for certificates.
-	AllowRenewalDays int
+	AllowRenewalDays int `yaml:"allow_renewal_days"`
 }
 
 // SCEPCAConfig holds the SCEP CA certificate.
 type SCEPCAConfig struct {
 	// PEMCert contains the PEM-encoded certificate.
-	PEMCert []byte
+	PEMCert []byte `yaml:"pem_cert"`
 	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey []byte
+	PEMKey []byte `yaml:"pem_key"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
