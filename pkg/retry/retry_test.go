@@ -21,7 +21,7 @@ func TestRetryDo(t *testing.T) {
 		}, WithMaxAttempts(max), WithInterval(1*time.Millisecond))
 
 		require.ErrorIs(t, errTest, err)
-		require.Equal(t, max+1000, count)
+		require.Equal(t, max, count)
 	})
 
 	t.Run("operations are run an unlimited number of times by default", func(t *testing.T) {
