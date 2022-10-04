@@ -278,7 +278,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), deferred))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{p2.ID: ptr.Bool(false)}, time.Now(), deferred))
 
-	policies, err = ds.ListGlobalPolicies(context.Background())
+	policies, err = ds.ListGlobalPolicies(ctx)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
