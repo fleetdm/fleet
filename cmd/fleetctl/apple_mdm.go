@@ -186,10 +186,13 @@ func appleMDMSetDEPTokenInitCommand() *cli.Command {
 			contextFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			// TODO(lucas): Check validity days default value.
 			const (
-				cn           = "fleet"
-				validityDays = 1
+				cn = "fleet"
+				// Setting validityDays to 10 in case user doing the init command
+				// is different than user uploading to Apple.
+				// (Though we've heard from other users that Apple doesn't really check
+				// the expiration of this public key.)
+				validityDays = 10
 				pemCertPath  = "fleet-mdm-apple-dep.crt"
 				pemKeyPath   = "fleet-mdm-apple-dep.key"
 			)
@@ -292,9 +295,7 @@ func appleMDMEnrollmentProfilesCommand() *cli.Command {
 }
 
 func appleMDMEnrollmentProfilesCreateAutomaticCommand() *cli.Command {
-	var (
-		depProfilePath string
-	)
+	var depProfilePath string
 	return &cli.Command{
 		Name:  "create-automatic",
 		Usage: "Create an automatic enrollment profile",
