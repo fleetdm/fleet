@@ -27,9 +27,10 @@ parasails.registerPage('new-license', {
 
     quotedPrice: undefined,
     numberOfHostsQuoted: undefined,
-    // Success state when the billing form has been submitted
     showBillingForm: false,
     showQuotedPrice: false,
+    showAdditionalBillingFormInputs: false,
+    // Success state when the billing form has been submitted
     showSuccessMessage: false,
   },
 
@@ -40,7 +41,14 @@ parasails.registerPage('new-license', {
     //…
   },
   mounted: async function() {
-    //…
+
+    // If this user's signupReason is 'Try Fleet Sandbox' we'll need some additional information to complete this order.
+    if(this.me.signupReason === 'Try Fleet Sandbox') {
+      this.showAdditionalBillingFormInputs = true;
+      this.billingFormRules.organization = {required: true};
+      this.billingFormRules.firstName = {required: true};
+      this.billingFormRules.lastName = {required: true};
+    }
 
   },
 
@@ -69,9 +77,7 @@ parasails.registerPage('new-license', {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }
-      // When the final submit has been rendered into existence, focus it for our friendly user.
       await this.forceRender();
-      this.$focus('[purpose="submit-button"]');
     },
 
     clickScheduleDemo: async function() {
