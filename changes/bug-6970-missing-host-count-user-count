@@ -1,0 +1,1 @@
+* Fix host_count and user_count being always returned as `0` in `teams/{id}` endpoint.

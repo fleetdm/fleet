@@ -1,0 +1,39 @@
+name: tfvalidate
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.tf'
+  pull_request:
+    paths:
+      - '**.tf'
+  workflow_dispatch: # Manual dispatch
+permissions:
+  contents: read
+
+jobs:
+  tfvalidate:
+    name: terraform validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+
+      - name: Install terraform
+        uses: hashicorp/setup-terraform@v2.0.0
+        with:
+          terraform_version: 1.3.0
+
+      - name: Validate loadtesting
+        working-directory: ./infrastructure/loadtesting/terraform
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Validate infrastructure
+        working-directory: ./infrastructure/infrastructure/terraform
+        run: |
+          terraform init -backend=false
+          terraform validate

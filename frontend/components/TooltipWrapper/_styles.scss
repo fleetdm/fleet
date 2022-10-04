@@ -8,7 +8,13 @@
       visibility: visible;
       opacity: 1;
     }
+
+    .delayed-tip {
+      transition: 300ms all;
+      transition-delay: 300ms;
+    }
   }
+
   &__element {
     position: static;
     display: inline; // treat like a span but allow other tags as children

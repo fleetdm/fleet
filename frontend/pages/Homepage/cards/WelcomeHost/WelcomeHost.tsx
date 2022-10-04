@@ -303,7 +303,7 @@ const WelcomeHost = ({
                   <b>Resolve:</b> {currentPolicyShown.resolution}
                 </p>
               )}
-              <div className="done">
+              <div className="modal-cta-wrap">
                 <Button
                   variant="brand"
                   onClick={() => setShowPolicyModal(false)}
