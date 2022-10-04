@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
+	"gonum.org/v1/gonum/stat/distuv"
 )
 
 //go:embed *.tmpl
@@ -771,6 +772,54 @@ func (a *agent) diskSpace() []map[string]string {
 	}
 }
 
+func (a *agent) stressFeatureData(name string) []map[string]string {
+	outputMap := map[int]int{
+		// 'Big' feature, each host will generate 1,000 rows
+		1: 1000,
+		// 'Medium' feature, each host will generate 50 rows
+		2: 50,
+		// 'Small' feature, each host will generate 1 rows
+		3: 1,
+	}
+	parts := strings.Split(name, "_")
+	featureID, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return []map[string]string{}
+	}
+
+	result := make([]map[string]string, outputMap[featureID%3])
+	// TODO parameterize this
+	changeDist := distuv.Bernoulli{P: 0.5}
+	newDist := distuv.Bernoulli{P: 0.5}
+
+	for i := range result {
+		id := i
+		if newDist.Rand() == 1 {
+			id = rand.Intn(1_000_000)
+		}
+
+		changeProb := changeDist.Rand()
+
+		someDate, err := time.Parse(time.RFC822, "01 Jan 20 00:00 MST")
+		if err != nil {
+			continue
+		}
+
+		row := map[string]string{
+			"id":            fmt.Sprint(id),
+			"some_date":     "",
+			"some_enum_str": "",
+			"some_str":      "",
+			"some_bool":     "",
+			"some_decimal":  "",
+			"some_number":   "",
+		}
+		result[i] = row
+	}
+
+	return result
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -780,6 +829,12 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"stress_feature_"):
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.stressFeatureData(name)
+		}
+		return true, results, &ss
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":

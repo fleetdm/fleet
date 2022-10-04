@@ -3249,7 +3249,6 @@ GROUP BY %s`
 
 	var queries []string
 	for q := range queriesSet {
-		fmt.Println(q)
 		queries = append(queries, q)
 	}
 
