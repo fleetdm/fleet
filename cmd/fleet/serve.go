@@ -458,9 +458,10 @@ the way that the Fleet server works.
 			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
+			startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
-			startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)

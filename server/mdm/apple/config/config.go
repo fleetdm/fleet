@@ -1,3 +1,4 @@
+// Package config has utilities to verify Apple MDM related configuration.
 package config
 
 import (
