@@ -31,7 +31,7 @@ func powerSet(original []string) [][]string {
 }
 
 func Up_20221003154220(tx *sql.Tx) error {
-	nFeatures := 1
+	nFeatures := 50
 
 	columns := []string{
 		"some_date",
@@ -42,7 +42,7 @@ func Up_20221003154220(tx *sql.Tx) error {
 		"some_number",
 	}
 
-	for i := 0; i < nFeatures; i++ {
+	for i := 1; i <= nFeatures; i++ {
 		stm := `
 CREATE TABLE host_feature_%d (
 id int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -71,8 +71,6 @@ PRIMARY KEY (id),
 		}
 
 		stm = fmt.Sprintf(stm, i, strings.Join(indexStms, ",\n"))
-
-		fmt.Println(stm)
 
 		_, err := tx.Exec(stm)
 		if err != nil {

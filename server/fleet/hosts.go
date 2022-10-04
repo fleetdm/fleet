@@ -538,3 +538,26 @@ type EnrollHostLimiter interface {
 	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
 	SyncEnrolledHostIDs(ctx context.Context) error
 }
+
+type HostFeatureStressTestQueryParams struct {
+	HostID      uint
+	SomeDate    *time.Time
+	SomeDateMin *time.Time
+	SomeDateMax *time.Time
+
+	SomeSmallStr    *string
+	SomeSmallStrSet []string
+
+	SomeStr  *string
+	SomeBool *bool
+
+	SomeDecimal    *float32
+	SomeDecimalMin *float32
+	SomeDecimalMax *float32
+
+	SomeNumber    *int
+	SomeNumberMin *int
+	SomeNumberMax *int
+
+	FeatureID uint
+}

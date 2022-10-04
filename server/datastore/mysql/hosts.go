@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/bits"
 	"sort"
 	"strings"
 	"time"
@@ -3036,4 +3037,132 @@ WHERE
 		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
 	}
 	return len(ids), nil
+}
+
+func combinations(set []string, r int) (subsets [][]string) {
+	length := uint(len(set))
+
+	if r > len(set) {
+		r = len(set)
+	}
+
+	for subsetBits := 1; subsetBits < (1 << length); subsetBits++ {
+		if r > 0 && bits.OnesCount(uint(subsetBits)) != r {
+			continue
+		}
+		var subset []string
+		for object := uint(0); object < length; object++ {
+			if (subsetBits>>object)&1 == 1 {
+				subset = append(subset, set[object])
+			}
+		}
+		subsets = append(subsets, subset)
+	}
+	return subsets
+}
+
+func (ds *Datastore) HostFeatureStressTest(
+	ctx context.Context,
+	params []fleet.HostFeatureStressTestQueryParams,
+) error {
+	var queries []string
+
+	columns := []string{
+		"some_date",
+		"some_small_str",
+		"some_str",
+		"some_bool",
+		"some_decimal",
+		"some_number",
+	}
+
+	eqColumns := []string{
+		"some_date",
+		"some_small_str",
+		"some_bool",
+		"some_decimal",
+		"some_number",
+	}
+
+	rangebleCols := []string{
+		"some_date",
+		"some_decimal",
+		"some_number",
+	}
+
+	orderdableCols := []string{
+		"some_date",
+		"some_small_str",
+		"some_bool",
+		"some_decimal",
+		"some_number",
+	}
+
+	eqStm := `
+SELECT id, %s
+FROM host_feature_1
+WHERE host_id = ? AND %s = ? 
+ORDER BY %s LIMIT ? OFFSET ?`
+
+	rangeStm := `
+SELECT id, %s
+FROM host_feature_1 
+WHERE host_id = ? AND %s >= ? AND %s <= ? 
+ORDER BY %s LIMIT ? OFFSET ?`
+
+	inStm := `
+SELECT id, %s
+FROM host_feature_1 
+WHERE host_id = ? AND some_small_str IN (?) 
+ORDER BY %s LIMIT ? OFFSET ?`
+
+	likeStm := `
+SELECT id, %s
+FROM host_feature_1 
+WHERE host_id = ? AND some_str LIKE ? 
+ORDER BY %s LIMIT ? OFFSET ?`
+
+	for _, c := range eqColumns {
+		for _, o := range orderdableCols {
+			queries = append(queries, fmt.Sprintf(
+				eqStm,
+				strings.Join(columns, ",\n\t"),
+				c,
+				o,
+			))
+		}
+	}
+
+	for _, c := range rangebleCols {
+		for _, o := range orderdableCols {
+			queries = append(queries, fmt.Sprintf(
+				rangeStm,
+				strings.Join(columns, ",\n\t"),
+				c,
+				c,
+				o,
+			))
+		}
+	}
+
+	for _, o := range orderdableCols {
+		queries = append(queries, fmt.Sprintf(
+			inStm,
+			strings.Join(columns, ",\n\t"),
+			o,
+		))
+	}
+
+	for _, o := range orderdableCols {
+		queries = append(queries, fmt.Sprintf(
+			likeStm,
+			strings.Join(columns, ",\n\t"),
+			o,
+		))
+	}
+
+	fmt.Println(len(queries))
+	fmt.Println(queries)
+
+	return nil
 }

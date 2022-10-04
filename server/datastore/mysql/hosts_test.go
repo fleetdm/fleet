@@ -61,6 +61,12 @@ var enrollTests = []struct {
 	},
 }
 
+func TestHostFeatureStressTest(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	err := ds.HostFeatureStressTest(context.Background(), nil)
+	require.Error(t, err)
+}
+
 func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
