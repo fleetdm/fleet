@@ -227,7 +227,50 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving migration status")
 			}
 
-			migrationStatusCheck(migrationStatus, config.Upgrades.AllowMissingMigrations, dev, config.Mysql.Database)
+			switch migrationStatus.StatusCode {
+			case fleet.AllMigrationsCompleted:
+				// OK
+			case fleet.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v, data=%v.\n"+
+					"################################################################################\n",
+					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+				if dev {
+					os.Exit(1)
+				}
+			case fleet.SomeMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
+					"#   errors in Fleet.\n"+
+					"#\n"+
+					"#   Missing migrations: tables=%v, data=%v.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to perform migrations.\n"+
+					"#\n"+
+					"#   To run the server without performing migrations:\n"+
+					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
+					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+					"################################################################################\n",
+					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
+			case fleet.NoMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to initialize the database.\n"+
+					"################################################################################\n",
+					os.Args[0])
+				os.Exit(1)
+			}
 
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
@@ -650,57 +693,6 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
-}
-
-// migrationStatusCheck checks the status of the db migrations, prints warnings to stdout and
-// exits if db migrations are not in the correct state.
-//
-// This method is to be used by fleet cli commands (prints messages to stdout).
-func migrationStatusCheck(status *fleet.MigrationStatus, allowMissingMigrations, dev bool, dbName string) {
-	switch status.StatusCode {
-	case fleet.AllMigrationsCompleted:
-		// OK
-	case fleet.UnknownMigrations:
-		fmt.Printf("################################################################################\n"+
-			"# WARNING:\n"+
-			"#   Your %q database has unrecognized migrations. This could happen when\n"+
-			"#   running an older version of Fleet on a newer migrated database.\n"+
-			"#\n"+
-			"#   Unknown migrations: tables=%v, data=%v.\n"+
-			"################################################################################\n",
-			dbName, status.UnknownTable, status.UnknownData)
-		if dev {
-			os.Exit(1)
-		}
-	case fleet.SomeMigrationsCompleted:
-		fmt.Printf("################################################################################\n"+
-			"# WARNING:\n"+
-			"#   Your %q database is missing required migrations. This is likely to cause\n"+
-			"#   errors in Fleet.\n"+
-			"#\n"+
-			"#   Missing migrations: tables=%v, data=%v.\n"+
-			"#\n"+
-			"#   Run `%s prepare db` to perform migrations.\n"+
-			"#\n"+
-			"#   To run the server without performing migrations:\n"+
-			"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-			"#     - Set config updates.allow_mising_migrations to true, or,\n"+
-			"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
-			"################################################################################\n",
-			dbName, status.MissingTable, status.MissingData, os.Args[0])
-		if !allowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.NoMigrationsCompleted:
-		fmt.Printf("################################################################################\n"+
-			"# ERROR:\n"+
-			"#   Your %q database is not initialized. Fleet cannot start up.\n"+
-			"#\n"+
-			"#   Run `%s prepare db` to initialize the database.\n"+
-			"################################################################################\n",
-			dbName, os.Args[0])
-		os.Exit(1)
-	}
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
