@@ -62,19 +62,13 @@ const CreateTeamModal = ({
           name="name"
           onChange={onInputChange}
           label="Team name"
-          placeholder="Team name"
+          placeholder="Workstations"
           value={name}
           error={errors.name}
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p className={`${baseClass}__info-header`}>
-            Need to test queries and configurations before deploying?
-          </p>
-          <p>
-            A popular pattern is to end a team’s name with “- Sandbox”, then you
-            can use this to test new queries and configuration with staging
-            hosts or volunteers acting as canaries.
-          </p>
+          To organize your hosts, create a team, like "Workstations," "Servers,"
+          or "Servers (canary)".
         </InfoBanner>
         <div className="modal-cta-wrap">
           <Button
