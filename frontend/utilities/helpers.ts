@@ -550,6 +550,7 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
+// update
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
   uptime: number | string
@@ -588,7 +589,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
   }
-  return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
