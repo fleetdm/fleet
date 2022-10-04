@@ -756,9 +756,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// MDM Apple config
-	// TODO(lucas): Define proper default values for all the MDM configuration.
 	man.addConfigBool("mdm.apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigString("mdm.apple.server_address", "", "Public address of the server for apple devices to connect to")
 	man.addConfigString("mdm.apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
 	man.addConfigString("mdm.apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
 	man.addConfigInt("mdm.apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
