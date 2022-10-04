@@ -71,6 +71,9 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, 
 	if err := loadUsersForTeamDB(ctx, q, team); err != nil {
 		return nil, err
 	}
+	if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
+		return nil, err
+	}
 
 	return team, nil
 }
@@ -122,6 +125,9 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	if err := loadUsersForTeamDB(ctx, ds.reader, team); err != nil {
 		return nil, err
 	}
+	if err := loadHostCountForTeamDB(ctx, ds.reader, team); err != nil {
+		return nil, err
+	}
 
 	return team, nil
 }
@@ -138,6 +144,20 @@ func loadUsersForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.
 	}
 
 	team.Users = rows
+	team.UserCount = len(rows)
+
+	return nil
+}
+
+func loadHostCountForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.Team) error {
+	stmt := `
+		SELECT COUNT(*) FROM hosts h
+		WHERE h.team_id = ?
+	`
+	if err := q.QueryRowxContext(ctx, stmt, team.ID).Scan(&team.HostCount); err != nil {
+		return ctxerr.Wrap(ctx, err, "load HostsCount for team")
+	}
+
 	return nil
 }
 

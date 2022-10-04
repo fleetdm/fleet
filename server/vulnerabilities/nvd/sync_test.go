@@ -1,4 +1,4 @@
-package vulnerabilities
+package nvd
 
 import (
 	"context"
@@ -51,7 +51,7 @@ func TestLoadCVEMeta(t *testing.T) {
 	}
 
 	logger := log.NewNopLogger()
-	err := LoadCVEMeta(logger, "testdata", ds)
+	err := LoadCVEMeta(logger, "../testdata", ds)
 	require.NoError(t, err)
 	require.True(t, ds.InsertCVEMetaFuncInvoked)
 

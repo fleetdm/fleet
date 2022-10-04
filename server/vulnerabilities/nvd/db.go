@@ -1,4 +1,4 @@
-package vulnerabilities
+package nvd
 
 import (
 	"errors"

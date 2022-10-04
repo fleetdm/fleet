@@ -73,21 +73,13 @@ func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 type osqueryAgentOptions struct {
 	Options osqueryOptions `json:"options"`
 
-	Schedule map[string]struct {
-		Query    string `json:"query"`
-		Interval int    `json:"interval"`
-		Removed  bool   `json:"removed"`
-		Snapshot bool   `json:"snapshot"`
-		Platform string `json:"platform"`
-		Version  string `json:"version"`
-		Shard    int    `json:"shard"`
-		Denylist bool   `json:"denylist"`
-	} `json:"schedule"`
+	// Schedule is allowed as top-level key but we don't validate its value.
+	// See https://github.com/fleetdm/fleet/issues/7871#issuecomment-1265531018
+	Schedule json.RawMessage `json:"schedule"`
 
-	// Packs may have a string or struct value, both are supported, so a raw value
-	// is used to unmarshal and the type-check is done after. When it is a struct,
-	// it must be compatible with the osqueryPack struct below.
-	Packs map[string]json.RawMessage `json:"packs"`
+	// Packs is allowed as top-level key but we don't validate its value.
+	// See https://github.com/fleetdm/fleet/issues/7871#issuecomment-1265531018
+	Packs json.RawMessage `json:"packs"`
 
 	FilePaths    map[string][]string `json:"file_paths"`
 	FileAccesses []string            `json:"file_accesses"`
@@ -125,24 +117,6 @@ type osqueryAgentOptions struct {
 		// https://github.com/osquery/osquery/blob/bf697df445c5612522407781f86addb4b3d13221/osquery/events/eventfactory.cpp
 		EnableSubscribers []string `json:"enable_subscribers"`
 	} `json:"events"`
-}
-
-// When the osqueryAgentOptions.Packs field maps to a struct, this is the
-// definition that the struct must have.
-type osqueryPack struct {
-	Queries map[string]struct {
-		Query       string `json:"query"`
-		Interval    int    `json:"interval"`
-		Description string `json:"description"`
-		// TODO(mna): unclear if the following fields can be present in a pack's query?
-		Removed  bool `json:"removed"`
-		Snapshot bool `json:"snapshot"`
-		Denylist bool `json:"denylist"`
-	} `json:"schedule"`
-	Platform  string   `json:"platform"`
-	Version   string   `json:"version"`
-	Shard     int      `json:"shard"`
-	Discovery []string `json:"discovery"`
 }
 
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
@@ -518,33 +492,6 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 			return fmt.Errorf("options.logger_tls_endpoint must be a path starting with '/': %q", opts.Options.LoggerTlsEndpoint)
 		}
 	}
-
-	// Packs may have a string or struct value, both are supported
-	for packKey, pack := range opts.Packs {
-		if len(pack) == 0 {
-			// should never happen, just to make sure we avoid a panic reading the first byte
-			continue
-		}
-		switch pack[0] {
-		case '"':
-			// a string, this is fine
-		case '{':
-			// an object, must match the pack struct
-			var packStruct osqueryPack
-			if err := jsonStrictDecode(pack, &packStruct); err != nil {
-				return fmt.Errorf("pack %q: %w", packKey, err)
-			}
-		case 't', 'f':
-			return fmt.Errorf("pack %q: invalid bool value, expected string or object", packKey)
-		case 'n':
-			return fmt.Errorf("pack %q: invalid null value, expected string or object", packKey)
-		case '[':
-			return fmt.Errorf("pack %q: invalid array value, expected string or object", packKey)
-		default:
-			return fmt.Errorf("pack %q: invalid number value, expected string or object", packKey)
-		}
-	}
-
 	return nil
 }
 

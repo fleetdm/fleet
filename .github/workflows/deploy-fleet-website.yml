@@ -8,6 +8,7 @@ on:
       - 'docs/**'
       - 'handbook/**'
       - 'articles/**'
+      - 'schema/**'
       
 permissions:
   contents: read
