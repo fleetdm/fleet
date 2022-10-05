@@ -271,7 +271,15 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_LICENSE_KEY"
             value = var.fleet_license
-          }
+          },
+          #{
+          #  name = "FLEET_MDM_APPLE_ENABLE"
+          #  value = "1"
+          #},
+          #{
+          #  name = "FLEET_MDM_APPLE_SERVER_ADDRESS"
+          #  value = "dogfood.fleetdm.com"
+          #},
         ]
       }
   ])
