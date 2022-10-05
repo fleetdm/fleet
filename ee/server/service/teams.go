@@ -144,6 +144,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 	}
 
 	if teamOptions != nil {
+		// TODO(mna): error message needs to be translated
 		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
 			if applyOptions.Force && !applyOptions.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -428,6 +429,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if spec.AgentOptions != nil {
+			// TODO(mna): error message needs to be translated
 			if err := fleet.ValidateJSONAgentOptions(*spec.AgentOptions); err != nil {
 				if applyOpts.Force && !applyOpts.DryRun {
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")

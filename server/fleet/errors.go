@@ -272,19 +272,19 @@ func (ge *Error) Error() string {
 	return ge.Message
 }
 
-// An error that has a distinct user-friendly error message to return by the
-// API, in addition to its internal error message. The error message typically
-// conveys more useful technical information (and is what we want to log, which
-// is why we don't just override the error message), but the user-message
-// translates it into something more useful for the user.
-type userMessageError interface {
-	UserMessage() string
+// UserMessageError is an error that adds the UserMessage interface
+// implementation.
+type UserMessageError struct {
+	error
+	statusCode int
 }
 
-// ErrUserMessage is an error that adds the UserMessage interface
-// implementation.
-type ErrUserMessage struct {
-	error
+// NewUserMessageError creates a UserMessageError that will translate the
+// error message of err to a user-friendly form. If statusCode is > 0, it
+// will be used as the HTTP status code for the error, otherwise it defaults
+// to http.StatusUnprocessableEntity (422).
+func NewUserMessageError(err error, statusCode int) error {
+	return &UserMessageError{err, statusCode}
 }
 
 var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
@@ -292,7 +292,7 @@ var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
 // UserMessage implements the user-friendly translation of the error if its
 // root cause is one of the supported types, otherwise it returns the error
 // message.
-func (e ErrUserMessage) UserMessage() string {
+func (e UserMessageError) UserMessage() string {
 	cause := Cause(e.error)
 	switch cause := cause.(type) {
 	case *json.UnmarshalTypeError:
@@ -318,6 +318,15 @@ func (e ErrUserMessage) UserMessage() string {
 		}
 		return e.Error()
 	}
+}
+
+// StatusCode implements the kithttp.StatusCoder interface to return the status
+// code to use in HTTP API responses.
+func (e UserMessageError) StatusCode() int {
+	if e.statusCode > 0 {
+		return e.statusCode
+	}
+	return http.StatusUnprocessableEntity
 }
 
 // Cause returns the root error in err's chain.
