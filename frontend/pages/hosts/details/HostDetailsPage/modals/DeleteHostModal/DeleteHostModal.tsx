@@ -27,11 +27,16 @@ const DeleteHostModal = ({
     >
       <>
         <p>
-          This action will delete the host <strong>{hostName}</strong> from
-          Fleet.
+          This action will delete the host <strong>{hostName}</strong> from your
+          Fleet instance.
         </p>
-        <p>The host comes back online, it will automatically re-enroll.</p>
-        <p>To prevent re-enrollment, uninstall osquery on the host.</p>
+        <p>
+          The host will automatically re-enroll when it checks back into Fleet.
+        </p>
+        <p>
+          To prevent re-enrollment, you can uninstall osquery on the host or
+          revoke the host&apos;s enroll secret.
+        </p>
         <div className="modal-cta-wrap">
           <Button
             onClick={onSubmit}
