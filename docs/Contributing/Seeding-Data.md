@@ -79,3 +79,7 @@ After seeding users and teams, checkout [importing queries and policies](https:/
 ### Create an API-only user
 
 Like all regular users, seeded users API token expires frequently. For an API token that does not expire, create an [API-only user](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user)
+
+### Testing emails from your developer environment
+
+Setup [SMTP options](https://fleetdm.com/docs/contributing/testing-and-local-development#email) in your developer environment to test actions like resetting a password or inviting a user.
