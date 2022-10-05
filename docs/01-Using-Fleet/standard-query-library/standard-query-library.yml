@@ -949,7 +949,7 @@ spec:
   name: Firewall enabled, domain profile (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;
   description: "Checks for the existence of a Group Policy that enables the Domain Profile for Windows Defender Firewall."
-  resolution: "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Domain profile for Windows Defender Firewall."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall."
   platforms: Windows
   tags: compliance, CIS, CIS9.1.1
   platform: windows
