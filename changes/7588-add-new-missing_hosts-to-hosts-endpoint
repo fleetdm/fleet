@@ -1,1 +1,1 @@
-* Add parameter `missing_10_days` to endpoint `hosts`.
+* Add value `missing` to parameter `status` from endpoint `hosts`.

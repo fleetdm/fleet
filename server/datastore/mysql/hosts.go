@@ -629,18 +629,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
-	sql, params = filterHostsByMissing(now, sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
-	return sql, params
-}
-
-func filterHostsByMissing(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.Missing10Days {
-		sql += ` AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 10 DAY) <= ? `
-		params = append(params, now)
-	}
 	return sql, params
 }
 
@@ -694,17 +685,20 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
-	case "new":
+	case fleet.StatusNew:
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
 		params = append(params, now)
-	case "online":
+	case fleet.StatusOnline:
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
 		params = append(params, now)
-	case "offline":
+	case fleet.StatusOffline:
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
 		params = append(params, now)
-	case "mia":
+	case fleet.StatusMIA:
 		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
+		params = append(params, now)
+	case fleet.StatusMissing:
+		sql += ` AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 10 DAY) <= ? `
 		params = append(params, now)
 	}
 	return sql, params

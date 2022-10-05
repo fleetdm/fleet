@@ -1012,7 +1012,7 @@ func testHostsListMissing(t *testing.T, ds *Datastore) {
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 15)
 	assert.Equal(t, 15, len(hosts))
 
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{Missing10Days: true}, 4)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusMissing}, 4)
 	assert.Equal(t, 4, len(hosts))
 }
 

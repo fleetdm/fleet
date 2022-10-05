@@ -20,6 +20,8 @@ const (
 	// StatusNew means the host has enrolled in the interval defined by
 	// NewDuration. It is independent of offline and online.
 	StatusNew = HostStatus("new")
+	// StatusMissing means the host is missing for 10 days.
+	StatusMissing = HostStatus("missing")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -81,10 +83,6 @@ type HostListOptions struct {
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
 	LowDiskSpaceFilter *int
-
-	// Missing10Days indicates to only return hosts that are offline for at
-	// least 10 days.
-	Missing10Days bool
 }
 
 func (h HostListOptions) Empty() bool {

@@ -196,22 +196,13 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	status := r.URL.Query().Get("status")
 	switch fleet.HostStatus(status) {
-	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA:
+	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
 		hopt.StatusFilter = fleet.HostStatus(status)
 	case "":
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid status %s", status)
 
-	}
-
-	switch m := r.URL.Query().Get("missing_10_days"); m {
-	case "", "false":
-		// don't filter
-	case "true":
-		hopt.Missing10Days = true
-	default:
-		return fleet.HostListOptions{}, ctxerr.Errorf(r.Context(), "invalid missing_10_days filter %s", m)
 	}
 
 	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
