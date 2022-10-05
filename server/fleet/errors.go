@@ -283,7 +283,7 @@ type UserMessageError struct {
 // error message of err to a user-friendly form. If statusCode is > 0, it
 // will be used as the HTTP status code for the error, otherwise it defaults
 // to http.StatusUnprocessableEntity (422).
-func NewUserMessageError(err error, statusCode int) error {
+func NewUserMessageError(err error, statusCode int) *UserMessageError {
 	return &UserMessageError{err, statusCode}
 }
 

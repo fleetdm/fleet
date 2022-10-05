@@ -39,7 +39,7 @@ func TestUserMessageErrors(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%T: %[1]q", c.in), func(t *testing.T) {
-			ume := UserMessageError{c.in}
+			ume := NewUserMessageError(c.in, 0)
 			got := ume.UserMessage()
 			require.Contains(t, got, c.out)
 		})
