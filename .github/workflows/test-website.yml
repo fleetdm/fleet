@@ -6,6 +6,7 @@ on:
       - 'website/**'
       - 'docs/**'
       - 'handbook/**'
+      - 'schema/**'
 
 permissions:
   contents: read

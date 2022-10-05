@@ -54,7 +54,7 @@ func Do(fn func() error, opts ...Option) error {
 			return nil
 		}
 
-		if cfg.maxAttempts != 0 && attempts > cfg.maxAttempts {
+		if cfg.maxAttempts != 0 && attempts >= cfg.maxAttempts {
 			return err
 		}
 
