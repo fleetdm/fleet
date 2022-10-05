@@ -80,6 +80,8 @@ After seeding users and teams, checkout [importing queries and policies](https:/
 
 Like all regular users, seeded users API token expires frequently. For an API token that does not expire, create an [API-only user](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user)
 
-### Testing emails from your developer environment
+### Create a single-sign on (SSO) user
 
-Setup [SMTP options](https://fleetdm.com/docs/contributing/testing-and-local-development#email) in your developer environment to test actions like resetting a password or inviting a user.
+> Setup [SMTP options](https://fleetdm.com/docs/contributing/testing-and-local-development#email) in your developer environment first to invite a SSO user.
+
+Fleet supports [SSO users](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso). Create a [SSO test user](https://fleetdm.com/docs/contributing/testing-and-local-development#testing-sso) to test signing on with simple SAML.
