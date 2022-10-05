@@ -343,9 +343,9 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, Domain Profile enabled (Windows)",
     description:
-      "Checks for the existence of a Group Policy that enables the Domain Profile for Windows Defender Firewall.",
+      "Checks for the existence of a Group Policy that enables the Domain Profile for Windows Firewall.",
     resolution:
-      "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Domain profile for Windows Defender Firewall.",
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall.",
     platform: "windows",
   },
   {
@@ -354,9 +354,9 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, Private Profile enabled (Windows)",
     description:
-      "Checks for the existence of a Group Policy that enables the Private Profile for Windows Defender Firewall.",
+      "Checks for the existence of a Group Policy that enables the Private Profile for Windows Firewall.",
     resolution:
-      "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Private Profile for Windows Defender Firewall.",
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall.",
     platform: "windows",
   },
  {
@@ -365,9 +365,9 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;",
     name: "Windows Firewall, Public Profile enabled (Windows)",
     description:
-      "Checks for the existence of a Group Policy that enables the Public Profile for Windows Defender Firewall.",
+      "Checks for the existence of a Group Policy that enables the Public Profile for Windows Firewall.",
     resolution:
-      "Contact your IT administrator to ensure your Windows system is receiving a Group Policy that enables the Public Profile for Windows Defender Firewall.",
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall.",
     platform: "windows",
   },
  {
