@@ -453,6 +453,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
+| Updating the merged osquery schema | Three weeks | Running the `generate-merged-schema` script and committing the merged schema to the fleetdm/fleet repo | Eric Shaw |
 
 ## Slack channels
 
