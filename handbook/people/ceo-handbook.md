@@ -128,7 +128,6 @@ To allow flexibility for parents to participate, there will be some rotations id
  3. Don't plan to do any of your usual work.
  4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
  5. Participating in the shadow program is a privilege that will expose you to confidential information.
- 6. Give feedback to and receive feedback from the CEO.
 
 ### What to wear
  Casual. You do not need to dress formally; business casual clothes are also appropriate.
@@ -176,6 +175,9 @@ Here are some examples for meetings:
  4. Some meetings you will not be required to shadow, those are indicated with "[no shadows]" in the event title.
  5. Meetings with those outside of Fleet may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
 
+### Zoom information
+You'll have an opportunity to join many calls and meet new people along the way. Fleet asks that you change your Zoom name to reflect "[CEO shadow - your name]" so that everyone on the call knows who you are and why you are participating. 
+
 ### Responsibilities
 Meetings come in many different formats. Your responsibilities may change slightly based on the kind of meeting.
 Here are the responsibilities shadows have during meetings:
@@ -186,6 +188,13 @@ Here are the responsibilities shadows have during meetings:
 | Customer Meeting | Yes, please use the externally-shared collaboration doc | Timekeeping |
 | Anything else (unless specified)	| Yes, take notes | Timekeeping |
 
+## After the CEO shadow program
+### Alumni 
+CEO Shadow program alumni are welcome to join the #ceo-shadow-alumni Slack channel to stay in touch after the program.
+| Start date | End date | Name | Title | Takeaways |
+| ---------- | -------- | ---- | ----- | --------- |
+|  date      |  date    | name | title | takeaways |
+
 
 ## Considerations for other companies starting CEO shadow programs
 GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
@@ -193,14 +202,6 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
  3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
-
-
-## Alumni 
-CEO Shadow program alumni are welcome to join the #ceo-shadow-alumni Slack channel to stay in touch after the program.
-| Start date | End date | Name | Title | Takeaways |
-| ---------- | -------- | ---- | ----- | --------- |
-|  date      |  date    | name | title | takeaways |
-
 
 <meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="CEO handbook">
