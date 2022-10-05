@@ -550,7 +550,6 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-// update
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
   uptime: number | string
