@@ -898,14 +898,17 @@ func appleMDMDEPListCommand() *cli.Command {
 				"Model",
 				"Description",
 				"Color",
-				"Asset Tag",
 				"Profile Status",
-				"Assigned Date",
+				"Profile UUID",
+				"Profile Assign Time",
+				"Profile Push Time",
+				"Device Assigned Date",
 				"Assigned By",
 			})
 			table.SetAutoWrapText(false)
 			table.SetRowLine(true)
 
+			const timeFmt = "2006-01-02T15:04:05Z"
 			for _, device := range devices {
 				table.Append([]string{
 					device.SerialNumber,
@@ -914,9 +917,11 @@ func appleMDMDEPListCommand() *cli.Command {
 					device.Model,
 					device.Description,
 					device.Color,
-					device.AssetTag,
 					device.ProfileStatus,
-					device.DeviceAssignedDate.String(),
+					device.ProfileUUID,
+					device.ProfileAssignTime.Format(timeFmt),
+					device.ProfilePushTime.Format(timeFmt),
+					device.DeviceAssignedDate.Format(timeFmt),
 					device.DeviceAssignedBy,
 				})
 			}
