@@ -31,7 +31,6 @@ var cvetests = []struct {
 		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*",
 		[]string{"CVE-2012-6369"},
 	},
-
 	{
 		"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*",
 		[]string{
