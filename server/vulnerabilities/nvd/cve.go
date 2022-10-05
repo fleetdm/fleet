@@ -131,6 +131,8 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
+	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
+	// NVD feed file.
 	vulns := make(map[string]fleet.SoftwareVulnerability)
 	for _, file := range files {
 		foundVulns, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
