@@ -23,8 +23,8 @@ module.exports = {
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     let VERSION_OF_OSQUERY_SCHEMA_TO_USE = '5.4.0';
+    // Getting the specified osquery schema from the osquery/osquery-site GitHub repo.
     let rawOsqueryTables = await sails.helpers.http.get('https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json');
-
     let fleetOverridesForTables = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
 
     let expandedTables = []; // create an empty array for the merged schema.
