@@ -1,6 +1,5 @@
 # REST API
 
-- [Overview](#overview)
 - [Authentication](#authentication)
 - [Activities](#activities)
 - [Fleet configuration](#fleet-configuration)
@@ -4985,8 +4984,6 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
@@ -5057,8 +5054,6 @@ _Available in Fleet Premium_
     {
       "name": "workstations",
       "id": 1,
-      "user_ids": [],
-      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
       "agent_options": {
@@ -5147,8 +5142,6 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
@@ -5206,8 +5199,6 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
@@ -5299,8 +5290,6 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {

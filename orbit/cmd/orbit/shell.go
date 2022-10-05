@@ -109,7 +109,7 @@ var shellCommand = &cli.Command{
 			// leaving the extension runner waiting for the socket.
 			// NOTE(lucas): `--extensions_require` doesn't seem to work with
 			// thrift extensions?
-			registerExtensionRunner(&g, r.ExtensionSocketPath(), "")
+			registerExtensionRunner(&g, r.ExtensionSocketPath())
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())

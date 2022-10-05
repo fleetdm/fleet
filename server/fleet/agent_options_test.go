@@ -78,7 +78,7 @@ func TestValidateAgentOptions(t *testing.T) {
 				}
 			}
 		}}`, ""},
-		{"invalid packs object key", `{"config":{
+		{"invalid packs object key is accepted as we do not validate packs", `{"config":{
 			"packs": {
 				"pack1": {
 					"schedule": {
@@ -90,12 +90,17 @@ func TestValidateAgentOptions(t *testing.T) {
 					"platform": "darwin"
 				}
 			}
-		}}`, `unknown field "foo"`},
-		{"invalid packs type", `{"config":{
+		}}`, ``},
+		{"invalid packs type is accepted as we do not validate packs", `{"config":{
 			"packs": {
 				"pack1": 1
 			}
-		}}`, `invalid number value`},
+		}}`, ``},
+		{"invalid schedule type is accepted as we do not validate schedule", `{"config":{
+			"schedule": {
+				"foo": 1
+			}
+		}}`, ``},
 		{"option added in osquery 5.5.1", `{"config":{
 			"options": {
 				"malloc_trim_threshold": 100
