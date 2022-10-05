@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -324,31 +324,31 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		opts := vulnerabilities.SyncOptions{
+		opts := nvd.SyncOptions{
 			VulnPath:           config.DatabasesPath,
 			CPEDBURL:           config.CPEDatabaseURL,
 			CPETranslationsURL: config.CPETranslationsURL,
 			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
-		err := vulnerabilities.Sync(opts)
+		err := nvd.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			return nil
 		}
 	}
 
-	if err := vulnerabilities.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
 
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
+	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
 		return nil
 	}
 
-	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil

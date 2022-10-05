@@ -35,13 +35,10 @@ const DeleteHostModal = ({
             {isAllMatchingHostsSelected && "+"}{" "}
             {selectedHostIds.length === 1 ? "host" : "hosts"}
           </b>{" "}
-          from your Fleet instance.
+          from Fleet.
         </p>
         <p>If the hosts come back online, they will automatically re-enroll.</p>
-        <p>
-          To prevent re-enrollment, you can disable or uninstall osquery on
-          these hosts.
-        </p>
+        <p>To prevent re-enrollment, uninstall osquery on these hosts.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"

@@ -459,6 +459,9 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"))
+	}
 
 	for _, s := range spec.Secrets {
 		if s.Secret == "" {
