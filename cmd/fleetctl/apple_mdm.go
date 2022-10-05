@@ -288,7 +288,6 @@ func appleMDMEnrollmentProfilesCommand() *cli.Command {
 		Subcommands: []*cli.Command{
 			appleMDMEnrollmentProfilesCreateAutomaticCommand(),
 			appleMDMEnrollmentProfilesCreateManualCommand(),
-			appleMDMEnrollmentProfilesDeleteCommand(),
 			appleMDMEnrollmentProfilesListCommand(),
 		},
 	}
@@ -342,27 +341,6 @@ func appleMDMEnrollmentProfilesCreateManualCommand() *cli.Command {
 				return fmt.Errorf("create enrollment profile: %w", err)
 			}
 			fmt.Printf("Manual enrollment profile created, URL: %s.\n", enrollmentProfile.EnrollmentURL)
-			return nil
-		},
-	}
-}
-
-func appleMDMEnrollmentProfilesDeleteCommand() *cli.Command {
-	var enrollmentProfileID uint
-	return &cli.Command{
-		Name:  "delete",
-		Usage: "Delete an enrollment profile",
-		Flags: []cli.Flag{
-			&cli.UintFlag{
-				Name:        "id",
-				Usage:       "Identifier of the enrollment profile",
-				Destination: &enrollmentProfileID,
-				Required:    true,
-			},
-		},
-		Action: func(c *cli.Context) error {
-			// TODO(lucas): Implement command.
-			fmt.Println("Not implemented yet.")
 			return nil
 		},
 	}
