@@ -165,7 +165,27 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
-          }
+          },
+          {
+            name      = "FLEET_MDM_APPLE_SCEP_CA_CERT_PEM"
+            valueFrom = "${aws_secretsmanager_secret.scep.arn}:crt::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_SCEP_CA_KEY_PEM"
+            valueFrom = "${aws_secretsmanager_secret.scep.arn}:key::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_SCEP_CHALLENGE"
+            valueFrom = "${aws_secretsmanager_secret.scep.arn}:challenge::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM"
+            valueFrom = "${aws_secretsmanager_secret.apm.arn}:FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM"
+            valueFrom = "${aws_secretsmanager_secret.apm.arn}:FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM::"
+          },
         ]
         environment = [
           {
