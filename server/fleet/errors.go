@@ -1,9 +1,13 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
+	"regexp"
+	"strings"
 )
 
 var (
@@ -266,4 +270,63 @@ func NewErrorf(code int, format string, args ...interface{}) error {
 
 func (ge *Error) Error() string {
 	return ge.Message
+}
+
+// An error that has a distinct user-friendly error message to return by the
+// API, in addition to its internal error message. The error message typically
+// conveys more useful technical information (and is what we want to log, which
+// is why we don't just override the error message), but the user-message
+// translates it into something more useful for the user.
+type userMessageError interface {
+	UserMessage() string
+}
+
+// ErrUserMessage is an error that adds the UserMessage interface
+// implementation.
+type ErrUserMessage struct {
+	error
+}
+
+var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
+
+// UserMessage implements the user-friendly translation of the error if its
+// root cause is one of the supported types, otherwise it returns the error
+// message.
+func (e ErrUserMessage) UserMessage() string {
+	cause := Cause(e.error)
+	switch cause := cause.(type) {
+	case *json.UnmarshalTypeError:
+		var sb strings.Builder
+		curType := cause.Type
+		for curType.Kind() == reflect.Slice || curType.Kind() == reflect.Array {
+			sb.WriteString("array of ")
+			curType = curType.Elem()
+		}
+		sb.WriteString(curType.Name())
+		if curType != cause.Type {
+			// it was an array
+			sb.WriteString("s")
+		}
+
+		return fmt.Sprintf("invalid value type at '%s': expected %s but got %s", cause.Field, sb.String(), cause.Value)
+
+	default:
+		// there's no specific error type for the strict json mode
+		// (DisallowUnknownFields), so resort to message-matching.
+		if matches := rxJSONUnknownField.FindStringSubmatch(cause.Error()); matches != nil {
+			return fmt.Sprintf("unsupported key provided: %q", matches[1])
+		}
+		return e.Error()
+	}
+}
+
+// Cause returns the root error in err's chain.
+func Cause(err error) error {
+	for {
+		uerr := errors.Unwrap(err)
+		if uerr == nil {
+			return err
+		}
+		err = uerr
+	}
 }
