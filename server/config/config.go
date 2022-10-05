@@ -3,7 +3,6 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -310,11 +309,6 @@ type HTTPBasicAuthConfig struct {
 	Username string `json:"username" yaml:"username"`
 	// Password is the HTTP Basic Auth password.
 	Password string `json:"password" yaml:"password"`
-}
-
-// Encoded returns the base64 representation of the HTTP basic auth.
-func (h HTTPBasicAuthConfig) Encoded() string {
-	return base64.StdEncoding.EncodeToString([]byte(h.Username + ":" + h.Password))
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages

@@ -643,7 +643,8 @@ type Datastore interface {
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
-	// GetMDMAppleCommandResults returns the execution result of a command identified by a CommandUUID.
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
+	// The map returned has a result for each target device ID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.

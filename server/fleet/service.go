@@ -533,7 +533,8 @@ type Service interface {
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
 
-	// GetMDMAppleCommandResults returns the execution result of a command identified by a CommandUUID.
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
+	// The map returned has a result for each target device ID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.

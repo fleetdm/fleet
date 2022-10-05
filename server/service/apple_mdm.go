@@ -98,13 +98,12 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	depTransport := client.NewTransport(httpClient.Transport, httpClient, svc.depStorage, nil)
 	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
 
-	// TODO(lucas): Currently overriding the `url` and `configuration_web_url`.
-	// We need to actually expose configuration.
 	var depProfileRequest map[string]interface{}
 	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
 		return fmt.Errorf("invalid DEP profile: %w", err)
 	}
 
+	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
 	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
 	depProfileRequest["url"] = enrollURL
 	depProfileRequest["configuration_web_url"] = enrollURL
@@ -685,12 +684,6 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
-// TODO(lucas): Tweak the remaining configuration.
-// Downloaded from:
-// https://github.com/micromdm/nanomdm/blob/3b1eb0e4e6538b6644633b18dedc6d8645853cb9/docs/enroll.mobileconfig
-//
-// TODO(lucas): Support enroll profile signing?
-//
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and
 // PayloadUUID in the old and new profiles.
 var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
@@ -862,10 +855,9 @@ func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc
 		return mdmAppleGetInstallerResponse{Err: err}, nil
 	}
 	return mdmAppleGetInstallerResponse{
-		head:      true,
-		name:      installer.Name,
-		size:      installer.Size,
-		installer: installer.Installer,
+		head: true,
+		name: installer.Name,
+		size: installer.Size,
 	}, nil
 }
 
