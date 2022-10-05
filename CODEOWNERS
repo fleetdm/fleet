@@ -72,7 +72,7 @@ go.mod @fleetdm/go
 /handbook/customers @ksatter
 /handbook/growth @timmy-k
 /handbook/community @timmy-k
-/handbook/digital-experience @mike-j-thomas @chris-mcgillicuddy
+/handbook/digital-experience @mike-j-thomas
 /handbook/README.md @chris-mcgillicuddy
 /handbook/handbook @chris-mcgillicuddy
 
