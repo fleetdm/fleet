@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Generate merged schema',
 
 
-  description: 'Merges the osquery schema located at /frontend/osquery_tables.json with Fleet\'s overrides (/schema/fleet_schema.json) and save the merged schema to /schema/merged_schema.json',
+  description: 'Merge the osquery schema from the osquery/osquery-site GitHub repo with Fleet\'s overrides (/schema/fleet_schema.json) and save the merged schema to /schema/osquery_fleet_schema.json',
 
 
 
@@ -12,7 +12,7 @@ module.exports = {
     let path = require('path');
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
-    let mergedSchemaOutputPath = path.resolve(topLvlRepoPath+'/schema', 'merged_schema.json');
+    let mergedSchemaOutputPath = path.resolve(topLvlRepoPath+'/schema', 'osquery_fleet_schema.json');
 
     let mergedSchemaTables = await sails.helpers.getExtendedOsquerySchema();
 
