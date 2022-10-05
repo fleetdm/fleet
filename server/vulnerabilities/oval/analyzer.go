@@ -18,7 +18,7 @@ import (
 
 const (
 	hostsBatchSize = 500
-	vulnBatchSize  = 1
+	vulnBatchSize  = 500
 )
 
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
