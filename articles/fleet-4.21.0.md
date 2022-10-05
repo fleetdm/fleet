@@ -1,5 +1,7 @@
 # Fleet 4.21.0 | Validate config and teams YAML documents, manage osquery flags remotely with Orbit, view team and global policy compliance
 
+![Fleet 4.21.0 release](../website/assets/images/articles/fleet-4.21.0-1600x900@2x.jpeg)
+
 Fleet 4.21.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.21.0) or continue reading to get the highlights.
 
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
@@ -25,7 +27,7 @@ In addition to validating required keys and the type of document values, Fleet m
 ## Manage osquery flags remotely with Orbit
 **Available in Fleet Free and Fleet Premium**
 
-![Manage osquery flags remotely with Orbit](../website/assets/images/articles/fleet-4.19.0-1.gif)
+![Manage osquery flags remotely with Orbit](../website/assets/images/articles/fleet-4.21.0.gif)
 
 Admins used to need a software orchestration tool (e.g., Chef) to deploy new osquery flags to the end user. Now, you can specify new flags in Fleet — and Orbit will restart osquery with the appropriate flags.
 
@@ -64,4 +66,4 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="chris-mcgillicuddy">
 <meta name="publishedOn" value="2022-10-05">
 <meta name="articleTitle" value="Fleet 4.21.0 | Validate config and teams YAML documents, manage osquery flags remotely with Orbit, view team and global policy compliance">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.19.0-cover-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.21.0-1600x900@2x.jpeg">
