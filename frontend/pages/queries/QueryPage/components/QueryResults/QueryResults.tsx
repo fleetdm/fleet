@@ -10,7 +10,6 @@ import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -19,6 +18,7 @@ import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x
 import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
 
 import resultsTableHeaders from "./QueryResultsTableConfig";
+import AwaitingResults from "./AwaitingResults";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -204,7 +204,7 @@ const QueryResults = ({
       isQueryFinished && (!queryResults?.length || !hostsCount.successful);
 
     if (hasNoResultsYet) {
-      return <Spinner />;
+      return <AwaitingResults />;
     }
 
     if (finishedWithNoResults) {
