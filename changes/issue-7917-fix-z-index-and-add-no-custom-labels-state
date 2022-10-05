@@ -1,1 +1,0 @@
-- This fixes the UI bug where the label filter dropdown goes under the table header and add a "no custom labels" state that shows when the user has not created any custom labels yet.
