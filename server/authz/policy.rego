@@ -517,7 +517,7 @@ allow {
 
 # Global admins can read and write Apple MDM enrollments.
 allow {
-  object.type == "mdm_apple_enrollment"
+  object.type == "mdm_apple_enrollment_profile"
   subject.global_role == admin
   action == [read, write][_]
 }

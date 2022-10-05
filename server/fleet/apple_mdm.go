@@ -54,7 +54,7 @@ type MDMAppleEnrollmentProfile struct {
 
 // AuthzType implements authz.AuthzTyper.
 func (m MDMAppleEnrollmentProfile) AuthzType() string {
-	return "mdm_apple_enrollment"
+	return "mdm_apple_enrollment_profile"
 }
 
 // MDMAppleCommandResult holds the result of a command execution provided by the target device.
