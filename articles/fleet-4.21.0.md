@@ -33,7 +33,7 @@ Admins used to need a software orchestration tool (e.g., Chef) to deploy new osq
 
 Orbit regularly checks flags from Fleet according to the `distributed_interval` setting. This includes seeing if hosts belong to any teams. If a host is on one or more teams, Orbit will apply the relevant team flags. Otherise, it applies the global flag set.
 
-Team flag sets override global flag sets. The system does not merge team and global options, as was the case in the previous version of Fleet. The `overrides` setting does not accommodate `command_line_flags`.
+Fleet Premium users can specify unique flags for each team. A team's flags override all flags set at the global level. Fleet does not merge the two sets of flags.
 
 ## View team and global policy compliance
 **Availaible in Fleet Premium**
