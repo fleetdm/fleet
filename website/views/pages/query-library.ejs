@@ -30,9 +30,9 @@
             <div class="select-mobile-border">
               <select class="select-purpose mobile font-weight-bold" v-model="selectedPlatform">
                 <option value="all platforms" selected>All platforms</option>
-                <option value="macOS">macOS</option>
-                <option value="Windows">Windows</option>
-                <option value="Linux">Linux</option>
+                <option value="darwin">macOS</option>
+                <option value="windows">Windows</option>
+                <option value="linux">Linux</option>
               </select>
             </div>
           </div>
@@ -62,14 +62,14 @@
                 <p class="d-inline-flex flex-wrap px-2 mb-0">compatible with</p>
                 <button class="btn btn-secondary btn-sm dropdown-toggle p-0" type="button"
                   id="dropdownMenuSelectPlatform" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{selectedPlatform}}
+                  {{selectedPlatform === 'windows' ? 'Windows' : selectedPlatform === 'darwin' ? 'macOS' : selectedPlatform === 'linux' ? 'Linux' : selectedPlatform}}
                 </button>
                 <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPlatform">
                   <button class="dropdown-item" type="button" @click="clickSelectPlatform('all platforms')">all platforms</button>
-                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('macOS')">macOS</button>
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('darwin')">macOS</button>
                   <button class="dropdown-item" type="button"
-                    @click="clickSelectPlatform('Windows')">Windows</button>
-                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('Linux')">Linux</button>
+                    @click="clickSelectPlatform('windows')">Windows</button>
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatform('linux')">Linux</button>
                 </div>
               </div>
             </div>
@@ -122,13 +122,13 @@
                     <div class="text-sm-right m-0">
                       <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
                         src="/images/os-macos-black-16x16@2x.png" alt="macOS"
-                        v-if="query.platforms.includes('macOS')" />
+                        v-if="query.platform.includes('darwin')" />
                       <img class="d-inline-flex mr-1 mr-sm-0 ml-sm-1 ml-md-2 logo"
                         src="/images/os-windows-black-16x16@2x.png" alt="Windows"
-                        v-if="query.platforms.includes('Windows')" />
+                        v-if="query.platform.includes('windows')" />
                       <img class="d-inline-flex mr-1 mr-ms-0 ml-sm-1 ml-md-2 logo"
                         src="/images/os-linux-black-16x16@2x.png" alt="Linux"
-                        v-if="query.platforms.includes('Linux')" />
+                        v-if="query.platform.includes('linux')" />
                     </div>
                   </div>
                 </div>
