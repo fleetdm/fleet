@@ -341,8 +341,8 @@ type MDMAppleConfig struct {
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
 type MDMAppleDEP struct {
-	// Token holds the tokens to authenticate to ABM:w
-	Token []byte `yaml:"token"`
+	// Token holds the tokens to authenticate to ABM
+	Token string `yaml:"token"`
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
 	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
@@ -357,9 +357,9 @@ type MDMAppleMDMConfig struct {
 // MDMApplePushCert holds the Apple Push Notification Service (APNS) certificate.
 type MDMApplePushCert struct {
 	// PEMCert contains the PEM-encoded certificate.
-	PEMCert []byte `yaml:"pem_cert"`
+	PEMCert string `yaml:"pem_cert"`
 	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey []byte `yaml:"pem_key"`
+	PEMKey string `yaml:"pem_key"`
 }
 
 // MDMAppleSCEPConfig holds SCEP protocol and server configuration.
@@ -383,9 +383,9 @@ type SCEPSignerConfig struct {
 // SCEPCAConfig holds the SCEP CA certificate.
 type SCEPCAConfig struct {
 	// PEMCert contains the PEM-encoded certificate.
-	PEMCert []byte `yaml:"pem_cert"`
+	PEMCert string `yaml:"pem_cert"`
 	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey []byte `yaml:"pem_key"`
+	PEMKey string `yaml:"pem_key"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -416,7 +416,7 @@ type FleetConfig struct {
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
-	MDMApple         MDMAppleConfig
+	MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
 }
 
 type TLS struct {
@@ -755,16 +755,16 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// MDM Apple config
-	man.addConfigBool("mdm.apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigString("mdm.apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
-	man.addConfigString("mdm.apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
-	man.addConfigInt("mdm.apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
-	man.addConfigInt("mdm.apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
-	man.addConfigString("mdm.apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigString("mdm.apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
-	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
-	man.addConfigString("mdm.apple.dep.token", "", "MDM DEP Auth Token")
-	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
+	man.addConfigString("mdm_apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
+	man.addConfigString("mdm_apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
+	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
+	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
+	man.addConfigString("mdm_apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
+	man.addConfigString("mdm_apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
+	man.addConfigString("mdm_apple.dep.token", "", "MDM DEP Auth Token")
+	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -976,27 +976,27 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDMApple: MDMAppleConfig{
-			Enable: man.getConfigBool("mdm.apple.enable"),
+			Enable: man.getConfigBool("mdm_apple.enable"),
 			SCEP: MDMAppleSCEPConfig{
 				CA: SCEPCAConfig{
-					PEMCert: []byte(man.getConfigString("mdm.apple.scep.ca.cert_pem")),
-					PEMKey:  []byte(man.getConfigString("mdm.apple.scep.ca.key_pem")),
+					PEMCert: man.getConfigString("mdm_apple.scep.ca.cert_pem"),
+					PEMKey:  man.getConfigString("mdm_apple.scep.ca.key_pem"),
 				},
 				Signer: SCEPSignerConfig{
-					ValidityDays:     man.getConfigInt("mdm.apple.scep.signer.validity_days"),
-					AllowRenewalDays: man.getConfigInt("mdm.apple.scep.signer.allow_renewal_days"),
+					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
+					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
 				},
-				Challenge: man.getConfigString("mdm.apple.scep.challenge"),
+				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
 			},
 			MDM: MDMAppleMDMConfig{
 				PushCert: MDMApplePushCert{
-					PEMCert: []byte(man.getConfigString("mdm.apple.mdm.push.cert_pem")),
-					PEMKey:  []byte(man.getConfigString("mdm.apple.mdm.push.key_pem")),
+					PEMCert: man.getConfigString("mdm_apple.mdm.push.cert_pem"),
+					PEMKey:  man.getConfigString("mdm_apple.mdm.push.key_pem"),
 				},
 			},
 			DEP: MDMAppleDEP{
-				Token:           []byte(man.getConfigString("mdm.apple.dep.token")),
-				SyncPeriodicity: man.getConfigDuration("mdm.apple.dep.sync_periodicity"),
+				Token:           man.getConfigString("mdm_apple.dep.token"),
+				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
 			},
 		},
 	}

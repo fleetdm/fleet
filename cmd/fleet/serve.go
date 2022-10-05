@@ -396,24 +396,24 @@ the way that the Fleet server works.
 					initFatal(err, "verify apple mdm config")
 				}
 				scepStorage, err = mds.NewMDMAppleSCEPDepot(
-					config.MDMApple.SCEP.CA.PEMCert,
-					config.MDMApple.SCEP.CA.PEMKey,
+					[]byte(config.MDMApple.SCEP.CA.PEMCert),
+					[]byte(config.MDMApple.SCEP.CA.PEMKey),
 				)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
 				}
 				mdmStorage, err = mds.NewMDMAppleMDMStorage(
-					config.MDMApple.MDM.PushCert.PEMCert,
-					config.MDMApple.MDM.PushCert.PEMKey,
+					[]byte(config.MDMApple.MDM.PushCert.PEMCert),
+					[]byte(config.MDMApple.MDM.PushCert.PEMKey),
 				)
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
 				}
-				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert(config.MDMApple.MDM.PushCert.PEMCert)
+				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert([]byte(config.MDMApple.MDM.PushCert.PEMCert))
 				if err != nil {
 					initFatal(err, "extract topic from mdm push certificate")
 				}
-				depStorage, err = mds.NewMDMAppleDEPStorage(config.MDMApple.DEP.Token)
+				depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
 				if err != nil {
 					initFatal(err, "initialize mdm apple dep storage")
 				}

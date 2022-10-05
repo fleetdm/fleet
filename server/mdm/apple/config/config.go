@@ -27,14 +27,14 @@ func Verify(config configpkg.MDMAppleConfig) error {
 }
 
 func verifySCEPConfig(config configpkg.MDMAppleConfig) error {
-	pemCert := config.SCEP.CA.PEMCert
+	pemCert := []byte(config.SCEP.CA.PEMCert)
 	if len(pemCert) == 0 {
 		return errors.New("missing pem certificate")
 	}
 	if _, err := cryptoutil.DecodePEMCertificate(pemCert); err != nil {
 		return fmt.Errorf("parse pem certificate: %w", err)
 	}
-	pemKey := config.SCEP.CA.PEMKey
+	pemKey := []byte(config.SCEP.CA.PEMKey)
 	if len(pemKey) == 0 {
 		return errors.New("missing private key")
 	}
@@ -45,7 +45,7 @@ func verifySCEPConfig(config configpkg.MDMAppleConfig) error {
 }
 
 func verifyMDMConfig(config configpkg.MDMAppleConfig) error {
-	pushPEMCert := config.MDM.PushCert.PEMCert
+	pushPEMCert := []byte(config.MDM.PushCert.PEMCert)
 	if len(pushPEMCert) == 0 {
 		return errors.New("missing PEM certificate")
 	}
@@ -56,7 +56,7 @@ func verifyMDMConfig(config configpkg.MDMAppleConfig) error {
 	if err != nil {
 		return fmt.Errorf("extract topic from push PEM cert: %w", err)
 	}
-	pemKey := config.MDM.PushCert.PEMKey
+	pemKey := []byte(config.MDM.PushCert.PEMKey)
 	if len(pemKey) == 0 {
 		return errors.New("missing PEM private key")
 	}
@@ -67,10 +67,11 @@ func verifyMDMConfig(config configpkg.MDMAppleConfig) error {
 }
 
 func verifyDEPConfig(config configpkg.MDMAppleConfig) error {
-	if len(config.DEP.Token) == 0 {
+	token := []byte(config.DEP.Token)
+	if len(token) == 0 {
 		return errors.New("missing MDM DEP token")
 	}
-	if err := json.Unmarshal(config.DEP.Token, &nanodep_client.OAuth1Tokens{}); err != nil {
+	if err := json.Unmarshal(token, &nanodep_client.OAuth1Tokens{}); err != nil {
 		return fmt.Errorf("parse DEP token: %w", err)
 	}
 	return nil

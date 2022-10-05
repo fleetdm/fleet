@@ -242,7 +242,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		logger = opts[0].Logger
 	}
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, cfg, logger, limitStore, nil, WithLoginRateLimit(throttled.PerMin(100)))
+	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()

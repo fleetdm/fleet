@@ -35,7 +35,7 @@ func registerAppleMDMProtocolServices(
 	if err := registerSCEP(mux, config, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, config.CA.PEMCert, mdmStorage, logger); err != nil {
+	if err := registerMDM(mux, []byte(config.CA.PEMCert), mdmStorage, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -50,8 +50,8 @@ func registerSCEP(
 	logger kitlog.Logger,
 ) error {
 	scepCACrt, scepCAKey, err := scep_ca.Load(
-		config.CA.PEMCert,
-		config.CA.PEMKey,
+		[]byte(config.CA.PEMCert),
+		[]byte(config.CA.PEMKey),
 	)
 	if err != nil {
 		return fmt.Errorf("load SCEP CA: %w", err)
