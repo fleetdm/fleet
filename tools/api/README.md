@@ -13,7 +13,7 @@ Next set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scri
 # Examples
 
 ```
-export FLEET_ENV_PATH=./fleet/code/fleet_env
+export FLEET_ENV_PATH=./path/to/env/file/fleet_env
 
 # get my user info
 ./tools/api/fleet/me
