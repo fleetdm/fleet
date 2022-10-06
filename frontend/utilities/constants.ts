@@ -398,9 +398,9 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;",
     name: "LLMNR disabled (Windows)",
     description:
-      "Checks for the existence of a Group Policy that disables LLMNR.",
+      "Checks if a Group Policy configures the computer to disable LLMNR. Some auditors requires that this setting is configured by a Group Policy.",
     resolution:
-      "Contact your IT administrator to discuss disabling LLMNR on your system.",
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system.",
     platform: "windows",
   },
  {
@@ -409,9 +409,9 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;",
     name: "Automatic updates enabled (Windows)",
     description:
-      "Checks for the existence of a Group Policy that enables Windows automatic updates.",
+      "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors requires that this setting is configured by a Group Policy.",
     resolution:
-      "Contact your IT administrator to ensure your Windows system is receiving a Group policy that enables Windows automatic updates.",
+      "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates.",
     platform: "windows",
   },
 ] as IPolicyNew[];
