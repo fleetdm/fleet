@@ -30,17 +30,8 @@ func (rw *ReadWriter) LoadOrGenerate() error {
 	_, err := rw.Read()
 	switch {
 	case err == nil:
-		// If the token file exists, but has expired, rotate it.
-		if rw.HasExpired() {
-			if err := rw.Rotate(); err != nil {
-				return fmt.Errorf("rotating token on generation: %w", err)
-			}
-			return nil
-		}
-
-		// otherwise we're good to go, but first ensure the file is readable by
-		// other processes, old versions of Orbit used to chmod this file with
-		// 0o600
+		// ensure the file is readable by other processes, old versions of Orbit
+		// used to chmod this file with 0o600
 		if err := rw.setChmod(); err != nil {
 			return fmt.Errorf("loading token file, chmod %q: %w", rw.Path, err)
 		}
