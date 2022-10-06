@@ -1,3 +1,4 @@
+/* eslint no-useless-escape: 0 */
 import URL_PREFIX from "router/url_prefix";
 import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
 import { IPolicyNew } from "interfaces/policy";
@@ -336,6 +337,83 @@ export const DEFAULT_POLICIES = [
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
     platform: "darwin",
+  },
+  {
+    key: 31,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;",
+    name: "Windows Firewall, Domain Profile enabled (Windows)",
+    description:
+      "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors require that this setting is configured by a Group Policy.",
+    resolution:
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall.",
+    platform: "windows",
+  },
+  {
+    key: 32,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;",
+    name: "Windows Firewall, Private Profile enabled (Windows)",
+    description:
+      "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors require that this setting is configured by a Group Policy.",
+    resolution:
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall.",
+    platform: "windows",
+  },
+ {
+    key: 33,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;",
+    name: "Windows Firewall, Public Profile enabled (Windows)",
+    description:
+      "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors require that this setting is configured by a Group Policy.",
+    resolution:
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall.",
+    platform: "windows",
+  },
+ {
+    key: 34,
+    query:
+      "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;",
+    name: "SMBv1 client driver disabled (Windows)",
+    description:
+      "Checks that the SMBv1 client is disabled.",
+    resolution:
+      "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+    platform: "windows",
+  },
+ {
+    key: 35,
+    query:
+      "SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1",
+    name: "SMBv1 server disabled (Windows)",
+    description:
+      "Checks that the SMBv1 server is disabled.",
+    resolution:
+      "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+    platform: "windows",
+  },
+ {
+    key: 36,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;",
+    name: "LLMNR disabled (Windows)",
+    description:
+      "Checks if a Group Policy configures the computer to disable LLMNR. Some auditors requires that this setting is configured by a Group Policy.",
+    resolution:
+      "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system.",
+    platform: "windows",
+  },
+ {
+    key: 37,
+    query:
+      "SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;",
+    name: "Automatic updates enabled (Windows)",
+    description:
+      "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors requires that this setting is configured by a Group Policy.",
+    resolution:
+      "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates.",
+    platform: "windows",
   },
 ] as IPolicyNew[];
 
