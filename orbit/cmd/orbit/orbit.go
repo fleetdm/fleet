@@ -910,12 +910,12 @@ func (f *capabilitiesChecker) execute() error {
 
 			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) !=
 				newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
-				log.Info().Msg("orbit endpoints capability changed, restarting")
+				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityOrbitEndpoints)
 				return nil
 			}
-			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) !=
-				newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
-				log.Info().Msg("orbit endpoints capability changed, restarting")
+			if oldCapabilities.Has(fleet.CapabilityTokenRotation) !=
+				newCapabilities.Has(fleet.CapabilityTokenRotation) {
+				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityTokenRotation)
 				return nil
 			}
 		case <-f.interruptCh:
