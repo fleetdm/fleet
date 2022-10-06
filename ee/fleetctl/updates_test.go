@@ -24,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/theupdateframework/go-tuf/data"
 	"github.com/urfave/cli/v2"
 )
 
@@ -152,11 +151,18 @@ func getRoots(t *testing.T, tmpDir string) string {
 	out, err := ioutil.ReadAll(r)
 	require.NoError(t, err)
 
-	// Check output
-	var keys []data.PublicKey
+	// Check output contains the root.json
+	var keys map[string]interface{}
 	require.NoError(t, json.Unmarshal(out, &keys))
-	assert.Greater(t, len(keys[0].IDs()), 0)
-	assert.Equal(t, "ed25519", keys[0].Type)
+	signed_ := keys["signed"]
+	require.NotNil(t, signed_)
+	signed, ok := signed_.(map[string]interface{})
+	require.True(t, ok)
+	keys_ := signed["keys"]
+	require.NotNil(t, keys_)
+	require.NotEmpty(t, signed["keys"])
+	_, ok = keys_.(map[string]interface{})
+	require.True(t, ok)
 
 	return string(out)
 }
