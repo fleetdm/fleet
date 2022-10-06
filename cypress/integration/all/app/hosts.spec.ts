@@ -231,7 +231,7 @@ describe("Hosts flow", () => {
         cy.findByText(hostname).should("exist");
       });
     });
-    it.only("host's software table links to software details", () => {
+    it("host's software table links to software details", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
         cy.findByText(/software/i).click();
       });
