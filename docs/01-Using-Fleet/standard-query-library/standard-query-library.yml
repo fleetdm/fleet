@@ -1008,7 +1008,7 @@ kind: policy
 spec:
   name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
   query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
-  description: "Checks for the existence of a GPO that disables LLMNR."
+  description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials.Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
   platforms: Windows
   tags: compliance, CIS, CIS18.5.4.2
