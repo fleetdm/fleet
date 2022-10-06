@@ -93,7 +93,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 
 5. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
 
-6. In the #g-infrastructure Slack channel, notify the DRI for upgrading Fleet sandbox that the new version is ready to deploy.
+6. In the #g-infrastructure Slack channel, notify the DRI for upgrading Fleet Sandbox that the new version is ready to deploy.
 
 7. Announce the release in the #fleet channel of [osquery
    Slack](https://fleetdm.com/slack) and
