@@ -1,4 +1,5 @@
 /* eslint-disable */
+/* prettier-ignore */
 import URL_PREFIX from "router/url_prefix";
 import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
 import { IPolicyNew } from "interfaces/policy";
