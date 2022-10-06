@@ -79,10 +79,14 @@ func (rw *ReadWriter) Rotate() error {
 	return nil
 }
 
+// SetRemoteUpdateFunc sets the function that will be called when the token is
+// rotated, this function is used to update a remote server with the new token.
 func (rw *ReadWriter) SetRemoteUpdateFunc(f remoteUpdaterFunc) {
 	rw.remoteUpdate = f
 }
 
+// Write writes the given token to disk, making sure it has the correct
+// permissions, and the correct modification times are set.
 func (rw *ReadWriter) Write(id string) error {
 	if rw.remoteUpdate != nil {
 		if err := rw.remoteUpdate(id); err != nil {
