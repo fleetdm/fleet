@@ -163,7 +163,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/apples/i).should("exist");
     });
     it("displays the team admin controls", () => {
-      cy.findByRole("button", { name: /create user/i }).click();
+      cy.findByRole("button", { name: /create user/i }).click({ force: true });
       cy.findByRole("button", { name: /cancel/i }).click();
       cy.findByRole("button", { name: /add hosts/i }).click();
       cy.findByRole("button", { name: /done/i }).click();
@@ -173,7 +173,7 @@ describe("Premium tier - Team Admin user", () => {
     it("allows team admin to edit a team member", () => {
       cy.getAttached("tbody").within(() => {
         cy.getAttached("tr")
-          .eq(1)
+          .eq(2)
           .within(() => {
             cy.findByText(/action/i).click();
             cy.findByText(/edit/i).click();
@@ -186,7 +186,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByRole("button", { name: /save/i }).click();
       cy.getAttached("tbody").within(() => {
         cy.getAttached("tr")
-          .eq(1)
+          .eq(2)
           .within(() => {
             cy.findByText(/maintainer/i).should("exist");
           });

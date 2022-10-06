@@ -197,7 +197,9 @@ describe(
         });
       });
       it("displays the 'Create user' button", () => {
-        cy.findByRole("button", { name: /create user/i }).click();
+        cy.findByRole("button", { name: /create user/i }).click({
+          force: true,
+        });
       });
       it("hides assigning a user to a team", () => {
         cy.findByText(/team/i).should("not.exist");

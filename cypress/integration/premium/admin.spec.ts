@@ -540,13 +540,13 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached(".react-tabs").within(() => {
         cy.findByText(/users/i).click();
       });
-      cy.findByRole("button", { name: /create user/i }).click();
+      cy.findByRole("button", { name: /create user/i }).click({ force: true });
       cy.findByText(/assign teams/i).should("exist");
     });
     it("allows global admin to edit existing user password", () => {
       cy.visit("/settings/users");
       cy.getAttached("tbody").within(() => {
-        cy.findByText("Oliver") // case-sensitive
+        cy.contains("Oliver") // case-sensitive
           .parent()
           .next()
           .next()
