@@ -266,7 +266,8 @@
     padding-bottom: $pad-large;
   }
 
-  &__no-enroll-secret-banner {
+  &__no-enroll-secret-banner,
+  &__no-valid-policy-banner {
     display: flex;
     justify-content: space-between;
     align-items: center;

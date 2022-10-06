@@ -11,6 +11,7 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
+import { ILoadAllPoliciesResponse } from "interfaces/policy";
 import hostsAPI, {
   ILoadHostsOptions,
   ISortOption,
@@ -196,6 +197,10 @@ const ManageHostsPage = ({
   const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
     true
   );
+  const [showInvalidPolicyIdBanner, setShowInvalidPolicyIdBanner] = useState(
+    true
+  );
+  const [validPolicyId, setValidPolicyId] = useState(true);
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
@@ -356,11 +361,16 @@ const ManageHostsPage = ({
     () => globalPoliciesAPI.load(policyId),
     {
       enabled: !!policyId,
+      retry: false,
       onSuccess: ({ policy: policyAPIResponse }) => {
         setPolicy(policyAPIResponse);
       },
-      onError: () => {
+      onError: (error: any) => {
+        if (error.data.message === "Resource Not Found") {
+          setValidPolicyId(false);
+        }
         setHasHostErrors(true);
+        console.log("print error", error.data);
       },
     }
   );
@@ -525,7 +535,7 @@ const ManageHostsPage = ({
       globalFilter: searchQuery,
       sortBy,
       teamId: selectedTeam?.id,
-      policyId,
+      policyId: validPolicyId ? policyId : undefined,
       policyResponse,
       softwareId,
       status,
@@ -604,8 +614,8 @@ const ManageHostsPage = ({
         routeTemplate,
         routeParams,
         queryParams: Object.assign({}, queryParams, {
-          policy_id: policyId,
-          policy_response: response,
+          policy_id: validPolicyId ? policyId : undefined,
+          policy_response: validPolicyId ? response : undefined,
         }),
       })
     );
@@ -781,6 +791,9 @@ const ManageHostsPage = ({
       if (status) {
         newQueryParams.status = status;
       }
+      if (policyId && validPolicyId) {
+        newQueryParams.policy_id = policyId;
+      }
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
@@ -820,6 +833,7 @@ const ManageHostsPage = ({
       currentTeam,
       currentUser,
       policyId,
+      validPolicyId,
       queryParams,
       softwareId,
       status,
@@ -1007,7 +1021,7 @@ const ManageHostsPage = ({
         globalFilter: searchQuery,
         sortBy,
         teamId: currentTeam?.id,
-        policyId,
+        policyId: validPolicyId ? policyId : undefined,
         policyResponse,
         softwareId,
         status,
@@ -1593,7 +1607,7 @@ const ManageHostsPage = ({
             );
           case showSelectedLabel:
             return renderLabelFilterPill();
-          case !!policyId:
+          case !!policyId && validPolicyId && !isLoadingPolicy:
             return renderPoliciesFilterBlock();
           case !!softwareId:
             return renderSoftwareFilterBlock();
@@ -1845,6 +1859,32 @@ const ManageHostsPage = ({
     );
   };
 
+  const renderInvalidPolicyIdBanner = () => {
+    return (
+      !validPolicyId &&
+      showInvalidPolicyIdBanner && (
+        <div className={`${baseClass}__no-valid-policy-banner`}>
+          <div>
+            <span>
+              The policy does not exist. Head to the <b>Policies</b> page to see
+              a list of policies.
+            </span>
+          </div>
+          <div className={`dismiss-banner-button`}>
+            <Button
+              variant="unstyled"
+              onClick={() =>
+                setShowInvalidPolicyIdBanner(!showInvalidPolicyIdBanner)
+              }
+            >
+              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
+            </Button>
+          </div>
+        </div>
+      )
+    );
+  };
+
   if (!teamSync) {
     return <Spinner />;
   }
@@ -1889,6 +1929,7 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
+          {renderInvalidPolicyIdBanner()}
           {renderNoEnrollSecretBanner()}
           {renderTable()}
         </div>
