@@ -186,6 +186,10 @@ resource "aws_ecs_task_definition" "backend" {
             name      = "FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM"
             valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM::"
           },
+          {
+            name      = "FLEET_MDM_APPLE_DEP_TOKEN"
+            valueFrom = "${aws_secretsmanager_secret.dep.arn}:token::"
+          },
         ]
         environment = [
           {
@@ -272,14 +276,14 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_LICENSE_KEY"
             value = var.fleet_license
           },
-          #{
-          #  name = "FLEET_MDM_APPLE_ENABLE"
-          #  value = "1"
-          #},
-          #{
-          #  name = "FLEET_MDM_APPLE_SERVER_ADDRESS"
-          #  value = "dogfood.fleetdm.com"
-          #},
+          {
+            name  = "FLEET_MDM_APPLE_ENABLE"
+            value = "1"
+          },
+          {
+            name  = "FLEET_MDM_APPLE_SERVER_ADDRESS"
+            value = "dogfood.fleetdm.com"
+          },
         ]
       }
   ])

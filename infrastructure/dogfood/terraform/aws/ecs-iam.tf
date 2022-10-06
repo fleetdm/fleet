@@ -6,9 +6,14 @@ data "aws_iam_policy_document" "fleet" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.database_password_secret.arn]
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      aws_secretsmanager_secret.database_password_secret.arn,
+      aws_secretsmanager_secret.apn.arn,
+      aws_secretsmanager_secret.scep.arn,
+      aws_secretsmanager_secret.dep.arn,
+    ]
   }
 
   // useful when there is a static number of mysql cluster members

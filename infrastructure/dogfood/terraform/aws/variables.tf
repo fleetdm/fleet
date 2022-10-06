@@ -23,12 +23,12 @@ variable "vulnerabilities_path" {
 }
 
 variable "fleet_backend_cpu" {
-  default = 256
+  default = 512
   type    = number
 }
 
 variable "fleet_backend_mem" {
-  default = 1024
+  default = 4096
   type    = number
 }
 
@@ -37,7 +37,7 @@ variable "async_host_processing" {
 }
 
 variable "logging_debug" {
-  default = "false"
+  default = "true"
 }
 
 variable "logging_json" {
@@ -56,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.20.1"
+  default     = "fleetdm/fleet:v4.21.0"
 }
 
 variable "software_inventory" {
@@ -103,12 +103,12 @@ variable "cpu_tracking_target_value" {
 
 variable "fleet_license" {
   description = "Fleet Premium license key"
-  default     = ""
+  default     = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxOTQ5ODc1MjAwLCJzdWIiOiJmbGVldCIsImRldmljZXMiOjEwMDAwMDAsIm5vdGUiOiJkb2dmb29kIGVudiBsaWNlbnNlIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjMxODQwMDM5fQ.7d-y2YVEZ3goHbeFpPIQlpu-rVV24tD9D1JhtYtY49pMvV-bvbKGrWmuqTVAbG6iGwX_9FAWgJISmjTlPWkXiw"
 }
 
 variable "cloudwatch_log_retention" {
   description = "number of days to keep logs around for fleet services"
-  default     = 1
+  default     = 30
 }
 
 variable "rds_backup_retention_period" {
