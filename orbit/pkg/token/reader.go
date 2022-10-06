@@ -54,6 +54,12 @@ func (r *Reader) HasExpired() bool {
 	return time.Now().After(r.mtime.Add(1 * time.Hour))
 }
 
+func (r *Reader) GetMtime() time.Time {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.mtime
+}
+
 // GetCached returns the cached token value
 func (r *Reader) GetCached() string {
 	r.mu.Lock()

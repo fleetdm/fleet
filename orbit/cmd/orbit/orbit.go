@@ -510,16 +510,6 @@ func main() {
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
-		deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
-		if err != nil {
-			return fmt.Errorf("initializing client: %w", err)
-		}
-
-		// ping the server to get the latest capabilities
-		if err := deviceClient.Ping(); err != nil {
-			return fmt.Errorf("pinging server: %w", err)
-		}
-
 		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 
 		if err := trw.LoadOrGenerate(); err != nil {
@@ -527,7 +517,7 @@ func main() {
 		}
 
 		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
-			deviceClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
+			orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
 			log.Info().Msg("token rotation is enabled")
 
 			// we enable remote updates only if the server supports them by setting
@@ -540,6 +530,11 @@ func main() {
 			// a token on disk that wasn't written to the server yet
 			if err := trw.Write(trw.GetCached()); err != nil {
 				return fmt.Errorf("writing token: %w", err)
+			}
+
+			deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
+			if err != nil {
+				return fmt.Errorf("initializing client: %w", err)
 			}
 
 			// perform an initial check to see if the token
@@ -573,7 +568,12 @@ func main() {
 				for {
 					select {
 					case <-rotationTicker.C:
-						if trw.HasExpired() {
+						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
+						hasChanged, err := trw.HasChanged()
+						if err != nil {
+							log.Error().Err(err).Msg("error checking if token has changed")
+						}
+						if hasChanged || trw.HasExpired() {
 							log.Info().Msg("token TTL expired, rotating token")
 
 							if err := trw.Rotate(); err != nil {
@@ -581,7 +581,7 @@ func main() {
 							}
 						}
 					case <-remoteCheckTicker.C:
-						log.Debug().Msgf("initiating token check after %s", remoteCheckDuration)
+						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
 						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
 							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
 
