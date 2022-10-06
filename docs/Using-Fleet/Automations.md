@@ -134,7 +134,7 @@ The Jira and Zendesk ticket destinations are currently in beta.
 
 Host status automations send a webhook request if a configured percentage of hosts have not checked in to Fleet for a configured number of days.
 
-Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` configuration option using the [`config` yaml document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.  Note that this interval currently configures both host status and failing policies automations.
+Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` configuration option using the [`config` YAML document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.  Note that this interval currently configures both host status and failing policies automations.
 
 Example webhook payload:
 
