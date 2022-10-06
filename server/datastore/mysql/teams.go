@@ -71,16 +71,19 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, 
 	if err := loadUsersForTeamDB(ctx, q, team); err != nil {
 		return nil, err
 	}
+	if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
+		return nil, err
+	}
 
 	return team, nil
 }
 
-func saveTeamSecretsDB(ctx context.Context, exec sqlx.ExecerContext, team *fleet.Team) error {
+func saveTeamSecretsDB(ctx context.Context, q sqlx.ExtContext, team *fleet.Team) error {
 	if team.Secrets == nil {
 		return nil
 	}
 
-	return applyEnrollSecretsDB(ctx, exec, &team.ID, team.Secrets)
+	return applyEnrollSecretsDB(ctx, q, &team.ID, team.Secrets)
 }
 
 func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
@@ -122,6 +125,9 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	if err := loadUsersForTeamDB(ctx, ds.reader, team); err != nil {
 		return nil, err
 	}
+	if err := loadHostCountForTeamDB(ctx, ds.reader, team); err != nil {
+		return nil, err
+	}
 
 	return team, nil
 }
@@ -138,6 +144,20 @@ func loadUsersForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.
 	}
 
 	team.Users = rows
+	team.UserCount = len(rows)
+
+	return nil
+}
+
+func loadHostCountForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.Team) error {
+	stmt := `
+		SELECT COUNT(*) FROM hosts h
+		WHERE h.team_id = ?
+	`
+	if err := q.QueryRowxContext(ctx, stmt, team.ID).Scan(&team.HostCount); err != nil {
+		return ctxerr.Wrap(ctx, err, "load HostsCount for team")
+	}
+
 	return nil
 }
 
@@ -272,7 +292,7 @@ func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, m
 
 func (ds *Datastore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	sql := `
-		SELECT * FROM enroll_secrets
+		SELECT secret, team_id, created_at FROM enroll_secrets
 		WHERE team_id = ?
 	`
 	var secrets []*fleet.EnrollSecret

@@ -16,7 +16,8 @@ type DeviceClient struct {
 
 // NewDeviceClient instantiates a new client to perform requests against device
 // endpoints
-func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, capabilities fleet.CapabilityMap) (*DeviceClient, error) {
+func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
+	capabilities := fleet.CapabilityMap{}
 	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
 	if err != nil {
 		return nil, err

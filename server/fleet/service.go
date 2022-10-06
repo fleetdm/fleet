@@ -512,7 +512,9 @@ type Service interface {
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
-	/// Geolocation
+	///////////////////////////////////////////////////////////////////////////////
+	// Geolocation
+
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -520,4 +522,50 @@ type Service interface {
 
 	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	CheckInstallerExistence(ctx context.Context, installer Installer) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM
+
+	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
+	// Such enrollment profiles allow devices to enroll to Fleet MDM.
+	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
+
+	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
+	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
+	// The map returned has a result for each target device ID.
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+
+	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
+	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
+
+	// GetMDMAppleInstallerByID returns the installer details of an installer, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil).
+	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+
+	// DeleteMDMAppleInstaller deletes an Apple installer from Fleet.
+	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
+
+	// GetMDMAppleInstallerByToken returns the installer with its contents included (MDMAppleInstaller.Installer) from its secret token.
+	GetMDMAppleInstallerByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
+
+	// GetMDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil) from its secret token.
+	GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
+
+	// ListMDMAppleInstallers lists all the uploaded installers.
+	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
+
+	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
+	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
+
+	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
+	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
+
+	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
+	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 }

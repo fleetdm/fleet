@@ -431,13 +431,36 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
     "platform": "windows",
     "platform_like": "windows",
     "version": "10.0.22000",
-	"data": "21H2"
+	"display_version": "21H2",
+	"release_id": ""
 }]`),
 		&rows,
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
+
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "WinBox",
+    "arch": "64-bit",
+    "build": "17763",
+    "codename": "Microsoft Windows 10 Enterprise LTSC",
+    "major": "10",
+    "minor": "0",
+    "name": "Microsoft Windows 10 Enterprise LTSC",
+    "patch": "",
+    "platform": "windows",
+    "platform_like": "windows",
+    "version": "10.0.17763",
+	"display_version": "",
+	"release_id": "1809"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Windows 10 Enterprise LTSC 1809", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {
@@ -516,28 +539,49 @@ func TestDirectIngestBattery(t *testing.T) {
 func TestDirectIngestOSWindows(t *testing.T) {
 	ds := new(mock.Store)
 
-	testHost := fleet.Host{
-		ID: 1,
-	}
-	testOS := fleet.OperatingSystem{
-		Name:          "Microsoft Windows 11 Enterprise",
-		Version:       "21H2",
-		Arch:          "64-bit",
-		KernelVersion: "10.0.22000.795",
+	testCases := []struct {
+		expected fleet.OperatingSystem
+		data     []map[string]string
+	}{
+		{
+			expected: fleet.OperatingSystem{
+				Name:          "Microsoft Windows 11 Enterprise",
+				Version:       "21H2",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.22000.795",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+			},
+		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:          "Microsoft Windows 10 Enterprise LTSC",
+				Version:       "1809",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.17763",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows 10 Enterprise LTSC", "display_version": "", "release_id": "1809", "arch": "64-bit", "kernel_version": "10.0.17763"},
+			},
+		},
 	}
 
-	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
-		require.Equal(t, testHost.ID, hostID)
-		require.Equal(t, testOS, hostOS)
-		return nil
+	host := fleet.Host{ID: 1}
+
+	for _, tt := range testCases {
+		ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+			require.Equal(t, host.ID, hostID)
+			require.Equal(t, tt.expected, hostOS)
+			return nil
+		}
+
+		err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &host, ds, tt.data, false)
+		require.NoError(t, err)
+
+		require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+		ds.UpdateHostOperatingSystemFuncInvoked = false
 	}
-
-	err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &testHost, ds, []map[string]string{
-		{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
-	}, false)
-
-	require.NoError(t, err)
-	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
 }
 
 func TestDirectIngestOSUnixLike(t *testing.T) {

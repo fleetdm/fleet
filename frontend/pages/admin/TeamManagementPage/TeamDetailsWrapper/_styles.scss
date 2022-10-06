@@ -9,7 +9,7 @@
   &__back-link {
     display: flex;
     align-items: center;
-    height: 16px;
+    height: 20px;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
@@ -20,7 +20,7 @@
   #back-chevron {
     width: 16px;
     height: 16px;
-    margin-right: $pad-small;
+    margin: 0 $pad-small 0 0;
   }
 
   &__team-header {

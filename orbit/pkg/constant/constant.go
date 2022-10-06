@@ -20,7 +20,7 @@ const (
 	// OrbitNodeKeyFileName is the filename on disk where we write the orbit node key to
 	OrbitNodeKeyFileName = "secret-orbit-node-key.txt"
 	// OrbitEnrollMaxRetries is the max retries when doing an enroll request
-	OrbitEnrollMaxRetries = 10
+	OrbitEnrollMaxRetries = 3
 	// OrbitEnrollRetrySleep is the time duration to sleep between retries
 	OrbitEnrollRetrySleep = 5 * time.Second
 	// OsquerydName is the name of osqueryd binary
