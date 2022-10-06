@@ -91,7 +91,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 > publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public
 > download, is still the latest _official_ release.
 
-5. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood
+5. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
 
 6. In the #g-infrastructure Slack channel, notify the DRI for upgrading Fleet sandbox that the new version is ready to deploy.
 
