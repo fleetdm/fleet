@@ -172,8 +172,15 @@ describe("Premium tier - Team Admin user", () => {
     });
     it("allows team admin to edit a team member", () => {
       cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .eq(2)
+        cy.getAttached("tr");
+        cy.contains("Toni") // case-sensitive
+          .parent()
+          .next()
+          .within(() => {
+            cy.findByText(/observer/i).should("exist");
+          })
+          .next()
+          .next()
           .within(() => {
             cy.findByText(/action/i).click();
             cy.findByText(/edit/i).click();
@@ -185,8 +192,10 @@ describe("Premium tier - Team Admin user", () => {
       });
       cy.findByRole("button", { name: /save/i }).click();
       cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .eq(2)
+        cy.getAttached("tr");
+        cy.contains("Toni") // case-sensitive
+          .parent()
+          .next()
           .within(() => {
             cy.findByText(/maintainer/i).should("exist");
           });
