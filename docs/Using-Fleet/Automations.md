@@ -72,7 +72,7 @@ The Jira and Zendesk ticket automations are currently in beta.
 
 ## Policy automations
 
-Policy automations are triggered if a policy has recently failed on at least one host. Policy automations are triggered separately for each failing policy.
+Policy automations are triggered if a policy is newly failing on at least one host. Policy automations are triggered separately for each failing policy.
 
 > Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
 
