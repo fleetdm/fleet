@@ -541,34 +541,12 @@ const ManageHostsPage = ({
       filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
-    if (!slug) {
-      return false;
-    }
-
     const { MANAGE_HOSTS } = PATHS;
-    const isAllHosts = !status;
-    const newFilters = [...selectedFilters];
-
-    if (!isAllHosts) {
-      // replace slug for new params
-      let index;
-      if (slug.includes(LABEL_SLUG_PREFIX)) {
-        index = newFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
-      } else {
-        index = newFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
-      }
-
-      if (index > -1) {
-        newFilters.splice(index, 1, slug);
-      } else {
-        newFilters.push(slug);
-      }
-    }
 
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
     let newQueryParams = queryParams;
-    if (newFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) {
+    if (slug) {
       newQueryParams = omit(newQueryParams, [
         "policy_id",
         "policy_response",
@@ -578,9 +556,7 @@ const ManageHostsPage = ({
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: isAllHosts
-          ? MANAGE_HOSTS
-          : `${MANAGE_HOSTS}/${newFilters.join("/")}`,
+        pathPrefix: `${MANAGE_HOSTS}/${slug}`,
         queryParams: newQueryParams,
       })
     );
