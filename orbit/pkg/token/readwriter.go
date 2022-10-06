@@ -53,24 +53,14 @@ func (rw *ReadWriter) Rotate() error {
 	}
 
 	id := uuid.String()
-	if err := rw.write(id); err != nil {
+	if err := rw.Write(id); err != nil {
 		return fmt.Errorf("writing token: %w", err)
 	}
 
 	attempts := 3
 	interval := 5 * time.Second
 	err = retry.Do(func() error {
-		if rw.remoteUpdate != nil {
-			if err := rw.remoteUpdate(id); err != nil {
-				return err
-			}
-		}
-
-		if err := rw.write(id); err != nil {
-			return err
-		}
-
-		return nil
+		return rw.Write(id)
 	}, retry.WithMaxAttempts(attempts), retry.WithInterval(interval))
 
 	if err != nil {
@@ -84,7 +74,13 @@ func (rw *ReadWriter) SetRemoteUpdateFunc(f remoteUpdaterFunc) {
 	rw.remoteUpdate = f
 }
 
-func (rw *ReadWriter) write(id string) error {
+func (rw *ReadWriter) Write(id string) error {
+	if rw.remoteUpdate != nil {
+		if err := rw.remoteUpdate(id); err != nil {
+			return err
+		}
+	}
+
 	err := os.WriteFile(rw.Path, []byte(id), constant.DefaultWorldReadableFileMode)
 	if err != nil {
 		return fmt.Errorf("write identifier file %q: %w", rw.Path, err)

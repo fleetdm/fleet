@@ -59,14 +59,13 @@ const (
 // **it shouldn't be modified at runtime**
 var ServerOrbitCapabilities = CapabilityMap{
 	CapabilityOrbitEndpoints: {},
+	CapabilityTokenRotation:  {},
 }
 
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.
 // **it shouldn't be modified at runtime**
-var ServerDeviceCapabilities = CapabilityMap{
-	CapabilityTokenRotation: {},
-}
+var ServerDeviceCapabilities = CapabilityMap{}
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.
 const CapabilitiesHeader = "X-Fleet-Capabilities"
