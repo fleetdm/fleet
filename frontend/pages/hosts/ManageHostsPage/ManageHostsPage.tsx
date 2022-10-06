@@ -344,9 +344,6 @@ const ManageHostsPage = ({
       onSuccess: ({ policy: policyAPIResponse }) => {
         setPolicy(policyAPIResponse);
       },
-      onError: (error: Error) => {
-        console.log(error);
-      },
     }
   );
 
