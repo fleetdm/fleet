@@ -614,6 +614,19 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleClearRouteParam = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams: undefined,
+        queryParams,
+      })
+    );
+  };
+
   const handleClearFilter = (omitParams: string[]) => {
     handleResetPageIndex();
 
@@ -939,13 +952,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const onClearLabelFilter = () => {
-    const allHostsLabel = labels?.find((label) => label.name === "All Hosts");
-    if (allHostsLabel !== undefined) {
-      handleLabelChange(allHostsLabel);
-    }
-  };
-
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
@@ -1122,7 +1128,7 @@ const ManageHostsPage = ({
           <FilterPill
             label={pillLabel}
             tooltipDescription={description}
-            onClear={onClearLabelFilter}
+            onClear={handleClearRouteParam}
           />
           {label_type !== "builtin" && !isOnlyObserver && (
             <>
