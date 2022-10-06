@@ -69,6 +69,15 @@ jobs:
         echo "RACE_ENABLED=true" >> $GITHUB_ENV
         echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
+    - name: Wait for mysql
+      run: |
+        echo "waiting for mysql..."
+        until docker-compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql is ready"
+
     - name: Run Go Tests
       run: |
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
