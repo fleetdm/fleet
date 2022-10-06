@@ -28,3 +28,5 @@ This allows some flexibility when developing new features in Orbit and Fleet.
 
 1. Orbit components (Orbit itself, Fleet Desktop and osqueryd) must be released to FleetDM's TUF before new Fleet server releases are available in Github.
 2. When the new Fleet server version doesn't support older Orbit versions (see [Nice to have](#nice-to-have)), the release notes must document their minimum supported Orbit version. This is for users that use Orbit with auto-updates disabled or they pin to a specific channel. These users would need to first update Orbit in their devices, and then proceed to upgrade Fleet server.
+
+<meta name="pageOrderInSection" value="1200">
