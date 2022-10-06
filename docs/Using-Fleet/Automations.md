@@ -54,7 +54,6 @@ POST https://server.com/example
 }
 ```
 
-> Note that `epss_probability`, `cvss_score`, and `cisa_known_exploite` are available only in Fleet Premium.
 
 For ticket automations, one ticket is created per CVE regardless of the number of hosts on which such CVE is detected.
 
