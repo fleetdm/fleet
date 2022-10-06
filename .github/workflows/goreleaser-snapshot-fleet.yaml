@@ -2,6 +2,11 @@ name: Docker publish
 
 on: push
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -40,7 +45,7 @@ jobs:
           args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-      
+
       - name: Tag image with branch name
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
