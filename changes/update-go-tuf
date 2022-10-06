@@ -1,1 +1,0 @@
-* Update go-tuf (used for agent updates) to v0.5.0. Due to changes in the expected metadata formats for securing updates, new Orbit packages MUST be generated with fleetctl >= 4.21. Existing packages should continue to update as expected.

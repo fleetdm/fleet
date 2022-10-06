@@ -177,7 +177,7 @@ func updatesRootsFunc(c *cli.Context) error {
 	}
 	rootMeta := meta["root.json"]
 	if rootMeta == nil {
-		return fmt.Errorf("missing root metadata")
+		return errors.New("missing root metadata")
 	}
 
 	fmt.Println(string(rootMeta))

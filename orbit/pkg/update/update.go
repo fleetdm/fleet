@@ -106,22 +106,24 @@ func NewUpdater(opt Options) (*Updater, error) {
 
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
 
-	// First try initializing via stored local metadata. Older Orbit packages were distributed with
-	// only the root *key* metadata and not the full root metadata (see
-	// https://github.com/theupdateframework/go-tuf/issues/379), so it's important that we try using
-	// the fully loaded root metadata in the local store before we try using what is provided via
-	// configuration.
+	// TODO(lucas): Related to the NOTE below.
+	//
+	// NewUpdater is used when packaging Orbit (`fleetctl package`) and by Orbit
+	// itself. We should refactor NewUpdater to receive an optional roots JSON string
+	// which would only be set when packaging Orbit. Orbit should always trust its
+	// local metadata and fail if it doesn't exist. (Alternatively introduce two New*
+	// methods, NewUpdaterFromRoots and NewUpdaterFromMeta)
+
+	// GetMeta returns empty metadata map if it doesn't exist in local store.
 	meta, err := opt.LocalStore.GetMeta()
-	if err == nil && meta["root.json"] != nil {
-		if err := tufClient.Init(meta["root.json"]); err != nil {
-			return nil, fmt.Errorf("client init with local root metadata: %w", err)
-		}
-	} else {
-		// If that didn't work (because the metadata doesn't exist due to this being the first
-		// init), try using the metadata that is provided via configuration. If we reach this line,
-		// we *should* have the full root metadata, because any older clients that were distributed
-		// with the limited metadata should have downloaded the full metadata before updating and
-		// should use the first branch of the if statement.
+	if err != nil {
+		return nil, fmt.Errorf("read metadata: %w", err)
+	}
+	if meta["root.json"] == nil {
+		// NOTE: This path is currently only used when (1) packaging Orbit (`fleetctl package`) and
+		// (2) in the edge-case when Orbit's metadata JSON local file is removed for some reason.
+		// When edge-case (2) happens, Orbit will attempt to use Fleet DM's root JSON
+		// (which may be unexpected on custom TUF Orbit deployments).
 		if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
 			return nil, fmt.Errorf("client init with configuration metadata: %w", err)
 		}
