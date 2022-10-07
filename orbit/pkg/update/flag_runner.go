@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/rs/zerolog/log"
 )
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
@@ -30,19 +32,16 @@ type FlagUpdateOptions struct {
 	CheckInterval time.Duration
 	// RootDir is the root directory for orbit state
 	RootDir string
-	// OrbitNodeKey is the orbit node key for the enrolled host
-	OrbitNodeKey string
 }
 
 // NewFlagRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) (*FlagRunner, error) {
-	r := &FlagRunner{
+func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) *FlagRunner {
+	return &FlagRunner{
 		orbitClient: orbitClient,
 		opt:         opt,
-		cancel:      make(chan struct{}, 1),
+		cancel:      make(chan struct{}),
 	}
-	return r, nil
 }
 
 // Execute starts the loop checking for updates
@@ -52,7 +51,6 @@ func (r *FlagRunner) Execute() error {
 	ticker := time.NewTicker(r.opt.CheckInterval)
 	defer ticker.Stop()
 
-	// Run until cancel or returning an error
 	for {
 		select {
 		case <-r.cancel:
@@ -67,6 +65,7 @@ func (r *FlagRunner) Execute() error {
 				log.Info().Msg("flags updated, exiting")
 				return nil
 			}
+			ticker.Reset(r.opt.CheckInterval)
 		}
 	}
 }
@@ -94,26 +93,18 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	}
 
 	// next GetConfig from Fleet API
-	flagsJSON, err := r.orbitClient.GetConfig(r.opt.OrbitNodeKey)
-	// on 401 unauthenticated error, re-enroll and update orbit node key
-	if errors.Is(err, service.ErrUnauthenticated) {
-		r.opt.OrbitNodeKey, err = r.updateOrbitNodeKey()
-		if err != nil {
-			return false, err
-		}
-		return false, nil
-	}
+	config, err := r.orbitClient.GetConfig()
 	if err != nil {
-		return false, fmt.Errorf("error getting flags from fleet %w", err)
+		return false, fmt.Errorf("error getting flags from fleet: %w", err)
 	}
-	if len(flagsJSON) == 0 {
+	if len(config.Flags) == 0 {
 		// command_line_flags not set in YAML, nothing to do
 		return false, nil
 	}
 
-	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
+	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
 	if err != nil {
-		return false, fmt.Errorf("error parsing flags %w", err)
+		return false, fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// compare both flags, if they are equal, nothing to do
@@ -124,7 +115,7 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	// flags are not equal, write the fleet flags to disk
 	err = writeFlagFile(r.opt.RootDir, osqueryFlagMapFromFleet)
 	if err != nil {
-		return false, fmt.Errorf("error writing flags to disk %w", err)
+		return false, fmt.Errorf("error writing flags to disk: %w", err)
 	}
 	return true, nil
 }
@@ -144,8 +135,18 @@ func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
 	}
 
 	for k, v := range data {
-		result["--"+k] = fmt.Sprintf("%v", v)
+		switch t := v.(type) {
+		case string:
+			result["--"+k] = t
+		case bool:
+			result["--"+k] = strconv.FormatBool(t)
+		case float64:
+			result["--"+k] = fmt.Sprintf("%.f", v)
+		default:
+			result["--"+k] = fmt.Sprintf("%v", v)
+		}
 	}
+
 	return result, nil
 }
 
@@ -195,24 +196,4 @@ func readFlagFile(rootDir string) (map[string]string, error) {
 		}
 	}
 	return result, nil
-}
-
-// updateOrbitNodeKey does re-enrolls by calling the /enroll API and writes the response to disk
-func (r *FlagRunner) updateOrbitNodeKey() (string, error) {
-	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
-		newOrbitNodeKey, err := r.orbitClient.DoEnroll()
-		if err != nil {
-			log.Info().Err(err).Msg("re-enroll failed, retrying")
-			time.Sleep(constant.OrbitEnrollRetrySleep)
-			continue
-		}
-		nodeKeyFilePath := filepath.Join(r.opt.RootDir, constant.OrbitNodeKeyFileName)
-		if err := os.WriteFile(nodeKeyFilePath, []byte(newOrbitNodeKey), constant.DefaultFileMode); err != nil {
-			log.Info().Err(err).Msg("failed to write orbit node key to disk")
-			time.Sleep(constant.OrbitEnrollRetrySleep)
-			continue
-		}
-		return newOrbitNodeKey, nil
-	}
-	return "", fmt.Errorf("orbit re-enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 }

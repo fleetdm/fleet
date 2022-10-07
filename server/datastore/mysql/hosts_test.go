@@ -124,7 +124,6 @@ func TestHosts(t *testing.T) {
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
-		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
@@ -4875,27 +4874,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
-	}
-}
-
-func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
-	var idOne uint = 1
-	var idTwo uint = 2
-
-	cases := []struct {
-		currentTeamID *uint
-		newTeamID     *uint
-		out           bool
-	}{
-		{nil, nil, false},
-		{nil, &idOne, false},
-		{&idOne, nil, true},
-		{&idOne, &idOne, false},
-		{&idOne, &idTwo, true},
-	}
-
-	for _, c := range cases {
-		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
 	}
 }
 

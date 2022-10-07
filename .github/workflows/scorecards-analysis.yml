@@ -1,4 +1,5 @@
 name: Scorecards supply-chain security
+
 on:
   # Only the default branch is supported.
   workflow_dispatch: # Manual
@@ -7,6 +8,11 @@ on:
     - cron: '30 4 * * 0'
   push:
     branches: [ main ]
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
 
 # Declare default permissions as read only.
 permissions: read-all

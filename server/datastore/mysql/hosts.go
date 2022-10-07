@@ -823,21 +823,6 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
-func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
-	// if the host is global, then there should be nothing to clean up
-	if currentTeamID == nil {
-		return false
-	}
-
-	// if the host is switching from a team to global, we should clean up
-	if newTeamID == nil {
-		return true
-	}
-
-	// clean up if the host is switching to a different team
-	return *currentTeamID != *newTeamID
-}
-
 func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
@@ -849,10 +834,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE uuid = ?`, hardwareUUID)
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE osquery_host_id = ?`, hardwareUUID)
 		switch {
 		case err == nil:
-			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE uuid = ? `
+			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE osquery_host_id = ? `
 			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
@@ -938,10 +923,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 			hostID = int64(host.ID)
 
-			if shouldCleanTeamPolicies(host.TeamID, teamID) {
-				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, []uint{host.ID}); err != nil {
-					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
-				}
+			if err := deleteAllPolicyMemberships(ctx, tx, []uint{host.ID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
 
 			// Update existing host record

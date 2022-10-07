@@ -159,11 +159,17 @@ How to deploy a new release to dogfood:
 
 ### In this section
 
+- [The rotation](#the-rotation)
 - [Responsibilities](#responsibilities)
 - [Clearing the plate](#clearing-the-plate)
 - [How to reach the oncall engineer](#how-to-reach-the-oncall-engineer)
 - [Handoff](#handoff)
-- [The rotation](#the-rotation)
+
+### The rotation
+
+See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
+
+Fleet team members can can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
 ### Responsibilities
 
@@ -187,7 +193,7 @@ In either case, if the oncall engineer has the knowledge and confidence to revie
 
 The oncall engineer is asked to attend all the customer success meetings during the week.
 
-The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
+The engineer will receive calendar invitations for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 #### 4. Improve documentation
 
@@ -197,29 +203,47 @@ The oncall engineer is asked to read, understand, test, correct, and improve at 
 
 Engineering managers are asked to be aware of the [oncall rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are oncall. While it varies week to week considerably, the oncall responsibilities can sometimes take up a substantial portion of the engineer's time.
 
+The remaining time after fulfilling the responsibilities of oncall is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, feel free to speak with your manager.
+
+Some ideas:
+
+* Do training/learning relevant to your work.
+* Improve the Fleet developer experience.
+* Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
+* Create a blog post (or other content) for fleetdm.com.
+* Try out an experimental refactor.
+
+At the end of your oncall shift, you will be asked to share about how you spent your time.
+
 ### How to reach the oncall engineer
 
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
 
 ### Handoff
 
-Every week, the oncall engineer changes. Here are some tips for making this handoff go smoothly:
+The oncall engineer changes each week on Wednesday.
+
+A Slack reminder should notify the oncall of the handoff. Please do the following:
 
 1. The new oncall engineer should change the `@oncall` alias in Slack to point to them. In the
    search box, type "people" and select "People & user groups." Switch to the "User groups" tab.
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
    these threads and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall engineer.
 
-### The rotation
+At the weekly "Eng Together" meeting, the oncall is asked to make a report of how they spent their time. Please answer the following:
 
-See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
+1. What were the most common support requests over the week? This can potentially give the new oncall an idea of which documentation to focus their efforts on.
+
+2. Which documentation page did you focus on? What changes were necessary?
+
+3. How did you spend the rest of your oncall week? This is a chance to demo or share what you learned.
 
 ## Incident postmortems
 

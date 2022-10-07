@@ -5,6 +5,11 @@ on:
    tags:
      - 'orbit-*'
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -47,7 +52,8 @@ jobs:
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist -f orbit/.goreleaser.yml
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

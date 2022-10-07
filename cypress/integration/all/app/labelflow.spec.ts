@@ -1,3 +1,5 @@
+import manageHostsPage from "../../pages/manageHostsPage";
+
 describe("Labels flow", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -14,7 +16,7 @@ describe("Labels flow", () => {
   describe("Manage hosts page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it("creates a custom label", () => {
       cy.getAttached(".label-filter-select__control").click();

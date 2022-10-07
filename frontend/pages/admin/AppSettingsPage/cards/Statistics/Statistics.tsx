@@ -71,7 +71,7 @@ const Statistics = ({
               __html: syntaxHighlight(usageStatsPreview),
             }}
           />
-          <div className="flex-end">
+          <div className="modal-cta-wrap">
             <Button type="button" onClick={toggleUsageStatsPreviewModal}>
               Done
             </Button>

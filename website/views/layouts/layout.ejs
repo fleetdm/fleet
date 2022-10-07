@@ -8,20 +8,20 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %></title>
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %></title>
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
     <%// Meta tags for other social previews %>
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
-    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
@@ -117,12 +117,6 @@
   </head>
   <body>
     <div purpose="page-wrap" dat>
-<!--       <div purpose="header-report-cta" class="<%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
-          <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
-            <p class="text-center pr-1 mb-0">We surveyed 200+ security practitioners to discover the state of device management in 2022. </p>
-            <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
-          </div>
-      </div> -->
       <div class="header <%= !headerCTAHidden ? 'homepage-header-top' : null %>" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/" style="max-width: 118px;">
@@ -162,6 +156,7 @@
                   <a href="/docs">Docs</a>
                   <a href="/releases">Releases</a>
                   <a href="/queries">Query library</a>
+                  <a href="/tables">Schema tables</a>
                   <span>GUIDES</span>
                   <a class="pl-3" href="/deploy">Deployment guides</a>
                   <a class="pl-3" href="/guides">How-to guides</a>
@@ -212,6 +207,7 @@
                 <a class="dropdown-item mb-1" href="/docs">Docs</a>
                 <a class="dropdown-item mb-1" href="/releases">Releases</a>
                 <a class="dropdown-item mb-1" href="/queries">Query library</a>
+                <a class="dropdown-item mb-1" href="/tables">Schema tables</a>
                 <div class="dropdown-divider"></div>
                 <span class="muted dropdown-header">GUIDES</span>
                 <a class="dropdown-item" href="/deploy">Deployment guides</a>
@@ -364,37 +360,16 @@
     <script>
         var lastScrollTop = 0;
         var header = document.querySelector('.header')
-        var ctaBanner = document.querySelector('[purpose="header-report-cta"]')
-        window.addEventListener('scroll', windowScrolled)
-
+        window.addEventListener('scroll', windowScrolled);
         function windowScrolled() {
-          var scrollTop = window.pageYOffset || document.documentElement.scrollTop
-          var fleetLogo = header.querySelector('img')
-          var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
-          let ctaBannerHeightOrTopOfPage = ctaBanner ? ctaBanner.clientHeight : 0;
-          if(scrollTop < ctaBannerHeightOrTopOfPage && header.classList.contains('homepage-header')) {
-              if (ctaBanner) {
-                header.classList.add('homepage-header-top')
-              }
-              header.classList.remove('sticky')
-              fleetLogo.src = '/images/logo-white-162x92@2x.png'
-              hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
-              return;
-          }
+          let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
             header.classList.add('translate-y-0');
-          } else {
-            // If the header is touching the top of the viewport
-            if(header.getBoundingClientRect().y <= 0) {
-              header.classList.remove('homepage-header-top')
-              header.classList.add('sticky')
-
-              fleetLogo.src = '/images/logo-blue-162x92@2x.png'
-              hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
-            }
+            lastScrollTop = scrollTop;
+          } else if(scrollTop < lastScrollTop - 60) {
             header.classList.remove('translate-y-0');
+            lastScrollTop = scrollTop;
           }
-          lastScrollTop = scrollTop;
         }
     </script>
 

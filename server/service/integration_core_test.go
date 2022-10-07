@@ -83,6 +83,20 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
 }
 
+func (s *integrationTestSuite) TestUserEmailValidation() {
+	params := fleet.UserPayload{
+		Name:       ptr.String("user_invalid_email"),
+		Email:      ptr.String("invalid"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+
+	params.Email = ptr.String("user_valid_mail@example.com")
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
+}
+
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
@@ -4412,6 +4426,36 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
 
+	// set valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":"table1"}}
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// set invalid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"no_such_flag":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.NotContains(t, string(*acResp.AgentOptions), `"no_such_flag"`)
+
+	// set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// force-set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusOK, &acResp, "force", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": true`)
+
 	// dry-run valid appconfig that uses legacy settings (returns error)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"host_settings": { "additional_queries": {"foo": "bar"} }
@@ -4443,6 +4487,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 			Secrets: []*fleet.EnrollSecret{{Secret: "XYZ"}},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// apply spec, too many secrets
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
+		},
+	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// get enroll secrets, one
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -4930,6 +4981,63 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
 	require.NotEmpty(t, resp.NodeKey)
+}
+
+func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
+	t := s.T()
+	ctx := context.Background()
+	host := s.createHosts(t)[0]
+
+	// set the enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Empty(t, getHostResp.Host.Policies)
+
+	// create a policy and make the host fail it
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
+	require.NoError(t, err)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// refetch the host details
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Len(t, *getHostResp.Host.Policies, 1)
+
+	// re-enroll the host, but using a different platform
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: host.OsqueryHostID,
+		HostDetails:    map[string](map[string]string){"os_version": map[string]string{"platform": "windows"}},
+	})
+	require.NoError(t, err)
+
+	// prevent the enroll cooldown from being applied
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
+			host.ID,
+		)
+		return err
+	})
+	var resp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
+	require.NotEmpty(t, resp.NodeKey)
+
+	// refetch the host details
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+
+	// policies should be gone
+	require.Empty(t, getHostResp.Host.Policies)
 }
 
 func (s *integrationTestSuite) TestCarve() {

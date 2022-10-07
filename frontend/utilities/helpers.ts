@@ -199,38 +199,6 @@ export const formatConfigDataForServer = (config: any): any => {
   };
 };
 
-// TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: IConfig) => {
-  const {
-    org_info: orgInfo,
-    server_settings: serverSettings,
-    smtp_settings: smtpSettings,
-    sso_settings: ssoSettings,
-    host_expiry_settings: hostExpirySettings,
-    webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
-    update_interval: updateInterval,
-    license,
-    logging,
-  } = config;
-
-  if (config.agent_options) {
-    config.agent_options = yaml.dump(config.agent_options);
-  }
-
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...webhookSettings,
-    ...updateInterval,
-    ...license,
-    ...logging,
-    agent_options: config.agent_options,
-  };
-};
-
 export const formatFloatAsPercentage = (float: number): string => {
   const formatter = Intl.NumberFormat("en-US", {
     maximumSignificantDigits: 2,
@@ -620,7 +588,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
   }
-  return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
@@ -844,7 +812,6 @@ export default {
   secondsToDhms,
   labelSlug,
   setupData,
-  frontendFormattedConfig,
   syntaxHighlight,
   getValidatedTeamId,
   normalizeEmptyValues,

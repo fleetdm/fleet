@@ -58,6 +58,12 @@ parasails.registerPage('osquery-table-details', {
           $(el).html(replacementHMTL);
         }
       });
+      // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
+      $('.hljs-keyword').each((i, el)=>{
+        for(i in el.innerText.match(/select|where|from|join/gi)) {
+          $(el).attr({'purpose':'line-break'});
+        }
+      });
     })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
     (()=>{
