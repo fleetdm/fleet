@@ -1,6 +1,6 @@
 import React from "react";
 
-import PhoneHome from "../../../../../../../assets/images/phone-home.svg";
+import PhoneHome from "../../../../../assets/images/phone-home.svg";
 
 const baseClass = "awaiting-results";
 

@@ -7,7 +7,7 @@ interface ISpinnerProps {
   small?: boolean;
   button?: boolean;
   white?: boolean;
-  /** The size of the spinner. defaults: `medium` */
+  /** The size of the spinner. defaults: `"medium"` */
   size?: Size;
   /** Include the background container styling for the spinner. defaults: `true` */
   includeContainer?: boolean;
