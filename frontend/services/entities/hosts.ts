@@ -61,7 +61,7 @@ export interface IActionByFilter {
   teamId: number | null;
   query: string;
   status: string;
-  labelId: number | null;
+  labelId?: number;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";

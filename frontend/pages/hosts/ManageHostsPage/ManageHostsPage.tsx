@@ -502,6 +502,7 @@ const ManageHostsPage = ({
       selectedFilters[0];
 
     const selected = find(labels, ["slug", slugToFind]) as ILabel;
+
     setSelectedLabel(selected);
 
     const options: ILoadHostsOptions = {
@@ -975,7 +976,7 @@ const ManageHostsPage = ({
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      const labelId = selectedLabel?.id as number;
+      const labelId = selectedLabel?.id;
 
       action = hostsAPI.transferToTeamByFilter({
         teamId,
@@ -1030,7 +1031,7 @@ const ManageHostsPage = ({
     if (isAllMatchingHostsSelected) {
       const teamId = currentTeam?.id || null;
 
-      const labelId = selectedLabel?.id as number;
+      const labelId = selectedLabel?.id;
 
       action = hostsAPI.destroyByFilter({
         teamId,
@@ -1524,10 +1525,7 @@ const ManageHostsPage = ({
   }, [isHostCountLoading, filteredHostCount]);
 
   const renderActiveFilterBlock = () => {
-    const showSelectedLabel =
-      selectedLabel &&
-      selectedLabel.type !== "all" &&
-      selectedLabel.type !== "status";
+    const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
     if (
       showSelectedLabel ||
