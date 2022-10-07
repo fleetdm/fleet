@@ -502,9 +502,6 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
-// orbitInfoRefetchAfterEnrollDur value assumes the default distributed_interval value set by Fleet of 10s.
-const orbitInfoRefetchAfterEnrollDur = 1 * time.Minute
-
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
