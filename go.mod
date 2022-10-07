@@ -98,7 +98,7 @@ require (
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	golang.org/x/sys v0.0.0-20220908164124-27713097b956
 	google.golang.org/grpc v1.49.0
-	gopkg.in/guregu/null.v3 v3.4.0
+	gopkg.in/guregu/null.v3 v3.5.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb
