@@ -161,8 +161,22 @@ func getRoots(t *testing.T, tmpDir string) string {
 	keys_ := signed["keys"]
 	require.NotNil(t, keys_)
 	require.NotEmpty(t, signed["keys"])
-	_, ok = keys_.(map[string]interface{})
+	keys, ok = keys_.(map[string]interface{})
 	require.True(t, ok)
+	require.NotEmpty(t, keys)
+	// Get first key (map key is the identifier of the key).
+	var key map[string]interface{}
+	for _, key_ := range keys {
+		key, ok = key_.(map[string]interface{})
+		require.True(t, ok)
+		break
+	}
+	require.NotEmpty(t, key)
+	require.Equal(t, "ed25519", key["scheme"])
+	require.Equal(t, "ed25519", key["keytype"])
+	keyval_, ok := key["keyval"].(map[string]interface{})
+	require.True(t, ok)
+	require.NotEmpty(t, keyval_["public"]) // keyval_["public"] contains the public key.
 
 	return string(out)
 }
