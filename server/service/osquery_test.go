@@ -187,8 +187,8 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-// One of these queries is the disk space, only one of the two works in a platform. Similarly, one
-// is for operating system.
+// One of these queries is the disk space, only one of the two works in a platform. Similarly, os_version_windows
+// is only for Windows, while os_version is for all platforms.
 var expectedDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
 
 func TestEnrollAgent(t *testing.T) {
@@ -560,9 +560,10 @@ func TestHostDetailQueries(t *testing.T) {
 
 	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
-	// 2 additional queries, but -3 expected queries due to removed disk space query (only 1 of 2
-	// active for a given platform) and removed two Windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// 2 additional queries, but -2 expected queries due to removed disk space query (only 1 of 2
+	// active for a given platform) and removed the Windows-specific operating system queries,
+	// so the result is +0.
+	require.Equal(t, len(expectedDetailQueries)+0, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
 		assert.True(t,
@@ -742,9 +743,9 @@ func TestLabelQueries(t *testing.T) {
 	// should be turned on so that we can quickly fill labels)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -3 expected queries due to removed disk space query (only 1 of 2 active for a given platform)
-	// and removed two Windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// -2 expected queries due to removed disk space query (only 1 of 2 active for a given platform)
+	// and removed the Windows-specific operating system queries
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -834,9 +835,9 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +3 for label queries, but -3 expected queries due to removed disk space query (only 1 of 2
-	// active for a given platform) and removed two Windows-specific operating system query
-	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// +3 for label queries, but -2 expected queries due to removed disk space query (only 1 of 2
+	// active for a given platform) and removed the Windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -1066,8 +1067,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 	// somehow confusingly, the query response above changed the host's platform
 	// from windows to darwin, so now it has all expected queries except the
-	// extra disk space one and the two windows-specific operating system query
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// extra disk space one and the windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1110,6 +1111,11 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+		require.Equal(t, 277.0, gigsAvailable)
+		require.Equal(t, 56.0, percentAvailable)
+		return nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
@@ -1121,9 +1127,9 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -6 due to linux platform, so battery, mdm, and munki are missing, and the extra disk space
-	// query, and the two windows-specific operating system queries, then +1 due to software inventory being enabled.
-	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)) {
+	// -5 due to linux platform, so battery, mdm, and munki are missing, and the extra disk space
+	// query, and the windows-specific operating system queries, then +1 due to software inventory being enabled.
+	if !assert.Equal(t, len(expectedDetailQueries)-4, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1309,6 +1315,7 @@ func TestDetailQueries(t *testing.T) {
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 	require.True(t, ds.SetOrUpdateMunkiInfoFuncInvoked)
 	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
+	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -1363,9 +1370,6 @@ func TestDetailQueries(t *testing.T) {
 		},
 	}, gotSoftware)
 
-	assert.Equal(t, 56.0, gotHost.PercentDiskSpaceAvailable)
-	assert.Equal(t, 277.0, gotHost.GigsDiskSpaceAvailable)
-
 	host.Hostname = "computer.local"
 	host.Platform = "darwin"
 	host.DetailUpdatedAt = mockClock.Now()
@@ -1384,10 +1388,10 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// host platform changed to darwin, so -3 for the
-	// extra disk space query and the two windows-specific operating system query,
+	// host platform changed to darwin, so -2 for the
+	// extra disk space query and the windows-specific operating system query,
 	// +1 for the software inventory enabled.
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -2351,9 +2355,9 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for the extra disk space one and two windows-specific operating system queries,
+	// all queries -2 for the extra disk space one and the windows-specific operating system query,
 	// and +2 for the policy queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueries)-0, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2409,8 +2413,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries minus the extra disk space and the windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2419,9 +2423,9 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -3 (the extra disk space and two windows-specific operating system
-	// queries) and +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -2 (the extra disk space and a windows-specific operating system
+	// query) and +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)+0, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2449,8 +2453,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries minus the extra disk space and windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2459,9 +2463,9 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -3 (the extra disk space and two windows-specific operating system
-	// queries) and +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -2 (the extra disk space and the windows-specific operating system
+	// query) and +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)+0, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2491,8 +2495,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries minus the extra disk space and the windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 }
@@ -2557,8 +2561,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for extra disk space and two windows-specific operating system queries, +3 for policies
-	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// all queries -2 for extra disk space and the windows-specific operating system query, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2671,8 +2675,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries minus the extra disk space and the windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2681,8 +2685,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for extra disk space and windows-specific operating system queries, +3 for policies
-	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// all queries -2 for extra disk space and windows-specific operating system query, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2805,8 +2809,8 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries minus the extra disk space and the windows-specific operating system query
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	logs, err := io.ReadAll(buf)

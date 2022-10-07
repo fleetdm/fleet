@@ -31,7 +31,7 @@ The best practice is to create a team with test (canary) hosts first and then tu
 
 Here's how to turn on the software inventory feature for only your 🐣 Servers (canaries) team: 
 
-1. Log in to Fleet with `fleetctl login`. If you use single-sign on (SSO) to log in to Fleet, check out the [documentation for logging in with SSO](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication).
+1. Log in to Fleet with `fleetctl login`. If you use single sign-on (SSO) to log in to Fleet, check out the [documentation for logging in with SSO](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication).
 
 1. Run the `fleetctl get teams --yaml --name "🐣 Servers (canaries)" > "🐣 Servers (canaries)".yaml` command. This will create a YAML file in your current working directory. You may have to log in to Fleet with `fleetctl login`.
 

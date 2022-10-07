@@ -18,6 +18,12 @@
     flex-direction: column;
   }
 
+  a img.icon {
+    width: 12px;
+    height: 12px;
+    margin-left: 0.25rem;
+  }
+
   .section {
     flex: 100%;
     display: flex;

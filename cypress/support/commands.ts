@@ -483,7 +483,7 @@ Cypress.Commands.add("getAttached", (selector) => {
           .as(uniqueAlias)
           .wait(1)
           .then(($el) => Cypress.dom.isAttached($el)),
-      { timeout: 1000, interval: 10 }
+      { timeout: 10000, interval: 10 }
     )
     .get(`@${uniqueAlias}`);
 });

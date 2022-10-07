@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -135,10 +136,18 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
 
+	software2 := []fleet.Software{
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other"}, // "non-empty" -> "non-empty"
+		{Name: "zoo", Version: "0.0.5", Source: "rpm_packages", BundleIdentifier: ""},               // non-empty -> empty
+	}
+
 	err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
 	require.NoError(t, err)
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background(), nil)
+	err = ds.UpdateHostSoftware(context.Background(), host1.ID, software2)
+	require.NoError(t, err)
+
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background(), oval.SupportedSoftwareSources)
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -156,6 +165,9 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, software.Version)
 		require.NotEmpty(t, software.Source)
 
+		require.NotEqual(t, software.Name, "bar")
+		require.NotEqual(t, software.Name, "zoo")
+
 		if loops > 2 {
 			t.Error("Looping through more software than we have")
 		}
@@ -167,7 +179,7 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	err = ds.AddCPEForSoftware(context.Background(), fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
-	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background(), nil)
+	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background(), oval.SupportedSoftwareSources)
 	defer iterator.Close()
 	require.NoError(t, err)
 

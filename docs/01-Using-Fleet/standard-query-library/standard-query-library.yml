@@ -942,3 +942,88 @@ spec:
   purpose: Informational
   tags: compliance, hunting
   contributors: nabilschear
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall enabled, domain profile (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors requires that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.1.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall enabled, private profile (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors requires that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.2.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall enabled, public profile (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors requires that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.3.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: SMBv1 client driver disabled (Windows)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
+  description: "Checks that the SMBv1 client is disabled."
+  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.3.2, built-in
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: SMBv1 server disabled (Windows)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1
+  description: "Checks that the SMBv1 server is disabled."
+  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.3.3, built-in
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
+  query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
+  description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials. Some auditors require that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.5.4.2
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic updates enabled (Windows)
+  query:   SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
+  description: "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors require that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.9.108.2.1
+  platform: windows
+  contributors: defensivedepth
+

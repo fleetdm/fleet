@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -119,6 +120,50 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		return resp, nil
 	}
 	return logged(authHostFunc)
+}
+
+func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+		nodeKey, err := getOrbitNodeKey(request)
+		if err != nil {
+			return nil, err
+		}
+
+		host, debug, err := svc.AuthenticateOrbitHost(ctx, nodeKey)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return nil, err
+		}
+
+		hlogger := log.With(logger, "host-id", host.ID)
+		if debug {
+			logJSON(hlogger, request, "request")
+		}
+
+		ctx = hostctx.NewContext(ctx, host)
+		instrumentHostLogger(ctx)
+		if ac, ok := authz_ctx.FromContext(ctx); ok {
+			ac.SetAuthnMethod(authz_ctx.AuthnOrbitToken)
+		}
+
+		resp, err := next(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+
+		if debug {
+			logJSON(hlogger, resp, "response")
+		}
+		return resp, nil
+	}
+	return logged(authHostFunc)
+}
+
+func getOrbitNodeKey(r interface{}) (string, error) {
+	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
+		return onk.orbitHostNodeKey(), nil
+	}
+	return "", errors.New("error getting orbit node key")
 }
 
 func getNodeKey(r interface{}) (string, error) {
