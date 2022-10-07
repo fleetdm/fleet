@@ -491,7 +491,6 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
 		hostDetailQueryPrefix + "google_chrome_profiles": {},
-		hostDetailQueryPrefix + "orbit_info":             {},
 		hostDetailQueryPrefix + "mdm":                    {},
 		hostDetailQueryPrefix + "munki_info":             {},
 		hostDetailQueryPrefix + "windows_update_history": {},
@@ -1314,7 +1313,6 @@ func TestDetailQueries(t *testing.T) {
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 	require.True(t, ds.SetOrUpdateMunkiInfoFuncInvoked)
-	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 
 	// osquery_info

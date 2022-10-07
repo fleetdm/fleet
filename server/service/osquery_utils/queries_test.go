@@ -297,7 +297,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
-	require.Len(t, queriesNoConfig, 18)
+	require.Len(t, queriesNoConfig, 17)
 
 	baseQueries := []string{
 		"network_interface",
