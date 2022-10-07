@@ -694,11 +694,8 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 	case fleet.StatusOffline:
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
 		params = append(params, now)
-	case fleet.StatusMIA:
+	case fleet.StatusMIA, fleet.StatusMissing:
 		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
-		params = append(params, now)
-	case fleet.StatusMissing:
-		sql += ` AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 10 DAY) <= ? `
 		params = append(params, now)
 	}
 	return sql, params

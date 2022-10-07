@@ -78,7 +78,6 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"ListMDM", testHostsListMDM},
-		{"ListMissing", testHostsListMissing},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
@@ -707,6 +706,9 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "mia"}, 0)
 	assert.Equal(t, 0, len(hosts))
 
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "missing"}, 0)
+	assert.Equal(t, 0, len(hosts))
+
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
 	assert.Equal(t, 10, len(hosts))
 
@@ -995,25 +997,6 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 	require.Len(t, issues, 2)
 	names = []string{issues[0].Name, issues[1].Name}
 	require.ElementsMatch(t, []string{strings.Repeat("A", maxMunkiIssueNameLen), strings.Repeat("☺", maxMunkiIssueNameLen)}, names)
-}
-
-func testHostsListMissing(t *testing.T, ds *Datastore) {
-	for i := 0; i < 15; i++ {
-		_, err := ds.NewHost(context.Background(), &fleet.Host{
-			SeenTime:      time.Now().Add(-time.Duration(i) * time.Hour * 24),
-			OsqueryHostID: strconv.Itoa(i),
-			NodeKey:       fmt.Sprintf("%d", i),
-		})
-		require.NoError(t, err)
-	}
-
-	filter := fleet.TeamFilter{User: test.UserAdmin}
-
-	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 15)
-	assert.Equal(t, 15, len(hosts))
-
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: fleet.StatusMissing}, 4)
-	assert.Equal(t, 4, len(hosts))
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
