@@ -10,10 +10,6 @@
     flex-direction: row;
     font-size: $x-small;
 
-    span {
-      font-weight: $bold;
-    }
-
     span:not(:last-of-type) {
       margin-bottom: $pad-small;
     }
@@ -21,6 +17,10 @@
     .icon-tooltip {
       margin-left: $pad-small;
     }
+  }
+
+  &__targeted-count {
+    font-weight: $bold;
   }
 
   &__btn-wrapper {

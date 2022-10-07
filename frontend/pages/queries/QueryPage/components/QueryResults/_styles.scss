@@ -1,22 +1,25 @@
 .query-results {
 
-  &__text-wrapper {
-    margin-top: 20px;
+  &__targeted-wrapper, &__percent-responded {
     display: flex;
-    flex-direction: row;
     font-size: $x-small;
+  }
 
-    span {
-      font-weight: $bold;
-    }
+  &__targeted-wrapper {
+    margin-top: 20px;
+    margin-bottom: $pad-small;
+  }
 
-    span:not(:last-of-type) {
-      margin-bottom: $pad-small;
-    }
+  &__targeted-count {
+    font-weight: $bold;
 
     .icon-tooltip {
       margin-left: $pad-small;
     }
+  }
+
+  &__responding-spinner {
+    margin-left: $pad-small;
   }
 
   &__btn-wrapper {

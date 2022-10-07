@@ -9,6 +9,7 @@ import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
@@ -61,6 +62,14 @@ const generateExportCSVFile = (rows: Row[], filename: string) => {
 
 const generateExportFilename = (descriptor: string) => {
   return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
+};
+
+const pluraliseHost = (count: number) => {
+  return count > 1 ? "hosts" : "host";
+};
+
+const hasAllResponded = (percentage: number) => {
+  return percentage === 100;
 };
 
 const QueryResults = ({
@@ -255,17 +264,34 @@ const QueryResults = ({
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <h1>{pageTitle}</h1>
-        <div className={`${baseClass}__text-wrapper`}>
-          <span>{targetsTotalCount}</span>&nbsp;host
-          {`${targetsTotalCount > 1 ? "s" : ""}`} targeted&nbsp; (
-          {percentResponded}%&nbsp;
-          <TooltipWrapper
-            tipContent={`
+        <div className={`${baseClass}__targeted-wrapper`}>
+          <span className={`${baseClass}__targeted-count`}>
+            {targetsTotalCount}
+          </span>
+          <span>&nbsp;{pluraliseHost(targetsTotalCount)} targeted.</span>
+        </div>
+        <div className={`${baseClass}__percent-responded`}>
+          {!hasAllResponded(percentResponded) && (
+            <span>Fleet is Talking to your hosts,&nbsp;</span>
+          )}
+          <span>
+            ({`${percentResponded}% `}
+            <TooltipWrapper
+              tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
-          >
-            responded
-          </TooltipWrapper>
-          )
+            >
+              responded
+            </TooltipWrapper>
+            )
+          </span>
+          {!hasAllResponded(percentResponded) && (
+            <Spinner
+              size="x-small"
+              centered={false}
+              includeContainer={false}
+              className={`${baseClass}__responding-spinner`}
+            />
+          )}
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}

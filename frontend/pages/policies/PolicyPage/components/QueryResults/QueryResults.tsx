@@ -19,6 +19,14 @@ import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesE
 
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
+const pluraliseHost = (count: number) => {
+  return count > 1 ? "hosts" : "host";
+};
+
+const hasAllResponded = (percentage: number) => {
+  return percentage === 100;
+};
+
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
@@ -253,10 +261,14 @@ const QueryResults = ({
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <h1>{pageTitle}</h1>
-        <div className={`${baseClass}__text-wrapper`}>
-          <span>{targetsTotalCount}</span>&nbsp;host
-          {`${targetsTotalCount > 1 ? "s" : ""}`} targeted&nbsp; (
-          {targetsRespondedPercent}%&nbsp;
+        <div className={`${baseClass}__targeted-wrapper`}>
+          <span className={`${baseClass}__targeted-count`}>
+            {targetsTotalCount}
+          </span>
+          <span>&nbsp;{pluraliseHost(targetsTotalCount)} targeted.</span>
+        </div>
+        <div className={`${baseClass}__percent-responded`}>
+          ({`${targetsRespondedPercent}% `}
           <TooltipWrapper
             tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
