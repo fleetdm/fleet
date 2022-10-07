@@ -2817,52 +2817,6 @@ func TestLiveQueriesFailing(t *testing.T) {
 	require.Contains(t, string(logs), "failed to get queries for host")
 }
 
-// TestFleetDesktopOrbitInfo tests that the orbit_info table extension is
-// refetched for "orbitInfoRefetchAfterEnrollDur" after enroll.
-func TestFleetDesktopOrbitInfo(t *testing.T) {
-	ds := new(mock.Store)
-	lq := live_query_mock.New(t)
-	mockClock := clock.NewMockClock()
-	fleetConfig := config.TestConfig()
-	fleetConfig.Osquery.LabelUpdateInterval = 5 * time.Minute
-	fleetConfig.Osquery.PolicyUpdateInterval = 5 * time.Minute
-	fleetConfig.Osquery.DetailUpdateInterval = 5 * time.Minute
-	svc := newTestServiceWithConfig(t, ds, fleetConfig, nil, lq, &TestServerOpts{Clock: mockClock})
-
-	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
-
-	now := time.Now().UTC()
-	mockClock.SetTime(now)
-
-	host := &fleet.Host{
-		Platform: "darwin",
-		// Host has enrolled 30 seconds ago.
-		LastEnrolledAt: now.Add(-30 * time.Second),
-		// Host is up-to-date with details, labels and policies
-		// because update interval for each is 5m.
-		DetailUpdatedAt: now.Add(-5 * time.Second),
-		LabelUpdatedAt:  now.Add(-5 * time.Second),
-		PolicyUpdatedAt: now.Add(-5 * time.Second),
-	}
-
-	ctx := hostctx.NewContext(context.Background(), host)
-
-	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
-	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	verifyDiscovery(t, queries, discovery)
-	require.Contains(t, queries, "fleet_detail_query_orbit_info")
-
-	// Advance mock clock
-	mockClock.AddTime(orbitInfoRefetchAfterEnrollDur)
-	ctx = hostctx.NewContext(context.Background(), host)
-
-	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
-	require.NoError(t, err)
-	require.Len(t, queries, 0)
-	require.Len(t, discovery, 0)
-}
-
 func distQueriesMapKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
