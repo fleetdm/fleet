@@ -13,6 +13,7 @@
 - [Testing SSO](#testing-sso)
 - [Testing Kinesis Logging](#testing-kinesis-logging)
 - [Testing pre-built installers](#testing-pre-built-installers)
+- [Testing Windows virtual machines on M1 Mac](#testing-windows-virtual-machines-on-m1-mac)
 
 ## License key
 
