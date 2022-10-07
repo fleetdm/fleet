@@ -115,7 +115,7 @@ POST https://server.com/example
 }
 ```
 
-For ticket automations, a single ticket is created per newly failed policy (i.e. multiple tickets are not created if a policy is newly failing on more than one host during the same period).
+For ticket automations, a single ticket is created per newly failed policy (i.e., multiple tickets are not created if a policy is newly failing on more than one host during the same period).
 
 Follow the steps below to configure Jira or Zendesk as a ticket destination:
 
@@ -133,7 +133,7 @@ The Jira and Zendesk ticket destinations are currently in beta.
 
 Host status automations send a webhook request if a configured percentage of hosts have not checked in to Fleet for a configured number of days.
 
-Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` configuration option using the [`config` YAML document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.  Note that this interval currently configures both host status and failing policies automations.
+Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` configuration option using the [`config` YAML document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.  Note that this interval currently configures both host status and failing policy automations.
 
 Example webhook payload:
 
