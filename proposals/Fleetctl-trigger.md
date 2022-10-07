@@ -24,7 +24,7 @@ mechanism currently to trigger async jobs on an ad hoc basis.
 - Upon this command, the CLI client makes a request to a new authenticated endpoint (see below) to
   trigger an ad hoc run of the named schedule. 
 
-### New `schedule` option `schedule.WithTrigger` 
+### New `schedule` option `WithTrigger` 
 - This option adds a `trigger` channel on the `schedule` struct that will trigger an ad hoc run of
   the scheduled jobs.
 - The trigger channel for each `schedule` is exposed via a new `schedules` map on the `Service` struct. 
@@ -67,9 +67,20 @@ mechanism currently to trigger async jobs on an ad hoc basis.
     lock start time and lock release time).
   - Other useful options?
 
-- When should the interval ticker reset? 
-  - What happens if a schedule is triggered 55 minutes into a 1-hour interval? 
-  - What happens scheduled jobs run for 9 minutes out of a 10-minute interval?
+- What rules should determine when the interval ticker resets? Consider the following cases where
+  `s.scheduleInterval = 1*time.Hour`: 
+  - The schedule is triggered at 55 minutes into the 1-hour interval and takes 1 minute to complete.
+    When should the schedule run again? 
+    (a) after 4 minutes; 
+    (b) after 1 hour; 
+    (c) after 1 hour plus 4 minutes; 
+    (d) other  
+  - The schedule is triggered at 55 minutes into the 1-hour interval and takes 11 minutes to complete.
+    When should the schedule run again? 
+    (a) immediately; 
+    (b) after 1 hour; 
+    (c) after 54 minutes;
+    (d) other
 
 - What should be logged?
   - Debug log if schedule runtime exceeds schedule interval to aid detection/troubleshooting of
