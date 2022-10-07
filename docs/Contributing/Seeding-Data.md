@@ -88,4 +88,4 @@ Fleet supports [SSO users](https://fleetdm.com/docs/deploying/configuration#conf
 
 ### Create test hosts
 
-To create a handful of test hosts, you can run containerized `osqueryd` [Docker test hosts](https://github.com/fleetdm/fleet/tree/main/tools/osquery). As these Docker test hosts are RAM intensive, alternatively, you can create thousands of [simulated test hosts](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf) using `osquery-perf`.
+To create a handful of test hosts, you can run containerized `osqueryd` [Docker test hosts](https://github.com/fleetdm/fleet/tree/main/tools/osquery). As these Docker test hosts are RAM intensive, alternatively, you can use `osquery-perf` create thousands of [simulated test hosts](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf).
