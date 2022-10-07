@@ -421,3 +421,10 @@ Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with t
 secret from the `fleetctl package` command used to build the installers. 
 
 MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.
+
+## Testing Windows virtual machines on M1 Mac
+
+1. Edit the VM and set Network Mode to None
+2. Boot up the VM, click Shift + F10, type oobe\bypassnro in the Command Prompt, and hit Enter
+3. Wait for the VM to reboot and click "I don't have internet"
+4. Boot to desktop, install SPICE (mounted as a CD) and revert the Network Mode setting.
