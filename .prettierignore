@@ -39,4 +39,3 @@ website/
 # certain frontend files that are not meant to be formatted
 frontend/components/FleetAce/mode.ts
 frontend/components/FleetAce/theme.ts
-frontend/utilities/constants.ts
