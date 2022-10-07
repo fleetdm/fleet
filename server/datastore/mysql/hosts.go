@@ -2620,14 +2620,10 @@ func (ds *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, va
 	return nil
 }
 
-// UpdateHost updates a host.
-//
 // UpdateHost updates all columns of the `hosts` table.
 // It only updates `hosts` table, other additional host information is ignored.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-
-		sqlStatement := `
+	sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,
 			label_updated_at = ?,
@@ -2664,54 +2660,56 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			orbit_node_key = ?
 		WHERE id = ?
 	`
-		_, err := tx.ExecContext(ctx, sqlStatement,
-			host.DetailUpdatedAt,
-			host.LabelUpdatedAt,
-			host.PolicyUpdatedAt,
-			host.NodeKey,
-			host.Hostname,
-			host.UUID,
-			host.Platform,
-			host.OsqueryVersion,
-			host.OSVersion,
-			host.Uptime,
-			host.Memory,
-			host.CPUType,
-			host.CPUSubtype,
-			host.CPUBrand,
-			host.CPUPhysicalCores,
-			host.HardwareVendor,
-			host.HardwareModel,
-			host.HardwareVersion,
-			host.HardwareSerial,
-			host.ComputerName,
-			host.Build,
-			host.PlatformLike,
-			host.CodeName,
-			host.CPULogicalCores,
-			host.DistributedInterval,
-			host.ConfigTLSRefresh,
-			host.LoggerTLSPeriod,
-			host.TeamID,
-			host.PrimaryIP,
-			host.PrimaryMac,
-			host.PublicIP,
-			host.RefetchRequested,
-
-			host.OrbitNodeKey, host.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
-		}
-		tx.ExecContext(ctx, `
+	_, err := ds.writer.ExecContext(ctx, sqlStatement,
+		host.DetailUpdatedAt,
+		host.LabelUpdatedAt,
+		host.PolicyUpdatedAt,
+		host.NodeKey,
+		host.Hostname,
+		host.UUID,
+		host.Platform,
+		host.OsqueryVersion,
+		host.OSVersion,
+		host.Uptime,
+		host.Memory,
+		host.CPUType,
+		host.CPUSubtype,
+		host.CPUBrand,
+		host.CPUPhysicalCores,
+		host.HardwareVendor,
+		host.HardwareModel,
+		host.HardwareVersion,
+		host.HardwareSerial,
+		host.ComputerName,
+		host.Build,
+		host.PlatformLike,
+		host.CodeName,
+		host.CPULogicalCores,
+		host.DistributedInterval,
+		host.ConfigTLSRefresh,
+		host.LoggerTLSPeriod,
+		host.TeamID,
+		host.PrimaryIP,
+		host.PrimaryMac,
+		host.PublicIP,
+		host.RefetchRequested,
+		host.OrbitNodeKey,
+		host.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+	}
+	_, err = ds.writer.ExecContext(ctx, `
 			UPDATE host_display_names
 			SET display_name=?
 			WHERE host_id=?`,
-			host.DisplayName(),
-			host.ID,
-		)
-		return nil
-	})
+		host.DisplayName(),
+		host.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update host_display_names for host id %d", host.ID)
+	}
+	return nil
 }
 
 // OSVersions gets the aggregated os version host counts. Records with the same name and version are combined into one count (e.g.,
