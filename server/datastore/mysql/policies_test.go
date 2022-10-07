@@ -1858,5 +1858,5 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 
 	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
-	require.Equal(t, 1, count)
+	require.Equal(t, 0, count)
 }
