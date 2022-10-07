@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  test-schema-changes:
+  test-db-changes:
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
