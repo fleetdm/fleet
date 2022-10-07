@@ -221,7 +221,7 @@ type HostSummary struct {
 	OnlineCount        uint                   `json:"online_count" db:"online"`
 	OfflineCount       uint                   `json:"offline_count" db:"offline"`
 	MIACount           uint                   `json:"mia_count" db:"mia"`
-	Missing10DaysCount uint                   `json:"missing_10_days_count" db:"missing_10_days_count"`
+	Missing30DaysCount uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
 	NewCount           uint                   `json:"new_count" db:"new"`
 	AllLinuxCount      uint                   `json:"all_linux_count" db:"-"`
 	LowDiskSpaceCount  *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`

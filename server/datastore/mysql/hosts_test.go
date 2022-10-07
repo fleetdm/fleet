@@ -1364,7 +1364,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), summary.OnlineCount)
 	assert.Equal(t, uint(2), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
-	assert.Equal(t, uint(1), summary.Missing10DaysCount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.Nil(t, summary.LowDiskSpaceCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
@@ -1375,7 +1375,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(4), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), summary.MIACount)
-	assert.Equal(t, uint(1), summary.Missing10DaysCount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
@@ -1384,7 +1384,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(11*24*time.Hour), nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), summary.MIACount)
-	assert.Equal(t, uint(4), summary.Missing10DaysCount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
