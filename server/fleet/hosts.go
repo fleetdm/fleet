@@ -182,6 +182,14 @@ type Host struct {
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
+// DisplayName returns ComputerName if it isn't empty or HostName otherwise.
+func (h *Host) DisplayName() string {
+	if cn := h.ComputerName; cn != "" {
+		return cn
+	}
+	return h.Hostname
+}
+
 type HostIssues struct {
 	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
 	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
@@ -488,8 +496,9 @@ type AggregatedMacadminsData struct {
 
 // HostShort is a minimal host representation returned when querying hosts.
 type HostShort struct {
-	ID       uint   `json:"id" db:"id"`
-	Hostname string `json:"hostname" db:"hostname"`
+	ID          uint   `json:"id" db:"id"`
+	Hostname    string `json:"hostname" db:"hostname"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 type OSVersions struct {

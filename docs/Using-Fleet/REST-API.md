@@ -1475,7 +1475,7 @@ Returns a list of the active invitations in Fleet.
       "sso_enabled": false,
       "global_role": "admin",
       "teams": []
-    },
+    }
   ]
 }
 ```
@@ -1765,6 +1765,7 @@ If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "2ceca32fe484",
+      "display_name": "2ceca32fe484",
       "public_ip": "",
       "primary_ip": "",
       "primary_mac": "",
@@ -1961,7 +1962,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "platform": "darwin",
       "hosts_count": 1204
     }
-  ],
+  ]
 }
 ```
 
@@ -2044,6 +2045,7 @@ Returns the information of the specified host.
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
+    "display_name": "23cfc9caacf0",
     "public_ip": "",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
@@ -2213,6 +2215,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "2ceca32fe484",
+    "display_name": "2ceca32fe484",
     "primary_ip": "",
     "primary_mac": "",
     "distributed_interval": 10,
@@ -2663,7 +2666,7 @@ Retrieves the aggregated host OS versions information.
       "version": "16.4.0 LTS",
       "platform": "ubuntu",
       "os_id": 6
-    },
+    }
   ]
 }
 ```
@@ -2885,32 +2888,32 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "label_type": "builtin",
-    },
+      "label_type": "builtin"
+    }
   ]
 }
 ```
@@ -3010,7 +3013,7 @@ Returns a list of all the labels in Fleet.
       "display_text": "MS Windows",
       "count": 0,
       "host_ids": null
-    },
+    }
   ]
 }
 ```
@@ -3072,6 +3075,7 @@ Returns a list of the hosts that belong to the specified label.
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "e2e7f8d8983d",
+      "display_name": "e2e7f8d8983d",
       "primary_ip": "172.20.0.2",
       "primary_mac": "02:42:ac:14:00:02",
       "distributed_interval": 10,
@@ -3082,7 +3086,7 @@ Returns a list of the hosts that belong to the specified label.
       "team_name": null,
       "status": "offline",
       "display_text": "e2e7f8d8983d"
-    },
+    }
   ]
 }
 ```
@@ -3836,8 +3840,8 @@ Returns a list of all queries in the Fleet instance.
         "disabled": false
       }
     ]
-  },
-]
+  }
+]}
 ```
 
 ### Create query
@@ -4743,6 +4747,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "7a2f41482833",
+        "display_name": "7a2f41482833",
         "primary_ip": "172.20.0.3",
         "primary_mac": "02:42:ac:14:00:03",
         "distributed_interval": 10,
@@ -4780,6 +4785,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "78c96e72746c",
+        "display_name": "78c96e72746c",
         "primary_ip": "172.20.0.7",
         "primary_mac": "02:42:ac:14:00:07",
         "distributed_interval": 10,
@@ -5381,7 +5387,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
       "payload": {
         "identifier": "host-ABC"
       }
-    },
+    }
   ]
 }
 ```
@@ -5669,7 +5675,7 @@ By default, the user will be forced to reset its password upon first login.
     {
       "id": 3,
       "role": "maintainer"
-    },
+    }
   ]
 }
 ```
@@ -5700,7 +5706,7 @@ By default, the user will be forced to reset its password upon first login.
       {
         "id": 3,
         "role": "maintainer"
-      },
+      }
     ]
   }
 }
@@ -5884,7 +5890,7 @@ Returns all information about a specific user.
       {
         "id": 3,
         "role": "maintainer"
-      },
+      }
     ]
   }
 }
