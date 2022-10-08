@@ -37,4 +37,7 @@ or because it was terminated because of resource contention), the watcher will t
 managed extension but first, it will check the respawn limit. If the respawn limit was reached or
 if for some reason the extension could be spawned, then the osquery process is shut down.
 
-Lastly, we check the state of the watcher process itself. If it is deemed unhealthy because of resource contention, then the osquery process is shut down.
+Lastly, we check the state of the watcher process itself. If it is deemed unhealthy because of
+resource contention, then the osquery process is shut down.
+
+<meta name="pageOrderInSection" value="700">
