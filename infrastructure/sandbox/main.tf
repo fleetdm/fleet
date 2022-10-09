@@ -223,6 +223,13 @@ module "monitoring" {
   dynamodb_table = aws_dynamodb_table.lifecycle-table
 }
 
+module "data" {
+  source                = "./Data"
+  prefix                = "${local.prefix}-data"
+  vpc                   = module.vpc
+  access_logs_s3_bucket = module.shared-infrastructure.access_logs_s3_bucket
+}
+
 resource "aws_dynamodb_table" "lifecycle-table" {
   name         = "${local.prefix}-lifecycle"
   billing_mode = "PAY_PER_REQUEST"
