@@ -21,66 +21,83 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var hostSearchColumns = []string{"hostname", "uuid", "hardware_serial", "primary_ip"}
+var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 
 // NewHost creates a new host on the datastore.
 //
 // Currently only used for testing.
 func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
-	sqlStatement := `
-	INSERT INTO hosts (
-		osquery_host_id,
-		detail_updated_at,
-		label_updated_at,
-		policy_updated_at,
-		node_key,
-		hostname,
-		uuid,
-		platform,
-		osquery_version,
-		os_version,
-		uptime,
-		memory,
-		team_id,
-		distributed_interval,
-		logger_tls_period,
-		config_tls_refresh,
-		refetch_requested
-	)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
-	result, err := ds.writer.ExecContext(
-		ctx,
-		sqlStatement,
-		host.OsqueryHostID,
-		host.DetailUpdatedAt,
-		host.LabelUpdatedAt,
-		host.PolicyUpdatedAt,
-		host.NodeKey,
-		host.Hostname,
-		host.UUID,
-		host.Platform,
-		host.OsqueryVersion,
-		host.OSVersion,
-		host.Uptime,
-		host.Memory,
-		host.TeamID,
-		host.DistributedInterval,
-		host.LoggerTLSPeriod,
-		host.ConfigTLSRefresh,
-		host.RefetchRequested,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new host")
-	}
-	id, _ := result.LastInsertId()
-	host.ID = uint(id)
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		sqlStatement := `
+		INSERT INTO hosts (
+			osquery_host_id,
+			detail_updated_at,
+			label_updated_at,
+			policy_updated_at,
+			node_key,
+			hostname,
+			computer_name,
+			uuid,
+			platform,
+			osquery_version,
+			os_version,
+			uptime,
+			memory,
+			team_id,
+			distributed_interval,
+			logger_tls_period,
+			config_tls_refresh,
+			refetch_requested
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`
+		result, err := tx.ExecContext(
+			ctx,
+			sqlStatement,
+			host.OsqueryHostID,
+			host.DetailUpdatedAt,
+			host.LabelUpdatedAt,
+			host.PolicyUpdatedAt,
+			host.NodeKey,
+			host.Hostname,
+			host.ComputerName,
+			host.UUID,
+			host.Platform,
+			host.OsqueryVersion,
+			host.OSVersion,
+			host.Uptime,
+			host.Memory,
+			host.TeamID,
+			host.DistributedInterval,
+			host.LoggerTLSPeriod,
+			host.ConfigTLSRefresh,
+			host.RefetchRequested,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new host")
+		}
+		id, _ := result.LastInsertId()
+		host.ID = uint(id)
 
-	_, err = ds.writer.ExecContext(ctx, `INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`, host.ID, host.SeenTime)
+		_, err = ds.writer.ExecContext(ctx,
+			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`,
+			host.ID, host.SeenTime,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new host seen time")
+		}
+		_, err = ds.writer.ExecContext(ctx,
+			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
+			host.ID, host.DisplayName(),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "host_display_names")
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new host seen time")
+		return nil, err
 	}
-
 	return host, nil
 }
 
@@ -292,6 +309,7 @@ var hostRefs = []string{
 	"host_batteries",
 	"host_operating_system",
 	"host_munki_issues",
+	"host_display_names",
 	"windows_updates",
 	"host_disks",
 }
@@ -602,6 +620,11 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		params = append(params, opt.MunkiIssueIDFilter)
 	}
 
+	displayNameJoin := ""
+	if opt.ListOptions.OrderKey == "display_name" {
+		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
+
 	lowDiskSpaceFilter := "TRUE"
 	if opt.LowDiskSpaceFilter != nil {
 		lowDiskSpaceFilter = `hd.gigs_disk_space_available < ?`
@@ -618,8 +641,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
     %s
-    WHERE TRUE AND %s AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, ds.whereFilterHostsByTeams(filter, "h"),
+    %s
+		WHERE TRUE AND %s AND %s AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, displayNameJoin, ds.whereFilterHostsByTeams(filter, "h"),
 		softwareFilter, munkiFilter, lowDiskSpaceFilter,
 	)
 
@@ -720,28 +744,42 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 
 func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	var ids []uint
-	selectIDs := `
-    SELECT
-      id
-    FROM
-      hosts
-    WHERE
-      hostname = '' AND
-      osquery_version = '' AND
-      created_at < (? - INTERVAL 5 MINUTE)`
-	if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
-	}
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		selectIDs := `
+		SELECT
+		  id
+		FROM
+		  hosts
+		WHERE
+		  hostname = '' AND
+		  osquery_version = '' AND
+		  created_at < (? - INTERVAL 5 MINUTE)`
+		if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
+		}
 
-	cleanupHosts := `
+		cleanupHostDisplayName := fmt.Sprintf(
+			`DELETE FROM host_display_names WHERE host_id IN (%s)`,
+			selectIDs,
+		)
+		if _, err := ds.writer.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
+		}
+
+		cleanupHosts := `
 		DELETE FROM hosts
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
-	`
-	if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
-	}
+		`
+		if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
+		}
 
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 	return ids, nil
 }
 
@@ -750,7 +788,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	args := []interface{}{now, now, now, now}
+	args := []interface{}{now, now, now, now, now}
 	hostDisksJoin := ``
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
@@ -769,6 +807,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			SELECT
 				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
@@ -821,21 +860,6 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	summary.Platforms = platforms
 
 	return &summary, nil
-}
-
-func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
-	// if the host is global, then there should be nothing to clean up
-	if currentTeamID == nil {
-		return false
-	}
-
-	// if the host is switching from a team to global, we should clean up
-	if newTeamID == nil {
-		return true
-	}
-
-	// clean up if the host is switching to a different team
-	return *currentTeamID != *newTeamID
 }
 
 func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
@@ -911,7 +935,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
-			sqlInsert := `
+			const sqlInsert = `
 				INSERT INTO hosts (
 					detail_updated_at,
 					label_updated_at,
@@ -929,6 +953,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 			hostID, _ = result.LastInsertId()
 			level.Info(ds.logger).Log("hostID", hostID)
+			const sqlHostDisplayName = `
+				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
+			`
+			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host_display_names")
+			}
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
 			// Prior to adding this we saw many hosts (probably VMs) with the
@@ -938,10 +969,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 			hostID = int64(host.ID)
 
-			if shouldCleanTeamPolicies(host.TeamID, teamID) {
-				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, []uint{host.ID}); err != nil {
-					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
-				}
+			if err := deleteAllPolicyMemberships(ctx, tx, []uint{host.ID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
 
 			// Update existing host record
@@ -2592,8 +2621,6 @@ func (ds *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, va
 	return nil
 }
 
-// UpdateHost updates a host.
-//
 // UpdateHost updates all columns of the `hosts` table.
 // It only updates `hosts` table, other additional host information is ignored.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
@@ -2672,6 +2699,16 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+	}
+	_, err = ds.writer.ExecContext(ctx, `
+			UPDATE host_display_names
+			SET display_name=?
+			WHERE host_id=?`,
+		host.DisplayName(),
+		host.ID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update host_display_names for host id %d", host.ID)
 	}
 	return nil
 }

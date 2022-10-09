@@ -1,4 +1,5 @@
 name: pr-helm
+
 on:
   pull_request:
     paths:
@@ -6,7 +7,12 @@ on:
     - '.github/workflows/pr-helm.yaml'
     - '.github/scripts/helm-check-expected.sh'
     - 'tools/ci/helm-values/**'
-    - 
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
