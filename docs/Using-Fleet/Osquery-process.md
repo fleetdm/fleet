@@ -28,7 +28,7 @@ After checking the state of the child worker, we check the state of every manage
 could be `Alive` or `Non-existent`.
 
 If the managed extension is `Alive` the watcher will check both the CPU utilization and memory
-consumption (same checks we perform for the child process) and if the managed extension is deemed unstable, we terminate the extension by following these steps:
+consumption (the same checks we perform for the child process). If the managed extension is deemed unstable, we terminate the extension by following these steps:
 1. We send a `SIGTERM` to the managed extension
 2. After a delay (configured by osquery's `--watchdog_forced_shutdown_delay` flag) we send a `SIGKILL` to the managed extension.
 
