@@ -217,44 +217,53 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 		}
 
+		var match *IndexedCPEItem
 		for _, item := range results {
-			if !item.Deprecated {
-				hasAllTerms := true
+			hasAllTerms := true
 
-				sName := strings.ToLower(software.Name)
-				for _, sN := range strings.Split(item.Product, "_") {
-					hasAllTerms = hasAllTerms && strings.Index(sName, sN) != -1
+			sName := strings.ToLower(software.Name)
+			for _, sN := range strings.Split(item.Product, "_") {
+				hasAllTerms = hasAllTerms && strings.Index(sName, sN) != -1
+			}
+
+			sVendor := strings.ToLower(software.Vendor)
+			sBundle := strings.ToLower(software.BundleIdentifier)
+			for _, sV := range strings.Split(item.Vendor, "_") {
+				// If we can't check the vendor, then assume is a bad match, this is to avoid any
+				// false positives.
+				if sVendor == "" && sBundle == "" {
+					hasAllTerms = false
 				}
 
-				sVendor := strings.ToLower(software.Vendor)
-				sBundle := strings.ToLower(software.BundleIdentifier)
-				for _, sV := range strings.Split(item.Vendor, "_") {
-					if sVendor != "" {
-						hasAllTerms = hasAllTerms && strings.Index(sVendor, sV) != -1
-					}
-
-					if sBundle != "" {
-						hasAllTerms = hasAllTerms && strings.Index(sBundle, sV) != -1
-					}
+				if sVendor != "" {
+					hasAllTerms = hasAllTerms && strings.Index(sVendor, sV) != -1
 				}
 
-				if !hasAllTerms {
-					continue
+				if sBundle != "" {
+					hasAllTerms = hasAllTerms && strings.Index(sBundle, sV) != -1
 				}
+			}
 
-				return item.FmtStr(software), nil
+			if hasAllTerms {
+				match = &item
+				break
 			}
 		}
 
-		// try to find a non-deprecated cpe by looking up deprecated_by
-		for _, item := range results {
-			deprecatedItem := item
-			for {
-				var deprecation IndexedCPEItem
+		if match != nil {
+			if !match.Deprecated {
+				return match.FmtStr(software), nil
+			}
 
-				err = db.Get(
-					&deprecation,
-					`
+			// try to find a non-deprecated cpe by looking up deprecated_by
+			for _, item := range results {
+				deprecatedItem := item
+				for {
+					var deprecation IndexedCPEItem
+
+					err = db.Get(
+						&deprecation,
+						`
 						SELECT
 							rowid,
 							product,
@@ -267,20 +276,21 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 								SELECT cpe23 FROM deprecated_by d WHERE d.cpe_id = ?
 							)
 					`,
-					deprecatedItem.ID,
-				)
-				if err == sql.ErrNoRows {
-					break
-				}
-				if err != nil {
-					return "", fmt.Errorf("getting deprecation: %w", err)
-				}
-				if deprecation.Deprecated {
-					deprecatedItem = deprecation
-					continue
-				}
+						deprecatedItem.ID,
+					)
+					if err == sql.ErrNoRows {
+						break
+					}
+					if err != nil {
+						return "", fmt.Errorf("getting deprecation: %w", err)
+					}
+					if deprecation.Deprecated {
+						deprecatedItem = deprecation
+						continue
+					}
 
-				return deprecation.FmtStr(software), nil
+					return deprecation.FmtStr(software), nil
+				}
 			}
 		}
 	}

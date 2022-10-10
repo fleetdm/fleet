@@ -1128,6 +1128,14 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:             "UTM.app",
+				Source:           "apps",
+				Version:          "3.2.4",
+				BundleIdentifier: "com.utmapp.UTM",
+			}, cpe: "",
+		},
 	}
 	nettest.Run(t)
 
