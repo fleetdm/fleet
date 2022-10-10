@@ -22,7 +22,7 @@ to the child process.
 
 If the child process is `Non-existent`, either because it didn't exist in the first place or because it
 was terminated, the watcher will try to spawn a new child process. But first, it will check whether
-the maximum number of allowed process re-spawns was reached, if it was, then the osquery process shutdowns.
+the maximum number of allowed process re-spawns was reached. If it was, then the osquery process shutdowns.
 
 After checking the state of the child worker, we check the state of every managed extension. Which
 could be `Alive` or `Non-existent`.
