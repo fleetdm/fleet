@@ -99,7 +99,7 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
     : condensed;
 };
 
-const withBundleTooltip = (name: string, bundle: string) => (
+const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
       tipContent={`
@@ -151,7 +151,7 @@ export const generateSoftwareTableHeaders = (
         const { id, name, bundle_identifier: bundle } = cellProps.row.original;
         return (
           <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
-            {bundle ? withBundleTooltip(name, bundle) : name}
+            {bundle ? renderBundleTooltip(name, bundle) : name}
           </Link>
         );
       },
