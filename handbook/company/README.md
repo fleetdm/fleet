@@ -30,7 +30,7 @@ Fleet's values are a set of five ideals adopted by everyone on the team.  They d
 
 1. 🔴 Empathy
 2. 🟠 Ownership
-3. 🟢 Balance
+3. 🟢 Balanceasdgsgssgasdasdg
 4. 🔵 Objectivity
 5. 🟣 Openness
 
