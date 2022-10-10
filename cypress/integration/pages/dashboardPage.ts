@@ -10,7 +10,7 @@ const dashboardPage = {
     });
   },
 
-  displaysCards: (platform = "") => {
+  displaysCards: (platform = "", tier = "free") => {
     switch (platform) {
       case "macOS":
         cy.getAttached(".homepage__wrapper").within(() => {
@@ -49,7 +49,12 @@ const dashboardPage = {
         cy.getAttached(".homepage__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
+          cy.getAttached(".hosts-missing").should(
+            `${tier === "premium" ? "exist" : "not.exist"}`
+          );
+          cy.getAttached(".hosts-low-space").should(
+            `${tier === "premium" ? "exist" : "not.exist"}`
+          );
           cy.getAttached(".home-software").should("exist");
           cy.getAttached(".activity-feed").should("exist");
         });
@@ -59,7 +64,6 @@ const dashboardPage = {
         cy.getAttached(".homepage__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
           cy.getAttached(".home-software").should("exist");
           cy.get(".activity-feed").should("not.exist");
         });

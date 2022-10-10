@@ -805,6 +805,7 @@ const ManageHostsPage = ({
             newQueryParams.os_name = osName;
             newQueryParams.os_version = osVersion;
           }
+        // TODO: Lint expects default
       }
 
       router.replace(

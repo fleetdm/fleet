@@ -50,7 +50,7 @@ describe("Premium tier - Observer user", () => {
     describe("Dashboard", () => {
       beforeEach(() => dashboardPage.visitsDashboardPage());
       it("displays cards for all platforms and does not filter host platform", () => {
-        dashboardPage.displaysCards("All");
+        dashboardPage.displaysCards("All", "premium");
         dashboardPage.verifiesFilteredHostByPlatform("none");
       });
       it("displays cards for windows only and filters hosts by Windows platform", () => {

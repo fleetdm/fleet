@@ -4,7 +4,7 @@ import PATHS from "router/paths";
 import SummaryTile from "../HostsSummary/SummaryTile";
 import LowDiskSpaceIcon from "../../../../../assets/images/icon-low-disk-space-32x19@2x.png";
 
-const baseClass = "low-disk-space";
+const baseClass = "hosts-low-space";
 
 interface IHostSummaryProps {
   lowDiskSpaceGb: number;

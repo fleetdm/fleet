@@ -1,10 +1,10 @@
 import React from "react";
+import PATHS from "router/paths";
 
 import SummaryTile from "../HostsSummary/SummaryTile";
 import MissingHostsIcon from "../../../../../assets/images/icon-missing-hosts-28x24@2x.png";
-import PATHS from "router/paths";
 
-const baseClass = "missing-hosts";
+const baseClass = "hosts-missing";
 
 interface IHostSummaryProps {
   missingCount: number;
