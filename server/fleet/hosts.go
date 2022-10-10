@@ -20,7 +20,8 @@ const (
 	// StatusNew means the host has enrolled in the interval defined by
 	// NewDuration. It is independent of offline and online.
 	StatusNew = HostStatus("new")
-	// StatusMissing means the host is missing for 10 days.
+	// StatusMissing means the host is missing for 30 days. It is identical
+	// with StatusMIA, but StatusMIA is deprecated.
 	StatusMissing = HostStatus("missing")
 
 	// NewDuration if a host has been created within this time period it's
