@@ -4,6 +4,10 @@
 
 // PNG assests
 declare module "*.png" {
-  const value: any;
+  const value: string;
+  export = value;
+}
+declare module "*.svg" {
+  const value: string;
   export = value;
 }
