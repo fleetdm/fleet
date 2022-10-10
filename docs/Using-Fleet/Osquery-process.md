@@ -33,7 +33,7 @@ consumption (the same checks we perform for the child process). If the managed e
 2. After a delay (configured by osquery's `--watchdog_forced_shutdown_delay` flag), we send a `SIGKILL` to the managed extension.
 
 If the managed extension is `Non-existent` (either because it was `Non-existent` in the first place
-or because it was terminated because of resource contention), the watcher will try to 'launch' the
+or because it was terminated due to resource contention), the watcher will try to 'launch' the
 managed extension. But first, it will check the respawn limit. If the respawn limit was reached or
 if for some reason the extension could be spawned, then the osquery process is shut down.
 
