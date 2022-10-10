@@ -409,7 +409,6 @@ func main() {
 						Str("target", c.String("fleet-url")).
 						Msg("using insecure TLS proxy")
 					err := proxy.InsecureServeTLS()
-
 					return err
 				},
 				func(error) {
@@ -549,15 +548,14 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-
-		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
-
-		checkerClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), enrollSecret, uuidStr, capabilities)
-		if err != nil {
-			return fmt.Errorf("new client for capabilities checker: %w", err)
-		}
-		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
-		g.Add(capabilitiesChecker.actor())
+		registerExtensionRunner(
+			&g,
+			r.ExtensionSocketPath(),
+			table.WithExtension(orbitInfoExtension{
+				orbitClient:     orbitClient,
+				deviceAuthToken: deviceAuthToken,
+			}),
+		)
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
@@ -786,68 +784,6 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
-}
-
-// capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
-// are changed in the server.
-//
-// This struct and its methods are designed to play nicely with `oklog.Group`.
-type capabilitiesChecker struct {
-	client        *service.OrbitClient
-	interruptCh   chan struct{} // closed when interrupt is triggered
-	executeDoneCh chan struct{} // closed when execute returns
-}
-
-func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
-	return &capabilitiesChecker{
-		client:        client,
-		interruptCh:   make(chan struct{}),
-		executeDoneCh: make(chan struct{}),
-	}
-}
-
-func (f *capabilitiesChecker) actor() (func() error, func(error)) {
-	return f.execute, f.interrupt
-}
-
-// execute will poll the server for capabilities and emit a stop signal to restart
-// Orbit if certain capabilities are enabled.
-//
-// You need to add an explicit check for each capability you want to watch for
-func (f *capabilitiesChecker) execute() error {
-	defer close(f.executeDoneCh)
-	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
-
-	if err := f.client.Ping(); err != nil {
-		log.Error().Err(err).Msg("pinging the server")
-	}
-
-	for {
-		select {
-		case <-capabilitiesCheckTicker.C:
-			oldCapabilities := f.client.GetServerCapabilities()
-
-			// ping the server to get the latest capabilities
-			if err := f.client.Ping(); err != nil {
-				log.Error().Err(err).Msg("pinging the server")
-				continue
-			}
-			newCapabilities := f.client.GetServerCapabilities()
-
-			if oldCapabilities.Has(fleet.CapabilityOrbitEndpoints) != newCapabilities.Has(fleet.CapabilityOrbitEndpoints) {
-				log.Info().Msg("orbit endpoints capability changed, restarting")
-				return nil
-			}
-		case <-f.interruptCh:
-			return nil
-		}
-	}
-}
-
-func (f *capabilitiesChecker) interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
-	close(f.interruptCh) // Signal execute to return.
-	<-f.executeDoneCh    // Wait for execute to return.
 }
 
 // serviceChecker is a helper to gracefully shutdown the runners group when a
