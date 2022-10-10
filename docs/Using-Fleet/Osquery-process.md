@@ -1,6 +1,6 @@
 # Osquery children processes
 
-Osquery will run a watcher process to keep track of any child process and also any managed
+Osquery will run a watcher process to keep track of any child process and any managed
 extensions. What follows is a description of what happens during the watcher REPL and under what
 circumstances the child process and/or managed extensions are terminated.
 
