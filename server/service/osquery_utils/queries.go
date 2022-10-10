@@ -518,17 +518,6 @@ FROM
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
-	OrbitInfoQueryName: OrbitInfoDetailQuery,
-}
-
-// OrbitInfoQueryName is the name of the query to ingest orbit_info table extension data.
-const OrbitInfoQueryName = "orbit_info"
-
-// OrbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
-var OrbitInfoDetailQuery = DetailQuery{
-	Query:            `SELECT * FROM orbit_info`,
-	DirectIngestFunc: directIngestOrbitInfo,
-	Discovery:        discoveryTable("orbit_info"),
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -961,20 +950,6 @@ func directIngestWindowsUpdateHistory(
 	}
 
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
-}
-
-func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if len(rows) != 1 {
-		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
-	}
-	deviceAuthToken := rows[0]["device_auth_token"]
-	if deviceAuthToken == "" {
-		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
-	}
-	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
-	}
-	return nil
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
