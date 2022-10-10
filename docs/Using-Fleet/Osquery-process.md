@@ -16,7 +16,7 @@ quota, by checking:
 	   
 If the child process is within the resource limits, then it is deemed alive and well. Otherwise, we terminate the process by following these steps:
 1. We send a `SIGUSR1` to the child process
-2. We send a `SIGTERM` to the child process
+2. We send a `SIGTERM` to the child process.
 3. After a delay (configured by osquery's `--watchdog_forced_shutdown_delay` flag) we send a `SIGKILL` 
 to the child process 
 
