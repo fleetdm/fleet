@@ -11,7 +11,6 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
-import { ILoadAllPoliciesResponse } from "interfaces/policy";
 import hostsAPI, {
   ILoadHostsOptions,
   ISortOption,
@@ -198,9 +197,8 @@ const ManageHostsPage = ({
     true
   );
   const [showInvalidPolicyIdBanner, setShowInvalidPolicyIdBanner] = useState(
-    true
+    false
   );
-  const [validPolicyId, setValidPolicyId] = useState(true);
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
@@ -274,6 +272,7 @@ const ManageHostsPage = ({
   const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
+  console.log("policy", policy);
   // ===== filter matching
   const selectedFilters: string[] = [];
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
@@ -367,7 +366,7 @@ const ManageHostsPage = ({
       },
       onError: (error: any) => {
         if (error.data.message === "Resource Not Found") {
-          setValidPolicyId(false);
+          setShowInvalidPolicyIdBanner(true);
         }
         setHasHostErrors(true);
         console.log("print error", error.data);
@@ -535,8 +534,8 @@ const ManageHostsPage = ({
       globalFilter: searchQuery,
       sortBy,
       teamId: selectedTeam?.id,
-      policyId: validPolicyId ? policyId : undefined,
-      policyResponse: validPolicyId ? policyResponse : undefined,
+      policyId: policy?.id,
+      policyResponse: policy?.id ? policyResponse : undefined,
       softwareId,
       status,
       mdmId,
@@ -614,8 +613,8 @@ const ManageHostsPage = ({
         routeTemplate,
         routeParams,
         queryParams: Object.assign({}, queryParams, {
-          policy_id: validPolicyId ? policyId : undefined,
-          policy_response: validPolicyId ? response : undefined,
+          policyId: policy?.id,
+          policyResponse: policy?.id ? policyResponse : undefined,
         }),
       })
     );
@@ -791,13 +790,8 @@ const ManageHostsPage = ({
       if (status) {
         newQueryParams.status = status;
       }
-      if (policyId && validPolicyId) {
-        newQueryParams.policy_id = policyId;
-      }
-      if (policyId && policyResponse) {
-        newQueryParams.policy_id = policyId;
-      }
-      if (policyResponse && validPolicyId) {
+      // iff valid policy ID
+      if (policyResponse && policy?.id) {
         newQueryParams.policy_response = policyResponse;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
@@ -834,8 +828,7 @@ const ManageHostsPage = ({
       availableTeams,
       currentTeam,
       currentUser,
-      policyId,
-      validPolicyId,
+      policy,
       queryParams,
       softwareId,
       status,
@@ -1023,8 +1016,8 @@ const ManageHostsPage = ({
         globalFilter: searchQuery,
         sortBy,
         teamId: currentTeam?.id,
-        policyId: validPolicyId ? policyId : undefined,
-        policyResponse: validPolicyId ? policyResponse : undefined,
+        policyId: policy?.id,
+        policyResponse: policy?.id ? policyResponse : undefined,
         softwareId,
         status,
         mdmId,
@@ -1572,11 +1565,31 @@ const ManageHostsPage = ({
   const renderActiveFilterBlock = () => {
     const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
+    const renderFilterPill = () => {
+      switch (true) {
+        case showSelectedLabel:
+          return renderLabelFilterPill();
+        case !!policy?.id && !isLoadingPolicies:
+          return renderPoliciesFilterBlock();
+        case !!softwareId:
+          return renderSoftwareFilterBlock();
+        case !!mdmId:
+          return renderMDMSolutionFilterBlock();
+        case !!mdmEnrollmentStatus:
+          return renderMDMEnrollmentFilterBlock();
+        case !!osId || (!!osName && !!osVersion):
+          return renderOSFilterBlock();
+        case !!munkiIssueId:
+          return renderMunkiIssueFilterBlock();
+        default:
+          return null;
+      }
+    };
+
     if (
-      showSelectedLabel ||
+      selectedLabel ||
       policyId ||
       softwareId ||
-      showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
       lowDiskSpaceHosts ||
@@ -1584,6 +1597,7 @@ const ManageHostsPage = ({
       (osName && osVersion) ||
       munkiIssueId
     ) {
+<<<<<<< HEAD
       const renderFilterPill = () => {
         switch (true) {
           // backend allows for pill combos (label + low disk space) OR
@@ -1628,12 +1642,16 @@ const ManageHostsPage = ({
         }
       };
 
+=======
+>>>>>>> 1ce41afcd (Work towards scalability)
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
           {renderFilterPill()}
         </div>
       );
     }
+
+    return null;
   };
 
   const renderCustomControls = () => {
@@ -1863,7 +1881,7 @@ const ManageHostsPage = ({
 
   const renderInvalidPolicyIdBanner = () => {
     return (
-      !validPolicyId &&
+      !policy?.id &&
       showInvalidPolicyIdBanner && (
         <div className={`${baseClass}__no-valid-policy-banner`}>
           <div>
