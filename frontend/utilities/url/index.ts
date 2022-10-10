@@ -98,7 +98,7 @@ export const getStatusParam = (selectedLabels?: string[]) => {
   const status = selectedLabels.find((f) => !f.includes(LABEL_PREFIX));
   if (status === undefined) return undefined;
 
-  const statusFilterList = ["new", "online", "offline"];
+  const statusFilterList = ["new", "online", "offline", "missing"];
   return statusFilterList.includes(status) ? status : undefined;
 };
 

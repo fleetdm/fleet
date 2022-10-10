@@ -62,7 +62,7 @@ export default PropTypes.shape({
   query_results: PropTypes.arrayOf(hostQueryResult),
 });
 
-export type HostStatus = "online" | "offline" | "new";
+export type HostStatus = "online" | "offline" | "new" | "missing";
 export interface IDeviceUser {
   email: string;
   source: string;

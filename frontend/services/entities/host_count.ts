@@ -23,7 +23,6 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  missingHosts?: boolean;
   lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -45,7 +44,6 @@ export default {
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const munkiIssueId = options?.munkiIssueId;
-    const missingHosts = options?.missingHosts;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
 
@@ -62,11 +60,10 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
-        status,
-        missingHosts,
         lowDiskSpaceHosts,
       }),
       label_id: label,
+      status,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);

@@ -831,7 +831,6 @@ const ManageHostsPage = ({
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
-      missingHosts,
       lowDiskSpaceHosts,
       osId,
       osName,
@@ -1539,7 +1538,7 @@ const ManageHostsPage = ({
         {count !== undefined && (
           <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
         )}
-        {count && (
+        {!!count && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
