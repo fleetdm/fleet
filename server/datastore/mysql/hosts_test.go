@@ -694,9 +694,6 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
 		require.NoError(t, err)
-		if err != nil {
-			return
-		}
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -708,6 +705,9 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 9, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "mia"}, 0)
+	assert.Equal(t, 0, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "missing"}, 0)
 	assert.Equal(t, 0, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)

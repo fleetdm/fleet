@@ -647,7 +647,8 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		softwareFilter, munkiFilter, lowDiskSpaceFilter,
 	)
 
-	sql, params = filterHostsByStatus(sql, opt, params)
+	now := ds.clock.Now()
+	sql, params = filterHostsByStatus(now, sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
@@ -706,20 +707,20 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 	return sql, params
 }
 
-func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
-	case "new":
+	case fleet.StatusNew:
 		sql += "AND DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ?"
-		params = append(params, time.Now())
-	case "online":
+		params = append(params, now)
+	case fleet.StatusOnline:
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
-		params = append(params, time.Now())
-	case "offline":
+		params = append(params, now)
+	case fleet.StatusOffline:
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
-		params = append(params, time.Now())
-	case "mia":
+		params = append(params, now)
+	case fleet.StatusMIA, fleet.StatusMissing:
 		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
-		params = append(params, time.Now())
+		params = append(params, now)
 	}
 	return sql, params
 }
