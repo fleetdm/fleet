@@ -1,2 +1,2 @@
-- Fixed error in query ingestion where Windows-specific `directIngestOsWindows` query was being sent
-  to non-Windows hosts.
+- Fixed bug introduced in 4.21.0 where Windows-specific query was being sent to non-Windows hosts
+  causing an error in query ingestion for `directIngestOSWindows`.
