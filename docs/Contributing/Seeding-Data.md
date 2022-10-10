@@ -85,3 +85,7 @@ Like all regular users, seeded users' API tokens expire frequently. For an API t
 > Set up [SMTP options](https://fleetdm.com/docs/contributing/testing-and-local-development#email) in your developer environment first to invite a SSO user.
 
 Fleet supports [SSO users](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso). Create an [SSO test user](https://fleetdm.com/docs/contributing/testing-and-local-development#testing-sso) to test signing on with simple SAML.
+
+### Create test hosts
+
+To create a handful of test hosts, you can run containerized `osqueryd` [Docker test hosts](https://github.com/fleetdm/fleet/tree/main/tools/osquery). As these Docker test hosts are RAM intensive, alternatively, you can use `osquery-perf` to create thousands of [simulated test hosts](https://github.com/fleetdm/fleet/tree/main/cmd/osquery-perf).
