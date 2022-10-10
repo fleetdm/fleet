@@ -10,6 +10,33 @@ import (
 )
 
 /////////////////////////////////////////////////////////////////////////////////
+// Ping device endpoint
+/////////////////////////////////////////////////////////////////////////////////
+
+type devicePingRequest struct{}
+
+type devicePingResponse struct{}
+
+func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	writeCapabilitiesHeader(w, fleet.ServerDeviceCapabilities)
+}
+
+// NOTE: we're intentionally not reading the capabilities header in this
+// endpoint as is unauthenticated and we don't want to trust whatever comes in
+// there.
+func devicePingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	svc.DisableAuthForPing(ctx)
+	return devicePingResponse{}, nil
+}
+
+func (svc *Service) DisableAuthForPing(ctx context.Context) {
+	// skipauth: this endpoint is intentionally public to allow devices to ping
+	// the server and among other things, get the fleet.Capabilities header to
+	// determine which capabilities are enabled in the server.
+	svc.authz.SkipAuthorization(ctx)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Fleet Desktop endpoints
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -257,29 +284,6 @@ func (svc *Service) FailingPoliciesCount(ctx context.Context, host *fleet.Host) 
 	svc.authz.SkipAuthorization(ctx)
 
 	return 0, fleet.ErrMissingLicense
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Device API features
-////////////////////////////////////////////////////////////////////////////////
-
-type deviceAPIFeaturesRequest struct {
-	Token string `url:"token"`
-}
-
-func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
-	return r.Token
-}
-
-type deviceAPIFeaturesResponse struct {
-	Err      error                   `json:"error,omitempty"`
-	Features fleet.DeviceAPIFeatures `json:"features"`
-}
-
-func (r deviceAPIFeaturesResponse) error() error { return r.Err }
-
-func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

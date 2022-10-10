@@ -395,6 +395,8 @@ type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
+type LoadHostByOrbitNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
+
 type HostLiteFunc func(ctx context.Context, hostID uint) (*fleet.Host, error)
 
 type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error
@@ -439,6 +441,8 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
+type EnrollOrbitFunc func(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
@@ -459,7 +463,29 @@ type ListOSVulnerabilitiesFunc func(ctx context.Context, hostID []uint) ([]fleet
 
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
-type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
+type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability)
+
+type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
+
+type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
+
+type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
+
+type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error)
+
+type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
+
+type MDMAppleInstallerFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
+
+type MDMAppleInstallerDetailsByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
+
+type DeleteMDMAppleInstallerFunc func(ctx context.Context, id uint) error
+
+type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
+
+type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
+
+type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1035,6 +1061,9 @@ type DataStore struct {
 	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
 	LoadHostByNodeKeyFuncInvoked bool
 
+	LoadHostByOrbitNodeKeyFunc        LoadHostByOrbitNodeKeyFunc
+	LoadHostByOrbitNodeKeyFuncInvoked bool
+
 	HostLiteFunc        HostLiteFunc
 	HostLiteFuncInvoked bool
 
@@ -1101,6 +1130,9 @@ type DataStore struct {
 	EnrollHostFunc        EnrollHostFunc
 	EnrollHostFuncInvoked bool
 
+	EnrollOrbitFunc        EnrollOrbitFunc
+	EnrollOrbitFuncInvoked bool
+
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
 
@@ -1133,6 +1165,39 @@ type DataStore struct {
 
 	DeleteOSVulnerabilitiesFunc        DeleteOSVulnerabilitiesFunc
 	DeleteOSVulnerabilitiesFuncInvoked bool
+
+	NewMDMAppleEnrollmentProfileFunc        NewMDMAppleEnrollmentProfileFunc
+	NewMDMAppleEnrollmentProfileFuncInvoked bool
+
+	GetMDMAppleEnrollmentProfileByTokenFunc        GetMDMAppleEnrollmentProfileByTokenFunc
+	GetMDMAppleEnrollmentProfileByTokenFuncInvoked bool
+
+	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
+	ListMDMAppleEnrollmentProfilesFuncInvoked bool
+
+	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
+	GetMDMAppleCommandResultsFuncInvoked bool
+
+	NewMDMAppleInstallerFunc        NewMDMAppleInstallerFunc
+	NewMDMAppleInstallerFuncInvoked bool
+
+	MDMAppleInstallerFunc        MDMAppleInstallerFunc
+	MDMAppleInstallerFuncInvoked bool
+
+	MDMAppleInstallerDetailsByIDFunc        MDMAppleInstallerDetailsByIDFunc
+	MDMAppleInstallerDetailsByIDFuncInvoked bool
+
+	DeleteMDMAppleInstallerFunc        DeleteMDMAppleInstallerFunc
+	DeleteMDMAppleInstallerFuncInvoked bool
+
+	MDMAppleInstallerDetailsByTokenFunc        MDMAppleInstallerDetailsByTokenFunc
+	MDMAppleInstallerDetailsByTokenFuncInvoked bool
+
+	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
+	ListMDMAppleInstallersFuncInvoked bool
+
+	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
+	MDMAppleListDevicesFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2090,6 +2155,11 @@ func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
 }
 
+func (s *DataStore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	s.LoadHostByOrbitNodeKeyFuncInvoked = true
+	return s.LoadHostByOrbitNodeKeyFunc(ctx, nodeKey)
+}
+
 func (s *DataStore) HostLite(ctx context.Context, hostID uint) (*fleet.Host, error) {
 	s.HostLiteFuncInvoked = true
 	return s.HostLiteFunc(ctx, hostID)
@@ -2200,6 +2270,11 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
 }
 
+func (s *DataStore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+	s.EnrollOrbitFuncInvoked = true
+	return s.EnrollOrbitFunc(ctx, hardwareUUID, orbitNodeKey, teamID)
+}
+
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
@@ -2250,7 +2325,62 @@ func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities
 	return s.InsertOSVulnerabilitiesFunc(ctx, vulnerabilities, source)
 }
 
-func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {
+func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) {
 	s.DeleteOSVulnerabilitiesFuncInvoked = true
 	return s.DeleteOSVulnerabilitiesFunc(ctx, vulnerabilities)
+}
+
+func (s *DataStore) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
+	s.NewMDMAppleEnrollmentProfileFuncInvoked = true
+	return s.NewMDMAppleEnrollmentProfileFunc(ctx, enrollmentPayload)
+}
+
+func (s *DataStore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+	s.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = true
+	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, token)
+}
+
+func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
+	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
+	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
+}
+
+func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+	s.GetMDMAppleCommandResultsFuncInvoked = true
+	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
+	s.NewMDMAppleInstallerFuncInvoked = true
+	return s.NewMDMAppleInstallerFunc(ctx, name, size, manifest, installer, urlToken)
+}
+
+func (s *DataStore) MDMAppleInstaller(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
+	s.MDMAppleInstallerFuncInvoked = true
+	return s.MDMAppleInstallerFunc(ctx, token)
+}
+
+func (s *DataStore) MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
+	s.MDMAppleInstallerDetailsByIDFuncInvoked = true
+	return s.MDMAppleInstallerDetailsByIDFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
+	s.DeleteMDMAppleInstallerFuncInvoked = true
+	return s.DeleteMDMAppleInstallerFunc(ctx, id)
+}
+
+func (s *DataStore) MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
+	s.MDMAppleInstallerDetailsByTokenFuncInvoked = true
+	return s.MDMAppleInstallerDetailsByTokenFunc(ctx, token)
+}
+
+func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
+	s.ListMDMAppleInstallersFuncInvoked = true
+	return s.ListMDMAppleInstallersFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
+	s.MDMAppleListDevicesFuncInvoked = true
+	return s.MDMAppleListDevicesFunc(ctx)
 }

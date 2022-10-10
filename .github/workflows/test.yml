@@ -1,3 +1,5 @@
+name: Run Tests
+
 on:
   push:
     branches:
@@ -20,7 +22,10 @@ on:
       - webpack.config.js
       - tsconfig.json
 
-name: Run Tests
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
 
 permissions:
   contents: read
@@ -104,7 +109,7 @@ jobs:
         make e2e-serve-${{ matrix.fleet-tier }} &
         sleep 3
         make e2e-setup
-        yarn cypress run --config-file cypress/cypress-${{ matrix.fleet-tier }}.json
+        yarn cypress run --record --key=${{ secrets.CYPRESS_API_TOKEN }} --config-file cypress/cypress-${{ matrix.fleet-tier }}.json
 
     - name: Upload artifacts
       if: failure()
@@ -178,5 +183,3 @@ jobs:
     - name: Run prettier formatting check
       run: |
         yarn prettier:check
-
-
