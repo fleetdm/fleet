@@ -124,7 +124,6 @@ const ManageHostsPage = ({
   location,
 }: IManageHostsProps): JSX.Element => {
   const queryParams = location.query;
-  console.log("queryParams", queryParams);
 
   const {
     availableTeams,
@@ -461,7 +460,6 @@ const ManageHostsPage = ({
     if (queryParams.team_id) {
       options.teamId = queryParams.team_id;
     }
-    console.log("hostCountoptions", options);
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);

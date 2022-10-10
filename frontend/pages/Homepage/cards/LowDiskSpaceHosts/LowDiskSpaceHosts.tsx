@@ -20,15 +20,17 @@ const LowDiskSpaceHosts = ({
   showHostsUI,
 }: IHostSummaryProps): JSX.Element => {
   return (
-    <SummaryTile
-      icon={LowDiskSpaceIcon}
-      count={lowDiskSpaceCount}
-      isLoading={isLoadingHosts}
-      showUI={showHostsUI}
-      title="Low disk space hosts"
-      tooltip={`Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`}
-      path={`${PATHS.MANAGE_HOSTS}?low_disk_space=${lowDiskSpaceGb}`}
-    />
+    <div className={baseClass}>
+      <SummaryTile
+        icon={LowDiskSpaceIcon}
+        count={lowDiskSpaceCount}
+        isLoading={isLoadingHosts}
+        showUI={showHostsUI}
+        title="Low disk space hosts"
+        tooltip={`Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`}
+        path={`${PATHS.MANAGE_HOSTS}?low_disk_space=${lowDiskSpaceGb}`}
+      />
+    </div>
   );
 };
 

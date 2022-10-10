@@ -47,8 +47,6 @@ export default {
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
 
-    console.log("lowDiskSpaceHosts", lowDiskSpaceHosts);
-
     const queryParams = {
       query: globalFilter,
       team_id: teamId,
@@ -69,7 +67,6 @@ export default {
     const queryString = buildQueryStringFromParams(queryParams);
     const endpoint = endpoints.HOSTS_COUNT;
     const path = `${endpoint}?${queryString}`;
-    console.log("path", path);
     return sendRequest("GET", path);
   },
 };
