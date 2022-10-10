@@ -528,6 +528,12 @@ func main() {
 				return orbitClient.SetOrUpdateDeviceToken(token)
 			})
 
+			// ensure the token value is written to the remote server, we might have
+			// a token on disk that wasn't written to the server yet
+			if err := trw.Write(trw.GetCached()); err != nil {
+				return fmt.Errorf("writing token: %w", err)
+			}
+
 			deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
 			if err != nil {
 				return fmt.Errorf("initializing client: %w", err)
