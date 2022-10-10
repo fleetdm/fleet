@@ -518,7 +518,7 @@ func main() {
 
 		// ping to the server to ensure we have the latest capabilities
 		if err := orbitClient.Ping(); err != nil {
-			return fmt.Errorf("ping to server: %w", err)
+			log.Error().Err(err).Msg("pinging server")
 		}
 
 		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
@@ -530,12 +530,6 @@ func main() {
 			trw.SetRemoteUpdateFunc(func(token string) error {
 				return orbitClient.SetOrUpdateDeviceToken(token)
 			})
-
-			// ensure the token value is written to the remote server, we might have
-			// a token on disk that wasn't written to the server yet
-			if err := trw.Write(trw.GetCached()); err != nil {
-				return fmt.Errorf("writing token: %w", err)
-			}
 
 			deviceClient, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
 			if err != nil {
