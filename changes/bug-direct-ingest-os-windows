@@ -1,0 +1,2 @@
+- Fixed error in query ingestion where Windows-specific `directIngestOsWindows` query was being sent
+  to non-Windows hosts.

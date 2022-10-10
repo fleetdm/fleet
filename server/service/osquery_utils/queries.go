@@ -494,6 +494,7 @@ SELECT
 FROM 
     os_version os,
     kernel_info k`,
+		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
 	"os_unix_like": {
