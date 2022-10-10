@@ -78,7 +78,7 @@ const statusKey = [
   {
     id: "missing",
     count: 0,
-    description: "Hosts that have not been online in 10 days or more.",
+    description: "Hosts that have not been online in 30 days or more.",
     display_text: "Missing",
     slug: "missing",
     statusLabelKey: "missing_count",

@@ -27,7 +27,7 @@ export const HOST_SELECT_STATUSES = [
     disabled: false,
     label: "Missing hosts",
     value: "missing",
-    helpText: "Hosts that have been offline for 10 days or more.",
+    helpText: "Hosts that have been offline for 30 days or more.",
   },
   {
     disabled: false,

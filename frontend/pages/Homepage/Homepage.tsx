@@ -138,7 +138,7 @@ const Homepage = (): JSX.Element => {
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
         if (isPremiumTier && data.low_disk_space_count) {
-          setMissingCount(data.mia_count); // TODO: change to missing_10_days_count when backend is merged
+          setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count);
         }
         const macHosts = data.platforms?.find(
