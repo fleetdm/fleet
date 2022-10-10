@@ -50,6 +50,9 @@ import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x
 
 const baseClass = "homepage";
 
+// Premium feature, Gb must be set between 1-100
+const LOW_DISK_SPACE_GB = 32;
+
 const Homepage = (): JSX.Element => {
   const {
     config,
@@ -131,7 +134,7 @@ const Homepage = (): JSX.Element => {
       hostSummaryAPI.getSummary({
         teamId: currentTeam?.id,
         platform: selectedPlatform,
-        lowDiskSpace: isPremiumTier ? 32 : undefined,
+        lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
       }),
     {
       select: (data: IHostSummary) => data,
@@ -372,6 +375,7 @@ const Homepage = (): JSX.Element => {
     title: "",
     children: (
       <LowDiskSpaceHosts
+        lowDiskSpaceGb={LOW_DISK_SPACE_GB}
         lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}

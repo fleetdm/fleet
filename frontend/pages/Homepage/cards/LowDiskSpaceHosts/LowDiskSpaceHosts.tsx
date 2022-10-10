@@ -7,12 +7,14 @@ import LowDiskSpaceIcon from "../../../../../assets/images/icon-low-disk-space-3
 const baseClass = "low-disk-space";
 
 interface IHostSummaryProps {
+  lowDiskSpaceGb: number;
   lowDiskSpaceCount: number;
   isLoadingHosts: boolean;
   showHostsUI: boolean;
 }
 
 const LowDiskSpaceHosts = ({
+  lowDiskSpaceGb,
   lowDiskSpaceCount,
   isLoadingHosts,
   showHostsUI,
@@ -24,8 +26,8 @@ const LowDiskSpaceHosts = ({
       isLoading={isLoadingHosts}
       showUI={showHostsUI}
       title="Low disk space hosts"
-      tooltip="Hosts that have 32 GB or less disk space available."
-      path={`${PATHS.MANAGE_HOSTS}?low_disk_space=32`}
+      tooltip={`Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`}
+      path={`${PATHS.MANAGE_HOSTS}?low_disk_space=${lowDiskSpaceGb}`}
     />
   );
 };
