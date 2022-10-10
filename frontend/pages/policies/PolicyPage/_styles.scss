@@ -147,10 +147,6 @@
     display: flex;
     align-items: center;
 
-    .loading-spinner {
-      margin-left: -12px;
-    }
-
     span {
       font-weight: 700;
     }
@@ -158,6 +154,9 @@
     .icon-tooltip {
       margin-left: $pad-small;
     }
+  }
+  &__count-spinner {
+    margin-right: $pad-small;
   }
   &__page-loading {
     .loading-spinner {

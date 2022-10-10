@@ -591,6 +591,28 @@ module.exports = {
 
             // Add the language-sql class to codeblocks in generated HTML partial for syntax highlighting.
             htmlString = htmlString.replace(/(<pre><code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3');
+
+            htmlString = htmlString.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{// « Modify links that are potentially external
+              // Check if this is an external link (like https://google.com) but that is ALSO not a link
+              // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
+              // If external, add target="_blank" so the link will open in a new tab.
+              let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+              // Check if this link is to fleetdm.com or www.fleetdm.com.
+              let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
+              if (isExternal) {
+                return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+              } else {
+                // Otherwise, change the link to be web root relative.
+                // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+                // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
+                if (isBaseUrl) {
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
+                } else {
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+                }
+              }
+            });//∞
+
             // Determine the path of the folder where the built HTML partials will live.
             let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
             if (dry) {

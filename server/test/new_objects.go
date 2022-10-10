@@ -98,9 +98,19 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, err)
 }
 
-func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now time.Time) *fleet.Host {
+// NewHostOption is an Option for the NewHost function.
+type NewHostOption func(*fleet.Host)
+
+// WithComputerName sets the ComputerName in NewHost.
+func WithComputerName(s string) NewHostOption {
+	return func(h *fleet.Host) {
+		h.ComputerName = s
+	}
+}
+
+func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now time.Time, options ...NewHostOption) *fleet.Host {
 	osqueryHostID, _ := server.GenerateRandomText(10)
-	h, err := ds.NewHost(context.Background(), &fleet.Host{
+	h := &fleet.Host{
 		Hostname:        name,
 		NodeKey:         key,
 		UUID:            uuid,
@@ -110,8 +120,13 @@ func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now 
 		SeenTime:        now,
 		OsqueryHostID:   osqueryHostID,
 		Platform:        "darwin",
-	})
-
+		PublicIP:        ip,
+		PrimaryIP:       ip,
+	}
+	for _, o := range options {
+		o(h)
+	}
+	h, err := ds.NewHost(context.Background(), h)
 	require.NoError(tb, err)
 	require.NotZero(tb, h.ID)
 	require.NoError(tb, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, now))

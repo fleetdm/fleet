@@ -18,6 +18,11 @@ on:
         required: true
         default: latest
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -27,7 +32,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
-        
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@05b148adc31e091bafbaf404f745055d4d3bc9d2 # v1
         with:

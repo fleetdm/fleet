@@ -1037,7 +1037,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
-	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithComputerName("computer1"))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
@@ -1233,6 +1233,17 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 	hosts, err = ds.HostsByCVE(ctx, "CVE-2022-0001")
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
+	require.ElementsMatch(t, hosts, []*fleet.HostShort{
+		{
+			ID:          1,
+			Hostname:    "host1",
+			DisplayName: "computer1",
+		}, {
+			ID:          2,
+			Hostname:    "host2",
+			DisplayName: "host2",
+		},
+	})
 
 	// CVE of bar.rpm 0.0.3, only host 2 has it
 	hosts, err = ds.HostsByCVE(ctx, "CVE-2022-0002")
@@ -1272,8 +1283,16 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{chrome3.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
-	require.Equal(t, hosts[0].Hostname, "host1")
-	require.Equal(t, hosts[1].Hostname, "host2")
+	require.ElementsMatch(t, hosts, []*fleet.HostShort{
+		{
+			ID:          1,
+			Hostname:    "host1",
+			DisplayName: "computer1",
+		}, {
+			ID:          2,
+			Hostname:    "host2",
+			DisplayName: "host2",
+		}})
 
 	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{barRpm.ID})
 	require.NoError(t, err)
