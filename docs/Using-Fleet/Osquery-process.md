@@ -30,7 +30,7 @@ could be `Alive` or `Non-existent`.
 If the managed extension is `Alive` the watcher will check both the CPU utilization and memory
 consumption (the same checks we perform for the child process). If the managed extension is deemed unstable, we terminate the extension by following these steps:
 1. We send a `SIGTERM` to the managed extension
-2. After a delay (configured by osquery's `--watchdog_forced_shutdown_delay` flag) we send a `SIGKILL` to the managed extension.
+2. After a delay (configured by osquery's `--watchdog_forced_shutdown_delay` flag), we send a `SIGKILL` to the managed extension.
 
 If the managed extension is `Non-existent` (either because it was `Non-existent` in the first place
 or because it was terminated because of resource contention), the watcher will try to 'launch' the
