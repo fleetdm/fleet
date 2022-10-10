@@ -37,6 +37,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 | Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
+| Decks | **Instant**. Sales typically creates decks. Digital Experience shouldn't be a blocker. | **Feedback** | three business days |
 
 ## Communicating as Fleet
 

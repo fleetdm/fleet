@@ -214,7 +214,7 @@ func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, token
 	return errors.New("unimplemented")
 }
 
-type txFn func(sqlx.ExtContext) error
+type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
 	name string
@@ -704,7 +704,19 @@ func (ds *Datastore) Close() error {
 
 // sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
 func sanitizeColumn(col string) string {
-	return columnCharsRegexp.ReplaceAllString(col, "")
+	col = columnCharsRegexp.ReplaceAllString(col, "")
+	oldParts := strings.Split(col, ".")
+	parts := oldParts[:0]
+	for _, p := range oldParts {
+		if len(p) != 0 {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	col = "`" + strings.Join(parts, "`.`") + "`"
+	return col
 }
 
 // appendListOptionsToSelect will apply the given list options to ds and
