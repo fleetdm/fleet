@@ -218,7 +218,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		}
 
 		var match *IndexedCPEItem
-		for _, item := range results {
+		for i, item := range results {
 			hasAllTerms := true
 
 			sName := strings.ToLower(software.Name)
@@ -245,7 +245,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			}
 
 			if hasAllTerms {
-				match = &item
+				match = &results[i]
 				break
 			}
 		}
