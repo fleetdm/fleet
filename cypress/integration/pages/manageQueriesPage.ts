@@ -11,6 +11,7 @@ const manageQueriesPage = {
   },
 
   allowsCreateNewQuery: () => {
+    cy.getAttached(".button--brand"); // ensures cta button loads
     cy.findByRole("button", { name: /new query/i }).click();
     cy.getAttached(".ace_scroller")
       .click({ force: true })

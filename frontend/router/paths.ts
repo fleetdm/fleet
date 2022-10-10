@@ -45,8 +45,6 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  MANAGE_HOSTS_ONLINE: `${URL_PREFIX}/hosts/manage/online`,
-  MANAGE_HOSTS_OFFLINE: `${URL_PREFIX}/hosts/manage/offline`,
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
