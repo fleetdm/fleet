@@ -5,6 +5,10 @@ on:
   schedule:
   - cron: '0 6 * * *' # Nightly 6AM UTC
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
 
 permissions:
   contents: read
@@ -18,7 +22,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v.24.0
-
 
     - name: Update certs
       run: cd orbit/pkg/packaging && ./mk-ca-bundle.pl -u certs.pem

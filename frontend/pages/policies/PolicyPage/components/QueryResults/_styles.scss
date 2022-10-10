@@ -4,40 +4,6 @@
     margin: 2rem auto 1.25rem;
   }
 
-  &__text-wrapper {
-    margin-top: 20px;
-    display: flex;
-    flex-direction: row;
-    font-size: $x-small;
-
-    span {
-      font-weight: $bold;
-    }
-
-    span:not(:last-of-type) {
-      margin-bottom: $pad-small;
-    }
-
-    .icon-tooltip {
-      margin-left: $pad-small;
-    }
-  }
-
-  &__btn-wrapper {
-    margin-top: $pad-large;
-    margin-bottom: $pad-xxlarge;
-    display: flex;
-    align-items: center;
-
-    .button {
-      padding: $pad-small $pad-medium;
-
-      &:not(:last-of-type) {
-        margin-right: $pad-small;
-      }
-    }
-  }
-
   &__export-btn {
     img {
       width: 13px;

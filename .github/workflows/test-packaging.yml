@@ -1,9 +1,8 @@
-name: Test packaging
-
 # This workflow tests packaging of Fleet-osquery with the
 # `fleetctl package` command. It fetches the targets: orbit,
 # osquery and fleet-desktop from the default (Fleet's) TUF server,
 # https://tuf.fleetctl.com.
+name: Test packaging
 
 on:
   push:
@@ -23,6 +22,11 @@ on:
       - 'tools/bomutils-docker/**'
       - '.github/workflows/test-packaging.yml'
   workflow_dispatch: # Manual
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
 
 permissions:
   contents: read

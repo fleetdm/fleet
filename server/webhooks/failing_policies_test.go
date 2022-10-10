@@ -79,13 +79,15 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 
 	failingPolicySet := service.NewMemFailingPolicySet()
 	err := failingPolicySet.AddHost(policyID1, fleet.PolicySetHost{
-		ID:       1,
-		Hostname: "host1.example",
+		ID:          1,
+		Hostname:    "host1.example",
+		DisplayName: "display1",
 	})
 	require.NoError(t, err)
 	err = failingPolicySet.AddHost(policyID1, fleet.PolicySetHost{
-		ID:       2,
-		Hostname: "host2.example",
+		ID:          2,
+		Hostname:    "host2.example",
+		DisplayName: "display2",
 	})
 	require.NoError(t, err)
 
@@ -125,11 +127,13 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         {
             "id": 1,
             "hostname": "host1.example",
+            "display_name": "display1",
             "url": "https://fleet.example.com/hosts/1"
         },
         {
             "id": 2,
             "hostname": "host2.example",
+            "display_name": "display2",
             "url": "https://fleet.example.com/hosts/2"
         }
     ]
@@ -255,13 +259,15 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 
 	failingPolicySet := service.NewMemFailingPolicySet()
 	err := failingPolicySet.AddHost(1, fleet.PolicySetHost{
-		ID:       1,
-		Hostname: "host1",
+		ID:          1,
+		Hostname:    "host1",
+		DisplayName: "display1",
 	})
 	require.NoError(t, err)
 	err = failingPolicySet.AddHost(2, fleet.PolicySetHost{
-		ID:       2,
-		Hostname: "host2",
+		ID:          2,
+		Hostname:    "host2",
+		DisplayName: "display2",
 	})
 	require.NoError(t, err)
 
@@ -304,6 +310,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         {
             "id": 1,
             "hostname": "host1",
+            "display_name": "display1",
             "url": "https://fleet.example.com/hosts/1"
         }
     ]

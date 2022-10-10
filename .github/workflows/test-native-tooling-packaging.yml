@@ -1,7 +1,6 @@
-name: Test native tooling packaging
-
 # This workflow tests packaging of Fleet-osquery with the
-# `fleetdm/fleetctl` Docker image. 
+# `fleetdm/fleetctl` Docker image.
+name: Test native tooling packaging
 
 on:
   push:
@@ -21,6 +20,11 @@ on:
       - 'tools/bomutils-docker/**'
       - '.github/workflows/test-native-tooling-packaging.yml'
   workflow_dispatch: # Manual
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
 
 permissions:
   contents: read
@@ -54,10 +58,10 @@ jobs:
 
     - name: Build DEB with Fleet Desktop
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
-      
+
     - name: Build RPM
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
-      
+
     - name: Build RPM with Fleet Desktop
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 

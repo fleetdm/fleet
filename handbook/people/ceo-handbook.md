@@ -2,7 +2,18 @@
 This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
 
 ## Contacting the CEO
-The first line of contact is in your 1:1 with Mike, if no such document exists, then Mike can be reached in the #help-CEO channel for Charlie to prioritize or add to the "🔭🗣 CEO office hours" agenda ([internal doc](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing)). 
+Keeping up with Slack is tough enough, even more so if you’re the CEO. That’s why Fleeties have different ways to contact Mike depending on the urgency of the request.
+
+### Non-urgent
+ "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
+
+If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning @mikemcneil. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
+
+### Urgent
+“Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention @mikermcneil in the relevant Slack thread or channel. Please don't use group DMs.
+
+### Emergency
+“Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in #help-p1 Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
 
 ## OKR planning
 OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.

@@ -124,11 +124,11 @@ func TestHosts(t *testing.T) {
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
-		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
+		{"TestHostDisplayName", testHostDisplayName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -694,9 +694,6 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
 		require.NoError(t, err)
-		if err != nil {
-			return
-		}
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -708,6 +705,9 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 9, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "mia"}, 0)
+	assert.Equal(t, 0, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "missing"}, 0)
 	assert.Equal(t, 0, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
@@ -1365,6 +1365,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), summary.OnlineCount)
 	assert.Equal(t, uint(2), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.Nil(t, summary.LowDiskSpaceCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
@@ -1375,10 +1376,16 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(4), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(11*24*time.Hour), nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
@@ -4905,27 +4912,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
-	var idOne uint = 1
-	var idTwo uint = 2
-
-	cases := []struct {
-		currentTeamID *uint
-		newTeamID     *uint
-		out           bool
-	}{
-		{nil, nil, false},
-		{nil, &idOne, false},
-		{&idOne, nil, true},
-		{&idOne, &idOne, false},
-		{&idOne, &idTwo, true},
-	}
-
-	for _, c := range cases {
-		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
-	}
-}
-
 func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	hosts := make([]*fleet.Host, 10)
@@ -5330,4 +5316,26 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
+}
+
+// testHostDisplayName tests listing a host sorted by display name.
+func testHostDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: "1", Hostname: "0001", NodeKey: "1"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 2, OsqueryHostID: "2", Hostname: "0002", ComputerName: "0004", NodeKey: "2"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: "3", Hostname: "0003", NodeKey: "3"})
+	require.NoError(t, err)
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "display_name",
+		},
+	})
+	require.NoError(t, err)
+	expect := []string{"0001", "0003", "0004"}
+	require.Len(t, hosts, len(expect))
+	for i, h := range hosts {
+		assert.Equal(t, expect[i], h.DisplayName())
+	}
 }

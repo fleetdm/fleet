@@ -1,6 +1,6 @@
 # Automations
 
-You can configure automations in Fleet to send a webhook request or create a ticket (Jira or Zendesk) if a certain condition is met.
+You can configure Fleet to trigger an automation if a certain condition is met. Automations in Fleet can be configured to send a webhook request to a specified URL or to create a ticket in Jira or Zendesk.
 
 [Vulnerability automations](#vulnerability-automations) are triggered if a new vulnerability (CVE) is
 detected on at least one host.
@@ -13,17 +13,15 @@ percentage of hosts have not checked in to Fleet for a configured number of days
 
 ## Vulnerability automations
 
-Vulnerability automations are triggered if a new vulnerability (CVE) is
-found on at least one host.
+Vulnerability automations are triggered if Fleet detects a new vulnerability (CVE) on at least one host. 
 
-> Note that a CVE is "new" if it was published to the national vulnerability (NVD) database within
-> the last 30 days (by default).
+> Note that a CVE is treated as "new" by Fleet if it was published to the national vulnerability database (NVD) within the preceding 30 days by default. This setting can be changed through the [`recent_vulnerabilities_max_age` configuration option](../Deploying/Configuration.md#recent-vulnerability-max-age).
 
-Fleet checks if it's time to send these webhook requests, or create tickets (Jira or Zendesk), once every hour. 
+Fleet can be configured either to send a webhook request or to create a ticket in Jira or Zendesk. Fleet checks whether to trigger vulnerability automations once per hour by default. This period can be changed through the [`vulnerabilities_periodicity` configuration option](../Deploying/Configuration.md#periodicity). 
 
-If two new vulnerabilities are detected
-within the hour, two
-webhook requests are sent. This interval can be updated with the [`vulnerabilities_periodicity` configuration option](../Deploying/Configuration.md#periodicity).
+Once a CVE has been detected on any host, automations are not triggered if the CVE is detected on other hosts in subsequent periods. If the CVE has been remediated on all hosts, an automation may be triggered if the CVE is detected subsequently so long as the CVE is treated as "new" by Fleet. 
+
+For webhook automations, if a new CVE is detected on more than one host during the same period that the initial detection occurred, a separate webhook request is triggered for each host by default. This behavior can be configured instead to group hosts into batched webhook requests through the [`host_batch_size` configuration option](../Using-Fleet/configuration-files/README.md#webhook-settings-vulnerabilities-webhook-host-batch-size). 
 
 Example webhook payload:
 
@@ -56,7 +54,8 @@ POST https://server.com/example
 }
 ```
 
-You can configure Fleet to create a ticket instead of a webhook request.
+
+For ticket automations, one ticket is created per CVE regardless of the number of hosts on which such CVE is detected.
 
 Follow the steps below to configure Jira or Zendesk as a ticket destination:
 
@@ -68,21 +67,17 @@ Follow the steps below to configure Jira or Zendesk as a ticket destination:
 6. Select **Enable vulnerability automations** and choose **Ticket**.
 7. Under **Ticket destination**, select your ticket destination and select **Save**.
 
-The Jira and Zendesk ticket destinations are currently in beta.
+The Jira and Zendesk ticket automations are currently in beta.
 
 ## Policy automations
 
-Policy automations are triggered if a policy is newly failing on at
-least one host.
+Policy automations are triggered if a policy is newly failing on at least one host. Policy automations are triggered separately for each failing policy.
 
-> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing"
-> or from "passing" to "failing."
+> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
 
-Fleet checks if it's time to send these webhook requests, or create tickets (Jira or Zendesk), once every day. 
+Fleet can be configured either to send a webhook request or to create a ticket in Jira or Zendesk. Fleet checks whether to trigger policy automations once per day by default. This interval can be updated with the `webhook_settings.interval` configuration option using the [`config` YAML document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command. Note that this interval currently configures both host status and failing policy automations. This interval applies to both creating tickets for failing policies as well as webhooks requests.
 
-If two policies are newly failing
-within the day, two webhook requests are sent. This interval can be updated with the `webhook_settings.interval`
-configuration option using the [`config` yaml document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.
+For webhooks automations, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default. This behavior can be configured instead to group hosts into batched webhook requests through the [`host_batch_size` configuration option](../Using-Fleet/configuration-files/README.md#webhook-settings-failing-policies-webhook-host-batch-size).
 
 Example webhook payload:
 
@@ -120,7 +115,7 @@ POST https://server.com/example
 }
 ```
 
-You can configure Fleet to create a ticket instead of a webhook request.
+For ticket automations, a single ticket is created per newly failed policy (i.e., multiple tickets are not created if a policy is newly failing on more than one host during the same period).
 
 Follow the steps below to configure Jira or Zendesk as a ticket destination:
 
@@ -136,11 +131,9 @@ The Jira and Zendesk ticket destinations are currently in beta.
 
 ## Host status automations
 
-Host status automations send a webhook request if a configured
-percentage of hosts have not checked in to Fleet for a configured number of days.
+Host status automations send a webhook request if a configured percentage of hosts have not checked in to Fleet for a configured number of days.
 
-Fleet sends these webhook requests once per day. This interval can be updated with the `webhook_settings.interval`
-configuration option using the [`config` yaml document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.
+Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` configuration option using the [`config` YAML document](./configuration-files/README.md#organization-settings) and the `fleetctl apply` command.  Note that this interval currently configures both host status and failing policy automations.
 
 Example webhook payload:
 
