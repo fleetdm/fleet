@@ -1,2 +1,0 @@
-- update SSO form values in Fleet UI so that they are trimmed before being sent to the server and
-  show UI error when sso login fails

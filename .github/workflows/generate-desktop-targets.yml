@@ -13,6 +13,11 @@ on:
       - '.github/workflows/generate-desktop-targets.yml'
   workflow_dispatch:
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 env:
   FLEET_DESKTOP_VERSION: 1.2.0
 
@@ -51,10 +56,12 @@ jobs:
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
         run: |
           AC_USERNAME=$AC_USERNAME \
           AC_PASSWORD=$AC_PASSWORD \
+          AC_TEAM_ID=$AC_TEAM_ID \
           FLEET_DESKTOP_APPLE_AUTHORITY=$CODESIGN_IDENTITY \
           FLEET_DESKTOP_NOTARIZE=true \
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \

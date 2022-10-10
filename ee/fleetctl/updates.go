@@ -159,7 +159,7 @@ func updatesInitFunc(c *cli.Context) error {
 func updatesRootsCommand() *cli.Command {
 	return &cli.Command{
 		Name:   "roots",
-		Usage:  "Get root keys metadata",
+		Usage:  "Get root metadata",
 		Flags:  updatesFlags(),
 		Action: updatesRootsFunc,
 	}
@@ -171,14 +171,16 @@ func updatesRootsFunc(c *cli.Context) error {
 		return err
 	}
 
-	keys, err := repo.RootKeys()
+	meta, err := repo.GetMeta()
 	if err != nil {
-		return fmt.Errorf("get root metadata: %w", err)
+		return fmt.Errorf("get repo metadata: %w", err)
+	}
+	rootMeta := meta["root.json"]
+	if rootMeta == nil {
+		return errors.New("missing root metadata")
 	}
 
-	if err := json.NewEncoder(os.Stdout).Encode(keys); err != nil {
-		return fmt.Errorf("encode root metadata: %w", err)
-	}
+	fmt.Println(string(rootMeta))
 
 	return nil
 }

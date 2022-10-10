@@ -48,6 +48,12 @@
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     height: 40px;
+    transition: border-color 100ms;
+
+    &:hover {
+      box-shadow: none;
+      border: 1px solid $core-vibrant-blue;
+    }
 
     .Select-value {
       font-size: $small;
