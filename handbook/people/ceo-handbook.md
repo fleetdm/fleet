@@ -99,7 +99,7 @@ This section explains more about the CEO shadow program.
 - [Alumni](#alumni)
 
 ### Eligibility
-All Fleet team members are eligibile to apply for the CEO Shadow Program.
+All Fleet team members are eligibile to apply for the CEO Shadow Program. Eligibility starts after you've been at Fleet for at least 6 months. 
 
 ### How to apply
  1. Create a pull request to add yourself to the [rotation schedule](https://github.com/fleetdm/fleet/edit/main/handbook/people/ceo-handbook.md#rotation-schedule).
