@@ -536,7 +536,7 @@ const ManageHostsPage = ({
       sortBy,
       teamId: selectedTeam?.id,
       policyId: validPolicyId ? policyId : undefined,
-      policyResponse,
+      policyResponse: validPolicyId ? policyResponse : undefined,
       softwareId,
       status,
       mdmId,
@@ -796,6 +796,8 @@ const ManageHostsPage = ({
       }
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
+      }
+      if (policyResponse && validPolicyId) {
         newQueryParams.policy_response = policyResponse;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
@@ -1022,7 +1024,7 @@ const ManageHostsPage = ({
         sortBy,
         teamId: currentTeam?.id,
         policyId: validPolicyId ? policyId : undefined,
-        policyResponse,
+        policyResponse: validPolicyId ? policyResponse : undefined,
         softwareId,
         status,
         mdmId,
