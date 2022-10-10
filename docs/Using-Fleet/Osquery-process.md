@@ -34,7 +34,7 @@ consumption (the same checks we perform for the child process). If the managed e
 
 If the managed extension is `Non-existent` (either because it was `Non-existent` in the first place
 or because it was terminated because of resource contention), the watcher will try to 'launch' the
-managed extension but first, it will check the respawn limit. If the respawn limit was reached or
+managed extension. But first, it will check the respawn limit. If the respawn limit was reached or
 if for some reason the extension could be spawned, then the osquery process is shut down.
 
 Lastly, we check the state of the watcher process itself. If it is deemed unhealthy because of
