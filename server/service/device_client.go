@@ -49,17 +49,6 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-// ListDevicePolicies fetches all policies for the device with the provided token
-func (dc *DeviceClient) ListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
-	var responseBody listDevicePoliciesResponse
-	err := dc.request(verb, path, "", &responseBody)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Policies, nil
-}
-
 // TransparencyURL returns an URL that the server will use to redirect to the
 // transparency URL configured by the user
 func (dc *DeviceClient) TransparencyURL(token string) string {
@@ -90,4 +79,38 @@ func (dc *DeviceClient) Ping() error {
 	}
 
 	return err
+}
+
+func (dc *DeviceClient) listDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
+	var responseBody listDevicePoliciesResponse
+	err := dc.request(verb, path, "", &responseBody)
+	return responseBody.Policies, err
+}
+
+func (dc *DeviceClient) NumberOfFailingPolicies(token string) (uint, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/desktop"
+	var r FleetDesktopResponse
+	err := dc.request(verb, path, "", &r)
+
+	if err == nil {
+		return uintValueOrZero(r.FailingPolicies), nil
+	}
+
+	if err != nil && dc.GetServerCapabilities().Has(fleet.CapabilityDesktopEndpoint) {
+		return 0, err
+	}
+
+	policies, err := dc.listDevicePolicies(token)
+	if err != nil {
+		return 0, err
+	}
+
+	var failingPolicies uint
+	for _, policy := range policies {
+		if policy.Response != "pass" {
+			failingPolicies++
+		}
+	}
+	return failingPolicies, nil
 }
