@@ -516,6 +516,11 @@ func main() {
 			return fmt.Errorf("initializing token read writer: %w", err)
 		}
 
+		// ping to the server to ensure we have the latest capabilities
+		if err := orbitClient.Ping(); err != nil {
+			return fmt.Errorf("ping to server: %w", err)
+		}
+
 		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
 			orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
 			log.Info().Msg("token rotation is enabled")
