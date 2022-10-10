@@ -208,6 +208,8 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		}
 
 		var results []IndexedCPEItem
+		var match *IndexedCPEItem
+
 		err = db.Select(&results, stm, args...)
 		if err == sql.ErrNoRows {
 			return "", nil
@@ -217,7 +219,6 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 		}
 
-		var match *IndexedCPEItem
 		for i, item := range results {
 			hasAllTerms := true
 
@@ -229,12 +230,6 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 			sVendor := strings.ToLower(software.Vendor)
 			sBundle := strings.ToLower(software.BundleIdentifier)
 			for _, sV := range strings.Split(item.Vendor, "_") {
-				// If we can't check the vendor, then assume is a bad match, this is to avoid any
-				// false positives.
-				if sVendor == "" && sBundle == "" {
-					hasAllTerms = false
-				}
-
 				if sVendor != "" {
 					hasAllTerms = hasAllTerms && strings.Index(sVendor, sV) != -1
 				}

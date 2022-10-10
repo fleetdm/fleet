@@ -712,7 +712,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.37.1",
 				Vendor:           "The Git Development Community",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:git:git:2.37.1:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:git-scm:git:2.37.1:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
