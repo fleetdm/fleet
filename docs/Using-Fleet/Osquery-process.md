@@ -24,7 +24,7 @@ If the child process is `Non-existent`, either because it didn't exist in the fi
 was terminated, the watcher will try to spawn a new child process. But first, it will check whether
 the maximum number of allowed process re-spawns was reached. If it was, then the osquery process shutdowns.
 
-After checking the state of the child worker, we check the state of every managed extension. Which
+After checking the state of the child worker, we check the state of every managed extension, which
 could be `Alive` or `Non-existent`.
 
 If the managed extension is `Alive` the watcher will check both the CPU utilization and memory
