@@ -182,10 +182,10 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search hostname, UUID, serial number, or private IP address";
+  "Search name, hostname, UUID, serial number, or private IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
-  "Search hosts by hostname, UUID, serial number or private IP address";
+  "Search hosts by name, hostname, UUID, serial number or private IP address";
 
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {

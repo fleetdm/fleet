@@ -310,6 +310,7 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString]);
 
+  console.log("host", host);
   const titleData = normalizeEmptyValues(
     pick(host, [
       "status",

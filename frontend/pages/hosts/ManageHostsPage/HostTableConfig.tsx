@@ -441,6 +441,8 @@ const allHostTableHeaders: IDataColumn[] = [
 ];
 
 const defaultHiddenColumns = [
+  "hostname",
+  "computer_name",
   "device_mapping",
   "primary_mac",
   "cpu_type",

@@ -168,6 +168,7 @@ export interface IHost {
   };
   status: HostStatus;
   display_text: string;
+  display_name: string;
   target_type?: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
