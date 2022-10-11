@@ -322,15 +322,6 @@ const ManageAutomationsModal = ({
   };
 
   const renderTicket = () => {
-    if (showPreviewTicketModal && selectedIntegration?.type) {
-      return (
-        <PreviewTicketModal
-          integrationType={selectedIntegration.type}
-          onCancel={togglePreviewTicketModal}
-        />
-      );
-    }
-
     return (
       <div className={`${baseClass}__ticket`}>
         <div className={`${baseClass}__software-automation-description`}>
@@ -417,6 +408,15 @@ const ManageAutomationsModal = ({
       </div>
     );
   };
+
+  if (showPreviewTicketModal && selectedIntegration?.type) {
+    return (
+      <PreviewTicketModal
+        integrationType={selectedIntegration.type}
+        onCancel={togglePreviewTicketModal}
+      />
+    );
+  }
 
   if (showPreviewPayloadModal) {
     return <PreviewPayloadModal onCancel={togglePreviewPayloadModal} />;

@@ -1,7 +1,12 @@
 .preview-ticket-modal {
-  &__jira-preview-screenshot,
-  &__zendesk-preview-screenshot {
+  &__integration-preview {
+    text-align: center;
+  }
+
+  &__jira-screenshot,
+  &__zendesk-screenshot {
     filter: drop-shadow(0px 4px 16px rgba(0, 0, 0, 0.1));
     border-radius: 8px;
+    transform: scale(0.5);
   }
 }

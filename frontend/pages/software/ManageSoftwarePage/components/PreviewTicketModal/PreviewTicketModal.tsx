@@ -24,13 +24,13 @@ const PreviewTicketModal = ({
       <img
         src={JiraTicketScreenshot}
         alt="Jira ticket"
-        className={`${baseClass}__jira-preview-screenshot`}
+        className={`${baseClass}__jira-screenshot`}
       />
     ) : (
       <img
         src={ZendeskTicketScreenshot}
         alt="Zendesk ticket"
-        className={`${baseClass}__zendesk-preview-screenshot`}
+        className={`${baseClass}__zendesk-screenshot`}
       />
     );
 
@@ -53,7 +53,7 @@ const PreviewTicketModal = ({
             <img src={ExternalLinkIcon} alt="Open external link" />
           </a>
         </p>
-        <div className={`${baseClass}__jira-preview`}>{screenshot}</div>
+        <div className={`${baseClass}__integration-preview`}>{screenshot}</div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel} variant="brand">
             Done
