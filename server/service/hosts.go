@@ -48,6 +48,7 @@ type HostDetailResponse struct {
 	fleet.HostDetail
 	Status      fleet.HostStatus   `json:"status"`
 	DisplayText string             `json:"display_text"`
+	DisplayName string             `json:"display_name"`
 	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
 }
 
@@ -56,6 +57,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		DisplayName: host.DisplayName(),
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
