@@ -1,2 +1,2 @@
-* Users can now see missing hosts on the homepage
-* Users can now see low disk space hosts on the homepage
+* Premium users can see missing hosts and low disk space hosts on the homepage
+* Premium users can filter hosts by missing hosts and low disk space hosts on the manage host page
