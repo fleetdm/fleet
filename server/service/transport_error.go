@@ -211,15 +211,19 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 
 		msg := err.Error()
-		var ume fleet.UserMessageError
+		reason := err.Error()
+		var ume *fleet.UserMessageError
 		if errors.As(err, &ume) {
-			msg = ume.UserMessage()
+			if text := http.StatusText(status); text != "" {
+				msg = text
+			}
+			reason = ume.UserMessage()
 		}
 
 		w.WriteHeader(status)
 		je := jsonError{
-			Message: err.Error(),
-			Errors:  baseError(msg),
+			Message: msg,
+			Errors:  baseError(reason),
 		}
 		enc.Encode(je)
 	}

@@ -743,7 +743,7 @@ spec:
       config:
         blah: nope
 `,
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid top-level key for team",
@@ -769,7 +769,7 @@ spec:
       config:
         blah: nope
 `,
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid agent options dry-run",
@@ -784,7 +784,7 @@ spec:
         blah: nope
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid agent options force",
@@ -815,7 +815,7 @@ spec:
           aws_debug: 123
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "invalid team agent options command-line flag",
@@ -829,7 +829,7 @@ spec:
       command_line_flags:
         no_such_flag: 123
 `,
-			wantErr: `400 Bad request: command-line flags: json: unknown field "no_such_flag"`,
+			wantErr: `400 Bad Request: unsupported key provided: "no_such_flag"`,
 		},
 		{
 			desc: "valid team agent options command-line flag",
@@ -863,7 +863,7 @@ spec:
             options:
               aws_debug: 123
 `,
-			wantErr: `400 Bad request: darwin platform config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "empty config",
