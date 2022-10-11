@@ -196,7 +196,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	status := r.URL.Query().Get("status")
 	switch fleet.HostStatus(status) {
-	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA:
+	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
 		hopt.StatusFilter = fleet.HostStatus(status)
 	case "":
 		// No error when unset

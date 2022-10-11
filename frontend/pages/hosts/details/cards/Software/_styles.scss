@@ -50,6 +50,9 @@
         .version__header {
           width: $col-sm;
         }
+        .vulnerabilities__header {
+          min-width: 130px;
+        }
         .source__header {
           display: none;
           width: 0px;
@@ -61,14 +64,13 @@
           display: none;
         }
         .linkToFilteredHosts__header {
-          min-width: 110px;
+          min-width: 115px;
         }
-        @media (min-width: $break-990) {
+        @media (min-width: $break-1400) {
           .version__header {
             width: $col-md;
           }
-        }
-        @media (min-width: $break-1400) {
+
           .source__header {
             display: table-cell;
             width: $col-md;
@@ -143,6 +145,51 @@
           .software-link {
             visibility: visible;
           }
+        }
+      }
+    }
+  }
+
+  // table header content responsive styles
+  // NOTE: 990px is a custom breakpoint to deal with responsiveness of the
+  // table controls.
+  @media (max-width: 990px) {
+    thead .name__header {
+      width: $col-md;
+    }
+
+    .table-container__header {
+      flex-direction: column;
+    }
+
+    .table-container__search {
+      order: 1;
+      width: 100%;
+      margin-bottom: $pad-medium;
+
+      .table-container__search-input {
+        margin-left: 0;
+
+        & .search-field__input-wrapper {
+          width: auto;
+        }
+      }
+    }
+
+    .table-container__header-left {
+      order: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+
+      .results-count {
+        order: 2;
+      }
+
+      .controls {
+        .Select {
+          width: 100%;
+          margin-bottom: $pad-large;
         }
       }
     }

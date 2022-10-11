@@ -57,6 +57,9 @@ type Service interface {
 	// GetOrbitFlags returns team specific flags in agent options if the team id is not nil for host, otherwise it returns flags from global agent options
 	GetOrbitFlags(ctx context.Context) (flags json.RawMessage, err error)
 
+	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
+	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
+
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.
 	//
