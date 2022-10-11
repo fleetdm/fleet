@@ -51,6 +51,9 @@ jobs:
     #
     # We should add a Slack notification or something similar for
     # when this check fails on `main`.
+    #
+    # TODO: This only checks for added files, we should also check for renames,
+    # which should be more of an edge case, but they might still happen
     - name: Check migration order
       run: |
         # if the workflow is run during a push event (on merges to main and
@@ -61,7 +64,7 @@ jobs:
         fi
 
         all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
-        new_migrations=($(git diff --name-only $base_ref -- server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
+        new_migrations=($(git diff --find-renames --name-only --diff-filter=A $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go | sort -r))
 
         index=0
         for migration in "${new_migrations[@]}"; do
