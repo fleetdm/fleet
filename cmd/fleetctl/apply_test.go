@@ -1029,7 +1029,7 @@ spec:
     enable_software_inventory: true
 `,
 			flags:      []string{"--dry-run"},
-			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration`,
+			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration: [host_settings]`,
 			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' spec`,
 		},
 		{

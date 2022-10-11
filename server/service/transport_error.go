@@ -185,7 +185,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			enc.Encode(je)
 			return
 		}
-		if fleet.IsForeignKey(ctxerr.Cause(err)) {
+		if fleet.IsForeignKey(err) {
 			ve := jsonError{
 				Message: "Validation Failed",
 				Errors:  baseError(err.Error()),

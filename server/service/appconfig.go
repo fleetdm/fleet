@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -280,11 +281,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 	var legacyUsedWarning error
-	if appConfig.DidUnmarshalLegacySettings() {
+	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors
 		// were encountered.
 		legacyUsedWarning = &fleet.BadRequestError{
-			Message: "warning: deprecated settings were used in the configuration; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings",
+			Message: fmt.Sprintf("warning: deprecated settings were used in the configuration: %v; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings", legacyKeys),
 		}
 	}
 
