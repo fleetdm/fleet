@@ -65,7 +65,7 @@ func (s *slowReader) Read(p []byte) (n int, err error) {
 func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	t := s.T()
 
-	req, err := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/distributed/write", &slowReader{b: []byte(`{"node_key":"123457398347192739182312983"}`)})
+	req, err := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/distributed/write", &slowReader{})
 	require.NoError(t, err)
 
 	client := fleethttp.NewClient()
