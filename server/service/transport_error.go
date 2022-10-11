@@ -171,6 +171,17 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(je)
 	default:
+		// when there's a tcp read timeout, the error is *net.OpError but the cause is an internal
+		// poll.DeadlineExceeded which we cannot match against, so we check the string here
+		if err.Error() == "i/o timeout" {
+			w.WriteHeader(http.StatusRequestTimeout)
+			je := jsonError{
+				Message: err.Error(),
+				Errors:  baseError(err.Error()),
+			}
+			enc.Encode(je)
+			return
+		}
 		if fleet.IsForeignKey(ctxerr.Cause(err)) {
 			ve := jsonError{
 				Message: "Validation Failed",
