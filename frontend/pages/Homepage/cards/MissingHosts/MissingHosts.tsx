@@ -22,7 +22,7 @@ const MissingHosts = ({
   showHostsUI,
   selectedPlatformLabelId,
 }: IHostSummaryProps): JSX.Element => {
-  // build the manage hosts URL
+  // build the manage hosts URL filtered by missing and platform
   const queryParams = {
     status: "missing",
   };

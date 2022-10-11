@@ -356,6 +356,7 @@ const Homepage = (): JSX.Element => {
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform || ""}
+        selectedPlatformLabelId={selectedPlatformLabelId}
         labels={labels}
         errorHosts={!!errorHosts}
       />
@@ -396,7 +397,6 @@ const Homepage = (): JSX.Element => {
         missingCount={missingCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });
@@ -409,7 +409,6 @@ const Homepage = (): JSX.Element => {
         lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });

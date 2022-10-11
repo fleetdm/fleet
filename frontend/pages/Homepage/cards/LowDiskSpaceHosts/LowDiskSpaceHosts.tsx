@@ -13,7 +13,6 @@ interface IHostSummaryProps {
   lowDiskSpaceCount: number;
   isLoadingHosts: boolean;
   showHostsUI: boolean;
-  selectedPlatformLabelId?: number;
 }
 
 const LowDiskSpaceHosts = ({
@@ -21,16 +20,14 @@ const LowDiskSpaceHosts = ({
   lowDiskSpaceCount,
   isLoadingHosts,
   showHostsUI,
-  selectedPlatformLabelId,
 }: IHostSummaryProps): JSX.Element => {
-  // build the manage hosts URL
+  // build the manage hosts URL filtered by low disk space only
+  // currently backend cannot filter by both low disk space and label
   const queryParams = {
     low_disk_space: lowDiskSpaceGb,
   };
   const queryString = buildQueryStringFromParams(queryParams);
-  const endpoint = selectedPlatformLabelId
-    ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
-    : PATHS.MANAGE_HOSTS;
+  const endpoint = PATHS.MANAGE_HOSTS;
   const path = `${endpoint}?${queryString}`;
 
   return (

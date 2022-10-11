@@ -799,13 +799,12 @@ const ManageHostsPage = ({
             newQueryParams.low_disk_space = lowDiskSpaceHosts;
           }
           break;
-        case !!(osId || (osName && osVersion)):
+        default:
           if (osId || (osName && osVersion)) {
             newQueryParams.os_id = osId;
             newQueryParams.os_name = osName;
             newQueryParams.os_version = osVersion;
           }
-        // TODO: Lint expects default
       }
 
       router.replace(

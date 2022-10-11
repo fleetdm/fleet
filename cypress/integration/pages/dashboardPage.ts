@@ -21,8 +21,13 @@ const dashboardPage = {
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
           cy.get(".activity-feed").should("not.exist");
-          cy.get(".hosts-missing").should("not.exist");
-          cy.get(".hosts-low-space").should("not.exist");
+          if (tier === "premium") {
+            cy.getAttached(".hosts-missing").should("exist");
+            cy.getAttached(".hosts-low-space").should("exist");
+          } else {
+            cy.get(".hosts-missing").should("not.exist");
+            cy.get(".hosts-low-space").should("not.exist");
+          }
         });
         break;
       case "Windows":
@@ -33,8 +38,13 @@ const dashboardPage = {
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
           cy.get(".activity-feed").should("not.exist");
-          cy.get(".hosts-missing").should("not.exist");
-          cy.get(".hosts-low-space").should("not.exist");
+          if (tier === "premium") {
+            cy.getAttached(".hosts-missing").should("exist");
+            cy.getAttached(".hosts-low-space").should("exist");
+          } else {
+            cy.get(".hosts-missing").should("not.exist");
+            cy.get(".hosts-low-space").should("not.exist");
+          }
         });
         break;
       case "Linux":
@@ -44,8 +54,13 @@ const dashboardPage = {
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
           cy.get(".activity-feed").should("not.exist");
-          cy.get(".hosts-missing").should("not.exist");
-          cy.get(".hosts-low-space").should("not.exist");
+          if (tier === "premium") {
+            cy.getAttached(".hosts-missing").should("exist");
+            cy.getAttached(".hosts-low-space").should("exist");
+          } else {
+            cy.get(".hosts-missing").should("not.exist");
+            cy.get(".hosts-low-space").should("not.exist");
+          }
         });
         break;
       case "All":
