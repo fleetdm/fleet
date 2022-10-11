@@ -114,13 +114,11 @@ func blockWaitForStopEvent(channelId string) error {
 		return fmt.Errorf("there was a problem generating UTF16 string: %w", err)
 	}
 
-	log.Info().Msg("Comm channel was acquired ")
-
 	// The right to use the object for synchronization
 	// https://learn.microsoft.com/en-us/windows/win32/sync/synchronization-object-security-and-access-rights
 	const EVENT_SYNCHRONIZE = 0x00100000
 
-	// block wait until channel is available is available
+	// block wait until channel is available
 	var handle windows.Handle = windows.InvalidHandle
 	for {
 		// OpenEvent API opens a named event object from the kernel object manager
@@ -136,11 +134,14 @@ func blockWaitForStopEvent(channelId string) error {
 
 	defer windows.CloseHandle(handle)
 
+	// OpenEvent() call was successful and our process got a handle to the named event kernel object
+	log.Info().Msg("Comm channel was acquired")
+
 	// now block wait for the handle to be signaled by Orbit
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
 	s, err := windows.WaitForSingleObject(handle, windows.INFINITE)
 	if (err != nil) && (err != windows.ERROR_SUCCESS) {
-		return fmt.Errorf("there was a problem calling CreateEvent: %w", err)
+		return fmt.Errorf("there was a problem calling WaitForSingleObject: %w", err)
 	}
 
 	if s != windows.WAIT_OBJECT_0 {

@@ -622,13 +622,12 @@ func main() {
 		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
-		// c.
+		// Create an osquery runner with the provided options.
 		r, err := osquery.NewRunner(osquerydPath, options...)
 		if err != nil {
 			return fmt.Errorf("create osquery runner: %w", err)
 		}
 		g.Add(r.Execute, r.Interrupt)
-
 
 		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
@@ -669,7 +668,6 @@ func main() {
 		}
 
 		close(appDoneCh) // Signal to indicate runners have just ended
-
 		return nil
 	}
 
@@ -774,7 +772,6 @@ func (d *desktopRunner) execute() error {
 		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
 			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
-
 				return true // all good, process is running, retry.
 			case errors.Is(err, platform.ErrProcessNotFound):
 				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
@@ -871,7 +868,6 @@ var versionCommand = &cli.Command{
 	},
 }
 
-
 // serviceChecker is a helper to gracefully shutdown the runners group when a
 // system service stop request was received.
 //
@@ -888,7 +884,7 @@ func newSystemChecker() *serviceChecker {
 	}
 }
 
-// execute will just return when required locally or by the service
+// execute will just return when required locally or by the system service
 func (s *serviceChecker) Execute() error {
 	for {
 		select {
@@ -896,6 +892,14 @@ func (s *serviceChecker) Execute() error {
 			return errors.New("os service stop request")
 		case <-s.localInterruptCh:
 			return errors.New("internal service interrupt")
+		}
+	}
+}
+
+func (s *serviceChecker) Interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt serviceChecker")
+	close(s.localInterruptCh) // Signal execute to return.
+}
 
 // capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
 // are changed in the server.
@@ -960,15 +964,8 @@ func (f *capabilitiesChecker) execute() error {
 	}
 }
 
-
-func (s *serviceChecker) Interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt serviceChecker")
-
-	close(s.localInterruptCh) // Signal execute to return.
-
 func (f *capabilitiesChecker) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
-
 }

@@ -32,7 +32,7 @@ func ChmodExecutable(path string) error {
 }
 
 // SignalProcessBeforeTerminate just force terminate the target process
-// Signaling is the child process before termination is not supported on non-windows OSes
+// Signaling the child process before termination is not supported on non-windows OSes
 func SignalProcessBeforeTerminate(processName string) error {
 	if processName == "" {
 		return errors.New("processName should not be empty")

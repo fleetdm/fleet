@@ -84,24 +84,9 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
-
-	commChannelID := os.Getenv("FLEET_DESKTOP_CHANNEL_ID")
-	if commChannelID == "" {
-		log.Fatal().Msg("missing Channel ID environment FLEET_DESKTOP_CHANNEL_ID")
-	}
-
-	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
-	if devURL == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
-	}  
-	deviceURL, err := url.Parse(devURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid URL argument")
-
 	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	if identifierPath == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
-
 	}
 
 	fleetURL := os.Getenv("FLEET_DESKTOP_FLEET_URL")

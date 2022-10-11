@@ -421,7 +421,9 @@ jobs:
       run: |
         # Tests setup
         $serviceName = "Fleet osquery"
-        $orbitMaxTimeToStartAndTeardown = 15  
+
+        #Relaxing time constrains a bit until https://github.com/fleetdm/fleet/issues/8057 gets resolved
+        $orbitMaxTimeToStartAndTeardown = 30
 
         # Test 1 - Check that the service starts without issues
         Stop-Service -Name $serviceName

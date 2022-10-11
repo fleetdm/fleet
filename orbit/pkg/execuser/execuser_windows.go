@@ -107,8 +107,6 @@ const (
 //	create an updated block for the child process to inherit, create the child process, and then
 //	restore the saved values using SetEnvironmentVariable, as shown in the following example."
 func run(path string, opts eopts) error {
-	opts.env = append(opts.env, [2]string{"FLEET_DESKTOP_CHANNEL_ID", constant.DesktopAppExecName})
-
 	if err := setupSyncChannel(constant.DesktopAppExecName); err != nil {
 		return fmt.Errorf("sync channel creation failed: %w", err)
 	}
@@ -272,7 +270,7 @@ func setupSyncChannel(channelId string) error {
 	// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-security_descriptor
 	sd, err := windows.SecurityDescriptorFromString("D:(A;;0x001F0003;;;SY)(A;;0x00100000;;;AU)")
 	if err != nil {
-		return fmt.Errorf("SddlToSecurityDescriptor failed: %v", err)
+		return fmt.Errorf("SecurityDescriptorFromString failed: %v", err)
 	}
 
 	// Security attributes passed to the event object
@@ -283,7 +281,7 @@ func setupSyncChannel(channelId string) error {
 	}
 
 	// CreateEvent Api creates the named event object on the kernel object manager
-	// handle is not closed on purpose, the lifetime of the event object
+	// The obtained handle is not closed on purpose, the lifetime of the event object
 	// is going to be bound to the lifetime of the service
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventw
 	h, err := windows.CreateEvent(&sa, 0, 0, ev)
