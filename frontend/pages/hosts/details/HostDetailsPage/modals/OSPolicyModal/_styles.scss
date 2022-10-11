@@ -1,12 +1,4 @@
-.render-os-policy-modal {
-  &__modal {
-    @include position(absolute, 22px null null null);
-    background-color: $core-white;
-    width: 658px;
-    padding: $pad-xxlarge;
-    border-radius: $pad-small;
-  }
-
+.os-policy-modal {
   &__os-modal-title {
     padding-right: $pad-medium;
     font-size: $medium;

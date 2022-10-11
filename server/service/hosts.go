@@ -26,6 +26,7 @@ type HostResponse struct {
 	*fleet.Host
 	Status           fleet.HostStatus   `json:"status" csv:"status"`
 	DisplayText      string             `json:"display_text" csv:"display_text"`
+	DisplayName      string             `json:"display_name" csv:"display_name"`
 	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
 	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
 	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
@@ -36,6 +37,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		DisplayName: host.DisplayName(),
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
@@ -463,8 +465,9 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID   *uint   `query:"team_id,optional"`
-	Platform *string `query:"platform,optional"`
+	TeamID       *uint   `query:"team_id,optional"`
+	Platform     *string `query:"platform,optional"`
+	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
 
 type getHostSummaryResponse struct {
@@ -476,7 +479,14 @@ func (r getHostSummaryResponse) error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostSummaryRequest)
-	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform)
+	if req.LowDiskSpace != nil {
+		if *req.LowDiskSpace < 1 || *req.LowDiskSpace > 100 {
+			err := ctxerr.Errorf(ctx, "invalid low_disk_space threshold, must be between 1 and 100: %d", *req.LowDiskSpace)
+			return getHostSummaryResponse{Err: err}, nil
+		}
+	}
+
+	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
 		return getHostSummaryResponse{Err: err}, nil
 	}
@@ -487,7 +497,7 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return resp, nil
 }
 
-func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string) (*fleet.HostSummary, error) {
+func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -497,7 +507,11 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
+	if !svc.license.IsPremium() {
+		lowDiskSpace = nil
+	}
+
+	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform, lowDiskSpace)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,5 @@
+- Added functionality to consider device tokens as expired after one hour.
+  This change is not compatible with older versions of Fleet Desktop, we recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
+    - You're managing your own TUF server.
+    - Or have auto-updates disabled (`fleetctl package [...] --disable-updates`)
+    - Or have channels pinned to an older version (`fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0`)

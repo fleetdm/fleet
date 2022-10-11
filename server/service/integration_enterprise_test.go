@@ -132,6 +132,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
 
+	// invalid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"nope": 1}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+
+	// valid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"enable_tables": "abcd"}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"enable_tables": "abcd"`)
+
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
@@ -335,6 +349,10 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	// Test bad requests
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
+
+	// too many secrets
+	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
@@ -429,6 +447,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
+
+	// create a team with too many secrets
+	team3 := &fleet.Team{
+		Name:        name + "lots_of_secrets",
+		Description: "Team3 description",
+		Secrets:     createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
+	}
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
 
 	// list teams
 	var listResp listTeamsResponse
@@ -1524,4 +1551,30 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Equal(t, 1, countResp.Count)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "low_disk_space", "100")
 	require.Equal(t, 2, countResp.Count)
+
+	// host summary returns counts for low disk space
+	var summaryResp getHostSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "low_disk_space", "32")
+	require.Equal(t, uint(3), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(1), *summaryResp.LowDiskSpaceCount)
+
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "platform", "windows", "low_disk_space", "32")
+	require.Equal(t, uint(1), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
+
+	// all possible filters
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux", "low_disk_space", "32")
+	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
+	require.NotNil(t, summaryResp.LowDiskSpaceCount)
+	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
+
+	// without low_disk_space, does not return the count
+	summaryResp = getHostSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux")
+	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
+	require.Nil(t, summaryResp.LowDiskSpaceCount)
 }

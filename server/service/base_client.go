@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // httpClient interface allows the HTTP methods to be mocked.
@@ -24,6 +25,13 @@ type baseClient struct {
 	http               httpClient
 	urlPrefix          string
 	insecureSkipVerify bool
+	// serverCapabilities is a map of capabilities that the server supports.
+	// This map is updated on each response we receive from the server.
+	serverCapabilities fleet.CapabilityMap
+	// clientCapabilities is a map of capabilities that the client supports.
+	// This list is given when the client is instantiated and shouldn't be
+	// modified afterwards.
+	clientCapabilities fleet.CapabilityMap
 }
 
 func (bc *baseClient) parseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
@@ -45,15 +53,21 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 		)
 	}
 
-	if err := json.NewDecoder(response.Body).Decode(&responseDest); err != nil {
-		return fmt.Errorf("decode %s %s response: %w", verb, path, err)
-	}
+	bc.setServerCapabilities(response)
 
-	if e, ok := responseDest.(errorer); ok {
-		if e.error() != nil {
-			return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+	if responseDest != nil {
+		if err := json.NewDecoder(response.Body).Decode(&responseDest); err != nil {
+			return fmt.Errorf("decode %s %s response: %w", verb, path, err)
+		}
+
+		if e, ok := responseDest.(errorer); ok {
+			if e.error() != nil {
+				return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+			}
 		}
 	}
+
+	bc.setServerCapabilities(response)
 
 	return nil
 }
@@ -65,7 +79,35 @@ func (bc *baseClient) url(path, rawQuery string) *url.URL {
 	return &u
 }
 
-func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string) (*baseClient, error) {
+// setServerCapabilities updates the server capabilities based on the response
+// from the server.
+func (bc *baseClient) setServerCapabilities(response *http.Response) {
+	capabilities := response.Header.Get(fleet.CapabilitiesHeader)
+	bc.serverCapabilities.PopulateFromString(capabilities)
+}
+
+func (bc *baseClient) GetServerCapabilities() fleet.CapabilityMap {
+	return bc.serverCapabilities
+}
+
+// setClientCapabilities header is used to set a header with the client
+// capabilities in the given request.
+//
+// This method is defined in baseClient because other clients generally have
+// custom implementations of a method to perform the requests to the server.
+func (bc *baseClient) setClientCapabilitiesHeader(req *http.Request) {
+	if len(bc.clientCapabilities) == 0 {
+		return
+	}
+
+	if req.Header == nil {
+		req.Header = http.Header{}
+	}
+
+	req.Header.Set(fleet.CapabilitiesHeader, bc.clientCapabilities.String())
+}
+
+func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, capabilities fleet.CapabilityMap) (*baseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
@@ -86,7 +128,7 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 	switch {
 	case rootCA != "":
 		// read in the root cert file specified in the context
-		certs, err := ioutil.ReadFile(rootCA)
+		certs, err := os.ReadFile(rootCA)
 		if err != nil {
 			return nil, fmt.Errorf("reading root CA: %w", err)
 		}
@@ -113,7 +155,8 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		http:               httpClient,
 		insecureSkipVerify: insecureSkipVerify,
 		urlPrefix:          urlPrefix,
+		clientCapabilities: capabilities,
+		serverCapabilities: fleet.CapabilityMap{},
 	}
-
 	return client, nil
 }

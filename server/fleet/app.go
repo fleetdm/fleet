@@ -452,6 +452,10 @@ func (e *EnrollSecret) AuthzType() string {
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
+	// Maximum number of enroll secrets that can be set per team, or globally.
+	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// if you change that value (look for the string `secrets`).
+	MaxEnrollSecretsCount = 50
 )
 
 // EnrollSecretSpec is the fleetctl spec type for enroll secrets.
@@ -565,8 +569,3 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }
-
-// DeviceAPIFeatures specifies a list of features supported
-// by the current API version. Each field in the struct is
-// meant to be a boolean value.
-type DeviceAPIFeatures struct{}

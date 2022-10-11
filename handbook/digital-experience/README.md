@@ -37,6 +37,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 | Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
+| Decks | **Instant**. Sales typically creates decks. Digital Experience shouldn't be a blocker. | **Feedback** | three business days |
 
 ## Communicating as Fleet
 
@@ -453,6 +454,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
+| Updating the extended osquery schema | Three weeks | Running the `generate-merged-schema` script and committing the merged schema json to the Fleet GitHub repo | Eric Shaw |
 
 ## Slack channels
 
@@ -470,7 +472,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-p1`		      | Mike McNeil
 | `#help-operations-and-contract-reviews`          | Nathan Holliday
 | `#help-travel`              | Nathan Holliday
-| `#help-ceo`                  | Charlie Chance
+| `#help-ceo`                 | Charlie Chance
+| `#help-key-review-prep`     | Charlie Chance
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

@@ -4,13 +4,12 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
@@ -32,34 +31,53 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
-	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
-	if devURL == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
-	}
-	deviceURL, err := url.Parse(devURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid URL argument")
+	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
+	if identifierPath == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	}
 
-	basePath := deviceURL.Scheme + "://" + deviceURL.Host
-	deviceToken := path.Base(deviceURL.Path)
-	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
+	fleetURL := os.Getenv("FLEET_DESKTOP_FLEET_URL")
+	if fleetURL == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
+	}
 
 	onReady := func() {
 		log.Info().Msg("ready")
 
-		systray.SetTemplateIcon(icoBytes, icoBytes)
 		systray.SetTooltip("Fleet Desktop")
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
+
+		// Theme detection is currently only on Windows. On macOS we use template icons (which
+		// automatically change), and on Linux we don't handle it yet (Ubuntu doesn't seem to change
+		// systray colors in the default configuration when toggling light/dark).
+		if runtime.GOOS == "windows" {
+			// Set the initial theme, and watch for theme changes.
+			theme, err := getSystemTheme()
+			if err != nil {
+				log.Error().Err(err).Msg("get system theme")
+			}
+			iconManager := newIconManager(theme)
+			go func() {
+				watchSystemTheme(iconManager)
+			}()
+		}
 
 		// Add a disabled menu item with the current version
 		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
 		versionItem.Disable()
 		systray.AddSeparator()
 
-		myDeviceItem := systray.AddMenuItem("Initializing...", "")
+		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
+
+		tokenReader := token.Reader{Path: identifierPath}
+		if _, err := tokenReader.Read(); err != nil {
+			log.Fatal().Err(err).Msg("error reading device token from file")
+		}
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
@@ -67,14 +85,32 @@ func main() {
 		}
 		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
+		client, err := service.NewDeviceClient(
+			fleetURL,
+			insecureSkipVerify,
+			rootCA,
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
 
-		// Perform API test call to enable the "My device" item as soon
-		// as the device auth token is registered by Fleet.
-		deviceEnabledChan := func() <-chan interface{} {
+		refetchToken := func() {
+			if _, err := tokenReader.Read(); err != nil {
+				log.Error().Err(err).Msg("refetch token")
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
+		}
+
+		disableTray := func() {
+			log.Debug().Msg("disabling tray items")
+			myDeviceItem.SetTitle("Connecting...")
+			myDeviceItem.Disable()
+			transparencyItem.Disable()
+		}
+
+		// checkToken performs API test calls to enable the "My device" item as
+		// soon as the device auth token is registered by Fleet.
+		checkToken := func() <-chan interface{} {
 			done := make(chan interface{})
 
 			go func() {
@@ -83,9 +119,11 @@ func main() {
 				defer close(done)
 
 				for {
-					_, err := client.GetDesktopPayload()
+					refetchToken()
+					_, err := client.ListDevicePolicies(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
+						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
@@ -99,34 +137,87 @@ func main() {
 			}()
 
 			return done
+		}
+
+		// start a check as soon as the app starts
+		deviceEnabledChan := checkToken()
+
+		// this loop checks the `mtime` value of the token file and:
+		// 1. if the token file was modified, it disables the tray items until we
+		// verify the token is valid
+		// 2. calls (blocking) `checkToken` to verify the token is valid
+		go func() {
+			<-deviceEnabledChan
+			tic := time.NewTicker(1 * time.Second)
+			defer tic.Stop()
+
+			for {
+				<-tic.C
+				expired, err := tokenReader.HasChanged()
+				switch {
+				case err != nil:
+					log.Error().Err(err).Msg("check token file")
+				case expired:
+					log.Info().Msg("token file changed, rechecking")
+					disableTray()
+					<-checkToken()
+				}
+			}
 		}()
 
+		// poll the server to check the policy status of the host and update the
+		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
 			for {
-				<-tic.C
-
-				res, err := client.GetDesktopPayload()
+				policies, err := client.ListDevicePolicies(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
 					continue
+				case errors.Is(err, service.ErrUnauthenticated):
+					disableTray()
+					<-checkToken()
+					continue
 				default:
 					log.Error().Err(err).Msg("get device URL")
 					continue
 				}
 
-				if res.FailingPolicies != nil && *res.FailingPolicies > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", res.FailingPolicies))
+				failedPolicyCount := 0
+				for _, policy := range policies {
+					if policy.Response != "pass" {
+						failedPolicyCount++
+					}
+				}
+
+				if failedPolicyCount > 0 {
+					if runtime.GOOS == "windows" {
+						// Windows (or maybe just the systray library?) doesn't support color emoji
+						// in the system tray menu, so we use text as an alternative.
+						if failedPolicyCount == 1 {
+							myDeviceItem.SetTitle("My device (1 issue)")
+						} else {
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failedPolicyCount))
+						}
+					} else {
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+					}
 				} else {
-					myDeviceItem.SetTitle("🟢 My device")
+					if runtime.GOOS == "windows" {
+						myDeviceItem.SetTitle("My device")
+					} else {
+						myDeviceItem.SetTitle("🟢 My device")
+					}
 				}
 				myDeviceItem.Enable()
+
+				<-tic.C
 			}
 		}()
 
@@ -134,11 +225,11 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					if err := open.Browser(deviceURL.String()); err != nil {
+					if err := open.Browser(client.DeviceURL(tokenReader.GetCached())); err != nil {
 						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser(transparencyURL); err != nil {
+					if err := open.Browser(client.TransparencyURL(tokenReader.GetCached())); err != nil {
 						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}
@@ -225,4 +316,30 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+type iconManager struct {
+	theme theme
+}
+
+func newIconManager(theme theme) *iconManager {
+	m := &iconManager{
+		theme: theme,
+	}
+	m.UpdateTheme(theme)
+	return m
+}
+
+func (m *iconManager) UpdateTheme(theme theme) {
+	m.theme = theme
+	switch theme {
+	case themeDark:
+		systray.SetIcon(iconDark)
+	case themeLight:
+		systray.SetIcon(iconLight)
+	case themeUnknown:
+		log.Debug().Msg("theme unknown, using dark theme")
+	default:
+		log.Error().Str("theme", string(theme)).Msg("tried to set invalid theme")
+	}
 }

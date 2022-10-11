@@ -13,6 +13,7 @@ import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   humanHostMemory,
   humanHostLastRestart,
@@ -285,12 +286,23 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Last fetched",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+            The last time the host reported vitals.
+          `}
+        >
+          Last fetched
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: "detail_updated_at",
     Cell: (cellProps: ICellProps) => (
       <TextCell
@@ -301,12 +313,23 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Last seen",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+            The last time the host was online.
+          `}
+        >
+          Last seen
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: "seen_time",
     Cell: (cellProps: ICellProps) => (
       <TextCell value={cellProps.cell.value} formatter={humanHostLastSeen} />

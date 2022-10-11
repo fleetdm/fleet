@@ -1,0 +1,1 @@
+* Added logic to clean up irrelevant policies for a host on re-enrollment, for example: if a host changes its OS from linux to macOS or it changes teams.

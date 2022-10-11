@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 // @ts-ignore
-import constructErrorString from "utilities/yaml";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import yaml from "js-yaml";
 import paths from "router/paths";
 
@@ -26,7 +26,7 @@ const Agents = ({
   const { ADMIN_TEAMS } = paths;
 
   const [formData, setFormData] = useState<any>({
-    agentOptions: yaml.dump(appConfig.agent_options) || {},
+    agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
 
   const { agentOptions } = formData;

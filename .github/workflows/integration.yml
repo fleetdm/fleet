@@ -1,17 +1,21 @@
-name: Test Fleetctl, Orbit & Preview
-
 # This workflow tests enrolling of agents on the supported platforms,
 # using the latest version of fleet, fleetctl and orbit.
 #
 # It starts the latest release of fleet with the "fleetctl preview" command.
 # It generates the installers for the latest version of Orbit with the
 # "fleetctl package" command.
+name: Test Fleetctl, Orbit & Preview
 
 on:
   workflow_dispatch: # Manual
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
-    
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -27,13 +31,13 @@ jobs:
         UUID=$(uuidgen)
         echo "::set-output name=subdomain::fleet-test-$UUID"
         echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
-  
+
   run-server:
     runs-on: ubuntu-latest
     needs: gen
     steps:
     - name: Start tunnel
-      env: 
+      env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
       run: |
         # Install cloudflared
@@ -103,7 +107,7 @@ jobs:
 
     - name: Cleanup tunnel
       if: always()
-      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
+      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
 
   login:
    runs-on: ubuntu-latest
@@ -120,7 +124,7 @@ jobs:
         name: build
         path: build
         check_artifacts: true
-    
+
     # Login only here and share the token because otherwise we could hit rate limits.
     - id: login
       name: Attempt login
@@ -135,7 +139,7 @@ jobs:
         done
         TOKEN=$(cat ~/.fleet/config| grep token | awk '{ print $2 }')
         echo "::set-output name=token::$TOKEN"
-      
+
   orbit-macos:
     timeout-minutes: 15
     strategy:
@@ -202,7 +206,7 @@ jobs:
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -302,7 +306,7 @@ jobs:
       uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
-    
+
 
     - name: Install Orbit
       run: |

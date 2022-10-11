@@ -206,7 +206,7 @@ type Datastore interface {
 	// different osquery queries failed to populate details.
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
-	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
+	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
@@ -232,8 +232,8 @@ type Datastore interface {
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
-	// If the token is invalid it returns a NotFoundError.
-	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+	// If the token is invalid or expired it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*Host, error)
 	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
@@ -519,6 +519,10 @@ type Datastore interface {
 	// If the node key is invalid it returns a NotFoundError.
 	LoadHostByNodeKey(ctx context.Context, nodeKey string) (*Host, error)
 
+	// LoadHostByOrbitNodeKey loads the whole host identified by the node key.
+	// If the node key is invalid it returns a NotFoundError.
+	LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error)
+
 	// HostLite will load the primary data of the host with the given id.
 	// We define "primary data" as all host information except the
 	// details (like cpu, memory, gigs_disk_space_available, etc.).
@@ -600,6 +604,9 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
+	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
+	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*Host, error)
+
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -620,9 +627,48 @@ type Datastore interface {
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 
-	///////////////////////////////////////////////////////////////////////////////
 	// Windows Update History
 	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM
+
+	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
+	// Such enrollment profiles allow devices to enroll to Fleet MDM.
+	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+
+	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
+	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
+	// The map returned has a result for each target device ID.
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+
+	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
+	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
+
+	// MDMAppleInstaller returns the installer with its contents included (MDMAppleInstaller.Installer) from its token.
+	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
+
+	// MDMAppleInstallerDetailsByID returns the installer details of an installer, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil).
+	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+
+	// DeleteMDMAppleInstaller deletes an installer.
+	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
+
+	// MDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil) from its secret token.
+	MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
+
+	// ListMDMAppleInstallers list all the uploaded installers.
+	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
+
+	// MDMAppleListDevices lists all the MDM enrolled devices.
+	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 }
 
 const (

@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
+import paths from "router/paths";
 
 import {
   IEnrollSecret,
@@ -21,9 +22,11 @@ import { ITeam } from "interfaces/team";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
+import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
+import { ITableQueryData } from "components/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -50,6 +53,7 @@ const Homepage = (): JSX.Element => {
   const {
     config,
     currentTeam,
+    availableTeams,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
@@ -69,7 +73,12 @@ const Homepage = (): JSX.Element => {
   const [onlineCount, setOnlineCount] = useState(0);
   const [offlineCount, setOfflineCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
-  const [showSoftwareUI, setShowSoftwareUI] = useState(false);
+  const [softwareTitleDetail, setSoftwareTitleDetail] = useState<
+    JSX.Element | string | null
+  >("");
+  const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
+  const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
+  const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
@@ -172,6 +181,56 @@ const Homepage = (): JSX.Element => {
     }
   );
 
+  const isSoftwareEnabled = config?.features?.enable_software_inventory;
+  const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
+  const SOFTWARE_DEFAULT_SORT_HEADER = "hosts_count";
+  const SOFTWARE_DEFAULT_PAGE_SIZE = 8;
+
+  const {
+    data: software,
+    isFetching: isSoftwareFetching,
+    error: errorSoftware,
+  } = useQuery<ISoftwareResponse, Error>(
+    [
+      "software",
+      {
+        pageIndex: softwarePageIndex,
+        pageSize: SOFTWARE_DEFAULT_PAGE_SIZE,
+        sortDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
+        sortHeader: SOFTWARE_DEFAULT_SORT_HEADER,
+        teamId: currentTeam?.id,
+        vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
+      },
+    ],
+    () =>
+      softwareAPI.load({
+        page: softwarePageIndex,
+        perPage: SOFTWARE_DEFAULT_PAGE_SIZE,
+        orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
+        orderDir: SOFTWARE_DEFAULT_SORT_DIRECTION,
+        vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
+        teamId: currentTeam?.id,
+      }),
+    {
+      enabled:
+        (isSoftwareEnabled && isOnGlobalTeam) ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
+      keepPreviousData: true,
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
+      onSuccess: (data) => {
+        if (data.software?.length !== 0) {
+          setSoftwareTitleDetail &&
+            setSoftwareTitleDetail(
+              <LastUpdatedText
+                lastUpdatedAt={data.counts_updated_at}
+                whatToRetrieve={"software"}
+              />
+            );
+        }
+      },
+    }
+  );
+
   const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
     IMacadminAggregate,
     Error
@@ -268,6 +327,33 @@ const Homepage = (): JSX.Element => {
     ),
   });
 
+  // NOTE: this is called once on the initial rendering. The initial render of
+  // the TableContainer child component will call this handler.
+  const onSoftwareQueryChange = async ({
+    pageIndex: newPageIndex,
+  }: ITableQueryData) => {
+    if (softwarePageIndex !== newPageIndex) {
+      setSoftwarePageIndex(newPageIndex);
+    }
+  };
+
+  const onSoftwareTabChange = (index: number) => {
+    const { MANAGE_SOFTWARE } = paths;
+    setSoftwareNavTabIndex(index);
+    setSoftwareActionUrl &&
+      setSoftwareActionUrl(
+        index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
+      );
+  };
+
+  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
+  // collecting inventory
+  const isCollectingInventory =
+    !currentTeam?.id &&
+    !softwarePageIndex &&
+    !software?.software &&
+    software?.counts_updated_at === null;
+
   const HostsStatusCard = useInfoCard({
     title: "",
     children: (
@@ -314,12 +400,20 @@ const Homepage = (): JSX.Element => {
       text: "View all software",
       to: "software",
     },
-    showTitle: showSoftwareUI,
+    actionUrl: softwareActionUrl,
+    titleDetail: softwareTitleDetail,
+    showTitle: !isSoftwareFetching,
     children: (
       <Software
-        currentTeamId={currentTeam?.id}
-        setShowSoftwareUI={setShowSoftwareUI}
-        showSoftwareUI={showSoftwareUI}
+        errorSoftware={errorSoftware}
+        isCollectingInventory={isCollectingInventory}
+        isSoftwareFetching={isSoftwareFetching}
+        isSoftwareEnabled={isSoftwareEnabled}
+        software={software}
+        pageIndex={softwarePageIndex}
+        navTabIndex={softwareNavTabIndex}
+        onTabChange={onSoftwareTabChange}
+        onQueryChange={onSoftwareQueryChange}
       />
     ),
   });

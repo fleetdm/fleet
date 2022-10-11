@@ -1,3 +1,5 @@
+import dashboardPage from "../../pages/dashboardPage";
+
 describe("Dashboard", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -5,27 +7,27 @@ describe("Dashboard", () => {
     cy.loginWithCySession();
     cy.viewport(1200, 660);
   });
+
   after(() => {
     cy.logout();
   });
+
   describe("Operating systems card", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/dashboard");
+      dashboardPage.visitsDashboardPage();
     });
+
     it("displays operating systems card if macOS platform is selected", () => {
-      cy.getAttached(".homepage__platform_dropdown").click();
-      cy.getAttached(".Select-menu-outer").within(() => {
-        cy.findAllByText("macOS").click();
-      });
-      cy.getAttached(".operating-systems").should("exist");
+      dashboardPage.switchesPlatform("macOS");
     });
+
     it("displays operating systems card if Windows platform is selected", () => {
-      cy.getAttached(".homepage__platform_dropdown").click();
-      cy.getAttached(".Select-menu-outer").within(() => {
-        cy.findAllByText("Windows").click();
-      });
-      cy.getAttached(".operating-systems").should("exist");
+      dashboardPage.switchesPlatform("Windows");
+    });
+
+    it("displays operating systems card if Linux platform is selected", () => {
+      dashboardPage.switchesPlatform("Linux");
     });
   });
 });

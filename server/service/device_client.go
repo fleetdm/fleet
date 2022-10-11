@@ -2,14 +2,30 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // Device client is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
 type DeviceClient struct {
 	*baseClient
-	token string
+}
+
+// NewDeviceClient instantiates a new client to perform requests against device
+// endpoints
+func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
+	capabilities := fleet.CapabilityMap{}
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", capabilities)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeviceClient{
+		baseClient: baseClient,
+	}, nil
 }
 
 func (dc *DeviceClient) request(verb string, path string, query string, responseDest interface{}) error {
@@ -23,6 +39,7 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 		return err
 	}
 
+	dc.setClientCapabilitiesHeader(request)
 	response, err := dc.http.Do(request)
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
@@ -32,28 +49,45 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-// NewDeviceClient instantiates a new client to perform requests against device
-// endpoints
-func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "")
+// ListDevicePolicies fetches all policies for the device with the provided token
+func (dc *DeviceClient) ListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
+	var responseBody listDevicePoliciesResponse
+	err := dc.request(verb, path, "", &responseBody)
 	if err != nil {
 		return nil, err
 	}
-
-	return &DeviceClient{
-		baseClient: baseClient,
-		token:      token,
-	}, nil
+	return responseBody.Policies, nil
 }
 
-// Get fetches payload used by Fleet Desktop.
-func (dc *DeviceClient) GetDesktopPayload() (*FleetDesktopResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/desktop"
+// TransparencyURL returns an URL that the server will use to redirect to the
+// transparency URL configured by the user
+func (dc *DeviceClient) TransparencyURL(token string) string {
+	return dc.baseClient.url("/api/latest/fleet/device/"+token+"/transparency", "").String()
+}
 
-	var r FleetDesktopResponse
-	err := dc.request(verb, path, "", &r)
-	if err != nil {
-		return nil, err
+// DeviceURL returns the public device URL for the given token
+func (dc *DeviceClient) DeviceURL(token string) string {
+	return dc.baseClient.url("/device/"+token, "").String()
+}
+
+// CheckToken checks if a token is valid by making an authenticated request to
+// the server
+func (dc *DeviceClient) CheckToken(token string) error {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
+	return dc.request(verb, path, "", &FleetDesktopResponse{})
+}
+
+// Ping sends a ping to the server using the device/ping endpoint
+func (dc *DeviceClient) Ping() error {
+	verb, path := "HEAD", "/api/fleet/device/ping"
+	err := dc.request(verb, path, "", nil)
+
+	if err == nil || errors.Is(err, notFoundErr{}) {
+		// notFound is ok, it means an old server without the ping endpoint +
+		// capabilities header
+		return nil
 	}
-	return &r, nil
+
+	return err
 }
