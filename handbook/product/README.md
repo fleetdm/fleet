@@ -1,8 +1,6 @@
 # Product
 
-⚗️ #g-product: https://github.com/orgs/fleetdm/projects/17
-
-🧱📡 Fleet core roadmap: https://github.com/orgs/fleetdm/projects/8
+⚗️ Roadmap: https://github.com/orgs/fleetdm/projects/41/views/2
 
 ## Job to be done
 

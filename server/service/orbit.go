@@ -186,3 +186,52 @@ func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	svc.DisableAuthForPing(ctx)
 	return orbitPingResponse{}, nil
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// SetOrUpdateDeviceToken endpoint
+/////////////////////////////////////////////////////////////////////////////////
+
+type setOrUpdateDeviceTokenRequest struct {
+	OrbitNodeKey    string `json:"orbit_node_key"`
+	DeviceAuthToken string `json:"device_auth_token"`
+}
+
+func (r *setOrUpdateDeviceTokenRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *setOrUpdateDeviceTokenRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type setOrUpdateDeviceTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r setOrUpdateDeviceTokenResponse) error() error { return r.Err }
+
+func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*setOrUpdateDeviceTokenRequest)
+	if err := svc.SetOrUpdateDeviceAuthToken(ctx, req.DeviceAuthToken); err != nil {
+		return setOrUpdateDeviceTokenResponse{Err: err}, nil
+	}
+	return setOrUpdateDeviceTokenResponse{}, nil
+}
+
+func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthToken string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return osqueryError{message: "internal error: missing host from request context"}
+	}
+
+	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
+		return osqueryError{
+			message: fmt.Sprintf("internal error: failed to set or update device auth token: %e", err),
+		}
+	}
+
+	return nil
+}
