@@ -1,0 +1,78 @@
+name: Test DB Changes
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+  pull_request:
+    paths:
+      - 'server/datastore/mysql/schema.sql'
+      - 'server/datastore/mysql/migrations/**.go'
+      - '.github/workflows/test-schema-changes.yml'
+  workflow_dispatch: # Manual
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+jobs:
+  test-db-changes:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      with:
+        go-version: '^1.19.1'
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      with:
+        fetch-depth: 0
+
+    - name: Start Infra Dependencies
+      # Use & to background this
+      run: docker-compose up -d mysql_test &
+
+    - name: Verify test schema changes
+      run: |
+        make dump-test-schema
+        if [[ $(git diff server/datastore/mysql/schema.sql) ]]; then
+          echo "❌ fail: uncommited changes in schema.sql"
+          echo "please run `make dump-test-schema` and commit the changes"
+          exit 1
+        fi
+
+    # TODO: This doesn't cover all scenarios since other PRs might
+    # be merged into `main` after this check has passed.
+    #
+    # We should add a Slack notification or something similar for
+    # when this check fails on `main`.
+    #
+    # TODO: This only checks for added files, we should also check for renames,
+    # which should be more of an edge case, but they might still happen
+    - name: Check migration order
+      run: |
+        # if the workflow is run during a push event (on merges to main and
+        # tags,) use the latest created tag as a reference
+        base_ref=origin/${{github.base_ref}}
+        if [ "${{github.event_name}}" == "push" ]; then
+          base_ref=$(git tag --list "fleet-v*" --sort=-creatordate | head -n 1)
+        fi
+
+        all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
+        new_migrations=($(git diff --find-renames --name-only --diff-filter=A $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go | sort -r))
+
+        index=0
+        for migration in "${new_migrations[@]}"; do
+          if [ "$migration" != "${all_migrations[$index]}" ]; then
+            echo "❌ fail: $migration has an older timestamp than ${all_migrations[$index]}"
+            echo "this might cause problems if this change is merged"
+            echo "please update the timestamp of $migration"
+            exit 1
+          fi
+          index=$((index+1))
+        done
