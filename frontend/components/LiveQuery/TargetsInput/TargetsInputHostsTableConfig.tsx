@@ -31,8 +31,8 @@ export const generateTableHeaders = (
 
   return [
     {
-      title: "Hosts",
-      Header: "Hosts",
+      title: "Host",
+      Header: "Host",
       disableSortBy: true,
       accessor: "display_name",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
