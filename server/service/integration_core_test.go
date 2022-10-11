@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -52,6 +53,31 @@ func TestIntegrations(t *testing.T) {
 	testingSuite := new(integrationTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
+}
+
+type slowReader struct{}
+
+func (s *slowReader) Read(p []byte) (n int, err error) {
+	time.Sleep(3 * time.Second)
+	return 0, nil
+}
+
+func (s *integrationTestSuite) TestSlowOsqueryHost() {
+	t := s.T()
+	s.server.Config.ReadTimeout = 2 * time.Second
+	defer func() {
+		s.server.Config.ReadTimeout = 25 * time.Second
+	}()
+
+	req, err := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/distributed/write", &slowReader{})
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient()
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
 func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
