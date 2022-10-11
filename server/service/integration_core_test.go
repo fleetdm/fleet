@@ -58,12 +58,16 @@ func TestIntegrations(t *testing.T) {
 type slowReader struct{}
 
 func (s *slowReader) Read(p []byte) (n int, err error) {
-	time.Sleep(35 * time.Second)
+	time.Sleep(3 * time.Second)
 	return 0, nil
 }
 
 func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	t := s.T()
+	s.server.Config.ReadTimeout = 2 * time.Second
+	defer func() {
+		s.server.Config.ReadTimeout = 25 * time.Second
+	}()
 
 	req, err := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/distributed/write", &slowReader{})
 	require.NoError(t, err)
