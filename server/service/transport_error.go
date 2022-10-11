@@ -174,7 +174,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		enc.Encode(je)
 	default:
 		// when there's a tcp read timeout, the error is *net.OpError but the cause is an internal
-		// poll.DeadlineExceeded which we cannot match against, so we check the string here
+		// poll.DeadlineExceeded which we cannot match against, so we match against the original error
 		var opErr *net.OpError
 		if errors.As(origErr, &opErr) {
 			w.WriteHeader(http.StatusRequestTimeout)
