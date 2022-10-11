@@ -47,16 +47,17 @@ parasails.registerPage('osquery-table-details', {
     }
     (()=>{
       $('pre code').each((i, block) => {
-        window.hljs.highlightBlock(block);
-      });
-      $('.hljs').each((i, el)=>{
-        let keywordsInExample = _.filter(keywordsForThisTable, (word)=>{
-          return _.includes(_.words(el.innerText, /[^, ]+/g), word);
-        });
-        for(let keyword of keywordsInExample) {
-          let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
-          $(el).html(replacementHMTL);
+        let keywordsInExample = [];
+        for(let keyword of keywordsForThisTable){
+          for(let match of block.innerText.match(keyword)||[]){
+            keywordsInExample.push(match);
+          }
         }
+        for(let keyword of keywordsInExample) {
+          let replacementHMTL = block.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
+          $(block).html(replacementHMTL);
+        }
+        window.hljs.highlightBlock(block);
       });
       // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
       $('.hljs-keyword').each((i, el)=>{
