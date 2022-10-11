@@ -62,6 +62,9 @@ jobs:
     # > script here.  For more info, see: https://github.com/fleetdm/fleet/pull/5549
     - run: rm -f .gitignore
 
+    # build storybook in the website's assets/ folder
+    - run: npm run build-storybook -- -o ./website/assets/storybook
+
     # Download dependencies (including dev deps)
     - run: cd website/ && npm install
 
