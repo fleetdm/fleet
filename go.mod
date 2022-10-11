@@ -25,7 +25,7 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
-	github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77
+	github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547
 	github.com/getlantern/systray v1.2.2-0.20220329111105-6065fda28be8
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
