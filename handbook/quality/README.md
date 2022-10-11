@@ -67,7 +67,7 @@ When reproduced, the assigned engineering manager (EM) is responsible for invest
 After it's in a release formally, the bug should be treated like any other piece of work per the standard engineering process.
 
 ### Fast track for Fleeties
-Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well documented, it can be moved directly to the reproduced state.
+Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 ### Release testing
 When a release is in testing, QA should use the the Slack channel #help-release-bugs to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
@@ -105,10 +105,10 @@ When a critical bug is identified, we will then follow the patch release process
 ### Measurement
 We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
 The metrics are: 
-* # bugs opened this week
+* Number of bugs opened this week
 * total # bugs open 
 * bugs in each state (inbox, acknowledged, reproduced) 
-* # bugs closed this week
+* Number of bugs closed this week
 
 Each week these are tracked and shared in the weekly update by Charlie Chance.
 
