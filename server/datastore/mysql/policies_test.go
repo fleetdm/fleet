@@ -43,6 +43,7 @@ func TestPolicies(t *testing.T) {
 		{"FlippingPoliciesForHost", testFlippingPoliciesForHost},
 		{"PlatformUpdate", testPolicyPlatformUpdate},
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
+		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1090,7 +1091,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 
 		policies, inherited, err = ds.ListTeamPolicies(ctx, team2.ID)
 		require.NoError(t, err)
-		require.Len(t, policies, 0)
+		require.Len(t, policies, 0) // team 2 has no policies of its own
 		require.Len(t, inherited, 1)
 		assert.Equal(t, tm2Inherited, inherited[0].PassingHostCount)
 
@@ -1108,24 +1109,25 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	// host2 passes tm1 and the global (so team1's inherited too), host1 passes the team2's inherited and the global
 	checkPassingCount(1, 1, 1, 2)
 
-	// team policies are not removed when a host is enrolled in the same team
+	// all host policies are removed when a host is enrolled in the same team
 	_, err = ds.EnrollHost(ctx, "2", "2", &team1.ID, 0)
 	require.NoError(t, err)
-	checkPassingCount(1, 1, 1, 2)
+	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is enrolled in a different team
 	_, err = ds.EnrollHost(ctx, "2", "2", &team2.ID, 0)
 	require.NoError(t, err)
 	// both hosts are now in team2
-	checkPassingCount(0, 0, 2, 2)
+	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is re-enrolled without a team
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{team1Policy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 	checkPassingCount(1, 0, 2, 2)
+
+	// all host policies are removed when a host is re-enrolled
 	_, err = ds.EnrollHost(ctx, "2", "2", nil, 0)
 	require.NoError(t, err)
-	// host2 is not part of team2 anymore
-	checkPassingCount(0, 0, 1, 2)
+	checkPassingCount(0, 0, 1, 1)
 }
 
 func testApplyPolicySpec(t *testing.T, ds *Datastore) {
@@ -1918,4 +1920,53 @@ func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts 
 			WHERE id = ?`
 	_, err := ds.writer.ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
 	require.NoError(t, err)
+}
+
+func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alan", "alan@example.com", true)
+	ctx := context.Background()
+	globalPolicy, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "query1",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   "567898",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "4",
+		UUID:            "4",
+		Hostname:        "bar.local",
+	})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(
+		ctx,
+		host,
+		map[uint]*bool{globalPolicy.ID: ptr.Bool(false)},
+		time.Now(),
+		false,
+	)
+	require.NoError(t, err)
+
+	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Len(t, hostPolicies, 1)
+
+	var count int
+	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	err = deleteAllPolicyMemberships(ctx, ds.writer, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
 }

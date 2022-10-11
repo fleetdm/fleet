@@ -1,5 +1,5 @@
 // Package fleethttp provides uniform creation and configuration of HTTP
-// related types.
+// related types used throughout Fleet.
 package fleethttp
 
 import (

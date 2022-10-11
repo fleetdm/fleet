@@ -1,5 +1,7 @@
 import * as path from "path";
 import { format } from "date-fns";
+import manageHostsPage from "../../pages/manageHostsPage";
+import hostDetailsPage from "../../pages/hostDetailsPage";
 
 let hostname = "";
 
@@ -22,12 +24,10 @@ describe("Hosts flow", () => {
   describe("Manage hosts page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it("adds a new host and downloads installation files", () => {
       // Download add hosts files
-      cy.visit("/hosts/manage");
-
       cy.getAttached(".manage-hosts").within(() => {
         cy.contains("button", /add hosts/i).click();
       });
@@ -71,7 +71,6 @@ describe("Hosts flow", () => {
       }
     });
     it(`exports hosts to CSV`, () => {
-      cy.visit("/hosts/manage");
       cy.getAttached(".manage-hosts").within(() => {
         cy.getAttached(".manage-hosts__export-btn").click();
       });
@@ -85,7 +84,6 @@ describe("Hosts flow", () => {
       }
     });
     it(`hides and shows "Used by" column`, () => {
-      cy.visit("/hosts/manage");
       cy.getAttached("thead").within(() =>
         cy.findByText(/used by/i).should("not.exist")
       );
@@ -104,7 +102,7 @@ describe("Hosts flow", () => {
   describe("Manage policies page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it(
       "runs policy on an existing host",
@@ -158,7 +156,7 @@ describe("Hosts flow", () => {
   describe("Host details page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
       cy.getAttached("tbody").within(() => {
         cy.getAttached(".button--text-link").first().click();
       });
@@ -269,23 +267,8 @@ describe("Hosts flow", () => {
       }
     );
     it("deletes an existing host", () => {
-      cy.getAttached(".host-details__action-button-container")
-        .within(() => {
-          cy.findByText(/delete/i).click();
-        })
-        .then(() => {
-          cy.getAttached(".modal__modal_container")
-            .within(() => {
-              cy.findByText(/delete host/i).should("exist");
-              cy.findByRole("button", { name: /delete/i }).click();
-            })
-            .then(() => {
-              cy.findByText(/add your devices to fleet/i).should("exist");
-              cy.findByText(/add hosts/i).should("exist");
-              cy.findByText(/about this host/i).should("not.exist");
-              cy.findByText(hostname).should("not.exist");
-            });
-        });
+      hostDetailsPage.allowsDeleteHost();
+      hostDetailsPage.verifiesDeletedHost(hostname);
     });
   });
 });

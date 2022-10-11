@@ -654,15 +654,6 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
-func (a *agent) orbitInfo() (bool, []map[string]string) {
-	if a.deviceAuthToken != nil {
-		return true, []map[string]string{
-			{"device_auth_token": *a.deviceAuthToken, "version": "osquery-perf"},
-		}
-	}
-	return false, nil // vanilla osquery returns no results (due to discovery query).
-}
-
 func (a *agent) mdm() []map[string]string {
 	possibleURLs := []string{
 		"https://kandji.com/1",
@@ -793,11 +784,6 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK
-	case name == hostDetailQueryPrefix+"orbit_info":
-		if ok, results := a.orbitInfo(); ok {
-			return true, results, &statusOK
-		}
-		return true, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {

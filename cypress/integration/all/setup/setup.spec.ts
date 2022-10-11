@@ -48,7 +48,7 @@ describe("Setup", () => {
     fillOutForm();
 
     cy.url().should("match", /\/hosts\/manage$/i);
-    cy.contains(/all hosts/i);
+    cy.contains(/add your devices/i);
   });
 
   it("shows messaging when there is an error during setup", () => {

@@ -5,7 +5,8 @@ import { useErrorHandler } from "react-error-boundary";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
+import { QUERIES_PAGE_STEPS } from "utilities/constants";
+import { DEFAULT_POLICY } from "pages/policies/constants";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";

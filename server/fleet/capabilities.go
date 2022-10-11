@@ -49,6 +49,9 @@ const (
 	// `/api/fleet/orbit`, and allow enrolling a host through Orbit among other
 	// functionality.
 	CapabilityOrbitEndpoints Capability = "orbit_endpoints"
+	// CapabilityTokenRotation denotes the ability of the server to support
+	// periodic rotation of device tokens
+	CapabilityTokenRotation Capability = "token_rotation"
 )
 
 // ServerOrbitCapabilities is a set of capabilities that server-side,
@@ -56,6 +59,7 @@ const (
 // **it shouldn't be modified at runtime**
 var ServerOrbitCapabilities = CapabilityMap{
 	CapabilityOrbitEndpoints: {},
+	CapabilityTokenRotation:  {},
 }
 
 // ServerDeviceCapabilities is a set of capabilities that server-side,

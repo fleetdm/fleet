@@ -62,6 +62,7 @@ export default PropTypes.shape({
   query_results: PropTypes.arrayOf(hostQueryResult),
 });
 
+export type HostStatus = "online" | "offline" | "new";
 export interface IDeviceUser {
   email: string;
   source: string;
@@ -165,7 +166,7 @@ export interface IHost {
     total_issues_count: number;
     failing_policies_count: number;
   };
-  status: string;
+  status: HostStatus;
   display_text: string;
   target_type?: string;
   users: IHostUser[];

@@ -1,3 +1,38 @@
+## Fleet 4.21.0 (Sep 28, 2022)
+
+* Fleet Premium: Added the ability to know how many hosts and which hosts, on a team, are failing a global policy.
+
+* Added validation to the `config` and `teams` configuration files. Fleet can be managed with [configuration files (YAML syntax)](https://fleetdm.com/docs/using-fleet/configuration-files) and the fleetctl command line tool. 
+
+* Added the ability to manage osquery flags remotely. This requires [Orbit, Fleet's agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager). If at some point you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. To manage osquery flags on these hosts, we recommend deploying a new package. Check out the instructions [here on GitHub](https://github.com/fleetdm/fleet/issues/7377).
+
+* Added a `/api/v1/fleet/device/{token}/desktop` API route that returns only the number of failing policies for a specific host.
+
+* Added support for kubequery.
+
+* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-installers).
+
+* Made cards on the **Home** page clickable.
+
+* Added es_process_file_events, password_policy, and windows_update_history tables to osquery.
+
+* Added activity items to capture when, and by who, agent options are edited.
+
+* Added logging to capture the user’s email upon successful login.
+
+* Increased the size of placeholder text from extra small to small.
+
+* Fixed an error that cleared the form when adding a new integration.
+
+* Fixed an error generating Windows packages with the fleetctl package on non-English localizations of Windows.
+
+* Fixed a bug that showed the small screen overlay when trying to print.
+
+* Fixed the UI bug that caused the label filter dropdown to go under the table header.
+
+* Fixed side panel tooltips to not be wider than side panel causing scroll bug.
+
+
 ## Fleet 4.20.1 (Sep 15, 2022)
 
 **This is a security release.**
