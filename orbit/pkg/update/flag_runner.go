@@ -16,14 +16,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// OrbitConfigFetcher allows fetching Orbit configuration.
+type OrbitConfigFetcher interface {
+	// GetConfig returns the Orbit configuration.
+	GetConfig() (*service.OrbitConfig, error)
+}
+
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
 // It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
-	orbitClient *service.OrbitClient
-	opt         FlagUpdateOptions
-	cancel      chan struct{}
+	configFetcher OrbitConfigFetcher
+	opt           FlagUpdateOptions
+	cancel        chan struct{}
 }
 
 // FlagUpdateOptions is options provided for the flag update runner
@@ -36,11 +42,11 @@ type FlagUpdateOptions struct {
 
 // NewFlagRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) *FlagRunner {
+func NewFlagRunner(configFetcher OrbitConfigFetcher, opt FlagUpdateOptions) *FlagRunner {
 	return &FlagRunner{
-		orbitClient: orbitClient,
-		opt:         opt,
-		cancel:      make(chan struct{}),
+		configFetcher: configFetcher,
+		opt:           opt,
+		cancel:        make(chan struct{}),
 	}
 }
 
@@ -93,7 +99,7 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	}
 
 	// next GetConfig from Fleet API
-	config, err := r.orbitClient.GetConfig()
+	config, err := r.configFetcher.GetConfig()
 	if err != nil {
 		return false, fmt.Errorf("error getting flags from fleet: %w", err)
 	}
@@ -120,20 +126,19 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	return true, nil
 }
 
-// getFlagsFromJSON converts the json of the type below
-// {"number": 5, "string": "str", "boolean": true}
-// to a map[string]string
-// this map will get compared and written to the filesystem and passed to osquery
-// this only supports simple key:value pairs and not nested structures
+// getFlagsFromJSON converts a json document of the form
+// `{"number": 5, "string": "str", "boolean": true}` to a map[string]string.
+//
+// This only supports simple key:value pairs and not nested structures.
+//
+// Returns an empty map if flags is nil or an empty JSON `{}`.
 func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
-	result := make(map[string]string)
-
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(flags), &data)
 	if err != nil {
 		return nil, err
 	}
-
+	result := make(map[string]string)
 	for k, v := range data {
 		switch t := v.(type) {
 		case string:
@@ -146,7 +151,6 @@ func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
 			result["--"+k] = fmt.Sprintf("%v", v)
 		}
 	}
-
 	return result, nil
 }
 
@@ -170,29 +174,51 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 	return nil
 }
 
-// readFlagFile reads and parses the osquery.flags file on disk
-// and returns a map[string]string, of the form:
-// {"--foo":"bar","--value":"5"}
-// this only supports simple key:value pairs and not nested structures
+// readFlagFile reads and parses the osquery.flags file on disk of the form
+//
+//	--foo="bar"
+//	--bar=5
+//	--zoo=true
+//	--verbose
+//
+// and returns a map[string]string:
+//
+//	{"--foo": "bar", "--bar": 5, "--zoo", "--verbose": ""}
+//
+// This only supports simple key:value pairs and not nested structures.
+//
+// Returns:
+//   - an error if the file does not exist.
+//   - an empty map if the file is empty.
 func readFlagFile(rootDir string) (map[string]string, error) {
 	flagfile := filepath.Join(rootDir, "osquery.flags")
 	bytes, err := os.ReadFile(flagfile)
 	if err != nil {
 		return nil, fmt.Errorf("reading flagfile %s failed: %w", flagfile, err)
 	}
+	content := strings.TrimSpace(string(bytes))
 	result := make(map[string]string)
-	lines := strings.Split(strings.TrimSpace(string(bytes)), "\n")
+	if len(content) == 0 {
+		return result, nil
+	}
+	lines := strings.Split(content, "\n")
 	for _, line := range lines {
+		line := strings.TrimSpace(line)
+		// skip any empty lines
+		if line == "" {
+			continue
+		}
 		// skip line starting with "#" indicating that it's a comment
-		if !strings.HasPrefix(line, "#") {
-			// split each line by "="
-			str := strings.Split(strings.TrimSpace(line), "=")
-			if len(str) == 2 {
-				result[str[0]] = str[1]
-			}
-			if len(str) == 1 {
-				result[str[0]] = ""
-			}
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		// split each line by "="
+		str := strings.Split(line, "=")
+		if len(str) == 2 {
+			result[str[0]] = str[1]
+		}
+		if len(str) == 1 {
+			result[str[0]] = ""
 		}
 	}
 	return result, nil
