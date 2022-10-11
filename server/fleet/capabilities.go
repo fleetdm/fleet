@@ -52,8 +52,6 @@ const (
 	// CapabilityTokenRotation denotes the ability of the server to support
 	// periodic rotation of device tokens
 	CapabilityTokenRotation Capability = "token_rotation"
-	// Whether the backend supports the 'fleet/device/{token}/desktop' endpoint.
-	CapabilityDesktopEndpoint Capability = "desktop_lightweight_endpoint"
 )
 
 // ServerOrbitCapabilities is a set of capabilities that server-side,
@@ -67,9 +65,7 @@ var ServerOrbitCapabilities = CapabilityMap{
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.
 // **it shouldn't be modified at runtime**
-var ServerDeviceCapabilities = CapabilityMap{
-	CapabilityDesktopEndpoint: {},
-}
+var ServerDeviceCapabilities = CapabilityMap{}
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.
 const CapabilitiesHeader = "X-Fleet-Capabilities"
