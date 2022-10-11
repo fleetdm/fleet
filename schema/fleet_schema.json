@@ -16,6 +16,11 @@
     "examples": "List applications that are able to receive inbound connections across the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions;\n```"
   },
   {
+    "name": "alf_explicit_auths",
+    "examples": "List applications were granted explicit access through the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions;\n```",
+    "notes": "This table is currently affected by a [bug](https://github.com/osquery/osquery/issues/2322) and not returning applications visible in the preferences interface."
+  },
+  {
     "name": "app_schemes",
     "examples": "List applications that have registered the URL scheme \"mailto\" to handle email links.\n```\nSELECT * FROM app_schemes WHERE scheme='mailto';\n```"
   },
