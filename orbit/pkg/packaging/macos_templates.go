@@ -60,6 +60,8 @@ DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
 pkill fleet-desktop || true
 # Remove any pre-existing version of the config
 launchctl bootout "system/${DAEMON_LABEL}"
+# Give enough time for service to terminate.
+sleep 30
 # Add the daemon to the launchd system
 launchctl bootstrap system "${DAEMON_PLIST}"
 # Enable the daemon
