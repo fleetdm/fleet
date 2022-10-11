@@ -45,18 +45,26 @@ parasails.registerPage('osquery-table-details', {
     if(this.tableToDisplay.keywordsForSyntaxHighlighting){
       keywordsForThisTable = this.tableToDisplay.keywordsForSyntaxHighlighting;
     }
+    keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
+      if(a.length > b.length){
+        return -1;
+      }
+    });
     (()=>{
       $('pre code').each((i, block) => {
-        let keywordsInExample = [];
-        for(let keyword of keywordsForThisTable){
+        let keywordsToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
           for(let match of block.innerText.match(keyword)||[]){
-            keywordsInExample.push(match);
+            keywordsToHighlight.push(match);
           }
         }
-        for(let keyword of keywordsInExample) {
-          let replacementHMTL = block.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
-          $(block).html(replacementHMTL);
+        // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
+        let replacementHMTL = block.innerHTML;
+        for(let keywordInExample of keywordsToHighlight) {
+          replacementHMTL = replacementHMTL.replaceAll(keywordInExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
         }
+        $(block).html(replacementHMTL);
+        // After we've highlighted our keywords, we'll highlight the rest of the codeblock
         window.hljs.highlightBlock(block);
       });
       // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
