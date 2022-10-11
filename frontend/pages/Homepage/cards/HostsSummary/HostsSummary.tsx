@@ -1,8 +1,10 @@
 import React, { useEffect } from "react";
-import paths from "router/paths";
+import PATHS from "router/paths";
 
 import { ILabelSummary } from "interfaces/label";
-import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
+import { ISelectedPlatform } from "interfaces/platform";
+
+import { buildQueryStringFromParams } from "utilities/url";
 
 import DataError from "components/DataError";
 import SummaryTile from "./SummaryTile";
@@ -21,7 +23,8 @@ interface IHostSummaryProps {
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
   errorHosts: boolean;
-  selectedPlatform: string;
+  selectedPlatform?: ISelectedPlatform;
+  selectedPlatformLabelId?: number;
   labels?: ILabelSummary[];
   setActionURL?: (url: string) => void;
 }
@@ -35,40 +38,26 @@ const HostsSummary = ({
   showHostsUI,
   errorHosts,
   selectedPlatform,
+  selectedPlatformLabelId,
   labels,
   setActionURL,
 }: IHostSummaryProps): JSX.Element => {
-  const { MANAGE_HOSTS } = paths;
-
-  const getLabel = (
-    labelString: string,
-    summaryLabels: ILabelSummary[]
-  ): ILabelSummary | undefined => {
-    return Object.values(summaryLabels).find((label: ILabelSummary) => {
-      return label.label_type === "builtin" && label.name === labelString;
-    });
-  };
-
   // build the manage hosts URL
   useEffect(() => {
     if (labels) {
-      let hostsURL = MANAGE_HOSTS;
+      const queryParams = {
+        team_id: currentTeamId,
+      };
 
-      if (selectedPlatform) {
-        const labelValue =
-          PLATFORM_NAME_TO_LABEL_NAME[
-            selectedPlatform as keyof typeof PLATFORM_NAME_TO_LABEL_NAME
-          ];
-        hostsURL += `/manage/labels/${getLabel(labelValue, labels)?.id}`;
-      }
+      const queryString = buildQueryStringFromParams(queryParams);
+      const endpoint = selectedPlatformLabelId
+        ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
+        : PATHS.MANAGE_HOSTS;
+      const path = `${endpoint}?${queryString}`;
 
-      if (currentTeamId) {
-        hostsURL += `/?team_id=${currentTeamId}`;
-      }
-
-      setActionURL && setActionURL(hostsURL);
+      setActionURL && setActionURL(path);
     }
-  }, [labels, selectedPlatform, currentTeamId]);
+  }, [labels, selectedPlatformLabelId, currentTeamId]);
 
   // Renders semi-transparent screen as host information is loading
   let opacity = { opacity: 0 };
@@ -83,7 +72,7 @@ const HostsSummary = ({
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
       title="macOS hosts"
-      path={paths.MANAGE_HOSTS_LABEL(7)}
+      path={PATHS.MANAGE_HOSTS_LABEL(7)}
     />
   );
 
@@ -94,7 +83,7 @@ const HostsSummary = ({
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
       title="Windows hosts"
-      path={paths.MANAGE_HOSTS_LABEL(10)}
+      path={PATHS.MANAGE_HOSTS_LABEL(10)}
     />
   );
 
@@ -105,7 +94,7 @@ const HostsSummary = ({
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
       title="Linux hosts"
-      path={paths.MANAGE_HOSTS_LABEL(12)}
+      path={PATHS.MANAGE_HOSTS_LABEL(12)}
     />
   );
 

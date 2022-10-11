@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
@@ -17,7 +17,7 @@ import {
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { ISelectedPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
@@ -25,7 +25,10 @@ import macadminsAPI from "services/entities/macadmins";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
-import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
+import {
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "utilities/constants";
 import { ITableQueryData } from "components/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
@@ -69,7 +72,11 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>();
+  const [
+    selectedPlatformLabelId,
+    setSelectedPlatformLabelId,
+  ] = useState<number>();
   const [labels, setLabels] = useState<ILabelSummary[]>();
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
@@ -140,9 +147,9 @@ const Homepage = (): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
-        if (isPremiumTier && data.low_disk_space_count) {
+        if (isPremiumTier) {
           setMissingCount(data.missing_30_days_count || 0);
-          setLowDiskSpaceCount(data.low_disk_space_count);
+          setLowDiskSpaceCount(data.low_disk_space_count || 0);
         }
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
@@ -295,6 +302,28 @@ const Homepage = (): JSX.Element => {
     }
   );
 
+  // Sets selected platform label id for links to filtered manage host page
+  useEffect(() => {
+    if (labels) {
+      const getLabel = (
+        labelString: string,
+        summaryLabels: ILabelSummary[]
+      ): ILabelSummary | undefined => {
+        return Object.values(summaryLabels).find((label: ILabelSummary) => {
+          return label.label_type === "builtin" && label.name === labelString;
+        });
+      };
+
+      if (selectedPlatform) {
+        const labelValue =
+          PLATFORM_NAME_TO_LABEL_NAME[
+            selectedPlatform as keyof typeof PLATFORM_NAME_TO_LABEL_NAME
+          ];
+        setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+      }
+    }
+  }, [labels, selectedPlatform]);
+
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -326,7 +355,7 @@ const Homepage = (): JSX.Element => {
         linuxCount={linuxCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
-        selectedPlatform={selectedPlatform}
+        selectedPlatform={selectedPlatform || ""}
         labels={labels}
         errorHosts={!!errorHosts}
       />
@@ -367,6 +396,7 @@ const Homepage = (): JSX.Element => {
         missingCount={missingCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });
@@ -379,6 +409,7 @@ const Homepage = (): JSX.Element => {
         lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });
@@ -495,7 +526,7 @@ const Homepage = (): JSX.Element => {
     children: (
       <OperatingSystems
         currentTeamId={currentTeam?.id}
-        selectedPlatform={selectedPlatform as IOsqueryPlatform}
+        selectedPlatform={selectedPlatform || ""}
         showTitle={showOperatingSystemsUI}
         setShowTitle={setShowOperatingSystemsUI}
       />
@@ -597,11 +628,11 @@ const Homepage = (): JSX.Element => {
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <Dropdown
-            value={selectedPlatform}
+            value={selectedPlatform || ""}
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: string) => setSelectedPlatform(value)}
+            onChange={(value: ISelectedPlatform) => setSelectedPlatform(value)}
           />
         </div>
         <div className="host-sections">

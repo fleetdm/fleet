@@ -52,17 +52,17 @@ describe("Premium tier - Maintainer user", () => {
       });
       it("displays cards for windows only and filters hosts by Windows platform", () => {
         dashboardPage.switchesPlatform("Windows");
-        dashboardPage.displaysCards("Windows");
+        dashboardPage.displaysCards("Windows", "premium");
         dashboardPage.verifiesFilteredHostByPlatform("Windows");
       });
       it("displays cards for linux only and filters hosts by Linux platform", () => {
         dashboardPage.switchesPlatform("Linux");
-        dashboardPage.displaysCards("Linux");
+        dashboardPage.displaysCards("Linux", "premium");
         dashboardPage.verifiesFilteredHostByPlatform("Linux");
       });
       it("displays cards for macOS only and filters hosts by macOS platform", () => {
         dashboardPage.switchesPlatform("macOS");
-        dashboardPage.displaysCards("macOS");
+        dashboardPage.displaysCards("macOS", "premium");
         dashboardPage.verifiesFilteredHostByPlatform("macOS");
       });
     });
