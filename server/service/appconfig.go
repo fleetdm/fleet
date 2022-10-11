@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -277,8 +278,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// We apply the config that is incoming to the old one
 	appConfig.EnableStrictDecoding()
 	if err := json.Unmarshal(p, &appConfig); err != nil {
-		// TODO(mna): error message needs to be translated
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
@@ -301,13 +302,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
-		// TODO(mna): error message needs to be translated
 		if err := fleet.ValidateJSONAgentOptions(*appConfig.AgentOptions); err != nil {
+			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
 			}
 			if !applyOpts.Force {
-				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
 			}
 		}
 	}
