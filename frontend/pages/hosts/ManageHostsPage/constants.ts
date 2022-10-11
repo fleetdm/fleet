@@ -1,4 +1,3 @@
-export const ALL_HOSTS_LABEL = "all-hosts";
 export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "hostname";
@@ -9,7 +8,7 @@ export const HOST_SELECT_STATUSES = [
   {
     disabled: false,
     label: "All hosts",
-    value: ALL_HOSTS_LABEL,
+    value: "",
     helpText: "All hosts that have been enrolled to Fleet.",
   },
   {

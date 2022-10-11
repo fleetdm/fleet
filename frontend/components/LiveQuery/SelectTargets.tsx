@@ -325,7 +325,12 @@ const SelectTargets = ({
     if (isFetchingCounts) {
       return (
         <>
-          <Spinner small />
+          <Spinner
+            size={"x-small"}
+            includeContainer={false}
+            centered={false}
+            className={`${baseClass}__count-spinner`}
+          />
           <i style={{ color: "#8b8fa2" }}>Counting hosts</i>
         </>
       );

@@ -71,6 +71,7 @@
   },
   {
     "name": "certificates",
+    "description": "[Certificate authorities](https://en.wikipedia.org/wiki/Certificate_authority) installed in Keychains/ca-bundles.",
     "examples": "Replace 1QAZ2WSX with your Apple Developer ID, if you have one. This query will then let you identify Macs that have a copy of your code signing and notarization certificates.\n```\nSELECT * FROM certificates WHERE common_\"name\" LIKE '%%1QAZ2SWX%%';\n```",
     "columns": [
       {
@@ -684,6 +685,15 @@
   {
     "name": "docker_images",
     "examples": "See how much storage is used by Docker images. Requires Docker to be running.\n```\nSELECT ROUND(SUM(size_bytes * 10e-10),2) as gigabytes_of_images FROM docker_images; \n```"
+  },
+  {
+    "name": "docker_volumes",
+    "columns": [
+      {
+        "name": "name",
+        "description": "Volume name from `docker volume ls`"
+      }
+    ]
   },
   {
     "name": "pci_devices",

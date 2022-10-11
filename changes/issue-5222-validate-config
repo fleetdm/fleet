@@ -1,1 +1,0 @@
-* Added validation to raise errors if unknown keys or invalid values are passed to update the organization settings (including the agent options) or the team's agent options.

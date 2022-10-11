@@ -131,16 +131,37 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	var vulns []fleet.SoftwareVulnerability
+	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
+	// NVD feed file.
+	vulns := make(map[string]fleet.SoftwareVulnerability)
 	for _, file := range files {
-		r, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
+		foundVulns, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
 		if err != nil {
 			return nil, err
 		}
-		vulns = append(vulns, r...)
+
+		for _, e := range foundVulns {
+			vulns[e.Key()] = e
+		}
 	}
 
-	return vulns, nil
+	var newVulns []fleet.SoftwareVulnerability
+	for _, vuln := range vulns {
+		newCount, err := ds.InsertVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
+		if err != nil {
+			level.Error(logger).Log("cpe processing", "error", "err", err)
+			continue
+		}
+
+		// collect vuln only if newCount > 0, otherwise we would send
+		// webhook requests for the same vulnerability over and over again until
+		// it is older than 2 days.
+		if collectVulns && newCount > 0 {
+			newVulns = append(newVulns, vuln)
+		}
+	}
+
+	return newVulns, nil
 }
 
 func checkCVEs(
@@ -161,7 +182,7 @@ func checkCVEs(
 	// cache.Idx = cvefeed.NewIndex(dict)
 
 	softwareCPECh := make(chan softwareCPEWithNVDMeta)
-	foundVulnsBySoftware := make(map[string]fleet.SoftwareVulnerability)
+	var foundVulns []fleet.SoftwareVulnerability
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -195,7 +216,7 @@ func checkCVEs(
 						}
 
 						mu.Lock()
-						foundVulnsBySoftware[vuln.Key()] = vuln
+						foundVulns = append(foundVulns, vuln)
 						mu.Unlock()
 
 					}
@@ -208,6 +229,7 @@ func checkCVEs(
 	}
 
 	level.Debug(logger).Log("pushing cpes", "start")
+
 	for _, cpe := range softwareCPEs {
 		softwareCPECh <- cpe
 	}
@@ -215,21 +237,5 @@ func checkCVEs(
 	level.Debug(logger).Log("pushing cpes", "done")
 	wg.Wait()
 
-	var newVulns []fleet.SoftwareVulnerability
-	for _, vuln := range foundVulnsBySoftware {
-		newCount, err := ds.InsertVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
-
-		// collect vuln only if newCount > 0, otherwise we would send
-		// webhook requests for the same vulnerability over and over again until
-		// it is older than 2 days.
-		if collectVulns && newCount > 0 {
-			newVulns = append(newVulns, vuln)
-		}
-	}
-
-	return newVulns, nil
+	return foundVulns, nil
 }

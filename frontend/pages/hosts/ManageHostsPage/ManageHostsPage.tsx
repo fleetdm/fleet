@@ -67,7 +67,6 @@ import {
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import {
-  ALL_HOSTS_LABEL,
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
@@ -249,6 +248,9 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
+  const status = isAcceptableStatus(queryParams?.status)
+    ? queryParams?.status
+    : undefined;
   const mdmId =
     queryParams?.mdm_id !== undefined
       ? parseInt(queryParams?.mdm_id, 10)
@@ -265,7 +267,6 @@ const ManageHostsPage = ({
   const selectedFilters: string[] = [];
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
   activeLabel && selectedFilters.push(activeLabel);
-  !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL); // "all-hosts" should always be alone
   // ===== end filter matching
 
   const canEnrollHosts =
@@ -402,10 +403,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const getStatusSelected = () => {
-    return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
-  };
-
   const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
 
@@ -505,6 +502,7 @@ const ManageHostsPage = ({
       selectedFilters[0];
 
     const selected = find(labels, ["slug", slugToFind]) as ILabel;
+
     setSelectedLabel(selected);
 
     const options: ILoadHostsOptions = {
@@ -515,6 +513,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
       osId,
@@ -543,39 +542,12 @@ const ManageHostsPage = ({
       filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
-    if (!slug) {
-      return false;
-    }
-
     const { MANAGE_HOSTS } = PATHS;
-    const isAllHosts = slug === ALL_HOSTS_LABEL;
-    const newFilters = [...selectedFilters];
-
-    if (!isAllHosts) {
-      // always remove "all-hosts" from the filters first because we don't want
-      // something like ["label/8", "all-hosts"]
-      const allIndex = newFilters.findIndex((f) => f.includes(ALL_HOSTS_LABEL));
-      allIndex > -1 && newFilters.splice(allIndex, 1);
-
-      // replace slug for new params
-      let index;
-      if (slug.includes(LABEL_SLUG_PREFIX)) {
-        index = newFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
-      } else {
-        index = newFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
-      }
-
-      if (index > -1) {
-        newFilters.splice(index, 1, slug);
-      } else {
-        newFilters.push(slug);
-      }
-    }
 
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
     let newQueryParams = queryParams;
-    if (newFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) {
+    if (slug) {
       newQueryParams = omit(newQueryParams, [
         "policy_id",
         "policy_response",
@@ -585,9 +557,7 @@ const ManageHostsPage = ({
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: isAllHosts
-          ? MANAGE_HOSTS
-          : `${MANAGE_HOSTS}/${newFilters.join("/")}`,
+        pathPrefix: `${MANAGE_HOSTS}/${slug}`,
         queryParams: newQueryParams,
       })
     );
@@ -617,6 +587,19 @@ const ManageHostsPage = ({
           policy_id: policyId,
           policy_response: response,
         }),
+      })
+    );
+  };
+
+  const handleClearRouteParam = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams: undefined,
+        queryParams,
       })
     );
   };
@@ -688,14 +671,16 @@ const ManageHostsPage = ({
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
-    // we want the full label object
-    const isAll = statusName === ALL_HOSTS_LABEL;
-    const selected = isAll
-      ? find(labels, { type: "all" })
-      : find(labels, { id: statusName });
     handleResetPageIndex();
 
-    handleLabelChange(selected as ILabel);
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: { ...queryParams, status: statusName },
+      })
+    );
   };
 
   const onAddLabelClick = () => {
@@ -773,6 +758,10 @@ const ManageHostsPage = ({
         newQueryParams.policy_id = policyId;
       }
 
+      if (status) {
+        newQueryParams.status = status;
+      }
+
       if (policyResponse) {
         newQueryParams.policy_response = policyResponse;
       }
@@ -828,6 +817,7 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
       osId,
@@ -939,13 +929,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const onClearLabelFilter = () => {
-    const allHostsLabel = labels?.find((label) => label.name === "All Hosts");
-    if (allHostsLabel !== undefined) {
-      handleLabelChange(allHostsLabel);
-    }
-  };
-
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
@@ -993,22 +976,14 @@ const ManageHostsPage = ({
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let status = "";
-      let labelId = null;
-      const selectedStatus = getStatusSelected();
+      const labelId = selectedLabel?.id;
 
-      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
-        status = getStatusSelected() || "";
-      } else {
-        labelId = selectedLabel?.id as number;
-      }
-
-      action = hostsAPI.transferToTeamByFilter(
+      action = hostsAPI.transferToTeamByFilter({
         teamId,
-        searchQuery,
+        query: searchQuery,
         status,
-        labelId
-      );
+        labelId,
+      });
     }
 
     try {
@@ -1029,6 +1004,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        status,
         mdmId,
         mdmEnrollmentStatus,
         osId,
@@ -1053,18 +1029,16 @@ const ManageHostsPage = ({
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let status = "";
-      let labelId = null;
       const teamId = currentTeam?.id || null;
-      const selectedStatus = getStatusSelected();
 
-      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
-        status = getStatusSelected() || "";
-      } else {
-        labelId = selectedLabel?.id as number;
-      }
+      const labelId = selectedLabel?.id;
 
-      action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
+      action = hostsAPI.destroyByFilter({
+        teamId,
+        query: searchQuery,
+        status,
+        labelId,
+      });
     }
 
     try {
@@ -1084,6 +1058,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        status,
         mdmId,
         mdmEnrollmentStatus,
         osId,
@@ -1130,7 +1105,7 @@ const ManageHostsPage = ({
           <FilterPill
             label={pillLabel}
             tooltipDescription={description}
-            onClear={onClearLabelFilter}
+            onClear={handleClearRouteParam}
           />
           {label_type !== "builtin" && !isOnlyObserver && (
             <>
@@ -1480,6 +1455,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
       os_id: osId,
@@ -1549,10 +1525,7 @@ const ManageHostsPage = ({
   }, [isHostCountLoading, filteredHostCount]);
 
   const renderActiveFilterBlock = () => {
-    const showSelectedLabel =
-      selectedLabel &&
-      selectedLabel.type !== "all" &&
-      selectedLabel.type !== "status";
+    const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
     if (
       showSelectedLabel ||
@@ -1606,7 +1579,7 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
-          value={getStatusSelected() || ALL_HOSTS_LABEL}
+          value={status || ""}
           className={`${baseClass}__status_dropdown`}
           options={HOST_SELECT_STATUSES}
           searchable={false}
@@ -1629,9 +1602,9 @@ const ManageHostsPage = ({
       !config ||
       !currentUser ||
       !hosts ||
-      selectedFilters.length === 0 ||
-      selectedLabel === undefined ||
-      !teamSync
+      !teamSync ||
+      isHostCountLoading ||
+      isHostsLoading
     ) {
       return <Spinner />;
     }
@@ -1642,12 +1615,11 @@ const ManageHostsPage = ({
 
     // There are no hosts for this instance yet
     if (
-      getStatusSelected() === ALL_HOSTS_LABEL &&
-      !isHostCountLoading &&
+      !status &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
-      !isHostsLoading &&
-      teamSync
+      teamSync &&
+      !labelID
     ) {
       const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
         queryParams || {};
@@ -1790,13 +1762,11 @@ const ManageHostsPage = ({
                 !hasHostErrors &&
                 !hasHostCountErrors &&
                 !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  selectedLabel?.count === 0
-                ) &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  !status &&
                   filteredHostCount === 0 &&
-                  searchQuery === ""
+                  searchQuery === "" &&
+                  teamSync &&
+                  !labelID
                 ) && (
                   <Button
                     onClick={toggleAddHostsModal}

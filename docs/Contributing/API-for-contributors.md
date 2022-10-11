@@ -1,7 +1,7 @@
 # API for contributors
 
 - [Packs](#packs)
-- [Get or apply configuration files](#get-or-apply-configuration-files) 
+- [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
@@ -523,7 +523,7 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get queries](#get-queries)
 - [Get query](#get-query)
 - [Apply queries](#apply-queries)
-- [Apply policies](#aaply-policies) 
+- [Apply policies](#aaply-policies)
 - [Get packs](#get-packs)
 - [Apply packs](#apply-packs)
 - [Get pack by name](#get-pack-by-name)
@@ -1011,7 +1011,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | name          | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
 | agent_options | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
 | features      | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
-| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                 |
+| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                                   |
 | force         | bool   | query | Force apply the options even if there are validation errors.                                                                                                                                                                        |
 | dry_run       | bool   | query | Validate the options and return any validation errors, but do not apply the changes.                                                                                                                                                |
 
@@ -1264,9 +1264,9 @@ This replaces the active global enroll secrets with the secrets specified.
 
 #### Parameters
 
-| Name   | Type   | In   | Description                                                    |
-| ------ | ------ | ---- | -------------------------------------------------------------- |
-| secret | string | body | **Required.** The plain text string used as the enroll secret. |
+| Name    | Type   | In   | Description                                                    |
+| ------  | ------ | ---- | -------------------------------------------------------------- |
+| secrets | list   | body | **Required.** The plain text string used as the enroll secret. Note that there is a limit of 50 secrets allowed. |
 
 #### Example
 
@@ -1409,6 +1409,7 @@ for which the user has an observer role.
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "foof41482833",
+        "display_name": "foof41482833",
         "primary_ip": "172.20.0.3",
         "primary_mac": "02:42:ac:14:00:03",
         "distributed_interval": 10,
@@ -2025,6 +2026,7 @@ Returns the host information about the device that makes the request.
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
+    "display_name": "23cfc9caacf0",
     "public_ip": "",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",

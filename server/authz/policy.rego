@@ -510,3 +510,49 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, observer][_]
   action == read
 }
+
+##
+# Apple MDM
+##
+
+# Global admins can read and write Apple MDM enrollments.
+allow {
+  object.type == "mdm_apple_enrollment_profile"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write Apple commands.
+allow {
+  object.type == "mdm_apple_command"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write Apple MDM command results.
+allow {
+  object.type == "mdm_apple_command_result"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write Apple MDM installers.
+allow {
+  object.type == "mdm_apple_installer"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write Apple devices.
+allow {
+  object.type == "mdm_apple_device"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write Apple DEP devices.
+allow {
+  object.type == "mdm_apple_dep_device"
+  subject.global_role == admin
+  action == [read, write][_]
+}
