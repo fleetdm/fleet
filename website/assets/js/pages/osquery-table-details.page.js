@@ -54,7 +54,7 @@ parasails.registerPage('osquery-table-details', {
       $('pre code').each((i, block) => {
         let keywordsToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerText.match(keyword)||[]){
+          for(let match of block.innerHTML.match(keyword)||[]){
             keywordsToHighlight.push(match);
           }
         }
