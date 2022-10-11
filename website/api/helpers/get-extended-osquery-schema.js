@@ -7,6 +7,13 @@ module.exports = {
   description: 'Get the extended osquery schema and documentation supported by Fleet by reading the raw osquery tables and Fleet\'s overrides from disk, then returning the extended set of tables.',
 
 
+  inputs: {
+    normalizePlatformNamesForMarkdownPages:{
+      type: 'boolean',
+      description: 'Whether or not to change the names of a column\'s `platform` attribute when merging schema',
+    }
+  },
+
   exits: {
 
     success: {
@@ -18,7 +25,7 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({normalizePlatformNamesForMarkdownPages}) {
     let path = require('path');
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
@@ -67,15 +74,19 @@ module.exports = {
             } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
               let fleetColumn = _.clone(osquerySchemaColumn);
               if(columnHasFleetOverrides.platforms !== undefined) {
-                let platformWithNormalizedNames = [];
-                for(let platform of columnHasFleetOverrides.platforms) {
-                  if(platform === 'darwin') {
-                    platformWithNormalizedNames.push('macOS');
-                  } else {
-                    platformWithNormalizedNames.push(_.capitalize(platform));
+                if(!normalizePlatformNamesForMarkdownPages){
+                  fleetColumn.platforms = _.clone(columnHasFleetOverrides.platforms);
+                } else {
+                  let platformWithNormalizedNames = [];
+                  for(let platform of columnHasFleetOverrides.platforms) {
+                    if(platform === 'darwin') {
+                      platformWithNormalizedNames.push('macOS');
+                    } else {
+                      platformWithNormalizedNames.push(_.capitalize(platform));
+                    }
                   }
+                  fleetColumn.platforms = platformWithNormalizedNames;
                 }
-                fleetColumn.platforms = platformWithNormalizedNames;
               }
               if(columnHasFleetOverrides.description !== undefined) {
                 if(typeof columnHasFleetOverrides.description === 'string') {

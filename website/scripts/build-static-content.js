@@ -522,7 +522,7 @@ module.exports = {
 
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
 
-        let expandedTables = await sails.helpers.getExtendedOsquerySchema();
+        let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({normalizePlatformNamesForMarkdownPages: true});
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
