@@ -1,12 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IHost } from "interfaces/host";
+import { IHost, HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
-  getStatusParam,
 } from "utilities/url";
 
 export interface ISortOption {
@@ -24,6 +23,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   osId?: number;
@@ -45,6 +45,7 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
@@ -54,6 +55,13 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+}
+
+export interface IActionByFilter {
+  teamId: number | null;
+  query: string;
+  status: string;
+  labelId?: number;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -102,12 +110,7 @@ export default {
 
     return sendRequest("POST", HOSTS_DELETE, { ids: hostIds });
   },
-  destroyByFilter: (
-    teamId: number | null,
-    query: string,
-    status: string,
-    labelId: number | null
-  ) => {
+  destroyByFilter: ({ teamId, query, status, labelId }: IActionByFilter) => {
     const { HOSTS_DELETE } = endpoints;
     return sendRequest("POST", HOSTS_DELETE, {
       filters: {
@@ -126,6 +129,7 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const visibleColumns = options?.visibleColumns;
@@ -150,7 +154,7 @@ export default {
         munkiIssueId,
         softwareId
       ),
-      status: getStatusParam(selectedLabels),
+      status,
       label_id: label,
       columns: visibleColumns,
       format: "csv",
@@ -170,6 +174,7 @@ export default {
     policyId,
     policyResponse = "passing",
     softwareId,
+    status,
     mdmId,
     mdmEnrollmentStatus,
     munkiIssueId,
@@ -191,6 +196,7 @@ export default {
       device_mapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
+      status,
       ...reconcileMutuallyExclusiveHostParams(
         label,
         policyId,
@@ -203,7 +209,6 @@ export default {
         osName,
         osVersion
       ),
-      status: getStatusParam(selectedLabels),
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
@@ -249,12 +254,12 @@ export default {
   },
 
   // TODO confirm interplay with policies
-  transferToTeamByFilter: (
-    teamId: number | null,
-    query: string,
-    status: string,
-    labelId: number | null
-  ) => {
+  transferToTeamByFilter: ({
+    teamId,
+    query,
+    status,
+    labelId,
+  }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
       team_id: teamId,

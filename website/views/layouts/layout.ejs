@@ -360,37 +360,16 @@
     <script>
         var lastScrollTop = 0;
         var header = document.querySelector('.header')
-        var ctaBanner = document.querySelector('[purpose="header-report-cta"]')
-        window.addEventListener('scroll', windowScrolled)
-
+        window.addEventListener('scroll', windowScrolled);
         function windowScrolled() {
-          var scrollTop = window.pageYOffset || document.documentElement.scrollTop
-          var fleetLogo = header.querySelector('img')
-          var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
-          let ctaBannerHeightOrTopOfPage = ctaBanner ? ctaBanner.clientHeight : 0;
-          if(scrollTop < ctaBannerHeightOrTopOfPage && header.classList.contains('homepage-header')) {
-              if (ctaBanner) {
-                header.classList.add('homepage-header-top')
-              }
-              header.classList.remove('sticky')
-              fleetLogo.src = '/images/logo-white-162x92@2x.png'
-              hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
-              return;
-          }
+          let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
             header.classList.add('translate-y-0');
-          } else {
-            // If the header is touching the top of the viewport
-            if(header.getBoundingClientRect().y <= 0) {
-              header.classList.remove('homepage-header-top')
-              header.classList.add('sticky')
-
-              fleetLogo.src = '/images/logo-blue-162x92@2x.png'
-              hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
-            }
+            lastScrollTop = scrollTop;
+          } else if(scrollTop < lastScrollTop - 60) {
             header.classList.remove('translate-y-0');
+            lastScrollTop = scrollTop;
           }
-          lastScrollTop = scrollTop;
         }
     </script>
 

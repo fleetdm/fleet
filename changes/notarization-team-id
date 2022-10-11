@@ -1,1 +1,0 @@
-* Add support for Apple Team ID in Notarization workflows via `AC_TEAM_ID` environment variable.

@@ -59,14 +59,12 @@ const labelSlug = (label: ILabel): string => {
   return `labels/${id}`;
 };
 
-const labelStubs = [
+const statusKey = [
   {
     id: "new",
     count: 0,
     description: "Hosts that have been enrolled to Fleet in the last 24 hours.",
     display_text: "New",
-    slug: "new",
-    statusLabelKey: "new_count",
     title_description: "(added in last 24hrs)",
     type: "status",
   },
@@ -75,8 +73,6 @@ const labelStubs = [
     count: 0,
     description: "Hosts that have recently checked-in to Fleet.",
     display_text: "Online",
-    slug: "online",
-    statusLabelKey: "online_count",
     type: "status",
   },
   {
@@ -84,8 +80,6 @@ const labelStubs = [
     count: 0,
     description: "Hosts that have not checked-in to Fleet recently.",
     display_text: "Offline",
-    slug: "offline",
-    statusLabelKey: "offline_count",
     type: "status",
   },
 ];
@@ -218,7 +212,7 @@ const formatLabelResponse = (response: any): ILabel[] => {
     };
   });
 
-  return labels.concat(labelStubs);
+  return labels;
 };
 
 export const formatSelectedTargetsForApi = (
@@ -588,7 +582,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
   }
-  return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {

@@ -1,11 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
-  getStatusParam,
 } from "utilities/url";
 
 export interface ISortOption {
@@ -18,7 +18,7 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: string;
+  status?: HostStatus;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
@@ -39,6 +39,7 @@ export default {
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const softwareId = options?.softwareId;
+    const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const munkiIssueId = options?.munkiIssueId;
@@ -56,7 +57,7 @@ export default {
         munkiIssueId,
         softwareId
       ),
-      status: getStatusParam(selectedLabels),
+      status,
       label_id: label,
     };
 

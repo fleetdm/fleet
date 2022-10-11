@@ -46,6 +46,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 
 	if p.Secrets != nil {
+		if len(p.Secrets) > fleet.MaxEnrollSecretsCount {
+			return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
+		}
 		team.Secrets = p.Secrets
 	} else {
 		// Set up a default enroll secret
@@ -355,6 +358,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	if secrets == nil {
 		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
 	}
+	if len(secrets) > fleet.MaxEnrollSecretsCount {
+		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
+	}
 
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
@@ -438,6 +444,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 					return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
 				}
 			}
+		}
+		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
 
 		if applyOpts.DryRun {

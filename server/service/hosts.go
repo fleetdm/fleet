@@ -26,6 +26,7 @@ type HostResponse struct {
 	*fleet.Host
 	Status           fleet.HostStatus   `json:"status" csv:"status"`
 	DisplayText      string             `json:"display_text" csv:"display_text"`
+	DisplayName      string             `json:"display_name" csv:"display_name"`
 	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
 	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
 	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
@@ -36,6 +37,7 @@ func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Hos
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		DisplayName: host.DisplayName(),
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }

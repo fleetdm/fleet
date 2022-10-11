@@ -952,7 +952,8 @@ func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint)
 	queryStmt := `
     SELECT 
       h.id,
-      h.hostname
+      h.hostname,
+      if(h.computer_name = '', h.hostname, h.computer_name) display_name
     FROM
       hosts h
     INNER JOIN
@@ -978,8 +979,10 @@ func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint)
 
 func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
 	query := `
-SELECT
-    DISTINCT(h.id), h.hostname
+SELECT DISTINCT
+    	(h.id),
+    	h.hostname,
+    	if(h.computer_name = '', h.hostname, h.computer_name) display_name
 FROM
     hosts h
     INNER JOIN host_software hs ON h.id = hs.host_id

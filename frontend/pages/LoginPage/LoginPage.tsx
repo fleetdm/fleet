@@ -83,7 +83,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     if (pageStatus && pageStatus in statusMessages) {
       renderFlash("error", statusMessages[pageStatus as keyof IStatusMessages]);
     }
-  }, [router]);
+  }, [router, currentUser]);
 
   const onChange = () => {
     if (size(errors)) {

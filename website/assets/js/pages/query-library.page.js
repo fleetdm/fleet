@@ -15,7 +15,7 @@ parasails.registerPage('query-library', {
     filteredQueries: function () {
       return this.queries.filter(
         (query) =>
-          this._isIncluded(query.platforms, this.selectedPlatform) &&
+          this._isIncluded(query.platform, this.selectedPlatform) &&
           this._isIncluded(query.kind, this.selectedKind) &&
           this._isIncluded(query.tags, this.selectedTag)
       );
