@@ -852,7 +852,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -1411,7 +1411,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -2693,7 +2693,7 @@
   },
   {
     "name": "certificates",
-    "description": "Certificate Authorities installed in Keychains/ca-bundles.",
+    "description": "[Certificate authorities](https://en.wikipedia.org/wiki/Certificate_authority) installed in Keychains/ca-bundles.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/certificates.table",
     "platforms": [
       "darwin",
@@ -2840,7 +2840,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -2851,7 +2851,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -2862,7 +2862,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -2873,7 +2873,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -2884,7 +2884,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -2895,8 +2895,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux",
-          "macOS"
+          "linux",
+          "darwin"
         ]
       },
       {
@@ -2907,8 +2907,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux",
-          "macOS"
+          "linux",
+          "darwin"
         ]
       }
     ],
@@ -3983,7 +3983,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       }
     ],
@@ -4552,7 +4552,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -4563,7 +4563,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -4979,7 +4979,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -4990,7 +4990,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -5001,7 +5001,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       }
     ],
@@ -5343,7 +5343,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -6256,7 +6256,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -6267,7 +6267,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -6278,7 +6278,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -6289,7 +6289,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -6300,7 +6300,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -6311,7 +6311,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -6322,7 +6322,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -7697,7 +7697,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -8666,7 +8666,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -8677,7 +8677,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -8688,7 +8688,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -8699,7 +8699,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -8876,7 +8876,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -8887,7 +8887,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -9168,7 +9168,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       }
     ],
@@ -9323,8 +9323,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux",
-          "macOS"
+          "linux",
+          "darwin"
         ]
       },
       {
@@ -9335,7 +9335,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -9346,7 +9346,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9357,7 +9357,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9368,7 +9368,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9379,7 +9379,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9390,7 +9390,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9401,7 +9401,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9412,7 +9412,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9423,7 +9423,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9434,7 +9434,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9445,7 +9445,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9456,7 +9456,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9467,7 +9467,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9478,7 +9478,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9489,7 +9489,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9500,7 +9500,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9511,7 +9511,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -9522,7 +9522,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       }
     ]
@@ -10832,7 +10832,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -10958,7 +10958,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -10969,7 +10969,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       }
     ],
@@ -13287,7 +13287,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -13298,7 +13298,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -13774,7 +13774,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -13785,7 +13785,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -13796,7 +13796,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -14780,7 +14780,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -14791,7 +14791,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -14802,7 +14802,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -14813,7 +14813,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -14824,7 +14824,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -14835,7 +14835,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -14846,7 +14846,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -15906,7 +15906,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -15917,7 +15917,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -15928,7 +15928,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -15939,7 +15939,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -15950,7 +15950,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -15961,7 +15961,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -16517,9 +16517,9 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows",
-          "Linux",
-          "macOS"
+          "windows",
+          "linux",
+          "darwin"
         ]
       },
       {
@@ -16530,7 +16530,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -16764,7 +16764,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16775,7 +16775,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16786,7 +16786,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16797,7 +16797,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16808,7 +16808,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16819,7 +16819,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16830,7 +16830,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -16841,7 +16841,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -16852,7 +16852,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -16863,7 +16863,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -16874,7 +16874,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -16885,7 +16885,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       }
     ],
@@ -17097,7 +17097,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -17364,8 +17364,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux",
-          "macOS"
+          "linux",
+          "darwin"
         ]
       }
     ],
@@ -17545,7 +17545,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       },
       {
@@ -17556,7 +17556,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ]
@@ -19402,7 +19402,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -19551,7 +19551,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       }
     ],
@@ -20096,7 +20096,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       }
     ],
@@ -20693,7 +20693,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -20836,7 +20836,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Windows"
+          "windows"
         ]
       },
       {
@@ -20847,7 +20847,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "macOS"
+          "darwin"
         ]
       },
       {
@@ -20858,7 +20858,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
@@ -23092,7 +23092,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "Linux"
+          "linux"
         ]
       }
     ],
