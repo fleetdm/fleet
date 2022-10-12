@@ -460,3 +460,19 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	m2.Handler.ServeHTTP(rec, req)
 	require.Equal(t, "ABCH2", buf.String())
 }
+
+func TestWriteBrowserSecurityHeaders(t *testing.T) {
+	w := httptest.NewRecorder()
+	writeBrowserSecurityHeaders(w)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+		},
+		headers,
+	)
+}
