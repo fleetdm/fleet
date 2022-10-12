@@ -1810,12 +1810,12 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// add one violation
 	now = now.Add(1 * time.Minute)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[0], map[uint]*bool{pol.ID: ptr.Bool(false)}, now, false))
-	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
-	require.NoError(t, err)
 
 	// update interval hasn't pased so count does not increment
 	now = now.Add(1 * time.Minute)
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
 	// next update interval passed so count increments by one
@@ -1828,8 +1828,6 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// add one violation by a different host
 	now = now.Add(1 * time.Minute)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, now, false))
-	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
-	require.NoError(t, err)
 
 	// update interval hasn't pased so count does not increment
 	now = now.Add(1 * time.Minute)
@@ -1855,8 +1853,8 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	// resolve one violation
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[0], map[uint]*bool{pol.ID: ptr.Bool(true)}, now, false))
 
-	// update interval resets with initialization so count is not incremented even though there are
-	// still two outstanding violations
+	// update interval resets when initialized so count is not incremented even though there is
+	// still one outstanding violation
 	now = now.Add(1 * time.Minute)
 	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
 	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)

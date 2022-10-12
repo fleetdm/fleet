@@ -339,6 +339,8 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
+type CleanupStatisticsFunc func(ctx context.Context) error
+
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
@@ -970,6 +972,9 @@ type DataStore struct {
 
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
+
+	CleanupStatisticsFunc        CleanupStatisticsFunc
+	CleanupStatisticsFuncInvoked bool
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
@@ -1998,6 +2003,11 @@ func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Dur
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	s.RecordStatisticsSentFuncInvoked = true
 	return s.RecordStatisticsSentFunc(ctx)
+}
+
+func (s *DataStore) CleanupStatistics(ctx context.Context) error {
+	s.CleanupStatisticsFuncInvoked = true
+	return s.CleanupStatisticsFunc(ctx)
 }
 
 func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {

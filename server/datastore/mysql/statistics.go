@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kit/version"
 )
@@ -49,7 +50,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
 		amountPolicyViolationDays, err := amountPolicyViolationDaysDB(ctx, ds.writer)
-		if err != nil {
+		if err == sql.ErrNoRows {
+			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err)
+			amountPolicyViolationDays = 0
+		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
 		storedErrs, err := ctxerr.Aggregate(ctx)
@@ -133,4 +137,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {
 	_, err := ds.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return ctxerr.Wrap(ctx, err, "update statistics")
+}
+
+func (ds *Datastore) CleanupStatistics(ctx context.Context) error {
+	// reset weekly count of policy violation days
+	if err := ds.InitializePolicyViolationDays(ctx, time.Now()); err != nil {
+		return err
+	}
+	return nil
 }

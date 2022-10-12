@@ -810,7 +810,7 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 		WHERE 
 			id = ? AND type = ?
 	`, statsID, statsType); err != nil {
-		return res, ctxerr.Wrap(ctx, err, "getting policy violation days aggregated stats")
+		return 0, err
 	}
 
 	return res, nil

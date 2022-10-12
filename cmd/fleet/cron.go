@@ -719,22 +719,11 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return err
 	}
 
-	if err := cleanupStatistics(ctx, ds); err != nil {
+	if err := ds.CleanupStatistics(ctx); err != nil {
 		return err
 	}
 
 	return ds.RecordStatisticsSent(ctx)
-}
-
-// cleanupStatistics executes cleanup tasks to be performed upon successful transmission of
-// statistics.
-func cleanupStatistics(ctx context.Context, ds fleet.Datastore) error {
-	// reset weekly count of policy violation days
-	if err := ds.InitializePolicyViolationDays(ctx, time.Now()); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // NanoDEPLogger is a logger adapter for nanodep.
