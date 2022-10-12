@@ -11,8 +11,6 @@ func init() {
 }
 
 func Up_20220818101352(tx *sql.Tx) error {
-	logger.Info.Println("Increasing width of software.vendor...")
-
 	//-----------------
 	// Add temp column.
 	//-----------------
@@ -62,7 +60,6 @@ func Up_20220818101352(tx *sql.Tx) error {
 		return errors.Wrapf(err, "renaming new column")
 	}
 
-	logger.Info.Println("Done increasing width of software.vendor...")
 	return nil
 }
 

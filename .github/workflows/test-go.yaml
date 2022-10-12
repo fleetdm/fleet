@@ -19,6 +19,11 @@ on:
   schedule:
     - cron: '0 4 * * *'
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -37,7 +42,7 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -64,9 +69,16 @@ jobs:
         echo "RACE_ENABLED=true" >> $GITHUB_ENV
         echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
+    - name: Wait for mysql
+      run: |
+        echo "waiting for mysql..."
+        until docker-compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql is ready"
+
     - name: Run Go Tests
-      # bash shell sets -eo pipefail so that the pipe to tee will exit with an error if test-go fails
-      shell: bash
       run: |
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \

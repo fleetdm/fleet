@@ -31,14 +31,14 @@ const HostsStatus = ({
         isLoading={isLoadingHosts}
         showUI={showHostsUI}
         title="Online hosts"
-        path={paths.MANAGE_HOSTS_ONLINE}
+        path={`${paths.MANAGE_HOSTS}?status=online`}
       />
       <SummaryTile
         count={offlineCount}
         isLoading={isLoadingHosts}
         showUI={showHostsUI}
         title="Offline hosts"
-        path={paths.MANAGE_HOSTS_OFFLINE}
+        path={`${paths.MANAGE_HOSTS}?status=offline`}
       />
     </div>
   );

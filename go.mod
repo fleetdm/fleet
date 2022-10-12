@@ -25,7 +25,7 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/facebookincubator/nvdtools v0.1.4
 	github.com/fatih/color v1.12.0
-	github.com/fleetdm/goose v0.0.0-20220214194029-91b5e5eb8e77
+	github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547
 	github.com/getlantern/systray v1.2.2-0.20220329111105-6065fda28be8
 	github.com/getsentry/sentry-go v0.12.0
 	github.com/ghodss/yaml v1.0.0
@@ -66,7 +66,7 @@ require (
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/open-policy-agent/opa v0.44.0
-	github.com/oschwald/geoip2-golang v1.6.1
+	github.com/oschwald/geoip2-golang v1.8.0
 	github.com/osquery/osquery-go v0.0.0-20220317165851-954ac78f381f
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -81,7 +81,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.8.0
-	github.com/theupdateframework/go-tuf v0.3.0
+	github.com/theupdateframework/go-tuf v0.5.0
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
 	github.com/ulikunitz/xz v0.5.10
@@ -94,11 +94,11 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.10.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.10.0
 	go.opentelemetry.io/otel/sdk v1.10.0
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
+	golang.org/x/sys v0.0.0-20220908164124-27713097b956
 	google.golang.org/grpc v1.49.0
-	gopkg.in/guregu/null.v3 v3.4.0
+	gopkg.in/guregu/null.v3 v3.5.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb
@@ -243,7 +243,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
-	github.com/oschwald/maxminddb-golang v1.8.0 // indirect
+	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
@@ -256,7 +256,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/santhosh-tekuri/jsonschema v1.2.4 // indirect
-	github.com/secure-systems-lab/go-securesystemslib v0.3.1 // indirect
+	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/slack-go/slack v0.9.4 // indirect
@@ -291,7 +291,7 @@ require (
 	gocloud.dev v0.24.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.5.1 // indirect
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
+	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect

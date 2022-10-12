@@ -70,6 +70,8 @@ fleet:
       accessKeyID: ""
       secretKey: s3-bucket
       stsAssumeRoleARN: ""
+  extraVolumes: []
+  extraVolumeMounts: []
 
 ## Section: osquery
 # All of the settings related to osquery's interactions with the Fleet server

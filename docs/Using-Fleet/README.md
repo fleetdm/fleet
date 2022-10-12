@@ -15,6 +15,9 @@ Provides resources for enrolling your hosts to Fleet
 ### [Osquery logs](./Osquery-logs.md) 
 Includes documentation on the plugin options for working with osquery logs
 
+### [Osquery processes](./Osquery-process.md) 
+Includes documentation about osquery children processes and under which conditions they are terminated
+
 ### [Monitoring Fleet](./Monitoring-Fleet.md) 
 Provides documentation for load balancer health checks and working with Fleet server metrics and performance 
 

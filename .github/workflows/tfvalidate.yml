@@ -1,4 +1,5 @@
 name: tfvalidate
+
 on:
   push:
     branches:
@@ -9,6 +10,12 @@ on:
     paths:
       - '**.tf'
   workflow_dispatch: # Manual dispatch
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
