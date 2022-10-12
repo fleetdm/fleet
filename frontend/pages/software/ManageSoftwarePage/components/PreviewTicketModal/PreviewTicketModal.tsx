@@ -41,7 +41,7 @@ const PreviewTicketModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <div className={`${baseClass}__preview-modal`}>
+      <>
         <p>
           Want to learn more about how automations in Fleet work?{" "}
           <a
@@ -53,13 +53,13 @@ const PreviewTicketModal = ({
             <img src={ExternalLinkIcon} alt="Open external link" />
           </a>
         </p>
-        <div className={`${baseClass}__integration-preview`}>{screenshot}</div>
+        <div className={`${baseClass}__example`}>{screenshot}</div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel} variant="brand">
             Done
           </Button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };

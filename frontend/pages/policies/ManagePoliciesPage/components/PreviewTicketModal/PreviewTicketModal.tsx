@@ -20,7 +20,7 @@ const PreviewTicketModal = ({
 }: IPreviewTicketModalProps): JSX.Element => {
   return (
     <Modal title={"Example ticket"} onExit={onCancel} className={baseClass}>
-      <div className={`${baseClass}`}>
+      <>
         <p>
           Want to learn more about how automations in Fleet work?{" "}
           <a
@@ -44,7 +44,7 @@ const PreviewTicketModal = ({
             Done
           </Button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };
