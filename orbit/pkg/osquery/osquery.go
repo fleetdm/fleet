@@ -170,7 +170,7 @@ func (r *Runner) Execute() error {
 			return fmt.Errorf("start osqueryd: %w", err)
 		}
 
-		var killDelay time.Duration = 0
+		var killDelay time.Duration
 		if runtime.GOOS == "windows" {
 			killDelay = 100 * time.Millisecond
 		} else {
