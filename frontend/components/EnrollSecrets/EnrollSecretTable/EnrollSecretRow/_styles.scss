@@ -2,6 +2,7 @@
   &__secret {
     display: flex;
     align-items: center;
+    margin-bottom: $pad-medium;
   }
 
   .form-field {
@@ -85,10 +86,6 @@
     .enroll-secrets__secret-download-icon {
       margin-bottom: $pad-medium;
     }
-  }
-
-  &--multiple-secrets > * + * {
-    margin-top: $pad-medium;
   }
 
   &__edit-secret-btn,
