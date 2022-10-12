@@ -51,20 +51,9 @@ describe("Dashboard", () => {
     it("filters linux hosts", () => {
       cy.findByText(/macos hosts/i).click();
       cy.findByRole("status", {
-        name: /hosts filtered by linux/i,
+        name: /hosts filtered by macos/i,
       }).should("exist");
     });
-    it("filters missing hosts", () => {
-      cy.findByText(/missing hosts/i).click();
-      cy.findByRole("status", {
-        name: /hosts filtered by missing/i,
-      }).should("exist");
-    });
-    it("filters low disk space hosts", () => {
-      cy.findByText(/macos hosts/i).click();
-      cy.findByRole("status", {
-        name: /hosts filtered by low disk space/i,
-      }).should("exist");
-    });
+    // filters missing hosts and low disk space hosts on premium only, premium/admin.spec.ts
   });
 });
