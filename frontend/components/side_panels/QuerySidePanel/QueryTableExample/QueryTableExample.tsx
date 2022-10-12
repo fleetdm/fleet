@@ -6,16 +6,28 @@ import FleetMarkdown from "components/FleetMarkdown";
 import FleetAce from "components/FleetAce";
 
 const getExampleDescription = (example: string) => {
-  // the text before the first line break is the description of the example.
-  const description = example.split("\n")[0];
+  // the text before the from the first split is the description of the example.
+  const description = example.split("\n```\n")[0];
   return description;
 };
 
-const getExampleQuery = (example: string) => {
+const getExampleQueries = (example: string) => {
   // split on the newlines, throw out the first portion, and bring back together with spaces.
   // This lets us get the query example text replacing new line character with spaces.
-  const query = example.split("\n").slice(1).join(" ");
-  return query;
+  const queries = example.split("```").slice(1, -1);
+  return queries.map((query) => {
+    return query.replace(/\n/g, "");
+  });
+};
+
+// seperate examples are separated by \n```\n\n string. We can split on that and then
+// pull out the description and queries from this.
+const generateExamples = (exampleStr: string) => {
+  const examples = exampleStr.split("\n```\n\n");
+  return examples.map((example) => ({
+    description: getExampleDescription(example),
+    queries: getExampleQueries(example),
+  }));
 };
 
 interface IQueryTableExampleProps {
@@ -26,15 +38,18 @@ const baseClass = "query-table-example";
 
 /**
  * In QueryTableExample we are working with a string in this format:
- * The example description text\nSELECT username, uid\nFROM example_table where uid = 1;
+ * The example description text\n```\nSELECT username, uid FROM example_table where uid = 1 \n```;
  *
  * The first part is the example description. After that is the first line break, and
  * than the rest of the string is the query. The query also has line breaks that we'd
  * like to replace with space characters.
  */
 const QueryTableExample = ({ example }: IQueryTableExampleProps) => {
-  const exampleDescription = getExampleDescription(example);
-  const exampleQuery = getExampleQuery(example);
+  const examples = generateExamples(example);
+
+  console.log(examples);
+  // const exampleDescription = getExampleDescription(example);
+  // const exampleQuery = getExampleQuery(example);
 
   const onEditorBlur = (editor?: IAceEditor) => {
     editor && editor.clearSelection();
@@ -52,17 +67,23 @@ const QueryTableExample = ({ example }: IQueryTableExampleProps) => {
   return (
     <div className={baseClass}>
       <h3>Example</h3>
-      <FleetMarkdown markdown={exampleDescription} />
-      <FleetAce
-        wrapperClassName={`${baseClass}__ace`}
-        value={exampleQuery}
-        showGutter={false}
-        onBlur={onEditorBlur}
-        onLoad={onEditorLoad}
-        style={{ border: "none" }}
-        wrapEnabled
-        readOnly
-      />
+      {examples.map((exampleSet) => (
+        <div className={`${baseClass}__example-set`}>
+          <FleetMarkdown markdown={exampleSet.description} />
+          {exampleSet.queries.map((query) => (
+            <FleetAce
+              wrapperClassName={`${baseClass}__ace-display`}
+              value={query}
+              showGutter={false}
+              onBlur={onEditorBlur}
+              onLoad={onEditorLoad}
+              style={{ border: "none" }}
+              wrapEnabled
+              readOnly
+            />
+          ))}
+        </div>
+      ))}
     </div>
   );
 };

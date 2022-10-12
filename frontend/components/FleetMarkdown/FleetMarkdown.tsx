@@ -36,6 +36,7 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
   return (
     <ReactMarkdown
       className={classNames}
+      transformLinkUri={false}
       components={{
         a: ({ href = "", children }) => {
           return <CustomLink text={children} href={href} newTab />;

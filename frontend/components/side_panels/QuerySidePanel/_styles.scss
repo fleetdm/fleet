@@ -67,5 +67,6 @@
 
   &__description {
     font-size: $x-small;
+    overflow-wrap: break-word;
   }
 }
