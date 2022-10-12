@@ -72,7 +72,7 @@ count=0
 while ! launchctl bootstrap system "${DAEMON_PLIST}"; do
 	sleep 1
 	((count++))
-	if [[ $count -eq 5 ]]; then
+	if [[ $count -eq 30 ]]; then
 		echo "Failed to bootstrap system ${DAEMON_PLIST}"
 		exit 1
 	fi
