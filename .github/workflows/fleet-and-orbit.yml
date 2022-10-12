@@ -455,16 +455,14 @@ jobs:
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # there is an issue with osqueryd runner that needs to be tracked down
+        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
         Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Test #6 failed" } }
 
         # Test 7 - Check that no fleet-desktop process is running once service stops
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # there is an issue with fleet-desktop runner that needs to be tracked down
+        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with fleet-desktop runner interrupt that needs to be tracked down
         Get-Process | %{ if ($_.Name -eq "fleet-desktop") { throw "Test #7 failed" } }
 
     - name: Upload Orbit logs
