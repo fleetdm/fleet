@@ -1801,6 +1801,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
+	require.Len(t, policiesResponse.InheritedPolicies, 0)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -5517,8 +5518,10 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, rows[0], "hostname") // first row contains headers
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
+	require.Contains(t, res.Header, "X-Content-Type-Options")
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
+	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
 
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")

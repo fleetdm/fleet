@@ -48,6 +48,7 @@ type HostDetailResponse struct {
 	fleet.HostDetail
 	Status      fleet.HostStatus   `json:"status"`
 	DisplayText string             `json:"display_text"`
+	DisplayName string             `json:"display_name"`
 	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
 }
 
@@ -56,6 +57,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
+		DisplayName: host.DisplayName(),
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
 }
@@ -1162,6 +1164,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 
 	var err error
