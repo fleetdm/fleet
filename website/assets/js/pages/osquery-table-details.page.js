@@ -19,8 +19,7 @@ parasails.registerPage('osquery-table-details', {
     filteredTables: function () {
       return this.allTables.filter(
         (table) =>
-          this._isIncluded(table.platforms, this.selectedPlatform) &&
-          this._isIncluded(table.title, this.search)
+          this._isIncluded(table.platforms, this.selectedPlatform)
       );
     },
     numberOfTablesDisplayed: function() {
@@ -35,6 +34,19 @@ parasails.registerPage('osquery-table-details', {
 
   },
   mounted: async function() {
+    // Algolia DocSearch
+    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        inputSelector: '#docsearch-query',
+        debug: false,
+        algoliaOptions: {
+          'facetFilters': ['section:tables']
+        },
+      });
+    }
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
       if(a.name < b.name){

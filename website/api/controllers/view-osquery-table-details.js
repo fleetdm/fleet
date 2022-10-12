@@ -51,6 +51,7 @@ module.exports = {
       tableToDisplay,
       pageTitleForMeta,
       pageDescriptionForMeta,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }
