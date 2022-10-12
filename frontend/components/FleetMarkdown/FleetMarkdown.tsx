@@ -1,6 +1,7 @@
 import classnames from "classnames";
 import React from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
@@ -36,7 +37,9 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
   return (
     <ReactMarkdown
       className={classNames}
-      transformLinkUri={false}
+      // enables some more markdown features such as direct urls and strikethroughts.
+      // more info here: https://github.com/remarkjs/remark-gfm
+      remarkPlugins={[remarkGfm]}
       components={{
         a: ({ href = "", children }) => {
           return <CustomLink text={children} href={href} newTab />;
