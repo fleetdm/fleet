@@ -13,7 +13,12 @@
   },
   {
     "name": "alf_exceptions",
-    "examples": "List applications that are able to receive inbound connections across the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions\n```"
+    "examples": "List applications that are able to receive inbound connections across the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions;\n```"
+  },
+  {
+    "name": "alf_explicit_auths",
+    "examples": "List applications were granted explicit access through the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions;\n```",
+    "notes": "This table is currently affected by a [bug](https://github.com/osquery/osquery/issues/2322) and not returning applications visible in the preferences interface."
   },
   {
     "name": "app_schemes",
@@ -26,6 +31,10 @@
   {
     "name": "arp_cache",
     "examples": "List the content of the ARP cache. On systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address.\n```\nSELECT address, interface, mac FROM arp_cache;\n```"
+  },
+  {
+    "name": "asl",
+    "examples": "Apple System Logger (ASL) is deprecated since macOS 10.12. On older Macs, this table can be used to read logs. On newer ones, see the *unified_log* table. This example is from the osquery documentation.\n```\nSELECT time, message FROM asl WHERE facility = 'authpriv' AND sender = 'sudo' AND message LIKE '%python%';\n```"
   },
   {
     "name": "authorization_mechanisms",
@@ -44,8 +53,20 @@
     "examples": "List the tags assigned to an Azure VM\n```\nSELECT key, value FROM azure_instance_tags;\n```"
   },
   {
+    "name": "augeas",
+    "examples": "This table requires augeas [lenses](https://augeas.net/docs/lenses.html) to be installed in their default location. This query will output *sshd_config* as if it was a table. This is especially useful to check for specific configurations in text files.\n```\nSELECT * FROM augeas WHERE path='/etc/ssh/sshd_config';\n```"
+  },
+  {
+    "name": "battery",
+    "examples": "This table contains a lot of information about the health of batteries. This query shows how many cycles the battery of a device was used for, allowing you to identify users who put more wear on it and might need more frequent replacements.\n```\nSELECT cycle_count FROM battery;\n```"
+  },
+  {
     "name": "browser_plugins",
     "examples": "See classic browser plugins (C/NPAPI) installed by users. These plugins have been deprecated for a long time, so this query will usually not return anything.\n```\nSELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;\n```"
+  },
+  {
+    "name": "curl",
+    "examples": "Connect over HTTP and retrieve statistics about the process. This is useful to detect machines on slow networks, or that have no Internet access.\n```\nSELECT round_trip_time FROM curl WHERE URL='https://fleetdm.com';\n```"
   },
   {
     "name": "curl_certificate",
@@ -617,7 +638,7 @@
   },
   {
     "name": "authorized_keys",
-    "examples": "List the SSH keys allowed to connect to this host\n```\nSELECT key FROM authorized_keys;\n```",
+    "examples": "List the SSH keys allowed to connect to this host.\n```\nSELECT key FROM authorized_keys;\n```",
     "columns": [
       {
         "name": "pid_with_namespace",
@@ -949,6 +970,7 @@
   },
   {
     "name": "atom_packages",
+    "examples": "List installed Atom packages and their version.\n```\nSELECT name, version, description FROM atom_packages;\n```",
     "columns": [
       {
         "name": "uid",
@@ -977,6 +999,7 @@
   },
   {
     "name": "crashes",
+    "examples": "See software responsible for crashes. This can be useful to detect what the most problematic software in your environment is.\n```\nSELECT crash_path, identifier, responsible, exception_type FROM crashes;\n```",
     "columns": [
       {
         "name": "uid",
