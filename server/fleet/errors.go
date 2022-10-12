@@ -284,6 +284,9 @@ type UserMessageError struct {
 // will be used as the HTTP status code for the error, otherwise it defaults
 // to http.StatusUnprocessableEntity (422).
 func NewUserMessageError(err error, statusCode int) *UserMessageError {
+	if err == nil {
+		return nil
+	}
 	return &UserMessageError{err, statusCode}
 }
 
