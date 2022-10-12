@@ -669,6 +669,12 @@ func startCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"increment_policy_violation_days",
+			func(ctx context.Context) error {
+				return ds.IncrementPolicyViolationDays(ctx, time.Now())
+			},
+		),
+		schedule.WithJob(
 			"update_os_versions",
 			func(ctx context.Context) error {
 				return ds.UpdateOSVersions(ctx)
@@ -709,11 +715,26 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
 		return err
 	}
+
+	if err := cleanupStatistics(ctx, ds); err != nil {
+		return err
+	}
+
 	return ds.RecordStatisticsSent(ctx)
+}
+
+// cleanupStatistics executes cleanup tasks to be performed upon successful transmission of
+// statistics.
+func cleanupStatistics(ctx context.Context, ds fleet.Datastore) error {
+	// reset weekly count of policy violation days
+	if err := ds.InitializePolicyViolationDays(ctx, time.Now()); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // NanoDEPLogger is a logger adapter for nanodep.
@@ -754,7 +775,6 @@ func startAppleMDMDEPProfileAssigner(
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) {
-
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),

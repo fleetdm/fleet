@@ -690,3 +690,128 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 
 	return nil
 }
+
+func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context, now time.Time) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return incrementViolationDaysDB(ctx, tx, now)
+	})
+}
+
+func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext, now time.Time) error {
+	const (
+		statsID        = 0
+		statsType      = "policy_violation_days"
+		updateInterval = 24 * time.Hour
+	)
+
+	// get current count of policy violation days from `aggregated_stats``
+	selectStmt := `
+		SELECT 
+			json_value, 
+			created_at, 
+			updated_at 
+		FROM 
+			aggregated_stats 
+		WHERE 
+			id = ? AND type = ?`
+	selectResult := []struct {
+		CreatedAt time.Time `json:"created_at" db:"created_at"`
+		UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+		Count     uint      `json:"json_value" db:"json_value"`
+	}{}
+	if err := sqlx.SelectContext(ctx, tx, &selectResult, selectStmt, statsID, statsType); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting policy violation days aggregated stats")
+	}
+
+	var prevCount uint
+	var shouldIncrement bool
+	switch len(selectResult) {
+	case 0:
+		// no previous count exists so initialize count as zero and proceed to increment
+		prevCount = 0
+		shouldIncrement = true
+	case 1:
+		// increment previous count if interval has elapsed
+		prevCount = selectResult[0].Count
+		lastUpdated := selectResult[0].UpdatedAt
+		if selectResult[0].CreatedAt.After(selectResult[0].UpdatedAt) {
+			lastUpdated = selectResult[0].CreatedAt
+		}
+		shouldIncrement = now.After(lastUpdated.Add(updateInterval))
+	default:
+		// this should not happen
+		return ctxerr.New(ctx, "unexpected result selecting policy violation days")
+	}
+
+	if !shouldIncrement {
+		return nil
+	}
+
+	// increment count of policy violation days by total number of failing records from `policy_membership`
+	var newCount uint
+	if err := sqlx.GetContext(ctx, tx, &newCount, "SELECT COUNT(*) FROM policy_membership WHERE passes = 0"); err != nil {
+		return ctxerr.Wrap(ctx, err, "count policy violation days")
+	}
+	newCount += prevCount
+
+	// upsert `aggregated_stats` with new count
+	upsertStmt := `
+		INSERT INTO 
+			aggregated_stats (id, type, json_value, created_at, updated_at) 
+		VALUES (?, ?, CAST(? AS JSON), ?, ?) 
+		ON DUPLICATE KEY UPDATE 
+			json_value = VALUES(json_value),
+			updated_at = VALUES(updated_at)`
+
+	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, newCount, now, now); err != nil {
+		return ctxerr.Wrap(ctx, err, "update policy violation days aggregated stats")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) InitializePolicyViolationDays(ctx context.Context, now time.Time) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return initializePolicyViolationDaysDB(ctx, tx, now)
+	})
+}
+
+func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext, now time.Time) error {
+	const (
+		statsID   = 0
+		statsType = "policy_violation_days"
+	)
+	stmt := `
+		INSERT INTO 
+			aggregated_stats (id, type, json_value, created_at, updated_at) 
+		VALUES (?, ?, CAST(? AS JSON), ?, ?) 
+		ON DUPLICATE KEY UPDATE 
+			json_value = VALUES(json_value),
+			created_at = VALUES(created_at),
+			updated_at = VALUES(updated_at)`
+	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, 0, now, now); err != nil {
+		return ctxerr.Wrap(ctx, err, "initialize policy violation days aggregated stats")
+	}
+
+	return nil
+}
+
+func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (int, error) {
+	const (
+		statsID   = 0
+		statsType = "policy_violation_days"
+	)
+	var res int
+	if err := sqlx.GetContext(ctx, tx, &res, `
+		SELECT 
+			json_value 
+		FROM 
+			aggregated_stats 
+		WHERE 
+			id = ? AND type = ?
+	`, statsID, statsType); err != nil {
+		return res, ctxerr.Wrap(ctx, err, "getting policy violation days aggregated stats")
+	}
+
+	return res, nil
+}

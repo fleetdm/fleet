@@ -44,6 +44,7 @@ func TestPolicies(t *testing.T) {
 		{"PlatformUpdate", testPolicyPlatformUpdate},
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
+		{"PolicyViolationDays", testPolicyViolationDays},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1769,6 +1770,106 @@ func assertPolicyMembership(t *testing.T, ds *Datastore, polsByName map[string]*
 		got := hostIDsByPolID[pol.ID]
 		require.ElementsMatch(t, hostIDs, got)
 	}
+}
+
+func testPolicyViolationDays(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	now := time.Now()
+
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	hosts := make([]*fleet.Host, 3)
+	for i, name := range []string{"h1", "h2", "h3"} {
+		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   id,
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
+			NodeKey:         id,
+			UUID:            id,
+			Hostname:        name,
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?)`
+	res, err := ds.writer.ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", now, now)
+	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+	pol, err := ds.Policy(ctx, uint(id))
+	require.NoError(t, err)
+
+	require.NoError(t, ds.InitializePolicyViolationDays(ctx, now))
+	count, err := amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// add one violation
+	now = now.Add(1 * time.Minute)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[0], map[uint]*bool{pol.ID: ptr.Bool(false)}, now, false))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+
+	// update interval hasn't pased so count does not increment
+	now = now.Add(1 * time.Minute)
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	require.Equal(t, 0, count)
+
+	// next update interval passed so count increments by one
+	now = now.Add(24 * time.Hour)
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// add one violation by a different host
+	now = now.Add(1 * time.Minute)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, now, false))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+
+	// update interval hasn't pased so count does not increment
+	now = now.Add(1 * time.Minute)
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// next update interval passed so count is incremented by two because new violation by hosts[1]
+	// and hosts[0] violation is still outstanding
+	now = now.Add(24 * time.Hour)
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
+
+	// reset count to zero
+	require.NoError(t, ds.InitializePolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// resolve one violation
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[0], map[uint]*bool{pol.ID: ptr.Bool(true)}, now, false))
+
+	// update interval resets with initialization so count is not incremented even though there are
+	// still two outstanding violations
+	now = now.Add(1 * time.Minute)
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// next update interval passed so count is incremented by one because violation by hosts[1]
+	// is now the only outstanding violation
+	now = now.Add(24 * time.Hour)
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx, now))
+	count, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
 }
 
 func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {

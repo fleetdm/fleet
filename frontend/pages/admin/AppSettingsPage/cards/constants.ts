@@ -84,6 +84,7 @@ export const usageStatsPreview = {
   systemUsersEnabled: true,
   hostStatusWebhookEnabled: true,
   numWeeklyActiveUsers: 999,
+  numWeeklyPolicyViolationDays: 999,
   hostsEnrolledByOperatingSystem: {
     darwin: [
       {
