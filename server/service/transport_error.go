@@ -185,7 +185,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			enc.Encode(je)
 			return
 		}
-		if fleet.IsForeignKey(ctxerr.Cause(err)) {
+		if fleet.IsForeignKey(err) {
 			ve := jsonError{
 				Message: "Validation Failed",
 				Errors:  baseError(err.Error()),
@@ -210,10 +210,20 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			w.Header().Add("Retry-After", strconv.Itoa(ewra.RetryAfter()))
 		}
 
+		msg := err.Error()
+		reason := err.Error()
+		var ume *fleet.UserMessageError
+		if errors.As(err, &ume) {
+			if text := http.StatusText(status); text != "" {
+				msg = text
+			}
+			reason = ume.UserMessage()
+		}
+
 		w.WriteHeader(status)
 		je := jsonError{
-			Message: err.Error(),
-			Errors:  baseError(err.Error()),
+			Message: msg,
+			Errors:  baseError(reason),
 		}
 		enc.Encode(je)
 	}

@@ -588,7 +588,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}`), http.StatusBadRequest, "dry_run", "true")
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "cannot unmarshal string into Go struct field osqueryOptions.options.aws_debug of type bool")
+	require.Contains(t, string(body), "invalid value type at 'options.aws_debug': expected bool but got string")
 
 	// modify team agent using valid options with dry-run
 	tmResp.Team = nil
