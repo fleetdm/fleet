@@ -1201,8 +1201,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "ingestKubequeryInfo", "warn",
-			fmt.Sprintf("kubernetes_info expected single result got %d", len(rows)))
+		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
 	}
 
 	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
