@@ -239,9 +239,7 @@
   },
   {
     "name": "keychain_items",
-    "columns": [
-      { "name": "created", "description": "Date item was created" },
-    ],
+    "columns": [{ "name": "created", "description": "Date item was created" }],
     "examples": "Identify Macs that contain certificates related to Apple application signing and notarization. (replace with your Apple Developer ID string)\n```\nSELECT * FROM keychain_items WHERE label LIKE '%8EHZ83LZNU%';\n```"
   },
   {
