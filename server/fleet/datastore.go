@@ -478,7 +478,7 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 

@@ -394,6 +394,24 @@ func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.Capabilit
 	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
 }
 
+func writeBrowserSecurityHeaders(w http.ResponseWriter) {
+	// Strict-Transport-Security informs browsers that the site should only be
+	// accessed using HTTPS, and that any future attempts to access it using
+	// HTTP should automatically be converted to HTTPS.
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
+	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
+	// <iframe>, <embed> or <object>, which can prevent attacks like
+	// clickjacking.
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+	// X-Content-Type-Options prevents browsers from trying to guess the MIME
+	// type which can cause browsers to transform non-executable content into
+	// executable content.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// Referrer-Policy prevents leaking the origin of the referrer in the
+	// Referer.
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+}
+
 func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "POST")
 }

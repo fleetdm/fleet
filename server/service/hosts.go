@@ -1164,6 +1164,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 
 	var err error
