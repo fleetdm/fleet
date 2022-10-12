@@ -1,9 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
-
-import AppleIcon from "../../assets/images/icon-apple-dark-20x20@2x.png";
-import LinuxIcon from "../../assets/images/icon-linux-dark-20x20@2x.png";
-import WindowsIcon from "../../assets/images/icon-windows-dark-20x20@2x.png";
+import { IOsqueryPlatform } from "interfaces/platform";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -139,15 +135,6 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
   linux: "Linux",
   windows: "Windows",
-};
-
-export const PLATFORM_ICONS: Record<IOsqueryPlatform, string> = {
-  darwin: AppleIcon,
-  macOS: AppleIcon,
-  windows: WindowsIcon,
-  Windows: WindowsIcon,
-  linux: LinuxIcon,
-  Linux: LinuxIcon,
 };
 
 // as returned by the TARGETS API; based on display_text

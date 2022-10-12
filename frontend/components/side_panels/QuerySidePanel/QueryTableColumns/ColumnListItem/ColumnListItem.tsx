@@ -1,12 +1,9 @@
 import React from "react";
 import classnames from "classnames";
 
+import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import TooltipWrapper from "components/TooltipWrapper";
-
-import { IQueryTableColumn } from "../QueryTableColumns";
-
-type ColumnType = "integet" | "bigint" | "double" | "text" | "unsigned_bigint";
 
 interface IColumnListItemProps {
   column: IQueryTableColumn;
@@ -66,7 +63,7 @@ const hasFootnotes = (column: IQueryTableColumn) => {
   return (
     column.required ||
     column.requires_user_context ||
-    column.platforms?.length !== 0
+    (column.platforms !== undefined && column.platforms.length !== 0)
   );
 };
 

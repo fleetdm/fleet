@@ -8,7 +8,7 @@ import FleetAce from "components/FleetAce";
 const getExampleDescription = (example: string) => {
   // the text before the first line break is the description of the example.
   const description = example.split("\n")[0];
-  return description; // TODO: markdown
+  return description;
 };
 
 const getExampleQuery = (example: string) => {

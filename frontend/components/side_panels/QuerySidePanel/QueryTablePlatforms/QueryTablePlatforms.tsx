@@ -1,17 +1,8 @@
 import React from "react";
 
 import { IOsqueryPlatform } from "interfaces/platform";
-import { PLATFORM_DISPLAY_NAMES, PLATFORM_ICONS } from "utilities/constants";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import Icon from "components/Icon";
-
-interface IPlatformIconProps {
-  platform: IOsqueryPlatform;
-}
-
-const PlatformIcon = ({ platform }: IPlatformIconProps) => {
-  const iconSrc = PLATFORM_ICONS[platform];
-  return <img src={iconSrc} alt={`${platform} icon`} className={"icon"} />;
-};
 
 interface IPLatformListItemProps {
   platform: IOsqueryPlatform;
@@ -22,23 +13,32 @@ const baseClassListItem = "platform-list-item";
 const PlatformListItem = ({ platform }: IPLatformListItemProps) => {
   return (
     <li key={platform} className={baseClassListItem}>
-      {/* <PlatformIcon platform={platform} /> */}
       <Icon name={platform} />
       <span>{PLATFORM_DISPLAY_NAMES[platform]}</span>
     </li>
   );
 };
 
+// TODO: remove when freebsd is removed
+type IPlatformsWithFreebsd = IOsqueryPlatform | "freebsd";
+
 interface IQueryTablePlatformsProps {
-  platforms: IOsqueryPlatform[];
+  platforms: IPlatformsWithFreebsd[];
 }
 
 const baseClass = "query-table-platforms";
 
 const QueryTablePlatforms = ({ platforms }: IQueryTablePlatformsProps) => {
-  const platformListItems = platforms.map((platform) => {
-    return <PlatformListItem key={platform} platform={platform} />;
-  });
+  const platformListItems = platforms
+    .filter((platform) => platform !== "freebsd")
+    .map((platform) => {
+      return (
+        <PlatformListItem
+          key={platform}
+          platform={platform as IOsqueryPlatform} // TODO: remove when freebsd is removed
+        />
+      );
+    });
 
   return (
     <div className={baseClass}>

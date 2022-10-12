@@ -38,9 +38,12 @@
     margin: 0 0 $pad-medium;
     font-size: $small;
     font-weight: $bold;
+    display: flex;
+    align-items: center;
   }
 
   &__table-count {
+    line-height: normal;
     margin-left: $pad-small;
     background-color: $ui-fleet-blue-15;
     padding: $pad-xsmall $pad-small;

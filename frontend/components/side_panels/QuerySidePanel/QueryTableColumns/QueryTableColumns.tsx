@@ -1,20 +1,8 @@
 import React from "react";
 
-import { IOsqueryPlatform } from "interfaces/platform";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 
 import ColumnListItem from "./ColumnListItem";
-
-type ColumnType = "integet" | "bigint" | "double" | "text" | "unsigned_bigint";
-
-// TODO: move to common location
-export interface IQueryTableColumn {
-  name: string;
-  description: string;
-  type: ColumnType;
-  required: boolean;
-  platforms?: IOsqueryPlatform[];
-  requires_user_context?: boolean;
-}
 
 const sortAlphabetically = (
   columnA: IQueryTableColumn,
