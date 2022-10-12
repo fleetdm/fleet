@@ -97,18 +97,6 @@ const AgentOptionsPage = ({
           </span>
         </a>
       </p>
-      <InfoBanner className={`${baseClass}__config-docs`}>
-        See Fleet documentation for an example file that includes the overrides
-        option.{" "}
-        <a
-          href="https://fleetdm.com/docs/using-fleet/configuration-files#overrides-option"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Go to Fleet docs
-          <img alt="Open external link" src={ExternalLinkIcon} />
-        </a>
-      </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>
         <OsqueryOptionsForm
           formData={formData}
