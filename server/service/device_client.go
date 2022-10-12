@@ -63,8 +63,8 @@ func (dc *DeviceClient) DeviceURL(token string) string {
 // CheckToken checks if a token is valid by making an authenticated request to
 // the server
 func (dc *DeviceClient) CheckToken(token string) error {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
-	return dc.request(verb, path, "", &fleetDesktopResponse{})
+	_, err := dc.NumberOfFailingPolicies(token)
+	return err
 }
 
 // Ping sends a ping to the server using the device/ping endpoint
