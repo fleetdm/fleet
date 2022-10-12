@@ -634,7 +634,7 @@ SELECT
   '' AS vendor,
   '' AS arch
 FROM deb_packages
-WHERE status = 'install ok installed'
+WHERE status LIKE '% installed'
 UNION
 SELECT
   package AS name,
