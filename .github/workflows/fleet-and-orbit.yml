@@ -421,9 +421,7 @@ jobs:
       run: |
         # Tests setup
         $serviceName = "Fleet osquery"
-
-        #Relaxing time constrains a bit until https://github.com/fleetdm/fleet/issues/8057 gets resolved
-        $orbitMaxTimeToStartAndTeardown = 30
+        $orbitMaxTimeToStartAndTeardown = 15
 
         # Test 1 - Check that the service starts without issues
         Stop-Service -Name $serviceName
@@ -438,9 +436,9 @@ jobs:
 
         #Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
         Start-Service -Name $serviceName
-        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10)
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10)
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Get-Process | %{ if ($_.Name -eq "orbit") { throw "Test #3 failed" } }
 
         # Test 4 - Check that service starts in less than 3 secs
