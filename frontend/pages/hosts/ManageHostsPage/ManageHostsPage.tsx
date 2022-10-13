@@ -504,9 +504,9 @@ const ManageHostsPage = ({
         selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
       selectedFilters[0];
 
-    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
 
-    setSelectedLabel(selected);
+    setSelectedLabel(validLabel);
 
     const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,

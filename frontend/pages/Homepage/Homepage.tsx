@@ -72,7 +72,9 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>();
+  const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
+    "all"
+  );
   const [
     selectedPlatformLabelId,
     setSelectedPlatformLabelId,
@@ -314,11 +316,8 @@ const Homepage = (): JSX.Element => {
         });
       };
 
-      if (selectedPlatform) {
-        const labelValue =
-          PLATFORM_NAME_TO_LABEL_NAME[
-            selectedPlatform as keyof typeof PLATFORM_NAME_TO_LABEL_NAME
-          ];
+      if (selectedPlatform !== "all") {
+        const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
         setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
       }
     }
@@ -397,6 +396,7 @@ const Homepage = (): JSX.Element => {
         missingCount={missingCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });
@@ -525,7 +525,7 @@ const Homepage = (): JSX.Element => {
     children: (
       <OperatingSystems
         currentTeamId={currentTeam?.id}
-        selectedPlatform={selectedPlatform || ""}
+        selectedPlatform={selectedPlatform}
         showTitle={showOperatingSystemsUI}
         setShowTitle={setShowOperatingSystemsUI}
       />
@@ -631,7 +631,9 @@ const Homepage = (): JSX.Element => {
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: ISelectedPlatform) => setSelectedPlatform(value)}
+            onChange={(value: ISelectedPlatform) => {
+              setSelectedPlatform(value);
+            }}
           />
         </div>
         <div className="host-sections">

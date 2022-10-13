@@ -6,7 +6,7 @@ export type IOsqueryPlatform =
   | "linux"
   | "Linux";
 
-export type ISelectedPlatform = "" | "darwin" | "windows" | "linux";
+export type ISelectedPlatform = "all" | "darwin" | "windows" | "linux";
 
 export type IPlatformString =
   | ""

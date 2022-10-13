@@ -168,7 +168,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
 };
 
 export const PLATFORM_DROPDOWN_OPTIONS = [
-  { label: "All", value: "" },
+  { label: "All", value: "all" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
   { label: "macOS", value: "darwin" },

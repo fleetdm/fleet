@@ -5,7 +5,7 @@ import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
 } from "interfaces/operating_system";
-import { IOsqueryPlatform, ISelectedPlatform } from "interfaces/platform";
+import { ISelectedPlatform } from "interfaces/platform";
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,
@@ -37,7 +37,7 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
-const EmptyOperatingSystems = (platform: IOsqueryPlatform): JSX.Element => (
+const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
   <div className={`${baseClass}__empty-os`}>
     <h1>{`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
@@ -66,7 +66,7 @@ const OperatingSystems = ({
     [
       {
         scope: "os_versions",
-        platform: selectedPlatform as IOsqueryPlatform,
+        platform: selectedPlatform !== "all" ? selectedPlatform : undefined,
         teamId: currentTeamId,
       },
     ],
@@ -77,9 +77,7 @@ const OperatingSystems = ({
       });
     },
     {
-      enabled: OS_VERSIONS_API_SUPPORTED_PLATFORMS.includes(
-        selectedPlatform as IOsqueryPlatform
-      ),
+      enabled: OS_VERSIONS_API_SUPPORTED_PLATFORMS.includes(selectedPlatform),
       staleTime: 10000,
       keepPreviousData: true,
     }
@@ -154,9 +152,7 @@ const OperatingSystems = ({
             defaultSortDirection={DEFAULT_SORT_DIRECTION}
             hideActionButton
             resultsTitle={"Operating systems"}
-            emptyComponent={() =>
-              EmptyOperatingSystems(selectedPlatform as IOsqueryPlatform)
-            }
+            emptyComponent={() => EmptyOperatingSystems(selectedPlatform)}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount
