@@ -74,7 +74,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!policyId:
       return { policy_id: policyId, policy_response: policyResponse };
     case !!mdmId:
-      return { mdm_id: mdmId, mdm_status: mdmEnrollmentStatus };
+      return { mdm_id: mdmId };
+    case !!mdmEnrollmentStatus: {
+      return { mdm_enrollment_status: mdmEnrollmentStatus };
+    }
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
     case !!softwareId:
