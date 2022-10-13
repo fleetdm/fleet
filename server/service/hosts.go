@@ -1299,3 +1299,40 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 
 	return osVersions, nil
 }
+
+// Stress Scenarios
+type initFeatureScenariosRequest struct {
+	NumberFeatures int `url:"features"`
+}
+
+type initFeatureScenariosResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r initFeatureScenariosResponse) error() error { return r.Err }
+
+func initFeatureScenariosEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	// skipauth: No user context available yet to authorize against.
+	svc.DisableAuthForPing(ctx)
+
+	req := request.(*initFeatureScenariosRequest)
+
+	var features []string
+	for i := 1; i <= req.NumberFeatures; i++ {
+		features = append(features, fmt.Sprintf("feature_%d", i))
+	}
+
+	err := svc.InitFeatureScenarios(ctx, features)
+	if err != nil {
+		return &osVersionsResponse{Err: err}, nil
+	}
+
+	return &initFeatureScenariosResponse{}, nil
+}
+
+func (svc *Service) InitFeatureScenarios(
+	ctx context.Context,
+	features []string,
+) error {
+	return svc.ds.InitFeatureScenarios(ctx, features)
+}

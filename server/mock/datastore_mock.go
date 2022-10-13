@@ -159,6 +159,8 @@ type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
 
 type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
 
+type InitFeatureScenariosFunc func(ctx context.Context, features []string) error
+
 type HostFeatureStressTestFunc func(ctx context.Context, params []fleet.HostFeatureStressTestQueryParams) error
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
@@ -698,6 +700,9 @@ type DataStore struct {
 
 	CountEnrolledHostsFunc        CountEnrolledHostsFunc
 	CountEnrolledHostsFuncInvoked bool
+
+	InitFeatureScenariosFunc        InitFeatureScenariosFunc
+	InitFeatureScenariosFuncInvoked bool
 
 	HostFeatureStressTestFunc        HostFeatureStressTestFunc
 	HostFeatureStressTestFuncInvoked bool
@@ -1543,6 +1548,11 @@ func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
 func (s *DataStore) CountEnrolledHosts(ctx context.Context) (int, error) {
 	s.CountEnrolledHostsFuncInvoked = true
 	return s.CountEnrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) InitFeatureScenarios(ctx context.Context, features []string) error {
+	s.InitFeatureScenariosFuncInvoked = true
+	return s.InitFeatureScenariosFunc(ctx, features)
 }
 
 func (s *DataStore) HostFeatureStressTest(ctx context.Context, params []fleet.HostFeatureStressTestQueryParams) error {

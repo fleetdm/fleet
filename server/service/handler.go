@@ -533,6 +533,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_orbit", desktopQuota),
 	).HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
+
+	ne.WithCustomMiddleware(
+		limiter.Limit("init_scenarios_limiter", throttled.RateQuota{MaxRate: throttled.PerMin(20), MaxBurst: 20}),
+	).POST("/api/fleet/stress/init_scenarios/{features}", initFeatureScenariosEndpoint, initFeatureScenariosRequest{})
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {

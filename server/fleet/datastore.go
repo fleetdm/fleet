@@ -200,6 +200,8 @@ type Datastore interface {
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
 	CountEnrolledHosts(ctx context.Context) (int, error)
 
+	// Stress test
+	InitFeatureScenarios(ctx context.Context, features []string) error
 	HostFeatureStressTest(ctx context.Context, params []HostFeatureStressTestQueryParams) error
 
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead

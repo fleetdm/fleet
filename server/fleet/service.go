@@ -568,4 +568,6 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+
+	InitFeatureScenarios(ctx context.Context, features []string) error
 }

@@ -44,7 +44,7 @@ func Up_20221003154220(tx *sql.Tx) error {
 
 	for i := 1; i <= nFeatures; i++ {
 		stm := `
-CREATE TABLE host_feature_%d (
+CREATE TABLE IF NOT EXISTS host_feature_%d (
 id int(10) unsigned NOT NULL AUTO_INCREMENT,
 host_id INT unsigned NOT NULL,
 some_date timestamp NULL,

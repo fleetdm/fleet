@@ -3123,8 +3123,11 @@ func ns(cols []string, table string) []string {
 	return nsCols
 }
 
-func genQueries(params []fleet.HostFeatureStressTestQueryParams) []string {
+func genScenarios(features []string) []string {
 	queriesSet := make(map[string]bool)
+
+	// Sort to ensure we always get the same scenarios
+	sort.Strings(features)
 
 	stm := `
 SELECT %s
@@ -3162,14 +3165,9 @@ GROUP BY %s`
 		"some_number",
 	}
 
-	var tables []string
-	for _, p := range params {
-		tables = append(tables, p.FeatureTable)
-	}
-
 	var tableCombinations [][]string
-	for i := 1; i <= len(tables); i++ {
-		tableCombinations = append(tableCombinations, combinations(tables, i)...)
+	for i := 1; i <= len(features); i++ {
+		tableCombinations = append(tableCombinations, combinations(features, i)...)
 	}
 
 	for _, tc := range tableCombinations {
@@ -3253,6 +3251,35 @@ GROUP BY %s`
 	}
 
 	return queries
+}
+
+func (ds *Datastore) InitFeatureScenarios(
+	ctx context.Context,
+	features []string,
+) error {
+	qStm := `SELECT scenario_id FROM feature_scenarios LIMIT 1`
+	iStm := `INSERT INTO feature_scenarios (scenario_id, query) VALUES (?, ?)`
+
+	// Check if the scenarios table is empty first
+	var id uint
+	err := sqlx.GetContext(ctx, ds.reader, &id, qStm)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			for i, s := range genScenarios(features) {
+				_, err := ds.writer.ExecContext(ctx,
+					iStm,
+					i,
+					s)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "insert scenarios")
+				}
+
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "insert scenarios")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) HostFeatureStressTest(
