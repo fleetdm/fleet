@@ -139,8 +139,3 @@ lib-cov
 
 views/partials/built-from-markdown/
 
-################################################
-# Built Storybook files.
-################################################
-
-assets/storybook/
