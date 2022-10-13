@@ -704,6 +704,9 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext, now time.
 		updateInterval = 24 * time.Hour
 	)
 
+	var prevCount uint
+	var shouldIncrement bool
+
 	// get current count of policy violation days from `aggregated_stats``
 	selectStmt := `
 		SELECT 
@@ -714,33 +717,28 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext, now time.
 			aggregated_stats 
 		WHERE 
 			id = ? AND type = ?`
-	selectResult := []struct {
+	selectResult := struct {
 		CreatedAt time.Time `json:"created_at" db:"created_at"`
 		UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 		Count     uint      `json:"json_value" db:"json_value"`
 	}{}
-	if err := sqlx.SelectContext(ctx, tx, &selectResult, selectStmt, statsID, statsType); err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting policy violation days aggregated stats")
-	}
 
-	var prevCount uint
-	var shouldIncrement bool
-	switch len(selectResult) {
-	case 0:
+	err := sqlx.GetContext(ctx, tx, &selectResult, selectStmt, statsID, statsType)
+	switch {
+	case err == sql.ErrNoRows:
 		// no previous count exists so initialize count as zero and proceed to increment
 		prevCount = 0
 		shouldIncrement = true
-	case 1:
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "selecting policy violation days aggregated stats")
+	default:
 		// increment previous count if interval has elapsed
-		prevCount = selectResult[0].Count
-		lastUpdated := selectResult[0].UpdatedAt
-		if selectResult[0].CreatedAt.After(selectResult[0].UpdatedAt) {
-			lastUpdated = selectResult[0].CreatedAt
+		prevCount = selectResult.Count
+		lastUpdated := selectResult.UpdatedAt
+		if selectResult.CreatedAt.After(selectResult.UpdatedAt) {
+			lastUpdated = selectResult.CreatedAt
 		}
 		shouldIncrement = now.After(lastUpdated.Add(updateInterval))
-	default:
-		// this should not happen
-		return ctxerr.New(ctx, "unexpected result selecting policy violation days")
 	}
 
 	if !shouldIncrement {
