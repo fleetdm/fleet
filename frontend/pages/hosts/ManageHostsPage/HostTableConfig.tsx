@@ -290,7 +290,7 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The last time the host reported vitals.
+            The last time the host<br/> reported vitals.
           `}
         >
           Last fetched
@@ -317,7 +317,7 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The last time the host was online.
+            The last time the <br/>host was online.
           `}
         >
           Last seen
