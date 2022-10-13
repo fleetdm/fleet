@@ -9,10 +9,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
+	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -20,6 +22,34 @@ import (
 
 // version is set at compile time via -ldflags
 var version = "unknown"
+
+func setupRunners() {
+	var runnerGroup run.Group
+
+	// Setting up a watcher for the communication channel
+	if runtime.GOOS == "windows" {
+		runnerGroup.Add(
+			func() error {
+				// block wait on the communication channel
+				if err := blockWaitForStopEvent(constant.DesktopAppExecName); err != nil {
+					log.Error().Err(err).Msg("There was an error on the desktop communication channel")
+					return err
+				}
+
+				log.Info().Msg("Shutdown was requested!")
+				return nil
+			},
+			func(err error) {
+				systray.Quit()
+			},
+		)
+	}
+
+	if err := runnerGroup.Run(); err != nil {
+		log.Error().Err(err).Msg("Fleet Desktop runners terminated")
+		return
+	}
+}
 
 func main() {
 	setupLogs()
@@ -40,6 +70,9 @@ func main() {
 	if fleetURL == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
 	}
+
+	// Setting up working runners such as signalHandler runner
+	go setupRunners()
 
 	onReady := func() {
 		log.Info().Msg("ready")
