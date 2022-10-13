@@ -91,7 +91,11 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 > publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public
 > download, is still the latest _official_ release.
 
-5. Announce the release in the #fleet channel of [osquery
+5. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
+
+6. In the #g-infrastructure Slack channel, notify the @sandbox-oncall of the release. This way, the @sandbox-oncall individual can deploy the new version.
+
+7. Announce the release in the #fleet channel of [osquery
    Slack](https://fleetdm.com/slack) and
    update the channel's topic with the link to this release. Using `@here` requires admin
    permissions, so typically this announcement will be done by `@zwass`.
