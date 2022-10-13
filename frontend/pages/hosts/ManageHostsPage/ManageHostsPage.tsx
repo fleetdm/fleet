@@ -242,14 +242,23 @@ const ManageHostsPage = ({
   const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
-  const softwareId = parseInt(queryParams?.software_id, 10) || undefined;
+  const softwareId =
+    queryParams?.software_id !== undefined
+      ? parseInt(queryParams.software_id, 10)
+      : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
-  const mdmId = parseInt(queryParams?.mdm_id, 10) || undefined;
-  const munkiIssueId = parseInt(queryParams.munki_issue_id, 10) || undefined;
+  const mdmId =
+    queryParams?.mdm_id !== undefined
+      ? parseInt(queryParams.mdm_id, 10)
+      : undefined;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const munkiIssueId =
+    queryParams?.munki_issue_id !== undefined
+      ? parseInt(queryParams.munki_issue_id, 10)
+      : undefined;
   const lowDiskSpaceHosts =
     parseInt(queryParams.low_disk_space, 10) || undefined;
   const missingHosts = queryParams?.status === "missing";
