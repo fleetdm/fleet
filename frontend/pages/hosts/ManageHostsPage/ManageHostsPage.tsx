@@ -408,7 +408,6 @@ const ManageHostsPage = ({
 
   const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
-    console.log("options", options);
     options = {
       ...options,
       teamId: getValidatedTeamId(
@@ -507,7 +506,6 @@ const ManageHostsPage = ({
 
     setSelectedLabel(validLabel);
 
-    console.log("mdmenrollmentstatus for loading hosts", mdmEnrollmentStatus);
     const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -532,7 +530,7 @@ const ManageHostsPage = ({
     if (isEqual(options, currentQueryOptions)) {
       return;
     }
-    console.log("teamSync", teamSync);
+
     if (teamSync) {
       retrieveHosts(options);
       retrieveHostCount(omit(options, "device_mapping"));
@@ -771,7 +769,6 @@ const ManageHostsPage = ({
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
       } else if (mdmEnrollmentStatus) {
-        console.log("mdmEnrollmentStatus");
         newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
       } else if (munkiIssueId) {
         newQueryParams.munki_issue_id = munkiIssueId;
@@ -1617,7 +1614,13 @@ const ManageHostsPage = ({
     }
 
     // There are no hosts for this instance yet
-    if (filteredHostCount === 0 && searchQuery === "" && teamSync && !labelID) {
+    if (
+      filteredHostCount === 0 &&
+      searchQuery === "" &&
+      teamSync &&
+      !labelID &&
+      !status
+    ) {
       const {
         software_id,
         policy_id,
