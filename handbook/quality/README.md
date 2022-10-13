@@ -89,7 +89,7 @@ A critical bug is defined as behavior that:
 * Introduces a security vulnerability
 
 We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
-Raising an alarm means pinging @here in the #help-product channel with the filed bug.
+Raising an alarm means pinging @here in the #help-product channel with the filed bug. The product team will then @-mention the relevant stakeholders, including engineering and customer success.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be customer experience in the community Slack or QA in the bug inbox, though it could be anyone.)
 Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
