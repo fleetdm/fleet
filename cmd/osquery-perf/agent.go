@@ -250,8 +250,10 @@ func (a *agent) isOrbit() bool {
 }
 
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
-	if err := a.orbitEnroll(); err != nil {
-		return
+	if a.isOrbit() {
+		if err := a.orbitEnroll(); err != nil {
+			return
+		}
 	}
 
 	if err := a.enroll(i, onlyAlreadyEnrolled); err != nil {
@@ -407,10 +409,10 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 	}
 }
 
+// TODO: add support to `alreadyEnrolled` akin to the `enroll` function.  for
+// now, we assume that the agent is not already enrolled, if you kill the agent
+// process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	if !a.isOrbit() {
-		return nil
-	}
 	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
 
 	req := fasthttp.AcquireRequest()
