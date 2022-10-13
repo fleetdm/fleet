@@ -1,5 +1,7 @@
 .secret-field {
   &__secret-input {
+    margin-bottom: 8px;
+
     .form-field__label {
       position: relative;
       font-size: $x-small;
@@ -75,16 +77,6 @@
       width: 12px;
       height: 12px;
       margin-left: 7px;
-    }
-  }
-
-  &--multiple-secrets {
-    .form-field__label {
-      margin-top: 0;
-    }
-
-    .enroll-secrets__secret-download-icon {
-      margin-bottom: $pad-medium;
     }
   }
 }

@@ -70,9 +70,6 @@ const Checkbox = (props: ICheckboxProps) => {
           onChange={handleChange}
           onBlur={onBlur}
           type="checkbox"
-          ref={(element) => {
-            element && indeterminate && (element.indeterminate = indeterminate);
-          }}
         />
         <span className={checkBoxTickClass} />
 
