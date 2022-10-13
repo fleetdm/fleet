@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha1"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -3058,6 +3059,7 @@ func combinations(set []string, r int) (subsets [][]string) {
 		}
 		subsets = append(subsets, subset)
 	}
+
 	return subsets
 }
 
@@ -3109,7 +3111,7 @@ func genFromStatments(tables []string) string {
 	var result string
 
 	for _, t := range tables {
-		result += fmt.Sprintf(" INNER JOIN %s ON hosts.id = %s.host_id ", t, t)
+		result += fmt.Sprintf("INNER JOIN %s ON hosts.id = %s.host_id ", t, t)
 	}
 
 	return result
@@ -3125,9 +3127,6 @@ func ns(cols []string, table string) []string {
 
 func genScenarios(features []string) []string {
 	queriesSet := make(map[string]bool)
-
-	// Sort to ensure we always get the same scenarios
-	sort.Strings(features)
 
 	stm := `
 SELECT %s
@@ -3257,26 +3256,43 @@ func (ds *Datastore) InitFeatureScenarios(
 	ctx context.Context,
 	features []string,
 ) error {
-	qStm := `SELECT scenario_id FROM feature_scenarios LIMIT 1`
-	iStm := `INSERT INTO feature_scenarios (scenario_id, query) VALUES (?, ?)`
+	qStm := `SELECT digest FROM feature_scenarios LIMIT 1`
+	iStm := `INSERT INTO feature_scenarios (digest, scenario) VALUES %s`
+	batchSize := 10_000
 
 	// Check if the scenarios table is empty first
-	var id uint
-	err := sqlx.GetContext(ctx, ds.reader, &id, qStm)
+	var c string
+	err := sqlx.GetContext(ctx, ds.reader, &c, qStm)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			for i, s := range genScenarios(features) {
-				_, err := ds.writer.ExecContext(ctx,
-					iStm,
-					i,
-					s)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "insert scenarios")
-				}
-
-			}
+		if err != sql.ErrNoRows {
+			return ctxerr.Wrap(ctx, err, "insert scenarios")
 		}
-		return ctxerr.Wrap(ctx, err, "insert scenarios")
+		scenarios := genScenarios(features)
+
+		for len(scenarios) > 0 {
+			batch := scenarios
+
+			if len(batch) > batchSize {
+				batch = batch[:batchSize]
+			}
+
+			args := make([]interface{}, 0, len(batch))
+			values := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
+			iStm := fmt.Sprintf(iStm, values)
+
+			for _, s := range batch {
+				scenario := strings.Replace(strings.TrimSpace(s), "\n", " ", -1)
+				digest := fmt.Sprintf("%x", sha1.Sum([]byte(scenario)))
+				args = append(args, digest, scenario)
+			}
+
+			_, err := ds.writer.ExecContext(ctx, iStm, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert scenarios")
+			}
+
+			scenarios = scenarios[len(batch):]
+		}
 	}
 
 	return nil

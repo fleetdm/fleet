@@ -541,6 +541,16 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
+// var featureIngestion = DetailQuery{
+// 	Query: `
+// 	SELECT * FROM stress_feature_1
+// 	UNION
+// 	SELECT * FROM stress_feature_2
+// 	UNION
+// 	SELECT * FROM stress_feature_3
+// 	`,
+// }
+
 var softwareMacOS = DetailQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to

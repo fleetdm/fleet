@@ -12,9 +12,9 @@ func init() {
 func Up_20221013084907(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS feature_scenarios(
-    scenario_id INT(10) UNSIGNED NOT NULL,
-	query TEXT NOT NULL,
-    PRIMARY KEY (scenario_id)
+    digest CHAR(40) NOT NULL,
+	scenario TEXT NOT NULL,
+    PRIMARY KEY (digest)
 );
 `)
 	if err != nil {
