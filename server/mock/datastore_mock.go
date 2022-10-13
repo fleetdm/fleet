@@ -161,7 +161,9 @@ type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
 
 type InitFeatureScenariosFunc func(ctx context.Context, features []string) error
 
-type HostFeatureStressTestFunc func(ctx context.Context, params []fleet.HostFeatureStressTestQueryParams) error
+type UpsertHostFeatureValuesFunc func(ctx context.Context, featureID string, vals []fleet.HostFeature) error
+
+type HostFeatureStressTestFunc func(ctx context.Context, params []fleet.HostFeatureQueryParams) error
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
@@ -703,6 +705,9 @@ type DataStore struct {
 
 	InitFeatureScenariosFunc        InitFeatureScenariosFunc
 	InitFeatureScenariosFuncInvoked bool
+
+	UpsertHostFeatureValuesFunc        UpsertHostFeatureValuesFunc
+	UpsertHostFeatureValuesFuncInvoked bool
 
 	HostFeatureStressTestFunc        HostFeatureStressTestFunc
 	HostFeatureStressTestFuncInvoked bool
@@ -1555,7 +1560,12 @@ func (s *DataStore) InitFeatureScenarios(ctx context.Context, features []string)
 	return s.InitFeatureScenariosFunc(ctx, features)
 }
 
-func (s *DataStore) HostFeatureStressTest(ctx context.Context, params []fleet.HostFeatureStressTestQueryParams) error {
+func (s *DataStore) UpsertHostFeatureValues(ctx context.Context, featureID string, vals []fleet.HostFeature) error {
+	s.UpsertHostFeatureValuesFuncInvoked = true
+	return s.UpsertHostFeatureValuesFunc(ctx, featureID, vals)
+}
+
+func (s *DataStore) HostFeatureStressTest(ctx context.Context, params []fleet.HostFeatureQueryParams) error {
 	s.HostFeatureStressTestFuncInvoked = true
 	return s.HostFeatureStressTestFunc(ctx, params)
 }

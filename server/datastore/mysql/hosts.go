@@ -3260,7 +3260,6 @@ func (ds *Datastore) InitFeatureScenarios(
 	iStm := `INSERT INTO feature_scenarios (digest, scenario) VALUES %s`
 	batchSize := 10_000
 
-	// Check if the scenarios table is empty first
 	var c string
 	err := sqlx.GetContext(ctx, ds.reader, &c, qStm)
 	if err != nil {
@@ -3300,7 +3299,81 @@ func (ds *Datastore) InitFeatureScenarios(
 
 func (ds *Datastore) HostFeatureStressTest(
 	ctx context.Context,
-	params []fleet.HostFeatureStressTestQueryParams,
+	params []fleet.HostFeatureQueryParams,
 ) error {
+	return nil
+}
+
+func (ds *Datastore) UpsertHostFeatureValues(
+	ctx context.Context,
+	featureID string,
+	vals []fleet.HostFeature,
+) error {
+	tableName := fmt.Sprintf("host_feature_%s", featureID)
+
+	var toInsert []interface{}
+	var toUpdate []interface{}
+
+	for _, v := range vals {
+		if v.ID == 0 {
+			toInsert = append(toInsert,
+				v.HostID,
+				v.SomeDate,
+				v.SomeEnumStr,
+				v.SomeStr,
+				v.SomeBool,
+				v.SomeDecimal,
+				v.SomeNumber,
+			)
+		}
+
+		if v.Update {
+			toUpdate = append(toUpdate,
+				v.ID,
+				v.HostID,
+				v.SomeDate,
+				v.SomeEnumStr,
+				v.SomeStr,
+				v.SomeBool,
+				v.SomeDecimal,
+				v.SomeNumber,
+			)
+		}
+	}
+
+	if len(toInsert) > 0 {
+		stm := `
+INSERT INTO %s (host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number) 
+VALUES %s`
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?),", len(toInsert)/7), ",")
+		stm = fmt.Sprintf(stm, tableName, values)
+
+		_, err := ds.writer.ExecContext(ctx, stm, toInsert...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting stress features")
+		}
+	}
+
+	if len(toUpdate) > 0 {
+		stm := `
+INSERT INTO %s (id, host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number) 
+VALUES %s ON DUPLICATE KEY UPDATE 
+host_id = VALUES(host_id),
+some_date = VALUES(some_date),
+some_enum_str = VALUES(some_enum_str),
+some_str = VALUES(some_str), 
+some_bool = VALUES(some_bool), 
+some_decimal = VALUES(some_decimal), 
+some_number = VALUES(some_number)
+`
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?,?),", len(toUpdate)/8), ",")
+		stm = fmt.Sprintf(stm, tableName, values)
+
+		_, err := ds.writer.ExecContext(ctx, stm, toUpdate...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating stress features")
+		}
+	}
+
 	return nil
 }

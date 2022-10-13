@@ -1318,7 +1318,7 @@ func initFeatureScenariosEndpoint(ctx context.Context, request interface{}, svc 
 	req := request.(*initFeatureScenariosRequest)
 
 	var features []string
-	for i := 1; i <= req.NumberFeatures; i++ {
+	for i := 0; i < req.NumberFeatures; i++ {
 		features = append(features, fmt.Sprintf("host_feature_%d", i))
 	}
 
@@ -1334,6 +1334,5 @@ func (svc *Service) InitFeatureScenarios(
 	ctx context.Context,
 	features []string,
 ) error {
-	fmt.Println(features)
 	return svc.ds.InitFeatureScenarios(ctx, features)
 }

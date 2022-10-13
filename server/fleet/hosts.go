@@ -539,25 +539,32 @@ type EnrollHostLimiter interface {
 	SyncEnrolledHostIDs(ctx context.Context) error
 }
 
-type HostFeatureStressTestQueryParams struct {
+type HostFeatureQueryParams struct {
+	HostID         uint
+	SomeDate       *time.Time
+	SomeDateMin    *time.Time
+	SomeDateMax    *time.Time
+	SomeEnumStr    *string
+	SomeEnumStrSet []string
+	SomeStr        *string
+	SomeBool       *bool
+	SomeDecimal    *float64
+	SomeDecimalMin *float64
+	SomeDecimalMax *float64
+	SomeNumber     *int
+	SomeNumberMin  *int
+	SomeNumberMax  *int
+	FeatureID      string
+}
+
+type HostFeature struct {
+	ID          int
+	Update      bool
 	HostID      uint
-	SomeDate    *time.Time
-	SomeDateMin *time.Time
-	SomeDateMax *time.Time
-
-	SomeSmallStr    *string
-	SomeSmallStrSet []string
-
-	SomeStr  *string
-	SomeBool *bool
-
-	SomeDecimal    *float32
-	SomeDecimalMin *float32
-	SomeDecimalMax *float32
-
-	SomeNumber    *int
-	SomeNumberMin *int
-	SomeNumberMax *int
-
-	FeatureTable string
+	SomeDate    time.Time
+	SomeEnumStr string
+	SomeStr     string
+	SomeBool    bool
+	SomeDecimal float64
+	SomeNumber  int
 }

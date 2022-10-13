@@ -541,16 +541,6 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
-// var featureIngestion = DetailQuery{
-// 	Query: `
-// 	SELECT * FROM stress_feature_1
-// 	UNION
-// 	SELECT * FROM stress_feature_2
-// 	UNION
-// 	SELECT * FROM stress_feature_3
-// 	`,
-// }
-
 var softwareMacOS = DetailQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
@@ -1037,6 +1027,74 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 	return nil
 }
 
+func directIngestHostStressFeature(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+	failed bool,
+) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestHostStressFeature", "err", "failed")
+		return nil
+	}
+
+	if len(rows) == 0 {
+		return nil
+	}
+
+	featureID := rows[0]["feature_id"]
+	var vals []fleet.HostFeature
+
+	for _, row := range rows {
+		id, err := strconv.Atoi(row["id"])
+		if err != nil {
+			return fmt.Errorf("converting id %s %w", row["id"], err)
+		}
+
+		someDate, err := time.Parse(time.RFC3339, row["some_date"])
+		if err != nil {
+			return fmt.Errorf("converting some date %s %w", row["some_date"], err)
+		}
+
+		someBool, err := strconv.ParseBool(row["some_bool"])
+		if err != nil {
+			return fmt.Errorf("converting some bool %s %w", row["some_bool"], err)
+		}
+
+		update, err := strconv.ParseBool(row["update"])
+		if err != nil {
+			return fmt.Errorf("converting update %s %w", row["update"], err)
+		}
+
+		someDecimal, err := strconv.ParseFloat(row["some_decimal"], 32)
+		if err != nil {
+			return fmt.Errorf("converting some decimal %s %w", row["some_decimal"], err)
+		}
+
+		someNumber, err := strconv.Atoi(row["some_number"])
+		if err != nil {
+			return fmt.Errorf("converting some number %s %w", row["some_number"], err)
+		}
+
+		vals = append(vals,
+			fleet.HostFeature{
+				ID:          id,
+				HostID:      host.ID,
+				SomeDate:    someDate,
+				SomeEnumStr: row["some_enum_str"],
+				SomeStr:     row["some_str"],
+				SomeBool:    someBool,
+				SomeDecimal: someDecimal,
+				SomeNumber:  someNumber,
+				Update:      update,
+			})
+	}
+
+	return ds.UpsertHostFeatureValues(ctx, featureID, vals)
+}
+
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
 		level.Error(logger).Log("op", "directIngestSoftware", "err", "failed")
@@ -1260,6 +1318,15 @@ func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) 
 			query := generatedMap[queryName]
 			query.Query = newQuery
 			generatedMap[queryName] = query
+		}
+	}
+
+	nStressFeatures := 3
+	for i := 0; i < nStressFeatures; i++ {
+		featureName := fmt.Sprintf("host_feature_%d", i)
+		generatedMap[featureName] = DetailQuery{
+			Query:            fmt.Sprintf(`SELECT * FROM %s`, featureName),
+			DirectIngestFunc: directIngestHostStressFeature,
 		}
 	}
 

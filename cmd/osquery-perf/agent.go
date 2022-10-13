@@ -788,17 +788,18 @@ func (a *agent) diskSpace() []map[string]string {
 func (a *agent) stressFeatureData(name string) []map[string]string {
 	outputMap := map[int]int{
 		// 'Big' feature, each host will generate 1,000 rows
-		1: 1000,
+		0: 1000,
 		// 'Medium' feature, each host will generate 50 rows
-		2: 50,
+		1: 50,
 		// 'Small' feature, each host will generate 1 rows
-		3: 1,
+		2: 1,
 	}
 
 	enumValues := map[int]string{
-		1: "val_a",
-		2: "val_b",
-		3: "val_c",
+		0: "val_a",
+		1: "val_b",
+		2: "val_c",
+		3: "val_d",
 	}
 
 	// Get Feature ID
@@ -813,50 +814,29 @@ func (a *agent) stressFeatureData(name string) []map[string]string {
 	newDist := distuv.Bernoulli{P: a.featureNewProb}
 
 	for i := range result {
-		id := i
+		id := i + 1
 		if newDist.Rand() == 1 {
-			id = rand.Intn(1_000_000)
+			id = 0
 		}
 
 		changeProb := changeDist.Rand()
 
-		dateVal, err := time.Parse(time.RFC822, "01 Jan 20 00:00 MST")
-		if err != nil {
-			continue
-		}
-		enumVal := enumValues[i%len(enumValues)]
-		strVal := `
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
-		sed do eiusmod tempor incididunt ut labore et dolore magna 
-		aliqua. Ut enim ad minim veniam, quis nostrud exercitation 
-		ullamco laboris nisi ut aliquip ex ea commodo consequat. 
-		Duis aute irure dolor in reprehenderit in voluptate velit 
-		esse cillum dolore eu fugiat nulla pariatur. Excepteur sint 
-		occaecat cupidatat non proident, sunt in culpa qui officia 
-		deserunt mollit anim id est laborum.
-		`
+		enumVal := enumValues[(i+1)%len(enumValues)]
+		strVal := `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna`
 		boolVal := i%2 == 0
 		decimalVal := float32(i)
 		intVal := int(i)
 
-		if changeProb == 1 {
-			dateVal = dateVal.Add(2 * time.Hour)
-			enumVal = enumValues[(i+1)%len(enumValues)]
-			strVal = strVal[:rand.Intn(len(strVal))]
-			boolVal = !boolVal
-			decimalVal = decimalVal + 1
-			intVal = intVal + 1
-		}
-
 		row := map[string]string{
 			"feature_id":    fmt.Sprint(featureID),
 			"id":            fmt.Sprint(id),
-			"some_date":     dateVal.Format(time.UnixDate),
+			"some_date":     "2020-01-01T00:00:05Z",
 			"some_enum_str": enumVal,
 			"some_str":      strVal,
 			"some_bool":     fmt.Sprint(boolVal),
 			"some_decimal":  fmt.Sprint(decimalVal),
 			"some_number":   fmt.Sprint(intVal),
+			"update":        fmt.Sprint(changeProb == 1),
 		}
 		result[i] = row
 	}
@@ -873,7 +853,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
-	case strings.HasPrefix(name, hostDetailQueryPrefix+"stress_feature_"):
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"host_feature_"):
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.stressFeatureData(name)

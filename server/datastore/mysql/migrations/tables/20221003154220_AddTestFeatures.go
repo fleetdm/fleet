@@ -42,7 +42,7 @@ func Up_20221003154220(tx *sql.Tx) error {
 		"some_number",
 	}
 
-	for i := 1; i <= nFeatures; i++ {
+	for i := 0; i < nFeatures; i++ {
 		stm := `
 CREATE TABLE IF NOT EXISTS host_feature_%d (
 id int(10) unsigned NOT NULL AUTO_INCREMENT,
