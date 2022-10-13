@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -185,8 +184,6 @@ type agent struct {
 	UUID           string
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
-	OrbitInterval  time.Duration
-	IsOrbit        bool
 }
 
 type entityCount struct {
@@ -204,16 +201,14 @@ type softwareEntityCount struct {
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval, orbitInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
+	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
 ) *agent {
 	var deviceAuthToken *string
-	var isOrbit bool
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
-		isOrbit = true
 	}
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
@@ -238,9 +233,7 @@ func newAgent(
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
-		OrbitInterval:  orbitInterval,
 		UUID:           uuid.New().String(),
-		IsOrbit:        isOrbit,
 	}
 }
 
@@ -250,6 +243,10 @@ type enrollResponse struct {
 
 type distributedReadResponse struct {
 	Queries map[string]string `json:"queries"`
+}
+
+func (a *agent) isOrbit() bool {
+	return a.deviceAuthToken != nil
 }
 
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
@@ -271,9 +268,12 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		}
 	}
 
+	if a.isOrbit() {
+		go a.runOrbitLoop()
+	}
+
 	configTicker := time.Tick(a.ConfigInterval)
 	liveQueryTicker := time.Tick(a.QueryInterval)
-	orbitTicker := time.Tick(a.OrbitInterval)
 	for {
 		select {
 		case <-configTicker:
@@ -285,10 +285,113 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			} else if len(resp.Queries) > 0 {
 				a.DistributedWrite(resp.Queries)
 			}
-		case <-orbitTicker:
-			err := a.orbitConfig()
-			if err != nil {
-				log.Println(err)
+		}
+	}
+}
+
+func (a *agent) runOrbitLoop() {
+	orbitClient, err := service.NewOrbitClient(
+		"",
+		a.serverAddress,
+		"",
+		false,
+		a.EnrollSecret,
+		a.UUID,
+	)
+	if err != nil {
+		log.Println("creating orbit client: ", err)
+	}
+
+	orbitClient.TestNodeKey = *a.orbitNodeKey
+
+	deviceClient, err := service.NewDeviceClient(a.serverAddress, false, "")
+	if err != nil {
+		log.Println("creating device client: ", err)
+	}
+
+	// orbit does a config check when it starts
+	if _, err := orbitClient.GetConfig(); err != nil {
+		log.Println("orbitClient.GetConfig: ", err)
+	}
+
+	tokenRotationEnabled := orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
+		orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation)
+
+	// it also writes and checks the device token
+	if tokenRotationEnabled {
+		if err := orbitClient.SetOrUpdateDeviceToken(*a.deviceAuthToken); err != nil {
+			log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+		}
+
+		if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+			log.Println("deviceClient.CheckToken: ", err)
+		}
+	}
+
+	checkToken := func() {
+		min := 1
+		max := 5
+		numberOfRequests := rand.Intn(max-min+1) + min
+		ticker := time.NewTicker(5 * time.Second)
+
+		for {
+			<-ticker.C
+			numberOfRequests--
+			if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+				log.Println("deviceClient.CheckToken: ", err)
+			}
+			if numberOfRequests == 0 {
+				break
+			}
+		}
+	}
+
+	// fleet desktop performs a burst of check token requests when it's initialized
+	checkToken()
+
+	// orbit makes a call to check the config and update the CLI flags every 5
+	// seconds
+	orbitConfigTicker := time.Tick(30 * time.Second)
+	// orbit makes a call every 5 minutes to check the validity of the device
+	// token on the server
+	orbitTokenRemoteCheckTicker := time.Tick(5 * time.Minute)
+	// orbit pings the server every 1 hour to rotate the device token
+	orbitTokenRotationTicker := time.Tick(1 * time.Hour)
+	// orbit polls the /orbit/ping endpoint every 5 minutes to check if the
+	// server capabilities have changed
+	capabilitiesCheckerTicker := time.Tick(5 * time.Minute)
+	// fleet desktop polls for policy compliance every 5 minutes
+	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
+
+	for {
+		select {
+		case <-orbitConfigTicker:
+			if _, err := orbitClient.GetConfig(); err != nil {
+				log.Println("orbitClient.GetConfig: ", err)
+			}
+		case <-orbitTokenRemoteCheckTicker:
+			if tokenRotationEnabled {
+				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+					log.Println("deviceClient.CheckToken: ", err)
+				}
+			}
+		case <-orbitTokenRotationTicker:
+			if tokenRotationEnabled {
+				newToken := ptr.String(uuid.NewString())
+				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
+					log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+				}
+				a.deviceAuthToken = newToken
+				// fleet desktop performs a burst of check token requests after a token is rotated
+				checkToken()
+			}
+		case <-capabilitiesCheckerTicker:
+			if err := orbitClient.Ping(); err != nil {
+				log.Println("orbitClient.Ping: ", err)
+			}
+		case <-fleetDesktopPolicyTicker:
+			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
+				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
 			}
 		}
 	}
@@ -304,68 +407,11 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 	}
 }
 
-type enrollOrbitRequest struct {
-	EnrollSecret string `json:"enroll_secret"`
-	HardwareUUID string `json:"hardware_uuid"`
-}
-
-type enrollOrbitResponse struct {
-	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
-	Err          error  `json:"error,omitempty"`
-}
-
-type orbitGetConfigRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-}
-
-type orbitGetConfigResponse struct {
-	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
-	Err   error           `json:"error,omitempty"`
-}
-
-func (a *agent) orbitConfig() error {
-	if !a.IsOrbit {
-		return nil
-	}
-	params := orbitGetConfigRequest{OrbitNodeKey: *a.orbitNodeKey}
-
-	req := fasthttp.AcquireRequest()
-	body, err := json.Marshal(params)
-	if err != nil {
-		log.Println("orbit get config json marshall:", err)
-		return err
-	}
-
-	req.SetBody(body)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/config")
-
-	resp := fasthttp.AcquireResponse()
-
-	a.waitingDo(req, resp)
-	defer fasthttp.ReleaseResponse(resp)
-
-	if resp.StatusCode() != http.StatusOK {
-		log.Println("orbit config status:", resp.StatusCode())
-		return fmt.Errorf("status code: %d", resp.StatusCode())
-	}
-
-	var parsedResp orbitGetConfigResponse
-	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
-		log.Println("orbit config parse:", err)
-		return err
-	}
-
-	// we don't really care about the response
-	return nil
-}
-
 func (a *agent) orbitEnroll() error {
-	if !a.IsOrbit {
+	if !a.isOrbit() {
 		return nil
 	}
-	params := enrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
+	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
 
 	req := fasthttp.AcquireRequest()
 
@@ -390,7 +436,7 @@ func (a *agent) orbitEnroll() error {
 		return fmt.Errorf("status code: %d", resp.StatusCode())
 	}
 
-	var parsedResp enrollOrbitResponse
+	var parsedResp service.EnrollOrbitResponse
 	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
 		log.Println("orbit json parse:", err)
 		return err
@@ -582,7 +628,7 @@ func loadSoftware(platform string, ver string) []map[string]string {
 		fmt.Sprintf("%s_%s-software.json.bz2", platform, ver),
 	)
 
-	tmpDir, err := ioutil.TempDir("", "osquery-perf")
+	tmpDir, err := os.MkdirTemp("", "osquery-perf")
 	if err != nil {
 		panic(err)
 	}
@@ -599,7 +645,7 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	}
 
 	var software []softwareJSON
-	contents, err := ioutil.ReadFile(dstPath)
+	contents, err := os.ReadFile(dstPath)
 	if err != nil {
 		log.Printf("reading vuln software for %s %s: %s\n", platform, ver, err)
 		return nil
@@ -1045,7 +1091,6 @@ func main() {
 	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-	orbitInterval := flag.Duration("orbit_interval", 10*time.Second, "Interval for orbit enroll requests")
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
 	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
@@ -1106,7 +1151,7 @@ func main() {
 		if strings.HasPrefix(tmpl.Name(), "partial") {
 			continue
 		}
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, *orbitInterval,
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,

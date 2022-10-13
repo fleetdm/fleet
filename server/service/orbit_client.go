@@ -31,6 +31,9 @@ type OrbitClient struct {
 
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
+
+	// TestNodeKey is used for testing only.
+	TestNodeKey string
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
@@ -133,8 +136,8 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := enrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid}
-	var resp enrollOrbitResponse
+	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid}
+	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {
 		return "", err
@@ -149,6 +152,10 @@ var enrollLock sync.Mutex
 // getNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
 // otherwise it enrolls the host with Fleet and saves the node key to disk
 func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
+	if oc.TestNodeKey != "" {
+		return oc.TestNodeKey, nil
+	}
+
 	enrollLock.Lock()
 	defer enrollLock.Unlock()
 

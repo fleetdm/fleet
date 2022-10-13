@@ -21,12 +21,12 @@ type orbitError struct {
 	message string
 }
 
-type enrollOrbitRequest struct {
+type EnrollOrbitRequest struct {
 	EnrollSecret string `json:"enroll_secret"`
 	HardwareUUID string `json:"hardware_uuid"`
 }
 
-type enrollOrbitResponse struct {
+type EnrollOrbitResponse struct {
 	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
 	Err          error  `json:"error,omitempty"`
 }
@@ -52,12 +52,12 @@ func (e orbitError) Error() string {
 	return e.message
 }
 
-func (r enrollOrbitResponse) error() error { return r.Err }
+func (r EnrollOrbitResponse) error() error { return r.Err }
 
 // hijackRender so we can add a header with the server capabilities in the
 // response, allowing Orbit to know what features are available without the
 // need to enroll.
-func (r enrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -68,12 +68,12 @@ func (r enrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 }
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*enrollOrbitRequest)
+	req := request.(*EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
 	if err != nil {
-		return enrollOrbitResponse{Err: err}, nil
+		return EnrollOrbitResponse{Err: err}, nil
 	}
-	return enrollOrbitResponse{OrbitNodeKey: nodeKey}, nil
+	return EnrollOrbitResponse{OrbitNodeKey: nodeKey}, nil
 }
 
 func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey string) (*fleet.Host, bool, error) {

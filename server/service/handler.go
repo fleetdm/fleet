@@ -485,7 +485,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		ne.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
 	}
 
-	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, enrollOrbitRequest{})
+	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.
