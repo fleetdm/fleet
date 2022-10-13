@@ -5,8 +5,6 @@ import { renderWithSetup } from "test/testingUtils";
 import paths from "router/paths";
 import SummaryTile from "./SummaryTile";
 
-import TestIcon from "../../../../../../assets/images/icon-windows-black-24x24@2x.png";
-
 const LOADING_OPACITY = 0.4;
 
 describe("SummaryTile - component", () => {
@@ -17,7 +15,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI={false} // tested
         title={"Windows hosts"}
-        icon={TestIcon}
+        iconName={"windows-blue"}
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -35,7 +33,7 @@ describe("SummaryTile - component", () => {
         isLoading // tested
         showUI
         title={"Windows hosts"}
-        icon={TestIcon}
+        iconName={"windows-blue"}
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -54,7 +52,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"} // tested
-        icon={TestIcon} // tested
+        iconName={"windows-blue"} // tested
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -92,7 +90,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        icon={TestIcon}
+        iconName={"windows-blue"}
         tooltip={"Hosts on any Windows device"} // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -110,7 +108,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        icon={TestIcon}
+        iconName={"windows-blue"}
         tooltip={"Hosts on any Windows device"} // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />

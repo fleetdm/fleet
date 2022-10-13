@@ -4,7 +4,6 @@ import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import SummaryTile from "../HostsSummary/SummaryTile";
-import LowDiskSpaceIcon from "../../../../../assets/images/icon-low-disk-space-32x19@2x.png";
 
 const baseClass = "hosts-low-space";
 
@@ -33,7 +32,7 @@ const LowDiskSpaceHosts = ({
   return (
     <div className={baseClass}>
       <SummaryTile
-        icon={LowDiskSpaceIcon}
+        iconName={"low-disk-space-hosts"}
         count={lowDiskSpaceCount}
         isLoading={isLoadingHosts}
         showUI={showHostsUI}
