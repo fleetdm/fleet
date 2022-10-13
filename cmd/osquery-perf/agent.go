@@ -182,6 +182,9 @@ type agent struct {
 	UUID           string
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
+
+	featureChangeProb float64
+	featureNewProb    float64
 }
 
 type entityCount struct {
@@ -198,11 +201,19 @@ type softwareEntityCount struct {
 
 func newAgent(
 	agentIndex int,
-	serverAddress, enrollSecret string, templates *template.Template,
-	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
+	serverAddress string,
+	enrollSecret string,
+	templates *template.Template,
+	configInterval time.Duration,
+	queryInterval time.Duration,
+	softwareCount softwareEntityCount,
+	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
-	munkiIssueProb float64, munkiIssueCount int,
+	munkiIssueProb float64,
+	munkiIssueCount int,
+	changeProb float64,
+	newProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -228,10 +239,12 @@ func newAgent(
 		deviceAuthToken: deviceAuthToken,
 		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
-		EnrollSecret:   enrollSecret,
-		ConfigInterval: configInterval,
-		QueryInterval:  queryInterval,
-		UUID:           uuid.New().String(),
+		EnrollSecret:      enrollSecret,
+		ConfigInterval:    configInterval,
+		QueryInterval:     queryInterval,
+		UUID:              uuid.New().String(),
+		featureChangeProb: changeProb,
+		featureNewProb:    newProb,
 	}
 }
 
@@ -781,6 +794,14 @@ func (a *agent) stressFeatureData(name string) []map[string]string {
 		// 'Small' feature, each host will generate 1 rows
 		3: 1,
 	}
+
+	enumValues := map[int]string{
+		1: "val_a",
+		2: "val_b",
+		3: "val_c",
+	}
+
+	// Get Feature ID
 	parts := strings.Split(name, "_")
 	featureID, err := strconv.Atoi(parts[len(parts)-1])
 	if err != nil {
@@ -788,9 +809,8 @@ func (a *agent) stressFeatureData(name string) []map[string]string {
 	}
 
 	result := make([]map[string]string, outputMap[featureID%3])
-	// TODO parameterize this
-	changeDist := distuv.Bernoulli{P: 0.5}
-	newDist := distuv.Bernoulli{P: 0.5}
+	changeDist := distuv.Bernoulli{P: a.featureChangeProb}
+	newDist := distuv.Bernoulli{P: a.featureNewProb}
 
 	for i := range result {
 		id := i
@@ -800,19 +820,43 @@ func (a *agent) stressFeatureData(name string) []map[string]string {
 
 		changeProb := changeDist.Rand()
 
-		someDate, err := time.Parse(time.RFC822, "01 Jan 20 00:00 MST")
+		dateVal, err := time.Parse(time.RFC822, "01 Jan 20 00:00 MST")
 		if err != nil {
 			continue
 		}
+		enumVal := enumValues[i%len(enumValues)]
+		strVal := `
+		Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
+		sed do eiusmod tempor incididunt ut labore et dolore magna 
+		aliqua. Ut enim ad minim veniam, quis nostrud exercitation 
+		ullamco laboris nisi ut aliquip ex ea commodo consequat. 
+		Duis aute irure dolor in reprehenderit in voluptate velit 
+		esse cillum dolore eu fugiat nulla pariatur. Excepteur sint 
+		occaecat cupidatat non proident, sunt in culpa qui officia 
+		deserunt mollit anim id est laborum.
+		`
+		boolVal := i%2 == 0
+		decimalVal := float32(i)
+		intVal := int(i)
+
+		if changeProb == 1 {
+			dateVal = dateVal.Add(2 * time.Hour)
+			enumVal = enumValues[(i+1)%len(enumValues)]
+			strVal = strVal[:rand.Intn(len(strVal))]
+			boolVal = !boolVal
+			decimalVal = decimalVal + 1
+			intVal = intVal + 1
+		}
 
 		row := map[string]string{
+			"feature_id":    fmt.Sprint(featureID),
 			"id":            fmt.Sprint(id),
-			"some_date":     "",
-			"some_enum_str": "",
-			"some_str":      "",
-			"some_bool":     "",
-			"some_decimal":  "",
-			"some_number":   "",
+			"some_date":     dateVal.Format(time.UnixDate),
+			"some_enum_str": enumVal,
+			"some_str":      strVal,
+			"some_bool":     fmt.Sprint(boolVal),
+			"some_decimal":  fmt.Sprint(decimalVal),
+			"some_number":   fmt.Sprint(intVal),
 		}
 		result[i] = row
 	}
@@ -997,6 +1041,9 @@ func main() {
 	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
+	featureChangeProb := flag.Float64("feature_change_prob", 0.5, "When generating strees feature data, prob of generating changing data [0, 1]")
+	featureNewProb := flag.Float64("feature_new_prob", 0.5, "When generating strees feature data, prob of generating new data [0, 1]")
+
 	flag.Parse()
 
 	rand.Seed(*randSeed)
@@ -1060,6 +1107,8 @@ func main() {
 			*orbitProb,
 			*munkiIssueProb,
 			*munkiIssueCount,
+			*featureChangeProb,
+			*featureNewProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
