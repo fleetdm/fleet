@@ -33,13 +33,19 @@ type HostResponse struct {
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
+	hr := hostResponseForHostCheap(host)
+	hr.Geolocation = svc.LookupGeoIP(ctx, host.PublicIP)
+	return hr, nil
+}
+
+// hostResponseForHostCheap returns a new HostResponse from a Host without computing Geolocation.
+func hostResponseForHostCheap(host *fleet.Host) *HostResponse {
 	return &HostResponse{
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
 		DisplayName: host.DisplayName(),
-		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
-	}, nil
+	}
 }
 
 // HostDetailResponse is the response struct that contains the full host information
@@ -317,8 +323,8 @@ type searchHostsRequest struct {
 }
 
 type searchHostsResponse struct {
-	Hosts []*hostSearchResult `json:"hosts"`
-	Err   error               `json:"error,omitempty"`
+	Hosts []*HostResponse `json:"hosts"`
+	Err   error           `json:"error,omitempty"`
 }
 
 func (r searchHostsResponse) error() error { return r.Err }
@@ -331,18 +337,10 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return searchHostsResponse{Err: err}, nil
 	}
 
-	results := []*hostSearchResult{}
+	results := []*HostResponse{}
 
 	for _, h := range hosts {
-		results = append(results,
-			&hostSearchResult{
-				HostResponse{
-					Host:   h,
-					Status: h.Status(time.Now()),
-				},
-				h.Hostname,
-			},
-		)
+		results = append(results, hostResponseForHostCheap(h))
 	}
 
 	return searchHostsResponse{

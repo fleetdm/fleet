@@ -25,11 +25,6 @@ type searchTargetsRequest struct {
 	Selected fleet.HostTargets `json:"selected"`
 }
 
-type hostSearchResult struct {
-	HostResponse
-	DisplayText string `json:"display_text"`
-}
-
 type labelSearchResult struct {
 	*fleet.Label
 	DisplayText string `json:"display_text"`
@@ -115,7 +110,7 @@ func (t *teamSearchResult) UnmarshalJSON(b []byte) error {
 }
 
 type targetsData struct {
-	Hosts  []hostSearchResult  `json:"hosts"`
+	Hosts  []*HostResponse     `json:"hosts"`
 	Labels []labelSearchResult `json:"labels"`
 	Teams  []teamSearchResult  `json:"teams"`
 }
@@ -140,21 +135,13 @@ func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	targets := &targetsData{
-		Hosts:  []hostSearchResult{},
+		Hosts:  []*HostResponse{},
 		Labels: []labelSearchResult{},
 		Teams:  []teamSearchResult{},
 	}
 
 	for _, host := range results.Hosts {
-		targets.Hosts = append(targets.Hosts,
-			hostSearchResult{
-				HostResponse{
-					Host:   host,
-					Status: host.Status(time.Now()),
-				},
-				host.Hostname,
-			},
-		)
+		targets.Hosts = append(targets.Hosts, hostResponseForHostCheap(host))
 	}
 
 	for _, label := range results.Labels {
