@@ -1608,14 +1608,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      !hosts ||
-      !teamSync ||
-      isHostCountLoading ||
-      isHostsLoading
-    ) {
+    if (!config || !currentUser || !hosts || !teamSync) {
       return <Spinner />;
     }
 
@@ -1624,13 +1617,7 @@ const ManageHostsPage = ({
     }
 
     // There are no hosts for this instance yet
-    if (
-      !status &&
-      filteredHostCount === 0 &&
-      searchQuery === "" &&
-      teamSync &&
-      !labelID
-    ) {
+    if (filteredHostCount === 0 && searchQuery === "" && teamSync && !labelID) {
       const {
         software_id,
         policy_id,
