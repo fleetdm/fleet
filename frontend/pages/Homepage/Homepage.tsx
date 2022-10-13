@@ -142,7 +142,7 @@ const Homepage = (): JSX.Element => {
     () =>
       hostSummaryAPI.getSummary({
         teamId: currentTeam?.id,
-        platform: selectedPlatform,
+        platform: selectedPlatform !== "all" ? selectedPlatform : undefined,
         lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
       }),
     {
@@ -354,7 +354,7 @@ const Homepage = (): JSX.Element => {
         linuxCount={linuxCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
-        selectedPlatform={selectedPlatform || ""}
+        selectedPlatform={selectedPlatform}
         selectedPlatformLabelId={selectedPlatformLabelId}
         labels={labels}
         errorHosts={!!errorHosts}

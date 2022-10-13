@@ -123,7 +123,9 @@ const HostsSummary = ({
 
   return (
     <div
-      className={`${baseClass} ${selectedPlatform ? "single-platform" : ""}`}
+      className={`${baseClass} ${
+        selectedPlatform !== "all" ? "single-platform" : ""
+      }`}
       style={opacity}
     >
       {renderCounts()}
