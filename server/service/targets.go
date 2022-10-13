@@ -47,7 +47,7 @@ func (t teamSearchResult) MarshalJSON() ([]byte, error) {
 		UserCount   int                   `json:"user_count"`
 		Users       []fleet.TeamUser      `json:"users,omitempty"`
 		HostCount   int                   `json:"host_count"`
-		Hosts       []fleet.Host          `json:"hosts,omitempty"`
+		Hosts       []fleet.HostResponse  `json:"hosts,omitempty"`
 		Secrets     []*fleet.EnrollSecret `json:"secrets,omitempty"`
 		DisplayText string                `json:"display_text"`
 		Count       int                   `json:"count"`
@@ -60,7 +60,7 @@ func (t teamSearchResult) MarshalJSON() ([]byte, error) {
 		UserCount:   t.UserCount,
 		Users:       t.Users,
 		HostCount:   t.HostCount,
-		Hosts:       t.Hosts,
+		Hosts:       fleet.HostResponsesForHostsCheap(t.Hosts),
 		Secrets:     t.Secrets,
 		DisplayText: t.DisplayText,
 		Count:       t.Count,
@@ -110,9 +110,9 @@ func (t *teamSearchResult) UnmarshalJSON(b []byte) error {
 }
 
 type targetsData struct {
-	Hosts  []*HostResponse     `json:"hosts"`
-	Labels []labelSearchResult `json:"labels"`
-	Teams  []teamSearchResult  `json:"teams"`
+	Hosts  []*fleet.HostResponse `json:"hosts"`
+	Labels []labelSearchResult   `json:"labels"`
+	Teams  []teamSearchResult    `json:"teams"`
 }
 
 type searchTargetsResponse struct {
@@ -135,13 +135,13 @@ func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	targets := &targetsData{
-		Hosts:  []*HostResponse{},
+		Hosts:  []*fleet.HostResponse{},
 		Labels: []labelSearchResult{},
 		Teams:  []teamSearchResult{},
 	}
 
 	for _, host := range results.Hosts {
-		targets.Hosts = append(targets.Hosts, hostResponseForHostCheap(host))
+		targets.Hosts = append(targets.Hosts, fleet.HostResponseForHostCheap(host))
 	}
 
 	for _, label := range results.Labels {
