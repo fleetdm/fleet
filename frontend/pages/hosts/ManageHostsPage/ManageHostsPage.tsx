@@ -239,31 +239,19 @@ const ManageHostsPage = ({
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
-
   const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const softwareId =
-    queryParams?.software_id !== undefined
-      ? parseInt(queryParams?.software_id, 10)
-      : undefined;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const softwareId = parseInt(queryParams?.software_id, 10) || undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
-  const mdmId =
-    queryParams?.mdm_id !== undefined
-      ? parseInt(queryParams?.mdm_id, 10)
-      : undefined;
-  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
-  const munkiIssueId =
-    queryParams?.munki_issue_id !== undefined
-      ? parseInt(queryParams?.munki_issue_id, 10)
-      : undefined;
+  const mdmId = parseInt(queryParams?.mdm_id, 10) || undefined;
+  const munkiIssueId = parseInt(queryParams.munki_issue_id, 10) || undefined;
   const lowDiskSpaceHosts =
-    queryParams?.low_disk_space !== undefined
-      ? parseInt(queryParams?.low_disk_space, 10)
-      : undefined;
+    parseInt(queryParams.low_disk_space, 10) || undefined;
   const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
@@ -762,49 +750,27 @@ const ManageHostsPage = ({
         newQueryParams.team_id = currentTeam.id;
       }
 
-      switch (true) {
-        case !!policyId && !!policyResponse:
-          newQueryParams.policy_id = policyId;
-          newQueryParams.policy_response = policyResponse;
-          break;
-        case !!softwareId:
-          if (softwareId) {
-            newQueryParams.software_id = softwareId;
-          }
-          break;
-        case !!mdmId:
-          if (mdmId) {
-            newQueryParams.mdm_id = mdmId;
-          }
-          break;
-        case !!mdmEnrollmentStatus:
-          if (mdmEnrollmentStatus) {
-            newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
-          }
-          break;
-        case !!munkiIssueId:
-          if (munkiIssueId) {
-            newQueryParams.munki_issue_id = munkiIssueId;
-          }
-          break;
+      if (policyId && policyResponse) {
+        newQueryParams.policy_id = policyId;
+        newQueryParams.policy_response = policyResponse;
+      } else if (softwareId) {
+        newQueryParams.software_id = softwareId;
+      } else if (mdmId) {
+        newQueryParams.mdm_id = mdmId;
+      } else if (mdmEnrollmentStatus) {
+        newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
+      } else if (munkiIssueId) {
+        newQueryParams.munki_issue_id = munkiIssueId;
+      } else if (missingHosts) {
         // Premium feature only
-        case !!missingHosts:
-          if (missingHosts) {
-            newQueryParams.status = "missing";
-          }
-          break;
+        newQueryParams.status = "missing";
+      } else if (lowDiskSpaceHosts && isPremiumTier) {
         // Premium feature only
-        case !!lowDiskSpaceHosts:
-          if (lowDiskSpaceHosts && isPremiumTier) {
-            newQueryParams.low_disk_space = lowDiskSpaceHosts;
-          }
-          break;
-        default:
-          if (osId || (osName && osVersion)) {
-            newQueryParams.os_id = osId;
-            newQueryParams.os_name = osName;
-            newQueryParams.os_version = osVersion;
-          }
+        newQueryParams.low_disk_space = lowDiskSpaceHosts;
+      } else if (osId || (osName && osVersion)) {
+        newQueryParams.os_id = osId;
+        newQueryParams.os_name = osName;
+        newQueryParams.os_version = osVersion;
       }
 
       router.replace(
