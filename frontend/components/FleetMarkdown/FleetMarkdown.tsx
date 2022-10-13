@@ -1,7 +1,11 @@
-import classnames from "classnames";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import classnames from "classnames";
+import { IAceEditor } from "react-ace/lib/types";
+import { noop } from "lodash";
+
+import FleetAce from "components/FleetAce";
 
 import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
@@ -43,6 +47,35 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
       components={{
         a: ({ href = "", children }) => {
           return <CustomLink text={children} href={href} newTab />;
+        },
+
+        // Overrides code display to use FleetAce with Readonly overrides.
+        code: ({ children }) => {
+          const onEditorBlur = (editor?: IAceEditor) => {
+            editor && editor.clearSelection();
+          };
+
+          const onEditorLoad = (editor: IAceEditor) => {
+            editor.setOptions({
+              indentedSoftWrap: false, // removes automatic indentation when wrapping
+            });
+
+            // removes focus UI styling
+            editor.renderer.visualizeFocus = noop;
+          };
+
+          return (
+            <FleetAce
+              wrapperClassName={`${baseClass}__ace-display`}
+              value={String(children).replace(/\n/, "")}
+              showGutter={false}
+              onBlur={onEditorBlur}
+              onLoad={onEditorLoad}
+              style={{ border: "none" }}
+              wrapEnabled
+              readOnly
+            />
+          );
         },
       }}
     >

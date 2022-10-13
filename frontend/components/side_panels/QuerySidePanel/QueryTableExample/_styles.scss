@@ -4,30 +4,4 @@
     font-size: $small;
     font-weight: $bold;
   }
-
-  &__example-set {
-    margin-bottom: $pad-large;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  &__ace-display {
-    border-radius: $border-radius;
-    background-color: $ui-light-grey; // copy fleet ace background color
-    padding: $pad-medium;
-    border: 1px solid $ui-blue-gray;
-    margin-bottom: $pad-medium;
-
-    .ace_cursor {
-      // We have the !important here as there doesnt seen a way to programatically
-      // hide only the cursor in the editor.
-      display: none !important
-    }
-
-    .ace_selected-word, .ace_bracket{
-      display: none;
-    }
-  }
 }
