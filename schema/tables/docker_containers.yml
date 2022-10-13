@@ -1,0 +1,23 @@
+name: docker_containers
+columns:
+  - name: cgroup_namespace
+    platforms:
+      - linux
+  - name: ipc_namespace
+    platforms:
+      - linux
+  - name: mnt_namespace
+    platforms:
+      - linux
+  - name: net_namespace
+    platforms:
+      - linux
+  - name: pid_namespace
+    platforms:
+      - linux
+  - name: user_namespace
+    platforms:
+      - linux
+  - name: uts_namespace
+    platforms:
+      - linux
