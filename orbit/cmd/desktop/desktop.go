@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -46,27 +44,6 @@ func setupRunners() {
 			},
 		)
 	}
-
-	// Setting up a signal handler runner
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var execFn func() error
-	var interrFn func(error)
-
-	if runtime.GOOS == "windows" {
-		execFn, interrFn = run.SignalHandler(ctx, os.Interrupt, os.Kill)
-	} else {
-		execFn, interrFn = run.SignalHandler(ctx, os.Interrupt, os.Kill, syscall.SIGTERM)
-	}
-
-	runnerGroup.Add(
-		execFn,
-		func(err error) {
-			interrFn(err)
-			systray.Quit()
-		},
-	)
 
 	if err := runnerGroup.Run(); err != nil {
 		log.Error().Err(err).Msg("Fleet Desktop runners terminated")
