@@ -47,18 +47,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 }
 
 func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
-	t, err := teamDB(ctx, ds.reader, tid)
-	if err != nil {
-		return nil, err
-	}
-
-	features, err := ds.TeamFeatures(ctx, tid)
-	if err != nil {
-		return nil, err
-	}
-	t.Config.Features = *features
-
-	return t, nil
+	return teamDB(ctx, ds.reader, tid)
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
