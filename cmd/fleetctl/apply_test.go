@@ -305,7 +305,7 @@ spec:
 `)
 
 	runAppCheckErr(t, []string{"apply", "-f", name},
-		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
+		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad Request: unsupported key provided: \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
 }
@@ -743,7 +743,7 @@ spec:
       config:
         blah: nope
 `,
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid top-level key for team",
@@ -769,7 +769,7 @@ spec:
       config:
         blah: nope
 `,
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid agent options dry-run",
@@ -784,7 +784,7 @@ spec:
         blah: nope
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid agent options force",
@@ -815,7 +815,35 @@ spec:
           aws_debug: 123
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
+		},
+		{
+			desc: "invalid team agent options command-line flag",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      command_line_flags:
+        no_such_flag: 123
+`,
+			wantErr: `400 Bad Request: unsupported key provided: "no_such_flag"`,
+		},
+		{
+			desc: "valid team agent options command-line flag",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: teamNEW
+    agent_options:
+      command_line_flags:
+        enable_tables: "abc"
+`,
+			wantOutput: `[+] applied 1 teams`,
 		},
 		{
 			desc: "invalid agent options field type in overrides",
@@ -835,7 +863,7 @@ spec:
             options:
               aws_debug: 123
 `,
-			wantErr: `400 Bad request: darwin platform config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "empty config",
@@ -877,7 +905,7 @@ spec:
   server_settings:
     foo: bar
 `,
-			wantErr: `400 Bad request: json: unknown field "foo"`,
+			wantErr: `400 Bad Request: unsupported key provided: "foo"`,
 		},
 		{
 			desc: "config with invalid key type",
@@ -900,7 +928,7 @@ spec:
     foo: bar
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: json: unknown field "foo"`,
+			wantErr: `400 Bad Request: unsupported key provided: "foo"`,
 		},
 		{
 			desc: "config with invalid agent options data type in dry-run",
@@ -914,7 +942,7 @@ spec:
         aws_debug: 123
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "config with invalid agent options data type with force",
@@ -928,6 +956,43 @@ spec:
         aws_debug: 123
 `,
 			flags:      []string{"--force"},
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "config with invalid agent options command-line flags",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    command_line_flags:
+      enable_tables: "foo"
+      no_such_flag: false
+`,
+			wantErr: `400 Bad Request: unsupported key provided: "no_such_flag"`,
+		},
+		{
+			desc: "config with invalid value for agent options command-line flags",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    command_line_flags:
+      enable_tables: 123
+`,
+			wantErr: `400 Bad Request: invalid value type at 'enable_tables': expected string but got number`,
+		},
+		{
+			desc: "config with valid agent options command-line flags",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    command_line_flags:
+      enable_tables: "abc"
+`,
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
@@ -964,7 +1029,7 @@ spec:
     enable_software_inventory: true
 `,
 			flags:      []string{"--dry-run"},
-			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration`,
+			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration: [host_settings]`,
 			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' spec`,
 		},
 		{

@@ -1,0 +1,21 @@
+.fleet-markdown {
+  font-size: $x-small;
+
+  ul {
+    // We need 20px here to keep the list items in line with the left side of
+    // the container.
+    padding-left: 20px;
+  }
+
+  pre {
+    padding: 12px;
+    border: 1px solid $ui-blue-gray;
+    background-color: $ui-light-grey; // copy fleet ace background color
+
+    .ace_cursor {
+        // We have the !important here as there doesnt seen a way to programatically
+        // hide only the cursor in the editor.
+        display: none !important
+      }
+  }
+}

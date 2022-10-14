@@ -15,6 +15,8 @@ import (
 )
 
 func TestClone(t *testing.T) {
+	var nilRawMessage *json.RawMessage
+
 	tests := []struct {
 		name string
 		src  interface{}
@@ -60,6 +62,16 @@ func TestClone(t *testing.T) {
 			name: "pointer to slice",
 			src:  &[]string{"foo", "bar"},
 			want: &[]string{"foo", "bar"},
+		},
+		{
+			name: "nil",
+			src:  nil,
+			want: nil,
+		},
+		{
+			name: "nil pointer",
+			src:  nilRawMessage,
+			want: nil,
 		},
 	}
 

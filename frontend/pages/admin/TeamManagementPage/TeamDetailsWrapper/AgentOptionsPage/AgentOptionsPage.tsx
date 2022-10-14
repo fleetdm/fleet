@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import yaml from "js-yaml";
+import { agentOptionsToYaml } from "utilities/yaml";
 
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
@@ -45,7 +45,7 @@ const AgentOptionsPage = ({
 
         if (selected) {
           setFormData({
-            osquery_options: yaml.dump(selected.agent_options),
+            osquery_options: agentOptionsToYaml(selected.agent_options),
           });
           setTeamName(selected.name);
         } else {
@@ -97,18 +97,6 @@ const AgentOptionsPage = ({
           </span>
         </a>
       </p>
-      <InfoBanner className={`${baseClass}__config-docs`}>
-        See Fleet documentation for an example file that includes the overrides
-        option.{" "}
-        <a
-          href="https://fleetdm.com/docs/using-fleet/configuration-files#overrides-option"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Go to Fleet docs
-          <img alt="Open external link" src={ExternalLinkIcon} />
-        </a>
-      </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>
         <OsqueryOptionsForm
           formData={formData}

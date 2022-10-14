@@ -64,10 +64,10 @@ func TestLiveQueryWithContext(t *testing.T) {
 					Type: "result",
 					Data: fleet.DistributedQueryResult{
 						DistributedQueryCampaignID: 99,
-						Host: fleet.Host{
+						Host: fleet.HostResponseForHostCheap(&fleet.Host{
 							ID:       23,
 							Hostname: "somehostaaa",
-						},
+						}),
 						Rows: []map[string]string{
 							{
 								"col1": "aaa",

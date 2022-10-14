@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -40,7 +41,7 @@ func (svc *Service) DisableAuthForPing(ctx context.Context) {
 // Fleet Desktop endpoints
 /////////////////////////////////////////////////////////////////////////////////
 
-type FleetDesktopResponse struct {
+type fleetDesktopResponse struct {
 	Err             error `json:"error,omitempty"`
 	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
 }
@@ -60,15 +61,15 @@ func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet
 
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return FleetDesktopResponse{Err: err}, nil
+		return fleetDesktopResponse{Err: err}, nil
 	}
 
 	r, err := svc.FailingPoliciesCount(ctx, host)
 	if err != nil {
-		return FleetDesktopResponse{Err: err}, nil
+		return fleetDesktopResponse{Err: err}, nil
 	}
 
-	return FleetDesktopResponse{FailingPolicies: &r}, nil
+	return fleetDesktopResponse{FailingPolicies: &r}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -138,6 +139,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 // token, along with a boolean indicating if debug logging is enabled for that
 // host.
 func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*fleet.Host, bool, error) {
+	const deviceAuthTokenTTL = time.Hour
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -145,7 +147,7 @@ func (svc *Service) AuthenticateDevice(ctx context.Context, authToken string) (*
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing device authentication token"))
 	}
 
-	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken)
+	host, err := svc.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL)
 	switch {
 	case err == nil:
 		// OK

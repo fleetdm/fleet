@@ -1,5 +1,5 @@
 export interface IDataTableMdmFormat {
-  status: string;
+  status: "Enrolled (manual)" | "Enrolled (automatic)" | "Unenrolled";
   hosts: number;
 }
 

@@ -14,7 +14,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 
 |    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
-| Wireframes (Figma)| Noah Talerman |
+| Wireframes (Figma) | Noah Talerman |
 | How the product works | Noah Talerman |
 | fleetctl CLI interface (and other tools) | Tomás Touceda |
 | REST API interface design | Luke Heath |
@@ -36,10 +36,11 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | When a feature is placed behind a feature flag | Zach Wasserman |
 | Release notes | Noah Talerman |
 | Documentation quality | Mike Thomas |
-| Publishing release blog post, and promoting releases | Mike Thomas |
+| Publishing release blog post, and promoting releases | Noah Talerman |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
 | Security disclosure and policy | Guillaume Ross | 
+| Bug process | Mo Zhu |
 
 *Luke Heath is backup 
 
@@ -562,8 +563,8 @@ Create a new issue for the current month and year named "Closing out YYYY-MM" us
 - Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
-## Key Reviews
-Every release cycle a Key Review deck is created and presented to the CEO. In this deck, the department will highlight KPI metrics and progress of OKRs. The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create Key Review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
+## Key reviews
+Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics and progress of OKRs. The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
 
 
 ## Rituals
@@ -591,7 +592,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
 | OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
-| BizOps Key Review | every three weeks | Every release cycle a Key Review deck is prepared and presented | TBD |
+| BizOps key review | every three weeks | Every release cycle a key review deck is prepared and presented | Nathanael Holliday |
 
 
 ## Slack channels
