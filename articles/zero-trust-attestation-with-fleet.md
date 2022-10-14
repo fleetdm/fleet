@@ -11,9 +11,9 @@
 ## What is zero trust?
 Zero trust is an approach to cybersecurity whereby an organization requires all users to be continuously authorized for access to applications and data with authorization contingent on the user's security configuration and posture.
 
-![Zero touch diagram](../website/assets/images/articles/zero-touch-diagram-800x353@2x.jpg)
-
 An organization's security team will specify policies that a user's device must meet. Every time an end user attempts to log into a company-owned resource (for example, the company email service), the system checks whether the device is in compliance with the policies. If the device is not, then the system denies the user access to the resource. When the user addresses the policy violation(s), then they may re-attempt and be granted access. 
+
+![Zero touch diagram](../website/assets/images/articles/zero-touch-diagram-800x353@2x.jpg)
 
 ## How does Fleet fit into a zero trust system?
 Fleet provides two pieces of the zero trust puzzle: the policy engine and the self-remediation communication to the user. These integrate with an authentication system to create a full zero trust system. 
@@ -78,3 +78,4 @@ For any questions about setting up zero trust at your organization at Fleet, rea
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2022-09-20">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-for-zero-trust-attestation-800x450@2x.jpg">
