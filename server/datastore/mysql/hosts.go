@@ -308,6 +308,7 @@ var hostRefs = []string{
 	"host_device_auth",
 	"host_batteries",
 	"host_operating_system",
+	"host_orbit_info",
 	"host_munki_issues",
 	"host_display_names",
 	"windows_updates",
@@ -2127,6 +2128,15 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 	)
 }
 
+func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_orbit_info SET version = ? WHERE host_id = ?`,
+		`INSERT INTO host_orbit_info (version, host_id) VALUES (?, ?)`,
+		version, hostID,
+	)
+}
+
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string) (mdmID uint, err error) {
 	mdmName := fleet.MDMNameFromServerURL(serverURL)
 
@@ -3036,4 +3046,34 @@ WHERE
 		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
 	}
 	return len(ids), nil
+}
+
+func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOrbitVersion, error) {
+	var counts []fleet.HostsCountByOrbitVersion
+
+	const stmt = `
+		SELECT version as orbit_version, count(*) as num_hosts
+		FROM host_orbit_info
+		GROUP BY version
+  	`
+	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
+		return nil, err
+	}
+
+	return counts, nil
+}
+
+func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOsqueryVersion, error) {
+	var counts []fleet.HostsCountByOsqueryVersion
+
+	const stmt = `
+		SELECT osquery_version, count(*) as num_hosts
+		FROM hosts
+		GROUP BY osquery_version
+  	`
+	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
+		return nil, err
+	}
+
+	return counts, nil
 }

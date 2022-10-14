@@ -56,6 +56,14 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts not responding")
 		}
+		amountHostsByOrbitVersion, err := amountHostsByOrbitVersionDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount hosts by orbit version")
+		}
+		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
@@ -68,6 +76,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
+		stats.HostsEnrolledByOrbitVersion = amountHostsByOrbitVersion
+		stats.HostsEnrolledByOsqueryVersion = amountHostsByOsqueryVersion
 		stats.StoredErrors = storedErrs
 		stats.NumHostsNotResponding = amountHostsNotResponding
 		stats.Organization = "unknown"

@@ -781,6 +781,29 @@ var usersQuery = DetailQuery{
 	DirectIngestFunc: directIngestUsers,
 }
 
+// orbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
+var orbitInfoDetailQuery = DetailQuery{
+	Query:            `SELECT version FROM orbit_info`,
+	DirectIngestFunc: directIngestOrbitInfo,
+	Discovery:        discoveryTable("orbit_info"),
+}
+
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOrbitInfo", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
+	}
+	version := rows[0]["version"]
+	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOrbitInfo update host orbit info")
+	}
+
+	return nil
+}
+
 // directIngestOSWindows ingests selected operating system data from a host on a Windows platform
 func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
