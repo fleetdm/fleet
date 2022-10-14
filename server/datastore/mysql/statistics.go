@@ -49,10 +49,9 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
-		amountPolicyViolationDays, err := amountPolicyViolationDaysDB(ctx, ds.writer)
+		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.writer)
 		if err == sql.ErrNoRows {
 			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err)
-			amountPolicyViolationDays = 0
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
@@ -75,7 +74,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
-		stats.NumWeeklyPolicyViolationDays = amountPolicyViolationDays
+		stats.NumWeeklyPolicyViolationDaysActual = amountPolicyViolationDaysActual
+		stats.NumWeeklyPolicyViolationDaysPossible = amountPolicyViolationDaysPossible
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
 		stats.StoredErrors = storedErrs
 		stats.NumHostsNotResponding = amountHostsNotResponding
@@ -141,7 +141,7 @@ func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {
 
 func (ds *Datastore) CleanupStatistics(ctx context.Context) error {
 	// reset weekly count of policy violation days
-	if err := ds.InitializePolicyViolationDays(ctx, time.Now()); err != nil {
+	if err := ds.InitializePolicyViolationDays(ctx); err != nil {
 		return err
 	}
 	return nil

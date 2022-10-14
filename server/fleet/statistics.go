@@ -20,12 +20,17 @@ type StatisticsPayload struct {
 	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`
 	HostsStatusWebHookEnabled bool   `json:"hostsStatusWebHookEnabled"`
 	NumWeeklyActiveUsers      int    `json:"numWeeklyActiveUsers"`
-	// NumWeeklyPolicyViolationDays is an aggregate count of policy violation days. One
+	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
 	// is incremented. The count increments once per 24-hour interval and resets each week.
-	NumWeeklyPolicyViolationDays   int                                `json:"numWeeklyPolicyViolationDays"`
-	HostsEnrolledByOperatingSystem map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
-	StoredErrors                   json.RawMessage                    `json:"storedErrors"`
+	NumWeeklyPolicyViolationDaysActual int `json:"numWeeklyPolicyViolationDaysActual"`
+	// NumWeeklyPolicyViolationDaysActual is an aggregate count of possible policy violation
+	// days. The count is incremented by the organization's total number of policies
+	// mulitplied by the total number of hosts as of the time the count is incremented. The count
+	// increments once per 24-hour interval and resets each week.
+	NumWeeklyPolicyViolationDaysPossible int                                `json:"numWeeklyPolicyViolationDaysPossible"`
+	HostsEnrolledByOperatingSystem       map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
+	StoredErrors                         json.RawMessage                    `json:"storedErrors"`
 	// NumHostsNotResponding is a count of hosts that connect to Fleet successfully but fail to submit results for distributed queries.
 	NumHostsNotResponding int `json:"numHostsNotResponding"`
 }

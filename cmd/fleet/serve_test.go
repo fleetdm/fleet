@@ -60,20 +60,21 @@ func TestMaybeSendStatistics(t *testing.T) {
 
 	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
-			AnonymousIdentifier:          "ident",
-			FleetVersion:                 "1.2.3",
-			LicenseTier:                  "premium",
-			NumHostsEnrolled:             999,
-			NumUsers:                     99,
-			NumTeams:                     9,
-			NumPolicies:                  0,
-			NumLabels:                    3,
-			SoftwareInventoryEnabled:     true,
-			VulnDetectionEnabled:         true,
-			SystemUsersEnabled:           true,
-			HostsStatusWebHookEnabled:    true,
-			NumWeeklyActiveUsers:         111,
-			NumWeeklyPolicyViolationDays: 0,
+			AnonymousIdentifier:                  "ident",
+			FleetVersion:                         "1.2.3",
+			LicenseTier:                          "premium",
+			NumHostsEnrolled:                     999,
+			NumUsers:                             99,
+			NumTeams:                             9,
+			NumPolicies:                          0,
+			NumLabels:                            3,
+			SoftwareInventoryEnabled:             true,
+			VulnDetectionEnabled:                 true,
+			SystemUsersEnabled:                   true,
+			HostsStatusWebHookEnabled:            true,
+			NumWeeklyActiveUsers:                 111,
+			NumWeeklyPolicyViolationDaysActual:   0,
+			NumWeeklyPolicyViolationDaysPossible: 0,
 			HostsEnrolledByOperatingSystem: map[string][]fleet.HostsCountByOSVersion{
 				"linux": {
 					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
@@ -98,7 +99,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDays":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {

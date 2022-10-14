@@ -671,7 +671,7 @@ func startCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"increment_policy_violation_days",
 			func(ctx context.Context) error {
-				return ds.IncrementPolicyViolationDays(ctx, time.Now())
+				return ds.IncrementPolicyViolationDays(ctx)
 			},
 		),
 		schedule.WithJob(

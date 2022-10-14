@@ -383,9 +383,9 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
 
-type IncrementPolicyViolationDaysFunc func(ctx context.Context, now time.Time) error
+type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
 
-type InitializePolicyViolationDaysFunc func(ctx context.Context, now time.Time) error
+type InitializePolicyViolationDaysFunc func(ctx context.Context) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -2115,14 +2115,14 @@ func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) 
 	return s.CleanupPolicyMembershipFunc(ctx, now)
 }
 
-func (s *DataStore) IncrementPolicyViolationDays(ctx context.Context, now time.Time) error {
+func (s *DataStore) IncrementPolicyViolationDays(ctx context.Context) error {
 	s.IncrementPolicyViolationDaysFuncInvoked = true
-	return s.IncrementPolicyViolationDaysFunc(ctx, now)
+	return s.IncrementPolicyViolationDaysFunc(ctx)
 }
 
-func (s *DataStore) InitializePolicyViolationDays(ctx context.Context, now time.Time) error {
+func (s *DataStore) InitializePolicyViolationDays(ctx context.Context) error {
 	s.InitializePolicyViolationDaysFuncInvoked = true
-	return s.InitializePolicyViolationDaysFunc(ctx, now)
+	return s.InitializePolicyViolationDaysFunc(ctx)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
