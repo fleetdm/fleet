@@ -3057,7 +3057,7 @@ func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([
 		GROUP BY version
   	`
 	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
-		return nil, err
+		return []fleet.HostsCountByOrbitVersion{}, err
 	}
 
 	return counts, nil
@@ -3072,7 +3072,7 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 		GROUP BY osquery_version
   	`
 	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
-		return nil, err
+		return []fleet.HostsCountByOsqueryVersion{}, err
 	}
 
 	return counts, nil
