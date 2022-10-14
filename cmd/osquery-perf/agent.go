@@ -64,11 +64,13 @@ type Stats struct {
 	enrollments       int
 	orbitenrollments  int
 	distributedwrites int
+	orbitErrors       int
+	desktopErrors     int
 
 	l sync.Mutex
 }
 
-func (s *Stats) RecordStats(errors int, enrollments int, orbitenrollments int, distributedwrites int) {
+func (s *Stats) RecordStats(errors, enrollments, orbitenrollments, distributedwrites, orbitErrors, desktopErrors int) {
 	s.l.Lock()
 	defer s.l.Unlock()
 
@@ -76,6 +78,8 @@ func (s *Stats) RecordStats(errors int, enrollments int, orbitenrollments int, d
 	s.enrollments += enrollments
 	s.orbitenrollments += orbitenrollments
 	s.distributedwrites += distributedwrites
+	s.orbitErrors += orbitErrors
+	s.desktopErrors += desktopErrors
 }
 
 func (s *Stats) Log() {
@@ -313,6 +317,7 @@ func (a *agent) runOrbitLoop() {
 
 	// orbit does a config check when it starts
 	if _, err := orbitClient.GetConfig(); err != nil {
+		a.stats.RecordStats(0, 0, 0, 0, 1, 0)
 		log.Println("orbitClient.GetConfig: ", err)
 	}
 
@@ -322,14 +327,20 @@ func (a *agent) runOrbitLoop() {
 	// it also writes and checks the device token
 	if tokenRotationEnabled {
 		if err := orbitClient.SetOrUpdateDeviceToken(*a.deviceAuthToken); err != nil {
+			a.stats.RecordStats(0, 0, 0, 0, 1, 0)
 			log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
 		}
 
 		if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+			a.stats.RecordStats(0, 0, 0, 0, 0, 1)
 			log.Println("deviceClient.CheckToken: ", err)
 		}
 	}
 
+	// checkToken is used to simulate Fleet Desktop polling until a token is
+	// valid, we make a random number of requests to properly emulate what
+	// happens in the real world as there are delays that are not accounted by
+	// the way this simulation is arranged.
 	checkToken := func() {
 		min := 1
 		max := 5
@@ -369,11 +380,13 @@ func (a *agent) runOrbitLoop() {
 		select {
 		case <-orbitConfigTicker:
 			if _, err := orbitClient.GetConfig(); err != nil {
+				a.stats.RecordStats(0, 0, 0, 0, 1, 0)
 				log.Println("orbitClient.GetConfig: ", err)
 			}
 		case <-orbitTokenRemoteCheckTicker:
 			if tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+					a.stats.RecordStats(0, 0, 0, 0, 0, 1)
 					log.Println("deviceClient.CheckToken: ", err)
 				}
 			}
@@ -381,6 +394,7 @@ func (a *agent) runOrbitLoop() {
 			if tokenRotationEnabled {
 				newToken := ptr.String(uuid.NewString())
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
+					a.stats.RecordStats(0, 0, 0, 0, 1, 0)
 					log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
 				}
 				a.deviceAuthToken = newToken
@@ -389,10 +403,12 @@ func (a *agent) runOrbitLoop() {
 			}
 		case <-capabilitiesCheckerTicker:
 			if err := orbitClient.Ping(); err != nil {
+				a.stats.RecordStats(0, 0, 0, 0, 1, 0)
 				log.Println("orbitClient.Ping: ", err)
 			}
 		case <-fleetDesktopPolicyTicker:
 			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
+				a.stats.RecordStats(0, 0, 0, 0, 0, 1)
 				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
 			}
 		}
@@ -403,7 +419,7 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 	err := a.fastClient.Do(req, res)
 	for err != nil || res.StatusCode() != http.StatusOK {
 		fmt.Println(err, res.StatusCode())
-		a.stats.RecordStats(1, 0, 0, 0)
+		a.stats.RecordStats(1, 0, 0, 0, 0, 0)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
 		err = a.fastClient.Do(req, res)
 	}
@@ -445,14 +461,14 @@ func (a *agent) orbitEnroll() error {
 	}
 
 	a.orbitNodeKey = &parsedResp.OrbitNodeKey
-	a.stats.RecordStats(0, 0, 1, 0)
+	a.stats.RecordStats(0, 0, 1, 0, 0, 0)
 	return nil
 }
 
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.nodeKey = a.nodeKeyManager.Get(i)
 	if a.nodeKey != "" {
-		a.stats.RecordStats(0, 1, 0, 0)
+		a.stats.RecordStats(0, 1, 0, 0, 0, 0)
 		return nil
 	}
 
@@ -491,7 +507,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	}
 
 	a.nodeKey = parsedResp.NodeKey
-	a.stats.RecordStats(0, 1, 0, 0)
+	a.stats.RecordStats(0, 1, 0, 0, 0, 0)
 
 	a.nodeKeyManager.Add(a.nodeKey)
 
@@ -1081,7 +1097,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
-	a.stats.RecordStats(0, 0, 0, 1)
+	a.stats.RecordStats(0, 0, 0, 1, 0, 0)
 	// No need to read the distributed write body
 }
 
