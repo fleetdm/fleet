@@ -1,0 +1,1 @@
+- Fixed undetected missing migrations in the cases where the are also unknown migrations.
