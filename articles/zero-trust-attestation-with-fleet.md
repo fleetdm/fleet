@@ -1,11 +1,17 @@
+# Zero trust attestation with Fleet
+
+![Using Fleet for zero trust attestation](../website/assets/images/articles/fleet-for-zero-trust-attestation-800x450@2x.jpg)
+
+### In this article
+
 - [What is zero trust?](#what-is-zero-trust)
 - [How does Fleet fit into a zero trust system?](#how-does-fleet-fit-into-a-zero-trust-system)
 - [Considerations for zero trust](#considerations-for-zero-trust)
 
-# Zero trust attestation with Fleet
-
 ## What is zero trust?
 Zero trust is an approach to cybersecurity whereby an organization requires all users to be continuously authorized for access to applications and data with authorization contingent on the user's security configuration and posture.
+
+![Zero touch diagram](../website/assets/images/articles/zero-touch-diagram-800x353@2x.jpg)
 
 An organization's security team will specify policies that a user's device must meet. Every time an end user attempts to log into a company-owned resource (for example, the company email service), the system checks whether the device is in compliance with the policies. If the device is not, then the system denies the user access to the resource. When the user addresses the policy violation(s), then they may re-attempt and be granted access. 
 
@@ -14,6 +20,8 @@ Fleet provides two pieces of the zero trust puzzle: the policy engine and the se
 
 ### The policy engine
 Fleet allows security teams to write policies which reflect the company's access requirements. Under the hood, osquery regularly checks these policies and sends the results to the Fleet server. 
+
+![Create a policy modal in Fleet](../website/assets/images/articles/create-a-new-policy-800x450@2x.jpg)
 
 For example, a basic policy at nearly all organizations is that the device hard disk is encrypted. In Fleet, this can be accomplished with the following policy:
 ```
@@ -34,6 +42,10 @@ When writing a policy, Fleet includes a field called "remediation." This is wher
 Fleet provides a desktop application called Fleet Desktop, which lives in the menubar. Fleet Desktop gives the user access to a Fleet webpage called "My Device," which, among others, features policy information. A user who has been denied access can visit this page to see the remediation instructions. This way, IT and security teams are partners of users in regaining access to company-owned resources. This self-remediation first approach reduces also the volume of help requests. 
 
 To learn more about installing Fleet Desktop, visit [here](https://fleetdm.com/docs/using-fleet/fleet-desktop).
+
+<div class="video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin-top: 24px; margin-bottom: 40px;">
+  <iframe class="video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.youtube.com/embed/hik4YnCLU58" allowfullscreen></iframe>
+</div>
 
 ### Bring-your-own authentication provider
 One piece of the puzzle that you should bring, however, is your authentication provider. When your users request access, your authentication system should ping the Fleet API to check for policy compliance and make decisions about blocking based on the results. When presenting the access denied page, be sure to point users to Fleet Desktop's "My Device" page to help them find remediation instructions. 
