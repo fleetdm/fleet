@@ -338,7 +338,7 @@ func checkNVDVulnerabilities(
 		err := nvd.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
-			return nil
+			// don't return, continue on ...
 		}
 	}
 
@@ -754,7 +754,6 @@ func startAppleMDMDEPProfileAssigner(
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) {
-
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),

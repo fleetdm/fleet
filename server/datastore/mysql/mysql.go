@@ -570,21 +570,26 @@ func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, 
 		}
 	}
 
+	//
 	// The following code assumes there cannot be migrations missing on
 	// "table" and database being ahead on "data" (and vice-versa).
-	if len(unknownTable) > 0 || len(unknownData) > 0 {
+	//
+
+	// Check for missing migrations first, as these are more important
+	// to detect than the unknown migrations.
+	if len(missingTable) > 0 || len(missingData) > 0 {
 		return &fleet.MigrationStatus{
-			StatusCode:   fleet.UnknownMigrations,
-			UnknownTable: unknownTable,
-			UnknownData:  unknownData,
+			StatusCode:   fleet.SomeMigrationsCompleted,
+			MissingTable: missingTable,
+			MissingData:  missingData,
 		}
 	}
 
-	// len(missingTable) > 0 || len(missingData) > 0
+	// len(unknownTable) > 0 || len(unknownData) > 0
 	return &fleet.MigrationStatus{
-		StatusCode:   fleet.SomeMigrationsCompleted,
-		MissingTable: missingTable,
-		MissingData:  missingData,
+		StatusCode:   fleet.UnknownMigrations,
+		UnknownTable: unknownTable,
+		UnknownData:  unknownData,
 	}
 }
 

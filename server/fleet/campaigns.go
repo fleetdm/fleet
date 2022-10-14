@@ -35,7 +35,7 @@ type DistributedQueryCampaignTarget struct {
 // distributed query on a single host.
 type DistributedQueryResult struct {
 	DistributedQueryCampaignID uint                `json:"distributed_query_execution_id"`
-	Host                       Host                `json:"host"`
+	Host                       *HostResponse       `json:"host"`
 	Rows                       []map[string]string `json:"rows"`
 	// osquery currently doesn't return any helpful error information,
 	// but we use string here instead of bool for future-proofing. Note also
