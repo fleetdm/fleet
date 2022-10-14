@@ -969,9 +969,8 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	request := &fleet.PasswordResetRequest{
-		ExpiresAt: time.Now().Add(time.Hour * 24),
-		UserID:    user.ID,
-		Token:     token,
+		UserID: user.ID,
+		Token:  token,
 	}
 	_, err = svc.ds.NewPasswordResetRequest(ctx, request)
 	if err != nil {

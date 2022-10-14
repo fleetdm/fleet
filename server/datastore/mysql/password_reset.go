@@ -12,7 +12,7 @@ func (ds *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.Pas
 	sqlStatement := `
 		INSERT INTO password_reset_requests
 		( user_id, token, expires_at)
-		VALUES (?,?, NOW())
+		VALUES (?,?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 24 HOUR))
 	`
 	response, err := ds.writer.ExecContext(ctx, sqlStatement, req.UserID, req.Token)
 	if err != nil {
@@ -22,7 +22,6 @@ func (ds *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.Pas
 	id, _ := response.LastInsertId()
 	req.ID = uint(id)
 	return req, nil
-
 }
 
 func (ds *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error {
@@ -39,9 +38,9 @@ func (ds *Datastore) DeletePasswordResetRequestsForUser(ctx context.Context, use
 
 func (ds *Datastore) FindPasswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 	sqlStatement := `
-               SELECT * FROM password_reset_requests
-               WHERE token = ? LIMIT 1
-       `
+		SELECT * FROM password_reset_requests
+		WHERE token = ? AND CURRENT_TIMESTAMP < expires_at LIMIT 1
+    `
 	passwordResetRequest := &fleet.PasswordResetRequest{}
 	err := sqlx.GetContext(ctx, ds.reader, passwordResetRequest, sqlStatement, token)
 	if err != nil {
