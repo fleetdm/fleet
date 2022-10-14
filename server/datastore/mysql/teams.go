@@ -47,7 +47,18 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 }
 
 func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader, tid)
+	t, err := teamDB(ctx, ds.reader, tid)
+	if err != nil {
+		return nil, err
+	}
+
+	features, err := ds.TeamFeatures(ctx, tid)
+	if err != nil {
+		return nil, err
+	}
+	t.Config.Features = *features
+
+	return t, nil
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
@@ -72,6 +83,9 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, 
 		return nil, err
 	}
 	if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
+		return nil, err
+	}
+	if err := loadFeaturesForTeamDB(ctx, q, team); err != nil {
 		return nil, err
 	}
 
@@ -128,6 +142,9 @@ func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, 
 	if err := loadHostCountForTeamDB(ctx, ds.reader, team); err != nil {
 		return nil, err
 	}
+	if err := loadFeaturesForTeamDB(ctx, ds.reader, team); err != nil {
+		return nil, err
+	}
 
 	return team, nil
 }
@@ -158,6 +175,15 @@ func loadHostCountForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fl
 		return ctxerr.Wrap(ctx, err, "load HostsCount for team")
 	}
 
+	return nil
+}
+
+func loadFeaturesForTeamDB(ctx context.Context, q sqlx.QueryerContext, team *fleet.Team) error {
+	features, err := teamFeaturesDB(ctx, q, team.ID)
+	if err != nil {
+		return err
+	}
+	team.Config.Features = *features
 	return nil
 }
 
@@ -323,9 +349,13 @@ func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawM
 
 // TeamFeatures loads the features enabled for a team.
 func (ds *Datastore) TeamFeatures(ctx context.Context, tid uint) (*fleet.Features, error) {
+	return teamFeaturesDB(ctx, ds.reader, tid)
+}
+
+func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Features, error) {
 	sql := `SELECT config->'$.features' as features FROM teams WHERE id = ?`
 	var raw *json.RawMessage
-	if err := sqlx.GetContext(ctx, ds.reader, &raw, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, q, &raw, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get team config features")
 	}
 
