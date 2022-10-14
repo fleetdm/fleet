@@ -76,6 +76,15 @@ const statusKey = [
     type: "status",
   },
   {
+    id: "missing",
+    count: 0,
+    description: "Hosts that have not been online in 30 days or more.",
+    display_text: "Missing",
+    slug: "missing",
+    statusLabelKey: "missing_count",
+    type: "status",
+  },
+  {
     id: "offline",
     count: 0,
     description: "Hosts that have not checked-in to Fleet recently.",
@@ -88,7 +97,7 @@ const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;
 };
 const isHost = (target: ISelectTargetsEntity) => {
-  return "hostname" in target;
+  return "display_name" in target;
 };
 
 const filterTarget = (targetType: string) => {

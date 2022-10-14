@@ -117,7 +117,7 @@ const WelcomeHost = ({
         });
       } catch (error) {
         console.error(error);
-        renderFlash("error", `Host "${host.hostname}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`);
         setShowRefetchLoadingSpinner(false);
       }
     }
@@ -228,7 +228,7 @@ const WelcomeHost = ({
           <img alt="" src={LaptopMac} />
           <div className="info">
             <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
-              {host.hostname}
+              {host.display_name}
               <img alt="" src={LinkArrow} />
             </Link>
             <p>Your host is successfully connected to Fleet.</p>

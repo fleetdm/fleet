@@ -33,12 +33,12 @@ const PreviewPayloadModal = ({
       hosts_affected: [
         {
           id: 1,
-          hostname: "macbook-1",
+          display_name: "macbook-1",
           url: "https://fleet.example.com/hosts/1",
         },
         {
           id: 2,
-          hostname: "macbook-2",
+          display_name: "macbook-2",
           url: "https://fleet.example.com/hosts/2",
         },
       ],

@@ -25,6 +25,12 @@ export const HOST_SELECT_STATUSES = [
   },
   {
     disabled: false,
+    label: "Missing hosts",
+    value: "missing",
+    helpText: "Hosts that have been offline for 30 days or more.",
+  },
+  {
+    disabled: false,
     label: "New hosts",
     value: "new",
     helpText: "Hosts that have been enrolled to Fleet in the last 24 hours.",

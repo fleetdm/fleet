@@ -255,7 +255,7 @@ const ManageAutomationsModal = ({
     return () => {
       document.removeEventListener("keydown", listener);
     };
-  }, [onSubmit]);
+  });
 
   const renderWebhook = () => {
     return (
@@ -322,11 +322,7 @@ const ManageAutomationsModal = ({
   const renderPreview = () =>
     !isWebhookEnabled ? (
       <PreviewTicketModal
-        type={
-          getIntegrationType(selectedIntegration) ||
-          (zendesk.length && "zendesk") ||
-          "jira"
-        }
+        type={getIntegrationType(selectedIntegration)}
         onCancel={togglePreviewModal}
       />
     ) : (
