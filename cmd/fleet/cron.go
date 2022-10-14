@@ -669,6 +669,12 @@ func startCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"increment_policy_violation_days",
+			func(ctx context.Context) error {
+				return ds.IncrementPolicyViolationDays(ctx)
+			},
+		),
+		schedule.WithJob(
 			"update_os_versions",
 			func(ctx context.Context) error {
 				return ds.UpdateOSVersions(ctx)
@@ -709,10 +715,14 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
 		return err
 	}
+
+	if err := ds.CleanupStatistics(ctx); err != nil {
+		return err
+	}
+
 	return ds.RecordStatisticsSent(ctx)
 }
 
