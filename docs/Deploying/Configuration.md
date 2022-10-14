@@ -895,7 +895,7 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 
 The default value in Fleet is `provided`, which will use the identifier provided by osquery. By default, osquery uses `hostname` as the identifier. 
 
-`instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) for more information.
+The `instance`, `uuid`, and `hostname` identifiers correspond to the same meanings as osquery's `--host_identifier` flag. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) for more information.
 
 Users that have duplicate UUIDs in their environment, such as multiple Docker containers running on the same host or cloned virtual machines, may consider from setting this flag to `instance`.
 
