@@ -9,6 +9,7 @@ import {
   IZendeskIntegration,
   IIntegration,
   IIntegrations,
+  IIntegrationType,
 } from "interfaces/integration";
 import { IConfig } from "interfaces/config";
 import configAPI from "services/entities/config";
@@ -28,6 +29,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 import _, { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
+import PreviewTicketModal from "../PreviewTicketModal";
 
 interface ISoftwareAutomations {
   webhook_settings: {
@@ -43,7 +45,9 @@ interface IManageAutomationsModalProps {
   onCancel: () => void;
   onCreateWebhookSubmit: (formData: ISoftwareAutomations) => void;
   togglePreviewPayloadModal: () => void;
+  togglePreviewTicketModal: () => void;
   showPreviewPayloadModal: boolean;
+  showPreviewTicketModal: boolean;
   softwareVulnerabilityAutomationEnabled?: boolean;
   softwareVulnerabilityWebhookEnabled?: boolean;
   currentDestinationUrl?: string;
@@ -67,7 +71,9 @@ const ManageAutomationsModal = ({
   onCancel: onReturnToApp,
   onCreateWebhookSubmit,
   togglePreviewPayloadModal,
+  togglePreviewTicketModal,
   showPreviewPayloadModal,
+  showPreviewTicketModal,
   softwareVulnerabilityAutomationEnabled,
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
@@ -120,7 +126,11 @@ const ManageAutomationsModal = ({
         // Set jira and zendesk integrations
         const addJiraIndexed = data.jira
           ? data.jira.map((integration, index) => {
-              return { ...integration, originalIndex: index, type: "jira" };
+              return {
+                ...integration,
+                originalIndex: index,
+                type: "jira" as IIntegrationType,
+              };
             })
           : [];
         setJiraIntegrationsIndexed(addJiraIndexed);
@@ -129,7 +139,7 @@ const ManageAutomationsModal = ({
               return {
                 ...integration,
                 originalIndex: index,
-                type: "zendesk",
+                type: "zendesk" as IIntegrationType,
               };
             })
           : [];
@@ -350,6 +360,15 @@ const ManageAutomationsModal = ({
             </div>
           </div>
         )}
+        {!!selectedIntegration && (
+          <Button
+            type="button"
+            variant="text-link"
+            onClick={togglePreviewTicketModal}
+          >
+            Preview ticket
+          </Button>
+        )}
       </div>
     );
   };
@@ -388,6 +407,15 @@ const ManageAutomationsModal = ({
       </div>
     );
   };
+
+  if (showPreviewTicketModal && selectedIntegration?.type) {
+    return (
+      <PreviewTicketModal
+        integrationType={selectedIntegration.type}
+        onCancel={togglePreviewTicketModal}
+      />
+    );
+  }
 
   if (showPreviewPayloadModal) {
     return <PreviewPayloadModal onCancel={togglePreviewPayloadModal} />;

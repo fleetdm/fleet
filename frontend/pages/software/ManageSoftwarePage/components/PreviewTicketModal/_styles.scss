@@ -2,9 +2,11 @@
   &__example {
     display: flex;
     justify-content: center;
+    margin-top: $pad-medium;
   }
 
-  &__screenshot {
+  &__jira-screenshot,
+  &__zendesk-screenshot {
     width: 400px;
     height: auto;
     border-radius: 8px;
