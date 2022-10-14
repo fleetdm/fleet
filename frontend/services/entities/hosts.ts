@@ -26,6 +26,7 @@ export interface ILoadHostsOptions {
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
+  lowDiskSpaceHosts?: number;
   osId?: number;
   osName?: string;
   osVersion?: string;
@@ -49,6 +50,7 @@ export interface IExportHostsOptions {
   mdmId?: number;
   munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
+  lowDiskSpaceHosts?: number;
   osId?: number;
   osName?: string;
   osVersion?: string;
@@ -132,6 +134,7 @@ export default {
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
+    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
@@ -145,15 +148,16 @@ export default {
       order_direction: sortBy[0].direction,
       query: globalFilter,
       team_id: teamId,
-      ...reconcileMutuallyExclusiveHostParams(
+      ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId
-      ),
+        softwareId,
+        lowDiskSpaceHosts,
+      }),
       status,
       label_id: label,
       columns: visibleColumns,
@@ -178,6 +182,7 @@ export default {
     mdmId,
     mdmEnrollmentStatus,
     munkiIssueId,
+    lowDiskSpaceHosts,
     osId,
     osName,
     osVersion,
@@ -197,7 +202,7 @@ export default {
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
-      ...reconcileMutuallyExclusiveHostParams(
+      ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
         policyResponse,
@@ -205,10 +210,11 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        lowDiskSpaceHosts,
         osId,
         osName,
-        osVersion
-      ),
+        osVersion,
+      }),
     };
 
     const queryString = buildQueryStringFromParams(queryParams);

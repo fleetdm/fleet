@@ -981,7 +981,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID),
-		Host:                       host,
+		Host:                       fleet.HostResponseForHostCheap(&host),
 		Rows:                       rows,
 	}
 	if failed {

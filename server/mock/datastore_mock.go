@@ -339,6 +339,8 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
+type CleanupStatisticsFunc func(ctx context.Context) error
+
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
@@ -380,6 +382,10 @@ type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) (
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
+
+type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
+
+type InitializePolicyViolationDaysFunc func(ctx context.Context) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -967,6 +973,9 @@ type DataStore struct {
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
 
+	CleanupStatisticsFunc        CleanupStatisticsFunc
+	CleanupStatisticsFuncInvoked bool
+
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
 
@@ -1029,6 +1038,12 @@ type DataStore struct {
 
 	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
 	CleanupPolicyMembershipFuncInvoked bool
+
+	IncrementPolicyViolationDaysFunc        IncrementPolicyViolationDaysFunc
+	IncrementPolicyViolationDaysFuncInvoked bool
+
+	InitializePolicyViolationDaysFunc        InitializePolicyViolationDaysFunc
+	InitializePolicyViolationDaysFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -1990,6 +2005,11 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
+func (s *DataStore) CleanupStatistics(ctx context.Context) error {
+	s.CleanupStatisticsFuncInvoked = true
+	return s.CleanupStatisticsFunc(ctx)
+}
+
 func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	s.ApplyPolicySpecsFuncInvoked = true
 	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
@@ -2093,6 +2113,16 @@ func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) 
 func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
 	s.CleanupPolicyMembershipFuncInvoked = true
 	return s.CleanupPolicyMembershipFunc(ctx, now)
+}
+
+func (s *DataStore) IncrementPolicyViolationDays(ctx context.Context) error {
+	s.IncrementPolicyViolationDaysFuncInvoked = true
+	return s.IncrementPolicyViolationDaysFunc(ctx)
+}
+
+func (s *DataStore) InitializePolicyViolationDays(ctx context.Context) error {
+	s.InitializePolicyViolationDaysFuncInvoked = true
+	return s.InitializePolicyViolationDaysFunc(ctx)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {

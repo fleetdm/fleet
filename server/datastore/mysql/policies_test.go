@@ -44,6 +44,7 @@ func TestPolicies(t *testing.T) {
 		{"PlatformUpdate", testPolicyPlatformUpdate},
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
+		{"PolicyViolationDays", testPolicyViolationDays},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1769,6 +1770,105 @@ func assertPolicyMembership(t *testing.T, ds *Datastore, polsByName map[string]*
 		got := hostIDsByPolID[pol.ID]
 		require.ElementsMatch(t, hostIDs, got)
 	}
+}
+
+func testPolicyViolationDays(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	then := time.Now().Add(-48 * time.Hour)
+
+	setStatsTimestampDB := func(updatedAt time.Time) error {
+		_, err := ds.writer.ExecContext(ctx, `
+			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND type = ?
+		`, then, updatedAt, 0, "policy_violation_days")
+		return err
+	}
+
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	hosts := make([]*fleet.Host, 3)
+	for i, name := range []string{"h1", "h2", "h3"} {
+		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   id,
+			DetailUpdatedAt: then,
+			LabelUpdatedAt:  then,
+			PolicyUpdatedAt: then,
+			SeenTime:        then,
+			NodeKey:         id,
+			UUID:            id,
+			Hostname:        name,
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?)`
+	res, err := ds.writer.ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
+	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+	pol, err := ds.Policy(ctx, uint(id))
+	require.NoError(t, err)
+
+	require.NoError(t, ds.InitializePolicyViolationDays(ctx)) // sets starting violation count to zero
+
+	// initialize policy statuses: 1 failling, 2 passing
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[0], map[uint]*bool{pol.ID: ptr.Bool(false)}, then, false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[1], map[uint]*bool{pol.ID: ptr.Bool(true)}, then, false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), hosts[2], map[uint]*bool{pol.ID: ptr.Bool(true)}, then, false))
+
+	// setup db for test: starting counts zero, more than 24h since last updated, one outstanding violation
+	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
+	actual, possible, err := amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	// actual should increment from 0 -> 1 (+1 outstanding violation)
+	require.Equal(t, 1, actual)
+	// possible should increment from 0 -> 3 (3 total hosts * 1 policy)
+	require.Equal(t, 3, possible)
+	// reset violation counts to zero for next test
+	require.NoError(t, ds.InitializePolicyViolationDays(ctx))
+
+	// setup for test: starting counts zero, less than 24h since last updated, one outstanding violation
+	require.NoError(t, setStatsTimestampDB(time.Now().Add(-1*time.Hour)))
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	// count should not increment from zero
+	require.Equal(t, 0, actual)
+	// possible should not increment from zero
+	require.Equal(t, 0, possible)
+	// leave counts at zero for next test
+
+	// setup for test: starting count zero, more than 24h since last updated, add second outstanding violation
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	// actual should increment from 0 -> 2 (+2 outstanding violations)
+	require.Equal(t, 2, actual) // leave count at two for next test
+	// possible should increment from 0 -> 3 (3 total hosts * 1 policy)
+	require.Equal(t, 3, possible)
+	// leave counts at 2 actual and 3 possible for next test
+
+	// setup for test: starting counts at 2 actual and 3 possible, more than 24h since last updated, resolve one outstaning violation
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, setStatsTimestampDB(time.Now().Add(-25*time.Hour)))
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	// actual should increment from 2 -> 3 (+1 outstanding violation)
+	require.Equal(t, 3, actual)
+	// possible should increment from 3 -> 6 (3 total hosts * 1 policy)
+	require.Equal(t, 6, possible)
+	// leave counts at 3 actual and 6 possible
+
+	// attempt again immediately after last update, counts should not increment
+	require.NoError(t, ds.IncrementPolicyViolationDays(ctx))
+	actual, possible, err = amountPolicyViolationDaysDB(ctx, ds.reader)
+	require.NoError(t, err)
+	require.Equal(t, 3, actual)
+	require.Equal(t, 6, possible)
 }
 
 func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {

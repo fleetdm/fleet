@@ -1,7 +1,7 @@
 [
   {
     "name": "account_policy_data",
-    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;\n```\n\nSee each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.\n```\nSELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;"
+    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;\n```\n\nSee each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.\n```\nSELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;\n```"
   },
   {
     "name": "ad_config",
@@ -142,10 +142,6 @@
     "examples": "Identify Intel powered Macs that support a specific Intel CPU feature, such as sgx1.\n```\nSELECT * from cpuid WHERE feature='sgx1';\n```"
   },
   {
-    "name": "file",
-    "examples": "List zip files in the downloads folder as well as their associated sha256 hash.\n```\nSELECT f.path, h.sha256 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE '/Users/%/Downloads/%%.zip';\n```"
-  },
-  {
     "name": "device_firmware",
     "examples": "Identify the firmware version of hardware on a Mac, such as the SSD controller in this case. Older versions might indicate a problem with software updates, and this information can be useful when troubleshooting various issues.\n```\nSELECT * FROM device_firmware WHERE device='AppleANS3NVMeController';\n```"
   },
@@ -256,10 +252,11 @@
   },
   {
     "name": "keychain_acls",
-    "examples": "Identify keychain items with permissions granted to Applications at the system or user level.SELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';\n```\nSELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';\n```"
+    "examples": "Identify keychain items with permissions granted to Applications at the system or user level.\n```\nSELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';\n```"
   },
   {
     "name": "keychain_items",
+    "columns": [{ "name": "created", "description": "Date item was created" }],
     "examples": "Identify Macs that contain certificates related to Apple application signing and notarization. (replace with your Apple Developer ID string)\n```\nSELECT * FROM keychain_items WHERE label LIKE '%8EHZ83LZNU%';\n```"
   },
   {
@@ -919,6 +916,7 @@
   },
   {
     "name": "file",
+    "examples": "List zip files in the downloads folder as well as their associated sha256 hash.\n```\nSELECT f.path, h.sha256 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE '/Users/%/Downloads/%%.zip';\n```",
     "columns": [
       {
         "name": "attributes",

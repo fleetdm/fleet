@@ -123,7 +123,7 @@ func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 	return printSpec(c, spec)
 }
 
-func printHost(c *cli.Context, host *service.HostResponse) error {
+func printHost(c *cli.Context, host *fleet.HostResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
