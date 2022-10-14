@@ -25,6 +25,9 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
   "hostStatusWebhookEnabled": true,
+  "numWeeklyActiveUsers": 999,
+  "numWeeklyPolicyViolationDaysActual": 999,
+  "numWeeklyPolicyViolationDaysPossible": 999,
   "hostsEnrolledByOperatingSystem": {
     "darwin": [
       {
