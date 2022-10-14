@@ -174,7 +174,7 @@
     "@typescript-eslint/parser": "4.33.0",
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "9.0.0",
-    "babel-jest": "23.6.0",
+    "babel-jest": "^29.2.0",
     "babel-loader": "8.2.3",
     "css-loader": "1.0.1",
     "cypress": "9.5.1",
@@ -242,6 +242,9 @@
     ],
     "setupFiles": [
       "trace-unhandled/register"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!react-markdown/)"
     ],
     "clearMocks": true,
     "testURL": "http://localhost:8080"
