@@ -40,7 +40,7 @@ const manageSchedulePage = {
       cy.findByText(/ignore removals/i).click();
       cy.getAttached(".schedule-editor-modal__form-field--platform").within(
         () => {
-          cy.findByText(/all/i).click();
+          cy.findByText(/select/i).click();
           cy.findByText(/linux/i).click();
         }
       );

@@ -56,13 +56,13 @@ export default PropTypes.shape({
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
-  display_text: PropTypes.string,
+  display_name: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
   policies: PropTypes.arrayOf(hostPolicyInterface),
   query_results: PropTypes.arrayOf(hostQueryResult),
 });
 
-export type HostStatus = "online" | "offline" | "new";
+export type HostStatus = "online" | "offline" | "new" | "missing";
 export interface IDeviceUser {
   email: string;
   source: string;
@@ -168,6 +168,7 @@ export interface IHost {
   };
   status: HostStatus;
   display_text: string;
+  display_name: string;
   target_type?: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];

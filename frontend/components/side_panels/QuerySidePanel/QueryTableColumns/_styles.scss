@@ -1,0 +1,13 @@
+.query-table-columns {
+  margin-bottom: $pad-xlarge;
+
+  h3 {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__column-list {
+    list-style: none;
+    padding-left: 0;
+  }
+}

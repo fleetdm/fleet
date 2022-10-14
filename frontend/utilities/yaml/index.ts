@@ -31,7 +31,8 @@ export const agentOptionsToYaml = (agentOpts: any) => {
 
   let yamlString = yaml.dump(agentOpts);
   if (addFlagsComment) {
-    yamlString += "command_line_flags: {} # requires Orbit\n";
+    yamlString +=
+      "command_line_flags: {} # requires Fleet's osquery installer\n";
   }
 
   return yamlString;

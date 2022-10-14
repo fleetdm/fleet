@@ -4,10 +4,13 @@
 package platform
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 )
 
 // ChmodExecutableDirectory sets the appropriate permissions on an executable
@@ -26,4 +29,50 @@ func ChmodExecutable(path string) error {
 		return fmt.Errorf("chmod executable: %w", err)
 	}
 	return nil
+}
+
+// SignalProcessBeforeTerminate just force terminate the target process
+// Signaling the child process before termination is not supported on non-windows OSes
+func SignalProcessBeforeTerminate(processName string) error {
+	if processName == "" {
+		return errors.New("processName should not be empty")
+	}
+
+	if err := KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, ErrProcessNotFound) {
+		return fmt.Errorf("There was an error kill target process %s: %w", processName, err)
+	}
+
+	return nil
+}
+
+// GetProcessByName gets a single process object by its name
+func GetProcessByName(name string) (*gopsutil_process.Process, error) {
+	if name == "" {
+		return nil, errors.New("process name should not be empty")
+	}
+
+	processes, err := gopsutil_process.Processes()
+	if err != nil {
+		return nil, err
+	}
+
+	var foundProcess *gopsutil_process.Process
+	for _, process := range processes {
+		processName, err := process.Name()
+		if err != nil {
+			// No need to print errors here as this method might file for system processes
+			continue
+		}
+
+		if strings.HasPrefix(processName, name) {
+			foundProcess = process
+			break
+		}
+	}
+
+	if foundProcess == nil {
+		return nil, ErrProcessNotFound
+	}
+
+	return foundProcess, nil
 }

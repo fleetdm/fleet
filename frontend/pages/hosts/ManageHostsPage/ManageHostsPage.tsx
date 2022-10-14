@@ -10,7 +10,6 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
   ILoadHostsOptions,
   ISortOption,
@@ -240,27 +239,31 @@ const ManageHostsPage = ({
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
-
   const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
   const softwareId =
     queryParams?.software_id !== undefined
-      ? parseInt(queryParams?.software_id, 10)
+      ? parseInt(queryParams.software_id, 10)
       : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
   const mdmId =
     queryParams?.mdm_id !== undefined
-      ? parseInt(queryParams?.mdm_id, 10)
+      ? parseInt(queryParams.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
-      ? parseInt(queryParams?.munki_issue_id, 10)
+      ? parseInt(queryParams.munki_issue_id, 10)
       : undefined;
+  const lowDiskSpaceHosts =
+    queryParams?.low_disk_space !== undefined
+      ? parseInt(queryParams.low_disk_space, 10)
+      : undefined;
+  const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -405,7 +408,6 @@ const ManageHostsPage = ({
 
   const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
-
     options = {
       ...options,
       teamId: getValidatedTeamId(
@@ -456,7 +458,6 @@ const ManageHostsPage = ({
     if (queryParams.team_id) {
       options.teamId = queryParams.team_id;
     }
-
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);
@@ -501,9 +502,9 @@ const ManageHostsPage = ({
         selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
       selectedFilters[0];
 
-    const selected = find(labels, ["slug", slugToFind]) as ILabel;
+    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
 
-    setSelectedLabel(selected);
+    setSelectedLabel(validLabel);
 
     const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
@@ -516,10 +517,11 @@ const ManageHostsPage = ({
       status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      lowDiskSpaceHosts,
       osId,
       osName,
       osVersion,
-      munkiIssueId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -528,6 +530,7 @@ const ManageHostsPage = ({
     if (isEqual(options, currentQueryOptions)) {
       return;
     }
+
     if (teamSync) {
       retrieveHosts(options);
       retrieveHostCount(omit(options, "device_mapping"));
@@ -641,6 +644,10 @@ const ManageHostsPage = ({
     handleClearFilter(["munki_issue_id"]);
   };
 
+  const handleClearLowDiskSpaceFilter = () => {
+    handleClearFilter(["low_disk_space"]);
+  };
+
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
 
@@ -750,55 +757,33 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      if (currentTeam?.id) {
+      if (currentTeam) {
         newQueryParams.team_id = currentTeam.id;
       }
 
-      if (policyId) {
+      if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
-      }
-
-      if (status) {
-        newQueryParams.status = status;
-      }
-
-      if (policyResponse) {
         newQueryParams.policy_response = policyResponse;
-      }
-
-      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
+      } else if (softwareId) {
         newQueryParams.software_id = softwareId;
-      }
-
-      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
+      } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
-      }
-
-      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
+      } else if (mdmEnrollmentStatus) {
         newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
-      }
-
-      if (
-        munkiIssueId &&
-        !mdmEnrollmentStatus &&
-        !policyId &&
-        !softwareId &&
-        !mdmId
-      ) {
+      } else if (munkiIssueId) {
         newQueryParams.munki_issue_id = munkiIssueId;
-      }
-
-      if (
-        (osId || (osName && osVersion)) &&
-        !softwareId &&
-        !policyId &&
-        !mdmEnrollmentStatus &&
-        !mdmId
-      ) {
+      } else if (missingHosts) {
+        // Premium feature only
+        newQueryParams.status = "missing";
+      } else if (lowDiskSpaceHosts && isPremiumTier) {
+        // Premium feature only
+        newQueryParams.low_disk_space = lowDiskSpaceHosts;
+      } else if (osId || (osName && osVersion)) {
         newQueryParams.os_id = osId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       }
+
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -820,10 +805,11 @@ const ManageHostsPage = ({
       status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      lowDiskSpaceHosts,
       osId,
       osName,
       osVersion,
-      munkiIssueId,
       sortBy,
     ]
   );
@@ -1007,10 +993,11 @@ const ManageHostsPage = ({
         status,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
-        munkiIssueId,
       });
 
       toggleTransferHostModal();
@@ -1061,10 +1048,11 @@ const ManageHostsPage = ({
         status,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
-        munkiIssueId,
       });
 
       refetchLabels();
@@ -1297,6 +1285,23 @@ const ManageHostsPage = ({
     return null;
   };
 
+  const renderLowDiskSpaceFilterBlock = () => {
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts that have {lowDiskSpaceHosts} GB or less <br />
+        disk space available.
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label="Low disk space"
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearLowDiskSpaceFilter}
+      />
+    );
+  };
+
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1458,10 +1463,11 @@ const ManageHostsPage = ({
       status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      lowDiskSpaceHosts,
       os_id: osId,
       os_name: osName,
       os_version: osVersion,
-      munkiIssueId,
       visibleColumns,
     };
 
@@ -1507,7 +1513,7 @@ const ManageHostsPage = ({
         {count !== undefined && (
           <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
         )}
-        {count ? (
+        {!!count && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1517,8 +1523,6 @@ const ManageHostsPage = ({
               Export hosts <img alt="" src={DownloadIcon} />
             </>
           </Button>
-        ) : (
-          <></>
         )}
       </div>
     );
@@ -1534,6 +1538,7 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
+      lowDiskSpaceHosts ||
       osId ||
       (osName && osVersion) ||
       munkiIssueId
@@ -1554,6 +1559,8 @@ const ManageHostsPage = ({
             return renderOSFilterBlock();
           case !!munkiIssueId:
             return renderMunkiIssueFilterBlock();
+          case !!lowDiskSpaceHosts:
+            return renderLowDiskSpaceFilterBlock();
           default:
             return null;
         }
@@ -1598,14 +1605,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      !hosts ||
-      !teamSync ||
-      isHostCountLoading ||
-      isHostsLoading
-    ) {
+    if (!config || !currentUser || !hosts || !teamSync) {
       return <Spinner />;
     }
 
@@ -1615,19 +1615,25 @@ const ManageHostsPage = ({
 
     // There are no hosts for this instance yet
     if (
-      !status &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
       teamSync &&
-      !labelID
+      !labelID &&
+      !status
     ) {
-      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
-        queryParams || {};
+      const {
+        software_id,
+        policy_id,
+        mdm_id,
+        mdm_enrollment_status,
+        low_disk_space,
+      } = queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
+        low_disk_space ||
         osId ||
         osName ||
         osVersion
@@ -1770,7 +1776,8 @@ const ManageHostsPage = ({
                 ) && (
                   <Button
                     onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts button button--brand`}
+                    className={`${baseClass}__add-hosts`}
+                    variant="brand"
                   >
                     <span>Add hosts</span>
                   </Button>

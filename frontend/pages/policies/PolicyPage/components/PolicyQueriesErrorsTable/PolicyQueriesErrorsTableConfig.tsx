@@ -43,7 +43,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       title: "Host",
       Header: "Host",
       disableSortBy: true,
-      accessor: "host_hostname",
+      accessor: "host_display_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),

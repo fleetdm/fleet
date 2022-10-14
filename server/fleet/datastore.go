@@ -437,6 +437,9 @@ type Datastore interface {
 
 	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
+	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
+	// statistics.
+	CleanupStatistics(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
@@ -483,6 +486,14 @@ type Datastore interface {
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// IncrementPolicyViolationDays increments the aggregate count of policy violation days. One
+	// policy violation day is added for each policy that a host is failing as of the time the count
+	// is incremented. The count only increments once per 24-hour interval. If the interval has not
+	// elapsed, IncrementPolicyViolationDays returns nil without incrementing the count.
+	IncrementPolicyViolationDays(ctx context.Context) error
+	// InitializePolicyViolationDays sets the aggregated count of policy violation days to zero. If
+	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
+	InitializePolicyViolationDays(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking

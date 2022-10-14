@@ -253,13 +253,16 @@ func main() {
 			osquerydPath string
 			desktopPath  string
 			g            run.Group
+			appDoneCh    chan struct{} // closed when runner run.group.Run() returns
 		)
 
-		// List of interrupt functions to call during service teardown
-		var interruptFunctions []func(err error)
-
 		// Setting up the system service management early on the process lifetime
-		go osservice.SetupServiceManagement(constant.SystemServiceName, c.Bool("fleet-desktop"), &interruptFunctions)
+		appDoneCh = make(chan struct{})
+
+		// Initializing service runner and system service manager
+		systemChecker := newSystemChecker()
+		g.Add(systemChecker.Execute, systemChecker.Interrupt)
+		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -626,9 +629,6 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		// Only osquery runner is being interrupted
-		// This ends up forcing the rest of the interrupt functions in the runner group to get called
-		interruptFunctions = append(interruptFunctions, r.Interrupt)
 		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
@@ -667,6 +667,7 @@ func main() {
 			log.Error().Err(err).Msg("unexpected exit")
 		}
 
+		close(appDoneCh) // Signal to indicate runners have just ended
 		return nil
 	}
 
@@ -719,8 +720,11 @@ func (d *desktopRunner) execute() error {
 	defer close(d.executeDoneCh)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, platform.ErrProcessNotFound) {
-		log.Error().Err(err).Msg("killProcess")
+
+	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+		!errors.Is(err, platform.ErrProcessNotFound) &&
+		!errors.Is(err, platform.ErrComChannelNotFound) {
+		log.Error().Err(err).Msg("desktop early terminate")
 	}
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
@@ -808,8 +812,8 @@ func (d *desktopRunner) interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
-	if err := platform.KillProcessByName(constant.DesktopAppExecName); err != nil {
-		log.Error().Err(err).Msg("killProcess")
+	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil {
+		log.Error().Err(err).Msg("SignalProcessBeforeTerminate")
 	}
 }
 
@@ -862,6 +866,39 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
+}
+
+// serviceChecker is a helper to gracefully shutdown the runners group when a
+// system service stop request was received.
+//
+// This struct and its methods are designed to play nicely with `oklog.Group`.
+type serviceChecker struct {
+	svcInterruptCh   chan struct{} // closed when system service stop is requested
+	localInterruptCh chan struct{} // closed when serviceChecker interrupt is called
+}
+
+func newSystemChecker() *serviceChecker {
+	return &serviceChecker{
+		svcInterruptCh:   make(chan struct{}),
+		localInterruptCh: make(chan struct{}),
+	}
+}
+
+// execute will just return when required locally or by the system service
+func (s *serviceChecker) Execute() error {
+	for {
+		select {
+		case <-s.svcInterruptCh:
+			return errors.New("os service stop request")
+		case <-s.localInterruptCh:
+			return errors.New("internal service interrupt")
+		}
+	}
+}
+
+func (s *serviceChecker) Interrupt(err error) {
+	log.Debug().Err(err).Msg("interrupt serviceChecker")
+	close(s.localInterruptCh) // Signal execute to return.
 }
 
 // capabilitiesChecker is a helper to restart Orbit as soon as certain capabilities
@@ -922,6 +959,7 @@ func (f *capabilitiesChecker) execute() error {
 			}
 		case <-f.interruptCh:
 			return nil
+
 		}
 	}
 }
