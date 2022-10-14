@@ -489,6 +489,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Contains(t, tmResp.Team.Description, "Alt ")
 
+	// modify a team with a NULL config
+	defaultFeatures := fleet.Features{}
+	defaultFeatures.ApplyDefaultsForNewInstalls()
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, team.ID)
+		return err
+	})
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
+
+	// modify a team with an empty config
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, team.ID)
+		return err
+	})
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
+
 	// modify non-existing team
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID+1), team, http.StatusNotFound, &tmResp)

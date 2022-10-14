@@ -1,0 +1,1 @@
+* Fixed a bug where if a team didn't have a `config.features` settings and was edited via the UI, the both `features.enable_host_users` and `features.enable_software_inventory` would be `false` instad of the global default.
