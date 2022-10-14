@@ -1598,14 +1598,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      !hosts ||
-      !teamSync ||
-      isHostCountLoading ||
-      isHostsLoading
-    ) {
+    if (!config || !currentUser || !hosts || !teamSync) {
       return <Spinner />;
     }
 
