@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestUp_20220915153947(t *testing.T) {
+func TestUp_20220915165116(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`
