@@ -284,6 +284,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	ts := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 0)
+	require.Len(t, ts.InheritedPolicies, 0)
+
+	// create a global policy
+	gpol, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "TestGlobalPolicy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	defer func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{gpol.ID})
+		require.NoError(t, err)
+	}()
 
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
@@ -303,6 +312,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, "Some description", ts.Policies[0].Description)
 	require.NotNil(t, ts.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
+	require.Len(t, ts.InheritedPolicies, 1)
+	assert.Equal(t, gpol.Name, ts.InheritedPolicies[0].Name)
+	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := deleteTeamPoliciesResponse{}
@@ -576,7 +588,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}`), http.StatusBadRequest, "dry_run", "true")
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "cannot unmarshal string into Go struct field osqueryOptions.options.aws_debug of type bool")
+	require.Contains(t, string(body), "invalid value type at 'options.aws_debug': expected bool but got string")
 
 	// modify team agent using valid options with dry-run
 	tmResp.Team = nil
@@ -1266,7 +1278,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
-	getDesktopResp := FleetDesktopResponse{}
+	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&getDesktopResp)
 	res.Body.Close()

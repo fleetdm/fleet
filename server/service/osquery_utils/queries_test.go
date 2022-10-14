@@ -813,3 +813,16 @@ func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
 }
+
+func TestIngestKubequeryInfo(t *testing.T) {
+	err := ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, nil)
+	require.Error(t, err)
+	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{})
+	require.Error(t, err)
+	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{
+		{
+			"cluster_name": "foo",
+		},
+	})
+	require.NoError(t, err)
+}

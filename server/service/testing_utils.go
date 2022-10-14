@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -252,7 +253,10 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 	limitStore, _ := memstore.New(0)
 	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
-	server := httptest.NewServer(r)
+	server := httptest.NewUnstartedServer(r)
+	// Set the same ReadTimeout as the actual server
+	server.Config.ReadTimeout = 25 * time.Second
+	server.Start()
 	t.Cleanup(func() {
 		server.Close()
 	})

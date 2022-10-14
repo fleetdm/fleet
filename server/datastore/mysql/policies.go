@@ -258,29 +258,55 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader, nil)
+	return listPoliciesDB(ctx, ds.reader, nil, nil)
 }
 
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([]*fleet.Policy, error) {
-	teamWhere := "p.team_id is NULL"
+// returns the list of policies associated with the provided teamID, or the
+// global policies if teamID is nil. The pass/fail host counts are the totals
+// regardless of hosts' team if countsForTeamID is nil, or the totals just for
+// hosts that belong to the provided countsForTeamID if it is not nil.
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint) ([]*fleet.Policy, error) {
 	var args []interface{}
+
+	counts := `
+    (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+    (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+`
+	if countsForTeamID != nil {
+		counts = `
+        (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
+        (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
+`
+		args = append(args, *countsForTeamID, *countsForTeamID)
+	}
+
+	teamWhere := "p.team_id is NULL"
 	if teamID != nil {
 		teamWhere = "p.team_id = ?"
 		args = append(args, *teamID)
 	}
+
 	var policies []*fleet.Policy
 	err := sqlx.SelectContext(
 		ctx,
 		q,
 		&policies,
-		fmt.Sprintf(`SELECT p.*,
-		    COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p
-		LEFT JOIN users u ON p.author_id = u.id
-		WHERE %s`, teamWhere), args...,
+		fmt.Sprintf(`SELECT p.id,
+      p.team_id,
+      p.resolution,
+      p.name,
+      p.query,
+      p.description,
+      p.author_id,
+      p.platforms,
+      p.created_at,
+      p.updated_at,
+      COALESCE(u.name, '<deleted>') AS author_name,
+      COALESCE(u.email, '') AS author_email,
+      %s
+    FROM policies p
+    LEFT JOIN users u ON p.author_id = u.id
+    WHERE %s`, counts, teamWhere), args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
@@ -289,14 +315,23 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 }
 
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
-	sql := `SELECT p.*,
-		    COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p
-		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id IN (?)`
+	sql := `SELECT p.id,
+      p.team_id,
+      p.resolution,
+      p.name,
+      p.query,
+      p.description,
+      p.author_id,
+      p.platforms,
+      p.created_at,
+      p.updated_at,
+      COALESCE(u.name, '<deleted>') AS author_name,
+      COALESCE(u.email, '') AS author_email,
+      (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+      (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+      FROM policies p
+      LEFT JOIN users u ON p.author_id = u.id
+      WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
@@ -421,8 +456,17 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	return policyDB(ctx, ds.writer, uint(lastIdInt64), &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader, &teamID)
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader, &teamID, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	// get inherited (global) policies with counts of hosts for that team
+	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader, nil, &teamID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return teamPolicies, inheritedPolicies, err
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
