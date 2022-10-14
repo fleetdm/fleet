@@ -147,7 +147,7 @@ describe("Policies flow (empty)", () => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/create your own policy/i).click();
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM users WHERE username = 'backup' LIMIT 1;"
@@ -217,7 +217,7 @@ describe("Policies flow (empty)", () => {
       });
 
       // Query with unknown table name displays error message
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .first()
         .click({ force: true })
         .type("{selectall}SELECT 1 FROM foo WHERE start_time > 1;");
@@ -230,7 +230,7 @@ describe("Policies flow (empty)", () => {
       });
 
       // Query with syntax error displays error message
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .first()
         .click({ force: true })
         .type("{selectall}SELEC 1 FRO osquery_info WHER start_time > 1;");
@@ -243,7 +243,7 @@ describe("Policies flow (empty)", () => {
       });
 
       // Query with no tables treated as compatible with all platforms
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .first()
         .click({ force: true })
         .type("{selectall}SELECT * WHERE 1 = 1;");
@@ -254,7 +254,7 @@ describe("Policies flow (empty)", () => {
       });
 
       // Tables defined in common table expression not factored into compatibility check
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .first()
         .click({ force: true })
         .type("{selectall} ")
@@ -270,7 +270,7 @@ describe("Policies flow (empty)", () => {
 
       // Query with only macOS tables treated as compatible only with macOS
       // eslint-disable-next-line cypress/no-unnecessary-waiting
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(" .policy-page__form .ace_scroller")
         .first()
         .click({ force: true })
         .type("{selectall} ")
@@ -285,7 +285,7 @@ describe("Policies flow (empty)", () => {
       });
 
       // Query with macadmins extension table is not treated as incompatible
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .first()
         .click({ force: true })
         .type("{selectall}SELECT 1 FROM mdm WHERE enrolled='true';");
@@ -477,7 +477,7 @@ describe("Policies flow (seeded)", () => {
       cy.getAttached("tbody").within(() => {
         cy.getAttached(".name__cell .button--text-link").first().click();
       });
-      cy.getAttached(".ace_scroller")
+      cy.getAttached(".policy-page__form .ace_scroller")
         .click({ force: true })
         .type(
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"

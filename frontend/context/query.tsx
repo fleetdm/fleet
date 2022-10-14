@@ -3,14 +3,14 @@ import { find } from "lodash";
 
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
-import { DEFAULT_OSQUERY_TABLE, IOsqueryTable } from "interfaces/osquery_table";
+import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
 
 type Props = {
   children: ReactNode;
 };
 
 type InitialStateType = {
-  selectedOsqueryTable: IOsqueryTable;
+  selectedOsqueryTable: IOsQueryTable;
   lastEditedQueryId: number | null;
   lastEditedQueryName: string;
   lastEditedQueryDescription: string;
@@ -45,7 +45,7 @@ const actions = {
   SET_LAST_EDITED_QUERY_INFO: "SET_LAST_EDITED_QUERY_INFO",
 } as const;
 
-const reducer = (state: any, action: any) => {
+const reducer = (state: InitialStateType, action: any) => {
   switch (action.type) {
     case actions.SET_SELECTED_OSQUERY_TABLE:
       return {
