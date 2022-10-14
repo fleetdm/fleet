@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220915153947, Down_20220915153947)
+	MigrationClient.AddMigration(Up_20220915165116, Down_20220915165116)
 }
 
-func Up_20220915153947(tx *sql.Tx) error {
+func Up_20220915165116(tx *sql.Tx) error {
 	for _, change := range []struct{ name, sql string }{
 		{"delete index", `ALTER TABLE hosts DROP INDEX hosts_search`},
 		{"create index", `CREATE FULLTEXT INDEX hosts_search ON hosts(hostname, uuid, computer_name)`},
@@ -35,6 +35,6 @@ func Up_20220915153947(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20220915153947(tx *sql.Tx) error {
+func Down_20220915165116(tx *sql.Tx) error {
 	return nil
 }
