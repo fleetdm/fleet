@@ -60,11 +60,11 @@ describe("SummaryTile - component", () => {
 
     const title = screen.getByText("Windows hosts");
     const count = screen.getByText("200");
-    const icon = screen.getByRole("img");
+    const icon = screen.getByRole("svg");
 
     expect(title).toBeInTheDocument();
     expect(count).toBeInTheDocument();
-    expect(icon).toHaveAttribute("src", "test-file-stub");
+    expect(icon).toBeInTheDocument();
   });
 
   it("does not render icon if not provided", () => {
