@@ -103,7 +103,6 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  console.log("selectedIntegration", selectedIntegration);
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(
       softwareVulnerabilityAutomationEnabled || false
