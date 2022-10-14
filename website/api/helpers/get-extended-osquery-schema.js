@@ -20,24 +20,40 @@ module.exports = {
 
   fn: async function () {
     let path = require('path');
+    let YAML = require('yaml');
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     let VERSION_OF_OSQUERY_SCHEMA_TO_USE = '5.4.0';
     // Getting the specified osquery schema from the osquery/osquery-site GitHub repo.
     let rawOsqueryTables = await sails.helpers.http.get('https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json');
-    let fleetOverridesForTables = await sails.helpers.fs.readJson(path.resolve(topLvlRepoPath+'/schema', 'fleet_schema.json'));
+
+    let fleetOverridesForTables = [];
+
+    for(let table of await sails.helpers.fs.ls(path.resolve(topLvlRepoPath+'/schema/tables'))) {
+      let tableYaml = await sails.helpers.fs.read(table);
+      let parsedYamlTable;
+      try {
+        parsedYamlTable = YAML.parse(tableYaml, {prettyErrors: true});
+      } catch(err) {
+        throw new Error(`Could not parse the Fleet overrides YAMl at ${table} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, then try running this script again`);
+      }
+      fleetOverridesForTables.push(parsedYamlTable);
+    }
 
     let expandedTables = []; // create an empty array for the merged schema.
 
     for(let osquerySchemaTable of rawOsqueryTables) {
 
       let fleetOverridesForTable = _.find(fleetOverridesForTables, {'name': osquerySchemaTable.name}); // Setting a flag if this table exists in the Fleet overrrides JSON
-      let expandedTableToPush = _.clone(osquerySchemaTable);
+      let expandedTableToPush = _.omit(osquerySchemaTable, 'url');
 
       if(!fleetOverridesForTable) {
         if(_.endsWith(osquerySchemaTable.name, '_events')) {// Make sure that all tables that have names ending in '_events' have evented: true
           expandedTableToPush.evented = true;// FUTURE: fix this in the main osquery schema so that they always have evented: true
         }
+        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: >- # type: string - The description for this table. Note: this field supports markdown\n\t# Add description here\nexamples: >- # string - An example query for this table. Note: This field supports markdown\n\t# Add examples here\ncolumns:\n\t- name: # string - The name of the column\n\t  description: # string - The column's description\n\t  type: # string - the column's data type\n\t  required: # boolean - whether or not this column is required to query this table.`;
+
+        expandedTableToPush.url = 'https://github.com/fleetdm/fleet/new/main/schema?filename='+encodeURIComponent(expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
         expandedTables.push(expandedTableToPush);
       } else { // If this table exists in the Fleet overrides schema, we'll override the values
         if(fleetOverridesForTable.platforms !== undefined) {
@@ -52,6 +68,7 @@ module.exports = {
         if(fleetOverridesForTable.notes !== undefined) {
           expandedTableToPush.notes = _.clone(fleetOverridesForTable.notes);
         }
+        expandedTableToPush.url = 'https://github.com/fleetdm/fleet/main/schema/tables/'+encodeURIComponent(expandedTableToPush.name)+'.yml';
         let mergedTableColumns = [];
         for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
           if(!fleetOverridesForTable.columns) { // If there are no column overrides for this table, we'll add the column unchanged.

@@ -628,7 +628,8 @@ module.exports = {
               evented: table.evented,
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
-              sectionRelativeRepoPath: table.name // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.
+              sectionRelativeRepoPath: table.name, // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.
+              githubUrl: table.url,
             });
           }
         }
