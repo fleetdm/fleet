@@ -1,5 +1,5 @@
 name: os_version
-examples: |-
+examples: >-
   See the OS version as well as the CPU architecture in use (X86 vs ARM for
   example)
 

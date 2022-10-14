@@ -1,5 +1,5 @@
 name: secureboot
-examples: |-
+examples: >-
   See the secure boot status (enabled or not) of Windows and Linux systems. You
   could create a policy looking for it to be set to 1.
 

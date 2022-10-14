@@ -1,5 +1,5 @@
 name: chrome_extensions
-examples: |-
+examples: >-
   List Chrome extensions by user and profile which have full access to HTTPS
   browsing.
 

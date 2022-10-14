@@ -1,5 +1,5 @@
 name: last
-examples: |-
+examples: >-
   System logins and logouts with formatted time.
 
   ```

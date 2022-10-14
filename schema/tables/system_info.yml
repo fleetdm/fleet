@@ -1,5 +1,5 @@
 name: system_info
-examples: |-
+examples: >-
   See the CPU architecture of a machine as well as who made it and what its
   serial number is.
 

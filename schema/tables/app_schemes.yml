@@ -1,5 +1,5 @@
 name: app_schemes
-examples: |-
+examples: >-
   List applications that have registered the URL scheme "mailto" to handle email
   links.
 

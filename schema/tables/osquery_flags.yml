@@ -1,5 +1,5 @@
 name: osquery_flags
-examples: |-
+examples: >-
   If disable_events has a value of false, events are enabled.
 
   ```

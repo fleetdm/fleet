@@ -1,5 +1,5 @@
 name: signature
-examples: |-
+examples: >-
   Identify system extensions that are not managed via MDM and see their
   signature status.
 

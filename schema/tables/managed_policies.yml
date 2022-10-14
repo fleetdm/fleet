@@ -1,5 +1,5 @@
 name: managed_policies
-examples: |-
+examples: >-
   Check if critical software update installation is enabled via a profile (1 =
   enabled)
 

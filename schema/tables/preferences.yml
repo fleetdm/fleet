@@ -1,5 +1,5 @@
 name: preferences
-examples: |-
+examples: >-
   This table reads a huge amount of preferences, including on third-party apps.
   This query will show how many users are enrolled to TouchID.
 

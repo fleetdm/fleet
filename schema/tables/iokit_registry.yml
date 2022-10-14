@@ -1,5 +1,5 @@
 name: iokit_registry
-examples: |-
+examples: >-
   Identify devices with a Yubikey connected. The name will also contain the
   protocols supported by the key, such as FIDO.
 

@@ -1,5 +1,5 @@
 name: alf_explicit_auths
-examples: |-
+examples: >-
   List applications were granted explicit access through the firewall. This is
   useful when looking to see if vulnerable software is exposed to networks. 
 

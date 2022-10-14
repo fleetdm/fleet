@@ -1,5 +1,5 @@
 name: wifi_survey
-examples: |-
+examples: >-
   Count the amount of wireless networks visible to the computer.
 
   ```

@@ -1,5 +1,5 @@
 name: temperature_sensors
-examples: |-
+examples: >-
   Identify systems with CPU temperature sensors above or equal to 90c.
 
   ```

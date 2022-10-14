@@ -1,5 +1,5 @@
 name: account_policy_data
-examples: |-
+examples: >-
   Query the creation date of user accounts. You could also query the date of the
   last failed login attempt or password change.
 
@@ -15,3 +15,5 @@ examples: |-
   ```
 
   SELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;
+
+  ```

@@ -1,5 +1,5 @@
 name: cups_destinations
-examples: |-
+examples: >-
   Identify the types of printers connected to computers. This query works for
   both network and local printers.
 

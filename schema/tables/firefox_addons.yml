@@ -1,5 +1,5 @@
 name: firefox_addons
-examples: |-
+examples: >-
   See Firefox extensions by user as well as information about their creator and
   automatic update status.
 

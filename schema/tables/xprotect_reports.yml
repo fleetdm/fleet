@@ -1,5 +1,5 @@
 name: xprotect_reports
-examples: |-
+examples: >-
   See all Xprotect activity reports, if any are present. This indicates
   potentially malicious software was blocked by Xprotect.
 

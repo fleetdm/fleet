@@ -1,5 +1,5 @@
 name: xprotect_meta
-examples: |-
+examples: >-
   See the minimum version of specific components allowed by Xprotect. This
   usually means the previous versions have vulnerabilities that are being
   exploited at scale, or were exploited at scale at some point in time.

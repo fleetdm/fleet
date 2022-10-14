@@ -1,5 +1,5 @@
 name: arp_cache
-examples: |-
+examples: >-
   List the content of the ARP cache. On systems located in an office or
   datacenter, you can use this to watch for network attacks by checking for
   gateway IPs that do not have the expected MAC address.

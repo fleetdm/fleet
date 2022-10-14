@@ -1,5 +1,5 @@
 name: plist
-examples: |-
+examples: >-
   Read the contents of a plist file, formatted into a table
 
   ```

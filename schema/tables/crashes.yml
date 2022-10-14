@@ -1,5 +1,5 @@
 name: crashes
-examples: |-
+examples: >-
   See software responsible for crashes. This can be useful to detect what the
   most problematic software in your environment is.
 

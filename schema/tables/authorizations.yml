@@ -1,5 +1,5 @@
 name: authorizations
-examples: |-
+examples: >-
   See macOS authorizations that have been modified since their creation. Useful
   for threat hunting.
 
