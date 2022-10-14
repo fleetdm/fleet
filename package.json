@@ -243,9 +243,6 @@
     "setupFiles": [
       "trace-unhandled/register"
     ],
-    "transformIgnorePatterns": [
-      "node_modules/(?!react-markdown/)"
-    ],
     "clearMocks": true,
     "testURL": "http://localhost:8080"
   },
