@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
+import { IOsqueryPlatform } from "interfaces/platform";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;

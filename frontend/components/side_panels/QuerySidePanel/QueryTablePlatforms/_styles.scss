@@ -1,0 +1,28 @@
+.query-table-platforms {
+  h3 {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__platform-list {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .platform-list-item {
+    display: flex;
+    align-items: center;
+    padding-bottom: $pad-medium;
+    font-size: $x-small;
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+
+    .icon {
+      margin-right: $pad-small;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
