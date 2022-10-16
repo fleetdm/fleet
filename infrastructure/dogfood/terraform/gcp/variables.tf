@@ -16,7 +16,7 @@ variable "db_name" {
 }
 
 variable "db_tier" {
-  default = "db-n1-standard-1"
+  default = "db-custom-1-3840"
 }
 
 variable "db_version" {
