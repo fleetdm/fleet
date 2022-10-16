@@ -20,7 +20,7 @@ variable "db_tier" {
 }
 
 variable "db_version" {
-  default = "MYSQL_5_7"
+  default = "MYSQL_8_0"
 }
 
 variable "fleet_cpu" {
