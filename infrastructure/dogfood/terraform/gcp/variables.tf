@@ -59,7 +59,7 @@ variable "project_id" {
 }
 
 variable "prefix" {
-  default     = "fleet-"
+  default     = "fleet"
   description = "prefix resources with this string"
 }
 
