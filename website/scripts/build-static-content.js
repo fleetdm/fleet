@@ -629,7 +629,7 @@ module.exports = {
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
               sectionRelativeRepoPath: table.name, // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.
-              githubUrl: table.url,
+              githubUrl: table.fleetRepoUrl,
             });
           }
         }
