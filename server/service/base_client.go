@@ -113,7 +113,7 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		return nil, fmt.Errorf("parsing URL: %w", err)
 	}
 
-	if baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") && !strings.Contains(baseURL.Host, "127.0.0.1") {
+	if !insecureSkipVerify && baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") && !strings.Contains(baseURL.Host, "127.0.0.1") {
 		return nil, errors.New("address must start with https:// for remote connections")
 	}
 

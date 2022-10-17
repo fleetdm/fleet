@@ -300,7 +300,7 @@ func (a *agent) runOrbitLoop() {
 		"",
 		a.serverAddress,
 		"",
-		false,
+		true,
 		a.EnrollSecret,
 		a.UUID,
 	)
@@ -310,7 +310,7 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
-	deviceClient, err := service.NewDeviceClient(a.serverAddress, false, "")
+	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "")
 	if err != nil {
 		log.Println("creating device client: ", err)
 	}
