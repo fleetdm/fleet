@@ -12,7 +12,7 @@
 
 This document provides a list of the supported log destinations in Fleet.
 
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../Deploying/Configuration.md#osquery-status-log-plugin).
+To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for [osquery logging configuration options](../Deploying/Configuration.md#osquery-status-log-plugin).
 
 ### Amazon Kinesis Data Firehose
 
