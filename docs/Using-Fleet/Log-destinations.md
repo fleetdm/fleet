@@ -55,7 +55,7 @@ Logs are written to [Amazon Kinesis Data Streams (Kinesis)](https://aws.amazon.c
 Note that Kinesis logging has limits [discussed in the
 documentation](https://docs.aws.amazon.com/kinesis/latest/dev/limits.html).
 When Fleet encounters osquery logs that are too big for Kinesis, notifications appear
-in the Fleet server logs and those osquery logs _will not_ be sent to Kinesis.
+in the Fleet server logs. Those osquery logs **will not** be sent to Kinesis.
 
 ### AWS Lambda
 
