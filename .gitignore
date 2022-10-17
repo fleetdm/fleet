@@ -73,3 +73,5 @@ test_tuf
 # Residual files when running the msrc generate command
 msrc_in/
 msrc_out/
+
+stress_targets/
