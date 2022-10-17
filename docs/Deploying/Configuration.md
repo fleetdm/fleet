@@ -982,7 +982,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 ##### osquery_result_log_plugin
 
-Which log output plugin should be used for osquery result logs received from clients. Check out the reference documentation for log destinations [here in the Fleet documentation](../Using-Fleet/Log-destinations.md).
+This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](../Using-Fleet/Log-destinations.md).
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
