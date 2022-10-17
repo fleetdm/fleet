@@ -1,8 +1,11 @@
 name: atom_packages
-examples: |-
+examples: >-
   List installed Atom packages and their version.
+  
   ```
+  
   SELECT name, version, description FROM atom_packages;
+  
   ```
 columns:
   - name: uid
