@@ -29,12 +29,12 @@ interface IDataColumn extends ColumnInterface {
 
 const _unshiftHostname = (headers: IDataColumn[]) => {
   const newHeaders = [...headers];
-  const i = headers.findIndex((h) => h.id === "host_hostname");
+  const i = headers.findIndex((h) => h.id === "host_display_name");
   if (i >= 0) {
     // remove hostname header from headers
-    const [hostnameHeader] = newHeaders.splice(i, 1);
+    const [displayNameHeader] = newHeaders.splice(i, 1);
     // reformat title and insert at start of headers array
-    newHeaders.unshift({ ...hostnameHeader, title: "hostname" });
+    newHeaders.unshift({ ...displayNameHeader, title: "host_display_name" });
   }
   return newHeaders;
 };
