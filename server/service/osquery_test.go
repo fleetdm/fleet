@@ -1555,7 +1555,7 @@ func TestDistributedQueryResults(t *testing.T) {
 			if res, ok := val.(fleet.DistributedQueryResult); ok {
 				assert.Equal(t, campaign.ID, res.DistributedQueryCampaignID)
 				assert.Equal(t, expectedRows, res.Rows)
-				assert.Equal(t, *host, res.Host)
+				assert.Equal(t, host, res.Host.Host)
 			} else {
 				t.Error("Wrong result type")
 			}

@@ -1,5 +1,4 @@
 .manage-hosts {
-
   .header-wrap {
     display: flex;
     align-items: center;
@@ -154,7 +153,7 @@
 
             .form-field--dropdown,
             .manage-hosts__label-filter-dropdown {
-              flex: 1
+              flex: 1;
             }
 
             .manage-hosts__status_dropdown {
@@ -204,7 +203,7 @@
   }
 
   &__status_dropdown {
-    width: 159px;
+    width: 165px;
 
     .Select-menu-outer {
       width: 364px;

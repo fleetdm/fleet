@@ -2,8 +2,6 @@ import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 
 import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 import JiraTicket from "../../../../../../assets/images/ticket-policies-jira-screenshot-400x419@2x.png";

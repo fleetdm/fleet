@@ -11,7 +11,12 @@ interface ILocationParams {
 type RouteParams = Record<string, string>;
 
 export const isAcceptableStatus = (filter: string): boolean => {
-  return filter === "new" || filter === "online" || filter === "offline";
+  return (
+    filter === "new" ||
+    filter === "online" ||
+    filter === "offline" ||
+    filter === "missing"
+  );
 };
 
 export const isValidPolicyResponse = (filter: string): boolean => {

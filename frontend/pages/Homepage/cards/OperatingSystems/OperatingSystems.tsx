@@ -5,7 +5,7 @@ import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
 } from "interfaces/operating_system";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { ISelectedPlatform } from "interfaces/platform";
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,
@@ -25,7 +25,7 @@ import generateTableHeaders from "./OperatingSystemsTableConfig";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
-  selectedPlatform: IOsqueryPlatform;
+  selectedPlatform: ISelectedPlatform;
   showTitle: boolean;
   setShowTitle: (showTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
@@ -37,7 +37,7 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
-const EmptyOperatingSystems = (platform: IOsqueryPlatform): JSX.Element => (
+const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
   <div className={`${baseClass}__empty-os`}>
     <h1>{`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
@@ -66,7 +66,7 @@ const OperatingSystems = ({
     [
       {
         scope: "os_versions",
-        platform: selectedPlatform,
+        platform: selectedPlatform !== "all" ? selectedPlatform : undefined,
         teamId: currentTeamId,
       },
     ],

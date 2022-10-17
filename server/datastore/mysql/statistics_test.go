@@ -113,6 +113,20 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 			OrgLogoURL: "localhost:8080/logo.png",
 		},
 	})
+	require.NoError(t, err)
+
+	// Initialize policy violation days for test
+	pvdJSON, err := json.Marshal(PolicyViolationDays{FailingHostCount: 5, TotalHostCount: 10})
+	require.NoError(t, err)
+	_, err = ds.writer.ExecContext(ctx, `
+		INSERT INTO
+			aggregated_stats (id, type, json_value, created_at, updated_at)
+		VALUES (?, ?, CAST(? AS JSON), ?, ?)
+		ON DUPLICATE KEY UPDATE
+			json_value = VALUES(json_value),
+			updated_at = VALUES(updated_at)
+	`, 0, "policy_violation_days", pvdJSON, time.Now().Add(-48*time.Hour), time.Now().Add(-7*24*time.Hour))
+	require.NoError(t, err)
 
 	require.NoError(t, err)
 	config.Features.EnableSoftwareInventory = false
@@ -146,6 +160,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.VulnDetectionEnabled, false)
 	assert.Equal(t, stats.HostsStatusWebHookEnabled, true)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
+	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysActual, 5)
+	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysPossible, 10)
 	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
 
 	firstIdentifier := stats.AnonymousIdentifier
@@ -236,6 +252,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 0)          // no active user since last stats were sent
 	require.Len(t, stats.HostsEnrolledByOperatingSystem, 3) // empty platform, rhel and macos
+	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysActual, 5)
 	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
 		{Version: "Fedora 35", NumEnrolled: 2},
 		{Version: "Fedora 36", NumEnrolled: 1},
@@ -256,6 +273,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	_, err = ds.NewSession(ctx, u1.ID, "session_key4")
 	require.NoError(t, err)
 
+	// CleanupStatistics resets policy violation days
+	err = ds.CleanupStatistics(ctx)
+	require.NoError(t, err)
+
 	// wait a bit and resend statistics
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
@@ -268,6 +289,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.NumHostsEnrolled, 5)
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
+	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysActual, 0)
+	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysPossible, 0)
 	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
 
 	// Add host to test hosts not responding stats
