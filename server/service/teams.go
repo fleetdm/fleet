@@ -3,7 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -174,6 +177,16 @@ type applyTeamSpecsRequest struct {
 	Force  bool              `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
 	DryRun bool              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Specs  []*fleet.TeamSpec `json:"specs"`
+}
+
+func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) error {
+	if err := fleet.JSONStrictDecode(r, req); err != nil {
+		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
+		if !req.Force {
+			return ctxerr.Wrap(ctx, err, "strict decode team specs")
+		}
+	}
+	return nil
 }
 
 type applyTeamSpecsResponse struct {

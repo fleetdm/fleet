@@ -114,11 +114,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		}
 	}
 
-	var isBodyDecoder bool
-	if _, ok := iface.(bodyDecoder); ok {
-		isBodyDecoder = true
-	}
-
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
@@ -127,6 +122,11 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		v := reflect.New(t)
 		nilBody := false
+
+		var isBodyDecoder bool
+		if _, ok := v.Interface().(bodyDecoder); ok {
+			isBodyDecoder = true
+		}
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
