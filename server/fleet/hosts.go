@@ -541,15 +541,15 @@ type EnrollHostLimiter interface {
 }
 
 type HostFeature struct {
-	ID          int
-	Update      bool
-	HostID      uint
-	SomeDate    time.Time
-	SomeEnumStr string
-	SomeStr     string
-	SomeBool    bool
-	SomeDecimal float64
-	SomeNumber  int
+	ID          int       `db:"id"`
+	Update      bool      `db:"-"`
+	HostID      uint      `db:"host_id"`
+	SomeDate    time.Time `db:"some_date"`
+	SomeEnumStr string    `db:"some_enum_str"`
+	SomeStr     string    `db:"some_str"`
+	SomeBool    bool      `db:"some_bool"`
+	SomeDecimal float64   `db:"some_decimal"`
+	SomeNumber  int       `db:"some_number"`
 }
 
 type FeatureScenario struct {
@@ -581,17 +581,17 @@ func (s FeatureScenario) GetTrialParams(hostID uint) []interface{} {
 
 	if start != -1 {
 		if oEnd != -1 {
-			parts = strings.Split(s.Scenario[start:oEnd], "AND")
+			parts = strings.Split(s.Scenario[start:oEnd], " ")
 		}
 
 		if gEnd != -1 {
-			parts = strings.Split(s.Scenario[start:gEnd], "AND")
+			parts = strings.Split(s.Scenario[start:gEnd], " ")
 		}
 	}
 
 	for _, p := range parts {
 		switch {
-		case strings.Contains(p, "host_id = ?"):
+		case strings.Contains(p, "hosts.id"):
 			args = append(args, hostID)
 		case strings.Contains(p, "some_enum_str"):
 			args = append(args, enumStrRanges[rand.Intn(len(enumStrRanges))])
@@ -611,7 +611,6 @@ func (s FeatureScenario) GetTrialParams(hostID uint) []interface{} {
 			delta := max - min
 			sec := rand.Int63n(delta) + min
 			args = append(args, time.Unix(sec, 0))
-
 		}
 	}
 

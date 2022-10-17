@@ -3131,7 +3131,7 @@ func genScenarios(features []string) []string {
 	stm := `
 SELECT %s
 FROM hosts %s
-WHERE hosts.host_id = ? AND %s
+WHERE hosts.id = ? AND %s
 ORDER BY %s LIMIT ? OFFSET ?`
 
 	grpStm := `
@@ -3398,14 +3398,21 @@ func (ds *Datastore) RunTrial(
 	digest string,
 	params []interface{},
 ) error {
-	stm := "SELECT * FROM feature_scenarions WHERE digest = ?"
+	stm := "SELECT * FROM feature_scenarios WHERE digest = ?"
 
 	var scenario fleet.FeatureScenario
-	var r []fleet.FeatureScenario
+	var r []fleet.HostFeature
 
 	if err := sqlx.GetContext(ctx, ds.reader, &scenario, stm, digest); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting scenario")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		return ctxerr.Wrap(ctx, err, "running trial")
 	}
 
-	return sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params)
+	return nil
 }
