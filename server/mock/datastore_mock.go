@@ -161,9 +161,11 @@ type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
 
 type InitFeatureScenariosFunc func(ctx context.Context, features []string) error
 
+type GetRandomFeatureScenarioFunc func(ctx context.Context) (fleet.FeatureScenario, error)
+
 type UpsertHostFeatureValuesFunc func(ctx context.Context, featureID string, vals []fleet.HostFeature) error
 
-type HostFeatureStressTestFunc func(ctx context.Context, params []fleet.HostFeatureQueryParams) error
+type RunFeatureTrialFunc func(ctx context.Context, scenario fleet.FeatureScenario, params []interface{}) error
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
@@ -706,11 +708,14 @@ type DataStore struct {
 	InitFeatureScenariosFunc        InitFeatureScenariosFunc
 	InitFeatureScenariosFuncInvoked bool
 
+	GetRandomFeatureScenarioFunc        GetRandomFeatureScenarioFunc
+	GetRandomFeatureScenarioFuncInvoked bool
+
 	UpsertHostFeatureValuesFunc        UpsertHostFeatureValuesFunc
 	UpsertHostFeatureValuesFuncInvoked bool
 
-	HostFeatureStressTestFunc        HostFeatureStressTestFunc
-	HostFeatureStressTestFuncInvoked bool
+	RunFeatureTrialFunc        RunFeatureTrialFunc
+	RunFeatureTrialFuncInvoked bool
 
 	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
 	CleanupIncomingHostsFuncInvoked bool
@@ -1560,14 +1565,19 @@ func (s *DataStore) InitFeatureScenarios(ctx context.Context, features []string)
 	return s.InitFeatureScenariosFunc(ctx, features)
 }
 
+func (s *DataStore) GetRandomFeatureScenario(ctx context.Context) (fleet.FeatureScenario, error) {
+	s.GetRandomFeatureScenarioFuncInvoked = true
+	return s.GetRandomFeatureScenarioFunc(ctx)
+}
+
 func (s *DataStore) UpsertHostFeatureValues(ctx context.Context, featureID string, vals []fleet.HostFeature) error {
 	s.UpsertHostFeatureValuesFuncInvoked = true
 	return s.UpsertHostFeatureValuesFunc(ctx, featureID, vals)
 }
 
-func (s *DataStore) HostFeatureStressTest(ctx context.Context, params []fleet.HostFeatureQueryParams) error {
-	s.HostFeatureStressTestFuncInvoked = true
-	return s.HostFeatureStressTestFunc(ctx, params)
+func (s *DataStore) RunFeatureTrial(ctx context.Context, scenario fleet.FeatureScenario, params []interface{}) error {
+	s.RunFeatureTrialFuncInvoked = true
+	return s.RunFeatureTrialFunc(ctx, scenario, params)
 }
 
 func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {

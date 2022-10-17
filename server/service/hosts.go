@@ -1300,7 +1300,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	return osVersions, nil
 }
 
-// Stress Scenarios
+// Init Stress Scenarios
 type initFeatureScenariosRequest struct {
 	NumberFeatures int `url:"features"`
 }
@@ -1335,4 +1335,45 @@ func (svc *Service) InitFeatureScenarios(
 	features []string,
 ) error {
 	return svc.ds.InitFeatureScenarios(ctx, features)
+}
+
+// Run stress trial
+type runTrialReq struct{}
+
+type runTrialResponse struct {
+	Digest string
+	Params []interface{}
+	Err    error `json:"error,omitempty"`
+}
+
+func (r runTrialResponse) error() error { return r.Err }
+
+func runTrialEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	svc.DisableAuthForPing(ctx)
+
+	scenario, err := svc.GetRandomFeatureScenario(ctx)
+	if err != nil {
+		return &runTrialResponse{Err: err}, nil
+	}
+
+	// params, err := svc.RunFeatureTrial(ctx, scenario)
+	// if err != nil {
+	// 	return &runTrialResponse{Err: err}, nil
+	// }
+
+	return &runTrialResponse{Digest: scenario.Digest, Params: nil}, nil
+}
+
+func (svc *Service) GetRandomFeatureScenario(ctx context.Context) (fleet.FeatureScenario, error) {
+	return svc.ds.GetRandomFeatureScenario(ctx)
+}
+
+func (svc *Service) RunFeatureTrial(ctx context.Context, scenario fleet.FeatureScenario) ([]interface{}, error) {
+	params := scenario.GetTrialParams()
+
+	if err := svc.ds.RunFeatureTrial(ctx, scenario, params); err != nil {
+		return nil, err
+	}
+
+	return params, nil
 }

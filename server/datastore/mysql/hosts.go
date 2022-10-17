@@ -3297,13 +3297,6 @@ func (ds *Datastore) InitFeatureScenarios(
 	return nil
 }
 
-func (ds *Datastore) HostFeatureStressTest(
-	ctx context.Context,
-	params []fleet.HostFeatureQueryParams,
-) error {
-	return nil
-}
-
 func (ds *Datastore) UpsertHostFeatureValues(
 	ctx context.Context,
 	featureID string,
@@ -3373,6 +3366,31 @@ some_number = VALUES(some_number)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating stress features")
 		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetRandomFeatureScenario(ctx context.Context) (fleet.FeatureScenario, error) {
+	stm := `SELECT * FROM feature_scenarios ORDER BY RAND() LIMIT 1`
+	var r fleet.FeatureScenario
+
+	if err := sqlx.GetContext(ctx, ds.reader, &r, stm); err != nil {
+		return r, ctxerr.Wrap(ctx, err, "selecting random feature scenario")
+	}
+
+	return r, nil
+}
+
+func (ds *Datastore) RunFeatureTrial(
+	ctx context.Context,
+	scenario fleet.FeatureScenario,
+	params []interface{},
+) error {
+	var r fleet.HostFeature
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params...); err != nil {
+		return ctxerr.Wrap(ctx, err, "running trial")
 	}
 
 	return nil

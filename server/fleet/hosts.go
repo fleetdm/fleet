@@ -539,24 +539,6 @@ type EnrollHostLimiter interface {
 	SyncEnrolledHostIDs(ctx context.Context) error
 }
 
-type HostFeatureQueryParams struct {
-	HostID         uint
-	SomeDate       *time.Time
-	SomeDateMin    *time.Time
-	SomeDateMax    *time.Time
-	SomeEnumStr    *string
-	SomeEnumStrSet []string
-	SomeStr        *string
-	SomeBool       *bool
-	SomeDecimal    *float64
-	SomeDecimalMin *float64
-	SomeDecimalMax *float64
-	SomeNumber     *int
-	SomeNumberMin  *int
-	SomeNumberMax  *int
-	FeatureID      string
-}
-
 type HostFeature struct {
 	ID          int
 	Update      bool
@@ -567,4 +549,13 @@ type HostFeature struct {
 	SomeBool    bool
 	SomeDecimal float64
 	SomeNumber  int
+}
+
+type FeatureScenario struct {
+	Digest   string `db:"digest"`
+	Scenario string `db:"scenario"`
+}
+
+func (s FeatureScenario) GetTrialParams() []interface{} {
+	panic("not implemented")
 }
