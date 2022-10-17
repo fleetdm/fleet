@@ -2190,46 +2190,131 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 ```json
 {
   "host": {
-    "created_at": "2020-11-05T05:09:44Z",
-    "updated_at": "2020-11-05T06:03:39Z",
-    "id": 1,
-    "detail_updated_at": "2020-11-05T05:09:45Z",
-    "label_updated_at": "2020-11-05T05:14:51Z",
-    "seen_time": "2020-11-05T06:03:39Z",
-    "hostname": "2ceca32fe484",
+    "created_at": "2022-02-10T02:29:13Z",
+    "updated_at": "2022-10-14T17:07:11Z",
+    "software": [
+      {
+          "id": 16923,
+          "name": "Automat",
+          "version": "0.8.0",
+          "source": "python_packages",
+          "generated_cpe": "",
+          "vulnerabilities": null
+      }
+    ],
+    "id": 33,
+    "detail_updated_at": "2022-10-14T17:07:12Z",
+    "label_updated_at": "2022-10-14T17:07:12Z",
+    "policy_updated_at": "2022-10-14T17:07:12Z",
+    "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "seen_time": "2022-10-14T17:45:41Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-    "platform": "centos",
-    "osquery_version": "2.7.0",
-    "os_version": "CentOS Linux 7",
+    "platform": "ubuntu",
+    "osquery_version": "5.5.1",
+    "os_version": "Ubuntu 20.04.3 LTS",
     "build": "",
-    "platform_like": "rhel fedora",
-    "code_name": "",
-    "uptime": 8305000000000,
-    "memory": 2084032512,
-    "cpu_type": "6",
-    "cpu_subtype": "142",
-    "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-    "cpu_physical_cores": 4,
-    "cpu_logical_cores": 4,
+    "platform_like": "debian",
+    "code_name": "focal",
+    "uptime": 20807520000000000,
+    "memory": 1024360448,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "63",
+    "cpu_brand": "DO-Regular",
+    "cpu_physical_cores": 1,
+    "cpu_logical_cores": 1,
     "hardware_vendor": "",
     "hardware_model": "",
     "hardware_version": "",
     "hardware_serial": "",
-    "computer_name": "2ceca32fe484",
-    "display_name": "2ceca32fe484",
-    "primary_ip": "",
-    "primary_mac": "",
+    "computer_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
     "distributed_interval": 10,
-    "config_tls_refresh": 10,
-    "logger_tls_period": 8,
-    "additional": {},
-    "status": "offline",
-    "display_text": "2ceca32fe484",
-    "team_id": null,
+    "config_tls_refresh": 60,
+    "logger_tls_period": 10,
+    "team_id": 2,
+    "pack_stats": [
+      {
+        "pack_id": 1,
+        "pack_name": "Global",
+        "type": "global",
+        "query_stats": [
+          {
+            "scheduled_query_name": "Get running processes (with user_name)",
+            "scheduled_query_id": 49,
+            "query_name": "Get running processes (with user_name)",
+            "pack_name": "Global",
+            "pack_id": 1,
+            "average_memory": 260000,
+            "denylisted": false,
+            "executions": 1,
+            "interval": 86400,
+            "last_executed": "2022-10-14T10:00:01Z",
+            "output_size": 198,
+            "system_time": 20,
+            "user_time": 80,
+            "wall_time": 0
+          }
+        ]
+      }
+    ],
     "team_name": null,
-    "gigs_disk_space_available": 45.86,
-    "percent_disk_space_available": 73,
-    "pack_stats": null,
+    "gigs_disk_space_available": 19.29,
+    "percent_disk_space_available": 74,
+    "issues": {
+        "total_issues_count": 0,
+        "failing_policies_count": 0
+    },
+    "labels": [
+            {
+            "created_at": "2021-09-14T05:11:02Z",
+            "updated_at": "2021-09-14T05:11:02Z",
+            "id": 12,
+            "name": "All Linux",
+            "description": "All Linux distributions",
+            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+            "platform": "",
+            "label_type": "builtin",
+            "label_membership_type": "dynamic"
+        },
+    ],
+    "packs": [
+          {
+            "created_at": "2021-09-17T05:28:54Z",
+            "updated_at": "2021-09-17T05:28:54Z",
+            "id": 1,
+            "name": "Global",
+            "description": "Global pack",
+            "disabled": false,
+            "type": "global",
+            "labels": null,
+            "label_ids": null,
+            "hosts": null,
+            "host_ids": null,
+            "teams": null,
+            "team_ids": null
+        }
+    ],
+    "policies": [
+      {
+            "id": 142,
+            "name": "Full disk encryption enabled (macOS)",
+            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+            "author_id": 31,
+            "author_name": "",
+            "author_email": "",
+            "team_id": null,
+            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+            "platform": "darwin,linux",
+            "created_at": "2022-09-02T18:52:19Z",
+            "updated_at": "2022-09-02T18:52:19Z",
+            "response": "fail"
+        },
+    ],
     "batteries": [
       {
         "cycle_count": 999,
@@ -2243,7 +2328,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
-    }
+    },
+    "status": "online",
+    "display_text": "dogfood-ubuntu-box",
+    "display_name": "dogfood-ubuntu-box"
   }
 }
 ```
