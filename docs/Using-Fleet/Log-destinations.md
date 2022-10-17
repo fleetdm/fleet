@@ -84,7 +84,7 @@ Logs are written to [Google Cloud Pub/Sub (Pub/Sub)](https://cloud.google.com/pu
 - Plugin name: `pubsub`
 - Flag namespace: [pubsub](../Deploying/Configuration.md#pubsub)
 
-Note that messages over 10MB will be dropped, with a notification sent to the fleet logs, as these can never be processed by Pub/Sub.
+Messages over 10MB will be dropped, with a notification sent to the Fleet logs, as these can never be processed by Pub/Sub.
 
 ### Apache Kafka
 
