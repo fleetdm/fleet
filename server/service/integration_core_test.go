@@ -69,7 +69,7 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 		s.ds,
 		&TestServerOpts{
 			SkipCreateTestUsers: true,
-			ServerConfig:        &http.Server{ReadTimeout: 2 * time.Second},
+			HTTPServerConfig:    &http.Server{ReadTimeout: 2 * time.Second},
 		},
 	)
 	defer func() {
