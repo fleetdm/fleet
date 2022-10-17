@@ -18,7 +18,7 @@ var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
 // Group holds a set of "specs" that can be applied to a Fleet server.
 type Group struct {
 	Queries  []*fleet.QuerySpec
-	Teams    []*fleet.TeamSpec
+	Teams    []json.RawMessage
 	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
@@ -115,11 +115,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.UsersRoles = userRoleSpec
 
 		case fleet.TeamKind:
-			var teamSpec TeamSpec
-			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
+			rawTeam := make(map[string]json.RawMessage)
+			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			specs.Teams = append(specs.Teams, teamSpec.Team)
+			specs.Teams = append(specs.Teams, rawTeam["team"])
 
 		default:
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)

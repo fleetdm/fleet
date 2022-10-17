@@ -182,7 +182,9 @@ type applyTeamSpecsRequest struct {
 func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) error {
 	if err := fleet.JSONStrictDecode(r, req); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
-		if !req.Force {
+		if !req.Force || !fleet.IsJSONUnknownFieldError(err) {
+			// only unknown field errors can be forced at this point (other errors
+			// can be forced later, after agent options' validations)
 			return ctxerr.Wrap(ctx, err, "strict decode team specs")
 		}
 	}
