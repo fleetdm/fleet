@@ -74,6 +74,19 @@ func TestClone(t *testing.T) {
 			src:  nilRawMessage,
 			want: nil,
 		},
+		{
+			name: "pointer to struct with nested slice",
+			src: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					DebugHostIDs: []uint{1, 2, 3},
+				},
+			},
+			want: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					DebugHostIDs: []uint{1, 2, 3},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -92,8 +105,8 @@ func TestClone(t *testing.T) {
 				assert.NotEqual(t, v1.Pointer(), v2.Pointer())
 			}
 
-			// if it is a slice, a map, or a pointer to a slice, ensure that writing
-			// to src does not alter the cloned value.
+			// ensure that writing to src does not alter the cloned value (i.e. that
+			// the nested fields are deeply cloned too).
 			switch src := tc.src.(type) {
 			case []string:
 				if len(src) > 0 {
@@ -104,6 +117,11 @@ func TestClone(t *testing.T) {
 				if len(*src) > 0 {
 					(*src)[0] = "modified"
 					assert.NotEqual(t, src, clone)
+				}
+			case *fleet.AppConfig:
+				if len(src.ServerSettings.DebugHostIDs) > 0 {
+					src.ServerSettings.DebugHostIDs[0] = 999
+					assert.NotEqual(t, src.ServerSettings.DebugHostIDs, clone.(*fleet.AppConfig).ServerSettings.DebugHostIDs)
 				}
 			}
 		})
