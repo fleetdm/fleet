@@ -60,6 +60,7 @@ func (w *prettyWriter) WriteResult(res fleet.DistributedQueryResult) error {
 	// Recompute columns
 	for _, row := range res.Rows {
 		delete(row, "host_hostname")
+		delete(row, "host_display_name")
 		for col := range row {
 			w.columns[col] = true
 		}

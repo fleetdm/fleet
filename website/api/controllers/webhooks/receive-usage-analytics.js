@@ -23,10 +23,10 @@ module.exports = {
     numWeeklyActiveUsers: { type: 'number', defaultsTo: 0 },
     numWeeklyPolicyViolationDaysActual: { type: 'number', defaultsTo: 0 },
     numWeeklyPolicyViolationDaysPossible: { type: 'number', defaultsTo: 0 },
-    hostsEnrolledByOperatingSystem: { type: 'json', defaultsTo: {} },
-    hostsEnrolledByOrbitVersion: { type: 'json', defaultsTo: [] },
-    hostsEnrolledByOsqueryVersion: { type: 'json', defaultsTo: [] },
-    storedErrors: { type: 'json', defaultsTo: '[]' },
+    hostsEnrolledByOperatingSystem: { type: {}, defaultsTo: {} },
+    hostsEnrolledByOrbitVersion: { type: [{version: 'string', numEnrolled: 'number'}], defaultsTo: [] }, // TODO: The name of this parameter does not match naming conventions.
+    hostsEnrolledByOsqueryVersion: { type: [{version: 'string', numEnrolled: 'number'}], defaultsTo: [] }, // TODO: The name of this parameter does not match naming conventions.
+    storedErrors: { type: [{}], defaultsTo: [] }, // TODO migrate all rows that have "[]" to {}
     numHostsNotResponding: { type: 'number', defaultsTo: 0, description: 'The number of hosts per deployment that have not submitted results for distibuted queries. A host is counted as not responding if Fleet hasn\'t received a distributed write to requested distibuted queries for the host during the 2-hour interval since the host was last seen. Hosts that have not been seen for 7 days or more are not counted.', },
     organization: { type: 'string', defaultsTo: 'unknown', description: 'For Fleet Premium deployments, the organization registered with the license.', },
   },
