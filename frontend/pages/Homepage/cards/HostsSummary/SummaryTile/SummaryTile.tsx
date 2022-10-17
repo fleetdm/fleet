@@ -4,14 +4,15 @@ import Button from "components/buttons/Button";
 import { kebabCase } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
-import { StringDecoder } from "string_decoder";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 
 interface ISummaryTileProps {
   count: number;
   isLoading: boolean;
   showUI: boolean;
   title: string;
-  icon?: string;
+  iconName?: IconNames;
   tooltip?: string;
   path: string;
 }
@@ -23,7 +24,7 @@ const SummaryTile = ({
   isLoading,
   showUI, // false on first load only
   title,
-  icon,
+  iconName,
   tooltip,
   path,
 }: ISummaryTileProps): JSX.Element => {
@@ -48,14 +49,9 @@ const SummaryTile = ({
         onClick={() => handleClick()}
       >
         <>
-          {icon && (
+          {iconName && (
             <div className={`${baseClass}__icon-wrapper`}>
-              <img
-                src={icon}
-                alt={title}
-                className={`${baseClass}__icon`}
-                id={`${kebabCase(title)}-icon`}
-              />
+              <Icon name={iconName} className={`${baseClass}__event-icon`} />
             </div>
           )}
           <div>
