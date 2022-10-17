@@ -163,6 +163,8 @@ type InitFeatureScenariosFunc func(ctx context.Context, features []string) error
 
 type GetRandomFeatureScenarioFunc func(ctx context.Context) (fleet.FeatureScenario, error)
 
+type GetRandomHostIDFunc func(ctx context.Context) (uint, error)
+
 type UpsertHostFeatureValuesFunc func(ctx context.Context, featureID string, vals []fleet.HostFeature) error
 
 type RunFeatureTrialFunc func(ctx context.Context, scenario fleet.FeatureScenario, params []interface{}) error
@@ -710,6 +712,9 @@ type DataStore struct {
 
 	GetRandomFeatureScenarioFunc        GetRandomFeatureScenarioFunc
 	GetRandomFeatureScenarioFuncInvoked bool
+
+	GetRandomHostIDFunc        GetRandomHostIDFunc
+	GetRandomHostIDFuncInvoked bool
 
 	UpsertHostFeatureValuesFunc        UpsertHostFeatureValuesFunc
 	UpsertHostFeatureValuesFuncInvoked bool
@@ -1568,6 +1573,11 @@ func (s *DataStore) InitFeatureScenarios(ctx context.Context, features []string)
 func (s *DataStore) GetRandomFeatureScenario(ctx context.Context) (fleet.FeatureScenario, error) {
 	s.GetRandomFeatureScenarioFuncInvoked = true
 	return s.GetRandomFeatureScenarioFunc(ctx)
+}
+
+func (s *DataStore) GetRandomHostID(ctx context.Context) (uint, error) {
+	s.GetRandomHostIDFuncInvoked = true
+	return s.GetRandomHostIDFunc(ctx)
 }
 
 func (s *DataStore) UpsertHostFeatureValues(ctx context.Context, featureID string, vals []fleet.HostFeature) error {

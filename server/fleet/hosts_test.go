@@ -121,3 +121,11 @@ func TestPlatformFromHost(t *testing.T) {
 
 	}
 }
+
+func TestFeatureScenario(t *testing.T) {
+	t.Run("#GetTrialParams", func(t *testing.T) {
+		// WHERE host_id = ?
+		// AND (host_feature_4.some_enum_str >= ? AND
+		// host_feature_4.some_enum_str <= ?) AND (host_feature_4.some_number >= ? AND host_feature_4.some_number <= ?) ORDER BY host_feature_2.some_decimal LIMIT ? OFFSET ?
+	})
+}

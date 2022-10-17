@@ -3073,7 +3073,7 @@ func genEqColsWhere(
 	for _, fgrp := range eqCols {
 		var stms []string
 		for _, c := range fgrp {
-			if c == "some_str" {
+			if strings.Contains(c, "some_str") {
 				stms = append(stms, fmt.Sprintf("%s LIKE ?", c))
 			} else {
 				stms = append(stms, fmt.Sprintf("%s = ?", c))
@@ -3131,12 +3131,12 @@ func genScenarios(features []string) []string {
 	stm := `
 SELECT %s
 FROM hosts %s
-WHERE host_id = ? AND %s
+WHERE hosts.host_id = ? AND %s
 ORDER BY %s LIMIT ? OFFSET ?`
 
 	grpStm := `
 SELECT %s, COUNT(1)
-FROM hosts_feature_%d
+FROM %s
 WHERE %s
 GROUP BY %s`
 
@@ -3382,6 +3382,17 @@ func (ds *Datastore) GetRandomFeatureScenario(ctx context.Context) (fleet.Featur
 	return r, nil
 }
 
+func (ds *Datastore) GetRandomHostID(ctx context.Context) (uint, error) {
+	stm := `SELECT id FROM hosts ORDER BY RAND() LIMIT 1`
+	var r uint
+
+	if err := sqlx.GetContext(ctx, ds.reader, &r, stm); err != nil {
+		return r, ctxerr.Wrap(ctx, err, "selecting random host id")
+	}
+
+	return r, nil
+}
+
 func (ds *Datastore) RunFeatureTrial(
 	ctx context.Context,
 	scenario fleet.FeatureScenario,
@@ -3389,6 +3400,7 @@ func (ds *Datastore) RunFeatureTrial(
 ) error {
 	var r fleet.HostFeature
 
+	// TODO: Capture time
 	if err := sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params...); err != nil {
 		return ctxerr.Wrap(ctx, err, "running trial")
 	}

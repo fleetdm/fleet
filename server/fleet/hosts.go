@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/rand"
 	"strings"
 	"time"
 )
@@ -556,6 +557,71 @@ type FeatureScenario struct {
 	Scenario string `db:"scenario"`
 }
 
-func (s FeatureScenario) GetTrialParams() []interface{} {
-	panic("not implemented")
+func (s FeatureScenario) GetTrialParams(hostID uint) []interface{} {
+	enumStrRanges := []string{
+		"val_a",
+		"val_b",
+		"val_c",
+		"val_d",
+	}
+	strRange := strings.Split(`Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna`, " ")
+	boolRange := []bool{false, true}
+	decimalRange := float64(10_000_000)
+	intVal := 10_000_000
+	limit := 20
+	offsetValues := []int{20, 40, 60, 80, 200, 280, 500, 1000}
+
+	args := []interface{}{}
+
+	start := strings.Index(s.Scenario, "WHERE")
+	oEnd := strings.Index(s.Scenario, "ORDER")
+	gEnd := strings.Index(s.Scenario, "GROUP")
+
+	var parts []string
+
+	if start != -1 {
+		if oEnd != -1 {
+			parts = strings.Split(s.Scenario[start:oEnd], "AND")
+		}
+
+		if gEnd != -1 {
+			parts = strings.Split(s.Scenario[start:gEnd], "AND")
+		}
+	}
+
+	for _, p := range parts {
+		switch {
+		case strings.Contains(p, "host_id = ?"):
+			args = append(args, hostID)
+		case strings.Contains(p, "some_enum_str"):
+			args = append(args, enumStrRanges[rand.Intn(len(enumStrRanges))])
+		case strings.Contains(p, "some_str"):
+			idx := rand.Intn(len(strRange))
+			s := strings.Join(strRange[idx:(idx+1)%len(strRange)], " ")
+			args = append(args, s)
+		case strings.Contains(p, "some_bool"):
+			args = append(args, boolRange[rand.Intn(len(boolRange))])
+		case strings.Contains(p, "some_decimal"):
+			args = append(args, rand.Float64()*decimalRange)
+		case strings.Contains(p, "some_number"):
+			args = append(args, rand.Intn(intVal))
+		case strings.Contains(p, "some_date"):
+			min := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
+			max := time.Date(2022, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
+			delta := max - min
+			sec := rand.Int63n(delta) + min
+			args = append(args, time.Unix(sec, 0))
+
+		}
+	}
+
+	if strings.Contains(s.Scenario, "LIMIT") {
+		args = append(args, limit)
+	}
+
+	if strings.Contains(s.Scenario, "OFFSET") {
+		args = append(args, offsetValues[rand.Intn(len(offsetValues))])
+	}
+
+	return args
 }

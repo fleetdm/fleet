@@ -1338,7 +1338,7 @@ func (svc *Service) InitFeatureScenarios(
 }
 
 // Run stress trial
-type runTrialReq struct{}
+type getRandScenarioReq struct{}
 
 type runTrialResponse struct {
 	Digest string
@@ -1348,32 +1348,40 @@ type runTrialResponse struct {
 
 func (r runTrialResponse) error() error { return r.Err }
 
-func runTrialEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getRandScenarioEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	svc.DisableAuthForPing(ctx)
 
-	scenario, err := svc.GetRandomFeatureScenario(ctx)
+	scenario, hostID, err := svc.GetRandomFeatureScenario(ctx)
 	if err != nil {
 		return &runTrialResponse{Err: err}, nil
 	}
 
-	// params, err := svc.RunFeatureTrial(ctx, scenario)
-	// if err != nil {
-	// 	return &runTrialResponse{Err: err}, nil
-	// }
-
-	return &runTrialResponse{Digest: scenario.Digest, Params: nil}, nil
+	return &runTrialResponse{
+		Digest: scenario.Digest,
+		Params: scenario.GetTrialParams(hostID),
+	}, nil
 }
 
-func (svc *Service) GetRandomFeatureScenario(ctx context.Context) (fleet.FeatureScenario, error) {
-	return svc.ds.GetRandomFeatureScenario(ctx)
+func (svc *Service) GetRandomFeatureScenario(ctx context.Context) (*fleet.FeatureScenario, uint, error) {
+	scenario, err := svc.ds.GetRandomFeatureScenario(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	hostID, err := svc.ds.GetRandomHostID(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return &scenario, hostID, nil
 }
 
 func (svc *Service) RunFeatureTrial(ctx context.Context, scenario fleet.FeatureScenario) ([]interface{}, error) {
-	params := scenario.GetTrialParams()
+	// params := scenario.GetTrialParams()
 
-	if err := svc.ds.RunFeatureTrial(ctx, scenario, params); err != nil {
-		return nil, err
-	}
+	// if err := svc.ds.RunFeatureTrial(ctx, scenario, params); err != nil {
+	// 	return nil, err
+	// }
 
-	return params, nil
+	return nil, nil
 }

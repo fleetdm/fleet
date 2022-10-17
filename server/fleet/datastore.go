@@ -203,6 +203,7 @@ type Datastore interface {
 	// Stress tests
 	InitFeatureScenarios(ctx context.Context, features []string) error
 	GetRandomFeatureScenario(ctx context.Context) (FeatureScenario, error)
+	GetRandomHostID(ctx context.Context) (uint, error)
 	UpsertHostFeatureValues(ctx context.Context, featureID string, vals []HostFeature) error
 	RunFeatureTrial(ctx context.Context, scenario FeatureScenario, params []interface{}) error
 

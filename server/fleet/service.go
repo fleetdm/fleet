@@ -570,6 +570,6 @@ type Service interface {
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
 	InitFeatureScenarios(ctx context.Context, features []string) error
-	GetRandomFeatureScenario(ctx context.Context) (FeatureScenario, error)
+	GetRandomFeatureScenario(ctx context.Context) (*FeatureScenario, uint, error)
 	RunFeatureTrial(ctx context.Context, scenario FeatureScenario) ([]interface{}, error)
 }
