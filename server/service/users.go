@@ -883,11 +883,11 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 
 	reset, err := svc.ds.FindPasswordResetByToken(ctx, token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "looking up reset by token")
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
 	}
 	user, err := svc.ds.UserByID(ctx, reset.UserID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving user")
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
 	}
 
 	if user.SSOEnabled {

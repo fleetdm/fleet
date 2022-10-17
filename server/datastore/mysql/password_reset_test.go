@@ -20,6 +20,7 @@ func TestPasswordReset(t *testing.T) {
 	}{
 		{"Requests", testPasswordResetRequests},
 		{"TokenExpiration", testPasswordResetTokenExpiration},
+		{"CleanupExpiredPasswordResetRequests", testCleanupExpiredPasswordResetRequests},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -109,4 +110,36 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 			assert.Equal(t, req.ExpiresAt.Round(time.Minute), found.ExpiresAt.Round(time.Minute))
 		}
 	}
+}
+
+func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+	tomorrow := now.Add(time.Hour * 24)
+	yesterday := now.Add(-time.Hour * 24)
+
+	stmt := `INSERT INTO password_reset_requests ( user_id, token, expires_at)
+			VALUES (?,?, ?)`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, uint(1), "now", now)
+	require.NoError(t, err)
+	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "tomorrow", tomorrow)
+	require.NoError(t, err)
+	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "yesterday", yesterday)
+	require.NoError(t, err)
+
+	var res1 []fleet.PasswordResetRequest
+	err = ds.writer.SelectContext(ctx, &res1, `SELECT * FROM password_reset_requests`)
+	require.NoError(t, err)
+	require.Len(t, res1, 3)
+
+	err = ds.CleanupExpiredPasswordResetRequests(ctx)
+	require.NoError(t, err)
+
+	var res2 []fleet.PasswordResetRequest
+	err = ds.writer.SelectContext(ctx, &res2, `SELECT * FROM password_reset_requests`)
+	require.NoError(t, err)
+	require.Len(t, res2, 1)
+	require.Equal(t, "tomorrow", res2[0].Token)
 }
