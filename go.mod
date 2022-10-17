@@ -18,7 +18,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
-	github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/docker v20.10.19+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
