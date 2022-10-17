@@ -111,8 +111,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
 	// dry-run with invalid top-level key
-	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
 		"specs": [
 			{"name": "team_name_1", "unknown_key": true}
