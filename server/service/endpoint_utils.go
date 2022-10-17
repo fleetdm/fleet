@@ -68,8 +68,18 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
+// A value that implements requestDecoder takes control of decoding the request
+// as a whole - that is, it is responsible for decoding the body and any url
+// or query argument itself.
 type requestDecoder interface {
 	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+}
+
+// A value that implements bodyDecoder takes control of decoding the request
+// body. Other fields such as url and query parameters are decoded prior to
+// calling DecodeBody with the request's body as an io.Reader.
+type bodyDecoder interface {
+	DecodeBody(ctx context.Context, r io.Reader) error
 }
 
 // makeDecoder creates a decoder for the type for the struct passed on. If the
@@ -88,6 +98,10 @@ type requestDecoder interface {
 // If iface implements the requestDecoder interface, it returns a function that
 // calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
 // own decoding.
+//
+// If iface implements the bodyDecoder interface, it calls iface.DecodeBody
+// after having decoded any non-body fields (such as url and query parameters)
+// into the struct.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -100,6 +114,11 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		}
 	}
 
+	var isBodyDecoder bool
+	if _, ok := iface.(bodyDecoder); ok {
+		isBodyDecoder = true
+	}
+
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
@@ -110,10 +129,10 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		nilBody := false
 
 		buf := bufio.NewReader(r.Body)
+		var body io.Reader = buf
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
-			var body io.Reader = buf
 			if r.Header.Get("content-encoding") == "gzip" {
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
@@ -123,11 +142,13 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				body = gzr
 			}
 
-			req := v.Interface()
-			if err := json.NewDecoder(body).Decode(req); err != nil {
-				return nil, err
+			if !isBodyDecoder {
+				req := v.Interface()
+				if err := json.NewDecoder(body).Decode(req); err != nil {
+					return nil, err
+				}
+				v = reflect.ValueOf(req)
 			}
-			v = reflect.ValueOf(req)
 		}
 
 		for _, f := range allFields(v) {
@@ -211,7 +232,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			}
 
 			_, jsonExpected := f.Tag.Lookup("json")
-			if jsonExpected && nilBody {
+			if jsonExpected && nilBody && !isBodyDecoder {
 				return nil, errors.New("Expected JSON Body")
 			}
 
@@ -271,6 +292,13 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				default:
 					return nil, fmt.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
 				}
+			}
+		}
+
+		if isBodyDecoder {
+			bd := v.Interface().(bodyDecoder)
+			if err := bd.DecodeBody(ctx, body); err != nil {
+				return nil, err
 			}
 		}
 
