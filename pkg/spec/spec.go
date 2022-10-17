@@ -115,6 +115,9 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.UsersRoles = userRoleSpec
 
 		case fleet.TeamKind:
+			// unmarshal to a raw map as we don't want to strip away unknown/invalid
+			// fields at this point - that validation is done in the apply spec/teams
+			// endpoint so that it is enforced for both the API and the CLI.
 			rawTeam := make(map[string]json.RawMessage)
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
