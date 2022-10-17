@@ -691,6 +691,10 @@
         "platforms": ["linux"]
       },
       {
+        "name": "privileged",
+        "description": "Is the container [privileged](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)"
+      },
+      {
         "name": "user_namespace",
         "platforms": ["linux"]
       },
