@@ -47,10 +47,11 @@ func testPasswordResetRequests(t *testing.T, ds *Datastore) {
 			Token:  tt.token,
 		}
 		req, err := ds.NewPasswordResetRequest(context.Background(), r)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, tt.userID, req.UserID)
 
 		found, err := ds.FindPasswordResetByToken(context.Background(), r.Token)
+		assert.NoError(t, err)
 		assert.Equal(t, req.ID, found.ID)
 		assert.Equal(t, tt.userID, found.UserID)
 		assert.Equal(t, tt.token, found.Token)
