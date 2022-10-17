@@ -69,7 +69,8 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 		s.ds,
 		&TestServerOpts{
 			SkipCreateTestUsers: true,
-			HTTPServerConfig:    &http.Server{ReadTimeout: 2 * time.Second},
+			//nolint:gosec // G112: server is just run for testing this explicit config.
+			HTTPServerConfig: &http.Server{ReadTimeout: 2 * time.Second},
 		},
 	)
 	defer func() {
