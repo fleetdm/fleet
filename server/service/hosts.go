@@ -1312,7 +1312,6 @@ type initFeatureScenariosResponse struct {
 func (r initFeatureScenariosResponse) error() error { return r.Err }
 
 func initFeatureScenariosEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	// skipauth: No user context available yet to authorize against.
 	svc.DisableAuthForPing(ctx)
 
 	req := request.(*initFeatureScenariosRequest)
@@ -1337,26 +1336,25 @@ func (svc *Service) InitFeatureScenarios(
 	return svc.ds.InitFeatureScenarios(ctx, features)
 }
 
-// Run stress trial
 type getRandScenarioReq struct{}
 
-type runTrialResponse struct {
+type getRandScenarioRes struct {
 	Digest string
 	Params []interface{}
 	Err    error `json:"error,omitempty"`
 }
 
-func (r runTrialResponse) error() error { return r.Err }
+func (r getRandScenarioRes) error() error { return r.Err }
 
 func getRandScenarioEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	svc.DisableAuthForPing(ctx)
 
 	scenario, hostID, err := svc.GetRandomFeatureScenario(ctx)
 	if err != nil {
-		return &runTrialResponse{Err: err}, nil
+		return &getRandScenarioRes{Err: err}, nil
 	}
 
-	return &runTrialResponse{
+	return &getRandScenarioRes{
 		Digest: scenario.Digest,
 		Params: scenario.GetTrialParams(hostID),
 	}, nil
@@ -1376,12 +1374,28 @@ func (svc *Service) GetRandomFeatureScenario(ctx context.Context) (*fleet.Featur
 	return &scenario, hostID, nil
 }
 
-func (svc *Service) RunFeatureTrial(ctx context.Context, scenario fleet.FeatureScenario) ([]interface{}, error) {
-	// params := scenario.GetTrialParams()
+type runTrialReq struct {
+	Digest string
+	Params []interface{}
+}
 
-	// if err := svc.ds.RunFeatureTrial(ctx, scenario, params); err != nil {
-	// 	return nil, err
-	// }
+type runTrialRes struct {
+	Err error `json:"error,omitempty"`
+}
 
-	return nil, nil
+func (r runTrialRes) error() error { return r.Err }
+
+func runTrialEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	svc.DisableAuthForPing(ctx)
+	req := request.(*runTrialReq)
+
+	if err := svc.RunTrial(ctx, req.Digest, req.Params); err != nil {
+		return &runTrialRes{Err: err}, nil
+	}
+
+	return runTrialRes{}, nil
+}
+
+func (svc *Service) RunTrial(ctx context.Context, digest string, params []interface{}) error {
+	return svc.ds.RunTrial(ctx, digest, params)
 }

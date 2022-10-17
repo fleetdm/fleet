@@ -3393,17 +3393,19 @@ func (ds *Datastore) GetRandomHostID(ctx context.Context) (uint, error) {
 	return r, nil
 }
 
-func (ds *Datastore) RunFeatureTrial(
+func (ds *Datastore) RunTrial(
 	ctx context.Context,
-	scenario fleet.FeatureScenario,
+	digest string,
 	params []interface{},
 ) error {
-	var r fleet.HostFeature
+	stm := "SELECT * FROM feature_scenarions WHERE digest = ?"
 
-	// TODO: Capture time
-	if err := sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params...); err != nil {
+	var scenario fleet.FeatureScenario
+	var r []fleet.FeatureScenario
+
+	if err := sqlx.GetContext(ctx, ds.reader, &scenario, stm, digest); err != nil {
 		return ctxerr.Wrap(ctx, err, "running trial")
 	}
 
-	return nil
+	return sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params)
 }

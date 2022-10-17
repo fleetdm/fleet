@@ -671,7 +671,7 @@ the way that the Fleet server works.
 				Addr:              config.Server.Address,
 				Handler:           handler,
 				ReadTimeout:       25 * time.Second,
-				WriteTimeout:      writeTimeout,
+				WriteTimeout:      0,
 				ReadHeaderTimeout: 5 * time.Second,
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)

@@ -571,5 +571,5 @@ type Service interface {
 
 	InitFeatureScenarios(ctx context.Context, features []string) error
 	GetRandomFeatureScenario(ctx context.Context) (*FeatureScenario, uint, error)
-	RunFeatureTrial(ctx context.Context, scenario FeatureScenario) ([]interface{}, error)
+	RunTrial(ctx context.Context, digest string, params []interface{}) error
 }

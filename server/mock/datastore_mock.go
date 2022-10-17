@@ -167,7 +167,7 @@ type GetRandomHostIDFunc func(ctx context.Context) (uint, error)
 
 type UpsertHostFeatureValuesFunc func(ctx context.Context, featureID string, vals []fleet.HostFeature) error
 
-type RunFeatureTrialFunc func(ctx context.Context, scenario fleet.FeatureScenario, params []interface{}) error
+type RunTrialFunc func(ctx context.Context, digest string, params []interface{}) error
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
@@ -719,8 +719,8 @@ type DataStore struct {
 	UpsertHostFeatureValuesFunc        UpsertHostFeatureValuesFunc
 	UpsertHostFeatureValuesFuncInvoked bool
 
-	RunFeatureTrialFunc        RunFeatureTrialFunc
-	RunFeatureTrialFuncInvoked bool
+	RunTrialFunc        RunTrialFunc
+	RunTrialFuncInvoked bool
 
 	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
 	CleanupIncomingHostsFuncInvoked bool
@@ -1585,9 +1585,9 @@ func (s *DataStore) UpsertHostFeatureValues(ctx context.Context, featureID strin
 	return s.UpsertHostFeatureValuesFunc(ctx, featureID, vals)
 }
 
-func (s *DataStore) RunFeatureTrial(ctx context.Context, scenario fleet.FeatureScenario, params []interface{}) error {
-	s.RunFeatureTrialFuncInvoked = true
-	return s.RunFeatureTrialFunc(ctx, scenario, params)
+func (s *DataStore) RunTrial(ctx context.Context, digest string, params []interface{}) error {
+	s.RunTrialFuncInvoked = true
+	return s.RunTrialFunc(ctx, digest, params)
 }
 
 func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
