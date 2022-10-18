@@ -1,0 +1,13 @@
+name: shell_history
+examples: >-
+  See command line executions and related timestamps. Useful for threat hunting
+  when a device is suspected of being compromised.
+
+  ```
+
+  SELECT u.username, s.command, s.time FROM users u CROSS JOIN shell_history s USING (uid);
+
+  ```
+columns:
+  - name: uid
+    requires_user_context: true
