@@ -63,7 +63,6 @@ const HOST_ID = {
     packs: [],
     policies: [],
     status: "online",
-    display_name: "myf1337d3v1c3",
     display_text: "myf1337d3v1c3",
   },
 };

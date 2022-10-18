@@ -89,7 +89,7 @@ const generateTableHeaders = (): IDataColumn[] => {
 const generateDataSet = memoize(
   (policyHostsList: IHostPolicyQuery[] = []): IHostPolicyQuery[] => {
     policyHostsList = policyHostsList.sort((a, b) =>
-      sortUtils.caseInsensitiveAsc(a.display_name, b.display_name)
+      sortUtils.caseInsensitiveAsc(a.hostname, b.hostname)
     );
     return policyHostsList;
   }
