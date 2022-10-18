@@ -64,7 +64,7 @@ go.mod @fleetdm/go
 
 # Handbook
 /handbook/company @mikermcneil
-/handbook/business-operations @holidayn
+/handbook/business-operations @hollidayn
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
 /handbook/product @zhumo
