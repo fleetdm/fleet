@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 
-// @ts-ignore
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import yaml from "js-yaml";
 import paths from "router/paths";
@@ -37,6 +36,7 @@ const Agents = ({
     setFormData({ ...formData, agentOptions: value });
   };
 
+  // Basic yaml validation only, not agent options validation
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 

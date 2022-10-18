@@ -1,7 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { agentOptionsToYaml } from "utilities/yaml";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
@@ -12,10 +12,12 @@ import osqueryOptionsAPI from "services/entities/osquery_options";
 
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
+import Button from "components/buttons/Button";
 // @ts-ignore
-import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
-import InfoBanner from "components/InfoBanner/InfoBanner";
+import YamlAce from "components/YamlAce";
 import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+// import format_api_errors from "utilities/format_api_errors";
+// import osquery_options from "services/entities/osquery_options";
 
 const baseClass = "agent-options";
 
@@ -33,6 +35,8 @@ const AgentOptionsPage = ({
 
   const [teamName, setTeamName] = useState("");
   const [formData, setFormData] = useState<{ osquery_options?: string }>({});
+  const [formErrors, setFormErrors] = useState<any>({});
+
   const handlePageError = useErrorHandler();
 
   useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -56,14 +60,31 @@ const AgentOptionsPage = ({
     }
   );
 
+  const validateForm = () => {
+    // Basic yaml validation only, not agent options validation
+    const errors: any = {};
+
+    if (formData.osquery_options) {
+      const { error: yamlError, valid: yamlValid } = validateYaml(
+        formData.osquery_options
+      );
+      if (!yamlValid) {
+        errors.agent_options = constructErrorString(yamlError);
+      }
+    }
+
+    setFormErrors(errors);
+  };
+
+  // Validates forms when certain information is changed
+  useEffect(() => {
+    validateForm();
+  }, [formData]);
+
   const onSaveOsqueryOptionsFormSubmit = async (updatedForm: {
     osquery_options: string;
   }) => {
     const { TEAMS_AGENT_OPTIONS } = endpoints;
-    const { error } = validateYaml(updatedForm.osquery_options);
-    if (error) {
-      return renderFlash("error", error.reason);
-    }
 
     osqueryOptionsAPI
       .update(updatedForm, TEAMS_AGENT_OPTIONS(teamIdFromURL))
@@ -77,6 +98,19 @@ const AgentOptionsPage = ({
           `Could not update ${teamName} team agent options. ${response.data.errors[0].reason}`
         );
       });
+  };
+
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    const emptyForm = { osquery_options: "" };
+
+    const formDataToSubmit = emptyForm;
+
+    onSaveOsqueryOptionsFormSubmit(formDataToSubmit);
+  };
+
+  const handleAgentOptionsChange = (value: string) => {
+    setFormData({ ...formData, osquery_options: value });
   };
 
   return (
@@ -98,10 +132,26 @@ const AgentOptionsPage = ({
         </a>
       </p>
       <div className={`${baseClass}__form-wrapper`}>
-        <OsqueryOptionsForm
-          formData={formData}
-          handleSubmit={onSaveOsqueryOptionsFormSubmit}
-        />
+        <form
+          className={`${baseClass}__form`}
+          onSubmit={onFormSubmit}
+          autoComplete="off"
+        >
+          <div className={`${baseClass}__btn-wrap`}>
+            <p>YAML</p>
+            <Button type="submit" variant="brand">
+              Save options
+            </Button>
+          </div>
+          <YamlAce
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            onChange={handleAgentOptionsChange}
+            name="osqueryOptions"
+            value={formData.osquery_options}
+            parseTarget
+            error={formErrors.osquery_options}
+          />
+        </form>
       </div>
     </div>
   );
