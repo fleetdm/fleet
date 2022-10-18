@@ -21,6 +21,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
+	"gonum.org/v1/gonum/stat/distuv"
 )
 
 var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
@@ -3257,7 +3258,7 @@ func (ds *Datastore) InitFeatureScenarios(
 	features []string,
 ) error {
 	qStm := `SELECT digest FROM feature_scenarios LIMIT 1`
-	iStm := `INSERT INTO feature_scenarios (digest, scenario) VALUES %s`
+	iStm := `INSERT INTO feature_scenarios (digest, scenario, n_params) VALUES %s`
 	batchSize := 10_000
 
 	var c string
@@ -3276,13 +3277,14 @@ func (ds *Datastore) InitFeatureScenarios(
 			}
 
 			args := make([]interface{}, 0, len(batch))
-			values := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
+			values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(batch)), ",")
 			iStm := fmt.Sprintf(iStm, values)
 
 			for _, s := range batch {
 				scenario := strings.Replace(strings.TrimSpace(s), "\n", " ", -1)
 				digest := fmt.Sprintf("%x", sha1.Sum([]byte(scenario)))
-				args = append(args, digest, scenario)
+				nParams := strings.Count(scenario, "?")
+				args = append(args, digest, scenario, nParams)
 			}
 
 			_, err := ds.writer.ExecContext(ctx, iStm, args...)
@@ -3372,10 +3374,29 @@ some_number = VALUES(some_number)
 }
 
 func (ds *Datastore) GetRandomFeatureScenario(ctx context.Context) (fleet.FeatureScenario, error) {
-	stm := `SELECT * FROM feature_scenarios ORDER BY RAND() LIMIT 1`
+	pdf := distuv.LogNormal{Mu: 1.4, Sigma: 0.4}
+	nP := int(pdf.Rand())
+	nPRange := []int{0, 1, 4, 5, 6, 7, 8, 9, 11}
+
+	val := 0
+	distance := 1_000
+
+	for _, v := range nPRange {
+		cdist := nP - v
+		if cdist < 0 {
+			cdist *= -1
+		}
+
+		if cdist < distance {
+			val = v
+			distance = cdist
+		}
+	}
+
+	stm := `SELECT * FROM feature_scenarios WHERE n_params = ? ORDER BY RAND() LIMIT 1`
 	var r fleet.FeatureScenario
 
-	if err := sqlx.GetContext(ctx, ds.reader, &r, stm); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, &r, stm, val); err != nil {
 		return r, ctxerr.Wrap(ctx, err, "selecting random feature scenario")
 	}
 

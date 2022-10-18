@@ -553,8 +553,9 @@ type HostFeature struct {
 }
 
 type FeatureScenario struct {
-	Digest   string `db:"digest"`
-	Scenario string `db:"scenario"`
+	Digest    string `db:"digest"`
+	Scenario  string `db:"scenario"`
+	NumParams int    `db:"n_params"`
 }
 
 func (s FeatureScenario) GetTrialParams(hostID uint) []interface{} {

@@ -14,7 +14,9 @@ func Up_20221013084907(tx *sql.Tx) error {
 CREATE TABLE IF NOT EXISTS feature_scenarios(
     digest CHAR(40) NOT NULL,
 	scenario TEXT NOT NULL,
-    PRIMARY KEY (digest)
+	n_params INT NOT NULL,
+    PRIMARY KEY (digest),
+	KEY idx_n_params (n_params)
 );
 `)
 	if err != nil {
