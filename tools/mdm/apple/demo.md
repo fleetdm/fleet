@@ -56,14 +56,7 @@ nanoMDM --> fleetDB;
 - Path: `/api/mdm/apple/installer?token=`
 - Authentication: Secret token is provided via a query parameter.
 
-## 1. Setup deployment from scratch
-
-```sh
-FLEET_MYSQL_IMAGE=mysql:8.0.19 docker-compose up
-make db-reset
-```
-
-## 2. Setup APNS Push Certificate and Key
+## 1. Setup APNS Push Certificate and Key
 
 From https://developer.apple.com/account, download push certificate and private key to:
 - ~/mdm-apple-test/mdmcert.download.push.pem
@@ -77,7 +70,7 @@ What we did for this test is:
 - Zach uploads the decrypted CSR to identity.apple.com and downloads the final certificate.
 - Place certificate in `~/mdm-apple-test/mdmcert.download.push.pem`
 
-## 3. SCEP setup
+## 2. SCEP setup
 
 ```sh
 fleetctl apple-mdm setup scep \
@@ -90,7 +83,7 @@ Successfully generated SCEP CA: fleet-mdm-apple-scep.crt, fleet-mdm-apple-scep.k
 Set FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat fleet-mdm-apple-scep.crt) FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat fleet-mdm-apple-scep.key) when running Fleet.
 ```
 
-## 4. DEP setup
+## 3. DEP setup
 
 1. Init:
 ```sh
@@ -119,7 +112,7 @@ Successfully generated token file: fleet-mdm-apple-dep.token.
 Set FLEET_MDM_APPLE_DEP_TOKEN=$(cat fleet-mdm-apple-dep.token) when running Fleet.
 ```
 
-## 5. Run Fleet behind ngrok
+## 4. Run Fleet behind ngrok
 
 Fleet needs to run behind TLS with a valid certificate (otherwise Apple devices won't trust it).
 
@@ -127,7 +120,7 @@ Fleet needs to run behind TLS with a valid certificate (otherwise Apple devices 
 ngrok http https://localhost:8080
 ```
 
-## 6. Run Fleet
+## 5. Run Fleet
 
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
@@ -163,14 +156,14 @@ EOF
 fleetctl apply -f config.yaml
 ```
 
-## 7. Create manual enrollment
+## 6. Create manual enrollment
 
 ```sh
 fleetctl apple-mdm enrollment-profiles create-manual
 Manual enrollment created, URL: https://{{ngrog url}}/api/mdm/apple/enroll?token={{token}}.
 ```
 
-## 8. Create automatic (DEP) enrollment profile
+## 7. Create automatic (DEP) enrollment profile
 
 There is a sample dep profile available at `tools/mdm/apple/dep_sample_profile.json` which can be used to create an automatic (DEP) enrollment profile.
 
@@ -179,24 +172,24 @@ fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/md
 Automatic enrollment profile created, ID: 2
 ```
 
-## 9. DEP Enroll
+## 8. DEP Enroll
 
-1. Assign the device to our MDM server in https://business.apple.com
-2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must wait for 5m after executing the `create-automatic` command).
-3. Start the VM and enroll.
+Follow https://travellingtechguy.blog/vmware-dep/ to create a VMWare macOS VM with a serial number that Fleet's ABM manages. (Reach out to Guillaume, Michal or Zach Wasserman.)
+
+1. Assign the device to our "MDM server" in https://business.apple.com
+2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must wait for one minute after executing the `create-automatic` command).
+3. Start the VM.
 
 ### Examples
 
-Install profile on a device:
-
+Install a profile to allow for enabling debug mode of MDM on a device (useful when developing/testing MDM features):
 ```sh
-fleetctl apple-mdm enqueue-command InstallProfile --device-ids=564DB340-7435-FA4D-B124-9480B239BE88 --mobileconfig some_profile.plist
+fleetctl apple-mdm enqueue-command InstallProfile --device-ids=564DB340-7435-FA4D-B124-9480B239BE88 --mobileconfig ./tools/mdm/apple/turn_on_debug_mdm_logging.mobileconfig
 ```
 
 Install 1Password on a macOS device:
-
 ```sh
 fleetctl apple-mdm installers upload --path ~/Downloads/1Password-7.9.6.pkg
 
 fleetctl apple-mdm enqueue-command InstallEnterpriseApplication --device-ids=564DB340-7435-FA4D-B124-9480B239BE88 --installer-id=1
-``
+```
