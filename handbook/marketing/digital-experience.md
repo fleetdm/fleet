@@ -464,16 +464,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-digital-experience`     | Mike Thomas
 | `#oooh-websites`            | Mike Thomas
-| `#oooh-automation`          | Mike McNeil
-| `#g-people`                 | Charlie Chance
-| `#help-onboarding`          | Charlie Chance
-| `#help-finance`             | Nathan Holliday
-| `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
-| `#help-operations-and-contract-reviews`          | Nathan Holliday
-| `#help-travel`              | Nathan Holliday
-| `#help-ceo`                 | Charlie Chance
-| `#help-key-review-prep`     | Charlie Chance
+
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
