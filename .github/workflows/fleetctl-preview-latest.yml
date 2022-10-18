@@ -46,7 +46,9 @@ jobs:
     - name: Start colima
       timeout-minutes: 5
       if: contains(matrix.os, 'macos')
-      run: colima start
+      run: |
+        brew install docker docker-compose
+        colima start
 
     - name: Install Go
       uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2

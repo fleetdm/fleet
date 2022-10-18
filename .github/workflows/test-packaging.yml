@@ -45,7 +45,9 @@ jobs:
     - name: Start colima
       timeout-minutes: 5
       if: contains(matrix.os, 'macos')
-      run: colima start
+      run: |
+        brew install docker docker-compose
+        colima start
 
     - name: Pull fleetdm/wix
       # Run in background while other steps complete to speed up the workflow
