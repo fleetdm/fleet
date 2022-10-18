@@ -1,4 +1,4 @@
-// This component is used on ManageSoftwarePage.tsx and Homepage.tsx > Software.tsx card
+// This component is used on ManageSoftwarePage.tsx and Dashboard.tsx > Software.tsx card
 
 import React from "react";
 
