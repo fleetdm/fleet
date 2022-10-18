@@ -233,7 +233,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			}
 
 			_, jsonExpected := f.Tag.Lookup("json")
-			if jsonExpected && nilBody && !isBodyDecoder {
+			if jsonExpected && nilBody {
 				return nil, badRequest("Expected JSON Body")
 			}
 

@@ -111,7 +111,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
 	// dry-run with empty body
-	s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(errBody), `"Expected JSON Body"`)
 
 	// dry-run with invalid top-level key
 	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
