@@ -1011,9 +1011,9 @@ If the `name` is not already associated with an existing team, this API route cr
 | name          | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
 | agent_options | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
 | features      | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
-| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                                   |
+| secrets       | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | force         | bool   | query | Force apply the options even if there are validation errors.                                                                                                                                                                        |
-| dry_run       | bool   | query | Validate the options and return any validation errors, but do not apply the changes.                                                                                                                                                |
+| dry_run       | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
 #### Example
 
@@ -1064,7 +1064,7 @@ If the `name` is not already associated with an existing team, this API route cr
           "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On"
         }
       ]
-    }
+t    }
   ]
 }
 ```

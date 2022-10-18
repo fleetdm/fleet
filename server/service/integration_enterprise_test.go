@@ -110,6 +110,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
+	// dry-run with empty body
+	s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+
 	// dry-run with invalid top-level key
 	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
 		"specs": [
