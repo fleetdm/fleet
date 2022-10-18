@@ -254,6 +254,12 @@ module.exports.routes = {
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
   'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
+  'GET /handbook/sales':         '/handbook/customers#sales',
+  'GET /handbook/people':        '/handbook/business-operations',
+  'GET /handbook/growth':         '/handbook/marketing/growth',
+  'GET /handbook/community':         '/handbook/marketing/community',
+  'GET /handbook/digital-experience':         '/handbook/marketing/digital-experience',
+  'GET /handbook/people/ceo-handbook':         '/handbook/business-operations/ceo-handbook',
 
 
 
