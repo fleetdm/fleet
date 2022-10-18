@@ -377,7 +377,13 @@ func QueueZendeskVulnJobs(
 	}
 
 	for cve := range uniqCVEs {
-		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: cve})
+		args := vulnArgs{CVE: cve}
+		if meta, ok := cveMeta[cve]; ok {
+			args.EPSSProbability = meta.EPSSProbability
+			args.CVSSScore = meta.CVSSScore
+			args.CISAKnownExploit = meta.CISAKnownExploit
+		}
+		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{Vulnerability: &args})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
