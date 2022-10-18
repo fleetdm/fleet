@@ -121,6 +121,7 @@ const ManageSoftwarePage = ({
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
+  const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
   // TODO: experiment to see if we need this state and effect or can we rely solely on the router/location for the dropdown state?
   useEffect(() => {
@@ -275,6 +276,10 @@ const ManageSoftwarePage = ({
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
   }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+
+  const togglePreviewTicketModal = useCallback(() => {
+    setShowPreviewTicketModal(!showPreviewTicketModal);
+  }, [setShowPreviewTicketModal, showPreviewTicketModal]);
 
   const onManageAutomationsClick = () => {
     toggleManageAutomationsModal();
@@ -544,7 +549,9 @@ const ManageSoftwarePage = ({
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
+            togglePreviewTicketModal={togglePreviewTicketModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
+            showPreviewTicketModal={showPreviewTicketModal}
             softwareVulnerabilityAutomationEnabled={
               isVulnerabilityAutomationsEnabled
             }
