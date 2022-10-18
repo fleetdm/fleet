@@ -598,7 +598,7 @@ func (s FeatureScenario) GetTrialParams(hostID uint) []interface{} {
 			args = append(args, enumStrRanges[rand.Intn(len(enumStrRanges))])
 		case strings.Contains(p, "some_str"):
 			idx := rand.Intn(len(strRange))
-			s := strings.Join(strRange[idx:(idx+1)%len(strRange)], " ")
+			s := strings.Join(strRange[idx:], " ")
 			args = append(args, s)
 		case strings.Contains(p, "some_bool"):
 			args = append(args, boolRange[rand.Intn(len(boolRange))])
