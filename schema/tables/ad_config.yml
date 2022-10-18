@@ -8,4 +8,5 @@ examples: >-
   
   ```
 notes: >-
-  A domain in ActiveDirectory is a set of workstations or servers that abide by common policies.
+  - A domain in ActiveDirectory is a set of workstations or servers that abide by common policies.
+  - If a host is not enrolled in ActiveDirectory, then it returns no results.
