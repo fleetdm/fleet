@@ -8,6 +8,8 @@ interface ITruncatedTextCellProps {
   classes?: string;
 }
 
+const baseClass = "truncated-cell";
+
 const TruncatedTextCell = ({
   value,
   classes = "w250",
@@ -28,7 +30,7 @@ const TruncatedTextCell = ({
   const tooltipDisabled = offsetWidth === scrollWidth;
 
   return (
-    <div ref={ref} className={`${classes}`}>
+    <div ref={ref} className={`${baseClass} ${classes}`}>
       <div
         className={"data-table__truncated-text"}
         data-tip
