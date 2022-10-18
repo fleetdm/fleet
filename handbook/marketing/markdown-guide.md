@@ -171,4 +171,4 @@ You can use a large quote blockquote to reduce the font size and line height of 
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="Markdown-guide">
+<meta name="title" value="Markdown guide">

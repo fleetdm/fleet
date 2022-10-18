@@ -98,7 +98,7 @@ const DeviceUserPage = ({
       onSuccess: (returnedHost: IHostResponse) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
         setIsPremiumTier(returnedHost.license.tier === "premium");
-        setHostSoftware(returnedHost.host.software);
+        setHostSoftware(returnedHost.host.software ?? []);
         setHost(returnedHost.host);
         setOrgLogoURL(returnedHost.org_logo_url);
         if (returnedHost?.host.refetch_requested) {
