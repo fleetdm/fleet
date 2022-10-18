@@ -321,10 +321,6 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 
 <meta name="maintainedBy" value="alexmitchelliii">
-<meta name="title" value="🤝 Customers">
-
-
-
-
-<meta name="maintainedBy" value="ksatter">
 <meta name="title" value="🎈 Customers">
+
+
