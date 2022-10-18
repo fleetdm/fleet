@@ -1,9 +1,11 @@
 name: ad_config
 examples: >-
-  See the domain, if any, that the Mac is bound to.
+  See the [ActiveDirectory](https://en.wikipedia.org/wiki/Active_Directory) domain, if any, that the Mac is bound to.
   
   ```
   
   SELECT domain FROM ad_config;
   
   ```
+notes: >-
+  A domain in ActiveDirectory is a set of workstations or servers that abide by common policies.
