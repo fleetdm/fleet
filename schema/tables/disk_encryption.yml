@@ -1,0 +1,19 @@
+name: disk_encryption
+examples: >-
+  A policy query to check if Filevault disk encryption is enabled on a Mac.
+
+  ```
+
+  SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;
+
+  ```
+columns:
+  - name: uid
+    platforms:
+      - darwin
+  - name: user_uuid
+    platforms:
+      - darwin
+  - name: filevault_status
+    platforms:
+      - darwin

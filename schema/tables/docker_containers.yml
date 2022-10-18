@@ -1,0 +1,34 @@
+name: docker_containers
+examples: >-
+  Identify containers that are running with high privileges.
+
+  ```
+
+  SELECT state, status, image, image_id FROM docker_containers WHERE privileged='1';
+
+  ```
+columns:
+  - name: cgroup_namespace
+    platforms:
+      - linux
+  - name: ipc_namespace
+    platforms:
+      - linux
+  - name: mnt_namespace
+    platforms:
+      - linux
+  - name: net_namespace
+    platforms:
+      - linux
+  - name: pid_namespace
+    platforms:
+      - linux
+  - name: privileged
+    description: Is the container
+      [privileged](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)
+  - name: user_namespace
+    platforms:
+      - linux
+  - name: uts_namespace
+    platforms:
+      - linux

@@ -1,0 +1,23 @@
+name: groups
+examples: >-
+  See all groups with the IsHidden OpenDirectory attribute
+  
+  ```
+  
+  SELECT * FROM groups WHERE is_hidden='1';
+  
+  ```
+columns:
+  - name: group_sid
+    platforms:
+      - windows
+  - name: comment
+    platforms:
+      - windows
+  - name: is_hidden
+    platforms:
+      - darwin
+  - name: pid_with_namespace
+    platforms:
+      - linux
+notes: "* On Windows, `gid` and `gid_signed` are always the same"
