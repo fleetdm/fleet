@@ -563,6 +563,14 @@ Create a new issue for the current month and year named "Closing out YYYY-MM" us
 - Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
+
+### Annual reporting for capital credit line
+
+- Within 60 days of the end of the year:
+  - Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
+  - Provide SVB with our annual operating budgets and projections (on a quarterly basis) for the coming year.
+  - Deliver this as early as possible in case they have questions.
+
 ### Quarterly Quickbooks Online (QBO) check
 
 - Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
@@ -570,6 +578,7 @@ Create a new issue for the current month and year named "Closing out YYYY-MM" us
 
 ## Key reviews
 Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics and progress of OKRs. The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
+
 
 ## Rituals
 
@@ -596,8 +605,10 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
 | OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
+| Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB | Nathanael Holliday |
 | QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records | Nathanael Holliday | 
 | BizOps key review | every three weeks | Every release cycle a key review deck is prepared and presented | Nathanael Holliday |
+
 
 
 ## Slack channels
