@@ -14,7 +14,7 @@ import formatErrorResponse from "utilities/format_error_response";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
-import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
+import { AxiosError } from "axios";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
@@ -83,7 +83,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     if (pageStatus && pageStatus in statusMessages) {
       renderFlash("error", statusMessages[pageStatus as keyof IStatusMessages]);
     }
-  }, [router]);
+  }, [router, currentUser]);
 
   const onChange = () => {
     if (size(errors)) {
@@ -131,7 +131,14 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       const { url } = await sessionsAPI.initializeSSO(returnToAfterAuth);
       window.location.href = url;
     } catch (error) {
-      console.error(error);
+      const err = error as AxiosError;
+      // a one-off error for sso login failure to be more readable to users
+      const ssoError = {
+        status: err.status,
+        data: { errors: [{ name: "base", reason: "Authentication failed" }] },
+      };
+      const errorObject = formatErrorResponse(ssoError);
+      setErrors(errorObject);
       return false;
     }
   };

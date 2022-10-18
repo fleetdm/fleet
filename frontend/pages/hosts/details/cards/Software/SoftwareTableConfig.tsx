@@ -99,6 +99,22 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
     : condensed;
 };
 
+const renderBundleTooltip = (name: string, bundle: string) => (
+  <span className="name-container">
+    <TooltipWrapper
+      tipContent={`
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `}
+    >
+      {name}
+    </TooltipWrapper>
+  </span>
+);
+
 interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[];
 }
@@ -132,25 +148,12 @@ export const generateSoftwareTableHeaders = (
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: IStringCellProps) => {
-        const { name, bundle_identifier } = cellProps.row.original;
-        if (bundle_identifier) {
-          return (
-            <span className="name-container">
-              <TooltipWrapper
-                tipContent={`
-                <span>
-                  <b>Bundle identifier: </b>
-                  <br />
-                  ${bundle_identifier}
-                </span>
-              `}
-              >
-                {name}
-              </TooltipWrapper>
-            </span>
-          );
-        }
-        return <TextCell value={name} />;
+        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        return (
+          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+            {bundle ? renderBundleTooltip(name, bundle) : name}
+          </Link>
+        );
       },
       sortType: "caseInsensitive",
     },

@@ -1,10 +1,17 @@
 name: Deploy Dogfood Environment
+
 on:
   workflow_dispatch:
     inputs:
       IMAGE_TAG:
         description: 'The image tag wished to be deployed.'
         required: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+    working-directory: infrastructure/dogfood/terraform/aws
 
 env:
   AWS_REGION: us-east-2
@@ -28,17 +35,15 @@ permissions:
   id-token: write
   contents: read    # This is required for actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
 
-
-defaults:
-  run:
-    working-directory: infrastructure/dogfood/terraform/aws
-
 jobs:
   deploy:
     name: Deploy Fleet Dogfood Environment
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - id: fail-on-main
+        run: "false"
+        if: ${{ github.ref == 'main' }}
       - uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{env.AWS_IAM_ROLE}}

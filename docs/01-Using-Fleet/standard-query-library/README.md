@@ -4,7 +4,8 @@ Fleet's [standard query library](https://fleetdm.com/queries) includes a growing
 
 ## Importing the queries in Fleet
 
-### After cloning the fleetdm/fleet repo, import the queries using fleetctl:
+After cloning the fleetdm/fleet repo, import the queries and policies found in `docs/01-Using-Fleet/standard-query-library/standard-query-library.yml` using [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli):
+
 ```
 fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
 ```
@@ -13,7 +14,7 @@ fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-libr
 
 Do you want to add your own query?
 
-1. Please copy the following YAML section and paste it at the bottom of the [`standard-query-library.yml`](./standard-query-library.yml) file.
+1. Please copy the following YAML section and paste it at the bottom of the [`standard-query-library.yml`](https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml) file.
 
   ```yaml
   ---

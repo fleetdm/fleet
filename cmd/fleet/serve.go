@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -40,6 +39,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	config_apple "github.com/fleetdm/fleet/v4/server/mdm/apple/config"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -50,6 +51,9 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/micromdm/nanomdm/push/buford"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -195,10 +199,11 @@ the way that the Fleet server works.
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
 
-			ds, err = mysql.New(config.Mysql, clock.C, opts...)
+			mds, err := mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
+			ds = mds
 
 			if config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
@@ -380,11 +385,71 @@ the way that the Fleet server works.
 				}
 			}
 
+			var (
+				scepStorage      *scep_mysql.MySQLDepot
+				depStorage       *mysql.NanoDEPStorage
+				mdmStorage       *mysql.NanoMDMStorage
+				mdmPushService   *nanomdm_pushsvc.PushService
+				mdmPushCertTopic string
+			)
+			if config.MDMApple.Enable {
+				if err := config_apple.Verify(config.MDMApple); err != nil {
+					initFatal(err, "verify apple mdm config")
+				}
+				scepStorage, err = mds.NewMDMAppleSCEPDepot(
+					[]byte(config.MDMApple.SCEP.CA.PEMCert),
+					[]byte(config.MDMApple.SCEP.CA.PEMKey),
+				)
+				if err != nil {
+					initFatal(err, "initialize mdm apple scep storage")
+				}
+				mdmStorage, err = mds.NewMDMAppleMDMStorage(
+					[]byte(config.MDMApple.MDM.PushCert.PEMCert),
+					[]byte(config.MDMApple.MDM.PushCert.PEMKey),
+				)
+				if err != nil {
+					initFatal(err, "initialize mdm apple MySQL storage")
+				}
+				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert([]byte(config.MDMApple.MDM.PushCert.PEMCert))
+				if err != nil {
+					initFatal(err, "extract topic from mdm push certificate")
+				}
+				depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
+				if err != nil {
+					initFatal(err, "initialize mdm apple dep storage")
+				}
+				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+				pushProviderFactory := buford.NewPushProviderFactory()
+				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+			}
+
 			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
+			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
+			svc, err := service.NewService(
+				ctx,
+				ds,
+				task,
+				resultStore,
+				logger,
+				osqueryLogger,
+				config,
+				mailService,
+				clock.C,
+				ssoSessionStore,
+				liveQueryStore,
+				carveStore,
+				installerStore,
+				*license,
+				failingPolicySet,
+				geoIP,
+				redisWrapperDS,
+				depStorage,
+				mdmStorage,
+				mdmPushService,
+				mdmPushCertTopic,
+			)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -400,10 +465,22 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
-			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
-			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, instanceID); err != nil {
-				initFatal(err, "failed to register schedules")
+
+			startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
+			startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+			startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
+			if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet); err != nil {
+				initFatal(err, "failed to register automations schedule")
 			}
+			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
+				initFatal(err, "failed to register integrations schedule")
+			}
+			if config.MDMApple.Enable {
+				startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+			}
+
+			// StartCollectors starts a goroutine per collector, using ctx to cancel.
+			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -494,8 +571,24 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
+			if config.MDMApple.Enable {
+				if err := registerAppleMDMProtocolServices(
+					rootMux,
+					config.MDMApple.SCEP,
+					mdmStorage,
+					scepStorage,
+					logger,
+				); err != nil {
+					initFatal(err, "setup mdm apple services")
+				}
+			}
+
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				metricsHandler := basicAuthHandler(config.Prometheus.BasicAuth.Username, config.Prometheus.BasicAuth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				metricsHandler := basicAuthHandler(
+					config.Prometheus.BasicAuth.Username,
+					config.Prometheus.BasicAuth.Password,
+					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
+				)
 				rootMux.Handle("/metrics", metricsHandler)
 			} else {
 				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
@@ -650,46 +743,6 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	}
-}
-
-const (
-	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
-	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
-	lockKeyWorker                  = "worker"
-)
-
-// runCrons runs cron jobs not yet ported to use the schedule package (startSchedules)
-func runCrons(
-	ctx context.Context,
-	ds fleet.Datastore,
-	task *async.Task,
-	logger kitlog.Logger,
-	config configpkg.FleetConfig,
-	license *fleet.LicenseInfo,
-	failingPoliciesSet fleet.FailingPolicySet,
-	ourIdentifier string,
-) {
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
-
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
-	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
-}
-
-func startSchedules(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	config config.FleetConfig,
-	license *fleet.LicenseInfo,
-	enrollHostLimiter fleet.EnrollHostLimiter,
-	instanceID string,
-) error {
-	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
-	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
-	startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
-
-	return nil
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

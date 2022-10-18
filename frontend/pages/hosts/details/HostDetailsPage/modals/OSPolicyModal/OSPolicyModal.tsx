@@ -21,7 +21,7 @@ interface IRenderOSPolicyModal {
   osPolicyLabel: string;
 }
 
-const baseClass = "render-os-policy-modal";
+const baseClass = "os-policy-modal";
 
 const RenderOSPolicyModal = ({
   onCancel,
@@ -70,11 +70,7 @@ const RenderOSPolicyModal = ({
   };
 
   return (
-    <Modal
-      title="Operating system"
-      onExit={onCancel}
-      className={`${baseClass}__modal`}
-    >
+    <Modal title="Operating system" onExit={onCancel} className={baseClass}>
       <>
         <p>
           <span className={`${baseClass}__os-modal-title`}>
@@ -98,11 +94,11 @@ const RenderOSPolicyModal = ({
           value={osPolicy}
         />
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse">
-            Close
-          </Button>
           <Button onClick={onCreateNewPolicy} variant="brand">
             Create new policy
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Close
           </Button>
         </div>
       </>

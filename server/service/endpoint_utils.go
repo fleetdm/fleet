@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -263,7 +264,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					default:
 						queryValInt, err = strconv.Atoi(queryVal)
 						if err != nil {
-							return nil, fmt.Errorf("parsing uint from query: %w", err)
+							return nil, fmt.Errorf("parsing int from query: %w", err)
 						}
 					}
 					field.SetInt(int64(queryValInt))
@@ -294,6 +295,12 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedDevice(svc, logger, next)
 	}
+
+	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
+	opts = append(opts, capabilitiesResponseFunc(fleet.ServerDeviceCapabilities))
+	// Add the capabilities reported by the device to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
 	return &authEndpointer{
 		svc:      svc,
 		opts:     opts,
@@ -326,6 +333,25 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 	}
 }
 
+func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedOrbitHost(svc, logger, next)
+	}
+
+	// Inject the fleet.Capabilities header to the response for Orbit hosts
+	opts = append(opts, capabilitiesResponseFunc(fleet.ServerOrbitCapabilities))
+	// Add the capabilities reported by Orbit to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
 func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
 	return &authEndpointer{
 		svc:      svc,
@@ -345,6 +371,45 @@ var pathReplacer = strings.NewReplacer(
 func getNameFromPathAndVerb(verb, path string) string {
 	return strings.ToLower(verb) + "_" +
 		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
+}
+
+func capabilitiesResponseFunc(capabilities fleet.CapabilityMap) kithttp.ServerOption {
+	return kithttp.ServerAfter(func(ctx context.Context, w http.ResponseWriter) context.Context {
+		writeCapabilitiesHeader(w, capabilities)
+		return ctx
+	})
+}
+
+func capabilitiesContextFunc() kithttp.ServerOption {
+	return kithttp.ServerBefore(func(ctx context.Context, r *http.Request) context.Context {
+		return capabilities.NewContext(ctx, r)
+	})
+}
+
+func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.CapabilityMap) {
+	if len(capabilities) == 0 {
+		return
+	}
+
+	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
+}
+
+func writeBrowserSecurityHeaders(w http.ResponseWriter) {
+	// Strict-Transport-Security informs browsers that the site should only be
+	// accessed using HTTPS, and that any future attempts to access it using
+	// HTTP should automatically be converted to HTTPS.
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
+	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
+	// <iframe>, <embed> or <object>, which can prevent attacks like
+	// clickjacking.
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+	// X-Content-Type-Options prevents browsers from trying to guess the MIME
+	// type which can cause browsers to transform non-executable content into
+	// executable content.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// Referrer-Policy prevents leaking the origin of the referrer in the
+	// Referer.
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
 func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {

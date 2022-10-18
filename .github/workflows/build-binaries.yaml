@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -15,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: 1.19.1
 

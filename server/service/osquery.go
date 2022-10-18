@@ -502,9 +502,6 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
-// orbitInfoRefetchAfterEnrollDur value assumes the default distributed_interval value set by Fleet of 10s.
-const orbitInfoRefetchAfterEnrollDur = 1 * time.Minute
-
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -526,20 +523,6 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	}
 	for name, query := range detailDiscovery {
 		discovery[name] = query
-	}
-
-	// The following is added to improve Fleet Desktop's UX at install time.
-	//
-	// At install (enroll) time, the "orbit_info" extension takes longer to load than the first
-	// query check-in (distributed/read request).
-	// To avoid having to wait for the next check-in to ingest the data (after
-	// svc.config.Osquery.DetailUpdateInterval, 1h by default),
-	// we make the best effort to retrieve such "device auth token" from the device, but with a
-	// limit of orbitInfoRefetchAfterEnrollDur to not generate too much write database overhead
-	// (writes to `host_device_auth` table).
-	if svc.clock.Now().Sub(host.LastEnrolledAt) < orbitInfoRefetchAfterEnrollDur {
-		queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
-		discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
 	}
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
@@ -895,7 +878,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			} else {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
-					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), failingPolicies, passingPolicies); err != nil {
 						logging.WithErr(ctx, err)
 					}
 				}()
@@ -998,7 +981,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID),
-		Host:                       host,
+		Host:                       fleet.HostResponseForHostCheap(&host),
 		Rows:                       rows,
 	}
 	if failed {
@@ -1119,10 +1102,11 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
-func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
+func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname, displayName string, newFailing, newPassing []uint) error {
 	host := fleet.PolicySetHost{
-		ID:       hostID,
-		Hostname: hostname,
+		ID:          hostID,
+		Hostname:    hostname,
+		DisplayName: displayName,
 	}
 	for _, policyID := range newFailing {
 		if err := svc.failingPolicySet.AddHost(policyID, host); err != nil {

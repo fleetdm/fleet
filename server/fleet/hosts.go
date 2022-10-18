@@ -20,6 +20,9 @@ const (
 	// StatusNew means the host has enrolled in the interval defined by
 	// NewDuration. It is independent of offline and online.
 	StatusNew = HostStatus("new")
+	// StatusMissing means the host is missing for 30 days. It is identical
+	// with StatusMIA, but StatusMIA is deprecated.
+	StatusMissing = HostStatus("missing")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -75,10 +78,31 @@ type HostListOptions struct {
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
 	MunkiIssueIDFilter *uint
+
+	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
+	// with less than N gigs of disk space available). Note that this is a Fleet
+	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
+	// disable it).
+	LowDiskSpaceFilter *int
 }
 
 func (h HostListOptions) Empty() bool {
-	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
+	return h.ListOptions.Empty() &&
+		h.DeviceMapping == false &&
+		len(h.AdditionalFilters) == 0 &&
+		h.StatusFilter == "" &&
+		h.TeamFilter == nil &&
+		h.PolicyIDFilter == nil &&
+		h.PolicyResponseFilter == nil &&
+		h.SoftwareIDFilter == nil &&
+		h.OSIDFilter == nil &&
+		h.OSNameFilter == nil &&
+		h.OSVersionFilter == nil &&
+		h.DisableFailingPolicies == false &&
+		h.MDMIDFilter == nil &&
+		h.MDMEnrollmentStatusFilter == "" &&
+		h.MunkiIssueIDFilter == nil &&
+		h.LowDiskSpaceFilter == nil
 }
 
 type HostUser struct {
@@ -104,6 +128,7 @@ type Host struct {
 	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
 	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
 	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
+	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
 	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
 	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
@@ -160,6 +185,14 @@ type Host struct {
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
+// DisplayName returns ComputerName if it isn't empty or HostName otherwise.
+func (h *Host) DisplayName() string {
+	if cn := h.ComputerName; cn != "" {
+		return cn
+	}
+	return h.Hostname
+}
+
 type HostIssues struct {
 	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
 	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
@@ -194,15 +227,17 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID           *uint                  `json:"team_id,omitempty"`
-	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount      uint                   `json:"online_count" db:"online"`
-	OfflineCount     uint                   `json:"offline_count" db:"offline"`
-	MIACount         uint                   `json:"mia_count" db:"mia"`
-	NewCount         uint                   `json:"new_count" db:"new"`
-	AllLinuxCount    uint                   `json:"all_linux_count"`
-	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
+	TeamID             *uint                  `json:"team_id,omitempty" db:"-"`
+	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount        uint                   `json:"online_count" db:"online"`
+	OfflineCount       uint                   `json:"offline_count" db:"offline"`
+	MIACount           uint                   `json:"mia_count" db:"mia"`
+	Missing30DaysCount uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
+	NewCount           uint                   `json:"new_count" db:"new"`
+	AllLinuxCount      uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount  *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels      []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms          []*HostSummaryPlatform `json:"platforms" db:"-"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -465,8 +500,9 @@ type AggregatedMacadminsData struct {
 
 // HostShort is a minimal host representation returned when querying hosts.
 type HostShort struct {
-	ID       uint   `json:"id" db:"id"`
-	Hostname string `json:"hostname" db:"hostname"`
+	ID          uint   `json:"id" db:"id"`
+	Hostname    string `json:"hostname" db:"hostname"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 type OSVersions struct {

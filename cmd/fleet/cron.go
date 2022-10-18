@@ -14,17 +14,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/micromdm/nanodep/godep"
+	nanodep_log "github.com/micromdm/nanodep/log"
+	depsync "github.com/micromdm/nanodep/sync"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -324,31 +329,31 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		opts := vulnerabilities.SyncOptions{
+		opts := nvd.SyncOptions{
 			VulnPath:           config.DatabasesPath,
 			CPEDBURL:           config.CPEDatabaseURL,
 			CPETranslationsURL: config.CPETranslationsURL,
 			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
-		err := vulnerabilities.Sync(opts)
+		err := nvd.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
-			return nil
+			// don't return, continue on ...
 		}
 	}
 
-	if err := vulnerabilities.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
 
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
+	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
 		return nil
 	}
 
-	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -357,114 +362,69 @@ func checkNVDVulnerabilities(
 	return vulns
 }
 
-func cronWebhooks(
+func startAutomationsSchedule(
 	ctx context.Context,
+	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-	failingPoliciesSet fleet.FailingPolicySet,
 	intervalReload time.Duration,
-) {
+	failingPoliciesSet fleet.FailingPolicySet,
+) (*schedule.Schedule, error) {
+	const (
+		name            = "automations"
+		defaultInterval = 24 * time.Hour
+	)
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
+		return nil, fmt.Errorf("getting app config: %w", err)
 	}
-
-	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	level.Debug(logger).Log("interval", interval.String())
-	ticker := time.NewTicker(interval)
-	start := time.Now()
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		case <-time.After(intervalReload):
-			// Reload interval and check if it has been reduced.
+	s := schedule.New(
+		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
+		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
-				level.Error(logger).Log("config", "couldn't read app config", "err", err)
-				continue
+				return 0, err
 			}
-			if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
-				continue
-			}
-		}
-
-		// Reread app config to be able to read latest data used by the webhook
-		// and update the ticker for the next run.
-		appConfig, err = ds.AppConfig(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "couldn't read app config", err)
-		} else {
-			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
-			start = time.Now()
-		}
-
-		// We set the db lock durations to match the intervalReload.
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesAutomation(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
-
-		level.Debug(logger).Log("loop", "done")
-	}
+			newInterval := appConfig.WebhookSettings.Interval.ValueOr(defaultInterval)
+			return newInterval, nil
+		}),
+		schedule.WithJob(
+			"host_status_webhook",
+			func(ctx context.Context) error {
+				return webhooks.TriggerHostStatusWebhook(
+					ctx, ds, kitlog.With(logger, "automation", "host_status"),
+				)
+			},
+		),
+		schedule.WithJob(
+			"failing_policies_automation",
+			func(ctx context.Context) error {
+				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
+			},
+		),
+	)
+	s.Start()
+	return s, nil
 }
 
-func maybeTriggerHostStatus(
+func triggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksHostStatus)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerHostStatusWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-	); err != nil {
-		errHandler(ctx, logger, "triggering host status webhook", err)
-	}
-}
-
-func maybeTriggerFailingPoliciesAutomation(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksFailingPolicies)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
+) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("getting app config: %w", err)
 	}
-
 	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
 	if err != nil {
-		errHandler(ctx, logger, "parsing appConfig.ServerSettings.ServerURL", err)
-		return
+		return fmt.Errorf("parsing appConfig.ServerSettings.ServerURL: %w", err)
 	}
 
-	logger = kitlog.With(logger, "webhook", "failing_policies")
-	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
@@ -497,22 +457,24 @@ func maybeTriggerFailingPoliciesAutomation(
 		return nil
 	})
 	if err != nil {
-		errHandler(ctx, logger, "triggering failing policies automation", err)
+		return fmt.Errorf("triggering failing policies automation: %w", err)
 	}
+
+	return nil
 }
 
-func cronWorker(
+func startIntegrationsSchedule(
 	ctx context.Context,
+	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
-) {
+) (*schedule.Schedule, error) {
 	const (
-		lockDuration        = 10 * time.Minute
-		lockAttemptInterval = 10 * time.Minute
+		name            = "integrations"
+		defaultInterval = 10 * time.Minute
 	)
 
-	logger = kitlog.With(logger, "cron", lockKeyWorker)
+	logger = kitlog.With(logger, "cron", name)
 
 	// create the worker and register the Jira and Zendesk jobs even if no
 	// integration is enabled, as that config can change live (and if it's not
@@ -539,8 +501,9 @@ func cronWorker(
 	// is not a possible scenario.
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
-		errHandler(ctx, logger, "couldn't read app config", err)
+		return nil, fmt.Errorf("getting app config: %w", err)
 	}
+
 	// we clear it even if we fail to load the app config, not a likely scenario
 	// in our test environments for the needs of forced failures.
 	if !strings.Contains(appConfig.ServerSettings.ServerURL, "fleetdm") {
@@ -548,42 +511,34 @@ func cronWorker(
 		os.Unsetenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES")
 	}
 
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(lockAttemptInterval)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds,
+		schedule.WithAltLockID("worker"),
+		schedule.WithLogger(logger),
+		schedule.WithJob("integrations_worker", func(ctx context.Context) error {
+			// Read app config to be able to use the latest configuration for integrations.
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return fmt.Errorf("getting app config: %w", err)
+			}
 
-		if locked, err := ds.Lock(ctx, lockKeyWorker, identifier, lockDuration); err != nil {
-			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-			continue
-		} else if !locked {
-			level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-			continue
-		}
+			jira.FleetURL = appConfig.ServerSettings.ServerURL
+			zendesk.FleetURL = appConfig.ServerSettings.ServerURL
 
-		// Read app config to be able to use the latest configuration for the Jira
-		// integration.
-		appConfig, err := ds.AppConfig(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "couldn't read app config", err)
-			continue
-		}
+			workCtx, cancel := context.WithTimeout(ctx, defaultInterval)
+			if err := w.ProcessJobs(workCtx); err != nil {
+				cancel() // don't use defer inside loop
+				return fmt.Errorf("processing integrations jobs: %w", err)
+			}
 
-		jira.FleetURL = appConfig.ServerSettings.ServerURL
-		zendesk.FleetURL = appConfig.ServerSettings.ServerURL
+			cancel() // don't use defer inside loop
+			return nil
+		}),
+	)
 
-		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
-		if err := w.ProcessJobs(workCtx); err != nil {
-			errHandler(ctx, logger, "Error processing jobs", err)
-		}
-		cancel() // don't use defer inside loop
-	}
+	s.Start()
+
+	return s, nil
 }
 
 func newJiraClient(opts *externalsvc.JiraOptions) (worker.JiraClient, error) {
@@ -649,7 +604,7 @@ func startCleanupsAndAggregationSchedule(
 		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
 		// Run cleanup jobs first.
 		schedule.WithJob(
-			"distributed_query_campaings",
+			"distributed_query_campaigns",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
 				return err
@@ -714,6 +669,12 @@ func startCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"increment_policy_violation_days",
+			func(ctx context.Context) error {
+				return ds.IncrementPolicyViolationDays(ctx)
+			},
+		),
+		schedule.WithJob(
 			"update_os_versions",
 			func(ctx context.Context) error {
 				return ds.UpdateOSVersions(ctx)
@@ -754,9 +715,103 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
 		return err
 	}
+
+	if err := ds.CleanupStatistics(ctx); err != nil {
+		return err
+	}
+
 	return ds.RecordStatisticsSent(ctx)
+}
+
+// NanoDEPLogger is a logger adapter for nanodep.
+type NanoDEPLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
+	return &NanoDEPLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoDEPLogger{
+		logger: newLogger,
+	}
+}
+
+// startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
+// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// the current configured DEP profile to them.
+func startAppleMDMDEPProfileAssigner(
+	ctx context.Context,
+	instanceID string,
+	periodicity time.Duration,
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) {
+	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	assignerOpts := []depsync.AssignerOption{
+		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
+	}
+	if loggingDebug {
+		assignerOpts = append(assignerOpts, depsync.WithDebug())
+	}
+	assigner := depsync.NewAssigner(
+		depClient,
+		apple_mdm.DEPName,
+		depStorage,
+		assignerOpts...,
+	)
+	syncer := depsync.NewSyncer(
+		depClient,
+		apple_mdm.DEPName,
+		depStorage,
+		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
+		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+			return assigner.ProcessDeviceResponse(ctx, resp)
+		}),
+	)
+	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
+	schedule.New(
+		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			if profileUUID == "" {
+				logger.Log("msg", "DEP profile not set, nothing to do")
+				return nil
+			}
+			cursor, cursorModTime, err := depStorage.RetrieveCursor(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			// If the DEP Profile was changed since last sync then we clear
+			// the cursor and perform a full sync of all devices and profile assigning.
+			if cursor != "" && profileModTime.After(cursorModTime) {
+				logger.Log("msg", "clearing device syncer cursor")
+				if err := depStorage.StoreCursor(ctx, apple_mdm.DEPName, ""); err != nil {
+					return err
+				}
+			}
+			return syncer.Run(ctx)
+		}),
+	).Start()
 }

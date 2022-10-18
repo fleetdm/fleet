@@ -27,6 +27,7 @@
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
   - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
   - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
+  - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
   - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
   - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
   - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
@@ -208,6 +209,10 @@ You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the
 ## When will the newest version of osquery be available to Orbit?
 
 When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
+
+## Where does Orbit get update information?
+
+Orbit checks for update metadata and downloads binaries at `tuf.fleetctl.com`. 
 
 ## Can I bundle osquery extensions into Orbit?
 

@@ -1,9 +1,13 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
+	"regexp"
+	"strings"
 )
 
 var (
@@ -266,4 +270,75 @@ func NewErrorf(code int, format string, args ...interface{}) error {
 
 func (ge *Error) Error() string {
 	return ge.Message
+}
+
+// UserMessageError is an error that adds the UserMessage interface
+// implementation.
+type UserMessageError struct {
+	error
+	statusCode int
+}
+
+// NewUserMessageError creates a UserMessageError that will translate the
+// error message of err to a user-friendly form. If statusCode is > 0, it
+// will be used as the HTTP status code for the error, otherwise it defaults
+// to http.StatusUnprocessableEntity (422).
+func NewUserMessageError(err error, statusCode int) *UserMessageError {
+	if err == nil {
+		return nil
+	}
+	return &UserMessageError{err, statusCode}
+}
+
+var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
+
+// UserMessage implements the user-friendly translation of the error if its
+// root cause is one of the supported types, otherwise it returns the error
+// message.
+func (e UserMessageError) UserMessage() string {
+	cause := Cause(e.error)
+	switch cause := cause.(type) {
+	case *json.UnmarshalTypeError:
+		var sb strings.Builder
+		curType := cause.Type
+		for curType.Kind() == reflect.Slice || curType.Kind() == reflect.Array {
+			sb.WriteString("array of ")
+			curType = curType.Elem()
+		}
+		sb.WriteString(curType.Name())
+		if curType != cause.Type {
+			// it was an array
+			sb.WriteString("s")
+		}
+
+		return fmt.Sprintf("invalid value type at '%s': expected %s but got %s", cause.Field, sb.String(), cause.Value)
+
+	default:
+		// there's no specific error type for the strict json mode
+		// (DisallowUnknownFields), so resort to message-matching.
+		if matches := rxJSONUnknownField.FindStringSubmatch(cause.Error()); matches != nil {
+			return fmt.Sprintf("unsupported key provided: %q", matches[1])
+		}
+		return e.Error()
+	}
+}
+
+// StatusCode implements the kithttp.StatusCoder interface to return the status
+// code to use in HTTP API responses.
+func (e UserMessageError) StatusCode() int {
+	if e.statusCode > 0 {
+		return e.statusCode
+	}
+	return http.StatusUnprocessableEntity
+}
+
+// Cause returns the root error in err's chain.
+func Cause(err error) error {
+	for {
+		uerr := errors.Unwrap(err)
+		if uerr == nil {
+			return err
+		}
+		err = uerr
+	}
 }

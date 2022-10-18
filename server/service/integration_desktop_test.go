@@ -135,14 +135,6 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.Nil(t, listPoliciesResp.Policies)
-
-	// get list of api features
-	apiFeaturesResp := deviceAPIFeaturesResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/api_features", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&apiFeaturesResp)
-	res.Body.Close()
-	require.Nil(t, apiFeaturesResp.Err)
-	require.NotNil(t, apiFeaturesResp.Features)
 }
 
 // TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.

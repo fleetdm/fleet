@@ -654,15 +654,6 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
-func (a *agent) orbitInfo() (bool, []map[string]string) {
-	if a.deviceAuthToken != nil {
-		return true, []map[string]string{
-			{"device_auth_token": *a.deviceAuthToken, "version": "osquery-perf"},
-		}
-	}
-	return false, nil // vanilla osquery returns no results (due to discovery query).
-}
-
 func (a *agent) mdm() []map[string]string {
 	possibleURLs := []string{
 		"https://kandji.com/1",
@@ -770,23 +761,29 @@ func (a *agent) batteries() []map[string]string {
 	return result
 }
 
+func (a *agent) diskSpace() []map[string]string {
+	// between 1-100 gigs, between 0-99 percentage available
+	gigs := rand.Intn(100)
+	gigs++
+	pct := rand.Intn(100)
+	return []map[string]string{
+		{"percent_disk_space_available": strconv.Itoa(gigs), "gigs_disk_space_available": strconv.Itoa(pct)},
+	}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
 	)
 	statusOK := fleet.StatusOK
+	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK
-	case name == hostDetailQueryPrefix+"orbit_info":
-		if ok, results := a.orbitInfo(); ok {
-			return true, results, &statusOK
-		}
-		return true, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -848,6 +845,18 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			}
 		}
 		return true, results, &ss
+	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskSpace()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
+		// Real osquery running on hosts would return no results if it was not
+		// running kubequery (due to discovery query). Returning true here so that
+		// the caller knows it is handled, will not try to return lorem-ipsum-style
+		// results.
+		return true, nil, &statusNotOK
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {

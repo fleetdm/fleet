@@ -5,6 +5,20 @@ export type QueryParams = Record<string, QueryValues>;
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
+interface IMutuallyExclusiveHostParams {
+  label?: string;
+  policyId?: number;
+  policyResponse?: string;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  munkiIssueId?: number;
+  lowDiskSpaceHosts?: number;
+  softwareId?: number;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
+}
+
 const reduceQueryParams = (
   params: string[],
   value: FilteredQueryValues,
@@ -40,18 +54,19 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
   return queryString;
 };
 
-export const reconcileMutuallyExclusiveHostParams = (
-  label?: string,
-  policyId?: number,
-  policyResponse?: string,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string,
-  munkiIssueId?: number,
-  softwareId?: number,
-  osId?: number,
-  osName?: string,
-  osVersion?: string
-): Record<string, unknown> => {
+export const reconcileMutuallyExclusiveHostParams = ({
+  label,
+  policyId,
+  policyResponse,
+  mdmId,
+  mdmEnrollmentStatus,
+  munkiIssueId,
+  lowDiskSpaceHosts,
+  softwareId,
+  osId,
+  osName,
+  osVersion,
+}: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     return {};
   }
@@ -59,7 +74,9 @@ export const reconcileMutuallyExclusiveHostParams = (
     case !!policyId:
       return { policy_id: policyId, policy_response: policyResponse };
     case !!mdmId:
-      return { mdm_id: mdmId, mdm_status: mdmEnrollmentStatus };
+      return { mdm_id: mdmId };
+    case !!mdmEnrollmentStatus:
+      return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
     case !!softwareId:
@@ -68,6 +85,8 @@ export const reconcileMutuallyExclusiveHostParams = (
       return { os_id: osId };
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
+    case !!lowDiskSpaceHosts:
+      return { low_disk_space: lowDiskSpaceHosts };
     default:
       return {};
   }
@@ -81,7 +100,7 @@ export const getStatusParam = (selectedLabels?: string[]) => {
   const status = selectedLabels.find((f) => !f.includes(LABEL_PREFIX));
   if (status === undefined) return undefined;
 
-  const statusFilterList = ["new", "online", "offline"];
+  const statusFilterList = ["new", "online", "offline", "missing"];
   return statusFilterList.includes(status) ? status : undefined;
 };
 

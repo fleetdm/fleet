@@ -31,19 +31,24 @@ const PreviewPayloadModal = ({
     hosts: [
       {
         id: 1,
-        hostname: "macbook-1",
+        display_name: "macbook-1",
         url: "https://fleet.example.com/hosts/1",
       },
       {
         id: 2,
-        hostname: "macbbook-2",
+        display_name: "macbbook-2",
         url: "https://fleet.example.com/hosts/2",
       },
     ],
   };
 
   return (
-    <Modal title={"Example payload"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Example payload"}
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+    >
       <div className={`${baseClass}__preview-modal`}>
         <p>
           Want to learn more about how automations in Fleet work?{" "}

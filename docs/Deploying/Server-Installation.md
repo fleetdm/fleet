@@ -264,8 +264,13 @@ spec:
     spec:
       containers:
       - name: fleet
-        image: fleetdm/fleet:4.20.1
+        image: fleetdm/fleet:4.21.0
         env:
+          # if running Fleet behind external ingress controller that terminates TLS
+          - name: FLEET_SERVER_TLS
+            value: FALSE
+          - name: FLEET_VULNERABILITIES_DATABASES_PATH
+            value: /tmp/vuln
           - name: FLEET_MYSQL_ADDRESS
             valueFrom:
               secretKeyRef:
@@ -291,15 +296,21 @@ spec:
               secretKeyRef:
                 name: fleet_secrets
                 key: redis_address
+        volumeMounts:
+          - name: tmp
+            mountPath: /tmp # /tmp might not work on all cloud providers by default
         resources:
           requests:
             memory: "64Mi"
             cpu: "250m"
           limits:
-            memory: "128Mi"
+            memory: "2048Mi" # vulnerability processing
             cpu: "500m"
         ports:
         - containerPort: 3000
+      volumes:
+        - name: tmp
+          emptyDir:
 
 ```
 Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.

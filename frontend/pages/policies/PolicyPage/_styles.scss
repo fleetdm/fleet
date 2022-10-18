@@ -62,16 +62,17 @@
   }
 
   &__back-link {
+    display: flex;
+    align-items: center;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-
+    height: 20px;
     #back-chevron {
       width: 16px;
       height: 16px;
-      margin-right: $pad-small;
-      vertical-align: text-top;
+      margin: 0 $pad-small 0 0;
     }
   }
 
@@ -146,10 +147,6 @@
     display: flex;
     align-items: center;
 
-    .loading-spinner {
-      margin-left: -12px;
-    }
-
     span {
       font-weight: 700;
     }
@@ -157,6 +154,9 @@
     .icon-tooltip {
       margin-left: $pad-small;
     }
+  }
+  &__count-spinner {
+    margin-right: $pad-small;
   }
   &__page-loading {
     .loading-spinner {

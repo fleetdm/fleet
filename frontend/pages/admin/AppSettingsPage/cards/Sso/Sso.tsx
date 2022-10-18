@@ -16,23 +16,35 @@ import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link
 
 const baseClass = "app-config-form";
 
+interface ISsoFormData {
+  enableSSO?: boolean;
+  idpName?: string;
+  entityID?: string;
+  issuerURI?: string;
+  idpImageURL?: string;
+  metadata?: string;
+  metadataURL?: string;
+  enableSSOIDPLogin?: boolean;
+  enableJITProvisioning?: boolean;
+}
+
 const Sso = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
-    enableSSO: appConfig.sso_settings.enable_sso || false,
-    idpName: appConfig.sso_settings.idp_name || "",
-    entityID: appConfig.sso_settings.entity_id || "",
-    issuerURI: appConfig.sso_settings.issuer_uri || "",
-    idpImageURL: appConfig.sso_settings.idp_image_url || "",
-    metadata: appConfig.sso_settings.metadata || "",
-    metadataURL: appConfig.sso_settings.metadata_url || "",
-    enableSSOIDPLogin: appConfig.sso_settings.enable_sso_idp_login || false,
+  const [formData, setFormData] = useState<ISsoFormData>({
+    enableSSO: appConfig.sso_settings.enable_sso ?? false,
+    idpName: appConfig.sso_settings.idp_name ?? "",
+    entityID: appConfig.sso_settings.entity_id ?? "",
+    issuerURI: appConfig.sso_settings.issuer_uri ?? "",
+    idpImageURL: appConfig.sso_settings.idp_image_url ?? "",
+    metadata: appConfig.sso_settings.metadata ?? "",
+    metadataURL: appConfig.sso_settings.metadata_url ?? "",
+    enableSSOIDPLogin: appConfig.sso_settings.enable_sso_idp_login ?? false,
     enableJITProvisioning:
-      appConfig.sso_settings.enable_jit_provisioning || false,
+      appConfig.sso_settings.enable_jit_provisioning ?? false,
   });
 
   const {
@@ -69,7 +81,7 @@ const Sso = ({
         errors.entity_id = "Entity ID must be present";
       }
 
-      if (entityID.length < 5) {
+      if (typeof entityID === "string" && entityID.length < 5) {
         errors.entity_id = "Entity ID must be 5 or more characters";
       }
 
@@ -91,12 +103,12 @@ const Sso = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       sso_settings: {
-        entity_id: entityID,
-        issuer_uri: issuerURI,
-        idp_image_url: idpImageURL,
-        metadata,
-        metadata_url: metadataURL,
-        idp_name: idpName,
+        entity_id: entityID?.trim(),
+        issuer_uri: issuerURI?.trim(),
+        idp_image_url: idpImageURL?.trim(),
+        metadata: metadata?.trim(),
+        metadata_url: metadataURL?.trim(),
+        idp_name: idpName?.trim(),
         enable_sso: enableSSO,
         enable_sso_idp_login: enableSSOIDPLogin,
         enable_jit_provisioning: enableJITProvisioning,

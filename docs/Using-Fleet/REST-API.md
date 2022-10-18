@@ -1,13 +1,11 @@
 # REST API
 
-- [Overview](#overview)
 - [Authentication](#authentication)
 - [Activities](#activities)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Hosts](#hosts)
 - [Labels](#labels)
-- [Packs](#packs)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule](#schedule)
@@ -18,45 +16,13 @@
 - [Translator](#translator)
 - [Users](#users)
 
-## Overview
+Use the Fleet APIs to automate Fleet.
 
-Fleet is powered by a Go API server which serves three types of endpoints:
-
-- Endpoints starting with `/api/v1/osquery/` are osquery TLS server API endpoints. All of these endpoints are used for talking to osqueryd agents and that's it.
-- Endpoints starting with `/api/v1/fleet/` are endpoints to interact with the Fleet data model (packs, queries, scheduled queries, labels, hosts, etc) as well as application endpoints (configuring settings, logging in, session management, etc).
-- All other endpoints are served by the React single page application bundle.
-  The React app uses React Router to determine whether or not the URI is a valid
-  route and what to do.
-
-### fleetctl
-
-Many of the operations that a user may wish to perform with an API are currently best performed via the [fleetctl](./fleetctl-CLI.md) tooling. These CLI tools allow updating of the osquery configuration entities, as well as performing live queries.
-
-### Current API
-
-The general idea with the current API is that there are many entities throughout the Fleet application, such as:
-
-- Queries
-- Packs
-- Labels
-- Hosts
-
-Each set of objects follows a similar REST access pattern.
-
-- You can `GET /api/v1/fleet/packs` to get all packs
-- You can `GET /api/v1/fleet/packs/1` to get a specific pack.
-- You can `DELETE /api/v1/fleet/packs/1` to delete a specific pack.
-- You can `POST /api/v1/fleet/packs` (with a valid body) to create a new pack.
-- You can `PATCH /api/v1/fleet/packs/1` (with a valid body) to modify a specific pack.
-
-Queries, packs, scheduled queries, labels, invites, users, sessions all behave this way. Some objects, like invites, have additional HTTP methods for additional functionality. Some objects, such as scheduled queries, are merely a relationship between two other objects (in this case, a query and a pack) with some details attached.
-
-All of these objects are put together and distributed to the appropriate osquery agents at the appropriate time. At this time, the best source of truth for the API is the [HTTP handler file](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go) in the Go application. The REST API is exposed via a transport layer on top of an RPC service which is implemented using a micro-service library called [Go Kit](https://github.com/go-kit/kit). If using the Fleet API is important to you right now, being familiar with Go Kit would definitely be helpful.
-
-> [Check out Fleet v3's REST API documentation](https://github.com/fleetdm/fleet/blob/0bd6903b2df084c9c727f281e86dff0cbc2e0c25/docs/1-Using-Fleet/3-REST-API.md), if you're using a version of Fleet below 4.0.0. Warning: Fleet v3's documentation is no longer being maintained.
+This page includes a list of available resources and their API routes.
 
 ## Authentication
 
+- [Retrieve your API token](#retrieve-your-api-token)
 - [Log in](#log-in)
 - [Log out](#log-out)
 - [Forgot password](#forgot-password)
@@ -66,6 +32,8 @@ All of these objects are put together and distributed to the appropriate osquery
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
 - [SSO callback](#sso-callback)
+
+### Retrieve your API token
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
@@ -882,7 +850,8 @@ None.
           ]
         }
       },
-      "overrides": {}
+      "overrides": {},
+      "command_line_flags": {}
     }
   },
   "license": {
@@ -1106,29 +1075,27 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
+    "config": {
+      "options": {
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 10,
+        "distributed_tls_max_attempts": 3
       },
-      "overrides": {}
-    }
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {},
+    "command_line_flags": {}
   },
-    "vulnerability_settings": {
+  "vulnerability_settings": {
     "databases_path": ""
   },
   "webhook_settings": {
@@ -1508,7 +1475,7 @@ Returns a list of the active invitations in Fleet.
       "sso_enabled": false,
       "global_role": "admin",
       "teams": []
-    },
+    }
   ]
 }
 ```
@@ -1726,20 +1693,21 @@ None.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
-| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
-| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
+| os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1797,6 +1765,7 @@ If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "2ceca32fe484",
+      "display_name": "2ceca32fe484",
       "public_ip": "",
       "primary_ip": "",
       "primary_mac": "",
@@ -1866,7 +1835,7 @@ Response payload with the `munki_issue_id` filter provided:
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                 |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
@@ -1875,11 +1844,12 @@ Response payload with the `munki_issue_id` filter provided:
 | os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, mdm or munki filters.                                                                                                                                                                                                                                                                        |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, low_disk_space, mdm or munki filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1915,14 +1885,15 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 #### Parameters
 
-| Name     | Type    | In    | Description                                                                     |
-| -------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id  | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
-| platform | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| Name            | Type    | In    | Description                                                                     |
+| --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
+| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
+| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
-`GET /api/v1/fleet/host_summary?team_id=1`
+`GET /api/v1/fleet/host_summary?team_id=1&low_disk_space=32`
 
 ##### Default response
 
@@ -1935,8 +1906,10 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
+  "missing_30_days_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
+  "low_disk_space_count": 12,
   "builtin_labels": [
     {
       "id": 6,
@@ -1990,23 +1963,13 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "platform": "darwin",
       "hosts_count": 1204
     }
-  ],
+  ]
 }
 ```
 
 ### Get host
 
 Returns the information of the specified host.
-
-The endpoint returns the host's installed `software` if the software inventory feature flag is turned on. This feature flag is turned off by default. [Check out the feature flag documentation](../Deploying/Configuration.md#feature-flags) for instructions on how to turn on the software inventory feature.
-
-All the scheduled queries that are configured to run on the host (and their stats) are returned in
-`pack_stats`. The `pack_stats[i].type` field can have the following values:
-1. `"global"`: identifies the global pack.
-2. `"team-$TEAM_ID"`: identifies a team's pack.
-3. `"pack"`: identifies a user created pack.
-
-If the scheduled queries haven't run on the host yet, the stats have zero values.
 
 `GET /api/v1/fleet/hosts/{id}`
 
@@ -2083,6 +2046,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
+    "display_name": "23cfc9caacf0",
     "public_ip": "",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
@@ -2226,45 +2190,131 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 ```json
 {
   "host": {
-    "created_at": "2020-11-05T05:09:44Z",
-    "updated_at": "2020-11-05T06:03:39Z",
-    "id": 1,
-    "detail_updated_at": "2020-11-05T05:09:45Z",
-    "label_updated_at": "2020-11-05T05:14:51Z",
-    "seen_time": "2020-11-05T06:03:39Z",
-    "hostname": "2ceca32fe484",
+    "created_at": "2022-02-10T02:29:13Z",
+    "updated_at": "2022-10-14T17:07:11Z",
+    "software": [
+      {
+          "id": 16923,
+          "name": "Automat",
+          "version": "0.8.0",
+          "source": "python_packages",
+          "generated_cpe": "",
+          "vulnerabilities": null
+      }
+    ],
+    "id": 33,
+    "detail_updated_at": "2022-10-14T17:07:12Z",
+    "label_updated_at": "2022-10-14T17:07:12Z",
+    "policy_updated_at": "2022-10-14T17:07:12Z",
+    "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "seen_time": "2022-10-14T17:45:41Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-    "platform": "centos",
-    "osquery_version": "2.7.0",
-    "os_version": "CentOS Linux 7",
+    "platform": "ubuntu",
+    "osquery_version": "5.5.1",
+    "os_version": "Ubuntu 20.04.3 LTS",
     "build": "",
-    "platform_like": "rhel fedora",
-    "code_name": "",
-    "uptime": 8305000000000,
-    "memory": 2084032512,
-    "cpu_type": "6",
-    "cpu_subtype": "142",
-    "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-    "cpu_physical_cores": 4,
-    "cpu_logical_cores": 4,
+    "platform_like": "debian",
+    "code_name": "focal",
+    "uptime": 20807520000000000,
+    "memory": 1024360448,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "63",
+    "cpu_brand": "DO-Regular",
+    "cpu_physical_cores": 1,
+    "cpu_logical_cores": 1,
     "hardware_vendor": "",
     "hardware_model": "",
     "hardware_version": "",
     "hardware_serial": "",
-    "computer_name": "2ceca32fe484",
-    "primary_ip": "",
-    "primary_mac": "",
+    "computer_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
     "distributed_interval": 10,
-    "config_tls_refresh": 10,
-    "logger_tls_period": 8,
-    "additional": {},
-    "status": "offline",
-    "display_text": "2ceca32fe484",
-    "team_id": null,
+    "config_tls_refresh": 60,
+    "logger_tls_period": 10,
+    "team_id": 2,
+    "pack_stats": [
+      {
+        "pack_id": 1,
+        "pack_name": "Global",
+        "type": "global",
+        "query_stats": [
+          {
+            "scheduled_query_name": "Get running processes (with user_name)",
+            "scheduled_query_id": 49,
+            "query_name": "Get running processes (with user_name)",
+            "pack_name": "Global",
+            "pack_id": 1,
+            "average_memory": 260000,
+            "denylisted": false,
+            "executions": 1,
+            "interval": 86400,
+            "last_executed": "2022-10-14T10:00:01Z",
+            "output_size": 198,
+            "system_time": 20,
+            "user_time": 80,
+            "wall_time": 0
+          }
+        ]
+      }
+    ],
     "team_name": null,
-    "gigs_disk_space_available": 45.86,
-    "percent_disk_space_available": 73,
-    "pack_stats": null,
+    "gigs_disk_space_available": 19.29,
+    "percent_disk_space_available": 74,
+    "issues": {
+        "total_issues_count": 0,
+        "failing_policies_count": 0
+    },
+    "labels": [
+            {
+            "created_at": "2021-09-14T05:11:02Z",
+            "updated_at": "2021-09-14T05:11:02Z",
+            "id": 12,
+            "name": "All Linux",
+            "description": "All Linux distributions",
+            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+            "platform": "",
+            "label_type": "builtin",
+            "label_membership_type": "dynamic"
+        },
+    ],
+    "packs": [
+          {
+            "created_at": "2021-09-17T05:28:54Z",
+            "updated_at": "2021-09-17T05:28:54Z",
+            "id": 1,
+            "name": "Global",
+            "description": "Global pack",
+            "disabled": false,
+            "type": "global",
+            "labels": null,
+            "label_ids": null,
+            "hosts": null,
+            "host_ids": null,
+            "teams": null,
+            "team_ids": null
+        }
+    ],
+    "policies": [
+      {
+            "id": 142,
+            "name": "Full disk encryption enabled (macOS)",
+            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+            "author_id": 31,
+            "author_name": "",
+            "author_email": "",
+            "team_id": null,
+            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+            "platform": "darwin,linux",
+            "created_at": "2022-09-02T18:52:19Z",
+            "updated_at": "2022-09-02T18:52:19Z",
+            "response": "fail"
+        },
+    ],
     "batteries": [
       {
         "cycle_count": 999,
@@ -2278,7 +2328,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
-    }
+    },
+    "status": "online",
+    "display_text": "dogfood-ubuntu-box",
+    "display_name": "dogfood-ubuntu-box"
   }
 }
 ```
@@ -2369,7 +2422,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. |
+| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. |
 
 #### Example
 
@@ -2399,7 +2452,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
-| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
 
 Either ids or filters are required.
 
@@ -2702,7 +2755,7 @@ Retrieves the aggregated host OS versions information.
       "version": "16.4.0 LTS",
       "platform": "ubuntu",
       "os_id": 6
-    },
+    }
   ]
 }
 ```
@@ -2722,7 +2775,7 @@ requested by a web browser.
 | columns                 | string  | query | Comma-delimited list of columns to include in the report (returns all columns if none is specified).                                                                                                                                                                                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
@@ -2924,32 +2977,32 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "label_type": "builtin",
-    },
+      "label_type": "builtin"
+    }
   ]
 }
 ```
@@ -3049,7 +3102,7 @@ Returns a list of all the labels in Fleet.
       "display_text": "MS Windows",
       "count": 0,
       "host_ids": null
-    },
+    }
   ]
 }
 ```
@@ -3067,7 +3120,7 @@ Returns a list of the hosts that belong to the specified label.
 | id              | integer | path  | **Required**. The label's id.                                                                                                 |
 | order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
+| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                    |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
 | team_id         | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                   |
 
@@ -3111,6 +3164,7 @@ Returns a list of the hosts that belong to the specified label.
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "e2e7f8d8983d",
+      "display_name": "e2e7f8d8983d",
       "primary_ip": "172.20.0.2",
       "primary_mac": "02:42:ac:14:00:02",
       "distributed_interval": 10,
@@ -3121,7 +3175,7 @@ Returns a list of the hosts that belong to the specified label.
       "team_name": null,
       "status": "offline",
       "display_text": "e2e7f8d8983d"
-    },
+    }
   ]
 }
 ```
@@ -3162,507 +3216,6 @@ Deletes the label specified by ID.
 #### Example
 
 `DELETE /api/v1/fleet/labels/id/13`
-
-##### Default response
-
-`Status: 200`
-
----
-
-## Packs
-
-- [Create pack](#create-pack)
-- [Modify pack](#modify-pack)
-- [Get pack](#get-pack)
-- [List packs](#list-packs)
-- [Delete pack](#delete-pack)
-- [Delete pack by ID](#delete-pack-by-id)
-- [Get scheduled queries in a pack](#get-scheduled-queries-in-a-pack)
-- [Add scheduled query to a pack](#add-scheduled-query-to-a-pack)
-- [Get scheduled query](#get-scheduled-query)
-- [Modify scheduled query](#modify-scheduled-query)
-- [Delete scheduled query](#delete-scheduled-query)
-
-### Create pack
-
-`POST /api/v1/fleet/packs`
-
-#### Parameters
-
-| Name        | Type   | In   | Description                                                             |
-| ----------- | ------ | ---- | ----------------------------------------------------------------------- |
-| name        | string | body | **Required**. The pack's name.                                          |
-| description | string | body | The pack's description.                                                 |
-| host_ids    | list   | body | A list containing the targeted host IDs.                                |
-| label_ids   | list   | body | A list containing the targeted label's IDs.                             |
-| team_ids    | list   | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
-
-#### Example
-
-`POST /api/v1/fleet/packs`
-
-##### Request query parameters
-
-```json
-{
-  "description": "Collects osquery data.",
-  "host_ids": [],
-  "label_ids": [6],
-  "name": "query_pack_1"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 17,
-    "name": "query_pack_1",
-    "description": "Collects osquery data.",
-    "query_count": 0,
-    "total_hosts_count": 223,
-    "host_ids": [],
-    "label_ids": [
-      6
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### Modify pack
-
-`PATCH /api/v1/fleet/packs/{id}`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                                                             |
-| ----------- | ------- | ---- | ----------------------------------------------------------------------- |
-| id          | integer | path | **Required.** The pack's id.                                            |
-| name        | string  | body | The pack's name.                                                        |
-| description | string  | body | The pack's description.                                                 |
-| host_ids    | list    | body | A list containing the targeted host IDs.                                |
-| label_ids   | list    | body | A list containing the targeted label's IDs.                             |
-| team_ids    | list    | body | _Available in Fleet Premium_ A list containing the targeted teams' IDs. |
-
-#### Example
-
-`PATCH /api/v1/fleet/packs/{id}`
-
-##### Request query parameters
-
-```json
-{
-  "description": "MacOS hosts are targeted",
-  "host_ids": [],
-  "label_ids": [7]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "2021-01-25T22:32:45Z",
-    "updated_at": "2021-01-25T22:32:45Z",
-    "id": 17,
-    "name": "Title2",
-    "description": "MacOS hosts are targeted",
-    "query_count": 0,
-    "total_hosts_count": 110,
-    "host_ids": [],
-    "label_ids": [
-      7
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### Get pack
-
-`GET /api/v1/fleet/packs/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's id. |
-
-#### Example
-
-`GET /api/v1/fleet/packs/17`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "pack": {
-    "created_at": "2021-01-25T22:32:45Z",
-    "updated_at": "2021-01-25T22:32:45Z",
-    "id": 17,
-    "name": "Title2",
-    "description": "MacOS hosts are targeted",
-    "disabled": false,
-    "type": null,
-    "query_count": 0,
-    "total_hosts_count": 110,
-    "host_ids": [],
-    "label_ids": [
-      7
-    ],
-    "team_ids": []
-  }
-}
-```
-
-### List packs
-
-`GET /api/v1/fleet/packs`
-
-#### Parameters
-
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string | query | What to order results by. Can be any column in the packs table.                                                               |
-| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-
-#### Example
-
-`GET /api/v1/fleet/packs`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "packs": [
-    {
-      "created_at": "2021-01-05T21:13:04Z",
-      "updated_at": "2021-01-07T19:12:54Z",
-      "id": 1,
-      "name": "pack_number_one",
-      "description": "This pack has a description",
-      "disabled": true,
-      "query_count": 1,
-      "total_hosts_count": 53,
-      "host_ids": [],
-      "label_ids": [
-        8
-      ],
-      "team_ids": [],
-    },
-    {
-      "created_at": "2021-01-19T17:08:31Z",
-      "updated_at": "2021-01-19T17:08:31Z",
-      "id": 2,
-      "name": "query_pack_2",
-      "query_count": 5,
-      "total_hosts_count": 223,
-      "host_ids": [],
-      "label_ids": [
-        6
-      ],
-      "team_ids": []
-    },
-  ]
-}
-```
-
-### Delete pack
-
-Delete pack by name.
-
-`DELETE /api/v1/fleet/packs/{name}`
-
-#### Parameters
-
-| Name | Type   | In   | Description                    |
-| ---- | ------ | ---- | ------------------------------ |
-| name | string | path | **Required.** The pack's name. |
-
-#### Example
-
-`DELETE /api/v1/fleet/packs/pack_number_one`
-
-##### Default response
-
-`Status: 200`
-
-
-### Delete pack by ID
-
-`DELETE /api/v1/fleet/packs/id/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/packs/id/1`
-
-##### Default response
-
-`Status: 200`
-
-
-### Get scheduled queries in a pack
-
-`GET /api/v1/fleet/packs/{id}/scheduled`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required.** The pack's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/packs/1/scheduled`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": [
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 49,
-      "pack_id": 15,
-      "name": "new_query",
-      "query_id": 289,
-      "query_name": "new_query",
-      "query": "SELECT * FROM osquery_info",
-      "interval": 456,
-      "snapshot": false,
-      "removed": true,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 50,
-      "pack_id": 15,
-      "name": "new_title_for_my_query",
-      "query_id": 288,
-      "query_name": "new_title_for_my_query",
-      "query": "SELECT * FROM osquery_info",
-      "interval": 677,
-      "snapshot": true,
-      "removed": false,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 51,
-      "pack_id": 15,
-      "name": "osquery_info",
-      "query_id": 22,
-      "query_name": "osquery_info",
-      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
-      "interval": 6667,
-      "snapshot": true,
-      "removed": false,
-      "platform": "windows",
-      "version": "4.6.0",
-      "shard": null,
-      "denylist": null
-    }
-  ]
-}
-```
-
-### Add scheduled query to a pack
-
-`POST /api/v1/fleet/schedule`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| pack_id  | integer | body | **Required.** The pack's ID.                                                                                  |
-| query_id | integer | body | **Required.** The query's ID.                                                                                 |
-| interval | integer | body | **Required.** The amount of time, in seconds, the query waits before running.                                 |
-| snapshot | boolean | body | **Required.** Whether the queries logs show everything in its current state.                                  |
-| removed  | boolean | body | **Required.** Whether "removed" actions should be logged.                                                     |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`POST /api/v1/fleet/schedule`
-
-#### Request body
-
-```json
-{
-  "interval": 120,
-  "pack_id": 15,
-  "query_id": 23,
-  "removed": true,
-  "shard": null,
-  "snapshot": false,
-  "version": "4.5.0",
-  "platform": "windows"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "windows",
-    "version": "4.5.0",
-    "shard": 10
-  }
-}
-```
-
-### Get scheduled query
-
-`GET /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`GET /api/v1/fleet/schedule/56`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "windows",
-    "version": "4.5.0",
-    "shard": 10,
-    "denylist": null
-  }
-}
-```
-
-### Modify scheduled query
-
-`PATCH /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                   |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id       | integer | path | **Required.** The scheduled query's ID.                                                                       |
-| interval | integer | body | The amount of time, in seconds, the query waits before running.                                               |
-| snapshot | boolean | body | Whether the queries logs show everything in its current state.                                                |
-| removed  | boolean | body | Whether "removed" actions should be logged.                                                                   |
-| platform | string  | body | The computer platform where this query will run (other platforms ignored). Empty value runs on all platforms. |
-| shard    | integer | body | Restrict this query to a percentage (1-100) of target hosts.                                                  |
-| version  | string  | body | The minimum required osqueryd version installed on a host.                                                    |
-
-#### Example
-
-`PATCH /api/v1/fleet/schedule/56`
-
-#### Request body
-
-```json
-{
-  "platform": ""
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scheduled": {
-    "created_at": "2021-01-28T19:40:04Z",
-    "updated_at": "2021-01-28T19:40:04Z",
-    "id": 56,
-    "pack_id": 17,
-    "name": "osquery_events",
-    "query_id": 23,
-    "query_name": "osquery_events",
-    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
-    "interval": 120,
-    "snapshot": false,
-    "removed": true,
-    "platform": "",
-    "version": "4.5.0",
-    "shard": 10
-  }
-}
-```
-
-### Delete scheduled query
-
-`DELETE /api/v1/fleet/schedule/{id}`
-
-#### Parameters
-
-| Name | Type    | In   | Description                             |
-| ---- | ------- | ---- | --------------------------------------- |
-| id   | integer | path | **Required.** The scheduled query's ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/schedule/56`
 
 ##### Default response
 
@@ -4041,6 +3594,24 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
+  ],
+  "inherited_policies": [
+    {
+      "id": 136,
+      "name": "Arbitrary Test Policy (all platforms) (all teams)",
+      "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
+      "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
+      "author_id": 77,
+      "author_name": "Test Admin",
+      "author_email": "test@admin.com",
+      "team_id": null,
+      "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
+      "platform": "darwin,windows,linux",
+      "created_at": "2022-08-04T19:30:18Z",
+      "updated_at": "2022-08-30T15:08:26Z",
+      "passing_host_count": 10,
+      "failing_host_count": 9
+    }
   ]
 }
 ```
@@ -4376,8 +3947,8 @@ Returns a list of all queries in the Fleet instance.
         "disabled": false
       }
     ]
-  },
-]
+  }
+]}
 ```
 
 ### Create query
@@ -4648,11 +4219,9 @@ load balancer timeout.
 - [Edit query in schedule](#edit-query-in-schedule)
 - [Remove query from schedule](#remove-query-from-schedule)
 
-`In Fleet 4.1.0, the Schedule feature was introduced.`
+Scheduling queries in Fleet is the best practice for collecting data from hosts.
 
-Fleet’s query schedule lets you add queries which are executed on your devices at regular intervals.
-
-For those familiar with osquery query packs, Fleet's query schedule can be thought of as a query pack built into Fleet. Instead of creating a query pack and then adding queries, just add queries to Fleet's query schedule to start running them against all your devices.
+These API routes let you control your scheduled queries.
 
 ### Get schedule
 
@@ -4781,7 +4350,7 @@ None.
 }
 ```
 
-> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses osquery query packs under the hood.
+> Note that the `pack_id` is included in the response object because Fleet's Schedule feature uses [osquery query packs](https://osquery.readthedocs.io/en/stable/deployment/configuration/#query-packs) under the hood.
 
 ### Edit query in schedule
 
@@ -5285,6 +4854,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "7a2f41482833",
+        "display_name": "7a2f41482833",
         "primary_ip": "172.20.0.3",
         "primary_mac": "02:42:ac:14:00:03",
         "distributed_interval": 10,
@@ -5322,6 +4892,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "78c96e72746c",
+        "display_name": "78c96e72746c",
         "primary_ip": "172.20.0.7",
         "primary_mac": "02:42:ac:14:00:07",
         "distributed_interval": 10,
@@ -5430,7 +5001,8 @@ _Available in Fleet Premium_
             ]
           }
         },
-        "overrides": {}
+        "overrides": {},
+        "command_line_flags": {}
       },
       "user_count": 0,
       "host_count": 0,
@@ -5467,7 +5039,8 @@ _Available in Fleet Premium_
               ]
             }
           },
-          "overrides": {}
+          "overrides": {},
+          "command_line_flags": {}
         },
         "user_count": 0,
         "host_count": 0,
@@ -5509,32 +5082,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5582,32 +5152,29 @@ _Available in Fleet Premium_
     {
       "name": "workstations",
       "id": 1,
-      "user_ids": [],
-      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
       "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
           },
-          "overrides": {}
-        }
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {},
+        "command_line_flags": {}
       },
       "webhook_settings": {
         "failing_policies_webhook": {
@@ -5673,32 +5240,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5733,32 +5297,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5795,25 +5356,26 @@ _Available in Fleet Premium_
 
 ```json
 {
-	"config": {
-		"options": {
-			"logger_plugin": "tls",
-			"pack_delimiter": "/",
-			"logger_tls_period": 20,
-			"distributed_plugin": "tls",
-			"disable_distributed": false,
-			"logger_tls_endpoint": "/api/v1/osquery/log",
-			"distributed_interval": 60,
-			"distributed_tls_max_attempts": 3
-		},
-		"decorators": {
-			"load": [
-				"SELECT uuid AS host_uuid FROM system_info;",
-				"SELECT hostname AS hostname FROM system_info;"
-			]
-		}
-	},
-	"overrides": {}
+  "config": {
+    "options": {
+      "logger_plugin": "tls",
+      "pack_delimiter": "/",
+      "logger_tls_period": 20,
+      "distributed_plugin": "tls",
+      "disable_distributed": false,
+      "logger_tls_endpoint": "/api/v1/osquery/log",
+      "distributed_interval": 60,
+      "distributed_tls_max_attempts": 3
+    },
+    "decorators": {
+      "load": [
+        "SELECT uuid AS host_uuid FROM system_info;",
+        "SELECT hostname AS hostname FROM system_info;"
+      ]
+    }
+  },
+  "overrides": {},
+  "command_line_flags": {}
 }
 ```
 
@@ -5826,32 +5388,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 20,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 60,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 20,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 60,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5935,7 +5494,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
       "payload": {
         "identifier": "host-ABC"
       }
-    },
+    }
   ]
 }
 ```
@@ -6223,7 +5782,7 @@ By default, the user will be forced to reset its password upon first login.
     {
       "id": 3,
       "role": "maintainer"
-    },
+    }
   ]
 }
 ```
@@ -6254,7 +5813,7 @@ By default, the user will be forced to reset its password upon first login.
       {
         "id": 3,
         "role": "maintainer"
-      },
+      }
     ]
   }
 }
@@ -6438,7 +5997,7 @@ Returns all information about a specific user.
       {
         "id": 3,
         "role": "maintainer"
-      },
+      }
     ]
   }
 }

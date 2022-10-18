@@ -60,7 +60,7 @@ func (u UserTeam) MarshalJSON() ([]byte, error) {
 		UserCount int             `json:"user_count"`
 		Users     []TeamUser      `json:"users,omitempty"`
 		HostCount int             `json:"host_count"`
-		Hosts     []Host          `json:"hosts,omitempty"`
+		Hosts     []HostResponse  `json:"hosts,omitempty"`
 		Secrets   []*EnrollSecret `json:"secrets,omitempty"`
 		Role      string          `json:"role"`
 	}{
@@ -72,7 +72,7 @@ func (u UserTeam) MarshalJSON() ([]byte, error) {
 		UserCount:   u.UserCount,
 		Users:       u.Users,
 		HostCount:   u.HostCount,
-		Hosts:       u.Hosts,
+		Hosts:       HostResponsesForHostsCheap(u.Hosts),
 		Secrets:     u.Secrets,
 		Role:        u.Role,
 	}
@@ -199,6 +199,8 @@ func (p *UserPayload) verifyCreateShared(invalid *InvalidArgumentError) {
 		invalid.Append("email", "Email missing required argument")
 	} else if *p.Email == "" {
 		invalid.Append("email", "Email cannot be empty")
+	} else if err := ValidateEmail(*p.Email); err != nil {
+		invalid.Append("email", err.Error())
 	}
 }
 
@@ -342,16 +344,14 @@ func ValidatePasswordRequirements(password string) error {
 //
 // 1. We're able to parse the address
 // 2. The parsed address is equal to the provided address
-//
-// TODO: see issue #7199, we should use this logic for all user-creation flows
 func ValidateEmail(email string) error {
 	addr, err := mail.ParseAddress(email)
 	if err != nil {
-		return fmt.Errorf("Invalid email address: %e", err)
+		return err
 	}
 
 	if addr.Address != email {
-		return errors.New("Invalid email address")
+		return errors.New("Email is invalid")
 	}
 
 	return nil

@@ -13,7 +13,6 @@ func init() {
 
 func Up_20220704101843(tx *sql.Tx) error {
 	if !columnExists(tx, "software_cve", "software_id") {
-		logger.Info.Println("Adding software_id column to software_cve table...")
 
 		_, err := tx.Exec(`
 	ALTER TABLE software_cve ADD COLUMN software_id bigint(20) UNSIGNED NULL, ALGORITHM=INPLACE, LOCK=NONE;
@@ -21,11 +20,8 @@ func Up_20220704101843(tx *sql.Tx) error {
 		if err != nil {
 			return errors.Wrapf(err, "adding software_id to software_cve")
 		}
-		logger.Info.Println("Done adding software_id column to software_cve table...")
 
 	}
-
-	logger.Info.Println("Updating software_id column in software_cve table...")
 
 	var min int
 	var max int
@@ -46,9 +42,7 @@ INNER JOIN software_cpe AS cpe ON cve.cpe_id = cpe.id
 SET cve.software_id = cpe.software_id 
 WHERE cve.software_id IS NULL AND cve.id >= ? AND cve.id < ?;`
 
-	if min == 0 && max == 0 {
-		logger.Info.Println("Nothing to update ...")
-	} else {
+	if min != 0 || max != 0 {
 		fmt.Printf("Updating aprox %d records... \n", max-min)
 	}
 
@@ -70,17 +64,12 @@ WHERE cve.software_id IS NULL AND cve.id >= ? AND cve.id < ?;`
 		}
 	}
 
-	logger.Info.Println("Done updating 'software_id'...")
-	logger.Info.Println("Adding index to 'software_id'...")
-
 	const indexStmt = `
 ALTER TABLE software_cve ADD INDEX software_cve_software_id (software_id), ALGORITHM=INPLACE, LOCK=NONE;`
 	_, err := tx.Exec(indexStmt)
 	if err != nil {
 		return errors.Wrapf(err, "adding index to software_id on software_cve table")
 	}
-
-	logger.Info.Println("Done adding index to 'software_id'...")
 
 	return nil
 }

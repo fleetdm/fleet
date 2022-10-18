@@ -294,14 +294,11 @@ $base-class: "button";
     padding: 0;
     height: auto;
     line-height: normal;
+    font-weight: normal;
 
     &:active {
       box-shadow: none;
       top: 0;
-    }
-
-    &:focus {
-      outline: none;
     }
   }
 
