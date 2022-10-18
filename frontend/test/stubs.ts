@@ -104,6 +104,7 @@ export const hostStub = {
   primary_ip: "172.19.0.8",
   primary_mac: "02:42:ac:13:00:08",
   status: "online",
+  display_name: "52883a0ba916",
   display_text: "52883a0ba916",
   target_type: "hosts",
 };
@@ -229,7 +230,7 @@ const queryResultStub = {
   gid: "0",
   gid_signed: "0",
   groupname: "root",
-  host_hostname: hostStub.hostname,
+  host_display_name: hostStub.display_name,
 };
 
 export const campaignStub = {
