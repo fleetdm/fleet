@@ -16,6 +16,7 @@ on:
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - '.github/workflows/fleetctl-preview-latest.yml'
   pull_request:
     paths:
       - 'cmd/fleetctl/**.go'
@@ -25,6 +26,7 @@ on:
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - '.github/workflows/fleetctl-preview-latest.yml'
   workflow_dispatch: # Manual
 
 permissions:
@@ -41,22 +43,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
-    # Docker needs to be installed manually on macOS.
-    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
-    - name: Install Docker
-      timeout-minutes: 20
+    - name: Start colima
+      timeout-minutes: 5
       if: contains(matrix.os, 'macos')
-      run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
+      run: colima start
 
     - name: Install Go
       uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
