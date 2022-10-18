@@ -13,4 +13,4 @@
 
 
 <meta name="maintainedBy" value="timmy-k">
-<meta name="title" value="🫧 Customers">
+<meta name="title" value="🫧 Marketing">
