@@ -27,15 +27,6 @@ const TruncatedTextCell = ({
   const id = uuidv4();
   const tooltipDisabled = offsetWidth === scrollWidth;
 
-  const styles = () => ({
-    overrideMe: {
-      width: "100px",
-      "word-break": "break-all",
-      "overflow-wrap": "break-word",
-      display: "block",
-    },
-  });
-
   return (
     <div ref={ref} className={`${classes}`}>
       <div
