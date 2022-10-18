@@ -1839,10 +1839,19 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 		switch {
 		case i <= 2:
 			expectedID = &team1.ID
+			assert.True(t, host.RefetchRequested)
 		case i <= 5:
 			expectedID = &team2.ID
+			assert.True(t, host.RefetchRequested)
+		default:
+			assert.False(t, host.RefetchRequested)
 		}
 		assert.Equal(t, expectedID, host.TeamID)
+	}
+
+	// clear refetch requests
+	if _, err := ds.writer.ExecContext(context.Background(), `UPDATE hosts SET refetch_requested = 0 WHERE id IN (1,2,3,4,5,6,7,8,9,10)`); err != nil {
+		require.NoError(t, err)
 	}
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), nil, []uint{1, 2, 3, 4}))
@@ -1857,6 +1866,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 			expectedID = &team1.ID
 		}
 		assert.Equal(t, expectedID, host.TeamID)
+		assert.True(t, host.RefetchRequested)
 	}
 }
 

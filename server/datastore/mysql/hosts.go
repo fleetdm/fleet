@@ -1455,7 +1455,7 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 
-		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ?, refetch_requested = 1 WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
 		}
