@@ -442,7 +442,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "Checks if unencrypted SSH keys are present on the system.",
     resolution:
-      "Remove SSH keys that are not necessary, and encrypt those that are. On Mac and Linux, this command will encrypt the key: Use this command to encrypt your existing SSH keys: ssh-keygen -o -p -f keyfile",
+      "Remove SSH keys that are not necessary, and encrypt those that are. On Mac and Linux, use this command to encrypt your existing SSH keys: ssh-keygen -o -p -f path/to/keyfile",
     platform: "darwin",
   },
   {
