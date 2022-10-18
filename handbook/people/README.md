@@ -605,10 +605,10 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
 | OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
+| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to Mike Mcneil and Alex Mitchell in the #help-sales channel and follow up with customers as necessary to resolve. | Nathanael Holliday |
 | Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB | Nathanael Holliday |
 | QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records | Nathanael Holliday | 
 | BizOps key review | every three weeks | Every release cycle a key review deck is prepared and presented | Nathanael Holliday |
-
 
 
 ## Slack channels
