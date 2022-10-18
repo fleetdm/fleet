@@ -162,7 +162,6 @@ When the query is done (or you have enough results), CTRL-C and look at the `res
       "config_hash": "d7cafcd183cc50c686b4c128263bd4eace5d89e1",
       "config_valid": "1",
       "extensions": "active",
-      "host_hostname": "marpaia",
       "host_display_name": "marpaia",
       "instance_id": "37840766-7182-4a68-a204-c7f577bd71e1",
       "pid": "22984",
