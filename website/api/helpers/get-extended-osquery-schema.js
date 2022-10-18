@@ -31,7 +31,7 @@ module.exports = {
 
     let filesInTablesFolder = await sails.helpers.fs.ls(path.resolve(topLvlRepoPath+'/schema/tables'));
 
-    let yamlSchemaInTablesFolder = filesInTablesFolder.filter((filename)=>{return _.endsWith(filename, '.yml')});
+    let yamlSchemaInTablesFolder = filesInTablesFolder.filter((filename)=>{return _.endsWith(filename, '.yml');});
 
     for(let yamlSchema of yamlSchemaInTablesFolder) {
       let tableYaml = await sails.helpers.fs.read(yamlSchema);
@@ -43,7 +43,7 @@ module.exports = {
       }
       if(parsedYamlTable.name) {
         if(typeof parsedYamlTable.name !== 'string') {
-          throw new Error(`Could not merge osquery schema with Fleet overrides. A table in the Fleet overrides schema has an invalid "name" (Expected a string, but instead got a ${typeof parsedYamlTable.name}. To resolve, change the "name" of the table located at ${yamlSchema} to be a string.`)
+          throw new Error(`Could not merge osquery schema with Fleet overrides. A table in the Fleet overrides schema has an invalid "name" (Expected a string, but instead got a ${typeof parsedYamlTable.name}. To resolve, change the "name" of the table located at ${yamlSchema} to be a string.`);
         }
         fleetOverridesForTables.push(parsedYamlTable);
       } else { // Throw an error if a Fleet override table is missing a "name".
@@ -155,11 +155,11 @@ module.exports = {
         // Now iterate through the columns in the Fleet overrides, adding any columns that doesnt exist in the base osquery schema.
         if(fleetOverridesForTable.columns) {
           if(!_.isArray(fleetOverridesForTable.columns)){
-            throw new Error(`The osquery schema could not be merged with the Fleet overrrides. The "${fleetOverridesForTable.name}" table in Fleet's overrides has an invalid "columns". To resolve, change the "columns" to be an array of objects (each containing values for "name", "type", "description" and "required" properties), and try running the script again.`)
+            throw new Error(`The osquery schema could not be merged with the Fleet overrrides. The "${fleetOverridesForTable.name}" table in Fleet's overrides has an invalid "columns". To resolve, change the "columns" to be an array of objects (each containing values for "name", "type", "description" and "required" properties), and try running the script again.`);
           }
           for(let fleetOverrideColumn of fleetOverridesForTable.columns) {
             if(!fleetOverrideColumn.name) {
-              throw new Error(`The osquery schema could not be merged with the Fleet overrides. A column in the "${fleetOverridesForTable.name}" is missing a "name". To resolve, make sure every column in /schema/tables/${fleetOverridesForTable.name}.yml has a "name" property`)
+              throw new Error(`The osquery schema could not be merged with the Fleet overrides. A column in the "${fleetOverridesForTable.name}" is missing a "name". To resolve, make sure every column in /schema/tables/${fleetOverridesForTable.name}.yml has a "name" property`);
             }
             let columnExistsInBothSchemas = _.find(osquerySchemaTable.columns, {'name': fleetOverrideColumn.name});
             if(!columnExistsInBothSchemas) {
@@ -223,7 +223,7 @@ module.exports = {
         if(fleetOverrideToPush.evented === undefined) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'evented' value. To resolve, add an evented value to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} .\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
         } else if(typeof fleetOverrideToPush.evented !== 'boolean') {
-          throw new Error(`Could not add a new table from the Fleet overrides to the final merged schema. The "${fleetOverrideToPush.name}" table has an invalid "evented" value. (expected a boolean, but instead got a ${typeof fleetOverrideToPush.evented}) To resolve, change the "evented" value for this table to be true or false, then try running this script again.`)
+          throw new Error(`Could not add a new table from the Fleet overrides to the final merged schema. The "${fleetOverrideToPush.name}" table has an invalid "evented" value. (expected a boolean, but instead got a ${typeof fleetOverrideToPush.evented}) To resolve, change the "evented" value for this table to be true or false, then try running this script again.`);
         }
         if(!fleetOverrideToPush.columns) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema. The "${fleetOverrideToPush.name}" table is missing a "columns" value. To resolve, add an array of columns to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
@@ -241,13 +241,13 @@ module.exports = {
             if(!columnToValidate.type) {
               throw new Error(`Could not add a new table from the Fleet overrides schema. The "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table is missing a "type". To resolve add a "type" to the "${columnToValidate.name}" column at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}.`);
             } else if(typeof columnToValidate.type !== 'string') {
-              throw new Error(`Could not add a table from the Fleet overrides schema. The "type" of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid value. (expected a string, but got a ${typeof fleetOverrideColumn.type}) To resolve, change the value of the column's "type" be a string.`);
+              throw new Error(`Could not add a table from the Fleet overrides schema. The "type" of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid value. (expected a string, but got a ${typeof columnToValidate.type}) To resolve, change the value of the column's "type" be a string.`);
             }//•
 
             if(!columnToValidate.description) {
               throw new Error(`Could not add a new table from the Fleet overrides schema. The "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table is missing a "description". To resolve add a "description" property to the "${columnToValidate.name}" column at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}`);
             } else if (typeof columnToValidate.description !== 'string') {
-                throw new Error(`Could not add a table from the Fleet overrides schema. The "description" property of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid "description" value. To resolve, change the "description" property of the added column to be a string.`);
+              throw new Error(`Could not add a table from the Fleet overrides schema. The "description" property of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid "description" value. To resolve, change the "description" property of the added column to be a string.`);
             }//•
 
             if(columnToValidate.required === 'undefined') {
