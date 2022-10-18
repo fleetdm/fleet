@@ -35,6 +35,8 @@ var jiraTemplates = struct {
 	// for some reference. The `\\` marks force a newline to have the desired spacing
 	// around the scores, when present.
 	VulnDescription: template.Must(template.New("").Funcs(template.FuncMap{
+		// CISAKnownExploit is *bool, so any condition check on it in the template
+		// will test if nil or not, and not its actual boolean value. Hence, "deref".
 		"deref": func(b *bool) bool { return *b },
 	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].

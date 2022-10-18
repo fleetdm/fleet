@@ -30,8 +30,25 @@ var zendeskTemplates = struct {
 		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 	)),
 
-	VulnDescription: template.Must(template.New("").Parse(
+	// Zendesk uses markdown for formatting. Some reference documentation about
+	// it can be found here:
+	// https://support.zendesk.com/hc/en-us/articles/4408846544922-Formatting-text-with-Markdown
+	VulnDescription: template.Must(template.New("").Funcs(template.FuncMap{
+		// CISAKnownExploit is *bool, so any condition check on it in the template
+		// will test if nil or not, and not its actual boolean value. Hence, "deref".
+		"deref": func(b *bool) bool { return *b },
+	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}]({{ .NVDURL }}{{ .CVE }}).
+
+{{ if .EPSSProbability }}
+&nbsp;
+Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/)): {{ .EPSSProbability }}
+{{ end }}
+{{ if .CVSSScore }}CVSS score (reported by [NVD](https://nvd.nist.gov/)): {{ .CVSSScore }}
+{{ end }}
+{{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+&nbsp;
+{{ end }}
 
 Affected hosts:
 
