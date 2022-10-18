@@ -51,7 +51,7 @@ const TruncatedTextCell = ({
         backgroundColor="#3e4771"
         id={id}
         data-html
-        className={"tooltip"}
+        className={"truncated-tooltip"} // responsive widths
       >
         {value}
       </ReactTooltip>

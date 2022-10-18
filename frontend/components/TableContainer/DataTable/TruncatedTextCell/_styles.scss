@@ -12,6 +12,10 @@
       display: inline-block;
       max-width: 100%;
 
+      &:hover {
+        cursor: help;
+      }
+
       // Removes secondary unstyled tooltip created by browser
       &::after {
         content: "";
@@ -21,7 +25,7 @@
   }
 
   // Responsive design overrides react-tooltip width that overflows off screen
-  .tooltip {
+  .truncated-tooltip {
     max-width: 300px;
     word-break: break-all;
     overflow-wrap: break-word;
@@ -30,13 +34,13 @@
   }
 
   @media (min-width: $break-990) {
-    .tooltip {
+    .truncated-tooltip {
       max-width: 400px;
     }
   }
 
   @media (min-width: $break-1400) {
-    .tooltip {
+    .truncated-tooltip {
       max-width: 800px;
     }
   }
