@@ -1,33 +1,33 @@
-# Osquery logs
+# Log destinations
 
-This document provides instructions for working with each of the following log destinations in Fleet.
-
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for osquery logging configuration options [here in the Fleet documentation](../Deploying/Configuration.md#osquery-status-log-plugin).
-
-- [Firehose](#firehose)
+- [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
 - [Snowflake](#snowflake)
 - [Splunk](#splunk)
-- [Kinesis](#kinesis)
-- [Lambda](#lambda)
-- [PubSub](#pubsub)
-- [Kafka REST Proxy](#kafka)
+- [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
+- [AWS Lambda](#aws-lambda)
+- [Google Cloud Pub/Sub](#google-cloud-pubsub)
+- [Apache Kafka](#apache-kafka)
 - [Stdout](#stdout)
 - [Filesystem](#filesystem)
 
-### Firehose
+This document provides a list of the supported log destinations in Fleet.
 
-Logs are written to AWS Firehose streams.
+To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for [osquery logging configuration options](../Deploying/Configuration.md#osquery-status-log-plugin).
+
+### Amazon Kinesis Data Firehose
+
+Logs are written to [Amazon Kinesis Data Firehose (Firehose)](https://aws.amazon.com/kinesis/data-firehose/).
 
 - Plugin name: `firehose`
 - Flag namespace: [firehose](../Deploying/Configuration.md#firehose)
 
-With the Firehose plugin, osquery result and/or status logs are written to [Amazon Kinesis Data Firehose](https://aws.amazon.com/kinesis/data-firehose/). This is a very good method for aggregating osquery logs into AWS S3 storage.
+This is a very good method for aggregating osquery logs into [Amazon S3](https://aws.amazon.com/s3/).
 
 Note that Firehose logging has limits [discussed in the documentation](https://docs.aws.amazon.com/firehose/latest/dev/limits.html). When Fleet encounters logs that are too big for Firehose, notifications will be output in the Fleet logs and those logs _will not_ be sent to Firehose.
 
 ### Snowflake
 
-To send logs to Snowflake, you must first configure Fleet to send logs to [Firehose](#firehose). This is because you'll use the Snowflake Snowpipe integration to direct logs to Snowflake.
+To send logs to Snowflake, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll use the Snowflake Snowpipe integration to direct logs to Snowflake.
 
 If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/firehose.tf), Firehose is already configured as your log destination.
 
@@ -37,7 +37,7 @@ Snowflake provides instructions on setting up the destination tables and IAM rol
 
 ### Splunk
 
-To send logs to Splunk, you must first configure Fleet to send logs to [Firehose](#firehose). This is because you'll enable Firehose to forward logs directly to Splunk.
+To send logs to Splunk, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll enable Firehose to forward logs directly to Splunk.
 
 With Fleet configured to send logs to Firehose, you then want to load the data from Firehose into Splunk. AWS provides instructions on how to enable Firehose to forward directly to Splunk [here in the AWS documentation](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk).
 
@@ -45,30 +45,24 @@ If you're using Fleet's [terraform reference architecture](https://github.com/fl
 
 Splunk provides instructions on how to prepare the Splunk platform for Firehose data [here in the Splunk documentation](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose).
 
-### Kinesis
+### Amazon Kinesis Data Streams
 
-Logs are written to AWS Kinesis streams.
+Logs are written to [Amazon Kinesis Data Streams (Kinesis)](https://aws.amazon.com/kinesis/data-streams).
 
 - Plugin name: `kinesis`
 - Flag namespace: [kinesis](../Deploying/Configuration.md#kinesis)
 
-With the Kinesis plugin, osquery result and/or status logs are written to
-[Amazon Kinesis Data Streams](https://aws.amazon.com/kinesis/data-streams).
-
 Note that Kinesis logging has limits [discussed in the
 documentation](https://docs.aws.amazon.com/kinesis/latest/dev/limits.html).
-When Fleet encounters logs that are too big for Kinesis, notifications will be
-output in the Fleet logs and those logs _will not_ be sent to Kinesis.
+When Fleet encounters osquery logs that are too big for Kinesis, notifications appear
+in the Fleet server logs. Those osquery logs **will not** be sent to Kinesis.
 
-### Lambda
+### AWS Lambda
 
-Logs are written to AWS Lambda functions.
+Logs are written to [AWS Lambda (Lambda)](https://aws.amazon.com/lambda/).
 
 - Plugin name: `lambda`
 - Flag namespace: [lambda](../Deploying/Configuration.md#lambda)
-
-With the Lambda plugin, osquery result and/or status logs are written to
-[AWS Lambda](https://aws.amazon.com/lambda/) functions.
 
 Lambda processes logs from Fleet synchronously, so the Lambda function used must not take enough processing time that the osquery client times out while writing logs. If there is heavy processing to be done, use Lambda to store the logs in another datastore/queue before performing the long-running process.
 
@@ -83,25 +77,21 @@ Lambda is executed once per log line. As a result, queries with `differential` r
 
 Keep this in mind when using Lambda, as you're charged based on the number of requests for your functions and the duration, the time it takes for your code to execute. 
 
-### PubSub
+### Google Cloud Pub/Sub
 
-Logs are written to Google Cloud PubSub topics.
+Logs are written to [Google Cloud Pub/Sub (Pub/Sub)](https://cloud.google.com/pubsub).
 
 - Plugin name: `pubsub`
 - Flag namespace: [pubsub](../Deploying/Configuration.md#pubsub)
 
-With the PubSub plugin, osquery result and/or status logs are written to [PubSub](https://cloud.google.com/pubsub/) topics.
+Messages over 10MB will be dropped, with a notification sent to the Fleet logs, as these can never be processed by Pub/Sub.
 
-Note that messages over 10MB will be dropped, with a notification sent to the fleet logs, as these can never be processed by PubSub.
+### Apache Kafka
 
-### Kafka
-
-Logs are written to Apache Kafka topics.
+Logs are written to [Apache Kafka (Kafka)](https://kafka.apache.org/) using the [Kafka REST proxy](https://github.com/confluentinc/kafka-rest).
 
 - Plugin name: `kafkarest`
 - Flag namespace: [kafka](../Deploying/Configuration.md#kafka)
-
-With the Kafka REST plugin, osquery result and/or status logs are written to [Kafka](https://kafka.apache.org/) topics using the [Kafka REST proxy](https://github.com/confluentinc/kafka-rest).
 
 Note that the REST proxy must be in place in order to send osquery logs to Kafka topics. 
 

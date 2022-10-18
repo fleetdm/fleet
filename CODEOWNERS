@@ -64,17 +64,13 @@ go.mod @fleetdm/go
 
 # Handbook
 /handbook/company @mikermcneil
-/handbook/people @charlottechance
+/handbook/business-operations @hollidayn
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
-/handbook/product @noahtalerman
-/handbook/sales @alexmitchelliii
-/handbook/customers @ksatter
-/handbook/growth @timmy-k
-/handbook/community @timmy-k
-/handbook/digital-experience @mike-j-thomas
-/handbook/README.md @chris-mcgillicuddy
-/handbook/handbook @chris-mcgillicuddy
+/handbook/product @zhumo
+/handbook/customers @alexmitchelliii
+/handbook/marketing @timmy-k
+/handbook/README.md @eashaw
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors
