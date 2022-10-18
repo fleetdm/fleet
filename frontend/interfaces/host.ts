@@ -105,7 +105,7 @@ export interface IPackStats {
 
 export interface IHostPolicyQuery {
   id: number;
-  hostname: string;
+  display_name: string;
   query_results?: unknown[];
   status?: string;
 }
