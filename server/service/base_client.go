@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -111,10 +110,6 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 	baseURL, err := url.Parse(addr)
 	if err != nil {
 		return nil, fmt.Errorf("parsing URL: %w", err)
-	}
-
-	if !insecureSkipVerify && baseURL.Scheme != "https" && !strings.Contains(baseURL.Host, "localhost") && !strings.Contains(baseURL.Host, "127.0.0.1") {
-		return nil, errors.New("address must start with https:// for remote connections")
 	}
 
 	rootCAPool := x509.NewCertPool()

@@ -87,12 +87,14 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	fmt.Printf(
-		"%s :: error rate: %.2f \t enrollments: %d \t orbit enrollments: %d \t writes: %d\n",
+		"%s :: error rate: %.2f \t enrollments: %d \t orbit enrollments: %d \t writes: %d\n \t orbit errors: %d \t desktop errors: %d",
 		time.Now().String(),
 		float64(s.errors)/float64(s.enrollments),
 		s.enrollments,
 		s.orbitenrollments,
 		s.distributedwrites,
+		s.orbitErrors,
+		s.desktopErrors,
 	)
 }
 
@@ -300,7 +302,7 @@ func (a *agent) runOrbitLoop() {
 		"",
 		a.serverAddress,
 		"",
-		true,
+		false,
 		a.EnrollSecret,
 		a.UUID,
 	)
@@ -310,7 +312,7 @@ func (a *agent) runOrbitLoop() {
 
 	orbitClient.TestNodeKey = *a.orbitNodeKey
 
-	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "")
+	deviceClient, err := service.NewDeviceClient(a.serverAddress, false, "")
 	if err != nil {
 		log.Println("creating device client: ", err)
 	}
