@@ -71,10 +71,13 @@ This issue was created automatically by your Fleet Zendesk integration.
 }
 
 type zendeskVulnTplArgs struct {
-	NVDURL   string
-	FleetURL string
-	CVE      string
-	Hosts    []*fleet.HostShort
+	NVDURL           string
+	FleetURL         string
+	CVE              string
+	EPSSProbability  *float64
+	CVSSScore        *float64
+	CISAKnownExploit *bool
+	Hosts            []*fleet.HostShort
 }
 
 type zendeskFailingPoliciesTplArgs struct {
@@ -240,16 +243,27 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 }
 
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
-	hosts, err := z.Datastore.HostsByCVE(ctx, args.CVE)
+	vargs := args.Vulnerability
+	if vargs == nil {
+		// support the old format of vulnerability args, where only the CVE
+		// is provided.
+		vargs = &vulnArgs{
+			CVE: args.CVE,
+		}
+	}
+	hosts, err := z.Datastore.HostsByCVE(ctx, vargs.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
 	tplArgs := &zendeskVulnTplArgs{
-		NVDURL:   nvdCVEURL,
-		FleetURL: z.FleetURL,
-		CVE:      args.CVE,
-		Hosts:    hosts,
+		NVDURL:           nvdCVEURL,
+		FleetURL:         z.FleetURL,
+		CVE:              vargs.CVE,
+		EPSSProbability:  vargs.EPSSProbability,
+		CVSSScore:        vargs.CVSSScore,
+		CISAKnownExploit: vargs.CISAKnownExploit,
+		Hosts:            hosts,
 	}
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
@@ -258,7 +272,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 	}
 	level.Debug(z.Log).Log(
 		"msg", "created zendesk ticket for cve",
-		"cve", args.CVE,
+		"cve", vargs.CVE,
 		"ticket_id", createdTicket.ID,
 	)
 	return nil
