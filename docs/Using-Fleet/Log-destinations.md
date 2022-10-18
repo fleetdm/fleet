@@ -14,7 +14,7 @@ This document provides a list of the supported log destinations in Fleet.
 
 To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for [osquery logging configuration options](../Deploying/Configuration.md#osquery-status-log-plugin).
 
-### Amazon Kinesis Data Firehose
+## Amazon Kinesis Data Firehose
 
 Logs are written to [Amazon Kinesis Data Firehose (Firehose)](https://aws.amazon.com/kinesis/data-firehose/).
 
@@ -25,7 +25,7 @@ This is a very good method for aggregating osquery logs into [Amazon S3](https:/
 
 Note that Firehose logging has limits [discussed in the documentation](https://docs.aws.amazon.com/firehose/latest/dev/limits.html). When Fleet encounters logs that are too big for Firehose, notifications will be output in the Fleet logs and those logs _will not_ be sent to Firehose.
 
-### Snowflake
+## Snowflake
 
 To send logs to Snowflake, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll use the Snowflake Snowpipe integration to direct logs to Snowflake.
 
@@ -35,7 +35,7 @@ With Fleet configured to send logs to Firehose, you then want to load the data f
 
 Snowflake provides instructions on setting up the destination tables and IAM roles required in AWS [here in the Snowflake docs](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-auto-s3.html#prerequisite-create-an-amazon-sns-topic-and-subscription).
 
-### Splunk
+## Splunk
 
 To send logs to Splunk, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll enable Firehose to forward logs directly to Splunk.
 
@@ -45,7 +45,7 @@ If you're using Fleet's [terraform reference architecture](https://github.com/fl
 
 Splunk provides instructions on how to prepare the Splunk platform for Firehose data [here in the Splunk documentation](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose).
 
-### Amazon Kinesis Data Streams
+## Amazon Kinesis Data Streams
 
 Logs are written to [Amazon Kinesis Data Streams (Kinesis)](https://aws.amazon.com/kinesis/data-streams).
 
@@ -57,7 +57,7 @@ documentation](https://docs.aws.amazon.com/kinesis/latest/dev/limits.html).
 When Fleet encounters osquery logs that are too big for Kinesis, notifications appear
 in the Fleet server logs. Those osquery logs **will not** be sent to Kinesis.
 
-### AWS Lambda
+## AWS Lambda
 
 Logs are written to [AWS Lambda (Lambda)](https://aws.amazon.com/lambda/).
 
@@ -77,7 +77,7 @@ Lambda is executed once per log line. As a result, queries with `differential` r
 
 Keep this in mind when using Lambda, as you're charged based on the number of requests for your functions and the duration, the time it takes for your code to execute. 
 
-### Google Cloud Pub/Sub
+## Google Cloud Pub/Sub
 
 Logs are written to [Google Cloud Pub/Sub (Pub/Sub)](https://cloud.google.com/pubsub).
 
@@ -86,7 +86,7 @@ Logs are written to [Google Cloud Pub/Sub (Pub/Sub)](https://cloud.google.com/pu
 
 Messages over 10MB will be dropped, with a notification sent to the Fleet logs, as these can never be processed by Pub/Sub.
 
-### Apache Kafka
+## Apache Kafka
 
 Logs are written to [Apache Kafka (Kafka)](https://kafka.apache.org/) using the [Kafka REST proxy](https://github.com/confluentinc/kafka-rest).
 
@@ -95,7 +95,7 @@ Logs are written to [Apache Kafka (Kafka)](https://kafka.apache.org/) using the 
 
 Note that the REST proxy must be in place in order to send osquery logs to Kafka topics. 
 
-### Stdout
+## Stdout
 
 Logs are written to stdout.
 
@@ -110,7 +110,7 @@ pipeline.
 Note that if multiple load-balanced Fleet servers are used, the logs
 will be load-balanced across those servers (not duplicated).
 
-### Filesystem
+## Filesystem
 
 Logs are written to the local Fleet server filesystem.
 
@@ -123,7 +123,7 @@ With the filesystem plugin, osquery result and/or status logs are written to the
 
 Note that if multiple load-balanced Fleet servers are used, the logs will be load-balanced across those servers (not duplicated).
 
-### Sending logs outside of Fleet
+## Sending logs outside of Fleet
 
 Osquery agents are typically configured to send logs to the Fleet server (`--logger_plugin=tls`). This is not a requirement, and any other logger plugin can be used even when osquery clients are connecting to the Fleet server to retrieve configuration or run live queries. 
 
