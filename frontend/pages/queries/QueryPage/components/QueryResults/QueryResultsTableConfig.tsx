@@ -34,7 +34,7 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
     // remove hostname header from headers
     const [displayNameHeader] = newHeaders.splice(i, 1);
     // reformat title and insert at start of headers array
-    newHeaders.unshift({ ...displayNameHeader, title: "host_display_name" });
+    newHeaders.unshift({ ...displayNameHeader, title: "Host" });
   }
   return newHeaders;
 };
