@@ -31,8 +31,17 @@ var jiraTemplates = struct {
 	)),
 
 	// Jira uses wiki markup in the v2 api.
-	VulnDescription: template.Must(template.New("").Parse(
+	VulnDescription: template.Must(template.New("").Funcs(template.FuncMap{
+		"deref": func(b *bool) bool { return *b },
+	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
+
+{{ if .EPSSProbability }}Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
+{{ end }}
+{{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
+{{ end }}
+{{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+{{ end }}
 
 Affected hosts:
 
@@ -72,10 +81,13 @@ This issue was created automatically by your Fleet Jira integration.
 }
 
 type jiraVulnTplArgs struct {
-	NVDURL   string
-	FleetURL string
-	CVE      string
-	Hosts    []*fleet.HostShort
+	NVDURL           string
+	FleetURL         string
+	CVE              string
+	EPSSProbability  *float64
+	CVSSScore        *float64
+	CISAKnownExploit *bool
+	Hosts            []*fleet.HostShort
 }
 
 type jiraFailingPoliciesTplArgs struct {
@@ -240,16 +252,27 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 }
 
 func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error {
-	hosts, err := j.Datastore.HostsByCVE(ctx, args.CVE)
+	vargs := args.Vulnerability
+	if vargs == nil {
+		// support the old format of vulnerability args, where only the CVE
+		// is provided.
+		vargs = &vulnArgs{
+			CVE: args.CVE,
+		}
+	}
+	hosts, err := j.Datastore.HostsByCVE(ctx, vargs.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
 	tplArgs := &jiraVulnTplArgs{
-		NVDURL:   nvdCVEURL,
-		FleetURL: j.FleetURL,
-		CVE:      args.CVE,
-		Hosts:    hosts,
+		NVDURL:           nvdCVEURL,
+		FleetURL:         j.FleetURL,
+		CVE:              vargs.CVE,
+		EPSSProbability:  vargs.EPSSProbability,
+		CVSSScore:        vargs.CVSSScore,
+		CISAKnownExploit: vargs.CISAKnownExploit,
+		Hosts:            hosts,
 	}
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
@@ -258,7 +281,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 	}
 	level.Debug(j.Log).Log(
 		"msg", "created jira issue for cve",
-		"cve", args.CVE,
+		"cve", vargs.CVE,
 		"issue_id", createdIssue.ID,
 		"issue_key", createdIssue.Key,
 	)
