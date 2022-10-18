@@ -2,17 +2,21 @@
 version: '2'
 
 x-default-settings:
-  volumes: &default-volumes
+  volumes:
+    &default-volumes
     - ./fleet.crt:/etc/osquery/fleet.crt
     - ./example_osquery.flags:/etc/osquery/osquery.flags
-  environment: &default-environment
+  environment:
+    &default-environment
     ENROLL_SECRET: "${ENROLL_SECRET:?ENROLL_SECRET must be set for server authentication}"
   command: &default-command osqueryd --flagfile=/etc/osquery/osquery.flags --tls_hostname=${FLEET_SERVER:-host.docker.internal:8080}
-  ulimits: &default-ulimits
+  ulimits:
+    &default-ulimits
     core:
-      hard:  1000000000
-      soft:  1000000000
-  extra_hosts: &extra-hosts
+      hard: 1000000000
+      soft: 1000000000
+  extra_hosts:
+    &extra-hosts
     - "host.docker.internal:host-gateway"
   platform: &default-platform linux/x86_64
 
@@ -55,15 +59,6 @@ services:
 
   centos7-osquery:
     image: "osquery/osquery:4.9.0-centos7"
-    platform: *default-platform
-    volumes: *default-volumes
-    environment: *default-environment
-    command: *default-command
-    ulimits: *default-ulimits
-    extra_hosts: *extra-hosts
-
-  centos6-osquery:
-    image: "osquery/osquery:4.9.0-centos6"
     platform: *default-platform
     volumes: *default-volumes
     environment: *default-environment
