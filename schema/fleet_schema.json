@@ -30,7 +30,7 @@
   },
   {
     "name": "arp_cache",
-    "examples": "List the content of the ARP cache. On systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address.\n```\nSELECT address, interface, mac FROM arp_cache;\n```"
+    "examples": "List the content of the ARP cache.\n```\nSELECT address, interface, mac FROM arp_cache;\n```\nOn systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address.\n```\nSELECT * FROM arp_cache WHERE address IN (INSERT_GATEWAY_IPS) AND mac NOT IN (INSERT_EXPECTED_MAC_ADDRESSES);\n```\n"
   },
   {
     "name": "asl",
