@@ -158,29 +158,29 @@ Sometimes there is a change in the champion within the customer's organization.
 | Close date | The date the last party to the contract signed the agreement. |
 | Invoice date | The date that Fleet sent the invoice to the customer. |
 
-# Sales
+## Sales
 
 The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#values) in every aspect of our work. Specifically, we continuously work to overperform and achieve strong results. We prioritize efficiency in our processes and operations. We succeed because of transparent, cross-functional collaboration. We are committed to hiring for and celebrating diversity, and we strive to create an environment of inclusiveness and belonging for all. We embrace a spirit of iteration, understanding that we can always improve.
 
-## Outreach one-pager
+### Outreach one-pager
 
 Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
 
-## Intro deck
+### Intro deck
 
 Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
 
-## Intro video
+### Intro video
 
 Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
 
-## SOC 2
+### SOC 2
 
 You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
-## Our lead handling and outreach approach
+### Our lead handling and outreach approach
 
 Fleet's main source for prospects to learn about the company and its offerings is our website, fleetdm.com. There are many places across the website for prospects to ask for more information, request merchandise, try the product and even purchase licenses directly. If the user experience in any of these locations asks for an email address or other contact information, Fleet may use that contact information for follow-up, including sales and marketing purposes. That contact information is for Fleet's sole use, and we do not give or sell that information to any third parties.
 
@@ -191,7 +191,7 @@ In the case of a prospect or customer request, we strive to adhere to the follow
 
 Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
 
-## Salesforce lead status flow
+### Salesforce lead status flow
 
 To track the stage of the sales cycle that a lead is at, we use the following standardized lead statuses to indicate which stage of the sales process a lead is at.
 |Lead status                 | Description                                         |
@@ -227,11 +227,11 @@ Importantly, when we interact with CISOs or, for that matter, any member of a pr
 - Grow relationships
 - Help people
 
-## Sales team writing principles
+### Sales team writing principles
 
 When writing for the Sales team, we want to abide by the following principles in our communications.
 
-### Maintain naming conventions
+#### Maintain naming conventions
 
 Maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
 
@@ -239,7 +239,7 @@ Maintain naming conventions so people can expect what fields will look like when
 |:----------------------|:---------------------|
 | Bad data              | Bad Data
 
-### Be explicit
+#### Be explicit
 
 Being explicit helps people to understand what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
 
@@ -249,7 +249,7 @@ Being explicit helps people to understand what they are reading and how to use t
 
 
 
-## Salesforce contributor experience checkups
+### Salesforce contributor experience checkups
 
 In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
 
@@ -306,7 +306,6 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
 | Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell 
-| TODO  | TODO | TODO | TODO 
 
 
 ## Slack channels
