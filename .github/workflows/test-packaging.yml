@@ -49,10 +49,6 @@ jobs:
         brew install docker docker-compose
         colima start
 
-    - name: Pull fleetdm/wix
-      # Run in background while other steps complete to speed up the workflow
-      run: docker pull fleetdm/wix:latest &
-
     - name: Install Go
       uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
