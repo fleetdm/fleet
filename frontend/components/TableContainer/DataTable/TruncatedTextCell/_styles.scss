@@ -25,6 +25,7 @@
   word-break: break-all;
   overflow-wrap: break-word;
   display: block;
+  white-space: pre-wrap;
 }
 
 @media (min-width: $break-990) {
