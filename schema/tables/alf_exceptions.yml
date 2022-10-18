@@ -1,0 +1,11 @@
+name: alf_exceptions
+examples: >-
+  List applications that are able to receive inbound connections across the
+  firewall. This is useful when looking to see if vulnerable software is exposed
+  to networks. 
+
+  ```
+
+  SELECT * FROM alf_exceptions;
+
+  ```
