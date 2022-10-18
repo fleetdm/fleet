@@ -86,7 +86,7 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 			assert.Equal(t, "GET", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/config", kv["uri"])
 			assert.Equal(t, "admin1@example.com", kv["user"])
-		case 3:
+		case 2:
 			assert.Equal(t, "debug", kv["level"])
 			assert.Equal(t, "POST", kv["method"])
 			assert.Equal(t, "/api/latest/fleet/queries", kv["uri"])
@@ -255,7 +255,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
 
 	// submit same payload without specifying gzip encoding fails
-	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusInternalServerError, nil)
+	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
 }
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {

@@ -36,7 +36,7 @@ Check out the example below:
 
 The above command should be run on a macOS device as notarizing and signing of macOS osquery installers can only be done on macOS devices.
 
-Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively.
+Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
 ### Including Fleet Desktop
 
@@ -245,7 +245,7 @@ On a system with osquery installed via the Fleet osquery installer (Orbit), obta
 `CodeRequirement` of Orbit by running:
 
 ```
-codesign -dr - /opt/orbit/bin/orbit/macos/edge/orbit
+codesign -dr - /opt/orbit/bin/orbit/macos/stable/orbit
 ```
 
 The output should be similar or identical to:
@@ -255,7 +255,7 @@ Executable=/opt/orbit/bin/orbit/macos/edge/orbit
 designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
 ```
 
-> **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, the executable path may differ.
+> **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, as well as the update channel you've specified, the executable path may differ.
 > Fleetctl versions <= 4.13.2 would install orbit to `/var/lib/orbit` instead of `/opt/orbit`.
 
 Note down the **executable path** and the entire **identifier**.

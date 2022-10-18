@@ -232,8 +232,8 @@ type Datastore interface {
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
-	// If the token is invalid it returns a NotFoundError.
-	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+	// If the token is invalid or expired it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*Host, error)
 	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
@@ -437,6 +437,9 @@ type Datastore interface {
 
 	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
+	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
+	// statistics.
+	CleanupStatistics(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
@@ -478,11 +481,19 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// IncrementPolicyViolationDays increments the aggregate count of policy violation days. One
+	// policy violation day is added for each policy that a host is failing as of the time the count
+	// is incremented. The count only increments once per 24-hour interval. If the interval has not
+	// elapsed, IncrementPolicyViolationDays returns nil without incrementing the count.
+	IncrementPolicyViolationDays(ctx context.Context) error
+	// InitializePolicyViolationDays sets the aggregated count of policy violation days to zero. If
+	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
+	InitializePolicyViolationDays(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
@@ -627,9 +638,48 @@ type Datastore interface {
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 
-	///////////////////////////////////////////////////////////////////////////////
 	// Windows Update History
 	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM
+
+	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
+	// Such enrollment profiles allow devices to enroll to Fleet MDM.
+	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+
+	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
+	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
+
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
+	// The map returned has a result for each target device ID.
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+
+	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
+	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
+
+	// MDMAppleInstaller returns the installer with its contents included (MDMAppleInstaller.Installer) from its token.
+	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
+
+	// MDMAppleInstallerDetailsByID returns the installer details of an installer, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil).
+	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+
+	// DeleteMDMAppleInstaller deletes an installer.
+	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
+
+	// MDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil) from its secret token.
+	MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
+
+	// ListMDMAppleInstallers list all the uploaded installers.
+	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
+
+	// MDMAppleListDevices lists all the MDM enrolled devices.
+	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 }
 
 const (

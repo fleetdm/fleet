@@ -124,7 +124,7 @@ const HostStatusWebhook = ({
               }}
             />
           </div>
-          <div className="flex-end">
+          <div className="modal-cta-wrap">
             <Button type="button" onClick={toggleHostStatusWebhookPreviewModal}>
               Done
             </Button>

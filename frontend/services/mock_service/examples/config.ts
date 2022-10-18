@@ -20,13 +20,13 @@ const WILDCARDS: string[] = [":", "*", "{", "}"];
 const REQUEST_RESPONSE_MAPPINGS: IResponses = {
   GET: {
     // this is a basic path with no wildcards
-    "/hosts?page=0&per_page=20&order_key=hostname&order_direction=asc":
+    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc":
       RESPONSES.ALL_HOSTS,
     // this basic path only matches with '1337' as the value for the team id query param
-    "/hosts?page=0&per_page=20&order_key=hostname&order_direction=asc&team_id=1337":
+    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc&team_id=1337":
       RESPONSES.HOSTS_TEAM_1337,
     // this wildcard path matches with any other value for the team id query param
-    "/hosts?page=0&per_page=20&order_key=hostname&order_direction=asc&team_id={team_id}":
+    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc&team_id={team_id}":
       RESPONSES.HOSTS_TEAM_ID,
     // this basic path only matches with '1337' as the value for the host id route param
     "/hosts/1337": RESPONSES.HOST_1337,

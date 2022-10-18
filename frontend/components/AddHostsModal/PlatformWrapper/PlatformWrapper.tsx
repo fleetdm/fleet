@@ -221,7 +221,7 @@ const PlatformWrapper = ({
 
   const renderInstallerString = (platform: string) => {
     return platform === "advanced"
-      ? `fleetctl package --type=rpm --fleet-url=${config?.server_settings.server_url}
+      ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url}
 --enroll-secret=${enrollSecret}
 --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${platform} ${

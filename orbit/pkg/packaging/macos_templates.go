@@ -60,8 +60,26 @@ DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
 pkill fleet-desktop || true
 # Remove any pre-existing version of the config
 launchctl bootout "system/${DAEMON_LABEL}"
-# Add the daemon to the launchd system
-launchctl bootstrap system "${DAEMON_PLIST}"
+
+# Add the daemon to the launchd system.
+#
+# We add retries because we've seen "launchctl bootstrap" fail
+# if the service is still running after bootout (in case the
+# service takes a bit longer to terminate gracefully).
+# We've seen this when deploying the package via an MDM server.
+#
+count=0
+while ! launchctl bootstrap system "${DAEMON_PLIST}"; do
+	sleep 1
+	((count++))
+	if [[ $count -eq 30 ]]; then
+		echo "Failed to bootstrap system ${DAEMON_PLIST}"
+		exit 1
+	fi
+	echo "Retrying launchctl bootstrap..."
+done
+echo "Successfully bootstrap system ${DAEMON_PLIST}"
+
 # Enable the daemon
 launchctl enable "system/${DAEMON_LABEL}"
 # Force the daemon to start

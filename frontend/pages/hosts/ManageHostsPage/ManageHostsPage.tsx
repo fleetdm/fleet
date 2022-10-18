@@ -10,7 +10,6 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
   ILoadHostsOptions,
   ISortOption,
@@ -67,7 +66,6 @@ import {
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
 import {
-  ALL_HOSTS_LABEL,
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
@@ -241,31 +239,37 @@ const ManageHostsPage = ({
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
-
   const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
   const softwareId =
     queryParams?.software_id !== undefined
-      ? parseInt(queryParams?.software_id, 10)
+      ? parseInt(queryParams.software_id, 10)
       : undefined;
+  const status = isAcceptableStatus(queryParams?.status)
+    ? queryParams?.status
+    : undefined;
   const mdmId =
     queryParams?.mdm_id !== undefined
-      ? parseInt(queryParams?.mdm_id, 10)
+      ? parseInt(queryParams.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
-      ? parseInt(queryParams?.munki_issue_id, 10)
+      ? parseInt(queryParams.munki_issue_id, 10)
       : undefined;
+  const lowDiskSpaceHosts =
+    queryParams?.low_disk_space !== undefined
+      ? parseInt(queryParams.low_disk_space, 10)
+      : undefined;
+  const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
   const selectedFilters: string[] = [];
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
   activeLabel && selectedFilters.push(activeLabel);
-  !labelID && !activeLabel && selectedFilters.push(ALL_HOSTS_LABEL); // "all-hosts" should always be alone
   // ===== end filter matching
 
   const canEnrollHosts =
@@ -402,13 +406,8 @@ const ManageHostsPage = ({
     }
   };
 
-  const getStatusSelected = () => {
-    return selectedFilters.find((f) => !f.includes(LABEL_SLUG_PREFIX));
-  };
-
   const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
     setIsHostsLoading(true);
-
     options = {
       ...options,
       teamId: getValidatedTeamId(
@@ -459,7 +458,6 @@ const ManageHostsPage = ({
     if (queryParams.team_id) {
       options.teamId = queryParams.team_id;
     }
-
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);
@@ -504,8 +502,9 @@ const ManageHostsPage = ({
         selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
       selectedFilters[0];
 
-    const selected = find(labels, ["slug", slugToFind]) as ILabel;
-    setSelectedLabel(selected);
+    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
+
+    setSelectedLabel(validLabel);
 
     const options: ILoadHostsOptions = {
       selectedLabels: selectedFilters,
@@ -515,12 +514,14 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      lowDiskSpaceHosts,
       osId,
       osName,
       osVersion,
-      munkiIssueId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -529,6 +530,7 @@ const ManageHostsPage = ({
     if (isEqual(options, currentQueryOptions)) {
       return;
     }
+
     if (teamSync) {
       retrieveHosts(options);
       retrieveHostCount(omit(options, "device_mapping"));
@@ -543,39 +545,12 @@ const ManageHostsPage = ({
       filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
-    if (!slug) {
-      return false;
-    }
-
     const { MANAGE_HOSTS } = PATHS;
-    const isAllHosts = slug === ALL_HOSTS_LABEL;
-    const newFilters = [...selectedFilters];
-
-    if (!isAllHosts) {
-      // always remove "all-hosts" from the filters first because we don't want
-      // something like ["label/8", "all-hosts"]
-      const allIndex = newFilters.findIndex((f) => f.includes(ALL_HOSTS_LABEL));
-      allIndex > -1 && newFilters.splice(allIndex, 1);
-
-      // replace slug for new params
-      let index;
-      if (slug.includes(LABEL_SLUG_PREFIX)) {
-        index = newFilters.findIndex((f) => f.includes(LABEL_SLUG_PREFIX));
-      } else {
-        index = newFilters.findIndex((f) => !f.includes(LABEL_SLUG_PREFIX));
-      }
-
-      if (index > -1) {
-        newFilters.splice(index, 1, slug);
-      } else {
-        newFilters.push(slug);
-      }
-    }
 
     // Non-status labels are not compatible with policies or software filters
     // so omit policies and software params from next location
     let newQueryParams = queryParams;
-    if (newFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) {
+    if (slug) {
       newQueryParams = omit(newQueryParams, [
         "policy_id",
         "policy_response",
@@ -585,9 +560,7 @@ const ManageHostsPage = ({
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: isAllHosts
-          ? MANAGE_HOSTS
-          : `${MANAGE_HOSTS}/${newFilters.join("/")}`,
+        pathPrefix: `${MANAGE_HOSTS}/${slug}`,
         queryParams: newQueryParams,
       })
     );
@@ -617,6 +590,19 @@ const ManageHostsPage = ({
           policy_id: policyId,
           policy_response: response,
         }),
+      })
+    );
+  };
+
+  const handleClearRouteParam = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams: undefined,
+        queryParams,
       })
     );
   };
@@ -658,6 +644,10 @@ const ManageHostsPage = ({
     handleClearFilter(["munki_issue_id"]);
   };
 
+  const handleClearLowDiskSpaceFilter = () => {
+    handleClearFilter(["low_disk_space"]);
+  };
+
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
 
@@ -688,14 +678,16 @@ const ManageHostsPage = ({
   };
 
   const handleStatusDropdownChange = (statusName: string) => {
-    // we want the full label object
-    const isAll = statusName === ALL_HOSTS_LABEL;
-    const selected = isAll
-      ? find(labels, { type: "all" })
-      : find(labels, { id: statusName });
     handleResetPageIndex();
 
-    handleLabelChange(selected as ILabel);
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: { ...queryParams, status: statusName },
+      })
+    );
   };
 
   const onAddLabelClick = () => {
@@ -765,51 +757,33 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      if (currentTeam?.id) {
+      if (currentTeam) {
         newQueryParams.team_id = currentTeam.id;
       }
 
-      if (policyId) {
+      if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
-      }
-
-      if (policyResponse) {
         newQueryParams.policy_response = policyResponse;
-      }
-
-      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
+      } else if (softwareId) {
         newQueryParams.software_id = softwareId;
-      }
-
-      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
+      } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
-      }
-
-      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
+      } else if (mdmEnrollmentStatus) {
         newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
-      }
-
-      if (
-        munkiIssueId &&
-        !mdmEnrollmentStatus &&
-        !policyId &&
-        !softwareId &&
-        !mdmId
-      ) {
+      } else if (munkiIssueId) {
         newQueryParams.munki_issue_id = munkiIssueId;
-      }
-
-      if (
-        (osId || (osName && osVersion)) &&
-        !softwareId &&
-        !policyId &&
-        !mdmEnrollmentStatus &&
-        !mdmId
-      ) {
+      } else if (missingHosts) {
+        // Premium feature only
+        newQueryParams.status = "missing";
+      } else if (lowDiskSpaceHosts && isPremiumTier) {
+        // Premium feature only
+        newQueryParams.low_disk_space = lowDiskSpaceHosts;
+      } else if (osId || (osName && osVersion)) {
         newQueryParams.os_id = osId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       }
+
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -828,12 +802,14 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      lowDiskSpaceHosts,
       osId,
       osName,
       osVersion,
-      munkiIssueId,
       sortBy,
     ]
   );
@@ -939,13 +915,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const onClearLabelFilter = () => {
-    const allHostsLabel = labels?.find((label) => label.name === "All Hosts");
-    if (allHostsLabel !== undefined) {
-      handleLabelChange(allHostsLabel);
-    }
-  };
-
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
@@ -993,22 +962,14 @@ const ManageHostsPage = ({
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let status = "";
-      let labelId = null;
-      const selectedStatus = getStatusSelected();
+      const labelId = selectedLabel?.id;
 
-      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
-        status = getStatusSelected() || "";
-      } else {
-        labelId = selectedLabel?.id as number;
-      }
-
-      action = hostsAPI.transferToTeamByFilter(
+      action = hostsAPI.transferToTeamByFilter({
         teamId,
-        searchQuery,
+        query: searchQuery,
         status,
-        labelId
-      );
+        labelId,
+      });
     }
 
     try {
@@ -1029,12 +990,14 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        status,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
-        munkiIssueId,
       });
 
       toggleTransferHostModal();
@@ -1053,18 +1016,16 @@ const ManageHostsPage = ({
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      let status = "";
-      let labelId = null;
       const teamId = currentTeam?.id || null;
-      const selectedStatus = getStatusSelected();
 
-      if (selectedStatus && isAcceptableStatus(selectedStatus)) {
-        status = getStatusSelected() || "";
-      } else {
-        labelId = selectedLabel?.id as number;
-      }
+      const labelId = selectedLabel?.id;
 
-      action = hostsAPI.destroyByFilter(teamId, searchQuery, status, labelId);
+      action = hostsAPI.destroyByFilter({
+        teamId,
+        query: searchQuery,
+        status,
+        labelId,
+      });
     }
 
     try {
@@ -1084,12 +1045,14 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        status,
         mdmId,
         mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
-        munkiIssueId,
       });
 
       refetchLabels();
@@ -1130,7 +1093,7 @@ const ManageHostsPage = ({
           <FilterPill
             label={pillLabel}
             tooltipDescription={description}
-            onClear={onClearLabelFilter}
+            onClear={handleClearRouteParam}
           />
           {label_type !== "builtin" && !isOnlyObserver && (
             <>
@@ -1322,6 +1285,23 @@ const ManageHostsPage = ({
     return null;
   };
 
+  const renderLowDiskSpaceFilterBlock = () => {
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts that have {lowDiskSpaceHosts} GB or less <br />
+        disk space available.
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label="Low disk space"
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearLowDiskSpaceFilter}
+      />
+    );
+  };
+
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1480,12 +1460,14 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      status,
       mdmId,
       mdmEnrollmentStatus,
+      munkiIssueId,
+      lowDiskSpaceHosts,
       os_id: osId,
       os_name: osName,
       os_version: osVersion,
-      munkiIssueId,
       visibleColumns,
     };
 
@@ -1531,7 +1513,7 @@ const ManageHostsPage = ({
         {count !== undefined && (
           <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
         )}
-        {count ? (
+        {!!count && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1541,18 +1523,13 @@ const ManageHostsPage = ({
               Export hosts <img alt="" src={DownloadIcon} />
             </>
           </Button>
-        ) : (
-          <></>
         )}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);
 
   const renderActiveFilterBlock = () => {
-    const showSelectedLabel =
-      selectedLabel &&
-      selectedLabel.type !== "all" &&
-      selectedLabel.type !== "status";
+    const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
     if (
       showSelectedLabel ||
@@ -1561,6 +1538,7 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
+      lowDiskSpaceHosts ||
       osId ||
       (osName && osVersion) ||
       munkiIssueId
@@ -1581,6 +1559,8 @@ const ManageHostsPage = ({
             return renderOSFilterBlock();
           case !!munkiIssueId:
             return renderMunkiIssueFilterBlock();
+          case !!lowDiskSpaceHosts:
+            return renderLowDiskSpaceFilterBlock();
           default:
             return null;
         }
@@ -1606,7 +1586,7 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
-          value={getStatusSelected() || ALL_HOSTS_LABEL}
+          value={status || ""}
           className={`${baseClass}__status_dropdown`}
           options={HOST_SELECT_STATUSES}
           searchable={false}
@@ -1625,14 +1605,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      !hosts ||
-      selectedFilters.length === 0 ||
-      selectedLabel === undefined ||
-      !teamSync
-    ) {
+    if (!config || !currentUser || !hosts || !teamSync) {
       return <Spinner />;
     }
 
@@ -1642,20 +1615,25 @@ const ManageHostsPage = ({
 
     // There are no hosts for this instance yet
     if (
-      getStatusSelected() === ALL_HOSTS_LABEL &&
-      !isHostCountLoading &&
       filteredHostCount === 0 &&
       searchQuery === "" &&
-      !isHostsLoading &&
-      teamSync
+      teamSync &&
+      !labelID &&
+      !status
     ) {
-      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
-        queryParams || {};
+      const {
+        software_id,
+        policy_id,
+        mdm_id,
+        mdm_enrollment_status,
+        low_disk_space,
+      } = queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
+        low_disk_space ||
         osId ||
         osName ||
         osVersion
@@ -1698,6 +1676,7 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
+        pageSize={100}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
@@ -1790,17 +1769,16 @@ const ManageHostsPage = ({
                 !hasHostErrors &&
                 !hasHostCountErrors &&
                 !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  selectedLabel?.count === 0
-                ) &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
+                  !status &&
                   filteredHostCount === 0 &&
-                  searchQuery === ""
+                  searchQuery === "" &&
+                  teamSync &&
+                  !labelID
                 ) && (
                   <Button
                     onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts button button--brand`}
+                    className={`${baseClass}__add-hosts`}
+                    variant="brand"
                   >
                     <span>Add hosts</span>
                   </Button>

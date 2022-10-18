@@ -1,0 +1,63 @@
+[
+  {
+    "software": {
+      "bundle_identifier": ["us.zoom.xos"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["zoom", "meetings"],
+      "vendor": ["zoom"],
+      "target_sw": ["macos", "mac_os"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^ruby(@.*)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["ruby"],
+      "vendor": ["ruby-lang"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^node(@.*)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["node.js"],
+      "vendor": ["nodejs"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/1Password/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["1password"],
+      "vendor": ["1password"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/Node\\.js/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["node.js"],
+      "vendor": ["nodejs"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/7-Zip/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["7-zip"],
+      "vendor": ["7-zip"]
+    }
+  }
+]

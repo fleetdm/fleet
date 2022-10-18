@@ -1,7 +1,6 @@
-name: Test native tooling packaging
-
 # This workflow tests packaging of Fleet-osquery with the
-# `fleetdm/fleetctl` Docker image. 
+# `fleetdm/fleetctl` Docker image.
+name: Test native tooling packaging
 
 on:
   push:
@@ -22,6 +21,11 @@ on:
       - '.github/workflows/test-native-tooling-packaging.yml'
   workflow_dispatch: # Manual
 
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 permissions:
   contents: read
 
@@ -36,7 +40,7 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -54,10 +58,10 @@ jobs:
 
     - name: Build DEB with Fleet Desktop
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
-      
+
     - name: Build RPM
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
-      
+
     - name: Build RPM with Fleet Desktop
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 

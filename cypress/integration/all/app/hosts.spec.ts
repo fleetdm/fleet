@@ -1,5 +1,7 @@
 import * as path from "path";
 import { format } from "date-fns";
+import manageHostsPage from "../../pages/manageHostsPage";
+import hostDetailsPage from "../../pages/hostDetailsPage";
 
 let hostname = "";
 
@@ -22,12 +24,10 @@ describe("Hosts flow", () => {
   describe("Manage hosts page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it("adds a new host and downloads installation files", () => {
       // Download add hosts files
-      cy.visit("/hosts/manage");
-
       cy.getAttached(".manage-hosts").within(() => {
         cy.contains("button", /add hosts/i).click();
       });
@@ -71,7 +71,6 @@ describe("Hosts flow", () => {
       }
     });
     it(`exports hosts to CSV`, () => {
-      cy.visit("/hosts/manage");
       cy.getAttached(".manage-hosts").within(() => {
         cy.getAttached(".manage-hosts__export-btn").click();
       });
@@ -85,7 +84,6 @@ describe("Hosts flow", () => {
       }
     });
     it(`hides and shows "Used by" column`, () => {
-      cy.visit("/hosts/manage");
       cy.getAttached("thead").within(() =>
         cy.findByText(/used by/i).should("not.exist")
       );
@@ -104,7 +102,7 @@ describe("Hosts flow", () => {
   describe("Manage policies page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it(
       "runs policy on an existing host",
@@ -158,7 +156,7 @@ describe("Hosts flow", () => {
   describe("Host details page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
       cy.getAttached("tbody").within(() => {
         cy.getAttached(".button--text-link").first().click();
       });
@@ -194,7 +192,7 @@ describe("Hosts flow", () => {
         });
       });
     });
-    it("renders and searches the host's software, links to filter hosts by software", () => {
+    it("renders and searches the host's software", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
         cy.findByText(/software/i).click();
       });
@@ -221,12 +219,24 @@ describe("Hosts flow", () => {
             const searchCount = parseInt(newCount[0], 10);
             expect(searchCount).to.be.lessThan(initialCount);
           });
-        cy.getAttached(".software-link").first().click({ force: true });
       });
-      cy.findByText(/libacl1 2.2.53-6/i).should("exist");
+    });
+    it("host's software table links to filter hosts by software", () => {
+      cy.getAttached(".react-tabs__tab-list").within(() => {
+        cy.findByText(/software/i).click();
+      });
+      cy.getAttached(".software-link").first().click({ force: true });
+      cy.findByText(/adduser 3.118ubuntu2/i).should("exist"); // first seeded software item
       cy.getAttached(".data-table").within(() => {
         cy.findByText(hostname).should("exist");
       });
+    });
+    it("host's software table links to software details", () => {
+      cy.getAttached(".react-tabs__tab-list").within(() => {
+        cy.findByText(/software/i).click();
+      });
+      cy.contains(/adduser/i).click();
+      cy.findByText(/adduser, 3.118ubuntu2/i).should("exist");
     });
     it("renders host's schedule", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
@@ -260,7 +270,7 @@ describe("Hosts flow", () => {
         defaultCommandTimeout: 15000,
       },
       () => {
-        cy.getAttached(".hostname-container").within(() => {
+        cy.getAttached(".display-name-container").within(() => {
           cy.contains("button", /refetch/i).click();
           cy.findByText(/fetching/i).should("exist");
           cy.contains("button", /refetch/i).should("exist");
@@ -269,23 +279,8 @@ describe("Hosts flow", () => {
       }
     );
     it("deletes an existing host", () => {
-      cy.getAttached(".host-details__action-button-container")
-        .within(() => {
-          cy.findByText(/delete/i).click();
-        })
-        .then(() => {
-          cy.getAttached(".modal__modal_container")
-            .within(() => {
-              cy.findByText(/delete host/i).should("exist");
-              cy.findByRole("button", { name: /delete/i }).click();
-            })
-            .then(() => {
-              cy.findByText(/add your devices to fleet/i).should("exist");
-              cy.findByText(/add hosts/i).should("exist");
-              cy.findByText(/about this host/i).should("not.exist");
-              cy.findByText(hostname).should("not.exist");
-            });
-        });
+      hostDetailsPage.allowsDeleteHost();
+      hostDetailsPage.verifiesDeletedHost(hostname);
     });
   });
 });

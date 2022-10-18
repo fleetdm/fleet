@@ -1,0 +1,1 @@
+* Added the `inherited_policies` array to the `GET /teams/{team_id}/policies` endpoint that lists the global policies inherited by the team, along with the pass/fail counts only for hosts that belong to that team.

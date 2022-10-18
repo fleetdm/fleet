@@ -1,0 +1,59 @@
+.column-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &__name-wrapper {
+    display: flex;
+    align-items: center;
+  }
+
+  &__name {
+    font-size: $x-small;
+
+    // We need to wrap on really long column names so we override some
+    // TooltipWrapper styles here.
+    .component__tooltip-wrapper__element {
+      white-space: normal;
+      max-width: 180px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  // this is to override the tooltip text style from TooltipWrapper. When we
+  // change the component to support ReactNode we wont need this.
+  &__tooltip {
+    .component__tooltip-wrapper__tip-text {
+      font-style: normal;
+    }
+  }
+
+  &__asterisk {
+    // specific height to align it vertically with the column name
+    height: 19px;
+  }
+
+  &__has-footnotes {
+    font-style: italic;
+    margin-right: $pad-xsmall;
+  }
+
+  &__type {
+    font-size: $xx-small;
+  }
+
+  &__footnote {
+    font-weight: $bold;
+    margin: $pad-small 0;
+    display: block;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}

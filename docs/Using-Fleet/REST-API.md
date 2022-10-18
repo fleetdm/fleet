@@ -1,6 +1,5 @@
 # REST API
 
-- [Overview](#overview)
 - [Authentication](#authentication)
 - [Activities](#activities)
 - [Fleet configuration](#fleet-configuration)
@@ -23,6 +22,7 @@ This page includes a list of available resources and their API routes.
 
 ## Authentication
 
+- [Retrieve your API token](#retrieve-your-api-token)
 - [Log in](#log-in)
 - [Log out](#log-out)
 - [Forgot password](#forgot-password)
@@ -32,6 +32,8 @@ This page includes a list of available resources and their API routes.
 - [SSO config](#sso-config)
 - [Initiate SSO](#initiate-sso)
 - [SSO callback](#sso-callback)
+
+### Retrieve your API token
 
 All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
@@ -848,7 +850,8 @@ None.
           ]
         }
       },
-      "overrides": {}
+      "overrides": {},
+      "command_line_flags": {}
     }
   },
   "license": {
@@ -1072,29 +1075,27 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "agent_options": {
-    "spec": {
-      "config": {
-        "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
+    "config": {
+      "options": {
+        "pack_delimiter": "/",
+        "logger_tls_period": 10,
+        "distributed_plugin": "tls",
+        "disable_distributed": false,
+        "logger_tls_endpoint": "/api/v1/osquery/log",
+        "distributed_interval": 10,
+        "distributed_tls_max_attempts": 3
       },
-      "overrides": {}
-    }
+      "decorators": {
+        "load": [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;"
+        ]
+      }
+    },
+    "overrides": {},
+    "command_line_flags": {}
   },
-    "vulnerability_settings": {
+  "vulnerability_settings": {
     "databases_path": ""
   },
   "webhook_settings": {
@@ -1474,7 +1475,7 @@ Returns a list of the active invitations in Fleet.
       "sso_enabled": false,
       "global_role": "admin",
       "teams": []
-    },
+    }
   ]
 }
 ```
@@ -1692,21 +1693,21 @@ None.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
-| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
-| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
+| os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
-| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1764,6 +1765,7 @@ If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "2ceca32fe484",
+      "display_name": "2ceca32fe484",
       "public_ip": "",
       "primary_ip": "",
       "primary_mac": "",
@@ -1833,7 +1835,7 @@ Response payload with the `munki_issue_id` filter provided:
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                 |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
@@ -1904,6 +1906,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "online_count": 2267,
   "offline_count": 141,
   "mia_count": 0,
+  "missing_30_days_count": 0,
   "new_count": 0,
   "all_linux_count": 1204,
   "low_disk_space_count": 12,
@@ -1960,7 +1963,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "platform": "darwin",
       "hosts_count": 1204
     }
-  ],
+  ]
 }
 ```
 
@@ -2043,6 +2046,7 @@ Returns the information of the specified host.
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
+    "display_name": "23cfc9caacf0",
     "public_ip": "",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
@@ -2186,45 +2190,131 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 ```json
 {
   "host": {
-    "created_at": "2020-11-05T05:09:44Z",
-    "updated_at": "2020-11-05T06:03:39Z",
-    "id": 1,
-    "detail_updated_at": "2020-11-05T05:09:45Z",
-    "label_updated_at": "2020-11-05T05:14:51Z",
-    "seen_time": "2020-11-05T06:03:39Z",
-    "hostname": "2ceca32fe484",
+    "created_at": "2022-02-10T02:29:13Z",
+    "updated_at": "2022-10-14T17:07:11Z",
+    "software": [
+      {
+          "id": 16923,
+          "name": "Automat",
+          "version": "0.8.0",
+          "source": "python_packages",
+          "generated_cpe": "",
+          "vulnerabilities": null
+      }
+    ],
+    "id": 33,
+    "detail_updated_at": "2022-10-14T17:07:12Z",
+    "label_updated_at": "2022-10-14T17:07:12Z",
+    "policy_updated_at": "2022-10-14T17:07:12Z",
+    "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "seen_time": "2022-10-14T17:45:41Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-    "platform": "centos",
-    "osquery_version": "2.7.0",
-    "os_version": "CentOS Linux 7",
+    "platform": "ubuntu",
+    "osquery_version": "5.5.1",
+    "os_version": "Ubuntu 20.04.3 LTS",
     "build": "",
-    "platform_like": "rhel fedora",
-    "code_name": "",
-    "uptime": 8305000000000,
-    "memory": 2084032512,
-    "cpu_type": "6",
-    "cpu_subtype": "142",
-    "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-    "cpu_physical_cores": 4,
-    "cpu_logical_cores": 4,
+    "platform_like": "debian",
+    "code_name": "focal",
+    "uptime": 20807520000000000,
+    "memory": 1024360448,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "63",
+    "cpu_brand": "DO-Regular",
+    "cpu_physical_cores": 1,
+    "cpu_logical_cores": 1,
     "hardware_vendor": "",
     "hardware_model": "",
     "hardware_version": "",
     "hardware_serial": "",
-    "computer_name": "2ceca32fe484",
-    "primary_ip": "",
-    "primary_mac": "",
+    "computer_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
     "distributed_interval": 10,
-    "config_tls_refresh": 10,
-    "logger_tls_period": 8,
-    "additional": {},
-    "status": "offline",
-    "display_text": "2ceca32fe484",
-    "team_id": null,
+    "config_tls_refresh": 60,
+    "logger_tls_period": 10,
+    "team_id": 2,
+    "pack_stats": [
+      {
+        "pack_id": 1,
+        "pack_name": "Global",
+        "type": "global",
+        "query_stats": [
+          {
+            "scheduled_query_name": "Get running processes (with user_name)",
+            "scheduled_query_id": 49,
+            "query_name": "Get running processes (with user_name)",
+            "pack_name": "Global",
+            "pack_id": 1,
+            "average_memory": 260000,
+            "denylisted": false,
+            "executions": 1,
+            "interval": 86400,
+            "last_executed": "2022-10-14T10:00:01Z",
+            "output_size": 198,
+            "system_time": 20,
+            "user_time": 80,
+            "wall_time": 0
+          }
+        ]
+      }
+    ],
     "team_name": null,
-    "gigs_disk_space_available": 45.86,
-    "percent_disk_space_available": 73,
-    "pack_stats": null,
+    "gigs_disk_space_available": 19.29,
+    "percent_disk_space_available": 74,
+    "issues": {
+        "total_issues_count": 0,
+        "failing_policies_count": 0
+    },
+    "labels": [
+            {
+            "created_at": "2021-09-14T05:11:02Z",
+            "updated_at": "2021-09-14T05:11:02Z",
+            "id": 12,
+            "name": "All Linux",
+            "description": "All Linux distributions",
+            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+            "platform": "",
+            "label_type": "builtin",
+            "label_membership_type": "dynamic"
+        },
+    ],
+    "packs": [
+          {
+            "created_at": "2021-09-17T05:28:54Z",
+            "updated_at": "2021-09-17T05:28:54Z",
+            "id": 1,
+            "name": "Global",
+            "description": "Global pack",
+            "disabled": false,
+            "type": "global",
+            "labels": null,
+            "label_ids": null,
+            "hosts": null,
+            "host_ids": null,
+            "teams": null,
+            "team_ids": null
+        }
+    ],
+    "policies": [
+      {
+            "id": 142,
+            "name": "Full disk encryption enabled (macOS)",
+            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+            "author_id": 31,
+            "author_name": "",
+            "author_email": "",
+            "team_id": null,
+            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+            "platform": "darwin,linux",
+            "created_at": "2022-09-02T18:52:19Z",
+            "updated_at": "2022-09-02T18:52:19Z",
+            "response": "fail"
+        },
+    ],
     "batteries": [
       {
         "cycle_count": 999,
@@ -2238,7 +2328,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
-    }
+    },
+    "status": "online",
+    "display_text": "dogfood-ubuntu-box",
+    "display_name": "dogfood-ubuntu-box"
   }
 }
 ```
@@ -2329,7 +2422,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. |
+| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. |
 
 #### Example
 
@@ -2359,7 +2452,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
-| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
 
 Either ids or filters are required.
 
@@ -2662,7 +2755,7 @@ Retrieves the aggregated host OS versions information.
       "version": "16.4.0 LTS",
       "platform": "ubuntu",
       "os_id": 6
-    },
+    }
   ]
 }
 ```
@@ -2682,7 +2775,7 @@ requested by a web browser.
 | columns                 | string  | query | Comma-delimited list of columns to include in the report (returns all columns if none is specified).                                                                                                                                                                                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
@@ -2884,32 +2977,32 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "label_type": "builtin",
+      "label_type": "builtin"
     },
     {
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "label_type": "builtin",
-    },
+      "label_type": "builtin"
+    }
   ]
 }
 ```
@@ -3009,7 +3102,7 @@ Returns a list of all the labels in Fleet.
       "display_text": "MS Windows",
       "count": 0,
       "host_ids": null
-    },
+    }
   ]
 }
 ```
@@ -3027,7 +3120,7 @@ Returns a list of the hosts that belong to the specified label.
 | id              | integer | path  | **Required**. The label's id.                                                                                                 |
 | order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                              |
+| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                    |
 | query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
 | team_id         | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                   |
 
@@ -3071,6 +3164,7 @@ Returns a list of the hosts that belong to the specified label.
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "e2e7f8d8983d",
+      "display_name": "e2e7f8d8983d",
       "primary_ip": "172.20.0.2",
       "primary_mac": "02:42:ac:14:00:02",
       "distributed_interval": 10,
@@ -3081,7 +3175,7 @@ Returns a list of the hosts that belong to the specified label.
       "team_name": null,
       "status": "offline",
       "display_text": "e2e7f8d8983d"
-    },
+    }
   ]
 }
 ```
@@ -3500,6 +3594,24 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2300,
       "failing_host_count": 0
     }
+  ],
+  "inherited_policies": [
+    {
+      "id": 136,
+      "name": "Arbitrary Test Policy (all platforms) (all teams)",
+      "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
+      "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
+      "author_id": 77,
+      "author_name": "Test Admin",
+      "author_email": "test@admin.com",
+      "team_id": null,
+      "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
+      "platform": "darwin,windows,linux",
+      "created_at": "2022-08-04T19:30:18Z",
+      "updated_at": "2022-08-30T15:08:26Z",
+      "passing_host_count": 10,
+      "failing_host_count": 9
+    }
   ]
 }
 ```
@@ -3835,8 +3947,8 @@ Returns a list of all queries in the Fleet instance.
         "disabled": false
       }
     ]
-  },
-]
+  }
+]}
 ```
 
 ### Create query
@@ -4742,6 +4854,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "7a2f41482833",
+        "display_name": "7a2f41482833",
         "primary_ip": "172.20.0.3",
         "primary_mac": "02:42:ac:14:00:03",
         "distributed_interval": 10,
@@ -4779,6 +4892,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "78c96e72746c",
+        "display_name": "78c96e72746c",
         "primary_ip": "172.20.0.7",
         "primary_mac": "02:42:ac:14:00:07",
         "distributed_interval": 10,
@@ -4887,7 +5001,8 @@ _Available in Fleet Premium_
             ]
           }
         },
-        "overrides": {}
+        "overrides": {},
+        "command_line_flags": {}
       },
       "user_count": 0,
       "host_count": 0,
@@ -4924,7 +5039,8 @@ _Available in Fleet Premium_
               ]
             }
           },
-          "overrides": {}
+          "overrides": {},
+          "command_line_flags": {}
         },
         "user_count": 0,
         "host_count": 0,
@@ -4966,32 +5082,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5039,32 +5152,29 @@ _Available in Fleet Premium_
     {
       "name": "workstations",
       "id": 1,
-      "user_ids": [],
-      "host_ids": [],
       "user_count": 0,
       "host_count": 0,
       "agent_options": {
-        "spec": {
-          "config": {
-            "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
-              "logger_tls_period": 10,
-              "distributed_plugin": "tls",
-              "disable_distributed": false,
-              "logger_tls_endpoint": "/api/v1/osquery/log",
-              "distributed_interval": 10,
-              "distributed_tls_max_attempts": 3
-            },
-            "decorators": {
-              "load": [
-                "SELECT uuid AS host_uuid FROM system_info;",
-                "SELECT hostname AS hostname FROM system_info;"
-              ]
-            }
+        "config": {
+          "options": {
+            "logger_plugin": "tls",
+            "pack_delimiter": "/",
+            "logger_tls_period": 10,
+            "distributed_plugin": "tls",
+            "disable_distributed": false,
+            "logger_tls_endpoint": "/api/v1/osquery/log",
+            "distributed_interval": 10,
+            "distributed_tls_max_attempts": 3
           },
-          "overrides": {}
-        }
+          "decorators": {
+            "load": [
+              "SELECT uuid AS host_uuid FROM system_info;",
+              "SELECT hostname AS hostname FROM system_info;"
+            ]
+          }
+        },
+        "overrides": {},
+        "command_line_flags": {}
       },
       "webhook_settings": {
         "failing_policies_webhook": {
@@ -5130,32 +5240,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [],
     "user_count": 4,
     "host_count": 0,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5190,32 +5297,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5252,25 +5356,26 @@ _Available in Fleet Premium_
 
 ```json
 {
-	"config": {
-		"options": {
-			"logger_plugin": "tls",
-			"pack_delimiter": "/",
-			"logger_tls_period": 20,
-			"distributed_plugin": "tls",
-			"disable_distributed": false,
-			"logger_tls_endpoint": "/api/v1/osquery/log",
-			"distributed_interval": 60,
-			"distributed_tls_max_attempts": 3
-		},
-		"decorators": {
-			"load": [
-				"SELECT uuid AS host_uuid FROM system_info;",
-				"SELECT hostname AS hostname FROM system_info;"
-			]
-		}
-	},
-	"overrides": {}
+  "config": {
+    "options": {
+      "logger_plugin": "tls",
+      "pack_delimiter": "/",
+      "logger_tls_period": 20,
+      "distributed_plugin": "tls",
+      "disable_distributed": false,
+      "logger_tls_endpoint": "/api/v1/osquery/log",
+      "distributed_interval": 60,
+      "distributed_tls_max_attempts": 3
+    },
+    "decorators": {
+      "load": [
+        "SELECT uuid AS host_uuid FROM system_info;",
+        "SELECT hostname AS hostname FROM system_info;"
+      ]
+    }
+  },
+  "overrides": {},
+  "command_line_flags": {}
 }
 ```
 
@@ -5283,32 +5388,29 @@ _Available in Fleet Premium_
   "team": {
     "name": "Workstations",
     "id": 1,
-    "user_ids": [1, 17, 22, 32],
-    "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
     "user_count": 4,
     "host_count": 8,
     "agent_options": {
-      "spec": {
-        "config": {
-          "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
-            "logger_tls_period": 20,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 60,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+      "config": {
+        "options": {
+          "logger_plugin": "tls",
+          "pack_delimiter": "/",
+          "logger_tls_period": 20,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 60,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {}
-      }
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
     },
     "webhook_settings": {
       "failing_policies_webhook": {
@@ -5392,7 +5494,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
       "payload": {
         "identifier": "host-ABC"
       }
-    },
+    }
   ]
 }
 ```
@@ -5680,7 +5782,7 @@ By default, the user will be forced to reset its password upon first login.
     {
       "id": 3,
       "role": "maintainer"
-    },
+    }
   ]
 }
 ```
@@ -5711,7 +5813,7 @@ By default, the user will be forced to reset its password upon first login.
       {
         "id": 3,
         "role": "maintainer"
-      },
+      }
     ]
   }
 }
@@ -5895,7 +5997,7 @@ Returns all information about a specific user.
       {
         "id": 3,
         "role": "maintainer"
-      },
+      }
     ]
   }
 }

@@ -187,8 +187,8 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-// One of these queries is the disk space, only one of the two works in a platform. Similarly, one
-// is for operating system.
+// One of these queries is the disk space, only one of the two works in a platform. Similarly, os_version_windows
+// is only for Windows, while os_version is for all platforms.
 var expectedDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
 
 func TestEnrollAgent(t *testing.T) {
@@ -491,7 +491,6 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
 		hostDetailQueryPrefix + "google_chrome_profiles": {},
-		hostDetailQueryPrefix + "orbit_info":             {},
 		hostDetailQueryPrefix + "mdm":                    {},
 		hostDetailQueryPrefix + "munki_info":             {},
 		hostDetailQueryPrefix + "windows_update_history": {},
@@ -561,7 +560,8 @@ func TestHostDetailQueries(t *testing.T) {
 	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
 	// 2 additional queries, but -3 expected queries due to removed disk space query (only 1 of 2
-	// active for a given platform) and removed two Windows-specific operating system queries
+	// active for a given platform) and removed two Windows-specific operating system queries,
+	// so the result is -1.
 	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
@@ -835,7 +835,7 @@ func TestLabelQueries(t *testing.T) {
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// +3 for label queries, but -3 expected queries due to removed disk space query (only 1 of 2
-	// active for a given platform) and removed two Windows-specific operating system query
+	// active for a given platform) and removed two Windows-specific operating system queries
 	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
@@ -1066,7 +1066,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 	// somehow confusingly, the query response above changed the host's platform
 	// from windows to darwin, so now it has all expected queries except the
-	// extra disk space one and the two windows-specific operating system query
+	// extra disk space one and two windows-specific operating system queries
 	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
@@ -1127,7 +1127,7 @@ func TestDetailQueries(t *testing.T) {
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// -6 due to linux platform, so battery, mdm, and munki are missing, and the extra disk space
-	// query, and the two windows-specific operating system queries, then +1 due to software inventory being enabled.
+	// query, and two windows-specific operating system queries, then +1 due to software inventory being enabled.
 	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
@@ -1313,7 +1313,6 @@ func TestDetailQueries(t *testing.T) {
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 	require.True(t, ds.SetOrUpdateMunkiInfoFuncInvoked)
-	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 
 	// osquery_info
@@ -1388,7 +1387,7 @@ func TestDetailQueries(t *testing.T) {
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// host platform changed to darwin, so -3 for the
-	// extra disk space query and the two windows-specific operating system query,
+	// extra disk space query and two windows-specific operating system queries,
 	// +1 for the software inventory enabled.
 	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
@@ -1556,7 +1555,7 @@ func TestDistributedQueryResults(t *testing.T) {
 			if res, ok := val.(fleet.DistributedQueryResult); ok {
 				assert.Equal(t, campaign.ID, res.DistributedQueryCampaignID)
 				assert.Equal(t, expectedRows, res.Rows)
-				assert.Equal(t, *host, res.Host)
+				assert.Equal(t, host, res.Host.Host)
 			} else {
 				t.Error("Wrong result type")
 			}
@@ -2462,8 +2461,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -3 (the extra disk space and two windows-specific operating system
-	// queries) and +2 policy queries
+	// all standard queries3-2 (the extra disk space and two windows-specific operating system
+	// query) and +2 policy queries
 	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
@@ -2684,8 +2683,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for extra disk space and windows-specific operating system queries, +3 for policies
-	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// all queries -3 for extra disk space and two windows-specific operating system queries, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)-0, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2816,52 +2815,6 @@ func TestLiveQueriesFailing(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(logs), "level=error")
 	require.Contains(t, string(logs), "failed to get queries for host")
-}
-
-// TestFleetDesktopOrbitInfo tests that the orbit_info table extension is
-// refetched for "orbitInfoRefetchAfterEnrollDur" after enroll.
-func TestFleetDesktopOrbitInfo(t *testing.T) {
-	ds := new(mock.Store)
-	lq := live_query_mock.New(t)
-	mockClock := clock.NewMockClock()
-	fleetConfig := config.TestConfig()
-	fleetConfig.Osquery.LabelUpdateInterval = 5 * time.Minute
-	fleetConfig.Osquery.PolicyUpdateInterval = 5 * time.Minute
-	fleetConfig.Osquery.DetailUpdateInterval = 5 * time.Minute
-	svc := newTestServiceWithConfig(t, ds, fleetConfig, nil, lq, &TestServerOpts{Clock: mockClock})
-
-	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
-
-	now := time.Now().UTC()
-	mockClock.SetTime(now)
-
-	host := &fleet.Host{
-		Platform: "darwin",
-		// Host has enrolled 30 seconds ago.
-		LastEnrolledAt: now.Add(-30 * time.Second),
-		// Host is up-to-date with details, labels and policies
-		// because update interval for each is 5m.
-		DetailUpdatedAt: now.Add(-5 * time.Second),
-		LabelUpdatedAt:  now.Add(-5 * time.Second),
-		PolicyUpdatedAt: now.Add(-5 * time.Second),
-	}
-
-	ctx := hostctx.NewContext(context.Background(), host)
-
-	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
-	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	verifyDiscovery(t, queries, discovery)
-	require.Contains(t, queries, "fleet_detail_query_orbit_info")
-
-	// Advance mock clock
-	mockClock.AddTime(orbitInfoRefetchAfterEnrollDur)
-	ctx = hostctx.NewContext(context.Background(), host)
-
-	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
-	require.NoError(t, err)
-	require.Len(t, queries, 0)
-	require.Len(t, discovery, 0)
 }
 
 func distQueriesMapKeys(m map[string]string) []string {

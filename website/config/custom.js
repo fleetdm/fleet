@@ -104,15 +104,12 @@ module.exports.custom = {
 
     'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/people': 'charlottechance',
+    'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
-    'handbook/product': 'noahtalerman',
+    'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/security': 'guillaumeross',
-    'handbook/sales': 'alexmitchelliii',
-    'handbook/digital-experience': 'mike-j-thomas',
-    'handbook/growth': 'timmy-k',
-    'handbook/customers': 'ksatter',
-    'handbook/community': ['timmy-k'],
+    'handbook/customers': ['alexmitchelliii','zayhanlon'],
+    'handbook/marketing': ['mike-j-thomas','chris-mcgillicuddy', 'timmy-k'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
@@ -128,7 +125,8 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
+    'schema/': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
   },
 
 

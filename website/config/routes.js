@@ -21,7 +21,7 @@ module.exports.routes = {
   'GET /company/contact': {
     action: 'view-contact',
     locals: {
-      pageTitleForMeta: 'Contact us | Fleet Device Management',
+      pageTitleForMeta: 'Contact us | Fleet for osquery',
       pageDescriptionForMeta: 'Get in touch with our team.'
     }
   },
@@ -30,7 +30,7 @@ module.exports.routes = {
     action: 'view-get-started',
     locals: {
       currentPage: 'get started',
-      pageTitleForMeta: 'fleetctl preview | Fleet Device Management',
+      pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
   },
@@ -39,7 +39,7 @@ module.exports.routes = {
     action: 'view-pricing',
     locals: {
       currentPage: 'pricing',
-      pageTitleForMeta: 'Pricing | Fleet Device Management',
+      pageTitleForMeta: 'Pricing | Fleet for osquery',
       pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
   },
@@ -47,7 +47,7 @@ module.exports.routes = {
   'GET /logos': {
     action: 'view-press-kit',
     locals: {
-      pageTitleForMeta: 'Logos | Fleet Device Management',
+      pageTitleForMeta: 'Logos | Fleet for osquery',
       pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },
@@ -56,7 +56,7 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentPage: 'queries',
-      pageTitleForMeta: 'Queries | Fleet Device Management',
+      pageTitleForMeta: 'Queries | Fleet for osquery',
       pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
   },
@@ -100,7 +100,7 @@ module.exports.routes = {
   'GET /transparency': {
     action: 'view-transparency',
     locals: {
-      pageTitleForMeta: 'Transparency | Fleet Device Management',
+      pageTitleForMeta: 'Transparency | Fleet for osquery',
       pageDescriptionForMeta: 'Learn what data osquery can see.',
     }
   },
@@ -108,7 +108,7 @@ module.exports.routes = {
     action: 'customers/view-new-license',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Get Fleet Premium | Fleet Device Management',
+      pageTitleForMeta: 'Get Fleet Premium | Fleet for osquery',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
   },
@@ -116,7 +116,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Sign up | Fleet Device Management',
+      pageTitleForMeta: 'Sign up | Fleet for osquery',
       pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
     }
   },
@@ -124,7 +124,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Log in | Fleet Device Management',
+      pageTitleForMeta: 'Log in | Fleet for osquery',
       pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
     }
   },
@@ -132,7 +132,7 @@ module.exports.routes = {
     action: 'customers/view-dashboard',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Customer dashboard | Fleet Device Management',
+      pageTitleForMeta: 'Customer dashboard | Fleet for osquery',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
@@ -140,7 +140,7 @@ module.exports.routes = {
     action: 'entrance/view-forgot-password',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Forgot password | Fleet Device Management',
+      pageTitleForMeta: 'Forgot password | Fleet for osquery',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
   },
@@ -148,7 +148,7 @@ module.exports.routes = {
     action: 'entrance/view-new-password',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'New password | Fleet Device Management',
+      pageTitleForMeta: 'New password | Fleet for osquery',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
   },
@@ -157,7 +157,7 @@ module.exports.routes = {
     action: 'view-platform',
     locals: {
       currentPage: 'platform',
-      pageTitleForMeta: 'Platform | Fleet Device Management',
+      pageTitleForMeta: 'Platform | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
     }
   },
@@ -165,7 +165,7 @@ module.exports.routes = {
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
-      pageTitleForMeta: 'State of device management | Fleet Device Management',
+      pageTitleForMeta: 'State of device management | Fleet for osquery',
       pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
       headerCTAHidden: true,
     }
@@ -174,7 +174,7 @@ module.exports.routes = {
   'GET /overview': {
     action: 'view-sales-one-pager',
     locals: {
-      pageTitleForMeta: 'Overview | Fleet Device Management',
+      pageTitleForMeta: 'Overview | Fleet for osquery',
       pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
       layout: 'layouts/layout-landing'
     },
@@ -232,6 +232,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /try-fleet':                  '/get-started',
+  'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/digital-experience',
@@ -253,7 +254,16 @@ module.exports.routes = {
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
   'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
-
+  'GET /handbook/sales': '/handbook/customers#sales',
+  'GET /handbook/people': '/handbook/business-operations',
+  'GET /handbook/people/ceo-handbook': '/handbook/business-operations/ceo-handbook',
+  'GET /handbook/growth': '/handbook/marketing/growth',
+  'GET /handbook/community': '/handbook/marketing/community',
+  'GET /handbook/digital-experience': '/handbook/marketing/digital-experience',
+  'GET /handbook/digital-experience/article-formatting-guide': '/handbook/marketing',// FUTURE: Figure out the real place this went
+  'GET /handbook/digital-experience/commonly-used-terms': '/handbook/marketing',// FUTURE: Figure out the real place this went
+  'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing',// FUTURE: Figure out the real place this went
+  'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing',// FUTURE: Figure out the real place this went
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗

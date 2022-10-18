@@ -59,14 +59,12 @@ const labelSlug = (label: ILabel): string => {
   return `labels/${id}`;
 };
 
-const labelStubs = [
+const statusKey = [
   {
     id: "new",
     count: 0,
     description: "Hosts that have been enrolled to Fleet in the last 24 hours.",
     display_text: "New",
-    slug: "new",
-    statusLabelKey: "new_count",
     title_description: "(added in last 24hrs)",
     type: "status",
   },
@@ -75,8 +73,15 @@ const labelStubs = [
     count: 0,
     description: "Hosts that have recently checked-in to Fleet.",
     display_text: "Online",
-    slug: "online",
-    statusLabelKey: "online_count",
+    type: "status",
+  },
+  {
+    id: "missing",
+    count: 0,
+    description: "Hosts that have not been online in 30 days or more.",
+    display_text: "Missing",
+    slug: "missing",
+    statusLabelKey: "missing_count",
     type: "status",
   },
   {
@@ -84,8 +89,6 @@ const labelStubs = [
     count: 0,
     description: "Hosts that have not checked-in to Fleet recently.",
     display_text: "Offline",
-    slug: "offline",
-    statusLabelKey: "offline_count",
     type: "status",
   },
 ];
@@ -94,7 +97,7 @@ const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;
 };
 const isHost = (target: ISelectTargetsEntity) => {
-  return "hostname" in target;
+  return "display_name" in target;
 };
 
 const filterTarget = (targetType: string) => {
@@ -199,38 +202,6 @@ export const formatConfigDataForServer = (config: any): any => {
   };
 };
 
-// TODO: Finalize interface for config - see frontend\interfaces\config.ts
-export const frontendFormattedConfig = (config: IConfig) => {
-  const {
-    org_info: orgInfo,
-    server_settings: serverSettings,
-    smtp_settings: smtpSettings,
-    sso_settings: ssoSettings,
-    host_expiry_settings: hostExpirySettings,
-    webhook_settings: { host_status_webhook: webhookSettings }, // unnested to frontend
-    update_interval: updateInterval,
-    license,
-    logging,
-  } = config;
-
-  if (config.agent_options) {
-    config.agent_options = yaml.dump(config.agent_options);
-  }
-
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...webhookSettings,
-    ...updateInterval,
-    ...license,
-    ...logging,
-    agent_options: config.agent_options,
-  };
-};
-
 export const formatFloatAsPercentage = (float: number): string => {
   const formatter = Intl.NumberFormat("en-US", {
     maximumSignificantDigits: 2,
@@ -250,7 +221,7 @@ const formatLabelResponse = (response: any): ILabel[] => {
     };
   });
 
-  return labels.concat(labelStubs);
+  return labels;
 };
 
 export const formatSelectedTargetsForApi = (
@@ -620,7 +591,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
   }
-  return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
+  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
@@ -844,7 +815,6 @@ export default {
   secondsToDhms,
   labelSlug,
   setupData,
-  frontendFormattedConfig,
   syntaxHighlight,
   getValidatedTeamId,
   normalizeEmptyValues,

@@ -25,7 +25,7 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.T
 
 	hosts := make([]*fleet.Host, len(responseBody.Targets.Hosts))
 	for i, h := range responseBody.Targets.Hosts {
-		hosts[i] = h.HostResponse.Host
+		hosts[i] = h.Host
 	}
 
 	labels := make([]*fleet.Label, len(responseBody.Targets.Labels))

@@ -257,7 +257,7 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "QUEUED_INSTANCES"
-            value = data.aws_caller_identity.current.account_id == 411315989055 ? "20" : "5"
+            value = "20"
           },
           {
             name  = "TF_VAR_redis_address"
