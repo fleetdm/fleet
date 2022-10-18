@@ -20,6 +20,13 @@ We are dedicated to
 ### All remote
 Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
+## About the handbook
+
+The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+
+While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
+
+
 ### Open source
 The majority of the code, documentation, and content we [create](https://twitter.com/mikermcneil/status/1476799587423772674) at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 

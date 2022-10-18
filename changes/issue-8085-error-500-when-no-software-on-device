@@ -1,0 +1,1 @@
+- fixes 500 error issue on details/:token page when host has software.
