@@ -1,4 +1,4 @@
-# People
+# Business Operations
 
 ## Directly responsible individuals
 
