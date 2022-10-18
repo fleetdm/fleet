@@ -1,4 +1,12 @@
 import CONSTANTS from "../../support/constants";
+import hostDetailsPage from "../pages/hostDetailsPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
+import manageHostsPage from "../pages/manageHostsPage";
+import manageQueriesPage from "../pages/manageQueriesPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
+import teamsDropdown from "../pages/teamsDropdown";
+import userProfilePage from "../pages/userProfilePage";
+import dashboardPage from "../pages/dashboardPage";
 
 const { GOOD_PASSWORD, CONFIG_INTEGRATIONS_AUTOMATIONS } = CONSTANTS;
 
@@ -327,8 +335,8 @@ describe("Premium tier - Global Admin user", () => {
   beforeEach(() => {
     cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
   });
-  describe("Navigation", () => {
-    beforeEach(() => cy.visit("/dashboard"));
+  describe("Navigation and dashboard", () => {
+    beforeEach(() => dashboardPage.visitsDashboardPage());
     it("displays intended global admin top navigation", () => {
       cy.getAttached(".site-nav-container").within(() => {
         cy.findByText(/hosts/i).should("exist");
@@ -350,40 +358,53 @@ describe("Premium tier - Global Admin user", () => {
         cy.findByText(/users/i).should("exist");
       });
     });
+    // Premium dashboard feature
+    it("filters missing hosts", () => {
+      cy.findByText(/missing hosts/i).click();
+      cy.getAttached(".manage-hosts__filter-dropdowns").within(() => {
+        cy.findByText(/missing hosts/i).should("exist");
+      });
+    });
+    // Premium dashboard feature
+    it("filters low disk space hosts", () => {
+      cy.findByText(/low disk space hosts/i).click();
+      cy.findByRole("status", {
+        name: /hosts filtered by low disk space/i,
+      }).should("exist");
+    });
   });
   // Global Admin dashboard tested in integration/free/admin.spec.ts
   // Team Admin dashboard tested below in integration/premium/admin.spec.ts
   describe("Manage hosts page", () => {
-    beforeEach(() => cy.visit("/hosts/manage"));
-    it("displays team column in hosts table", () => {
-      cy.getAttached(".data-table__table th")
-        .contains("Team")
-        .should("be.visible");
+    beforeEach(() => manageHostsPage.visitsManageHostsPage());
+    it("verifies teams is enabled on Manage host page", () => {
+      manageHostsPage.includesTeamColumn();
     });
-    it("allows global admin to see and click 'Add hosts'", () => {
-      cy.getAttached(".button-wrap")
-        .contains("button", /add hosts/i)
-        .click();
-      cy.getAttached(".modal__content").contains("button", /done/i).click();
+    it("allows global admin to see and click all CTA buttons", () => {
+      manageHostsPage.allowsAddHosts();
+      manageHostsPage.allowsManageAndAddSecrets();
+      manageHostsPage.allowsAddLabelForm();
     });
-    it("allows global admin to add new enroll secret", () => {
-      cy.getAttached(".button-wrap")
-        .contains("button", /manage enroll secret/i)
-        .click();
-      cy.getAttached(".enroll-secret-modal__add-secret")
-        .contains("button", /add secret/i)
-        .click();
-      cy.getAttached(".secret-editor-modal .modal-cta-wrap")
-        .contains("button", /save/i)
-        .click();
-      cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
-        .contains("button", /done/i)
-        .click();
+  });
+  describe("Host details page", () => {
+    beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
+    it("allows global admin to transfer host to an existing team", () => {
+      hostDetailsPage.allowsTransferHost("andCreate");
+      hostDetailsPage.verifiesTransferredHost();
+    });
+    it("allows global admin to create an operating system policy", () => {
+      hostDetailsPage.allowsCreateOsPolicy();
+    });
+    it("allows global admin to custom query a host", () => {
+      hostDetailsPage.allowsCustomQueryHost();
+    });
+    it("allows global admin to delete a host", () => {
+      hostDetailsPage.allowsDeleteHost();
     });
   });
   describe("Manage software page", () => {
     beforeEach(() => {
-      cy.visit("/software/manage");
+      manageSoftwarePage.visitManageSoftwarePage();
     });
     // it(`displays "Probability of exploit" column`, () => {
     //   cy.getAttached("thead").within(() => {
@@ -392,177 +413,50 @@ describe("Premium tier - Global Admin user", () => {
     //   });
     // });
     it("allows admin to click 'Manage automations' button", () => {
-      cy.findByRole("button", { name: /manage automations/i }).click();
-      cy.findByRole("button", { name: /cancel/i }).click();
+      manageSoftwarePage.allowsManageAutomations();
     });
     it("hides manage automations button since all teams not selected", () => {
       cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.getAttached(".Select").within(() => {
-          cy.findByText(/all teams/i).click();
-          cy.findByText(/apples/i).click();
-        });
-        cy.findByText(/manage automations/i).should("not.exist");
+        teamsDropdown.switchTeams("All teams", "Apples");
+        manageSoftwarePage.hidesButton("Manage automations");
       });
     });
   });
-  describe("Host details page", () => {
-    beforeEach(() => cy.visit("hosts/2"));
-    it("allows global admin to transfer host to an existing team", () => {
-      cy.getAttached(".host-details__transfer-button").click();
-      cy.findByText(/create a team/i).should("exist");
-      cy.getAttached(".Select-control").click();
-      cy.getAttached(".Select-menu").within(() => {
-        cy.findByText(/no team/i).should("exist");
-        cy.findByText(/oranges/i).should("exist");
-        cy.findByText(/apples/i).click();
-      });
-      cy.getAttached(".transfer-host-modal .modal-cta-wrap")
-        .contains("button", /transfer/i)
-        .click();
-      cy.findByText(/transferred to apples/i).should("exist");
-      cy.findByText(/team/i).next().contains("Apples");
-    });
-    it("allows global admin to create an operating system policy", () => {
-      cy.getAttached(".info-flex").within(() => {
-        cy.findByText(/ubuntu/i).should("exist");
-        cy.getAttached(".host-summary__os-policy-button").click();
-      });
-      cy.getAttached(".modal__content")
-        .findByRole("button", { name: /create new policy/i })
-        .should("exist");
-    });
-    it("allows global admin to create a custom query", () => {
-      cy.getAttached(".host-details__query-button").click();
-      cy.contains("button", /create custom query/i).should("exist");
-      cy.getAttached(".modal__ex").click();
-    });
-    it("allows global admin to delete a host", () => {
-      cy.getAttached(".host-details__action-button-container")
-        .contains("button", /delete/i)
-        .click();
-      cy.getAttached(".delete-host-modal__modal").within(() => {
-        cy.findByText(/delete host/i).should("exist");
-        cy.contains("button", /delete/i).should("exist");
-        cy.getAttached(".modal__ex").click();
-      });
-    });
-  });
-
   describe("Query pages", () => {
-    beforeEach(() => cy.visit("/queries/manage"));
+    beforeEach(() => manageQueriesPage.visitManageQueriesPage());
     it("allows global admin to select teams targets for query", () => {
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({ force: true });
-          });
-        cy.findAllByText(/detect presence/i).click();
-      });
-
-      cy.getAttached(".query-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).click();
-      });
-      cy.contains("h3", /teams/i).should("exist");
-      cy.contains(".selector-name", /apples/i).should("exist");
+      manageQueriesPage.allowsSelectTeamTargets();
     });
+    // TODO: Allowed to delete self-authored query only
   });
   // Global Admin schedule tested in integration/free/admin.spec.ts
   // Team Admin team schedule tested below in integration/premium/admin.spec.ts
   describe("Manage policies page", () => {
-    beforeEach(() => cy.visit("/policies/manage"));
+    beforeEach(() => managePoliciesPage.visitManagePoliciesPage());
     it("allows global admin to add a new policy", () => {
-      cy.getAttached(".policies-table__action-button-container")
-        .findByRole("button", { name: /add a policy/i })
-        .click();
-      // Add a default policy
-      cy.findByText(/gatekeeper enabled/i).click();
-      cy.getAttached(".policy-form__button-wrap").within(() => {
-        cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save/i }).click();
-      });
-      cy.getAttached(".modal-cta-wrap").within(() => {
-        cy.findByRole("button", { name: /save policy/i }).click();
-      });
-      cy.findByText(/policy created/i).should("exist");
-      cy.findByText(/gatekeeper enabled/i).should("exist");
+      managePoliciesPage.allowsAddDefaultPolicy();
+      managePoliciesPage.verifiesAddedDefaultPolicy();
     });
     it("allows global admin to automate a global policy", () => {
-      cy.getAttached(".button-wrap")
-        .findByRole("button", { name: /manage automations/i })
-        .click();
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached(".fleet-checkbox__input").check({ force: true });
-        cy.getAttached("#webhook-url")
-          .clear()
-          .type("https://example.com/global_admin");
-        cy.findByText(/save/i).click();
-      });
-      cy.findByText(/successfully updated policy automations/i).should("exist");
+      managePoliciesPage.allowsAutomatePolicy();
+      managePoliciesPage.verifiesAutomatedPolicy();
     });
     it("allows global admin to automate a team policy webhook", () => {
+      managePoliciesPage.visitManagePoliciesPage();
+      teamsDropdown.switchTeams("All teams", "Apples");
+      managePoliciesPage.allowsAutomatePolicy();
+      managePoliciesPage.verifiesAutomatedPolicy();
+    });
+
+    it("allows global admin to delete a team policy", () => {
       cy.visit("/policies/manage");
-      cy.getAttached(".Select-control").within(() => {
-        cy.findByText(/all teams/i).click();
-      });
-      cy.getAttached(".Select-menu")
-        .contains(/apples/i)
-        .click();
-      cy.getAttached(".button-wrap")
-        .findByRole("button", { name: /manage automations/i })
-        .click();
-      cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
-        cy.getAttached(".fleet-checkbox__input").check({ force: true });
-        cy.getAttached("#webhook-url")
-          .clear()
-          .type("https://example.com/global_admin");
-        cy.findByText(/save/i).click();
-      });
-      cy.findByText(/successfully updated policy automations/i).should("exist");
+      teamsDropdown.switchTeams("All teams", "Apples");
+      managePoliciesPage.allowsDeletePolicy();
     });
-  });
-  it("allows global admin to delete a team policy", () => {
-    cy.visit("/policies/manage");
-    cy.getAttached(".Select-control").within(() => {
-      cy.findByText(/all teams/i).click();
-    });
-    cy.getAttached(".Select-menu")
-      .contains(/apples/i)
-      .click();
-    cy.getAttached("tbody").within(() => {
-      cy.getAttached("tr")
-        .first()
-        .within(() => {
-          cy.getAttached(".fleet-checkbox__input").check({
-            force: true,
-          });
-        });
-    });
-    cy.findByRole("button", { name: /delete/i }).click();
-    cy.getAttached(".delete-policy-modal").within(() => {
-      cy.findByRole("button", { name: /delete/i }).should("exist");
-      cy.findByRole("button", { name: /cancel/i }).click();
-    });
-  });
-  it("allows global admin to edit a team policy", () => {
-    cy.visit("policies/manage");
-    cy.findByText(/all teams/i).click();
-    cy.findByText(/apples/i).click();
-    cy.getAttached("tbody").within(() => {
-      cy.getAttached("tr")
-        .first()
-        .within(() => {
-          cy.getAttached(".fleet-checkbox__input").check({
-            force: true,
-          });
-        });
-    });
-    cy.findByText(/filevault enabled/i).click();
-    cy.getAttached(".policy-form__button-wrap").within(() => {
-      cy.findByRole("button", { name: /run/i }).should("exist");
-      cy.findByRole("button", { name: /save/i }).should("exist");
+    it("allows global admin to edit a team policy", () => {
+      managePoliciesPage.visitManagePoliciesPage();
+      teamsDropdown.switchTeams("All teams", "Apples");
+      managePoliciesPage.allowsSelectRunSavePolicy("filevault");
     });
   });
   describe("Manage policies page (mock integrations)", () => {
@@ -572,42 +466,18 @@ describe("Premium tier - Global Admin user", () => {
         "/api/latest/fleet/config",
         CONFIG_INTEGRATIONS_AUTOMATIONS
       ).as("getIntegrations");
-      cy.visit("/policies/manage");
+      managePoliciesPage.visitManagePoliciesPage();
       cy.wait("@getIntegrations").then((configStub) => {
         console.log(JSON.stringify(configStub));
       });
     });
     it("allows global admin to delete team policy", () => {
-      cy.visit("/policies/manage");
-      cy.getAttached(".Select-control").within(() => {
-        cy.findByText(/all teams/i).click();
-      });
-      cy.getAttached(".Select-menu")
-        .contains(/apples/i)
-        .click();
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({
-              force: true,
-            });
-          });
-      });
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".delete-policy-modal").within(() => {
-        cy.findByRole("button", { name: /delete/i }).should("exist");
-        cy.findByRole("button", { name: /cancel/i }).click();
-      });
+      teamsDropdown.switchTeams("All teams", "Apples");
+      managePoliciesPage.allowsDeletePolicy();
     });
     it("allows global admin to automate a team policy jira integration", () => {
-      cy.visit("/policies/manage");
-      cy.getAttached(".Select-control").within(() => {
-        cy.findByText(/all teams/i).click();
-      });
-      cy.getAttached(".Select-menu")
-        .contains(/apples/i)
-        .click();
+      managePoliciesPage.visitManagePoliciesPage;
+      teamsDropdown.switchTeams("All teams", "Apples");
       cy.getAttached(".button-wrap")
         .findByRole("button", { name: /manage automations/i })
         .click();
@@ -634,13 +504,8 @@ describe("Premium tier - Global Admin user", () => {
     });
 
     it("allows global admin to automate a team policy zendesk integration", () => {
-      cy.visit("/policies/manage");
-      cy.getAttached(".Select-control").within(() => {
-        cy.findByText(/all teams/i).click();
-      });
-      cy.getAttached(".Select-menu")
-        .contains(/apples/i)
-        .click();
+      managePoliciesPage.visitManagePoliciesPage();
+      teamsDropdown.switchTeams("All teams", "Apples");
       cy.getAttached(".button-wrap")
         .findByRole("button", { name: /manage automations/i })
         .click();
@@ -690,13 +555,13 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached(".react-tabs").within(() => {
         cy.findByText(/users/i).click();
       });
-      cy.findByRole("button", { name: /create user/i }).click();
+      cy.findByRole("button", { name: /create user/i }).click({ force: true });
       cy.findByText(/assign teams/i).should("exist");
     });
     it("allows global admin to edit existing user password", () => {
       cy.visit("/settings/users");
       cy.getAttached("tbody").within(() => {
-        cy.findByText("Oliver") // case-sensitive
+        cy.contains("Oliver") // case-sensitive
           .parent()
           .next()
           .next()
@@ -735,14 +600,9 @@ describe("Premium tier - Global Admin user", () => {
     });
   });
   describe("User profile page", () => {
-    it("renders elements according to role-based access controls", () => {
-      cy.visit("/profile");
-      cy.getAttached(".user-side-panel").within(() => {
-        cy.findByText(/team/i)
-          .next()
-          .contains(/global/i);
-        cy.findByText("Role").next().contains(/admin/i);
-      });
+    it("verifies admin user role and global access", () => {
+      userProfilePage.visitUserProfilePage();
+      userProfilePage.showRole("Admin", "Global");
     });
   });
 });

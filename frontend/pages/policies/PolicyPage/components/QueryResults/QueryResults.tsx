@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
@@ -10,10 +10,11 @@ import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
-import TooltipWrapper from "components/TooltipWrapper";
+import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
+import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
 
@@ -52,33 +53,7 @@ const QueryResults = ({
 
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
 
-  const PAGE_TITLES = {
-    RUNNING: `Querying selected host${targetsTotalCount > 1 ? "s" : ""}`,
-    FINISHED: "Query finished",
-  };
-
-  const [pageTitle, setPageTitle] = useState(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
-  const [
-    targetsRespondedPercent,
-    setTargetsRespondedPercent,
-  ] = useState<number>(0);
-
-  useEffect(() => {
-    const calculatePercent =
-      targetsTotalCount !== 0
-        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
-        : 0;
-    setTargetsRespondedPercent(calculatePercent);
-  }, [campaign]);
-
-  useEffect(() => {
-    if (isQueryFinished) {
-      setPageTitle(PAGE_TITLES.FINISHED);
-    } else {
-      setPageTitle(PAGE_TITLES.RUNNING);
-    }
-  }, [isQueryFinished]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -86,7 +61,7 @@ const QueryResults = ({
     if (hostsOnline) {
       const hostsExport = hostsOnline.map((host) => {
         return {
-          hostname: host.hostname,
+          host: host.display_name,
           status:
             host.query_results && host.query_results.length ? "yes" : "no",
         };
@@ -133,11 +108,7 @@ const QueryResults = ({
       isQueryFinished && (!hostsCount.successful || emptyResults);
 
     if (hasNoResultsYet) {
-      return (
-        <div className={`${baseClass}__loading-spinner`}>
-          <Spinner />
-        </div>
-      );
+      return <AwaitingResults />;
     }
 
     if (finishedWithNoResults) {
@@ -214,59 +185,20 @@ const QueryResults = ({
     );
   };
 
-  const renderFinishedButtons = () => (
-    <div className={`${baseClass}__btn-wrapper`}>
-      <Button
-        className={`${baseClass}__done-btn`}
-        onClick={onQueryDone}
-        variant="brand"
-      >
-        Done
-      </Button>
-      <Button
-        className={`${baseClass}__run-btn`}
-        onClick={onRunQuery}
-        variant="blue-green"
-      >
-        Run again
-      </Button>
-    </div>
-  );
-
-  const renderStopQueryButton = () => (
-    <div className={`${baseClass}__btn-wrapper`}>
-      <Button
-        className={`${baseClass}__stop-btn`}
-        onClick={onStopQuery}
-        variant="alert"
-      >
-        <>Stop</>
-      </Button>
-    </div>
-  );
-
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
     "errors-empty": !errors || errors?.length === 0,
   });
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
-        <h1>{pageTitle}</h1>
-        <div className={`${baseClass}__text-wrapper`}>
-          <span>{targetsTotalCount}</span>&nbsp;host
-          {`${targetsTotalCount > 1 ? "s" : ""}`} targeted&nbsp; (
-          {targetsRespondedPercent}%&nbsp;
-          <TooltipWrapper
-            tipContent={`
-                Hosts that respond may<br /> return results, errors, or <br />no results`}
-          >
-            responded
-          </TooltipWrapper>
-          )
-        </div>
-      </div>
-      {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
+      <QueryResultsHeading
+        respondedHosts={hostsCount.total}
+        targetsTotalCount={targetsTotalCount}
+        isQueryFinished={isQueryFinished}
+        onClickDone={onQueryDone}
+        onClickRunAgain={onRunQuery}
+        onClickStop={onStopQuery}
+      />
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>

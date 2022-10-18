@@ -323,7 +323,7 @@ const HostDetailsPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
-      "hostname",
+      "display_name",
     ])
   );
 
@@ -390,12 +390,15 @@ const HostDetailsPage = ({
         await hostAPI.destroy(host);
         renderFlash(
           "success",
-          `Host "${host.hostname}" was successfully deleted.`
+          `Host "${host.display_name}" was successfully deleted.`
         );
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.hostname}" could not be deleted.`);
+        renderFlash(
+          "error",
+          `Host "${host.display_name}" could not be deleted.`
+        );
       } finally {
         setShowDeleteHostModal(false);
         setIsUpdatingHost(false);
@@ -419,7 +422,7 @@ const HostDetailsPage = ({
         });
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.hostname}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }
@@ -639,7 +642,7 @@ const HostDetailsPage = ({
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
             onSubmit={onDestroyHost}
-            hostName={host?.hostname}
+            hostName={host?.display_name}
             isUpdatingHost={isUpdatingHost}
           />
         )}

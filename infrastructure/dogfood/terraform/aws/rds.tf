@@ -104,10 +104,6 @@ module "aurora_mysql" {
 
   db_parameter_group_name         = aws_db_parameter_group.example_mysql.id
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.example_mysql.id
-
-  lifecycle {
-    ignore_changes = [snapshot_identifier]
-  }
 }
 
 resource "aws_db_parameter_group" "example_mysql" {

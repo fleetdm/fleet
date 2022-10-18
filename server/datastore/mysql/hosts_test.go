@@ -124,11 +124,11 @@ func TestHosts(t *testing.T) {
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
-		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
+		{"TestHostDisplayName", testHostDisplayName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -694,9 +694,6 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
 		require.NoError(t, err)
-		if err != nil {
-			return
-		}
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -708,6 +705,9 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 9, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "mia"}, 0)
+	assert.Equal(t, 0, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "missing"}, 0)
 	assert.Equal(t, 0, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
@@ -1365,6 +1365,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), summary.OnlineCount)
 	assert.Equal(t, uint(2), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	assert.Nil(t, summary.LowDiskSpaceCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
@@ -1375,10 +1376,16 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), summary.OnlineCount)
 	assert.Equal(t, uint(4), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 	assert.Equal(t, uint(4), summary.NewCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
+
+	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(11*24*time.Hour), nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.MIACount)
+	assert.Equal(t, uint(1), summary.Missing30DaysCount)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
@@ -4445,13 +4452,19 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, validToken)
 	require.NoError(t, err)
 
-	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken")
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken", time.Hour)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 
-	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken)
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
+
+	time.Sleep(2 * time.Second) // make sure the token expires
+
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Second) // 1s TTL
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
@@ -4482,6 +4495,14 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	loadUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &ts, `SELECT updated_at FROM host_device_auth WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+
 	token1 := "token1"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
@@ -4489,30 +4510,43 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	token2 := "token2"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
 	require.NoError(t, err)
+	h2T1 := loadUpdatedAt(host2.ID)
 
-	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
+
+	time.Sleep(time.Second) // ensure the mysql timestamp is different
 
 	token2Updated := "token2_updated"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
 	require.NoError(t, err)
+	h2T2 := loadUpdatedAt(host2.ID)
+	require.True(t, h2T2.After(h2T1))
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
-	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	time.Sleep(time.Second) // ensure the mysql timestamp is different
+
+	// update with the same token, should not change the updated_at timestamp
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
+	require.NoError(t, err)
+	h2T3 := loadUpdatedAt(host2.ID)
+	require.True(t, h2T2.Equal(h2T3))
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {
@@ -4875,27 +4909,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
-	}
-}
-
-func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
-	var idOne uint = 1
-	var idTwo uint = 2
-
-	cases := []struct {
-		currentTeamID *uint
-		newTeamID     *uint
-		out           bool
-	}{
-		{nil, nil, false},
-		{nil, &idOne, false},
-		{&idOne, nil, true},
-		{&idOne, &idOne, false},
-		{&idOne, &idTwo, true},
-	}
-
-	for _, c := range cases {
-		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
 	}
 }
 
@@ -5299,8 +5312,30 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6)
 	require.NoError(t, err)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
+}
+
+// testHostDisplayName tests listing a host sorted by display name.
+func testHostDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: "1", Hostname: "0001", NodeKey: "1"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 2, OsqueryHostID: "2", Hostname: "0002", ComputerName: "0004", NodeKey: "2"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: "3", Hostname: "0003", NodeKey: "3"})
+	require.NoError(t, err)
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "display_name",
+		},
+	})
+	require.NoError(t, err)
+	expect := []string{"0001", "0003", "0004"}
+	require.Len(t, hosts, len(expect))
+	for i, h := range hosts {
+		assert.Equal(t, expect[i], h.DisplayName())
+	}
 }

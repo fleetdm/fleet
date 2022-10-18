@@ -4,24 +4,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/rs/zerolog/log"
 )
+
+// OrbitConfigFetcher allows fetching Orbit configuration.
+type OrbitConfigFetcher interface {
+	// GetConfig returns the Orbit configuration.
+	GetConfig() (*service.OrbitConfig, error)
+}
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
 // It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
-	orbitClient *service.OrbitClient
-	opt         FlagUpdateOptions
-	cancel      chan struct{}
+	configFetcher OrbitConfigFetcher
+	opt           FlagUpdateOptions
+	cancel        chan struct{}
 }
 
 // FlagUpdateOptions is options provided for the flag update runner
@@ -30,19 +38,16 @@ type FlagUpdateOptions struct {
 	CheckInterval time.Duration
 	// RootDir is the root directory for orbit state
 	RootDir string
-	// OrbitNodeKey is the orbit node key for the enrolled host
-	OrbitNodeKey string
 }
 
 // NewFlagRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewFlagRunner(orbitClient *service.OrbitClient, opt FlagUpdateOptions) (*FlagRunner, error) {
-	r := &FlagRunner{
-		orbitClient: orbitClient,
-		opt:         opt,
-		cancel:      make(chan struct{}, 1),
+func NewFlagRunner(configFetcher OrbitConfigFetcher, opt FlagUpdateOptions) *FlagRunner {
+	return &FlagRunner{
+		configFetcher: configFetcher,
+		opt:           opt,
+		cancel:        make(chan struct{}),
 	}
-	return r, nil
 }
 
 // Execute starts the loop checking for updates
@@ -52,7 +57,6 @@ func (r *FlagRunner) Execute() error {
 	ticker := time.NewTicker(r.opt.CheckInterval)
 	defer ticker.Stop()
 
-	// Run until cancel or returning an error
 	for {
 		select {
 		case <-r.cancel:
@@ -67,6 +71,7 @@ func (r *FlagRunner) Execute() error {
 				log.Info().Msg("flags updated, exiting")
 				return nil
 			}
+			ticker.Reset(r.opt.CheckInterval)
 		}
 	}
 }
@@ -94,26 +99,18 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	}
 
 	// next GetConfig from Fleet API
-	flagsJSON, err := r.orbitClient.GetConfig(r.opt.OrbitNodeKey)
-	// on 401 unauthenticated error, re-enroll and update orbit node key
-	if errors.Is(err, service.ErrUnauthenticated) {
-		r.opt.OrbitNodeKey, err = r.updateOrbitNodeKey()
-		if err != nil {
-			return false, err
-		}
-		return false, nil
-	}
+	config, err := r.configFetcher.GetConfig()
 	if err != nil {
-		return false, fmt.Errorf("error getting flags from fleet %w", err)
+		return false, fmt.Errorf("error getting flags from fleet: %w", err)
 	}
-	if len(flagsJSON) == 0 {
+	if len(config.Flags) == 0 {
 		// command_line_flags not set in YAML, nothing to do
 		return false, nil
 	}
 
-	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
+	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
 	if err != nil {
-		return false, fmt.Errorf("error parsing flags %w", err)
+		return false, fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// compare both flags, if they are equal, nothing to do
@@ -124,27 +121,35 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	// flags are not equal, write the fleet flags to disk
 	err = writeFlagFile(r.opt.RootDir, osqueryFlagMapFromFleet)
 	if err != nil {
-		return false, fmt.Errorf("error writing flags to disk %w", err)
+		return false, fmt.Errorf("error writing flags to disk: %w", err)
 	}
 	return true, nil
 }
 
-// getFlagsFromJSON converts the json of the type below
-// {"number": 5, "string": "str", "boolean": true}
-// to a map[string]string
-// this map will get compared and written to the filesystem and passed to osquery
-// this only supports simple key:value pairs and not nested structures
+// getFlagsFromJSON converts a json document of the form
+// `{"number": 5, "string": "str", "boolean": true}` to a map[string]string.
+//
+// This only supports simple key:value pairs and not nested structures.
+//
+// Returns an empty map if flags is nil or an empty JSON `{}`.
 func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
-	result := make(map[string]string)
-
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(flags), &data)
 	if err != nil {
 		return nil, err
 	}
-
+	result := make(map[string]string)
 	for k, v := range data {
-		result["--"+k] = fmt.Sprintf("%v", v)
+		switch t := v.(type) {
+		case string:
+			result["--"+k] = t
+		case bool:
+			result["--"+k] = strconv.FormatBool(t)
+		case float64:
+			result["--"+k] = fmt.Sprintf("%.f", v)
+		default:
+			result["--"+k] = fmt.Sprintf("%v", v)
+		}
 	}
 	return result, nil
 }
@@ -169,50 +174,52 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 	return nil
 }
 
-// readFlagFile reads and parses the osquery.flags file on disk
-// and returns a map[string]string, of the form:
-// {"--foo":"bar","--value":"5"}
-// this only supports simple key:value pairs and not nested structures
+// readFlagFile reads and parses the osquery.flags file on disk of the form
+//
+//	--foo="bar"
+//	--bar=5
+//	--zoo=true
+//	--verbose
+//
+// and returns a map[string]string:
+//
+//	{"--foo": "bar", "--bar": 5, "--zoo", "--verbose": ""}
+//
+// This only supports simple key:value pairs and not nested structures.
+//
+// Returns:
+//   - an error if the file does not exist.
+//   - an empty map if the file is empty.
 func readFlagFile(rootDir string) (map[string]string, error) {
 	flagfile := filepath.Join(rootDir, "osquery.flags")
 	bytes, err := os.ReadFile(flagfile)
 	if err != nil {
 		return nil, fmt.Errorf("reading flagfile %s failed: %w", flagfile, err)
 	}
+	content := strings.TrimSpace(string(bytes))
 	result := make(map[string]string)
-	lines := strings.Split(strings.TrimSpace(string(bytes)), "\n")
+	if len(content) == 0 {
+		return result, nil
+	}
+	lines := strings.Split(content, "\n")
 	for _, line := range lines {
+		line := strings.TrimSpace(line)
+		// skip any empty lines
+		if line == "" {
+			continue
+		}
 		// skip line starting with "#" indicating that it's a comment
-		if !strings.HasPrefix(line, "#") {
-			// split each line by "="
-			str := strings.Split(strings.TrimSpace(line), "=")
-			if len(str) == 2 {
-				result[str[0]] = str[1]
-			}
-			if len(str) == 1 {
-				result[str[0]] = ""
-			}
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		// split each line by "="
+		str := strings.Split(line, "=")
+		if len(str) == 2 {
+			result[str[0]] = str[1]
+		}
+		if len(str) == 1 {
+			result[str[0]] = ""
 		}
 	}
 	return result, nil
-}
-
-// updateOrbitNodeKey does re-enrolls by calling the /enroll API and writes the response to disk
-func (r *FlagRunner) updateOrbitNodeKey() (string, error) {
-	for retries := 0; retries < constant.OrbitEnrollMaxRetries; retries++ {
-		newOrbitNodeKey, err := r.orbitClient.DoEnroll()
-		if err != nil {
-			log.Info().Err(err).Msg("re-enroll failed, retrying")
-			time.Sleep(constant.OrbitEnrollRetrySleep)
-			continue
-		}
-		nodeKeyFilePath := filepath.Join(r.opt.RootDir, constant.OrbitNodeKeyFileName)
-		if err := os.WriteFile(nodeKeyFilePath, []byte(newOrbitNodeKey), constant.DefaultFileMode); err != nil {
-			log.Info().Err(err).Msg("failed to write orbit node key to disk")
-			time.Sleep(constant.OrbitEnrollRetrySleep)
-			continue
-		}
-		return newOrbitNodeKey, nil
-	}
-	return "", fmt.Errorf("orbit re-enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 }

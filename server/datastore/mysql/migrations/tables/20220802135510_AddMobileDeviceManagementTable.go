@@ -11,8 +11,6 @@ func init() {
 }
 
 func Up_20220802135510(tx *sql.Tx) error {
-	logger.Info.Println("Creating table mobile_device_management_solutions...")
-
 	// An mdm ID identifies a Vendor + Server URL combination (e.g. Jamf + https://company.jamfcloud.com)
 	// A distinct server URL for the same vendor results in different MDM ID.
 	_, err := tx.Exec(`
@@ -28,9 +26,7 @@ CREATE TABLE mobile_device_management_solutions (
 	if err != nil {
 		return errors.Wrapf(err, "create table")
 	}
-	logger.Info.Println("Done creating table mobile_device_management_solutions...")
 
-	logger.Info.Println("Adding column mdm_id to table host_mdm...")
 	// adding as NULLable to prevent costly migration for users with many hosts,
 	// the mdm_id will be lazily populated as MDM query results get returned by
 	// hosts.
@@ -38,25 +34,20 @@ CREATE TABLE mobile_device_management_solutions (
 	if err != nil {
 		return errors.Wrapf(err, "alter table")
 	}
-	logger.Info.Println("Done adding column mdm_id to table host_mdm...")
 
-	logger.Info.Println("Adding index on mdm_id of table host_mdm...")
 	_, err = tx.Exec(`CREATE INDEX host_mdm_mdm_id_idx ON host_mdm (mdm_id);`)
 	if err != nil {
 		return errors.Wrapf(err, "create mdm id index")
 	}
-	logger.Info.Println("Done adding index on mdm_id of table host_mdm...")
 
 	// those are boolean fields, but indexing is still likely to speed things up
 	// significantly, because a) we will filter on a combination of both booleans and
 	// b) it's unlikely that enrolled/unenrolled ratio will be close to 50%.
 	// see https://stackoverflow.com/questions/10524651/is-there-any-performance-gain-in-indexing-a-boolean-field
-	logger.Info.Println("Adding index on enrolled, installed_from_dep of table host_mdm...")
 	_, err = tx.Exec(`CREATE INDEX host_mdm_enrolled_installed_from_dep_idx ON host_mdm (enrolled, installed_from_dep);`)
 	if err != nil {
 		return errors.Wrapf(err, "create enrollment status index")
 	}
-	logger.Info.Println("Done adding index on enrolled, installed_from_dep of table host_mdm...")
 
 	return nil
 }

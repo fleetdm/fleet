@@ -1,1 +1,0 @@
-* Added `low_disk_space_count` field to the `GET /host_summary` endpoint response that returns the number of hosts with less disk space available than the `low_disk_space` number provided as query parameter, available in Fleet Premium.

@@ -3,7 +3,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get OpenSSL versions
-  platforms: Linux
+  platform: linux
   description: Retrieves the OpenSSL version.
   query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
   purpose: Informational
@@ -14,7 +14,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get authorized SSH keys
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
   purpose: Informational
@@ -26,7 +26,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get authorized keys for Domain Joined Accounts
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: List authorized_keys for each user on the system.
   query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
   purpose: Informational
@@ -37,7 +37,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get crashes
-  platforms: macOS
+  platform: darwin
   description: Retrieve application, system, and mobile app crash logs.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
   purpose: Informational
@@ -48,7 +48,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get installed Chrome Extensions
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: List installed Chrome Extensions for all users.
   query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
   purpose: Informational
@@ -59,7 +59,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get installed Linux software
-  platforms: Linux
+  platform: linux
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
@@ -70,7 +70,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get installed macOS software
-  platforms: macOS
+  platform: darwin
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
   purpose: Informational
@@ -81,7 +81,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get installed Safari extensions
-  platforms: macOS
+  platform: darwin
   description: Retrieves the list of installed Safari Extensions for all users in the target system.
   query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
   purpose: Informational
@@ -92,7 +92,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get installed Windows software
-  platforms: Windows
+  platform: windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
   purpose: Informational
@@ -103,7 +103,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get laptops with failing batteries
-  platforms: macOS
+  platform: darwin
   description: Lists all laptops with under-performing or failing batteries.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
   purpose: Informational
@@ -114,7 +114,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get current users with active shell/console on the system
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
   purpose: Informational
@@ -125,7 +125,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for local accounts
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
   purpose: Informational
@@ -137,7 +137,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   purpose: Informational
@@ -149,7 +149,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
-  platforms: Linux
+  platform: linux
   description: Detect any processes that run with LD_PRELOAD environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
   purpose: Informational
@@ -161,7 +161,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
-  platforms: macOS
+  platform: darwin
   description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
   purpose: Informational
@@ -173,7 +173,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get etc hosts entries
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: Line-parsed /etc/hosts
   query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
   purpose: informational
@@ -184,7 +184,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get network interfaces
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
   purpose: informational
@@ -195,7 +195,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get local user accounts
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description, directory, shell FROM users;
   purpose: informational
@@ -206,7 +206,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get active user accounts on servers
-  platforms: Linux
+  platform: linux
   description: Domain Joined environments normally have root or other service only accounts and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
   purpose: informational
@@ -217,7 +217,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get Nmap scanner
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Get Nmap scanner process, as well as its user, parent, and process details.
   query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
     (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
@@ -231,7 +231,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get Docker contained processes on a system
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: Docker containers Processes, can be used on normal systems or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
   purpose: Informational
@@ -242,7 +242,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get Windows print spooler remote code execution vulnerability
-  platforms: Windows
+  platform: windows
   description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
   query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
   purpose: Informational
@@ -253,7 +253,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get local users and their privileges
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Collects the local user accounts and their respective user group.
   query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: informational
@@ -264,7 +264,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get processes that no longer exist on disk
-  platforms: Linux, macOS, Windows
+  platform: linux, darwin, windows
   description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Incident response
@@ -275,7 +275,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get user files matching a specific hash
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
   query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
   purpose: Informational
@@ -286,7 +286,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get local administrator accounts on macOS
-  platforms: macOS
+  platform: darwin
   description: The query allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
@@ -297,7 +297,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get all listening ports, by process
-  platforms: Linux, macOS, Windows
+  platform: linux, darwin, windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
   purpose: Informational
@@ -308,7 +308,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get whether TeamViewer is installed/running
-  platforms: Windows
+  platform: windows
   description: Looks for the TeamViewer service running on machines. This is often used when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
   query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
   purpose: Informational
@@ -319,7 +319,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get malicious Python backdoors
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
   query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acquisition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
   purpose: Informational
@@ -330,7 +330,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Check for artifacts of the Floxif trojan
-  platforms: Windows
+  platform: windows
   description: Checks for artifacts from the Floxif trojan on Windows machines.
   query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
   purpose: Informational
@@ -341,7 +341,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get Shimcache table
-  platforms: Windows
+  platform: windows
   description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
   query: select * from Shimcache
   purpose: Informational
@@ -352,7 +352,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get running docker containers
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: Returns the running Docker containers
   query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
   purpose: Informational
@@ -363,7 +363,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get applications hogging memory
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Returns top 10 applications or processes hogging memory the most.
   query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
   purpose: Informational
@@ -374,7 +374,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get servers with root login in the last 24 hours
-  platforms: macOS, Linux, Windows
+  platform: darwin, linux, windows
   description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
@@ -385,7 +385,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Detect active processes with Log4j running
-  platforms: macOS, Linux
+  platform: darwin, linux
   description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
   query: |
     WITH target_jars AS (
@@ -433,7 +433,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get applications that were opened within the last 24 hours
-  platforms: macOS
+  platform: darwin
   description: Returns applications that were opened within the last 24 hours starting with the last opened application.
   query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
   purpose: Informational
@@ -444,7 +444,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get applications that are not in the Applications directory
-  platforms: macOS
+  platform: darwin
   description: Returns applications that are not in the `/Applications` directory
   query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
   purpose: Informational
@@ -455,7 +455,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get subscription-based applications that have not been opened for the last 30 days
-  platforms: macOS
+  platform: darwin
   description: Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.
   query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
   purpose: Informational
@@ -466,7 +466,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get operating system information
-  platforms: macOS, Windows, Linux
+  platform: darwin, windows, linux
   description: Returns the operating system name and version on the device.
   query: SELECT name, version FROM os_version;
   purpose: Informational
@@ -480,7 +480,6 @@ spec:
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  platforms: macOS
   tags: compliance, hardening, built-in, CIS, CIS2.5.2.1
   platform: darwin
   contributors: groob
@@ -496,7 +495,6 @@ spec:
     query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
-  platforms: Windows
   platform: windows
   tags: compliance, hardening, built-in
   contributors: defensivedepth
@@ -508,7 +506,6 @@ spec:
   query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
-  platforms: macOS
   tags: compliance, hardening, built-in, CIS, CIS2.5.1.1
   platform: darwin
   contributors: groob
@@ -520,7 +517,6 @@ spec:
   query: SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';
   description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
   resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
-  platforms: Linux
   platform: linux
   tags: compliance, hardening, built-in
   contributors: GuillaumeRoss
@@ -532,7 +528,6 @@ spec:
   query: SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  platforms: macOS
   tags: compliance, malware, hardening, built-in, CIS, CIS5.1.2
   platform: darwin
   contributors: groob
@@ -544,7 +539,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
-  platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
   contributors: groob
@@ -556,7 +550,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
-  platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
   contributors: groob
@@ -565,7 +558,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get built-in antivirus status on macOS
-  platforms: macOS
+  platform: darwin
   query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
   description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
   purpose: Informational
@@ -576,7 +569,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get antivirus status from the Windows Security Center
-  platforms: Windows
+  platform: windows
   query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus';
   description: Selects the antivirus and signatures status from Windows Security Center.
   purpose: Informational
@@ -587,7 +580,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
-  platforms: Linux
+  platform: linux
   query: SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';
   description: Selects the clamd and freshclam processes to ensure AV and its updater are running
   purpose: Informational
@@ -604,7 +597,6 @@ spec:
     To enable automatic security definition updates, on the failing device, select System
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
-  platforms: macOS
   tags: compliance, malware, hardening, built-in, template
   platform: darwin
   contributors: GuillaumeRoss
@@ -616,7 +608,6 @@ spec:
   query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
   description: Checks the status of antivirus and signature updates from the Windows Security Center.
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
-  platforms: Windows
   tags: compliance, malware, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
@@ -628,7 +619,6 @@ spec:
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
   description: Checks that both ClamAV's daemon and its updater service (freshclam) are running.
   resolution: "Ensure ClamAV and Freshclam are installed and running."
-  platforms: Linux
   tags: compliance, malware, hardening, built-in
   platform: linux
   contributors: GuillaumeRoss
@@ -640,7 +630,6 @@ spec:
   query: SELECT 1 from mdm WHERE enrolled='true';
   description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
-  platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
   contributors: GuillaumeRoss
@@ -652,7 +641,6 @@ spec:
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
   description: "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications."
   resolution: "Update Docker or remove it if not used."
-  platforms: macOS
   tags: inventory, vulnerability, built-in
   platform: darwin
   contributors: GuillaumeRoss
@@ -664,7 +652,6 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');
   description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
   resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
-  platforms: macOS, Linux, Windows
   tags: compliance, ssh, built-in
   contributors: GuillaumeRoss
   platform: darwin,linux,windows
@@ -676,7 +663,6 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM startup_items WHERE path = "regsvr32" AND args LIKE "%http%");
   description: "Checks for an autostart that is attempting to load a dynamic link library (DLL) from the internet."
   resolution: "Remove the suspicious startup entry."
-  platforms: Windows
   tags: malware, hunting
   platform: windows
   contributors: kswagler-rh
@@ -688,7 +674,6 @@ spec:
   query: SELECT 1 FROM alf WHERE global_state >= 1;
   description: "Checks if the firewall is enabled."
   resolution: "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall."
-  platforms: macOS
   tags: hardening, compliance, built-in, CIS, CIS2.5.2.2
   platform: darwin
   contributors: GuillaumeRoss
@@ -700,7 +685,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
-  platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
   contributors: GuillaumeRoss
@@ -712,7 +696,6 @@ spec:
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;
   description: "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less."
   resolution: "Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower."
-  platforms: Windows
   tags: compliance, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
@@ -724,9 +707,8 @@ spec:
   query: SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);
   description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
   resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
-  platforms: macOS
-  tags: compliance, hardening, built-in, CIS, CIS5.2.2
   platform: darwin
+  tags: compliance, hardening, built-in, CIS, CIS5.2.2
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -736,7 +718,6 @@ spec:
   query: SELECT 1 FROM os_version WHERE version >= '12.5.1';
   description: "Checks that the operating system is up to date."
   resolution: "From the Apple menu () in the corner of your screen choose System Preferences. Then select Software Update and select Upgrade Now. You might be asked to restart or enter your password."
-  platforms: macOS
   tags: compliance, CIS, template, CIS1.1
   platform: darwin
   contributors: GuillaumeRoss
@@ -748,7 +729,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates."
-  platforms: macOS
   tags: compliance, CIS, CIS1.2
   platform: darwin
   contributors: GuillaumeRoss
@@ -760,7 +740,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
-  platforms: macOS
   tags: compliance, CIS, CIS1.3
   platform: darwin
   contributors: GuillaumeRoss
@@ -772,7 +751,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to App Store applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
-  platforms: macOS
   tags: compliance, CIS, CIS1.4
   platform: darwin
   contributors: GuillaumeRoss
@@ -784,7 +762,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
-  platforms: macOS
   tags: compliance, CIS, CIS1.5
   platform: darwin
   contributors: GuillaumeRoss
@@ -796,7 +773,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
-  platforms: macOS
   tags: compliance, CIS, CIS1.6
   platform: darwin
   contributors: GuillaumeRoss
@@ -808,7 +784,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
-  platforms: macOS
   tags: compliance, CIS, CIS2.2.1
   platform: darwin
   contributors: GuillaumeRoss
@@ -820,7 +795,6 @@ spec:
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
   description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
-  platforms: macOS
   tags: compliance, CIS, CIS2.3.1, CIS5.8
   platform: darwin
   contributors: GuillaumeRoss
@@ -832,7 +806,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
-  platforms: macOS
   tags: compliance, CIS, CIS2.4.2
   platform: darwin
   contributors: GuillaumeRoss
@@ -844,7 +817,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
-  platforms: macOS
   tags: compliance, CIS, CIS2.4.10
   platform: darwin
   contributors: GuillaumeRoss
@@ -856,7 +828,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
-  platforms: macOS
   tags: compliance, CIS, CIS2.5.6
   platform: darwin
   contributors: GuillaumeRoss
@@ -868,7 +839,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
-  platforms: macOS
   tags: compliance, CIS, CIS2.6.1.4
   platform: darwin
   contributors: GuillaumeRoss
@@ -880,7 +850,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
-  platforms: macOS
   tags: compliance, CIS, CIS3.6
   platform: darwin
   contributors: GuillaumeRoss
@@ -892,7 +861,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
-  platforms: macOS
   tags: compliance, CIS, CIS6.1.3
   platform: darwin
   contributors: GuillaumeRoss
@@ -904,7 +872,6 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
-  platforms: macOS
   tags: compliance, CIS, CIS6.1.4
   platform: darwin
   contributors: GuillaumeRoss
@@ -916,16 +883,15 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename like '%%Emergency Kit%%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%'));
   description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits." 
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
-  platforms: macOS
-  tags: compliance, built-in
   platform: darwin
+  tags: compliance, built-in
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
 kind: query
 spec:
   name: Discover TLS certificates
-  platforms: Linux, Windows, macOS
+  platform: linux, windows, darwin
   description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
   query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
   purpose: Informational
@@ -936,9 +902,94 @@ apiVersion: v1
 kind: query
 spec:
   name: Discover Python Packages from Running Python Interpreters
-  platforms: Linux, macOS
+  platform: linux, darwin
   description: Attempt to discover Python environments (in cwd, path to the python binary, and process command line) from running python interpreters and collect Python packages from those environments.
   query: SELECT * FROM python_packages WHERE directory IN (SELECT DISTINCT directory FROM (SELECT SUBSTR(path,0,INSTR(path,'/bin/'))||'/lib' AS directory FROM processes WHERE path LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT SUBSTR(cmdline,0,INSTR(cmdline,'/bin/'))||'/lib' AS directory FROM processes WHERE cmdline LIKE '%python%' AND cmdline LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT cwd||'/lib' AS directory FROM processes WHERE path LIKE '%python%'));
   purpose: Informational
   tags: compliance, hunting
   contributors: nabilschear
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall enabled, domain profile (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors requires that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.1.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall enabled, private profile (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors requires that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.2.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Firewall enabled, public profile (Windows)
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  description: "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors requires that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall."
+  platforms: Windows
+  tags: compliance, CIS, CIS9.3.1
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: SMBv1 client driver disabled (Windows)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
+  description: "Checks that the SMBv1 client is disabled."
+  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.3.2, built-in
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: SMBv1 server disabled (Windows)
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1
+  description: "Checks that the SMBv1 server is disabled."
+  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.3.3, built-in
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
+  query:  SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
+  description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials. Some auditors require that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.5.4.2
+  platform: windows
+  contributors: defensivedepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic updates enabled (Windows)
+  query:   SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
+  description: "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors require that this setting is configured by a Group Policy."
+  resolution: "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates."
+  platforms: Windows
+  tags: compliance, CIS, CIS18.9.108.2.1
+  platform: windows
+  contributors: defensivedepth
+

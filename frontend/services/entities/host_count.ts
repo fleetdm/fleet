@@ -1,11 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
-  getStatusParam,
 } from "utilities/url";
 
 export interface ISortOption {
@@ -18,11 +18,12 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: string;
+  status?: HostStatus;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
@@ -39,31 +40,33 @@ export default {
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const softwareId = options?.softwareId;
+    const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const munkiIssueId = options?.munkiIssueId;
+    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
 
     const queryParams = {
       query: globalFilter,
       team_id: teamId,
-      ...reconcileMutuallyExclusiveHostParams(
+      ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId
-      ),
-      status: getStatusParam(selectedLabels),
+        softwareId,
+        lowDiskSpaceHosts,
+      }),
       label_id: label,
+      status,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
     const endpoint = endpoints.HOSTS_COUNT;
     const path = `${endpoint}?${queryString}`;
-
     return sendRequest("GET", path);
   },
 };

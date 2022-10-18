@@ -46,6 +46,7 @@
       border: 1px solid @core-vibrant-blue;
     }
     [purpose='mobile-nav'] {
+      scrollbar-width: none;
       padding-top: 16px;
       overflow-y: scroll;
       height: 100%;
@@ -72,10 +73,11 @@
     font-size: 14px;
     line-height: 14px;
   }
-  [purpose='left-sidebar']::-webkit-scrollbar, [purpose='table-of-contents']::-webkit-scrollbar {
+  [purpose='left-sidebar']::-webkit-scrollbar, [purpose='table-of-contents']::-webkit-scrollbar, [purpose='mobile-nav']::-webkit-scrollbar {
     display: none;
   }
   [purpose='left-sidebar'] {
+    scrollbar-width: none;
     background: #FFF;
     min-width: 245px;
     max-width: 250px;
@@ -89,6 +91,7 @@
     }
   }
   [purpose='table-of-contents'] {
+    scrollbar-width: none;
     padding-top: 16px;
     padding-bottom: 120px;
     margin-top: 16px;
@@ -109,6 +112,20 @@
     min-height: calc(~'100vh - 565px');
     overflow-y: scroll;
     overflow-x: show;
+  }
+  [purpose='evented-table-icon'] {
+    margin-left: 4px;
+    padding: 4px 8px;
+    background-color: @core-vibrant-blue-15;
+    border-radius: 4px;
+    display: inline-block;
+    line-height: 14px;
+    vertical-align: middle;
+    img {
+      height: 14px;
+      width: 14px;
+      display: inline-block;
+    }
   }
   [purpose='table-container'] {
     height: min-content;
@@ -201,12 +218,14 @@
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
           color: #AE6DDF;
           white-space: pre;
-          break-before: always;
         }
-        .hljs-keyword:not(:first-of-type)::before {
+        [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
         }
         .hljs-attr { // For table and column names
+          .hljs-keyword {
+            color: #FFF;
+          }
           color: #FFF;
           background-color: #AE6DDF;
           border-radius: 4px;
@@ -261,6 +280,9 @@
             font-style: normal;
           }
         }
+      }
+      td:nth-child(2) {
+        text-transform: uppercase;
       }
     }
     li, p, h4 {

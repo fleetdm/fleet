@@ -1,4 +1,12 @@
 import CONSTANTS from "../../support/constants";
+import dashboardPage from "../pages/dashboardPage";
+import hostDetailsPage from "../pages/hostDetailsPage";
+import manageHostsPage from "../pages/manageHostsPage";
+import manageQueriesPage from "../pages/manageQueriesPage";
+import managePacksPage from "../pages/managePacksPage";
+import managePoliciesPage from "../pages/managePoliciesPage";
+import manageSoftwarePage from "../pages/manageSoftwarePage";
+import userProfilePage from "../pages/userProfilePage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -26,7 +34,7 @@ describe(
     describe("Navigation", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/dashboard");
+        dashboardPage.visitsDashboardPage();
       });
       it("displays intended global maintainer top navigation", () => {
         cy.getAttached(".site-nav-container").within(() => {
@@ -44,324 +52,144 @@ describe(
     describe("Dashboard", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/dashboard");
+        dashboardPage.visitsDashboardPage();
       });
-      it("displays cards for all platforms", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          cy.getAttached(".activity-feed").should("exist");
-        });
+      it("displays cards for all platforms and does not filter host platform", () => {
+        dashboardPage.displaysCards("All");
+        dashboardPage.verifiesFilteredHostByPlatform("none");
       });
-      it("displays cards for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/windows/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
+      it("displays cards for windows only and filters hosts by Windows platform", () => {
+        dashboardPage.switchesPlatform("Windows");
+        dashboardPage.displaysCards("Windows");
+        dashboardPage.verifiesFilteredHostByPlatform("Windows");
       });
-      it("displays cards for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/linux/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
+      it("displays cards for linux only and filters hosts by Linux platform", () => {
+        dashboardPage.switchesPlatform("Linux");
+        dashboardPage.displaysCards("Linux");
+        dashboardPage.verifiesFilteredHostByPlatform("Linux");
       });
-      it("displays cards for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/macos/i).click();
-        });
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/fleet test/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-mdm").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".home-software").should("not.exist");
-          cy.get(".activity-feed").should("not.exist");
-        });
-      });
-      it("views all hosts for all platforms", () => {
-        cy.findByText(/view all hosts/i).click();
-        cy.findByRole("status", { name: /hosts filtered by/i }).should(
-          "not.exist"
-        );
-      });
-      it("views all hosts for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/windows/i).click();
-        });
-        cy.findByText(/view all hosts/i).click();
-        cy.findByRole("status", { name: /hosts filtered by Windows/i }).should(
-          "exist"
-        );
-      });
-      it("views all hosts for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/linux/i).click();
-        });
-        cy.findByText(/view all hosts/i).click();
-        cy.findByRole("status", { name: /hosts filtered by Linux/i }).should(
-          "exist"
-        );
-      });
-      it("views all hosts for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
-          cy.getAttached(".Select-control").click();
-          cy.findByText(/macos/i).click();
-        });
-        cy.findByText(/view all hosts/i).click();
-        cy.findByRole("status", { name: /hosts filtered by macOS/i }).should(
-          "exist"
-        );
+      it("displays cards for macOS only and filters hosts by macOS platform", () => {
+        dashboardPage.switchesPlatform("macOS");
+        dashboardPage.displaysCards("macOS");
+        dashboardPage.verifiesFilteredHostByPlatform("macOS");
       });
     });
     describe("Manage hosts page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/hosts/manage");
-      });
-      it("verifies maintainer is on the Manage Hosts page", () => {
-        cy.getAttached(".manage-hosts").within(() => {
-          cy.findByText(/edit columns/i).should("exist");
-        });
+        manageHostsPage.visitsManageHostsPage();
       });
       it("verifies teams is disabled", () => {
-        cy.contains(/team/i).should("not.exist");
+        manageHostsPage.verifiesTeamsIsDisabled();
       });
-      it("allows maintainer to see and click the 'Add hosts' button", () => {
-        cy.findByRole("button", { name: /add hosts/i }).click();
-        cy.contains("button", /done/i).click();
-      });
-      it("allows maintainer to manage the enroll secret", () => {
-        cy.contains("button", /manage enroll secret/i).click();
-        cy.contains("button", /done/i).click();
-      });
-      it("allows maintainer to open the 'Add label' form", () => {
-        cy.getAttached(".label-filter-select__control").click();
-        cy.findByRole("button", { name: /add label/i }).click();
-        cy.findByText(/New Label/i).should("exist");
+      it("allows maintainer to see and click 'Add label', 'Add hosts', and 'Manage enroll secrets' buttons", () => {
+        manageHostsPage.allowsAddHosts();
+        manageHostsPage.allowsManageAndAddSecrets();
+        manageHostsPage.allowsAddHosts();
       });
     });
-    describe("Host details tests", () => {
+    describe("Host details page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/hosts/1");
+        hostDetailsPage.visitsHostDetailsPage(1);
       });
       it("verifies teams is disabled", () => {
-        cy.findByText(/team/i).should("not.exist");
-        cy.contains("button", /transfer/i).should("not.exist");
+        hostDetailsPage.verifiesTeamsisDisabled();
+        hostDetailsPage.hidesButton("Transfer");
       });
-      it("allows maintainer to delete a host", () => {
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.findByText(/delete host/i).should("exist");
-        cy.findByRole("button", { name: /cancel/i }).click();
+      it("allows maintainer to create an operating system policy", () => {
+        hostDetailsPage.allowsCreateOsPolicy();
       });
-      it("allows maintainer to create a new query on a host", () => {
-        cy.findByRole("button", { name: /query/i }).click();
-        cy.findByRole("button", { name: /create custom query/i }).should(
-          "exist"
-        );
-        cy.getAttached(".modal__ex").within(() => {
-          cy.findByRole("button").click();
-        });
+      it("allows maintainer to custom query the host", () => {
+        hostDetailsPage.allowsCustomQueryHost();
+      });
+      it("allows maintainer to delete the host", () => {
+        hostDetailsPage.allowsDeleteHost();
       });
     });
     describe("Manage software page", () => {
-      beforeEach(() => cy.visit("/software/manage"));
-      it("should restrict global maintainer from 'Manage automations' button", () => {
-        cy.findByText(/manage automations/).should("not.exist");
+      beforeEach(() => manageSoftwarePage.visitManageSoftwarePage());
+      it("hides 'Manage automations' button from global maintainer", () => {
+        manageSoftwarePage.hidesButton("Manage automations");
       });
     });
     describe("Query pages", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/queries/manage");
+        manageQueriesPage.visitManageQueriesPage();
       });
       it("allows maintainer to add a new query", () => {
-        cy.findByRole("button", { name: /new query/i }).click();
-        cy.getAttached(".ace_text-input")
-          .click({ force: true })
-          .clear({ force: true })
-          .type("SELECT * FROM cypress;", {
-            force: true,
-          });
-        cy.findByRole("button", { name: /save/i }).click();
-        cy.getAttached(".modal__background").within(() => {
-          cy.getAttached(".modal__modal_container").within(() => {
-            cy.getAttached(".modal__content").within(() => {
-              cy.getAttached("form").within(() => {
-                cy.findByLabelText(/name/i).click().type("Cypress test query");
-                cy.findByLabelText(/description/i)
-                  .click()
-                  .type("Cypress test of create new query flow.");
-                cy.findByLabelText(/observers can run/i).click({
-                  force: true,
-                });
-                cy.findByRole("button", { name: /save query/i }).click();
-              });
-            });
-          });
-        });
-        cy.findByText(/query created/i).should("exist");
+        manageQueriesPage.allowsCreateNewQuery();
+        manageQueriesPage.verifiesCreatedNewQuery();
       });
       it("allows maintainer to edit a query", () => {
-        cy.findByText(/cypress test query/i).click({ force: true });
-        cy.getAttached(".ace_text-input")
-          .click({ force: true })
-          .clear({ force: true })
-          .type("SELECT * FROM cypress;", {
-            force: true,
-          });
-        cy.findByText("Save").click(); // we have 'save as new' also
-        cy.findByText(/query updated/i).should("exist");
+        manageQueriesPage.allowsEditExistingQuery();
+        manageQueriesPage.verifiesEditedExistingQuery();
       });
       it("allows maintainer to run a query", () => {
-        cy.findByText(/cypress test query/i).click({ force: true });
-        cy.findByText(/run query/i).click({ force: true });
-        cy.findByText(/select targets/i).should("exist");
-        cy.findByText(/all hosts/i).click();
-        cy.findByText(/host targeted/i).should("exist"); // target count
-        cy.findByText(/run/i).click();
-        cy.findByText(/querying selected host/i).should("exist"); // target count
+        manageQueriesPage.allowsRunQuery();
+        manageQueriesPage.verifiesRanQuery();
       });
     });
     describe("Manage policies page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/policies/manage");
+        managePoliciesPage.visitManagePoliciesPage();
       });
       it("hides manage automations from maintainer", () => {
-        cy.getAttached(".button-wrap").within(() => {
-          cy.findByRole("button", { name: /add a policy/i }).should("exist");
-          cy.findByRole("button", { name: /manage automations/i }).should(
-            "not.exist"
-          );
-        });
+        managePoliciesPage.hidesButton("Manage automations");
       });
       it("allows maintainer to add a policy", () => {
-        cy.findByRole("button", { name: /add a policy/i }).click();
-        cy.getAttached(".modal__ex").within(() => {
-          cy.findByRole("button").click();
-        });
+        managePoliciesPage.allowsAddDefaultPolicy();
+        managePoliciesPage.verifiesAddedDefaultPolicy();
       });
       it("allows maintainer to delete a policy", () => {
-        // select checkmark on table
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({ force: true });
-            });
-        });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".delete-policy-modal").within(() => {
-          cy.findByRole("button", { name: /delete/i }).should("exist");
-          cy.findByRole("button", { name: /cancel/i }).click();
-        });
+        managePoliciesPage.allowsDeletePolicy();
       });
       it("allows maintainer to select a policy and see CTAs to run and save", () => {
-        cy.getAttached(".data-table__table").within(() => {
-          cy.getAttached("tbody").within(() => {
-            cy.getAttached("tr")
-              .first()
-              .within(() => {
-                cy.findByRole("button", {
-                  name: /filevault enabled/i,
-                }).click();
-              });
-          });
-        });
-        cy.getAttached(".policy-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.findByRole("button", { name: /save/i }).should("exist");
-        });
+        managePoliciesPage.allowsRunSavePolicy();
       });
     });
     describe("Manage packs page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/packs/manage");
+        managePacksPage.visitsManagePacksPage();
       });
       it("allows maintainer to create a pack", () => {
-        cy.findByRole("button", { name: /create new pack/i }).click();
-        cy.findByLabelText(/name/i).click().type("Errors and crashes");
-        cy.findByLabelText(/description/i)
-          .click()
-          .type("See all user errors and window crashes.");
-        cy.findByRole("button", { name: /save query pack/i }).click();
+        managePacksPage.allowsCreatePack();
+        managePacksPage.verifiesCreatedPack();
       });
       it("allows maintainer to delete a pack", () => {
-        // select checkmark on table
-        cy.getAttached("tbody").within(() => {
-          cy.getAttached("tr")
-            .first()
-            .within(() => {
-              cy.getAttached(".fleet-checkbox__input").check({ force: true });
-            });
+        managePacksPage.allowsDeletePack();
+        managePacksPage.verifiesDeletedPack();
+      });
+      describe("User profile page", () => {
+        beforeEach(() => {
+          cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
+          userProfilePage.visitUserProfilePage();
         });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.get(".remove-pack-modal .modal-cta-wrap")
-          .contains("button", /delete/i)
-          .click();
-        cy.findByText(/successfully deleted/i).should("be.visible");
-        cy.findByText(/server errors/i).should("not.exist");
-      });
-    });
-    describe("User profile page", () => {
-      beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        cy.visit("/profile");
-      });
-      it("verifies teams is disabled for the Profile page", () => {
-        cy.getAttached(".user-side-panel").within(() => {
-          cy.findByText(/teams/i).should("not.exist");
+        it("verifies maintainer role and teams is disabled", () => {
+          userProfilePage.showRole("Maintainer");
         });
       });
-      it("renders elements according to role-based access controls", () => {
-        cy.getAttached(".user-side-panel").within(() => {
-          cy.findByText("Role")
-            .next()
-            .contains(/maintainer/i);
-        });
-      });
-    });
 
-    // nav restrictions are at the end because we expect to see a
-    // 403 error overlay which will hide the nav and make the test fail
-    describe("Nav restrictions", () => {
-      // cypress tends to fail on uncaught exceptions. since we have
-      // our own error handling, it's suggested to use this block to
-      // suppress so the tests will keep running
-      Cypress.on("uncaught:exception", () => {
-        return false;
-      });
-      beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-      });
-      it("verifies maintainer does not have access to settings", () => {
-        cy.findByText(/settings/i).should("not.exist");
-        cy.visit("/settings/organization");
-        cy.findByText(/you do not have permissions/i).should("exist");
+      // nav restrictions are at the end because we expect to see a
+      // 403 error overlay which will hide the nav and make the test fail
+      describe("Nav restrictions", () => {
+        // cypress tends to fail on uncaught exceptions. since we have
+        // our own error handling, it's suggested to use this block to
+        // suppress so the tests will keep running
+        Cypress.on("uncaught:exception", () => {
+          return false;
+        });
+        beforeEach(() => {
+          cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
+        });
+        it("verifies maintainer does not have access to settings", () => {
+          cy.findByText(/settings/i).should("not.exist");
+          cy.visit("/settings/organization");
+          cy.findByText(/you do not have permissions/i).should("exist");
+        });
       });
     });
   }

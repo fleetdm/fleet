@@ -14,17 +14,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/micromdm/nanodep/godep"
+	nanodep_log "github.com/micromdm/nanodep/log"
+	depsync "github.com/micromdm/nanodep/sync"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -324,31 +329,31 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		opts := vulnerabilities.SyncOptions{
+		opts := nvd.SyncOptions{
 			VulnPath:           config.DatabasesPath,
 			CPEDBURL:           config.CPEDatabaseURL,
 			CPETranslationsURL: config.CPETranslationsURL,
 			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
-		err := vulnerabilities.Sync(opts)
+		err := nvd.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
-			return nil
+			// don't return, continue on ...
 		}
 	}
 
-	if err := vulnerabilities.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
 
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
+	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
 		return nil
 	}
 
-	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -664,6 +669,12 @@ func startCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"increment_policy_violation_days",
+			func(ctx context.Context) error {
+				return ds.IncrementPolicyViolationDays(ctx)
+			},
+		),
+		schedule.WithJob(
 			"update_os_versions",
 			func(ctx context.Context) error {
 				return ds.UpdateOSVersions(ctx)
@@ -704,9 +715,103 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
 		return err
 	}
+
+	if err := ds.CleanupStatistics(ctx); err != nil {
+		return err
+	}
+
 	return ds.RecordStatisticsSent(ctx)
+}
+
+// NanoDEPLogger is a logger adapter for nanodep.
+type NanoDEPLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
+	return &NanoDEPLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoDEPLogger{
+		logger: newLogger,
+	}
+}
+
+// startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
+// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// the current configured DEP profile to them.
+func startAppleMDMDEPProfileAssigner(
+	ctx context.Context,
+	instanceID string,
+	periodicity time.Duration,
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) {
+	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	assignerOpts := []depsync.AssignerOption{
+		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
+	}
+	if loggingDebug {
+		assignerOpts = append(assignerOpts, depsync.WithDebug())
+	}
+	assigner := depsync.NewAssigner(
+		depClient,
+		apple_mdm.DEPName,
+		depStorage,
+		assignerOpts...,
+	)
+	syncer := depsync.NewSyncer(
+		depClient,
+		apple_mdm.DEPName,
+		depStorage,
+		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
+		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+			return assigner.ProcessDeviceResponse(ctx, resp)
+		}),
+	)
+	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
+	schedule.New(
+		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			if profileUUID == "" {
+				logger.Log("msg", "DEP profile not set, nothing to do")
+				return nil
+			}
+			cursor, cursorModTime, err := depStorage.RetrieveCursor(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			// If the DEP Profile was changed since last sync then we clear
+			// the cursor and perform a full sync of all devices and profile assigning.
+			if cursor != "" && profileModTime.After(cursorModTime) {
+				logger.Log("msg", "clearing device syncer cursor")
+				if err := depStorage.StoreCursor(ctx, apple_mdm.DEPName, ""); err != nil {
+					return err
+				}
+			}
+			return syncer.Run(ctx)
+		}),
+	).Start()
 }

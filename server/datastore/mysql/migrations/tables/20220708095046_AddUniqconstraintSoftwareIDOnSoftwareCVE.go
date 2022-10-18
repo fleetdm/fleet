@@ -13,8 +13,6 @@ func init() {
 }
 
 func removeDups(tx *sql.Tx) error {
-	logger.Info.Println("Removing duplicates in the software_cve table")
-
 	const deleteStmt = `
 delete sc
 from
@@ -43,14 +41,12 @@ where
 }
 
 func addUniqConstraint(tx *sql.Tx) error {
-	logger.Info.Println("Adding unique constraint on (cve, software_id) to software_cve table...")
 	_, err := tx.Exec(`
 	ALTER TABLE software_cve ADD CONSTRAINT unq_software_id_cve UNIQUE (software_id, cve), ALGORITHM=INPLACE, LOCK=NONE;
 `)
 	if err != nil {
 		return errors.Wrapf(err, "adding unique constraint to software_id on software_cve")
 	}
-	logger.Info.Println("Done adding unique constraint on (cve, software_id) to software_cve table...")
 	return nil
 }
 

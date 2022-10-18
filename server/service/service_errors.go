@@ -33,7 +33,7 @@ const (
 	ssoAccountInvalid  ssoErrCode = "account_invalid"
 )
 
-// ssoError is an error that occurs during the Single-Sign-On flow. Its code
+// ssoError is an error that occurs during the single sign-on flow. Its code
 // indicates the type of error.
 type ssoError struct {
 	err  error

@@ -23,6 +23,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// safeStore is a wrapper around mock.Store to allow for concurrent calling to
+// AppConfig, in the past we have seen this test fail with a data race warning.
+//
+// TODO: if we see other tests failing for similar reasons, we should build a
+// more robust pattern instead of doing this everywhere
+type safeStore struct {
+	mock.Store
+	mu sync.Mutex
+}
+
+func (s *safeStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+	s.mu.Lock()
+	s.AppConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigFunc(ctx)
+}
+
 func TestMaybeSendStatistics(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -43,19 +60,21 @@ func TestMaybeSendStatistics(t *testing.T) {
 
 	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
-			AnonymousIdentifier:       "ident",
-			FleetVersion:              "1.2.3",
-			LicenseTier:               "premium",
-			NumHostsEnrolled:          999,
-			NumUsers:                  99,
-			NumTeams:                  9,
-			NumPolicies:               0,
-			NumLabels:                 3,
-			SoftwareInventoryEnabled:  true,
-			VulnDetectionEnabled:      true,
-			SystemUsersEnabled:        true,
-			HostsStatusWebHookEnabled: true,
-			NumWeeklyActiveUsers:      111,
+			AnonymousIdentifier:                  "ident",
+			FleetVersion:                         "1.2.3",
+			LicenseTier:                          "premium",
+			NumHostsEnrolled:                     999,
+			NumUsers:                             99,
+			NumTeams:                             9,
+			NumPolicies:                          0,
+			NumLabels:                            3,
+			SoftwareInventoryEnabled:             true,
+			VulnDetectionEnabled:                 true,
+			SystemUsersEnabled:                   true,
+			HostsStatusWebHookEnabled:            true,
+			NumWeeklyActiveUsers:                 111,
+			NumWeeklyPolicyViolationDaysActual:   0,
+			NumWeeklyPolicyViolationDaysPossible: 0,
 			HostsEnrolledByOperatingSystem: map[string][]fleet.HostsCountByOSVersion{
 				"linux": {
 					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
@@ -70,11 +89,17 @@ func TestMaybeSendStatistics(t *testing.T) {
 		recorded = true
 		return nil
 	}
+	cleanedup := false
+	ds.CleanupStatisticsFunc = func(ctx context.Context) error {
+		cleanedup = true
+		return nil
+	}
 
 	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.True(t, recorded)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
+	require.True(t, cleanedup)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -101,10 +126,16 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		recorded = true
 		return nil
 	}
+	cleanedup := false
+	ds.CleanupStatisticsFunc = func(ctx context.Context) error {
+		cleanedup = true
+		return nil
+	}
 
 	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.False(t, recorded)
+	assert.False(t, cleanedup)
 	assert.False(t, called)
 }
 
@@ -130,7 +161,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 }
 
 func TestAutomationsSchedule(t *testing.T) {
-	ds := new(mock.Store)
+	ds := new(safeStore)
 
 	endpointCalled := int32(0)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -313,7 +344,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 // for the current automation crons and that their duration is equal to the current
 // schedule interval.
 func TestAutomationsScheduleLockDuration(t *testing.T) {
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	expectedInterval := 1 * time.Second
 
 	intitalConfigLoaded := make(chan struct{}, 1)
@@ -379,7 +410,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 }
 
 func TestAutomationsScheduleIntervalChange(t *testing.T) {
-	ds := new(mock.Store)
+	ds := new(safeStore)
 
 	interval := struct {
 		sync.Mutex

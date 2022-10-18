@@ -1,1 +1,0 @@
-* Added logic to retry notarization and codesigning when using `FLEETCTL_NATIVE_TOOLING`

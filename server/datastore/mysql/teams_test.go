@@ -81,7 +81,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Empty(t, newP.Teams)
 
-			team, err = ds.TeamByName(context.Background(), tt.name)
+			_, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
@@ -226,6 +226,16 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "team2", teams[1].Name)
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
+
+	// Test that ds.Teams returns the same data as ds.ListTeams
+	// (except list of users).
+	for _, t1 := range teams {
+		t2, err := ds.Team(context.Background(), t1.ID)
+		require.NoError(t, err)
+		t2.Users = nil
+		require.Equal(t, t1, t2)
+	}
+
 }
 
 func testTeamsSummary(t *testing.T, ds *Datastore) {
@@ -443,10 +453,20 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 			)
 			return err
 		})
+
 		features, err := ds.TeamFeatures(ctx, team.ID)
 		require.NoError(t, err)
-
 		assert.Equal(t, &defaultFeatures, features)
+
+		// retrieving a team also returns a team with the default
+		// features
+		team, err = ds.Team(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
+
+		team, err = ds.TeamByName(ctx, team.Name)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
 	})
 
 	t.Run("NULL config.features in the database", func(t *testing.T) {
@@ -460,10 +480,20 @@ func testTeamsFeatures(t *testing.T, ds *Datastore) {
 			)
 			return err
 		})
+
 		features, err := ds.TeamFeatures(ctx, team.ID)
 		require.NoError(t, err)
-
 		assert.Equal(t, &defaultFeatures, features)
+
+		// retrieving a team also returns a team with the default
+		// features
+		team, err = ds.Team(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
+
+		team, err = ds.TeamByName(ctx, team.Name)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
 	})
 
 	t.Run("saves and retrieves configs", func(t *testing.T) {
