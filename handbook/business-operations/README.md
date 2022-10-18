@@ -1,4 +1,4 @@
-# People
+# Business Operations
 
 ## Directly responsible individuals
 
@@ -613,8 +613,20 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 ## Slack channels
 
-Please see [Digital Experience > Slack channels](https://fleetdm.com/handbook/digital-experience#slack-channels).
+These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-people`                 | Charlie Chance
+| `#help-onboarding`          | Charlie Chance
+| `#help-finance`             | Nathan Holliday
+| `#help-brex-memos`          | Nathan Holliday
+| `#help-operations-and-contract-reviews`          | Nathan Holliday
+| `#help-travel`              | Nathan Holliday
+| `#help-ceo`                 | Charlie Chance
+| `#help-key-review-prep`     | Charlie Chance
 
 
-<meta name="maintainedBy" value="charlottechance">
-<meta name="title" value="🧑‍🚀 People">
+
+<meta name="maintainedBy" value="hollidayn">
+<meta name="title" value="🔦 Business Operations">
