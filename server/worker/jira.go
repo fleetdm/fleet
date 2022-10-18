@@ -200,6 +200,7 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 // jiraArgs are the arguments for the Jira integration job.
 type jiraArgs struct {
 	CVE           string             `json:"cve,omitempty"`
+	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 

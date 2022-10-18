@@ -200,6 +200,7 @@ func (z *Zendesk) Name() string {
 // zendeskArgs are the arguments for the Zendesk integration job.
 type zendeskArgs struct {
 	CVE           string             `json:"cve,omitempty"`
+	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
