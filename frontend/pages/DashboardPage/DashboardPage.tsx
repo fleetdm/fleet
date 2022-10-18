@@ -51,12 +51,12 @@ import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
 import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
-const baseClass = "dashboard";
+const baseClass = "dashboard-page";
 
 // Premium feature, Gb must be set between 1-100
 const LOW_DISK_SPACE_GB = 32;
 
-const Dashboard = (): JSX.Element => {
+const DashboardPage = (): JSX.Element => {
   const {
     config,
     currentTeam,
@@ -663,4 +663,4 @@ const Dashboard = (): JSX.Element => {
   );
 };
 
-export default Dashboard;
+export default DashboardPage;

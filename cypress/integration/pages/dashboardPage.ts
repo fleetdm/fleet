@@ -4,7 +4,7 @@ const dashboardPage = {
   },
 
   switchesPlatform: (platform = "") => {
-    cy.getAttached(".dashboard__platform_dropdown").click();
+    cy.getAttached(".dashboard-page__platform_dropdown").click();
     cy.getAttached(".Select-menu-outer").within(() => {
       cy.findAllByText(platform).click();
     });
@@ -13,7 +13,7 @@ const dashboardPage = {
   displaysCards: (platform = "", tier = "free") => {
     switch (platform) {
       case "macOS":
-        cy.getAttached(".dashboard__wrapper").within(() => {
+        cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".home-mdm").should("exist");
@@ -31,7 +31,7 @@ const dashboardPage = {
         });
         break;
       case "Windows":
-        cy.getAttached(".dashboard__wrapper").within(() => {
+        cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".operating-systems").should("exist");
@@ -48,7 +48,7 @@ const dashboardPage = {
         });
         break;
       case "Linux":
-        cy.getAttached(".dashboard__wrapper").within(() => {
+        cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           // "get" because we expect it not to exist
@@ -64,7 +64,7 @@ const dashboardPage = {
         });
         break;
       case "All":
-        cy.getAttached(".dashboard__wrapper").within(() => {
+        cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".home-software").should("exist");
@@ -80,7 +80,7 @@ const dashboardPage = {
         break;
       default:
         // no activity feed on team dashboard
-        cy.getAttached(".dashboard__wrapper").within(() => {
+        cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
           cy.getAttached(".home-software").should("exist");
