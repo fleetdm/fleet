@@ -10,11 +10,16 @@
   .truncated {
     display: inline-block;
     max-width: 100%;
+
+    // Removes secondary unstyled tooltip created by browser
+    &::after {
+      content: "";
+      display: block;
+    }
   }
 }
 
-// Overrides react-tooltip to style width from overflow off screen
-
+// Responsive design overrides react-tooltip width that overflows off screen
 .tooltip {
   max-width: 300px;
   word-break: break-all;
