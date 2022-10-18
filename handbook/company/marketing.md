@@ -10,6 +10,3 @@ https://github.com/fleetdm/fleet/tree/main/handbook/digital-experience
 
 ## Growth
 https://github.com/fleetdm/fleet/tree/main/handbook/growth
-
-## Handbook
-https://github.com/fleetdm/fleet/tree/main/handbook/handbook
