@@ -30,17 +30,21 @@ var jiraTemplates = struct {
 		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 	)),
 
-	// Jira uses wiki markup in the v2 api.
+	// Jira uses wiki markup in the v2 api. See
+	// https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=all
+	// for some reference. The `\\` marks force a newline to have the desired spacing
+	// around the scores, when present.
 	VulnDescription: template.Must(template.New("").Funcs(template.FuncMap{
 		"deref": func(b *bool) bool { return *b },
 	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
 
-{{ if .EPSSProbability }}Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
+{{ if .EPSSProbability }}\\Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
 {{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+\\
 {{ end }}
 
 Affected hosts:
