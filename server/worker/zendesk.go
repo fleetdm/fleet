@@ -117,6 +117,7 @@ type Zendesk struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
+	License       *fleet.LicenseInfo
 	NewClientFunc func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
@@ -219,6 +220,8 @@ func (z *Zendesk) Name() string {
 
 // zendeskArgs are the arguments for the Zendesk integration job.
 type zendeskArgs struct {
+	// CVE is deprecated but kept for backwards compatibility (there may be jobs
+	// enqueued in that format to process).
 	CVE           string             `json:"cve,omitempty"`
 	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
@@ -349,7 +352,13 @@ func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, 
 
 // QueueZendeskVulnJobs queues the Zendesk vulnerability jobs to process asynchronously
 // via the worker.
-func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
+func QueueZendeskVulnJobs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	recentVulns []fleet.SoftwareVulnerability,
+	cveMeta map[string]fleet.CVEMeta,
+) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process

@@ -116,6 +116,7 @@ type Jira struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
+	License       *fleet.LicenseInfo
 	NewClientFunc func(*externalsvc.JiraOptions) (JiraClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
@@ -217,6 +218,8 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 
 // jiraArgs are the arguments for the Jira integration job.
 type jiraArgs struct {
+	// CVE is deprecated but kept for backwards compatibility (there may be jobs
+	// enqueued in that format to process).
 	CVE           string             `json:"cve,omitempty"`
 	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
@@ -354,7 +357,13 @@ func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summary
 
 // QueueJiraVulnJobs queues the Jira vulnerability jobs to process asynchronously
 // via the worker.
-func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
+func QueueJiraVulnJobs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	recentVulns []fleet.SoftwareVulnerability,
+	cveMeta map[string]fleet.CVEMeta,
+) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process

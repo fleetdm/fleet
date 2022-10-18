@@ -141,8 +141,12 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 			CVE:        "CVE-1234-5678",
 			SoftwareID: 3,
 		}}
+		meta := make(map[string]fleet.CVEMeta, len(vulns))
+		for _, v := range vulns {
+			meta[v.CVE] = fleet.CVEMeta{CVE: v.CVE}
+		}
 
-		err := QueueZendeskVulnJobs(ctx, ds, logger, vulns)
+		err := QueueZendeskVulnJobs(ctx, ds, logger, vulns, meta)
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 		require.Equal(t, 1, count)
@@ -152,7 +156,11 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
 		}
-		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
+		theCVE := "CVE-1234-5678"
+		meta := map[string]fleet.CVEMeta{
+			theCVE: {CVE: theCVE},
+		}
+		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: theCVE}}, meta)
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -161,7 +169,11 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, io.EOF
 		}
-		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
+		theCVE := "CVE-1234-5678"
+		meta := map[string]fleet.CVEMeta{
+			theCVE: {CVE: theCVE},
+		}
+		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: theCVE}}, meta)
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)
