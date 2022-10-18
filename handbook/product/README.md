@@ -375,11 +375,11 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | 🎙 Product huddle | Daily | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. On Mondays, issues are broken down into a week's work and added into "ready." We move issues out of "delivered" every Friday. | Noah Talerman |
-| 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Noah Talerman |
+| 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🎨 UI/UX huddle      | Weekly (Wednesdays) | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. We hold  separate times for 🎙 Product huddle so Mike Thomas can make it.    | Noah Talerman |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
-| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Noah Talerman |
+| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Mo Zhu |
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
 | Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
 
@@ -389,11 +389,11 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#help-product`                     | Noah Talerman                                                       |
+| `#help-product`                     | Mo Zhu                                                              |
 | `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |
-| `#g-mdm`                            | Noah Talerman                                                       |
+| `#g-mdm`                            | Mo Zhu                                                              |
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="⚗️ Product">
