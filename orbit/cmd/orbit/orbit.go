@@ -648,8 +648,11 @@ func main() {
 			&g,
 			r.ExtensionSocketPath(),
 			table.WithExtension(orbitInfoExtension{
-				orbitClient: orbitClient,
-				trw:         trw,
+				orbitClient:     orbitClient,
+				orbitChannel:    c.String("orbit-channel"),
+				osquerydChannel: c.String("osqueryd-channel"),
+				desktopChannel:  c.String("desktop-channel"),
+				trw:             trw,
 			}),
 		)
 
