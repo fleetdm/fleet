@@ -12,3 +12,24 @@
     max-width: 100%;
   }
 }
+
+// Overrides react-tooltip to style width from overflow off screen
+
+.tooltip {
+  max-width: 300px;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  display: block;
+}
+
+@media (min-width: $break-990) {
+  .tooltip {
+    max-width: 400px;
+  }
+}
+
+@media (min-width: $break-1400) {
+  .tooltip {
+    max-width: 800px;
+  }
+}

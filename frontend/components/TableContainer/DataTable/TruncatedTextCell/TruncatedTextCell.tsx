@@ -17,6 +17,8 @@ const TruncatedTextCell = ({
   const [offsetWidth, setOffsetWidth] = useState(0);
   const [scrollWidth, setScrollWidth] = useState(0);
 
+  console.log("offsetWidth", offsetWidth);
+  console.log("scrollWidth", scrollWidth);
   useLayoutEffect(() => {
     if (ref?.current !== null) {
       setOffsetWidth(ref.current.offsetWidth);
@@ -26,6 +28,15 @@ const TruncatedTextCell = ({
 
   const id = uuidv4();
   const tooltipDisabled = offsetWidth === scrollWidth;
+
+  const styles = () => ({
+    overrideMe: {
+      width: "100px",
+      "word-break": "break-all",
+      "overflow-wrap": "break-word",
+      display: "block",
+    },
+  });
 
   return (
     <div ref={ref} className={`${classes}`}>
@@ -49,8 +60,9 @@ const TruncatedTextCell = ({
         backgroundColor="#3e4771"
         id={id}
         data-html
+        className={"tooltip"}
       >
-        <span className={`tooltip tooltip-text`}>{value}</span>
+        {value}
       </ReactTooltip>
     </div>
   );
