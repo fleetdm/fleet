@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Row } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
@@ -10,15 +10,16 @@ import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
+import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
+import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+
 import ShowQueryModal from "./ShowQueryModal";
+import resultsTableHeaders from "./QueryResultsTableConfig";
+
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
-
-import resultsTableHeaders from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -32,10 +33,6 @@ interface IQueryResultsProps {
 
 const baseClass = "query-results";
 const CSV_QUERY_TITLE = "Query Results";
-const PAGE_TITLES = {
-  RUNNING: "Querying selected hosts",
-  FINISHED: "Query finished",
-};
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -78,24 +75,11 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
-  const percentResponded =
-    targetsTotalCount > 0
-      ? Math.round((hostsCount.total / targetsTotalCount) * 100)
-      : 0;
 
-  const [pageTitle, setPageTitle] = useState(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-
-  useEffect(() => {
-    if (isQueryFinished) {
-      setPageTitle(PAGE_TITLES.FINISHED);
-    } else {
-      setPageTitle(PAGE_TITLES.RUNNING);
-    }
-  }, [isQueryFinished]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -133,9 +117,9 @@ const QueryResults = ({
       <p className="no-results-message">
         Your live query returned no results.
         <span>
-          Expecting to see results? Check to see if the hosts you targeted
-          reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
-          table.
+          Expecting to see results? Check to see if the host
+          {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
+          &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo; table.
         </span>
       </p>
     );
@@ -203,7 +187,7 @@ const QueryResults = ({
       isQueryFinished && (!queryResults?.length || !hostsCount.successful);
 
     if (hasNoResultsYet) {
-      return <Spinner />;
+      return <AwaitingResults />;
     }
 
     if (finishedWithNoResults) {
@@ -215,58 +199,20 @@ const QueryResults = ({
 
   const renderErrorsTab = () => renderTable(errors, "errors");
 
-  const renderFinishedButtons = () => (
-    <div className={`${baseClass}__btn-wrapper`}>
-      <Button
-        className={`${baseClass}__done-btn`}
-        onClick={onQueryDone}
-        variant="brand"
-      >
-        Done
-      </Button>
-      <Button
-        className={`${baseClass}__run-btn`}
-        onClick={onRunQuery}
-        variant="blue-green"
-      >
-        Run again
-      </Button>
-    </div>
-  );
-
-  const renderStopQueryButton = () => (
-    <div className={`${baseClass}__btn-wrapper`}>
-      <Button
-        className={`${baseClass}__stop-btn`}
-        onClick={onStopQuery}
-        variant="alert"
-      >
-        <>Stop</>
-      </Button>
-    </div>
-  );
-
   const firstTabClass = classnames("react-tabs__tab", "no-count", {
     "errors-empty": !errors || errors?.length === 0,
   });
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
-        <h1>{pageTitle}</h1>
-        <div className={`${baseClass}__text-wrapper`}>
-          <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
-          {percentResponded}%&nbsp;
-          <TooltipWrapper
-            tipContent={`
-                Hosts that respond may<br /> return results, errors, or <br />no results`}
-          >
-            responded
-          </TooltipWrapper>
-          )
-        </div>
-      </div>
-      {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
+      <QueryResultsHeading
+        respondedHosts={hostsCount.total}
+        targetsTotalCount={targetsTotalCount}
+        isQueryFinished={isQueryFinished}
+        onClickDone={onQueryDone}
+        onClickRunAgain={onRunQuery}
+        onClickStop={onStopQuery}
+      />
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>

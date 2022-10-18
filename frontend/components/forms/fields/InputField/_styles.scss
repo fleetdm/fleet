@@ -4,11 +4,12 @@
   border: solid 1px $ui-fleet-blue-15;
   border-radius: 4px;
   font-size: $small;
-  padding: $pad-xsmall 12px;
+  padding: 7px 12px;
   color: $core-fleet-blue;
   font-family: "Nunito Sans", sans-serif;
   box-sizing: border-box;
   height: 40px;
+  transition: border-color 100ms;
 
   &::placeholder {
     color: $ui-fleet-black-50;
@@ -17,6 +18,11 @@
   &:focus {
     outline: none;
     border-color: $core-vibrant-blue;
+  }
+
+  &:hover {
+    box-shadow: none;
+    border: 1px solid $core-vibrant-blue;
   }
 
   &--disabled {

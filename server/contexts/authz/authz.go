@@ -39,6 +39,10 @@ const (
 	// which only allows limited access to the device's own host information.
 	// This authentication mode does not support granular authorization.
 	AuthnDeviceToken
+	// AuthnOrbitToken is when authentication is done via the orbit host
+	// authentication token. This authentication mode does not support granular
+	// authorization.
+	AuthnOrbitToken
 )
 
 // AuthorizationContext contains the context information used for the

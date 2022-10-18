@@ -67,6 +67,10 @@
     position: absolute;
     bottom: 0px;
     right: 0px;
+
+    .button {
+      font-weight: $bold;
+    }
   }
 
   &__load-activities-button {

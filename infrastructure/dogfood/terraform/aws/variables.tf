@@ -56,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.20.1"
+  default     = "fleetdm/fleet:v4.21.0"
 }
 
 variable "software_inventory" {
@@ -124,4 +124,8 @@ variable "extra_security_group_cidrs" {
     condition     = alltrue([for cidr in var.extra_security_group_cidrs : can(cidrhost(cidr, 32))])
     error_message = "The extra security groups must be a list of valid CIDRs."
   }
+}
+
+variable "rds_initial_snapshot" {
+  default = null
 }

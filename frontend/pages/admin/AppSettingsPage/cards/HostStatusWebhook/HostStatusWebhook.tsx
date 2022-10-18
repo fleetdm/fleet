@@ -52,6 +52,7 @@ const HostStatusWebhook = ({
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+    setFormErrors({});
   };
 
   const validateForm = () => {
@@ -123,7 +124,7 @@ const HostStatusWebhook = ({
               }}
             />
           </div>
-          <div className="flex-end">
+          <div className="modal-cta-wrap">
             <Button type="button" onClick={toggleHostStatusWebhookPreviewModal}>
               Done
             </Button>

@@ -8,7 +8,6 @@
   - [Running Fleet](#running-fleet)
   - [`fleetctl config`](#fleetctl-config)
   - [`fleetctl setup`](#fleetctl-setup)
-  - [Connecting a host](#connecting-a-host)
   - [Query hosts](#query-hosts)
 - [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance)
 - [Using fleetctl to configure Fleet](#using-fleetctl-to-configure-fleet)
@@ -164,6 +163,7 @@ When the query is done (or you have enough results), CTRL-C and look at the `res
       "config_valid": "1",
       "extensions": "active",
       "host_hostname": "marpaia",
+      "host_display_name": "marpaia",
       "instance_id": "37840766-7182-4a68-a204-c7f577bd71e1",
       "pid": "22984",
       "start_time": "1527031727",

@@ -1,0 +1,1 @@
+* Fixed a bug when running `fleetctl apply` with the `--dry-run` flag, it could fail with an obscure "invalid JSON" error due to the way the internal caching was done.

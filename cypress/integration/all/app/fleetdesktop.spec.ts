@@ -76,7 +76,7 @@ describe("Fleet Desktop", () => {
         defaultCommandTimeout: 15000,
       },
       () => {
-        cy.getAttached(".hostname-container").within(() => {
+        cy.getAttached(".display-name-container").within(() => {
           cy.contains("button", /refetch/i).click();
           cy.findByText(/fetching/i).should("exist");
           cy.contains("button", /refetch/i).should("exist");

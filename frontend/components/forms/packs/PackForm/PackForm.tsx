@@ -54,7 +54,9 @@ const EditPackForm = ({
     setPackFormTargets(value);
   };
 
-  const onFormSubmit = (): void => {
+  const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>): void => {
+    evt.preventDefault();
+
     if (packName === "") {
       return setErrors({
         ...errors,
@@ -113,11 +115,7 @@ const EditPackForm = ({
           />
         </div>
         <div className={`${baseClass}__pack-buttons`}>
-          <Button
-            onClick={onFormSubmit}
-            variant="brand"
-            isLoading={isUpdatingPack}
-          >
+          <Button type="submit" variant="brand" isLoading={isUpdatingPack}>
             Save query pack
           </Button>
         </div>

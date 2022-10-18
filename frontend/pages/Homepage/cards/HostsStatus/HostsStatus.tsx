@@ -1,5 +1,8 @@
 import React from "react";
 
+import paths from "router/paths";
+import SummaryTile from "../HostsSummary/SummaryTile";
+
 const baseClass = "hosts-status";
 
 interface IHostSummaryProps {
@@ -23,26 +26,20 @@ const HostsStatus = ({
 
   return (
     <div className={baseClass} style={opacity}>
-      <div className={`${baseClass}__tile online-tile`}>
-        <div>
-          <div
-            className={`${baseClass}__tile-count ${baseClass}__tile-count--online`}
-          >
-            {onlineCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>Online hosts</div>
-        </div>
-      </div>
-      <div className={`${baseClass}__tile offline-tile`}>
-        <div>
-          <div
-            className={`${baseClass}__tile-count ${baseClass}__tile-count--offline`}
-          >
-            {offlineCount}
-          </div>
-          <div className={`${baseClass}__tile-description`}>Offline hosts</div>
-        </div>
-      </div>
+      <SummaryTile
+        count={onlineCount}
+        isLoading={isLoadingHosts}
+        showUI={showHostsUI}
+        title="Online hosts"
+        path={`${paths.MANAGE_HOSTS}?status=online`}
+      />
+      <SummaryTile
+        count={offlineCount}
+        isLoading={isLoadingHosts}
+        showUI={showHostsUI}
+        title="Offline hosts"
+        path={`${paths.MANAGE_HOSTS}?status=offline`}
+      />
     </div>
   );
 };

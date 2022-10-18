@@ -8,6 +8,7 @@ should be discussed within the team and documented before merged.
 
 ## Table of contents
   - [Typing](#typing)
+  - [Utilities](#utilities)
   - [Components](#components)
   - [React Hooks](#react-hooks)
   - [React Context](#react-context)
@@ -58,6 +59,23 @@ useQuery<IHostResponse, Error, IHost>(params)
 const functionWithTableName = (tableName: string): boolean => {
   // do something
 };
+```
+
+## Utilities
+
+### Named exports
+
+We export individual utility functions and avoid exporting default objects when exporting utilities.
+
+```ts
+
+// good
+export const replaceNewLines = () => {...}
+
+// bad
+export default {
+  replaceNewLines
+}
 ```
 
 ## Components

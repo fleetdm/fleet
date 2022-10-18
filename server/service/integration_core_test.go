@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -45,66 +46,38 @@ func (s *integrationTestSuite) SetupSuite() {
 }
 
 func (s *integrationTestSuite) TearDownTest() {
-	t := s.T()
-	ctx := context.Background()
-
-	u := s.users["admin1@example.com"]
-	filter := fleet.TeamFilter{User: &u}
-	hosts, err := s.ds.ListHosts(ctx, filter, fleet.HostListOptions{})
-	require.NoError(t, err)
-	for _, host := range hosts {
-		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, nil))
-		require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
-	}
-
-	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, lbl := range lbls {
-		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.ds.DeleteLabel(ctx, lbl.Name)
-			require.NoError(t, err)
-		}
-	}
-
-	users, err := s.ds.ListUsers(ctx, fleet.UserListOptions{})
-	require.NoError(t, err)
-	for _, u := range users {
-		if _, ok := s.users[u.Email]; !ok {
-			err := s.ds.DeleteUser(ctx, u.ID)
-			require.NoError(t, err)
-		}
-	}
-
-	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, tm := range teams {
-		err := s.ds.DeleteTeam(ctx, tm.ID)
-		require.NoError(t, err)
-	}
-
-	globalPolicies, err := s.ds.ListGlobalPolicies(ctx)
-	require.NoError(t, err)
-	if len(globalPolicies) > 0 {
-		var globalPolicyIDs []uint
-		for _, gp := range globalPolicies {
-			globalPolicyIDs = append(globalPolicyIDs, gp.ID)
-		}
-		_, err = s.ds.DeleteGlobalPolicies(ctx, globalPolicyIDs)
-		require.NoError(t, err)
-	}
-
-	// SyncHostsSoftware performs a cleanup.
-	err = s.ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	s.withServer.commonTearDownTest(s.T())
 }
 
 func TestIntegrations(t *testing.T) {
 	testingSuite := new(integrationTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
+}
+
+type slowReader struct{}
+
+func (s *slowReader) Read(p []byte) (n int, err error) {
+	time.Sleep(3 * time.Second)
+	return 0, nil
+}
+
+func (s *integrationTestSuite) TestSlowOsqueryHost() {
+	t := s.T()
+	s.server.Config.ReadTimeout = 2 * time.Second
+	defer func() {
+		s.server.Config.ReadTimeout = 25 * time.Second
+	}()
+
+	req, err := http.NewRequest("POST", s.server.URL+"/api/v1/osquery/distributed/write", &slowReader{})
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient()
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
 func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
@@ -134,6 +107,20 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
+}
+
+func (s *integrationTestSuite) TestUserEmailValidation() {
+	params := fleet.UserPayload{
+		Name:       ptr.String("user_invalid_email"),
+		Email:      ptr.String("invalid"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+
+	params.Email = ptr.String("user_valid_mail@example.com")
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
@@ -889,10 +876,14 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 
-func (s *integrationTestSuite) TestCountSoftware() {
+func (s *integrationTestSuite) TestHostsCount() {
 	t := s.T()
 
 	hosts := s.createHosts(t)
+
+	// set disk space information for some hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
 
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -919,6 +910,12 @@ func (s *integrationTestSuite) TestCountSoftware() {
 		"label_id", fmt.Sprint(label.ID),
 	)
 	assert.Equal(t, 1, resp.Count)
+
+	// filter by low_disk_space criteria is ignored (premium-only filter)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
+	require.Equal(t, len(hosts), resp.Count)
+	// but it is still validated for a correct value when provided (as that happens in a middleware before the handler)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "123456") // TODO: status code to be fixed with #4406
 
 	// filter by MDM criteria without any host having such information
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
@@ -1023,8 +1020,27 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	hosts := s.createHosts(t)
 
+	// set disk space information for some hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
+
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+	for _, h := range resp.Hosts {
+		switch h.ID {
+		case hosts[0].ID:
+			assert.Equal(t, 10.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+		case hosts[1].ID:
+			assert.Equal(t, 40.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+		}
+	}
+
+	// setting the low_disk_space criteria is ignored (premium-only)
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Len(t, resp.Hosts, len(hosts))
 
 	resp = listHostsResponse{}
@@ -1480,21 +1496,32 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
 
-	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
-	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team2"})
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{hosts[0].ID}))
+
+	// set disk space information for hosts [0] and [1]
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
+	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
+	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
 
 	var resp getHostSummaryResponse
 
 	// no team filter
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp)
 	require.Equal(t, resp.TotalsHostsCount, uint(len(hosts)))
+	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 3)
 	gotPlatforms, wantPlatforms := make([]string, 3), []string{"linux", "debian", "rhel"}
 	for i, p := range resp.Platforms {
@@ -1527,9 +1554,10 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
-	// team filter, one host
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID))
+	// team filter, one host, low_disk_count is ignored as not premium
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
@@ -1561,6 +1589,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
 	require.Equal(t, resp.AllLinuxCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
+
+	// invalid low_disk_space value is still validated and results in error
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusInternalServerError, &resp, "low_disk_space", "1234") // TODO: should be 400, see #4406
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
@@ -1770,6 +1801,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
+	require.Len(t, policiesResponse.InheritedPolicies, 0)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -2395,7 +2427,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	// list hosts response includes device mappings
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
 	require.Len(t, listHosts.Hosts, 3)
-	hostsByID := make(map[uint]HostResponse)
+	hostsByID := make(map[uint]fleet.HostResponse)
 	for _, h := range listHosts.Hosts {
 		hostsByID[h.ID] = h
 	}
@@ -2461,7 +2493,7 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	var listHosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
 
-	hostsByID := make(map[uint]HostResponse)
+	hostsByID := make(map[uint]fleet.HostResponse)
 	for _, h := range listHosts.Hosts {
 		hostsByID[h.ID] = h
 	}
@@ -4421,6 +4453,36 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
 
+	// set valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":"table1"}}
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// set invalid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"no_such_flag":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.NotContains(t, string(*acResp.AgentOptions), `"no_such_flag"`)
+
+	// set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// force-set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusOK, &acResp, "force", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": true`)
+
 	// dry-run valid appconfig that uses legacy settings (returns error)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"host_settings": { "additional_queries": {"foo": "bar"} }
@@ -4452,6 +4514,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 			Secrets: []*fleet.EnrollSecret{{Secret: "XYZ"}},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// apply spec, too many secrets
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
+		},
+	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// get enroll secrets, one
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -4792,13 +4861,28 @@ func (s *integrationTestSuite) TestSearchTargets() {
 
 func (s *integrationTestSuite) TestSearchHosts() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
+
+	// set disk space information for hosts [0] and [1]
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
 
 	// no search criteria
 	var searchResp searchHostsResponse
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, len(hosts)) // no request params
+	for _, h := range searchResp.Hosts {
+		switch h.ID {
+		case hosts[0].ID:
+			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+		case hosts[1].ID:
+			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
+			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+		}
+	}
 
 	searchResp = searchHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
@@ -4924,6 +5008,63 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
 	require.NotEmpty(t, resp.NodeKey)
+}
+
+func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
+	t := s.T()
+	ctx := context.Background()
+	host := s.createHosts(t)[0]
+
+	// set the enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Empty(t, getHostResp.Host.Policies)
+
+	// create a policy and make the host fail it
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
+	require.NoError(t, err)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// refetch the host details
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Len(t, *getHostResp.Host.Policies, 1)
+
+	// re-enroll the host, but using a different platform
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: host.OsqueryHostID,
+		HostDetails:    map[string](map[string]string){"os_version": map[string]string{"platform": "windows"}},
+	})
+	require.NoError(t, err)
+
+	// prevent the enroll cooldown from being applied
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
+			host.ID,
+		)
+		return err
+	})
+	var resp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
+	require.NotEmpty(t, resp.NodeKey)
+
+	// refetch the host details
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+
+	// policies should be gone
+	require.Empty(t, getHostResp.Host.Policies)
 }
 
 func (s *integrationTestSuite) TestCarve() {
@@ -5324,6 +5465,10 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	})
 	require.NoError(t, err)
 
+	// set disk space information for hosts [0] and [1]
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
 		Message string `json:"message"`
@@ -5343,25 +5488,29 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 44)        // total number of cols
+	require.Len(t, rows[0], 45)        // total number of cols
 	t.Log(rows[0])
 
 	const (
-		idCol     = 2
-		issuesCol = 40
+		idCol       = 2
+		issuesCol   = 40
+		gigsDiskCol = 38
+		pctDiskCol  = 39
 	)
 
-	// find the row for hosts[1], it should have issues=1 (1 failing policy)
+	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
 	for _, row := range rows[1:] {
 		if row[idCol] == fmt.Sprint(hosts[1].ID) {
 			require.Equal(t, "1", row[issuesCol], row)
+			require.Equal(t, "3", row[gigsDiskCol], row)
+			require.Equal(t, "4", row[pctDiskCol], row)
 		} else {
 			require.Equal(t, "0", row[issuesCol], row)
 		}
 	}
 
 	// valid format, some columns
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "gigs_disk_space_available", "percent_disk_space_available")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
@@ -5369,8 +5518,10 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, rows[0], "hostname") // first row contains headers
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
+	require.Contains(t, res.Header, "X-Content-Type-Options")
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
+	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
 
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")
@@ -5552,6 +5703,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)
 	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
+}
+
+func (s *integrationTestSuite) TestPingEndpoints() {
+	s.DoRaw("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
+
+	s.DoRaw("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
 // this test can be deleted once the "v1" version is removed.
