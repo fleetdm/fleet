@@ -115,18 +115,14 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	now := time.Now().UTC()
-	tomorrow := now.Add(time.Hour * 24)
-	yesterday := now.Add(-time.Hour * 24)
-
 	stmt := `INSERT INTO password_reset_requests ( user_id, token, expires_at)
-			VALUES (?,?, ?)`
+			VALUES (?,?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? HOUR))`
 
-	_, err := ds.writer.ExecContext(ctx, stmt, uint(1), "now", now)
+	_, err := ds.writer.ExecContext(ctx, stmt, uint(1), "now", 0)
 	require.NoError(t, err)
-	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "tomorrow", tomorrow)
+	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "tomorrow", 24)
 	require.NoError(t, err)
-	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "yesterday", yesterday)
+	_, err = ds.writer.ExecContext(ctx, stmt, uint(1), "yesterday", -24)
 	require.NoError(t, err)
 
 	var res1 []fleet.PasswordResetRequest
