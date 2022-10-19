@@ -1,4 +1,4 @@
-name: build
+name: trivy
 on:
   workflow_dispatch:
   schedule:
