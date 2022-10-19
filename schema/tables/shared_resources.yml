@@ -1,0 +1,12 @@
+name: shared_resources
+examples: >-
+  List all shared folders that have the word 'backup' in their name - does not include ADMIN$ type shares.
+  
+  ```
+  
+  SELECT description,name,path FROM shared_resources WHERE type = 0 and name like '%backup%';
+  
+  ```
+  
+notes: >-
+  * type_name is a human readable value of the type column. These values can include: "Disk Drive Admin", "IPC Admin", "Disk Drive"

@@ -1,0 +1,14 @@
+name: windows_eventlog
+examples: >-
+  List all Windows Eventlogs from the Security channel with an EventID of 4720 - A user account was created.
+  
+  ```
+  
+  SELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'"
+  
+  ```
+  
+notes: >-
+  * This is not an evented table - instead, it pulls directly from the local system's existing eventlogs. 
+
+  * The information returned in the `data` column will be JSON formatted, which will require additional parsing.  

@@ -1,0 +1,9 @@
+name: windows_optional_features
+examples: >-
+  Lists enabled SMBv1 services (client and/or server).
+  
+  ```
+     
+   SELECT name,caption,statename FROM windows_optional_features WHERE name LIKE 'SMB1Protocol%' AND state = 1;
+
+  ```
