@@ -50,7 +50,6 @@ import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
-import { isGlobalMaintainer } from "utilities/permissions/permissions";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
