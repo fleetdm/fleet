@@ -1,0 +1,10 @@
+name: running_apps
+examples: >-
+  List all running applications. Filter on is_active='1' to see the application
+  that currently has focus.
+
+  ```
+
+  SELECT * FROM running_apps;
+
+  ```
