@@ -20,6 +20,7 @@
 - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 - [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
+- [What Redis versions are supported?](#what-redis-versions-are-supported)
 - [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
 
 ## How do I get support for working with Fleet?
@@ -154,6 +155,7 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 ## What MySQL versions are supported?
 
 Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants and these may not be addressed in future Fleet releases.
+
 ## What are the MySQL user requirements?
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
@@ -267,6 +269,9 @@ Fleet requires at least MySQL version 5.7.
 ## How do I migrate from Fleet Free to Fleet Premium?
 
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in the Fleet's config file. See [here](https://fleetdm.com/docs/deploying/configuration#license) for more details. Note: You don't need to redeploy Fleet after the migration.
+
+## What Redis versions are supported?
+Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 will typically work well.
 
 ## Will my older version of Fleet work with Redis 6?
 
