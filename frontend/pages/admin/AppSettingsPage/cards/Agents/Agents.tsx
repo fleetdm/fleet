@@ -31,7 +31,7 @@ const Agents = ({
 
   const { agentOptions } = formData;
 
-  const handleAceInputChange = (value: string) => {
+  const handleAgentOptionsChange = (value: string) => {
     setFormData({ ...formData, agentOptions: value });
   };
 
@@ -114,7 +114,7 @@ const Agents = ({
           </p>
           <YamlAce
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
-            onChange={handleAceInputChange}
+            onChange={handleAgentOptionsChange}
             name="agentOptions"
             value={agentOptions}
             parseTarget

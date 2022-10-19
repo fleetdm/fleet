@@ -17,8 +17,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
-// import format_api_errors from "utilities/format_api_errors";
-// import osquery_options from "services/entities/osquery_options";
 
 const baseClass = "agent-options";
 
@@ -52,7 +50,6 @@ const AgentOptionsPage = ({
         const selected = data.find((team) => team.id === teamIdFromURL);
 
         if (selected) {
-          console.log("selected", selected);
           setFormData({
             agentOptions: agentOptionsToYaml(selected.agent_options),
           });

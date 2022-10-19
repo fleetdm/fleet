@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import yaml from "js-yaml";
 
 export default {
   // Unneeded for teams, but might need this for global
