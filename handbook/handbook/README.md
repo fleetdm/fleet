@@ -1,20 +1,5 @@
 # Handbook
 
-## Handbook style guide
-
-### Headings
-
-Headings help readers scan content to find what they need easily. Organize page content using clear headings specific to the topic they describe.
-
-Keep headings brief and organize them in a logical order:
-
-* H1: Page title
-* H2: Main headings
-* H3: Subheadings
-* H4: Sub-subheadings (headings nested under subheadings)
-
-Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
-
 ## Contributing to the handbook
 
 To contribute to a handbook page:
