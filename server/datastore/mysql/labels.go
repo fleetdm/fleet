@@ -510,7 +510,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
-		%s
+    %s
 	`
 	failingPoliciesSelect := `,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
