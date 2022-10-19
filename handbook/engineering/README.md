@@ -452,9 +452,7 @@ Fleet documentation explains how to use, deploy, and contribute to Fleet as simp
 ### In this section
 
 - [How to request a review for Markdown changes to the docs](#how-to-request-a-review-for-markdown-changes-to-the-docs)
-- [Writing documentation](#writing-documentation)
 - [Markdown](#markdown)
-- [Docs style guide](#docs-style-guide)
 - [Adding links](#adding-links)
 - [Linking to a location on GitHub](#linking-to-a-location-on-github)
 - [How to fix a broken link](#how-to-fix-a-broken-link)
@@ -465,56 +463,6 @@ Fleet documentation explains how to use, deploy, and contribute to Fleet as simp
 ### How to request a review for Markdown changes to the docs
 
 When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [oncall engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
-
-### Writing documentation
-
-You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. That puts developers in the perfect position to show users what Fleet can do.
-
-This guide will help you write docs that help users achieve their goals with Fleet.
-
-#### Remember the reader
-
-People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
-
-- **Think of every user.** Define technical terms in the doc or include a link.
-- **Strive for simplicity.** Avoid complex sentences and long paragraphs.
-- **Be approachable.** Write like you’re meeting a new member of your team.
-
-#### Answer the question
-
-It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
-
-- **Understand the question.** Be clear about the topic you’re discussing.
-- **Narrow your focus.** Avoid explanations that distract from the main topic.
-- **No more, no less.** Use just enough information to give an accurate answer.
-
-#### Follow a framework
-
-Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
-
-##### Introduction
-
-Give an overview of the topic. You don’t need to mention everything at the beginning. Briefly establish the question you’re addressing. People want to get to the answer A.S.A.P.
-
-##### Explanation
-
-You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
-
-##### Reference
-
-Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
-
-##### Troubleshooting
-
-Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
-
-#### Document every change
-
-Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
-
-You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
-
-Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before commiting a line of code.
 
 ### Markdown
 
@@ -591,29 +539,6 @@ This ordered list will render correctly as
    Paragraph about item one
 
 2. Item two
-
-### Docs style guide
-
-#### Headings
-
-Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
-
-Keep headings brief, organized, and in a logical order:
-
-- H1: Page title
-- H2: Main headings
-- H3: Subheadings
-- H4: Sub-subheadings (headings nested under subheadings)
-
-Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
-
-#### SQL statements
-
-When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here is an example:
-
-```sql
-   SELECT days, hours, total_seconds FROM uptime;
-```
 
 ### Adding links
 
