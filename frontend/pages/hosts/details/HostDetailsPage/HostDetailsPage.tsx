@@ -1,5 +1,4 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { browserHistory } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -35,6 +34,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import BackLink from "components/BackLink";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 
@@ -55,8 +55,6 @@ import DeleteHostModal from "./modals/DeleteHostModal";
 import RenderOSPolicyModal from "./modals/OSPolicyModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
-
-import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
 import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
@@ -539,19 +537,8 @@ const HostDetailsPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        <div>
-          <Button
-            variant={"text-icon"}
-            onClick={() => {
-              browserHistory.goBack();
-            }}
-            className={`${baseClass}__back-link`}
-          >
-            <>
-              <img src={BackChevron} alt="back chevron" id="back-chevron" />
-              <span>Back to all hosts</span>
-            </>
-          </Button>
+        <div className={`${baseClass}__header-links`}>
+          <BackLink text="Back to all hosts" />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}

@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Link } from "react-router";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -12,8 +11,8 @@ import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
+import BackLink from "components/BackLink";
 import PolicyForm from "pages/policies/PolicyPage/components/PolicyForm";
-import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IQueryEditorProps {
   router: InjectedRouter;
@@ -152,17 +151,11 @@ const QueryEditor = ({
     return null;
   }
 
-  const backPath = policyTeamId ? `?team_id=${policyTeamId}` : "";
-
   return (
     <div className={`${baseClass}__form`}>
-      <Link
-        to={`${PATHS.MANAGE_POLICIES}/${backPath}`}
-        className={`${baseClass}__back-link`}
-      >
-        <img src={BackChevron} alt="back chevron" id="back-chevron" />
-        <span>Back to policies</span>
-      </Link>
+      <div className={`${baseClass}__header-links`}>
+        <BackLink text="Back to policies" path={PATHS.MANAGE_POLICIES} />
+      </div>
       <PolicyForm
         onCreatePolicy={onCreatePolicy}
         goToSelectTargets={goToSelectTargets}

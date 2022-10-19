@@ -1,4 +1,5 @@
 import CalendarCheck from "./CalendarCheck";
+import Chevron from "./Chevron";
 import Apple from "./Apple";
 import Windows from "./Windows";
 import Linux from "./Linux";
@@ -12,6 +13,7 @@ import ChevronDown from "./ChevronDown";
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
   "calendar-check": CalendarCheck,
+  "chevron-left": Chevron,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
