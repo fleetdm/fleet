@@ -1,0 +1,9 @@
+name: plist
+examples: >-
+  Read the contents of a plist file, formatted into a table
+
+  ```
+
+  SELECT key, subkey, value FROM plist WHERE path LIKE '/Users/%%/Library/Preferences/com.apple.Terminal.plist';
+
+  ```

@@ -1,0 +1,4 @@
+name: safari_extensions
+columns:
+  - name: uid
+    requires_user_context: true
