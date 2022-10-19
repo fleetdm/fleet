@@ -1,0 +1,46 @@
+name: processes
+examples: >-
+  List executables listening on network ports.
+
+  ```
+
+  SELECT l.port, l.pid, p.name, p.path FROM listening_ports l JOIN processes p USING (pid); 
+
+  ```
+columns:
+  - name: elevated_token
+    platforms:
+      - windows
+  - name: secure_process
+    platforms:
+      - windows
+  - name: protection_type
+    platforms:
+      - windows
+  - name: virtual_process
+    platforms:
+      - windows
+  - name: elapsed_time
+    platforms:
+      - windows
+  - name: handle_count
+    platforms:
+      - windows
+  - name: percent_processor_time
+    platforms:
+      - windows
+  - name: upid
+    platforms:
+      - darwin
+  - name: uppid
+    platforms:
+      - darwin
+  - name: cpu_type
+    platforms:
+      - darwin
+  - name: cpu_subtype
+    platforms:
+      - darwin
+  - name: translated
+    platforms:
+      - darwin

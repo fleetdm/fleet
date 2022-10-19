@@ -1,0 +1,9 @@
+name: osquery_info
+examples: >-
+  See the version of the currently running osquery.
+  
+  ```
+  
+  SELECT version FROM osquery_info; 
+  
+  ```

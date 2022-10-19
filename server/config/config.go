@@ -1,11 +1,14 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -85,6 +88,21 @@ type ServerConfig struct {
 	URLPrefix      string `yaml:"url_prefix"`
 	Keepalive      bool   `yaml:"keepalive"`
 	SandboxEnabled bool   `yaml:"sandbox_enabled"`
+}
+
+func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              s.Address,
+		Handler:           handler,
+		ReadTimeout:       25 * time.Second,
+		WriteTimeout:      40 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       5 * time.Minute,
+		MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
+		BaseContext: func(l net.Listener) context.Context {
+			return ctx
+		},
+	}
 }
 
 // AuthConfig defines configs related to user authorization

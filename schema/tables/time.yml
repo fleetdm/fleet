@@ -1,0 +1,13 @@
+name: time
+examples: >-
+  View the timezone a system is configured in. 
+  
+  ```
+  
+  SELECT local_timezone FROM time;
+  
+  ```
+columns:
+  - name: win_timestamp
+    platforms:
+      - windows
