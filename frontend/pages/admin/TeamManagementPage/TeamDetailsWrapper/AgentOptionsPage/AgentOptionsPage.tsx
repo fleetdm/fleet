@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
+import yaml from "js-yaml";
 
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
@@ -34,8 +35,11 @@ const AgentOptionsPage = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [teamName, setTeamName] = useState("");
-  const [formData, setFormData] = useState<{ osquery_options?: string }>({});
+  const [formData, setFormData] = useState<{ agentOptions?: string }>({});
   const [formErrors, setFormErrors] = useState<any>({});
+  const [isUpdatingAgentOptions, setIsUpdatingAgentOptions] = useState(false);
+
+  const { agentOptions } = formData;
 
   const handlePageError = useErrorHandler();
 
@@ -48,8 +52,9 @@ const AgentOptionsPage = ({
         const selected = data.find((team) => team.id === teamIdFromURL);
 
         if (selected) {
+          console.log("selected", selected);
           setFormData({
-            osquery_options: agentOptionsToYaml(selected.agent_options),
+            agentOptions: agentOptionsToYaml(selected.agent_options),
           });
           setTeamName(selected.name);
         } else {
@@ -61,13 +66,10 @@ const AgentOptionsPage = ({
   );
 
   const validateForm = () => {
-    // Basic yaml validation only, not agent options validation
     const errors: any = {};
 
-    if (formData.osquery_options) {
-      const { error: yamlError, valid: yamlValid } = validateYaml(
-        formData.osquery_options
-      );
+    if (agentOptions) {
+      const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }
@@ -76,14 +78,16 @@ const AgentOptionsPage = ({
     setFormErrors(errors);
   };
 
-  // Validates forms when certain information is changed
+  // Basic yaml validation only on change
   useEffect(() => {
     validateForm();
   }, [formData]);
 
   const onSaveOsqueryOptionsFormSubmit = async (updatedForm: {
-    osquery_options: string;
+    agent_optons: string;
   }) => {
+    setIsUpdatingAgentOptions(true);
+
     const { TEAMS_AGENT_OPTIONS } = endpoints;
 
     osqueryOptionsAPI
@@ -97,20 +101,25 @@ const AgentOptionsPage = ({
           "error",
           `Could not update ${teamName} team agent options. ${response.data.errors[0].reason}`
         );
+      })
+      .finally(() => {
+        setIsUpdatingAgentOptions(false);
       });
   };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    const emptyForm = { osquery_options: "" };
 
-    const formDataToSubmit = emptyForm;
+    // Formatting of API not UI
+    const formDataToSubmit = {
+      agent_options: yaml.load(agentOptions || ""),
+    };
 
     onSaveOsqueryOptionsFormSubmit(formDataToSubmit);
   };
 
   const handleAgentOptionsChange = (value: string) => {
-    setFormData({ ...formData, osquery_options: value });
+    setFormData({ ...formData, agentOptions: value });
   };
 
   return (
@@ -139,17 +148,22 @@ const AgentOptionsPage = ({
         >
           <div className={`${baseClass}__btn-wrap`}>
             <p>YAML</p>
-            <Button type="submit" variant="brand">
+            <Button
+              type="submit"
+              variant="brand"
+              className="save-loading"
+              isLoading={isUpdatingAgentOptions}
+            >
               Save options
             </Button>
           </div>
           <YamlAce
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={handleAgentOptionsChange}
-            name="osqueryOptions"
-            value={formData.osquery_options}
+            name="agentOptions"
+            value={agentOptions}
             parseTarget
-            error={formErrors.osquery_options}
+            error={formErrors.agent_options}
           />
         </form>
       </div>
