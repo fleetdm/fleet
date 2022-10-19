@@ -852,7 +852,7 @@ The size of the session key.
 
 ##### session_duration
 
-The amount of time that a session should last for. Each time a user logs in, the time is reset to the specified, or default, duration. 
+This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration. 
 
 Valid time units are `s`, `m`, `h`.
 
