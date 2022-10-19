@@ -174,22 +174,33 @@ Automatic enrollment profile created, ID: 2
 
 ## 8. DEP Enroll
 
-Follow https://travellingtechguy.blog/vmware-dep/ to create a VMWare macOS VM with a serial number that Fleet's ABM manages. (Reach out to Guillaume, Michal or Zach Wasserman.)
-
+0. You need an uninitialized macOS VM with a specific configuration to allow for DEP testing.
+Carefully follow https://travellingtechguy.blog/macos-big-sur-on-vmware-fusion-12/ to create a VMWare macOS VM with a serial number that Fleet's ABM manages (@lucasmrod has successfully created a "test DEP VM" following the above guide).
 1. Assign the device to our "MDM server" in https://business.apple.com
 2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must wait for one minute after executing the `create-automatic` command).
-3. Start the VM.
+3. Start the VM created in step (0).
 
 ### Examples
 
+Get a list of enrolled devices:
+```sh
+fleetctl apple-mdm devices list
++--------------------------------------+---------------+----------+
+|              DEVICE ID               | SERIAL NUMBER | ENROLLED |
++--------------------------------------+---------------+----------+
+| D2F1D7F9-8EA9-4420-AF09-4C4EC4275D8A | CMXXXXXXXX    | true     |
++--------------------------------------+---------------+----------+
+```
+
+```
 Install a profile to allow for enabling debug mode of MDM on a device (useful when developing/testing MDM features):
 ```sh
-fleetctl apple-mdm enqueue-command InstallProfile --device-ids=564DB340-7435-FA4D-B124-9480B239BE88 --mobileconfig ./tools/mdm/apple/turn_on_debug_mdm_logging.mobileconfig
+fleetctl apple-mdm enqueue-command InstallProfile --device-ids=D2F1D7F9-8EA9-4420-AF09-4C4EC4275D8A --mobileconfig ./tools/mdm/apple/turn_on_debug_mdm_logging.mobileconfig
 ```
 
 Install 1Password on a macOS device:
 ```sh
 fleetctl apple-mdm installers upload --path ~/Downloads/1Password-7.9.6.pkg
 
-fleetctl apple-mdm enqueue-command InstallEnterpriseApplication --device-ids=564DB340-7435-FA4D-B124-9480B239BE88 --installer-id=1
+fleetctl apple-mdm enqueue-command InstallEnterpriseApplication --device-ids=D2F1D7F9-8EA9-4420-AF09-4C4EC4275D8A --installer-id=1
 ```
