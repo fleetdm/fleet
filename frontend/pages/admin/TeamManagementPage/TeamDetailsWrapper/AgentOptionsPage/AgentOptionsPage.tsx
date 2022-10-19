@@ -1,19 +1,22 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import yaml from "js-yaml";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
+import endpoints from "utilities/endpoints";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
-import endpoints from "utilities/endpoints";
+
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import osqueryOptionsAPI from "services/entities/osquery_options";
 
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
@@ -41,7 +44,10 @@ const AgentOptionsPage = ({
 
   const handlePageError = useErrorHandler();
 
-  useQuery<ILoadTeamsResponse, Error, ITeam[]>(
+  const {
+    isFetching: isFetchingTeamOptions,
+    refetch: refetchTeamOptions,
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
@@ -87,8 +93,10 @@ const AgentOptionsPage = ({
 
     setIsUpdatingAgentOptions(true);
 
-    // Formatting of API not UI
-    const formDataToSubmit = yaml.load(agentOptions || "");
+    // Formatting of API not UI and allows empty agent options
+    const formDataToSubmit = agentOptions
+      ? yaml.load(agentOptions)
+      : EMPTY_AGENT_OPTIONS;
 
     osqueryOptionsAPI
       .update(formDataToSubmit, TEAMS_AGENT_OPTIONS(teamIdFromURL))
@@ -97,6 +105,7 @@ const AgentOptionsPage = ({
           "success",
           `Successfully updated ${teamName} team agent options.`
         );
+        refetchTeamOptions();
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
@@ -132,33 +141,37 @@ const AgentOptionsPage = ({
           </span>
         </a>
       </p>
-      <div className={`${baseClass}__form-wrapper`}>
-        <form
-          className={`${baseClass}__form`}
-          onSubmit={onFormSubmit}
-          autoComplete="off"
-        >
-          <div className={`${baseClass}__btn-wrap`}>
-            <p>YAML</p>
-            <Button
-              type="submit"
-              variant="brand"
-              className="save-loading"
-              isLoading={isUpdatingAgentOptions}
-            >
-              Save options
-            </Button>
-          </div>
-          <YamlAce
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
-            onChange={handleAgentOptionsChange}
-            name="agentOptions"
-            value={agentOptions}
-            parseTarget
-            error={formErrors.agent_options}
-          />
-        </form>
-      </div>
+      {isFetchingTeamOptions ? (
+        <Spinner />
+      ) : (
+        <div className={`${baseClass}__form-wrapper`}>
+          <form
+            className={`${baseClass}__form`}
+            onSubmit={onFormSubmit}
+            autoComplete="off"
+          >
+            <div className={`${baseClass}__btn-wrap`}>
+              <p>YAML</p>
+              <Button
+                type="submit"
+                variant="brand"
+                className="save-loading"
+                isLoading={isUpdatingAgentOptions}
+              >
+                Save options
+              </Button>
+            </div>
+            <YamlAce
+              wrapperClassName={`${baseClass}__text-editor-wrapper`}
+              onChange={handleAgentOptionsChange}
+              name="agentOptions"
+              value={agentOptions}
+              parseTarget
+              error={formErrors.agent_options}
+            />
+          </form>
+        </div>
+      )}
     </div>
   );
 };

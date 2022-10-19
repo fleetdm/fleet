@@ -30,7 +30,9 @@ export const baseClass = "org-settings-form";
 const OrgSettingsForm = ({
   section: sectionTitle,
 }: IOrgSettingsForm): JSX.Element => {
-  const { isFreeTier, isPremiumTier, setConfig } = useContext(AppContext);
+  const { isFreeTier, isPremiumTier, config, setConfig } = useContext(
+    AppContext
+  );
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -69,6 +71,7 @@ const OrgSettingsForm = ({
         .update(diff)
         .then(() => {
           renderFlash("success", "Successfully updated settings.");
+          refetchConfig();
         })
         .catch((response: { data: IApiError }) => {
           if (
@@ -86,7 +89,6 @@ const OrgSettingsForm = ({
           }
         })
         .finally(() => {
-          refetchConfig();
           setIsUpdatingSettings(false);
         });
     },

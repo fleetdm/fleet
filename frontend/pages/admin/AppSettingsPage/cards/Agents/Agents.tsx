@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
-
-import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import yaml from "js-yaml";
 import paths from "router/paths";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
-
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
@@ -56,10 +55,12 @@ const Agents = ({
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    // Formatting of API not UI
-    const formDataToSubmit = {
-      agent_options: yaml.load(agentOptions),
-    };
+    // Formatting of API not UI and allows empty agent options
+    const formDataToSubmit = agentOptions
+      ? {
+          agent_options: yaml.load(agentOptions),
+        }
+      : { agent_options: EMPTY_AGENT_OPTIONS };
 
     handleSubmit(formDataToSubmit);
   };

@@ -209,3 +209,11 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   password: "",
   sso_enabled: null,
 };
+
+export const EMPTY_AGENT_OPTIONS = {
+  config: {
+    options: null,
+    decorators: { load: null },
+  },
+  command_line_flags: {},
+};
