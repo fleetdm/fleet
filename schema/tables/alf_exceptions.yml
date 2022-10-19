@@ -1,0 +1,15 @@
+name: alf_exceptions
+description: The exceptions configured for the [built-in firewall protection](https://fleetdm.com/tables/alf) on this Mac.
+examples: >-
+  List applications that are able to receive inbound connections across the
+  firewall. This is useful when looking to see if vulnerable software is exposed
+  to networks. 
+
+  ```
+
+  SELECT * FROM alf_exceptions;
+
+  ```
+columns:
+  - name: state
+    description: Firewall [exception state](https://krypted.com/mac-security/command-line-alf-on-mac-os-x/)

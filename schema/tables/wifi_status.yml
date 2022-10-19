@@ -1,0 +1,9 @@
+name: wifi_status
+examples: >-
+  See the current speed of the WiFi connection, in megabits per second.
+  
+  ```
+
+  SELECT transmit_rate FROM wifi_status;
+  
+  ```

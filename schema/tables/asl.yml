@@ -1,0 +1,11 @@
+name: asl
+examples: >-
+  Apple System Logger (ASL) is deprecated since macOS 10.12. On older Macs, this
+  table can be used to read logs. On newer ones, see the *unified_log* table.
+  This example is from the osquery documentation.
+
+  ```
+
+  SELECT time, message FROM asl WHERE facility = 'authpriv' AND sender = 'sudo' AND message LIKE '%python%';
+
+  ```

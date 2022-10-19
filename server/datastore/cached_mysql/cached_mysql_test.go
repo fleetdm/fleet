@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -73,6 +74,19 @@ func TestClone(t *testing.T) {
 			src:  nilRawMessage,
 			want: nil,
 		},
+		{
+			name: "pointer to struct with nested slice",
+			src: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					DebugHostIDs: []uint{1, 2, 3},
+				},
+			},
+			want: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					DebugHostIDs: []uint{1, 2, 3},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -80,6 +94,36 @@ func TestClone(t *testing.T) {
 			clone, err := clone(tc.src)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, clone)
+
+			v1, v2 := reflect.ValueOf(tc.src), reflect.ValueOf(clone)
+			if k := v1.Kind(); k == reflect.Pointer || k == reflect.Slice || k == reflect.Map || k == reflect.Chan || k == reflect.Func || k == reflect.UnsafePointer {
+				if clone == nil {
+					assert.True(t, v1.IsNil())
+					return
+				}
+				require.Equal(t, v1.Kind(), v2.Kind())
+				assert.NotEqual(t, v1.Pointer(), v2.Pointer())
+			}
+
+			// ensure that writing to src does not alter the cloned value (i.e. that
+			// the nested fields are deeply cloned too).
+			switch src := tc.src.(type) {
+			case []string:
+				if len(src) > 0 {
+					src[0] = "modified"
+					assert.NotEqual(t, src, clone)
+				}
+			case *[]string:
+				if len(*src) > 0 {
+					(*src)[0] = "modified"
+					assert.NotEqual(t, src, clone)
+				}
+			case *fleet.AppConfig:
+				if len(src.ServerSettings.DebugHostIDs) > 0 {
+					src.ServerSettings.DebugHostIDs[0] = 999
+					assert.NotEqual(t, src.ServerSettings.DebugHostIDs, clone.(*fleet.AppConfig).ServerSettings.DebugHostIDs)
+				}
+			}
 		})
 	}
 }
