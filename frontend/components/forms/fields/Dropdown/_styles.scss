@@ -43,23 +43,22 @@
 }
 
 .Select {
-  .Select-control {
+  &.dropdown__select {
     border: 1px solid $ui-fleet-blue-15;
-    background-color: $ui-light-grey;
     border-radius: $border-radius;
-    height: 40px;
     transition: border-color 100ms;
-
+    height: 40px;
     &:hover {
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
     }
-
+  }
+  .Select-control {
+    background-color: $ui-light-grey;
+    border: 0;
     .Select-value {
       font-size: $small;
-      border-radius: 4px;
       background-color: $ui-off-white;
-      border: solid 1px $core-dark-blue-grey;
     }
   }
 
@@ -67,7 +66,6 @@
     font-size: $small;
     border-radius: $border-radius;
     background-color: $ui-off-white;
-    border: solid 1px $core-dark-blue-grey;
 
     .Select-value-icon {
       border: 0;
@@ -119,7 +117,7 @@
   }
 
   &.is-focused {
-    .Select-control {
+    &.dropdown__select {
       border: 1px solid $core-vibrant-blue;
     }
 
