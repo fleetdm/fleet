@@ -1,0 +1,10 @@
+name: cpuid
+examples: >-
+  Identify Intel powered Macs that support a specific Intel CPU feature, such as
+  sgx1.
+
+  ```
+
+  SELECT * from cpuid WHERE feature='sgx1';
+
+  ```

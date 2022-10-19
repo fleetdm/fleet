@@ -58,6 +58,7 @@ const ForgotPasswordPage = () => {
               href="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
               target="_blank"
               rel="noopener noreferrer"
+              className="external-link"
             >
               Password reset FAQ
               <img src={ExternalLinkIcon} alt="Open external link" />

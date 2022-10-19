@@ -1,0 +1,9 @@
+name: process_memory_map
+examples: >-
+  See the memory ranges with write permissions assigned to processes.
+  
+  ```
+  
+  SELECT * FROM process_memory_map WHERE permissions LIKE '%w%';
+  
+  ```
