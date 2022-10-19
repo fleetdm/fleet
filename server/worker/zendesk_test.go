@@ -87,6 +87,7 @@ func TestZendeskRun(t *testing.T) {
 		FleetURL:  "https://fleetdm.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
+		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			return client, nil
 		},
@@ -304,6 +305,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
+		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)

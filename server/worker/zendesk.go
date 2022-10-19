@@ -40,7 +40,7 @@ var zendeskTemplates = struct {
 	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}]({{ .NVDURL }}{{ .CVE }}).
 
-{{ if .EPSSProbability }}
+{{ if .IsPremium }}{{ if .EPSSProbability }}
 &nbsp;
 Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/)): {{ .EPSSProbability }}
 {{ end }}
@@ -48,7 +48,7 @@ Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/
 {{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 &nbsp;
-{{ end }}
+{{ end }}{{ end }}
 
 Affected hosts:
 
@@ -88,13 +88,17 @@ This issue was created automatically by your Fleet Zendesk integration.
 }
 
 type zendeskVulnTplArgs struct {
-	NVDURL           string
-	FleetURL         string
-	CVE              string
+	NVDURL   string
+	FleetURL string
+	CVE      string
+	Hosts    []*fleet.HostShort
+
+	IsPremium bool
+
+	// the following fields are only included in the ticket for premium licenses.
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
-	Hosts            []*fleet.HostShort
 }
 
 type zendeskFailingPoliciesTplArgs struct {
@@ -280,10 +284,11 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 		NVDURL:           nvdCVEURL,
 		FleetURL:         z.FleetURL,
 		CVE:              vargs.CVE,
+		Hosts:            hosts,
+		IsPremium:        z.License.IsPremium(),
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
-		Hosts:            hosts,
 	}
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)

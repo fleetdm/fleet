@@ -41,13 +41,13 @@ var jiraTemplates = struct {
 	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
 
-{{ if .EPSSProbability }}\\Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
+{{ if .IsPremium }}{{ if .EPSSProbability }}\\Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
 {{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 \\
-{{ end }}
+{{ end }}{{ end }}
 
 Affected hosts:
 
@@ -87,13 +87,17 @@ This issue was created automatically by your Fleet Jira integration.
 }
 
 type jiraVulnTplArgs struct {
-	NVDURL           string
-	FleetURL         string
-	CVE              string
+	NVDURL   string
+	FleetURL string
+	CVE      string
+	Hosts    []*fleet.HostShort
+
+	IsPremium bool
+
+	// the following fields are only included in the ticket for premium licenses.
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
-	Hosts            []*fleet.HostShort
 }
 
 type jiraFailingPoliciesTplArgs struct {
@@ -278,10 +282,11 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 		NVDURL:           nvdCVEURL,
 		FleetURL:         j.FleetURL,
 		CVE:              vargs.CVE,
+		Hosts:            hosts,
+		IsPremium:        j.License.IsPremium(),
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
-		Hosts:            hosts,
 	}
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)

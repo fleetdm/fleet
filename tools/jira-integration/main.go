@@ -34,6 +34,7 @@ func main() {
 		hostsCount          = flag.Int("hosts-count", 1, "The number of hosts to match the CVE or failing policy")
 		failingPolicyID     = flag.Int("failing-policy-id", 0, "The failing policy ID")
 		failingPolicyTeamID = flag.Int("failing-policy-team-id", 0, "The Team ID of the failing policy")
+		premiumLicense      = flag.Bool("premium", false, "Whether to simulate a premium user or not")
 	)
 
 	flag.Parse()
@@ -119,10 +120,15 @@ func main() {
 		}, nil
 	}
 
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	if *premiumLicense {
+		license.Tier = fleet.TierPremium
+	}
 	jira := &worker.Jira{
 		FleetURL:  *fleetURL,
 		Datastore: ds,
 		Log:       logger,
+		License:   license,
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (worker.JiraClient, error) {
 			return externalsvc.NewJiraClient(opts)
 		},
