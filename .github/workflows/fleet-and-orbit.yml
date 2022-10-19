@@ -494,6 +494,11 @@ jobs:
         Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #3 failed" } }
         if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #3 failed" }
 
+        # Test 4 - Check that osquery manifest is present and that it points to the expected osqueryd.exe file
+        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest4.txt
+        Start-Sleep -Seconds $installerExecTime
+        Get-Content "$Env:Programfiles\Orbit\osquery.man" | % { if($_ -match 'resourceFileName=\"(.*?)\"') { if (-not (Test-Path -Path ([System.Environment]::ExpandEnvironmentVariables($Matches[1])))) { throw "MSI Installer test #4 failed" } } }
+
     - name: Upload Orbit logs
       if: always()
       uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
