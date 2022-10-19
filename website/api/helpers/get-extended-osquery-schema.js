@@ -104,7 +104,7 @@ module.exports = {
           }
         }
         // If the table has Fleet overrides, we'll add the URL of the YAML file in the Fleet Github repo as the `fleetRepoUrl`, and add set the url to be where this table will live on fleetdm.com.
-        expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/main/schema/tables/'+encodeURIComponent(expandedTableToPush.name)+'.yml';
+        expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/blob/main/schema/tables/'+encodeURIComponent(expandedTableToPush.name)+'.yml';
         expandedTableToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(expandedTableToPush.name);
         let mergedTableColumns = [];
         for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
