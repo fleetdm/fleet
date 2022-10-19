@@ -395,5 +395,5 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | `#g-agent`                          | Mo Zhu                                                              |
 | `#g-mdm`                            | Mo Zhu                                                              |
 
-<meta name="maintainedBy" value="noahtalerman">
+<meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">
