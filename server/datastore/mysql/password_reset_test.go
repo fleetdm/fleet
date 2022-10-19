@@ -48,15 +48,15 @@ func testPasswordResetRequests(t *testing.T, ds *Datastore) {
 			Token:  tt.token,
 		}
 		req, err := ds.NewPasswordResetRequest(context.Background(), r)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, tt.userID, req.UserID)
 
 		found, err := ds.FindPasswordResetByToken(context.Background(), r.Token)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, req.ID, found.ID)
 		assert.Equal(t, tt.userID, found.UserID)
 		assert.Equal(t, tt.token, found.Token)
-		assert.Equal(t, tt.expires.Round(time.Minute), found.ExpiresAt.Round(time.Minute))
+		assert.WithinDuration(t, tt.expires, found.ExpiresAt, 1*time.Minute)
 	}
 }
 
@@ -103,7 +103,7 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 			assert.ErrorIs(t, err, sql.ErrNoRows)
 			assert.Nil(t, found)
 		} else {
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, req.ID, found.ID)
 			assert.Equal(t, req.UserID, found.UserID)
 			assert.Equal(t, req.Token, found.Token)

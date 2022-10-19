@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const PasswordResetRequestDuration = 1440 * time.Minute // 24 hours
+const PasswordResetRequestDuration = 24 * time.Hour
 
 func (ds *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.PasswordResetRequest) (*fleet.PasswordResetRequest, error) {
 	sqlStatement := `
