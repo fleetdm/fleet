@@ -312,9 +312,9 @@ Every piece of content we write should embody our values. To make sure we succee
 
 ### What would Mr. Rogers say?
 
-*[Mister Rogers’ Neighborhood](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood)* was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers’](https://en.wikipedia.org/wiki/Fred_Rogers) communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
+We should be clear, simple, friendly, and inspiring, like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers), who deeply understood these communication skills.
 
-Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
+Here are some steps you can take to communicate like Mister Rogers:
 
 - State the idea you want to express as clearly as possible.
 - Rephrase the idea in a positive manner.
