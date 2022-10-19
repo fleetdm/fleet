@@ -27,16 +27,14 @@ const Agents = ({
   const [formData, setFormData] = useState<any>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
   const { agentOptions } = formData;
-
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
   const handleAceInputChange = (value: string) => {
     setFormData({ ...formData, agentOptions: value });
   };
 
-  // Basic yaml validation only, not agent options validation
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 
@@ -50,7 +48,7 @@ const Agents = ({
     setFormErrors(errors);
   };
 
-  // Validates forms when certain information is changed
+  // onChange basic yaml validation only
   useEffect(() => {
     validateForm();
   }, [agentOptions]);

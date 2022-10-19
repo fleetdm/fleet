@@ -10,9 +10,7 @@ export default {
 
     return sendRequest("GET", OSQUERY_OPTIONS);
   },
-  update: (osqueryOptionsData: any, endpoint: string) => {
-    const yamlOptions = yaml.load(osqueryOptionsData.osquery_options);
-
-    return sendRequest("POST", endpoint, yamlOptions);
+  update: (agentOptions: any, endpoint: string) => {
+    return sendRequest("POST", endpoint, agentOptions);
   },
 };

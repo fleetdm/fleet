@@ -78,22 +78,28 @@ const AgentOptionsPage = ({
     setFormErrors(errors);
   };
 
-  // Basic yaml validation only on change
+  // onChange basic yaml validation only
   useEffect(() => {
     validateForm();
   }, [formData]);
 
-  const onSaveOsqueryOptionsFormSubmit = async (updatedForm: {
-    agent_optons: string;
-  }) => {
-    setIsUpdatingAgentOptions(true);
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
 
     const { TEAMS_AGENT_OPTIONS } = endpoints;
 
+    setIsUpdatingAgentOptions(true);
+
+    // Formatting of API not UI
+    const formDataToSubmit = yaml.load(agentOptions || "");
+
     osqueryOptionsAPI
-      .update(updatedForm, TEAMS_AGENT_OPTIONS(teamIdFromURL))
+      .update(formDataToSubmit, TEAMS_AGENT_OPTIONS(teamIdFromURL))
       .then(() => {
-        renderFlash("success", "Successfully saved agent options");
+        renderFlash(
+          "success",
+          `Successfully updated ${teamName} team agent options.`
+        );
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
@@ -105,17 +111,6 @@ const AgentOptionsPage = ({
       .finally(() => {
         setIsUpdatingAgentOptions(false);
       });
-  };
-
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    // Formatting of API not UI
-    const formDataToSubmit = {
-      agent_options: yaml.load(agentOptions || ""),
-    };
-
-    onSaveOsqueryOptionsFormSubmit(formDataToSubmit);
   };
 
   const handleAgentOptionsChange = (value: string) => {
