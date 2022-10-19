@@ -210,10 +210,7 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   sso_enabled: null,
 };
 
+/** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
-  config: {
-    options: null,
-    decorators: { load: null },
-  },
-  command_line_flags: {},
+  config: {},
 };
