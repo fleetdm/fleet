@@ -1,9 +1,8 @@
 name: build
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_dispatch:
+  schedule:
+  - cron: '0 4 * * *' # Nightly 4AM UTC
 jobs:
   build:
     name: Build
@@ -25,4 +24,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
-          
