@@ -69,6 +69,9 @@ FLEET_CERTIFICATE=1 \
 
 2. Install Orbit on the host (macOS):
 ```sh
+# (Remove any leftover Orbit from the host.)
+orbit/tools/cleanup/cleanup_macos.sh
+
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 ```
 
@@ -79,6 +82,16 @@ cp fleet-osquery_42.0.0_amd64.deb ~/shared-ubuntu
 ```
 
 4. Proceed to install Orbit in both VM hosts.
+- On the Windows VM:
+  - Remove "Fleet osquery" from the installed programs.
+  - Double-click the `fleet-osquery.msi` installer to install the new Orbit.
+- On Ubuntu:
+  ```sh
+  # (Remove any leftover Orbit from the host.)
+  sudo apt remove fleet-osquery -y
+  
+  sudo dpkg --install fleet-osquery_42.0.0_amd64.deb
+  ```
 
 5. Verify three hosts have enrolled (by running `./build/fleetctl get hosts` or using the browser).
 
@@ -90,62 +103,83 @@ cp fleet-osquery_42.0.0_amd64.deb ~/shared-ubuntu
 
 ```sh
 git checkout main
+```
 
-## Windows
+### Windows
 
+```sh
 # Compile a new version of Orbit for Windows:
 GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 # Push the compiled Orbit as a new version
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
+```
 
+Wait for ~1m for all Windows hosts to auto-update Orbit.
+Verify the Windows Fleet Desktop instances are working, by visiting "My device".
+
+```sh
 # Compile a new version of fleet-desktop for Windows:
-FLEET_DESKTOP_VERSION=43.0.0 make desktop-windows
+FLEET_DESKTOP_VERBOSE=1 FLEET_DESKTOP_VERSION=43.0.0 make desktop-windows
 # Push the desktop target as a new version
 ./tools/tuf/test/push_target.sh windows desktop fleet-desktop.exe 43
+```
 
-## Linux
+### Linux
 
+```sh
 # Compile a new version of Orbit for Linux:
 GOOS=linux GOARCH=amd64 go build -o orbit-linux ./orbit/cmd/orbit
 # Push the compiled Orbit as a new version
 ./tools/tuf/test/push_target.sh linux orbit orbit-linux 43
+```
 
+Wait for ~1m for all Linux hosts to auto-update Orbit.
+Verify the Linux Fleet Desktop instances are working, by visiting "My device", and hit "Refresh" in the "My device" page.
+
+```sh
 # Compile a new version of fleet-desktop for Linux:
-FLEET_DESKTOP_VERSION=43.0.0 make desktop-linux
+FLEET_DESKTOP_VERBOSE=1 FLEET_DESKTOP_VERSION=43.0.0 make desktop-linux
 # Push the desktop target as a new version
 ./tools/tuf/test/push_target.sh linux desktop desktop.tar.gz 43
+```
 
-## macOS
+### macOS
 
+```sh
 # Compile a new version of Orbit for macOS:
 GOOS=darwin GOARCH=amd64 go build -o orbit-darwin ./orbit/cmd/orbit
 # Push the compiled Orbit as a new version
 ./tools/tuf/test/push_target.sh macos orbit orbit-darwin 43
+```
 
+Wait for ~1m for all macOS hosts to auto-update Orbit.
+Verify the macOS Fleet Desktop instances are working, by visiting "My device", and hit "Refresh" in the "My device" page.
+
+```sh
 # Compile a new version of fleet-desktop for macOS:
-FLEET_DESKTOP_VERSION=43.0.0 make desktop-app-tar-gz
+FLEET_DESKTOP_VERBOSE=1 FLEET_DESKTOP_VERSION=43.0.0 make desktop-app-tar-gz
 # Push the desktop target as a new version
 ./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
 ```
 
-2. Wait for ~1m for all hosts to auto-update.
+2. Wait for ~1m for all hosts to fully auto-update.
 
 3. Verify all hosts now show "Fleet Desktop v43.0.0" on the Fleet Desktop menu.
 
-4. Verify the three Fleet Desktop instances are working, by visiting "My device"
+4. Verify the three Fleet Desktop instances are working, by visiting "My device", and hit "Refresh" in the "My device" page.
 
 ## New Fleet release
 
 1. Kill currently running fleet server instance.
 
 2. Now let's build and "release" latest version of Fleet.
-```sh
-git checkout main
-make fleet fleetctl
-./build/fleet prepare db --dev --logging_debug
-./build/fleet serve --logging_debug --dev --dev_license
-```
+   ```sh
+   git checkout main
+   make fleet fleetctl
+   ./build/fleet prepare db --dev --logging_debug
+   ./build/fleet serve --logging_debug --dev --dev_license
+   ```
 
-3. Run a live query on the three hosts to smoke test new Fleet version.
+3. Run smoke testing like running a live query on the three hosts to smoke test new Fleet version.
 
 4. Test any new Orbit features added in the release.
