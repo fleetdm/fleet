@@ -39,8 +39,8 @@ const NAV_TITLES = {
 };
 
 const reorderCSVFields = (fields: string[]) => {
-  const result = fields.filter((field) => field !== "host_hostname");
-  result.unshift("host_hostname");
+  const result = fields.filter((field) => field !== "host_display_name");
+  result.unshift("host_display_name");
 
   return result;
 };
