@@ -49,7 +49,7 @@ columns:
     required: false
     type: text
   - name: tid
-    description: TBD
+    description: TBD.
     required: false
     type: bigint
   - name: timestamp

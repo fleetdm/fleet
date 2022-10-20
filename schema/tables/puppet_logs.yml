@@ -13,7 +13,7 @@ examples: >-
   ```
 columns:
   - name: level
-    description: The level of the log item (info, error, etc.)
+    description: The level of the log item (info, error, etc).
     required: false
     type: text
   - name: message
