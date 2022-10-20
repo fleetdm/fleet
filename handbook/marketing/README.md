@@ -179,18 +179,6 @@ It is often good to let the original poster (OP) close their issue themselves si
 
 Keep in mind that this can feel jarring to the OP. The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
 
-### Version support
-
-To provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. In the current version fixes, Fleet will not backport to older releases.
-
-Community version supported for bug fixes: **Latest version only**
-
-Community support for support/troubleshooting: **Current major version**
-
-Premium version supported for bug fixes: **Latest version only**
-
-Premium support for support/troubleshooting: **All versions**
-
 ### Tools
 
 Find the script in `scripts/oncall` for use during oncall rotation (only been tested on macOS and Linux).
@@ -253,60 +241,6 @@ When a new pull request is submitted by a community contributor (someone not a m
 Community contributions are fantastic, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working on getting their PR approved.
 
 While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to get more information and update the contributor.
-
-#### Merge Community PRs
-
-When merging a pull request from a community contributor:
-
-- Ensure that the checklist for the submitter is complete.
-- Verify that all necessary reviews have been approved.
-- Merge the PR.
-- Thank and congratulate the contributor.
-- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
-
-### Reviewing PRs from the community
-
-If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
-
-A PR should be merged if:
-
-- It's a change that is needed and useful.
-- The CI is passing.
-- Tests are in place.
-- Documentation is updated.
-- Changes file is created.
-
-For PRs that aren't ready to merge:
-
-- Thank the contributor for their hard work and explain why we can't merge the changes yet.
-- Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
-- Offer code review and coaching to help get the PR ready to go (see note below).
-- Keep an eye out for any updates or responses.
-
-> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR.
-
-If everything is good to go, approve the review.
-
-For PRs that will not be merged:
-
-- Thank the contributor for their effort and explain why the changes won't be merged.
-- Close the PR.
-
-## Updating docs and FAQ
-
-When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
-
-Our goal is to answer every question with a link to the docs and/or result in a documentation update.
-
-> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Chris McGillicuddy, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
-
-### Tracking
-
-When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
-
-- proposed change to the documentation.
-- documentation link that was sent as a response.
-- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
 
 ### Making the updates
 
