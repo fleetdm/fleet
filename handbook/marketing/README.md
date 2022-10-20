@@ -1,9 +1,5 @@
 # Marketing
 
-<!-- TODO: short preamble -->
-
-# Marketing
-
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
 
@@ -108,7 +104,7 @@ The following table lists the marketing group's rituals, frequency, and Directly
 | Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Tim Kern          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
-| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [growth board](https://github.com/orgs/fleetdm/projects/38/settings/fields/2654827)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
 
@@ -129,8 +125,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors.
-
-## Communities
 
 Fleet's users and broader audience are spread across many online platforms. Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
@@ -402,7 +396,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 | Docs | **Gated**. Request review from Chris McGillicuddy – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
-| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
+| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/marketing#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
 | Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
 | Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
@@ -881,7 +875,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-digital-experience`     | Mike Thomas
 | `#oooh-websites`            | Mike Thomas
-| `#help-p1`		              | Mike McNeil
+| `#help-p1`		                | Mike McNeil
 
 
 
