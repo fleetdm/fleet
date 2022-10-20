@@ -42,14 +42,6 @@
   }
 }
 
-.actions__cell .Select.dropdown__select {
-  border: 0;
-  height: auto;
-  &:hover, &:active, &:focus, &.is-focused {
-    border: 0;
-  }
-}
-
 .Select {
   &.dropdown__select {
     border: 1px solid $ui-fleet-blue-15;
