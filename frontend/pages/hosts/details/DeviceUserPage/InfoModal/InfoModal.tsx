@@ -3,6 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
+
 export interface IInfoModalProps {
   onCancel: () => void;
 }

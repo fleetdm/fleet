@@ -21,7 +21,6 @@ const CustomLink = ({
 }: ICustomLinkProps): JSX.Element => {
   const target = newTab ? "_blank" : "";
 
-  // External link icon never pushed to a line alone
   if (multiline) {
     const multilineText = text.substring(0, text.lastIndexOf(" ") + 1);
     const lastWord = text.substring(text.lastIndexOf(" ") + 1, text.length);
@@ -54,4 +53,5 @@ const CustomLink = ({
     </a>
   );
 };
+
 export default CustomLink;
