@@ -8,9 +8,10 @@ import { PolicyContext } from "context/policy";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 
-import { IAutomationsConfig, IConfig } from "interfaces/config";
+import { IConfig, IWebhookSettings } from "interfaces/config";
+import { IIntegrations } from "interfaces/integration";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
-import { ITeamAutomationsConfig, ITeamConfig } from "interfaces/team";
+import { ITeamConfig } from "interfaces/team";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
@@ -200,9 +201,10 @@ const ManagePolicyPage = ({
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
 
-  const handleUpdateAutomations = async (
-    requestBody: IAutomationsConfig | ITeamAutomationsConfig
-  ) => {
+  const handleUpdateAutomations = async (requestBody: {
+    webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
+    integrations: IIntegrations;
+  }) => {
     setIsUpdatingAutomations(true);
     try {
       await (teamId

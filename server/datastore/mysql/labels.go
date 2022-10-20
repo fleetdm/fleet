@@ -510,6 +510,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
+    %s
 	`
 	failingPoliciesSelect := `,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
@@ -525,7 +526,12 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		failingPoliciesJoin = ""
 	}
 
-	query := fmt.Sprintf(queryFmt, failingPoliciesSelect, failingPoliciesJoin)
+	displayNameJoin := ""
+	if opt.ListOptions.OrderKey == "display_name" {
+		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
+
+	query := fmt.Sprintf(queryFmt, failingPoliciesSelect, failingPoliciesJoin, displayNameJoin)
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
@@ -553,8 +559,15 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
 	query := `SELECT count(*) FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
-	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`
+	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	%s`
 
+	displayNameJoin := ""
+	if opt.ListOptions.OrderKey == "display_name" {
+		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
+
+	query = fmt.Sprintf(query, displayNameJoin)
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
 	var count int

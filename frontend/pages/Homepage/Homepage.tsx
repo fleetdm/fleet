@@ -196,7 +196,11 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const isSoftwareEnabled = config?.features?.enable_software_inventory;
+  const featuresConfig = currentTeam?.id
+    ? teams?.find((t) => t.id === currentTeam.id)?.features
+    : config?.features;
+  const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
   const SOFTWARE_DEFAULT_SORT_HEADER = "hosts_count";
   const SOFTWARE_DEFAULT_PAGE_SIZE = 8;

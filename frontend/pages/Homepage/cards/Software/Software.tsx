@@ -61,7 +61,7 @@ const Software = ({
               ) : (
                 <TableContainer
                   columns={tableHeaders}
-                  data={software?.software || []}
+                  data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={"hosts_count"}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
@@ -89,7 +89,7 @@ const Software = ({
               ) : (
                 <TableContainer
                   columns={tableHeaders}
-                  data={software?.software || []}
+                  data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}

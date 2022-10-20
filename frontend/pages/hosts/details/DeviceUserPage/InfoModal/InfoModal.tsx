@@ -35,7 +35,7 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
             <span className="no-wrap">
               transparency
               <img
-                className="icon"
+                className="external-link-icon"
                 src={ExternalLinkIcon}
                 alt="Open external link"
               />

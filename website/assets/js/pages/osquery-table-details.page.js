@@ -37,7 +37,7 @@ parasails.registerPage('osquery-table-details', {
   mounted: async function() {
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
-      if(a.name < b.name){
+      if(a.title < b.title){
         return -1;
       }
     });
