@@ -7,7 +7,7 @@
 ```
 
 - [View teams](#view-teams)
-- [Create a team](#create-a-teams)
+- [Create a team](#create-a-team)
 - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Add users to a team](#add-users-to-a-team)
