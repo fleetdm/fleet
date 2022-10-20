@@ -82,11 +82,7 @@ const Agents = ({
               rel="noopener noreferrer"
             >
               Learn more about agent options
-              <img
-                className="icon"
-                src={ExternalLinkIcon}
-                alt="Open external link"
-              />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
           {isPremiumTier ? (
