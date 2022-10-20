@@ -1,0 +1,50 @@
+name: munki_info
+notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).
+description: Information from the last [Munki](https://github.com/munki/munki) run
+platforms: darwin
+evented: false
+examples: >-
+  Identify Macs that are DEP capable but have not been enrolled to MDM.
+
+  ```
+  
+  SELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';
+  
+  ```
+columns:
+  - name: console_user
+    description: The access rights of the payload. The resulting number is the total of every [AccessRight](https://developer.apple.com/documentation/devicemanagement/mdm) added up.
+    required: false
+    type: integer
+  - name: end_time
+    description: The URL the Mac checks in with, which should point to your MDM server.
+    required: false
+    type: text
+  - name: errors
+    description: Indicates if the computer is DEP capable or not, even if it is not currently enrolled into MDM.
+    required: false
+    type: text
+  - name: manifest_name
+    description: Indicates if the computer is enrolled into MDM.
+    required: false
+    type: text
+  - name: problem_installs
+    description: Indicates if the computer has a certificate used by the MDM server to authenticate it.
+    required: false
+    type: text
+  - name: start_time
+    description: The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate.
+    required: false
+    type: text
+  - name: success
+    description: The date on which the MDM payload was installed on the Mac.
+    required: false
+    type: text
+  - name: version
+    description: Indicates if the MDM payload was installed via DEP or not.
+    required: false
+    type: text
+  - name: warnings
+    description: The identifier of the MDM payload.
+    required: false
+    type: text
