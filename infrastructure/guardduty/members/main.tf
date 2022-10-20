@@ -18,9 +18,11 @@ terraform {
 }
 
 provider "aws" {
-  region   = local.region
-  alias    = "security"
-  role_arn = "arn:aws:iam::353365949058:role/admin"
+  region = local.region
+  alias  = "security"
+  assume_role {
+    role_arn = "arn:aws:iam::353365949058:role/admin"
+  }
   default_tags {
     tags = {
       environment = "guardduty-${terraform.workspace}"
@@ -31,9 +33,11 @@ provider "aws" {
 }
 
 provider "aws" {
-  region   = local.region
-  alias    = "member"
-  role_arn = "arn:aws:iam::${local.account_id}:role/admin"
+  region = local.region
+  alias  = "member"
+  assume_role {
+    role_arn = "arn:aws:iam::${local.account_id}:role/admin"
+  }
   default_tags {
     tags = {
       environment = "guardduty-${terraform.workspace}"
@@ -65,20 +69,16 @@ data "aws_organizations_organization" "main" {
   provider = aws.root
 }
 
-resource "aws_guardduty_invite_accepter" "member" {
-  depends_on = [aws_guardduty_member.member]
-  provider   = aws.member
-
-  detector_id       = aws_guardduty_detector.member.id
-  master_account_id = data.aws_caller_identity.security.account_id
-}
-
 resource "aws_guardduty_member" "member" {
-  provider    = aws.security
-  account_id  = aws_guardduty_detector.member.account_id
-  detector_id = data.aws_guardduty_detector.security.id
-  email       = local.accounts.email[local.account_id]
-  invite      = true
+  provider                   = aws.security
+  account_id                 = aws_guardduty_detector.member.account_id
+  detector_id                = data.aws_guardduty_detector.security.id
+  email                      = local.accounts[local.account_id]
+  disable_email_notification = true
+  invite                     = true
+  lifecycle {
+    ignore_changes = [email]
+  }
 }
 
 resource "aws_guardduty_detector" "member" {

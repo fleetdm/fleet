@@ -1,10 +1,20 @@
 #!/bin/bash
-for account_id in 
-    160035666661
-do
+last_account=719608473459
+start='false'
+for account_id in $(aws organizations list-accounts | jq -r '.Accounts[] | .Id' | grep -v '831217569274' | grep -v '353365949058'); do
+    if [[ ${last_account} == ${account_id} ]]; then
+        start='true'
+    fi
+    if [[ $start == 'false' ]]; then
+        continue
+    fi
+    # tmp skip accounts
+    if [[ $account_id == '492052055440' || $account_id == '373701181017' || $account_id == '142412512209' || $account_id == '201339919284' ]]; then
+        continue
+    fi
     for region in $(aws ec2 describe-regions | jq -r '.Regions[] | .RegionName'); do
-        terraform workspace new $region
-        terraform workspace select $region || break
-        terraform apply -auto-approve -var="account_id=${account_id}" || break
+        terraform workspace new "$account_id:$region"
+        terraform workspace select "$account_id:$region" || exit 1
+        terraform apply -auto-approve || exit 1
     done
 done
