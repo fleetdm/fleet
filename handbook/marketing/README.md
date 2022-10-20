@@ -2,8 +2,128 @@
 
 <!-- TODO: short preamble -->
 
-## Community
-[https://fleetdm.com/handbook/marketing/community](https://fleetdm.com/handbook/marketing/community)
+# Marketing
+
+As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
+contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
+
+## Positioning
+
+Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-marketing` Slack channel. 
+
+## Marketing Qualified Opportunities (MQOs)
+
+Marketing's goal is to increase product usage. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up for [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [talk to an expert](https://fleetdm.com/). When these companies attend this meeting, Fleet considers them Marketing Qualified Opportunities (MQOs).
+
+## Lead enrichment
+
+Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
+
+## Posting on social media as Fleet
+
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+
+### Topics:
+
+- Fleet the product
+- Internal progress
+- Highlighting [community contributions](https://fleetdm.com/handbook/community#community-contributions-pull-requests)
+- Highlighting Fleet and osquery accomplishments
+- Industry news about osquery
+- Industry news about device management
+- Upcoming events, interviews, and podcasts
+
+### Guidelines:
+
+In keeping with our tone, use hashtags in line and only when it feels natural. If it feels forced, don’t include any.
+
+Self-promotional tweets are not ideal(Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else).  Also, see [The Impact Equation](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU) by Chris Brogan and Julien Smith.
+
+Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
+
+### Scheduling:
+
+Once a post is drafted, deliver it to our three main platforms.
+
+- [Twitter](https://twitter.com/fleetctl)
+- [LinkedIn](https://www.linkedin.com/company/fleetdm/)
+- [Facebook](https://www.facebook.com/fleetdm)
+
+Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the compose tool to deliver the post to each platform. (credentials in 1Password).
+
+
+## Promoting blog posts on social media
+
+Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
+
+
+## Press releases
+
+If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
+
+### Press release boilerplate
+
+Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor endpoint detection and response and mobile device management tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to deploy and get started quickly, and it even comes with an enterprise-friendly free tier available under the MIT license.
+
+IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
+
+That means better privacy, better device performance, and better data but with less noise.
+
+## Sponsoring events
+
+When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
+Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+
+Once a relevant sponsorship opportunity and its prospectus are reviewed:
+1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
+ 
+2. Detail the important information of the event, such as date, name of the event, location, and page links to the relevant prospectus. 
+ 
+3. Add the issue to the “Conferences/speaking” column of the [Growth plan project](https://github.com/orgs/fleetdm/projects/21).
+ 
+4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
+ 
+5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+ 
+6. Eric Shaw (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
+ 
+7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
+
+## Rituals
+
+The following table lists the marketing group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+
+| Ritual                       | Frequency | Description                       | DRI               |
+|:-----------------------------|:----------|:----------------------------------|-------------------|
+| Daily tweet                  | Daily     | Post Fleet content on Twitter     | Drew Baker        |
+| Daily LinkedIn post          | Daily     | Post Fleet content to LinkedIn    | Drew Baker        |
+| Check Twitter messages  | Daily     | Check and reply to messages on the Fleet Twitter account, and disregard requests unrelated to Fleet | Drew Baker | 
+| Social engagement            | Weekly    | Participate in 50 social media engagements per week | Drew Baker        |  
+| Osquery jobs                 | Weekly | Post to @osqueryjobs twice a week            | Drew Baker        |
+| Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
+| Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
+| Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
+| Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
+| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Tim Kern          |
+| Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
+| Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [growth board](https://github.com/orgs/fleetdm/projects/38/settings/fields/2654827)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
+| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
+| Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
+
+
+## Slack channels
+
+These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:----------------------------|:--------------------------------------------------------------------|
+| `#g-marketing`              | Tim Kern                                                            |
+| `#help-public-relations`    | Tim Kern                                                            |
+| `#help-promote`             | Tim Kern                                                            |
+| `#help-swag`                | Drew Baker                                                          |
+
 
 # Community
 
@@ -233,12 +353,12 @@ The following table lists the Community group's rituals, frequency, and Directly
 
 | Ritual                        | Frequency | Description                                                                                                                                     | DRI                      |
 | :---------------------------- | :-------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Community Slack               | Daily     | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged.                                | Kathy Satterlee          |
-| Social media check-in         | Daily     | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content.                             | Kelvin Omereshone        |
-| Issue check-in                | Daily     | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed.                       | Kathy Satterlee          |
-| Outside contributor follow-up | Weekly    | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted.                               | Kathy Satterlee          |
+| Community Slack               | Daily     | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged                                | Kathy Satterlee          |
+| Social media check-in         | Daily     | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content                             | Kathy Satterlee         |
+| Issue check-in                | Daily     | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed                       | Kathy Satterlee          |
+| Outside contributor follow-up | Weekly    | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted                               | Kathy Satterlee          |
 | Documentation update          | Weekly    | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs.                                                                 | Kathy Satterlee          |
-| StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |
+| StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently | Rotation: Community team |
 
 ## Slack channels
 
@@ -248,8 +368,6 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | :------------- | :--------------------------------------------------------------- |
 | `#g-community` | Kathy Satterlee                                                  |
 
-## Digital Experience
-[https://fleetdm.com/handbook/marketing/digital-experience](https://fleetdm.com/handbook/marketing/digital-experience)
 
 # Digital Experience
 
@@ -571,9 +689,9 @@ Refer to [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#
 
 Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
 
-1. Post the tweet in the #g-growth Slack channel and tag the Digital Experience lead.
+1. Post the tweet in the #g-marketing Slack channel and tag the Digital Experience lead.
 2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
-3. Suggest edits in the Slack thread for the Growth team to include and re-post.
+3. Suggest edits in the Slack thread for the Marketing team to include and re-post.
 
 ## Commonly used terms
 
@@ -733,7 +851,7 @@ To propose changes:
 2. Wireframe the design. Usually, digital experience does this, but anyone can contribute.
 3. Present your change to the website DRI. They will approve it or suggest revisions.
 4. Code the website change. Again, digital experience often does this, but anyone can help.
-5. Measure if the change made it easier to use. This can be tricky, but the growth team will have ideas on how to do this.
+5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
 
 
 ## Rituals
@@ -742,14 +860,14 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Chris McGillicuddy |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Chris McGillicuddy |
-| Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
-| Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar | Chris McGillicuddy |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar | Chris McGillicuddy |
+| Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
+| Article review | Weekly | Review articles for tone and brand consistency | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
 | Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
-| OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
-| Handbook editor pass | Monthly | Edit for copy and content. | Chris McGillicuddy |
+| OKR review  | Three weeks | Review the status of current OKRs | Mike Thomas |
+| Handbook editor pass | Monthly | Edit for copy and content | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
@@ -763,142 +881,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-digital-experience`     | Mike Thomas
 | `#oooh-websites`            | Mike Thomas
-| `#help-p1`		      | Mike McNeil
+| `#help-p1`		              | Mike McNeil
 
 
 
-<meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="💓 Digital Experience">
 
-## Growth
-# Growth
-
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors. The purpose of the growth team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
-
-## Positioning
-
-Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
-
-## Marketing Qualified Opportunities (MQOs)
-
-Growth's goal is to increase product usage. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up for [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [talk to an expert](https://fleetdm.com/). When these companies attend this meeting, Fleet considers them Marketing Qualified Opportunities (MQOs).
-
-## Lead enrichment
-
-Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
-
-## Posting on social media as Fleet
-
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
-
-### Topics:
-
-- Fleet the product
-- Internal progress
-- Highlighting [community contributions](https://fleetdm.com/handbook/community#community-contributions-pull-requests)
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
-- Industry news about device management
-- Upcoming events, interviews, and podcasts
-
-### Guidelines:
-
-In keeping with our tone, use hashtags in line and only when it feels natural. If it feels forced, don’t include any.
-
-Self-promotional tweets are not ideal(Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else).  Also, see [The Impact Equation](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU) by Chris Brogan and Julien Smith.
-
-Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
-
-### Scheduling:
-
-Once a post is drafted, deliver it to our three main platforms.
-
-- [Twitter](https://twitter.com/fleetctl)
-- [LinkedIn](https://www.linkedin.com/company/fleetdm/)
-- [Facebook](https://www.facebook.com/fleetdm)
-
-Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the compose tool to deliver the post to each platform. (credentials in 1Password).
-
-
-## Promoting blog posts on social media
-
-Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
-
-
-## Press releases
-
-If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
-
-### Press release boilerplate
-
-Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor endpoint detection and response and mobile device management tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to deploy and get started quickly, and it even comes with an enterprise-friendly free tier available under the MIT license.
-
-IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
-
-That means better privacy, better device performance, and better data but with less noise.
-
-## Sponsoring events
-
-When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
-Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
-
-Once a relevant sponsorship opportunity and its prospectus are reviewed:
-1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
- 
-2. Detail the important information of the event, such as date, name of the event, location, and page links to the relevant prospectus. 
- 
-3. Add the issue to the “Conferences/speaking” column of the [Growth plan project](https://github.com/orgs/fleetdm/projects/21).
- 
-4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
- 
-5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
- 
-6. Eric Shaw (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
- 
-7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
-
-## Rituals
-
-The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
-
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Daily tweet         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
-| Daily LinkedIn post        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
-| Check Twitter messages | Daily | Check and reply to messages on the Fleet Twitter account. Disregard requests unrelated to Fleet. | Drew Baker | 
-| Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
-| Osquery jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
-| Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
-| Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
-| Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
-| Missed demo follow up | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
-| Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
-| Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
-| Weekly update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
-| Update the "Release" field on the #g-growth board   | Every 3 weeks | <ul><li>Go to the [Growth board](https://github.com/orgs/fleetdm/projects/38/settings/fields/2654827)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
-| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
-| Freshen up pinned posts | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page. | Drew Baker | 
-
-
-## Slack channels
-
-These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
-
-| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:----------------------------|:--------------------------------------------------------------------|
-| `#g-growth`                 | Tim Kern                                                            |
-| `#help-public-relations`    | Tim Kern                                                            |
-| `#help-promote`             | Tim Kern                                                            |
-| `#help-swag`                | Drew Baker                                                          |
-
-
-<meta name="maintainedBy" value="timmy-k">
-<meta name="title" value="🪴 Growth">
-
-[https://fleetdm.com/handbook/marketing/growth](https://fleetdm.com/handbook/marketing/growth)
-
-
-<meta name="maintainedBy" value="timmy-k">
-<meta name="title" value="🫧 Marketing">
