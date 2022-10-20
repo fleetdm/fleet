@@ -3,6 +3,16 @@
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
 
+## In this section
+
+- [Positioning](#positioning)
+- [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-(MQOs)
+- [Lead enrichment](#lead-enrichment)
+- [Posting on social media as Fleet](#posting-on-social-media-as-fleet)
+- [Promoting blog posts on social media](#promoting-blog-posts-on-social-media)
+- [Press releases](#press-releases)
+- [Sponsoring events](#sponsoring-events)
+
 ## Positioning
 
 Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-marketing` Slack channel. 
@@ -85,46 +95,26 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
-## Rituals
-
-The following table lists the marketing group's rituals, frequency, and Directly Responsible Individual (DRI).
-
-
-| Ritual                       | Frequency | Description                       | DRI               |
-|:-----------------------------|:----------|:----------------------------------|-------------------|
-| Daily tweet                  | Daily     | Post Fleet content on Twitter     | Drew Baker        |
-| Daily LinkedIn post          | Daily     | Post Fleet content to LinkedIn    | Drew Baker        |
-| Check Twitter messages  | Daily     | Check and reply to messages on the Fleet Twitter account, and disregard requests unrelated to Fleet | Drew Baker | 
-| Social engagement            | Weekly    | Participate in 50 social media engagements per week | Drew Baker        |  
-| Osquery jobs                 | Weekly | Post to @osqueryjobs twice a week            | Drew Baker        |
-| Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
-| Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
-| Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
-| Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
-| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Tim Kern          |
-| Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
-| Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
-| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
-| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
-| Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
-
-
-## Slack channels
-
-These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
-
-| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:----------------------------|:--------------------------------------------------------------------|
-| `#g-marketing`              | Tim Kern                                                            |
-| `#help-public-relations`    | Tim Kern                                                            |
-| `#help-promote`             | Tim Kern                                                            |
-| `#help-swag`                | Drew Baker                                                          |
-
 
 # Community
 
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors.
+
+## In this section
+
+- [Communities](#communities)
+- [Goals](#goals)
+- [Tools](#tools)
+- [Resources](#resources)
+- [Assistance from engineering](#assistance-from-engineering)
+- [Pull requests](#pull-requests)
+- [Managing community contributions](#managing-community-contributions)
+- [Communicate with contributors](#communicate-with-contributors)
+- [Making the updates](#making-the-updates)
+- [Fleet swag](#fleet-swag)
+
+## Communities
 
 Fleet's users and broader audience are spread across many online platforms. Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
@@ -136,7 +126,7 @@ Fleet's users and broader audience are spread across many online platforms. Here
 - [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
 - [r/sysadmin Discord](https://discord.gg/sysadmin)
 
-### Goals
+## Goals
 
 Our primary quality objectives are _customer service_ and _defect reduction_. We try to optimize the following:
 
@@ -179,7 +169,7 @@ It is often good to let the original poster (OP) close their issue themselves si
 
 Keep in mind that this can feel jarring to the OP. The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
 
-### Tools
+## Tools
 
 Find the script in `scripts/oncall` for use during oncall rotation (only been tested on macOS and Linux).
 Its use is optional but contains several useful commands for checking issues and PRs that may require attention.
@@ -188,7 +178,7 @@ You will need to install the following tools to use it:
 - [GitHub CLI](https://cli.github.com/manual/installation)
 - [JQ](https://stedolan.github.io/jq/download/)
 
-### Resources
+## Resources
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
@@ -196,7 +186,7 @@ There are several locations in Fleet's public and internal documentation that ca
 
 2. Use the [internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
-### Assistance from engineering
+## Assistance from engineering
 
 Community team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 
@@ -204,7 +194,7 @@ Community team members can reach the engineering oncall for assistance by writin
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within one business day) and get them merged or give feedback as soon as we can.
 
-### Process for managing community contributions
+## Managing community contributions
 
 The Community Engagement DRI is responsible for keeping an eye out for new community contributions, getting them merged if possible, and getting the right eyes on them if they require a review.
 
@@ -214,7 +204,7 @@ Each business day, the Community Engagement DRI will check open pull requests to
 2. approve and merge any community PRs that are ready to go.
 3. make sure there aren't any existing community PRs waiting for a follow-up from Fleet.
 
-#### Identify community contributions
+### Identify community contributions
 
 When a new pull request is submitted by a community contributor (someone not a member of the Fleet organization):
 
@@ -236,13 +226,13 @@ When a new pull request is submitted by a community contributor (someone not a m
 
 > Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment.
 
-#### Communicate with contributors
+## Communicate with contributors
 
 Community contributions are fantastic, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working on getting their PR approved.
 
 While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to get more information and update the contributor.
 
-### Making the updates
+## Making the updates
 
 Every week, the Community Engagement DRI will:
 
@@ -275,29 +265,18 @@ Printful order information can be found on [Printful](https://www.printful.com/d
 
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
-## Rituals
 
-The following table lists the Community group's rituals, frequency, and Directly Responsible Individual (DRI).
+# Brand
 
-| Ritual                        | Frequency | Description                                                                                                                                     | DRI                      |
-| :---------------------------- | :-------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Community Slack               | Daily     | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged                                | Kathy Satterlee          |
-| Social media check-in         | Daily     | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content                             | Kathy Satterlee         |
-| Issue check-in                | Daily     | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed                       | Kathy Satterlee          |
-| Outside contributor follow-up | Weekly    | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted                               | Kathy Satterlee          |
-| Documentation update          | Weekly    | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs.                                                                 | Kathy Satterlee          |
-| StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently | Rotation: Community team |
+## In this section
 
-## Slack channels
+- [Publishing Fleet content](#publishing-fleet-content)
+- [Writing about Fleet](#writing-about-fleet)
+- [Writing about osquery](#writing-about-osquery)
+- [Open source vs. open core](#open-source-vs-open-core)
+- [Fleet style guide](#fleet-style-guide)
+- [Writing documentation](#writing-documentation)
 
-This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
-
-| Slack channel  | [DRI](https://fleetdm.com/handbook/company#group-slack-channels) |
-| :------------- | :--------------------------------------------------------------- |
-| `#g-community` | Kathy Satterlee                                                  |
-
-
-# Digital Experience
 
 ## Publishing Fleet content 
 
@@ -305,8 +284,8 @@ The following describes how to go about publishing and editing content at Fleet.
 
 ### Publication methods
 
-1. **Instant**: Content is published instantly. Content is approved by Digital Experience post-facto – see links in the table below to get the required training.
-2. **Gated**: Submit content to Digital Experience for review – see specific instructions in the table below.
+1. **Instant**: Content is published instantly. Content is approved by Brand post-facto – see links in the table below to get the required training.
+2. **Gated**: Submit content to Brand for review – see specific instructions in the table below.
 3. **Queued**: Communicate the publication date with the [DRI](https://fleetdm.com/handbook/people#directly-responsible-individuals) responsible for approving this content – refer to specific instructions linked in the table below. 
 
 ### Revision methods (for editors)
@@ -326,17 +305,32 @@ Detail the minimum time needed for new or updated content to be live (published)
 | Content | To publish | To revise (for editors) | Timeframe |
 |:------ |:-----------------|:-------------------------------|-----------|
 | Articles | **Queued** – see [How to submit and publish an article](./how-to-submit-and-publish-an-article). | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
-| Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
+| Ads | **Gated**. Request review from Brand – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
 | Docs | **Gated**. Request review from Chris McGillicuddy – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
 | Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/marketing#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
-| Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
+| Newsletter/email blast | **Gated**. Request review from the Brand team – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
 | Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
-| Decks | **Instant**. Sales typically creates decks. Digital Experience shouldn't be a blocker. | **Feedback** | three business days |
+| Decks | **Instant**. Sales typically creates decks. The Brand team shouldn't be a blocker. | **Feedback** | three business days |
+
+## Writing about Fleet
+
+When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management." For Fleet the product, we say either “Fleet” or “Fleet for osquery.” Employees are “Fleeties.”
+
+## Writing about osquery
+
+Osquery should always be written in lowercase unless used to start a sentence or heading. For example:
+
+- Open source software, built on osquery.
+- Osquery and Fleet provide structured, convenient access to information about your devices.
+
+## Open source vs. open core
+
+For simplicity, Fleet is always described as "open source" in all writing and verbal communication. In specific situations, such as discussing the distinction between various kinds of open source, it can be appropriate to mention "open core" to clarify your meaning. When in doubt, go with "open source."
 
 ## Fleet style guide
 
@@ -357,7 +351,6 @@ Every piece of content we write should embody our values. To make sure we succee
 - **Test.** Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... You get the idea.
 
 ### What would Mr. Rogers say?
-
 We should be clear, simple, friendly, and inspiring, like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers), who deeply understood these communication skills.
 
 Here are some steps you can take to communicate like Mister Rogers:
@@ -380,20 +373,20 @@ What would Mister Rogers say? The tweet could look something like this...
 
 By Mister Rogersing our writing, we can encourage our readers to succeed by emphasizing optimism. You might not be able to apply all of these steps every time. That’s fine. Think of these as guidelines to help you simplify complex topics.
 
-### Writing documentation
+## Writing documentation
 
 You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. That puts developers in the perfect position to show users what Fleet can do.
 
 This guide will help you write docs that help users achieve their goals with Fleet.
 
-#### Remember the reader
+### Remember the reader
 People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
 
 - **Think of every user.** Define technical terms in the doc or include a link.
 - **Strive for simplicity.** Avoid complex sentences and long paragraphs.
 - **Be approachable.** Write like you’re meeting a new member of your team.
 
-#### Answer the question
+### Answer the question
 
 It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
 
@@ -401,7 +394,7 @@ It’s what we’re all about at Fleet. People read docs in order to accomplish 
 - **Narrow your focus.** Avoid explanations that distract from the main topic.
 - **No more, no less.** Use just enough information to give an accurate answer.
 
-#### Follow a framework
+### Follow a framework
 
 Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
 
@@ -421,28 +414,13 @@ Support your explanation with relevant references. This shows users how to put y
 
 Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
 
-#### Document every change
+### Document every change
 
 Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
 
 You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
 
 Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before commiting a line of code.
-
-### Writing about Fleet
-
-When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management." For Fleet the product, we say either “Fleet” or “Fleet for osquery.” Employees are “Fleeties.”
-
-### Writing about osquery
-
-Osquery should always be written in lowercase unless used to start a sentence or heading. For example:
-
-- Open source software, built on osquery.
-- Osquery and Fleet provide structured, convenient access to information about your devices.
-
-### Open source vs. open core
-
-For simplicity, Fleet is always described as "open source" in all writing and verbal communication. In specific situations, such as discussing the distinction between various kinds of open source, it can be appropriate to mention "open core" to clarify your meaning. When in doubt, go with "open source."
 
 ### Headings and subheadings
 
@@ -457,7 +435,7 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
-#### Sentence case
+### Sentence case
 
 Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels. In sentence case, we write titles as if they were sentences. For example:
 
@@ -617,7 +595,7 @@ Refer to [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#
 
 Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
 
-1. Post the tweet in the #g-marketing Slack channel and tag the Digital Experience lead.
+1. Post the tweet in the #g-marketing Slack channel and tag the Brand team lead.
 2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
 3. Suggest edits in the Slack thread for the Marketing team to include and re-post.
 
@@ -641,7 +619,7 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 ### The automated way
 
 - First, design the email and content. The preferred method is to base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch.
-- Bring your request to the digital experience team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The digital experience team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, digital experience will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
+- Bring your request to the Brand team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
@@ -666,7 +644,7 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 ## Fleet website
 
-The Digital Experience team is responsible for production and maintenance of the Fleet website.
+The Brand team is responsible for production and maintenance of the Fleet website.
 
 #### In this section
 
@@ -776,30 +754,53 @@ We want to make it easy to learn how to manage devices with Fleet. Anyone inside
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.
-2. Wireframe the design. Usually, digital experience does this, but anyone can contribute.
+2. Wireframe the design. Usually, the Brand team does this, but anyone can contribute.
 3. Present your change to the website DRI. They will approve it or suggest revisions.
-4. Code the website change. Again, digital experience often does this, but anyone can help.
+4. Code the website change. Again, the Brand team often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
 
 
 ## Rituals
 
-The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
+The following table lists the Marketing, Brand, and Community group's rituals, frequency, and Directly Responsible Individual (DRI).
 
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+
+| Ritual                       | Frequency | Description                       | DRI               |
+|:-----------------------------|:----------|:----------------------------------|-------------------|
+| Daily tweet                  | Daily     | Post Fleet content on Twitter     | Drew Baker        |
+| Daily LinkedIn post          | Daily     | Post Fleet content to LinkedIn    | Drew Baker        |
+| Check Twitter messages  | Daily     | Check and reply to messages on the Fleet Twitter account, and disregard requests unrelated to Fleet | Drew Baker | 
+| Social engagement            | Weekly    | Participate in 50 social media engagements per week | Drew Baker        |  
+| Osquery jobs                 | Weekly | Post to @osqueryjobs twice a week            | Drew Baker        |
+| Enrich Salesforce leads      | Weekly | Follow the Salesforce lead enrichment process every Friday    | Drew Baker        |
+| Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
+| Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
+| Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
+| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Tim Kern          |
+| Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
+| Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
+| Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
+| Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
 | Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar | Chris McGillicuddy |
 | Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar | Chris McGillicuddy |
 | Tweet review | Daily | Review tweets for tone and brand consistency | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
-| Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
+| Brand planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
 | OKR review  | Three weeks | Review the status of current OKRs | Mike Thomas |
 | Handbook editor pass | Monthly | Edit for copy and content | Chris McGillicuddy |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 | Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
 | Updating the extended osquery schema | Three weeks | Running the `generate-merged-schema` script and committing the merged schema json to the Fleet GitHub repo | Eric Shaw |
+| Community Slack               | Daily     | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged                                | Kathy Satterlee          |
+| Social media check-in         | Daily     | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content                             | Kathy Satterlee         |
+| Issue check-in                | Daily     | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed                       | Kathy Satterlee          |
+| Outside contributor follow-up | Weekly    | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted                               | Kathy Satterlee          |
+| Documentation update          | Weekly    | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs.                                                                 | Kathy Satterlee          |
+| StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently | Rotation: Community team |
+
 
 ## Slack channels
 
@@ -807,10 +808,15 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-digital-experience`     | Mike Thomas
-| `#oooh-websites`            | Mike Thomas
-| `#help-p1`		                | Mike McNeil
+| `#g-marketing`              | Tim Kern                                                            |
+| `#help-public-relations`    | Tim Kern                                                            |
+| `#help-promote`             | Tim Kern                                                            |
+| `#help-swag`                | Drew Baker                                                          |
+| `#g-brand`                  | Mike Thomas                                                         |
+| `#oooh-websites`            | Mike Thomas                                                         |
+| `#help-p1`		                | Mike McNeil                                                         |
+| `#g-community`              | Kathy Satterlee                                                     |
 
 
-
-
+<meta name="maintainedBy" value="timmy-k">
+<meta name="title" value="🫧 Marketing">
