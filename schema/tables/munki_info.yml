@@ -4,47 +4,47 @@ description: Information from the last [Munki](https://github.com/munki/munki) r
 platforms: darwin
 evented: false
 examples: >-
-  Identify Macs that are DEP capable but have not been enrolled to MDM.
+  Output errors, warnings and problematic installations from Munki.
 
   ```
   
-  SELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';
+  SELECT errors, warnings, problem_installs FROM munki_info ;
   
   ```
 columns:
   - name: console_user
-    description: The access rights of the payload. The resulting number is the total of every [AccessRight](https://developer.apple.com/documentation/devicemanagement/mdm) added up.
+    description: The username of the user currently logged into the console of the Mac.
     required: false
-    type: integer
+    type: text
   - name: end_time
-    description: The URL the Mac checks in with, which should point to your MDM server.
+    description: The date and time at which the latest Munki run ended.
     required: false
     type: text
   - name: errors
-    description: Indicates if the computer is DEP capable or not, even if it is not currently enrolled into MDM.
+    description: If Munki encountered any error during the last run, they will be returned in this column.
     required: false
     type: text
   - name: manifest_name
-    description: Indicates if the computer is enrolled into MDM.
+    description: The internal manifest name
     required: false
     type: text
   - name: problem_installs
-    description: Indicates if the computer has a certificate used by the MDM server to authenticate it.
+    description: A list of installs that did not succeed, if any.
     required: false
     type: text
   - name: start_time
-    description: The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate.
+    description: The date and time at which the latest Munki run started.
     required: false
     type: text
   - name: success
-    description: The date on which the MDM payload was installed on the Mac.
+    description: Shows if the Munki run was a success (true), or not (false).
     required: false
     type: text
   - name: version
-    description: Indicates if the MDM payload was installed via DEP or not.
+    description: The version of Munki used during the last run.
     required: false
     type: text
   - name: warnings
-    description: The identifier of the MDM payload.
+    description: If Munki encountered any error during the last run, they will be returned in this column.
     required: false
     type: text
