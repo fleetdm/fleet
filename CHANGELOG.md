@@ -1,69 +1,72 @@
 ## Fleet 4.22.0 (Oct 20, 2022)
 
-* Added usage statistics for the weekly count of aggregate policy violation days. One policy
-violation day is counted for each policy that a host is failing, measured as of the time the
-count increments. The count increments once per 24-hour interval and resets each week.
+* Added usage statistics for the weekly count of aggregate policy violation days. One policy violation day is counted for each policy that a host is failing, measured as of the time the count increments. The count increments once per 24-hour interval and resets each week.
 
-* Added functionality to consider device tokens as expired after one hour.
-This change is not compatible with older versions of Fleet Desktop, we recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
-  - You're managing your own TUF server.
-  - Or have auto-updates disabled (`fleetctl package [...] --disable-updates`)
-  - Or have channels pinned to an older version (`fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0`)
+Fleet Premium: Add ability to see how many and which hosts have low disk space (less than 32GB available) on the **Home** page.
 
-* Clarify last seen time and last fetched time in Fleet UI
+Fleet Premium: Add ability to see how many and which hosts are missing (offline for at least 30 days) on the **Home** page.
 
-* add new query sidebar with updated and improved docs
+Improved the query console by indicating which columns are required in the WHERE clause, indicated which columns are platform-specific, and adding example queries for almost all osquery tables in the right sidebar.
 
-* Premium users can see missing hosts and low disk space hosts on the homepage
-* Premium users can filter hosts by missing hosts and low disk space hosts on the manage host page
+* Added functionality to consider device tokens as expired after one hour. This change is not compatible with older versions of Fleet Desktop. We recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
+  * You're managing your own TUF server.
+  * You have auto-updates disabled (`fleetctl package [...] --disable-updates`)
+  * You have channels pinned to an older version (`fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0`).
 
-* App UI uses new display_name key to reference hosts. display_name is either the computer-name or the hostname. Add display_name to lists, searches, integrations and web-hooks.
-
-* Added server-side validation of user emails
-
-* Added security headers to HTML, CSV and installer responses.
-
-* Fix a bug in which clicking the select all checkbox did not select all in some cases.
-
-* Fixed bug introduced in 4.21.0 where Windows-specific query was being sent to non-Windows hosts
-  causing an error in query ingestion for `directIngestOSWindows`.
-
-* Login route reroutes to dashboard if already logged in
-
-* Create teams modal has better team name suggestions
-
-* Translated technical error messages returned by Organization's and Team's validations to be more user-friendly.
-
-* Fix a bug in which uninstalled software (DEB packages) appeared in Fleet.
+* Added security headers to HTML, CSV, and installer responses.
 
 * Added validation of the `command_line_flags` object in the Agent Options section of Organization Settings and Team Settings.
 
-* Added logic to clean up irrelevant policies for a host on re-enrollment, for example: if a host changes its OS from linux to macOS or it changes teams.
+* Added logic to clean up irrelevant policies for a host on re-enrollment (e.g., if a host changes its OS from linux to macOS or it changes teams).
 
-* Rename machine serial to serial number and IPv4 properly to private IP address
+* Added the `inherited_policies` array to the `GET /teams/{team_id}/policies` endpoint that lists the global policies inherited by the team, along with the pass/fail counts for the hosts on that team.
 
-* Added the `inherited_policies` array to the `GET /teams/{team_id}/policies` endpoint that lists the global policies inherited by the team, along with the pass/fail counts only for hosts that belong to that team.
+​* ​Added a new UI state for when results are coming in from a live query or policy query.
 
-* Fixed a bug where if a team didn't have a `config.features` settings and was edited via the UI, the both `features.enable_host_users` and `features.enable_software_inventory` would be `false` insead of the global default.
+* Added better team name suggestions to the Create teams modal.
 
-- Fixed host filters by mdm enrollment status
+* Clarified last seen time and last fetched time in the Fleet UI.
 
-- add new UI state when results are coming in from a live query or policy query
+* Translated technical error messages returned by Agent options validation to be more user-friendly.
+
+Renamed machine serial to serial number and IPv4 properly to private IP address.
+
+* Fleet Premium: Updated Fleet Desktop to use the `/device/{token}/desktop` API route to display the number of failing policies.
+
+* Made host details software tables more responsive by adding links to software details.
+
+* Fixed a bug in which a user would not be rerouted to the Home page if already logged in.
+
+* Fixed a bug in which clicking the select all checkbox did not select all in some cases.
+
+* Fixed a bug introduced in 4.21.0 where a Windows-specific query was being sent to non-Windows hosts, causing an error in query ingestion for `directIngestOSWindows`.
+
+* Fixed a bug in which uninstalled software (DEB packages) appeared in Fleet.
+
+* Fixed a bug in which a team that didn't have `config.features` settings was edited via the UI, then both `features.enable_host_users` and `features.enable_software_inventory` would be false insead of the global default.
 
 * Fixed a bug that resulted in false negatives for vulnerable versions of Zoom, Google Chrome, Adobe Photoshop, Node.js, Visual Studio Code, Adobe Media Encoder, VirtualBox, Adobe Premiere Pro, Pip, and Firefox software.
 
-* Fixed bug that caused duplicated vulnerabilities to be sent to third party integrations.
+* Fixed bug that caused duplicated vulnerabilities to be sent to third-party integrations.
 
-- Fixed panic in `ingestKubequeryInfo` query ingestion.
+* Fixed panic in `ingestKubequeryInfo` query ingestion.
 
-* Fix a bug in which host_count and user_count being always returned as `0` in `teams/{id}` endpoint.
+* Fixed a bug in which host_count and user_count returned as `0` in the `teams/{id}` endpoint.
 
-* Updated Fleet Desktop to use the new endpoint introduced in
-  https://github.com/fleetdm/fleet/issues/7084
+* Fixed a bug in which tooltips for Munki issue would be cut off at the edge of the browser window.
 
-* Host details software table links to software details, better responsive UI for software table
+* Fixed a bug in which running `fleetctl apply` with the `--dry-run` flag would fail in some cases.
 
-* Fixed a server panic happening when a team was edited via yaml without an `agent_options` key.
+* Fixed a bug in which the Hosts table displayed 20 hosts per page.
+
+* Fixed a bug in which tooltips for Munki issue would be cut off at the edge of the browser window.
+
+* Fixed a bug in which running `fleetctl apply` with the `--dry-run` flag would fail in some cases.
+
+* Fixed a bug in which **Hosts** table displayed 20 hosts per page.
+
+* Fixed a server panic that occured when a team was edited via YAML without an `agent_options` key.
+
 
 ## Fleet 4.21.0 (Sep 28, 2022)
 
