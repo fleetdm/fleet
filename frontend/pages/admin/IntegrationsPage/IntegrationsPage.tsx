@@ -20,10 +20,11 @@ import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import CustomLink from "components/CustomLink";
+
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 import {
   generateTableHeaders,
@@ -372,14 +373,10 @@ const IntegrationsPage = (): JSX.Element => {
             </p>
             <p>
               Want to learn more?&nbsp;
-              <a
-                href="https://fleetdm.com/docs/using-fleet/automations"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Read about automations
-                <img src={ExternalLinkIcon} alt="Open external link" />
-              </a>
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/automations"
+                text="Read about automations"
+              />
             </p>
             <Button
               variant="brand"

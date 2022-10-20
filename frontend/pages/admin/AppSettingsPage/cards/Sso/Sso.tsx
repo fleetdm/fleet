@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
@@ -11,8 +12,6 @@ import {
   IFormField,
   IAppConfigFormErrors,
 } from "../constants";
-
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "app-config-form";
 
@@ -234,14 +233,10 @@ const Sso = ({
             >
               <>
                 Automatically create Observer user on login{" "}
-                <a
-                  href="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Learn more
-                  <img alt="Open external link" src={ExternalLinkIcon} />
-                </a>
+                <CustomLink
+                  url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
+                  text="Learn more"
+                />
               </>
             </Checkbox>
           </div>

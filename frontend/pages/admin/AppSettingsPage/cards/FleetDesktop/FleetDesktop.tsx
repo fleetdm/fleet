@@ -7,8 +7,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
-
+import CustomLink from "components/CustomLink";
 import {
   DEFAULT_TRANSPARENCY_URL,
   IAppConfigFormProps,
@@ -84,15 +83,11 @@ const FleetDesktop = ({
           <p className={`${baseClass}__component-label`}>
             When an end user clicks “Transparency” in the Fleet Desktop menu, by
             default they are taken to{" "}
-            <a
-              className="no-wrap"
-              href="https://fleetdm.com/transparency"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              https://fleetdm.com/transparency
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>{" "}
+            <CustomLink
+              url="https://fleetdm.com/transparency"
+              text="https://fleetdm.com/transparency"
+              multiline
+            />{" "}
             . You can override the URL to take them to a resource of your
             choice.
           </p>

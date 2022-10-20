@@ -22,8 +22,8 @@ import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
+import CustomLink from "components/CustomLink";
 import RunQuery from "pages/policies/PolicyPage/screens/RunQuery";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IPolicyPageProps {
   router: InjectedRouter;
@@ -194,14 +194,10 @@ const PolicyPage = ({
           <p>
             Fleet is unable to run a live query. Refresh the page or log in
             again. If this keeps happening please{" "}
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://github.com/fleetdm/fleet/issues/new/choose"
-            >
-              file an issue
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://github.com/fleetdm/fleet/issues/new/choose"
+              text="file an issue"
+            />
           </p>
         </div>
       </div>

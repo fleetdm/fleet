@@ -10,8 +10,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import ExternalLink from "components/ExternalLink";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
@@ -75,11 +74,11 @@ const Agents = ({
           <p className={`${baseClass}__section-description`}>
             Agent options configure the osquery agent. When you update agent
             options, they will be applied the next time a host checks in to
-            Fleet.
-            <br />
-            <ExternalLink
+            Fleet.{" "}
+            <CustomLink
               url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
               text="Learn more about agent options"
+              multiline
             />
           </p>
           {isPremiumTier ? (
@@ -91,7 +90,7 @@ const Agents = ({
           ) : (
             <InfoBanner>
               Want some hosts to have different options?&nbsp;
-              <ExternalLink
+              <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/teams"
                 text="Learn more about teams"
               />

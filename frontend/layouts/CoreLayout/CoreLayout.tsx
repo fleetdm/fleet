@@ -8,9 +8,9 @@ import paths from "router/paths";
 import useDeepEffect from "hooks/useDeepEffect";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
+import CustomLink from "components/CustomLink";
 import { INotification } from "interfaces/notification";
 import { licenseExpirationWarning } from "utilities/helpers";
-import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
 
@@ -23,14 +23,11 @@ const expirationMessage = (
   <>
     Your license for Fleet Premium is about to expire. If you’d like to renew or
     have questions about downgrading,{" "}
-    <a
-      href="https://fleetdm.com/docs/using-fleet/faq#how-do-i-downgrade-from-fleet-premium-to-fleet-free"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      please head to the Fleet documentation
-      <img src={ExternalLinkIcon} alt="Open external link" id="new-tab-icon" />
-    </a>
+    <CustomLink
+      url="https://fleetdm.com/docs/using-fleet/faq#how-do-i-downgrade-from-fleet-premium-to-fleet-free"
+      text="please head to the Fleet documentation"
+      multiline
+    />
   </>
 );
 

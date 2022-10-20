@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import { IVulnerability } from "interfaces/vulnerability";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "preview-data-modal";
 
@@ -62,14 +62,10 @@ const PreviewPayloadModal = ({
       <div className={`${baseClass}__preview-modal`}>
         <p>
           Want to learn more about how automations in Fleet work?{" "}
-          <a
-            href="https://fleetdm.com/docs/using-fleet/automations"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Check out the Fleet documentation
-            <img src={ExternalLinkIcon} alt="Open external link" />
-          </a>
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/automations"
+            text="Check out the Fleet documentation"
+          />
         </p>
         <div className={`${baseClass}__payload-request-preview`}>
           <pre>POST https://server.com/example</pre>

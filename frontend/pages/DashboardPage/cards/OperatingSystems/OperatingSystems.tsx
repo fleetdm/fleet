@@ -18,8 +18,7 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
-
-import ExternalLinkIcon from "../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -89,17 +88,11 @@ const OperatingSystems = ({
       <p>
         {OS_VENDOR_BY_PLATFORM[selectedPlatform]} releases updates and fixes for
         supported operating systems.{" "}
-        <a
-          href={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          See supported operating{" "}
-          <span className="no-wrap">
-            systems
-            <img alt="Open external link" src={ExternalLinkIcon} />
-          </span>
-        </a>
+        <CustomLink
+          url={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
+          text="See supported operating systems"
+          multiline
+        />
       </p>
     ) : null;
 

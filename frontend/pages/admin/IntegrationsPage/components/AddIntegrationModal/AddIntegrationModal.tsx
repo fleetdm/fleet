@@ -3,9 +3,9 @@ import React, { useState, useEffect } from "react";
 import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import CustomLink from "components/CustomLink";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "add-integration-modal";
 
@@ -60,14 +60,10 @@ const AddIntegrationModal = ({
               classname={`${baseClass}__destination-dropdown`}
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
             />
-            <a
-              href="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Suggest a new destination
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
+              text="Suggest a new destination"
+            />
           </div>
         )}
         <IntegrationForm

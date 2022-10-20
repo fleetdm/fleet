@@ -1,6 +1,6 @@
 import React from "react";
 
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "empty-state";
 
@@ -38,14 +38,10 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
             <h2>{formalTitle()} has been disabled.</h2>
             <p>
               Check out the Fleet documentation for{" "}
-              <a
-                href="https://fleetdm.com/docs/using-fleet/configuration-files#features"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                steps to enable this feature
-                <img alt="External link" src={ExternalLinkIcon} />
-              </a>
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/configuration-files#features"
+                text="steps to enable this feature"
+              />
             </p>
           </div>
         );

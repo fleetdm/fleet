@@ -33,6 +33,7 @@ import { ITableQueryData } from "components/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
@@ -49,7 +50,6 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
-import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "dashboard-page";
 
@@ -476,14 +476,10 @@ const DashboardPage = (): JSX.Element => {
     description: (
       <p>
         Munki is a tool for managing software on macOS devices.{" "}
-        <a
-          href="https://www.munki.org/munki/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn about Munki
-          <img src={ExternalLinkIcon} alt="Open external link" />
-        </a>
+        <CustomLink
+          url="https://www.munki.org/munki/"
+          text="Learn about Munki"
+        />
       </p>
     ),
     children: (
@@ -503,14 +499,10 @@ const DashboardPage = (): JSX.Element => {
     description: (
       <p>
         MDM is used to manage configuration on macOS devices.{" "}
-        <a
-          href="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn about MDM
-          <img src={ExternalLinkIcon} alt="Open external link" />
-        </a>
+        <CustomLink
+          url="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
+          text="Learn about MDM"
+        />
       </p>
     ),
     children: (

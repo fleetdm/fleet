@@ -1,4 +1,8 @@
-.external-link {
+.custom-link {
+  .no-wrap {
+    white-space: nowrap;
+  }
+
   .icon {
     display: inline;
     margin-left: $pad-small;

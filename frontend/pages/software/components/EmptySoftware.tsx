@@ -2,7 +2,7 @@
 
 import React from "react";
 
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "manage-software-page";
 
@@ -17,14 +17,10 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
             <h1>Software inventory is disabled.</h1>
             <p>
               Check out the Fleet documentation on{" "}
-              <a
-                href="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                how to configure software inventory
-                <img src={ExternalLinkIcon} alt="Open external link" />
-              </a>
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+                text="how to configure software inventory"
+              />
             </p>
           </div>
         </div>

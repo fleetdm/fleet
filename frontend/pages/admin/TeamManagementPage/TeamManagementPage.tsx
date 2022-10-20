@@ -13,11 +13,12 @@ import teamsAPI, {
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import CustomLink from "components/CustomLink";
+
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
@@ -203,14 +204,10 @@ const TeamManagementPage = (): JSX.Element => {
             </p>
             <p>
               Want to learn more?&nbsp;
-              <a
-                href="https://fleetdm.com/docs/using-fleet/teams"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Read about teams
-                <img src={ExternalLinkIcon} alt="Open external link" />
-              </a>
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/teams"
+                text="Read about teams"
+              />
             </p>
             <Button
               variant="brand"
