@@ -209,3 +209,8 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   password: "",
   sso_enabled: null,
 };
+
+/** Must pass agent options config as empty object */
+export const EMPTY_AGENT_OPTIONS = {
+  config: {},
+};
