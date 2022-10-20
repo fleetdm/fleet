@@ -12,7 +12,7 @@ export default PropTypes.shape({
 });
 
 export interface ICampaignError {
-  host_hostname: string;
+  host_display_name: string;
   osquery_version: string;
   error: string;
 }

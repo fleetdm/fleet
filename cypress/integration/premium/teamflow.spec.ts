@@ -139,7 +139,7 @@ describe("Teams flow (seeded)", () => {
 
       cy.findByRole("button", { name: /save options/i }).click();
 
-      cy.contains("span", /successfully saved/i).should("exist");
+      cy.contains("span", /successfully updated/i).should("exist");
       cy.visit("/settings/teams/2/options");
 
       cy.contains(/config:/i).should("be.visible");

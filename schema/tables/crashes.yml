@@ -1,0 +1,13 @@
+name: crashes
+examples: >-
+  See software responsible for crashes. This can be useful to detect what the
+  most problematic software in your environment is.
+
+  ```
+
+  SELECT crash_path, identifier, responsible, exception_type FROM crashes;
+
+  ```
+columns:
+  - name: uid
+    requires_user_context: true

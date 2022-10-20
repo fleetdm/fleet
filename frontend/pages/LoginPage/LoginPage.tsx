@@ -74,10 +74,12 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       }
     };
 
-    if (currentUser) {
-      router?.push(HOME);
-    } else {
+    if (!currentUser) {
       getSSO();
+    }
+
+    if (currentUser && !currentUser.force_password_reset) {
+      router?.push(HOME);
     }
 
     if (pageStatus && pageStatus in statusMessages) {
