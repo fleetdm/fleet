@@ -63,8 +63,6 @@
 
 * Fixed a server panic that occured when a team was edited via YAML without an `agent_options` key.
 
-* Fixed a bug where a host was enrolled with orbit, but was being omitted when listing hosts and ordering by display name.
-
 * Fixed an bug where Pop!\_OS hosts were not being included in the linux hosts count on the hosts dashboard page.
 
 
