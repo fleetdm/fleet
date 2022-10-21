@@ -366,4 +366,4 @@ A host could also be offline if there is a connection issue between the osquery 
 
 ## Why aren't "additional queries" being applied to hosts enrolled in a team?
 
-Changes were introduced in Fleet v4.20.0 that caused the `additional_queries` set in Global Agent Options to no longer be included in each team's Agent Options. If you would like those queries to be applied to all hosts, they will need to be included in each team's [configuration](./configuration-files.md#team-settings) as well. 
+Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to be include these queries under `features.additional_queries` in each team's [configuration](./configuration-files.md#teams). 
