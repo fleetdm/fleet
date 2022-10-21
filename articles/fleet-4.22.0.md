@@ -100,7 +100,7 @@ Added functionality to consider device tokens as expired after one hour. This ch
 
 ## Ready to upgrade?
 
-Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.20.0.
+Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.22.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Chris McGillicuddy">
