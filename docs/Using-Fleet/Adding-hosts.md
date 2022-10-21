@@ -1,40 +1,61 @@
 # Adding hosts
-- [Osquery installer](#osquery-installer)
-- [Signing installers](#signing-installers)
-- [Plain osquery](#plain-osquery)
 
-The recommended way to add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
+- [Introduction](#introduction)
+- [Add hosts with Orbit](#add-hosts-with-orbit)
+  - [Signing installers](#signing-installers)
+  - [Including Fleet Desktop](#including-fleet-desktop)
+  - [Adding multiple hosts](#adding-multiple-hosts)
+  - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
+  - [Configuration options](#configuration-options)
+- [Add hosts with plain osquery](#add-hosts-with-plain-osquery)
+  - [Set an environment variable with an enroll secret](#set-an-environment-variable-with-an-enroll-secret)
+  - [Deploy the TLS certificate that osquery will use to communicate with Fleet](#deploy-the-tls-certificate-that-osquery-will-use-to-communicate-with-fleet)
+  - [Launching osqueryd](#launching-osqueryd)
+  - [Using a flag file to manage flags](#using-a-flag-file-to-manage-flags)
+    - [Flag file on Windows](#flag-file-on-windows)
+  - [Migrating from plain osquery to osquery installer](#migrating-from-plain-osquery-to-osquery-installer)
+    - [Generate installer](#generate-installer)
+    - [Migrate](#migrate)
+- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos)
+  - [Creating the configuration profile](#creating-the-configuration-profile)
+    - [Obtaining identifiers](#obtaining-identifiers)
+    - [Creating the profile](#creating-the-profile)
+    - [Test the profile](#test-the-profile)
 
-To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found [here](https://fleetdm.com/fleetctl-preview)
+## Introduction
 
-## Osquery installer
+Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recomended way to install osquery is using [Orbit](./Orbit.md), Fleet's lightweight osquery runtime and autoupdater. 
 
-To create an osquery installer, you can use the `fleetctl package` command.
+You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins
+## Add hosts with Orbit
 
-`fleetctl package` can be used to create an osquery installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found [here](https://fleetdm.com/fleetctl-preview)
 
-The following command creates an osquery installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
+`fleetctl package` can be used to create an Orbit installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+
+The following command creates an Orbit installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
 
 ```sh
 fleetctl package --type pkg --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
   >**Note:** The only configuration option required to create an installer is `--type`, but to communicate with a Fleet instance, you'll need to specify a `--fleet-url` and `--enroll-secret`
 
-When you install the generated osquery installer on a host, this host will automatically enroll in the specified Fleet instance.
+When you install the generated Orbit installer on a host, this host will automatically enroll in the specified Fleet instance.
 
 ### Signing installers
 
-  >**Note:** Currently, the fleetctl package command does not provide support for signing Windows osquery installers. Windows installers can be signed after building.
+  >**Note:** Currently, `fleetclt package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
 
-The `fleetctl package` command provides support for signing and notarizing macOS osquery installers via the
-`--sign-identity` and `--notarize` flags.
+`fleetctl package` provides support for signing and notarizing macOS osquery installers via the
+`--sign-identity` and `--notarize` flags.- [Orbit installer](#orbit-installer)
+
 Check out the example below:
 
 ```sh
   AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
-The above command should be run on a macOS device as notarizing and signing of macOS osquery installers can only be done on macOS devices.
+The above command should be run on a macOS device as notarizing and signing of macOS Oebit installers can only be done on macOS devices.
 
 Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
@@ -65,7 +86,7 @@ To prevent this auto-update behavior, you can turn off auto-updates via the `--d
 
 If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
 
-You can distribute your osquery installer and add all your hosts to Fleet using your software management tool of choice.
+You can distribute your Orbit installer and add all your hosts to Fleet using your software management tool of choice.
 
 ### Automatically adding hosts to a team
 
@@ -116,7 +137,7 @@ The following command-line flags allow you to configure an osquery installer fur
 
 Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
-## Plain osquery
+## Add hosts with plain osquery
 
 > If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Fleet is documented below in the "Native Osquery TLS Plugins" section.
 

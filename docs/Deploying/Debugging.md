@@ -134,7 +134,7 @@ allow us to see more details as to what's happening in the communication with Fl
 the logs and other configurations.
 
 If you are running Orbit, you should add `--debug` to the command-line options. This will get debug logs for Orbit and 
-also for osquery automatically. Check the [Orbit README](https://github.com/fleetdm/fleet/blob/main/orbit/README.md#logs) 
+also for osquery automatically. Check the [Orbit README](../Using-Fleet/Orbit.md#logs) 
 for more details as to where to find Orbit-specific logs.
 
 If you are running Fleet Desktop, there's no change needed, you should see the log file in the following directories 
