@@ -173,7 +173,7 @@ In order for osqueryd to connect to the fleet server, there are some flags that 
  --logger_tls_endpoint=/api/v1/osquery/log 
  --logger_tls_period=10
  ```
-These can be specified directly in the command-line, or saved to a flag file. 
+These can be specified directly in the command line or saved to a flag file. 
 
 #### Launching osqueryd using command-line flags
 
