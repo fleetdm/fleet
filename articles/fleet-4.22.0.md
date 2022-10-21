@@ -70,9 +70,9 @@ Fleet 4.22.0 no longer defaults to whatever the ISP provides. Instead, Fleet use
 
 - Added usage statistics for the weekly count of aggregate policy violation days. One policy violation day is counted for each policy that a host is failing, measured as of the time the count increments. The count increments once per 24-hour interval and resets each week.
 Added functionality to consider device tokens as expired after one hour. This change is not compatible with older versions of Fleet Desktop. We recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
- - You're managing your own TUF server.
- - You have auto-updates disabled (`fleetctl package [...] --disable-updates`)
- - You have channels pinned to an older version (`fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0`).
+   - You're managing your own TUF server.
+   - You have auto-updates disabled (`fleetctl package [...] --disable-updates`)
+   - You have channels pinned to an older version (`fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0`).
 - Added security headers to HTML, CSV, and installer responses.
 - Added validation of the `command_line_flags` object in the Agent Options section of Organization Settings and Team Settings.
 - Added logic to clean up irrelevant policies for a host on re-enrollment (e.g., if a host changes its OS from linux to macOS or it changes teams).
