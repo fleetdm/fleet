@@ -1,6 +1,5 @@
 .back-link {
-  .icon {
-    margin: 0 $pad-xsmall;
+  &__back-icon {
     padding-right: $pad-small;
   }
 }

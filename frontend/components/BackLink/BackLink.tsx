@@ -8,6 +8,8 @@ interface IBackLinkProps {
   path?: string;
 }
 
+const baseClass = "back-link";
+
 const BackLink = ({ text, path }: IBackLinkProps): JSX.Element => {
   const onClick = (): void => {
     if (path) {
@@ -16,9 +18,9 @@ const BackLink = ({ text, path }: IBackLinkProps): JSX.Element => {
   };
 
   return (
-    <Button className={"back-link"} onClick={onClick} variant="text-icon">
+    <Button className={baseClass} onClick={onClick} variant="text-icon">
       <>
-        <Icon name={"chevron-left"} />
+        <Icon name={"chevron-left"} className={`${baseClass}__back-icon`} />
         {text}
       </>
     </Button>
