@@ -124,7 +124,7 @@ You can find various ways to install osquery on your hosts at https://osquery.io
 
 - Set up your Fleet enroll secret.
 - Provide the TLS certificate that osquery will use to communicate with Fleet.
-- Configure and launch osqueryd
+- Configure and launch osqueryd.
 
 ### Set up your Fleet enroll secret
 
