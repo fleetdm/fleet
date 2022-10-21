@@ -49,7 +49,8 @@
   - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
     - [Online hosts](#online-hosts)
     - [Offline hosts](#offline-hosts)
-  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](
+  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
+  
 ## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
