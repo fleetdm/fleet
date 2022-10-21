@@ -68,8 +68,7 @@ Fleet 4.22.0 no longer defaults to whatever the ISP provides. Instead, Fleet use
 
 ## More new features, improvements, and bug fixes
 
-- Added usage statistics for the weekly count of aggregate policy violation days. One policy violation day is counted for each policy that a host is failing, measured as of the time the count increments. The count increments once per 24-hour interval and resets each week.
-Added functionality to consider device tokens as expired after one hour. This change is not compatible with older versions of Fleet Desktop. We recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
+- Added functionality to consider device tokens as expired after one hour. This change is not compatible with older versions of Fleet Desktop. We recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
    - You're managing your own TUF server.
    - You have auto-updates disabled (`fleetctl package [...] --disable-updates`).
    - You have channels pinned to an older version (`fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0`).
@@ -79,6 +78,7 @@ Added functionality to consider device tokens as expired after one hour. This ch
 - Added the `inherited_policies` array to the `GET /teams/{team_id}/policies` endpoint that lists the global policies inherited by the team, along with the pass/fail counts for the hosts on that team.
 - Added a new UI state for when results are coming in from a live query or policy query.
 - Added better team name suggestions to the Create teams modal.
+- Added usage statistics for the weekly count of aggregate policy violation days. One policy violation day is counted for each policy that a host is failing, measured as of the time the count increments. The count increments once per 24-hour interval and resets each week.
 - Clarified last seen time and last fetched time in the Fleet UI.
 - Translated technical error messages returned by Agent options validation to be more user-friendly.
 - Renamed machine serial to serial number and IPv4 properly to private IP address.
