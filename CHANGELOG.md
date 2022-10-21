@@ -6,7 +6,9 @@
 
 * Fleet Premium: Add ability to see how many and which hosts are missing (offline for at least 30 days) on the **Home** page.
 
-* Improved the query console by indicating which columns are required in the WHERE clause, indicated which columns are platform-specific, and adding example queries for almost all osquery tables in the right sidebar.
+* Improved the query console by indicating which columns are required in the WHERE clause, indicated which columns are platform-specific, and adding example queries for almost all osquery tables in the right sidebar. These improvements are also live on [fleetdm.com/tables](https://fleetdm.com/tables)
+
+* Added a new display name for hosts in the Fleet UI. To determine the display name, Fleet uses the `computer_name` column in the [`system_info` table](https://fleetdm.com/tables/system_info). If `computer_name` isn't present, the `hostname` is used instead.
 
 * Added functionality to consider device tokens as expired after one hour. This change is not compatible with older versions of Fleet Desktop. We recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
   * You're managing your own TUF server.
@@ -43,7 +45,7 @@
 
 * Fixed a bug in which uninstalled software (DEB packages) appeared in Fleet.
 
-* Fixed a bug in which a team that didn't have `config.features` settings was edited via the UI, then both `features.enable_host_users` and `features.enable_software_inventory` would be false insead of the global default.
+* Fixed a bug in which a team that didn't have `config.features` settings was edited via the UI, then both `features.enable_host_users` and `features.enable_software_inventory` would be false instead of the global default.
 
 * Fixed a bug that resulted in false negatives for vulnerable versions of Zoom, Google Chrome, Adobe Photoshop, Node.js, Visual Studio Code, Adobe Media Encoder, VirtualBox, Adobe Premiere Pro, Pip, and Firefox software.
 
