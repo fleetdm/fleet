@@ -9,4 +9,4 @@ examples: >-
   ```
   
 notes: >-
-  * Just because a rule is enabled doesn't mean that the firewall / firewall profile itself is enabled or active - this would need to be checked elsewhere.
+  * A rule can exist, but it has to be part of the currently enabled firewall profile to be enforced.

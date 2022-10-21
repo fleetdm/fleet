@@ -1,6 +1,6 @@
 name: bitlocker_info
 examples: >-
-  Full Disk Encryption (FDE) reduces the risk of compromise when a device is lost or stolen. This query lists any system that does not have Bitlocker enabled on its OS drive (typically `C:`). 
+  Full Disk Encryption (FDE) reduces the risk of compromise when a device is lost or stolen. This query lists any system that does not have BitLocker enabled on its OS drive (typically `C:`). 
   
   ```
      
