@@ -113,6 +113,11 @@ export interface IConfigFormData {
   transparency_url: string;
 }
 
+export interface IConfigFeatures {
+  enable_host_users: boolean;
+  enable_software_inventory: boolean;
+}
+
 export interface IConfig {
   org_info: {
     org_name: string;
@@ -154,10 +159,7 @@ export interface IConfig {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
-  features: {
-    enable_host_users: boolean;
-    enable_software_inventory: boolean;
-  };
+  features: IConfigFeatures;
   agent_options: string;
   update_interval: {
     osquery_detail: number;
@@ -220,3 +222,5 @@ export type IAutomationsConfig = Pick<
   IConfig,
   "webhook_settings" | "integrations"
 >;
+
+export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;

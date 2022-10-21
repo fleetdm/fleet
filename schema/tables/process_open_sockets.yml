@@ -1,0 +1,10 @@
+name: process_open_sockets
+columns:
+  - name: state
+    platforms:
+      - windows
+      - linux
+      - darwin
+  - name: net_namespace
+    platforms:
+      - linux

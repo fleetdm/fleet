@@ -619,9 +619,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-people`                 | Charlie Chance
 | `#help-onboarding`          | Charlie Chance
-| `#help-finance`             | Nathan Holliday
+| `#g-business-operations`    | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
-| `#help-operations-and-contract-reviews`          | Nathan Holliday
 | `#help-travel`              | Nathan Holliday
 | `#help-ceo`                 | Charlie Chance
 | `#help-key-review-prep`     | Charlie Chance

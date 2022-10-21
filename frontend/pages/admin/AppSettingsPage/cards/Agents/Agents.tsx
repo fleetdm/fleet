@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
-
-// @ts-ignore
-import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import yaml from "js-yaml";
 import paths from "router/paths";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
-
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
@@ -28,12 +26,11 @@ const Agents = ({
   const [formData, setFormData] = useState<any>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
+  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
   const { agentOptions } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
-
-  const handleAceInputChange = (value: string) => {
+  const handleAgentOptionsChange = (value: string) => {
     setFormData({ ...formData, agentOptions: value });
   };
 
@@ -50,7 +47,7 @@ const Agents = ({
     setFormErrors(errors);
   };
 
-  // Validates forms when certain information is changed
+  // onChange basic yaml validation only
   useEffect(() => {
     validateForm();
   }, [agentOptions]);
@@ -58,10 +55,12 @@ const Agents = ({
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    // Formatting of API not UI
-    const formDataToSubmit = {
-      agent_options: yaml.load(agentOptions),
-    };
+    // Formatting of API not UI and allows empty agent options
+    const formDataToSubmit = agentOptions
+      ? {
+          agent_options: yaml.load(agentOptions),
+        }
+      : { agent_options: EMPTY_AGENT_OPTIONS };
 
     handleSubmit(formDataToSubmit);
   };
@@ -82,11 +81,7 @@ const Agents = ({
               rel="noopener noreferrer"
             >
               Learn more about agent options
-              <img
-                className="icon"
-                src={ExternalLinkIcon}
-                alt="Open external link"
-              />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
           {isPremiumTier ? (
@@ -116,7 +111,7 @@ const Agents = ({
           </p>
           <YamlAce
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
-            onChange={handleAceInputChange}
+            onChange={handleAgentOptionsChange}
             name="agentOptions"
             value={agentOptions}
             parseTarget

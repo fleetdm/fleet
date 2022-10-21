@@ -82,6 +82,7 @@ export const hostStub = {
   detail_updated_at: "2017-01-10T20:01:48Z",
   seen_time: "2017-01-10T20:13:54Z",
   hostname: "52883a0ba916",
+  display_name: "52883a0ba916",
   uuid: "FD87130B-09A9-683D-9095-D92CD20728CA",
   platform: "ubuntu",
   osquery_version: "2.1.2",
@@ -229,7 +230,7 @@ const queryResultStub = {
   gid: "0",
   gid_signed: "0",
   groupname: "root",
-  host_hostname: hostStub.hostname,
+  host_display_name: hostStub.display_name,
 };
 
 export const campaignStub = {

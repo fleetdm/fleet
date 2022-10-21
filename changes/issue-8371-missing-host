@@ -1,0 +1,2 @@
+* Fixed an issue where a host was enrolled with orbit, but was being omitted when listing hosts and ordering by display name
+* Fixed an issue where popos hosts were not being includes in the linux hosts count on the hosts dashboard page.

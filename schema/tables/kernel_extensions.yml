@@ -1,0 +1,9 @@
+name: kernel_extensions
+examples: >-
+  Identify third-party kernel extensions.
+
+  ```
+
+  SELECT * FROM kernel_extensions WHERE name NOT LIKE 'com.apple%' AND name NOT LIKE '__kernel__';
+
+  ```
