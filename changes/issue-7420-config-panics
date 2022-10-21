@@ -1,1 +1,0 @@
-* Fixed a server panic happening when a team was edited via yaml without an `agent_options` key.
