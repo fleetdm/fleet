@@ -64,7 +64,7 @@ var hostDetailQueries = map[string]DetailQuery{
 	"network_interface_unix": {
 		Query: `
 select
-    ia.address
+    ia.address,
     id.mac
 from
     interface_addresses ia
