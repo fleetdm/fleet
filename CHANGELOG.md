@@ -55,10 +55,6 @@ Renamed machine serial to serial number and IPv4 properly to private IP address.
 
 * Fixed a bug in which tooltips for Munki issue would be cut off at the edge of the browser window.
 
-* Fixed a bug in which running `fleetctl apply` with the `--dry-run` flag would fail in some cases.
-
-* Fixed a bug in which the Hosts table displayed 20 hosts per page.
-
 * Fixed a bug in which tooltips for Munki issue would be cut off at the edge of the browser window.
 
 * Fixed a bug in which running `fleetctl apply` with the `--dry-run` flag would fail in some cases.
