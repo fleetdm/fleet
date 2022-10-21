@@ -1,1 +1,0 @@
-- When the NVD CVE feed cannot be synced, Fleet should use feeds from the last sync.
