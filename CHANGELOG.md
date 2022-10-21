@@ -2,11 +2,11 @@
 
 * Added usage statistics for the weekly count of aggregate policy violation days. One policy violation day is counted for each policy that a host is failing, measured as of the time the count increments. The count increments once per 24-hour interval and resets each week.
 
-Fleet Premium: Add ability to see how many and which hosts have low disk space (less than 32GB available) on the **Home** page.
+* Fleet Premium: Add ability to see how many and which hosts have low disk space (less than 32GB available) on the **Home** page.
 
-Fleet Premium: Add ability to see how many and which hosts are missing (offline for at least 30 days) on the **Home** page.
+* Fleet Premium: Add ability to see how many and which hosts are missing (offline for at least 30 days) on the **Home** page.
 
-Improved the query console by indicating which columns are required in the WHERE clause, indicated which columns are platform-specific, and adding example queries for almost all osquery tables in the right sidebar.
+* Improved the query console by indicating which columns are required in the WHERE clause, indicated which columns are platform-specific, and adding example queries for almost all osquery tables in the right sidebar.
 
 * Added functionality to consider device tokens as expired after one hour. This change is not compatible with older versions of Fleet Desktop. We recommend to manually update Orbit and Fleet Desktop to > v1.0.0 in addition to upgrading the server if:
   * You're managing your own TUF server.
@@ -21,7 +21,7 @@ Improved the query console by indicating which columns are required in the WHERE
 
 * Added the `inherited_policies` array to the `GET /teams/{team_id}/policies` endpoint that lists the global policies inherited by the team, along with the pass/fail counts for the hosts on that team.
 
-​* ​Added a new UI state for when results are coming in from a live query or policy query.
+* Added a new UI state for when results are coming in from a live query or policy query.
 
 * Added better team name suggestions to the Create teams modal.
 
@@ -29,7 +29,7 @@ Improved the query console by indicating which columns are required in the WHERE
 
 * Translated technical error messages returned by Agent options validation to be more user-friendly.
 
-Renamed machine serial to serial number and IPv4 properly to private IP address.
+* Renamed machine serial to serial number and IPv4 properly to private IP address.
 
 * Fleet Premium: Updated Fleet Desktop to use the `/device/{token}/desktop` API route to display the number of failing policies.
 
@@ -51,7 +51,7 @@ Renamed machine serial to serial number and IPv4 properly to private IP address.
 
 * Fixed panic in `ingestKubequeryInfo` query ingestion.
 
-* Fixed a bug in which host_count and user_count returned as `0` in the `teams/{id}` endpoint.
+* Fixed a bug in which `host_count` and `user_count` returned as `0` in the `teams/{id}` endpoint.
 
 * Fixed a bug in which tooltips for Munki issue would be cut off at the edge of the browser window.
 
@@ -62,6 +62,10 @@ Renamed machine serial to serial number and IPv4 properly to private IP address.
 * Fixed a bug in which **Hosts** table displayed 20 hosts per page.
 
 * Fixed a server panic that occured when a team was edited via YAML without an `agent_options` key.
+
+* Fixed a bug where a host was enrolled with orbit, but was being omitted when listing hosts and ordering by display name.
+
+* Fixed an bug where Pop!\_OS hosts were not being included in the linux hosts count on the hosts dashboard page.
 
 
 ## Fleet 4.21.0 (Sep 28, 2022)
