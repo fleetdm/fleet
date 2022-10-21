@@ -122,7 +122,7 @@ Osquery's [TLS API plugin](http://osquery.readthedocs.io/en/stable/deployment/re
 
 You can find various ways to install osquery on your hosts at https://osquery.io/downloads. Once you have installed osquery, you need to do three things on your hosts: 
 
-- Set up your Fleet enroll secret
+- Set up your Fleet enroll secret.
 - Provide the TLS certificate that osquery will use to communicate with Fleet
 - Configure and launch osqueryd
 
