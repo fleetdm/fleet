@@ -533,7 +533,7 @@ module.exports = {
             let tableMdString = '\n## '+table.name;
             if(table.evented){
               // If the table has `"evented": true`, we'll add an evented table label (in html)
-              tableMdString += '   <div purpose="evented-table-label"><span>EVENTED TABLE</span></div>\n';
+              tableMdString += '   <a style="text-decoration: none" purpose="evented-table-label" href="https://fleetdm.com/guides/osquery-evented-tables-overview?utm_source=fleetdm.com&utm_content=table-'+table.name+'"><span>EVENTED TABLE</span></a>\n';
             }
             // Add the tables description to the markdown string and start building the table in the markdown string
             tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
@@ -553,7 +553,7 @@ module.exports = {
                   columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
                 }
                 if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
-                  columnDescriptionForTable += '<br> **Defaults to root** ';
+                  columnDescriptionForTable += '<br> **Defaults to root** &nbsp;&nbsp;[Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table?utm_source=fleetdm.com&utm_content=table-'+table.name+')';
                 }
                 if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
 
