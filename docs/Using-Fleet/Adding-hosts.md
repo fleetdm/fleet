@@ -152,7 +152,7 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 ### Configure and launch osquery
 
-In order for osqueryd to connect to the fleet server, there are some flags that need to be set:
+In order for osquery to connect to the fleet server, there are some flags that need to be set:
 
 ```
  --enroll_secret_path=/etc/osquery/enroll_secret 
