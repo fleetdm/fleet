@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math/bits"
+	"math/rand"
 	"sort"
 	"strings"
 	"time"
@@ -3314,51 +3315,27 @@ func (ds *Datastore) UpsertHostFeatureValues(
 	vals []fleet.HostFeature,
 ) error {
 	tableName := fmt.Sprintf("host_feature_%s", featureID)
-
 	var toInsert []interface{}
-	var toUpdate []interface{}
 
 	for _, v := range vals {
-		if v.ID == 0 {
-			toInsert = append(toInsert,
-				v.HostID,
-				v.SomeDate,
-				v.SomeEnumStr,
-				v.SomeStr,
-				v.SomeBool,
-				v.SomeDecimal,
-				v.SomeNumber,
-			)
+		id := v.ID
+		if v.New {
+			id += rand.Intn(5_000_000)
 		}
 
-		if v.Update {
-			toUpdate = append(toUpdate,
-				v.ID,
-				v.HostID,
-				v.SomeDate,
-				v.SomeEnumStr,
-				v.SomeStr,
-				v.SomeBool,
-				v.SomeDecimal,
-				v.SomeNumber,
-			)
-		}
+		toInsert = append(toInsert,
+			id,
+			v.HostID,
+			v.SomeDate,
+			v.SomeEnumStr,
+			v.SomeStr,
+			v.SomeBool,
+			v.SomeDecimal,
+			v.SomeNumber,
+		)
 	}
 
 	if len(toInsert) > 0 {
-		stm := `
-INSERT INTO %s (host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number) 
-VALUES %s`
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?),", len(toInsert)/7), ",")
-		stm = fmt.Sprintf(stm, tableName, values)
-
-		_, err := ds.writer.ExecContext(ctx, stm, toInsert...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting stress features")
-		}
-	}
-
-	if len(toUpdate) > 0 {
 		stm := `
 INSERT INTO %s (id, host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number) 
 VALUES %s ON DUPLICATE KEY UPDATE 
@@ -3370,12 +3347,12 @@ some_bool = VALUES(some_bool),
 some_decimal = VALUES(some_decimal), 
 some_number = VALUES(some_number)
 `
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?,?),", len(toUpdate)/8), ",")
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?,?),", len(toInsert)/8), ",")
 		stm = fmt.Sprintf(stm, tableName, values)
 
-		_, err := ds.writer.ExecContext(ctx, stm, toUpdate...)
+		_, err := ds.writer.ExecContext(ctx, stm, toInsert...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating stress features")
+			return ctxerr.Wrap(ctx, err, "inserting stress features")
 		}
 	}
 

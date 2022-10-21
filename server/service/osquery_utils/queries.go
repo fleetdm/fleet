@@ -1064,9 +1064,9 @@ func directIngestHostStressFeature(
 			return fmt.Errorf("converting some bool %s %w", row["some_bool"], err)
 		}
 
-		update, err := strconv.ParseBool(row["update"])
+		new, err := strconv.ParseBool(row["new"])
 		if err != nil {
-			return fmt.Errorf("converting update %s %w", row["update"], err)
+			return fmt.Errorf("converting new %s %w", row["new"], err)
 		}
 
 		someDecimal, err := strconv.ParseFloat(row["some_decimal"], 32)
@@ -1089,7 +1089,7 @@ func directIngestHostStressFeature(
 				SomeBool:    someBool,
 				SomeDecimal: someDecimal,
 				SomeNumber:  someNumber,
-				Update:      update,
+				New:         new,
 			})
 	}
 

@@ -183,8 +183,7 @@ type agent struct {
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
 
-	featureChangeProb float64
-	featureNewProb    float64
+	featureNewProb float64
 }
 
 type entityCount struct {
@@ -212,7 +211,6 @@ func newAgent(
 	orbitProb float64,
 	munkiIssueProb float64,
 	munkiIssueCount int,
-	changeProb float64,
 	newProb float64,
 ) *agent {
 	var deviceAuthToken *string
@@ -239,12 +237,11 @@ func newAgent(
 		deviceAuthToken: deviceAuthToken,
 		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
-		EnrollSecret:      enrollSecret,
-		ConfigInterval:    configInterval,
-		QueryInterval:     queryInterval,
-		UUID:              uuid.New().String(),
-		featureChangeProb: changeProb,
-		featureNewProb:    newProb,
+		EnrollSecret:   enrollSecret,
+		ConfigInterval: configInterval,
+		QueryInterval:  queryInterval,
+		UUID:           uuid.New().String(),
+		featureNewProb: newProb,
 	}
 }
 
@@ -788,7 +785,7 @@ func (a *agent) diskSpace() []map[string]string {
 func (a *agent) stressFeatureData(name string) []map[string]string {
 	outputMap := map[int]int{
 		// 'Big' feature, each host will generate 1,000 rows
-		0: 1000,
+		0: 1_000,
 		// 'Medium' feature, each host will generate 50 rows
 		1: 50,
 		// 'Small' feature, each host will generate 1 rows
@@ -810,17 +807,10 @@ func (a *agent) stressFeatureData(name string) []map[string]string {
 	}
 
 	result := make([]map[string]string, outputMap[featureID%3])
-	changeDist := distuv.Bernoulli{P: a.featureChangeProb}
 	newDist := distuv.Bernoulli{P: a.featureNewProb}
 
 	for i := range result {
 		id := i + 1
-		if newDist.Rand() == 1 {
-			id = 0
-		}
-
-		changeProb := changeDist.Rand()
-
 		enumVal := enumValues[(i+1)%len(enumValues)]
 		strVal := `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna`
 		boolVal := i%2 == 0
@@ -836,7 +826,7 @@ func (a *agent) stressFeatureData(name string) []map[string]string {
 			"some_bool":     fmt.Sprint(boolVal),
 			"some_decimal":  fmt.Sprint(decimalVal),
 			"some_number":   fmt.Sprint(intVal),
-			"update":        fmt.Sprint(changeProb == 1),
+			"new":           fmt.Sprint(newDist.Rand() == 1),
 		}
 		result[i] = row
 	}
@@ -854,11 +844,8 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 
 	switch {
 	case strings.HasPrefix(name, hostDetailQueryPrefix+"host_feature_"):
-		ss := fleet.OsqueryStatus(rand.Intn(2))
-		if ss == fleet.StatusOK {
-			results = a.stressFeatureData(name)
-		}
-		return true, results, &ss
+		results = a.stressFeatureData(name)
+		return true, results, &statusOK
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
@@ -1021,8 +1008,7 @@ func main() {
 	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
-	featureChangeProb := flag.Float64("feature_change_prob", 0.5, "When generating strees feature data, prob of generating changing data [0, 1]")
-	featureNewProb := flag.Float64("feature_new_prob", 0.5, "When generating strees feature data, prob of generating new data [0, 1]")
+	featureNewProb := flag.Float64("feature_new_prob", 0.1, "When generating strees feature data, prob of generating new data [0, 1]")
 
 	flag.Parse()
 
@@ -1087,7 +1073,6 @@ func main() {
 			*orbitProb,
 			*munkiIssueProb,
 			*munkiIssueCount,
-			*featureChangeProb,
 			*featureNewProb,
 		)
 		a.stats = stats

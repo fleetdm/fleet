@@ -45,7 +45,7 @@ func Up_20221003154220(tx *sql.Tx) error {
 	for i := 0; i < nFeatures; i++ {
 		stm := `
 CREATE TABLE IF NOT EXISTS host_feature_%d (
-id int(10) unsigned NOT NULL AUTO_INCREMENT,
+id int(10) unsigned NOT NULL,
 host_id INT unsigned NOT NULL,
 some_date timestamp NULL,
 some_enum_str CHAR(10),
@@ -53,7 +53,7 @@ some_str VARCHAR(255),
 some_bool TINYINT,
 some_decimal DECIMAL(12,4),
 some_number INT,
-PRIMARY KEY (id),
+PRIMARY KEY (host_id, id),
 %s
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 		`

@@ -542,7 +542,7 @@ type EnrollHostLimiter interface {
 
 type HostFeature struct {
 	ID          int       `db:"id"`
-	Update      bool      `db:"-"`
+	New         bool      `db:"-"`
 	HostID      uint      `db:"host_id"`
 	SomeDate    time.Time `db:"some_date"`
 	SomeEnumStr string    `db:"some_enum_str"`
