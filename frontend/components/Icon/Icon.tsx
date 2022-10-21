@@ -9,11 +9,19 @@ interface IIconProps {
   direction?: "up" | "down" | "left" | "right";
   className?: string;
   size?: "small" | "medium";
+  variant?: "inline";
 }
 
 const baseClass = "icon";
 
-const Icon = ({ name, color, direction, className, size }: IIconProps) => {
+const Icon = ({
+  name,
+  color,
+  direction,
+  className,
+  size,
+  variant,
+}: IIconProps) => {
   const classNames = classnames(baseClass, className);
 
   // createPassedProps creates a props object that we pass to the specific icon
@@ -24,7 +32,8 @@ const Icon = ({ name, color, direction, className, size }: IIconProps) => {
         {},
         color === undefined ? undefined : { color },
         direction === undefined ? undefined : { DEFAULT_SORT_DIRECTION },
-        size === undefined ? undefined : { size }
+        size === undefined ? undefined : { size },
+        variant === undefined ? undefined : { variant }
       );
     };
 
