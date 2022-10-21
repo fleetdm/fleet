@@ -8,7 +8,7 @@ examples: >-
   
   ```
 notes: >-
-  - Active Directory is a directory service used to manage users and computers. A domain is the high
-  level grouping of these objects, which a workstation must join in order to provide the user with
-  features such as Single Sign-On to internal applications using Kerberos.
+ 
+  - Active Directory is a directory service used to manage users and computers. A domain is the high level grouping of these objects, which a workstation must join in order to provide the user with features such as Single Sign-On to internal applications using Kerberos. 
+ 
   - If a host is not bound to an Active Directory domain, then the table returns no results.
