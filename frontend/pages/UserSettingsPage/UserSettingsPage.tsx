@@ -191,6 +191,7 @@ const UserSettingsPage = ({
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
                 text="API-only user"
+                newTab
               />
               &nbsp;instead.
             </p>
@@ -204,6 +205,7 @@ const UserSettingsPage = ({
             <CustomLink
               url="https://fleetdm.com/docs/deploying/configuration#session-duration?utm_medium=fleetui&utm_campaign=get-api-token"
               text="session duration configuration"
+              newTab
             />
           </p>
           <div className="modal-cta-wrap">

@@ -132,6 +132,7 @@ const AgentOptionsPage = ({
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
           text="Learn more about agent options"
+          newTab
           multiline
         />
       </p>

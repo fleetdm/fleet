@@ -98,6 +98,7 @@ const Statistics = ({
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
               text="Learn more about usage statistics"
+              newTab
             />
           </p>
           <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>

@@ -174,6 +174,7 @@ const QueryPage = ({
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new/choose"
               text="file an issue"
+              newTab
             />
           </p>
         </div>

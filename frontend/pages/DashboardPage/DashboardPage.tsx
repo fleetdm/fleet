@@ -479,6 +479,7 @@ const DashboardPage = (): JSX.Element => {
         <CustomLink
           url="https://www.munki.org/munki/"
           text="Learn about Munki"
+          newTab
         />
       </p>
     ),
@@ -502,6 +503,7 @@ const DashboardPage = (): JSX.Element => {
         <CustomLink
           url="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
           text="Learn about MDM"
+          newTab
         />
       </p>
     ),

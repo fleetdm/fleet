@@ -298,6 +298,7 @@ const UserForm = ({
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               text="Learn more about user permissions"
+              newTab
             />
           </InfoBanner>
         )}
@@ -349,6 +350,7 @@ const UserForm = ({
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
                   text="Learn more about user permissions"
+                  newTab
                 />
               </InfoBanner>
               <SelectedTeamsForm

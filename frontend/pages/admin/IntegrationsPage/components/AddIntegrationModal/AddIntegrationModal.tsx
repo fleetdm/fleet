@@ -63,6 +63,7 @@ const AddIntegrationModal = ({
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
               text="Suggest a new destination"
+              newTab
             />
           </div>
         )}

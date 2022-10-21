@@ -20,6 +20,7 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
                 text="how to configure software inventory"
+                newTab
               />
             </p>
           </div>

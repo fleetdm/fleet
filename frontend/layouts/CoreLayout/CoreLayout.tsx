@@ -26,6 +26,7 @@ const expirationMessage = (
     <CustomLink
       url="https://fleetdm.com/docs/using-fleet/faq#how-do-i-downgrade-from-fleet-premium-to-fleet-free"
       text="please head to the Fleet documentation"
+      newTab
       multiline
     />
   </>

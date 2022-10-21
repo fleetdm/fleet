@@ -86,6 +86,7 @@ const FleetDesktop = ({
             <CustomLink
               url="https://fleetdm.com/transparency"
               text="https://fleetdm.com/transparency"
+              newTab
               multiline
             />{" "}
             . You can override the URL to take them to a resource of your

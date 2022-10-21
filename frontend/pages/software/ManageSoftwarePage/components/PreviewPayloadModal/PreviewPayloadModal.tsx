@@ -65,6 +65,7 @@ const PreviewPayloadModal = ({
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/automations"
             text="Check out the Fleet documentation"
+            newTab
           />
         </p>
         <div className={`${baseClass}__payload-request-preview`}>

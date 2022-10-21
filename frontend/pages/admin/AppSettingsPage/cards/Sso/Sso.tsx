@@ -236,6 +236,7 @@ const Sso = ({
                 <CustomLink
                   url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
                   text="Learn more"
+                  newTab
                 />
               </>
             </Checkbox>

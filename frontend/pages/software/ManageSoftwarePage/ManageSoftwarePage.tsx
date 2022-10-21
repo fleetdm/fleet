@@ -487,6 +487,7 @@ const ManageSoftwarePage = ({
         <CustomLink
           url={GITHUB_NEW_ISSUE_LINK}
           text="File an issue on GitHub"
+          newTab
         />
       </div>
     );

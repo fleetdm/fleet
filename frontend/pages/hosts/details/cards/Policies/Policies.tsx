@@ -73,6 +73,7 @@ const Policies = ({
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-updating-a-policys-response"
                   text="why the response might not be updating"
+                  newTab
                   multiline
                 />
               </p>

@@ -376,6 +376,7 @@ const IntegrationsPage = (): JSX.Element => {
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/automations"
                 text="Read about automations"
+                newTab
               />
             </p>
             <Button

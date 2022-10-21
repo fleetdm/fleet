@@ -78,6 +78,7 @@ const Agents = ({
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
               text="Learn more about agent options"
+              newTab
               multiline
             />
           </p>
@@ -93,6 +94,7 @@ const Agents = ({
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/teams"
                 text="Learn more about teams"
+                newTab
               />
             </InfoBanner>
           )}

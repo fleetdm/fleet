@@ -57,6 +57,7 @@ const ForgotPasswordPage = () => {
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
               text="Password reset FAQ"
+              newTab
             />
           </p>
         </div>

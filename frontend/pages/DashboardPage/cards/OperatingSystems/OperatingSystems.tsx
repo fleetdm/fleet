@@ -91,6 +91,7 @@ const OperatingSystems = ({
         <CustomLink
           url={OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform]}
           text="See supported operating systems"
+          newTab
           multiline
         />
       </p>

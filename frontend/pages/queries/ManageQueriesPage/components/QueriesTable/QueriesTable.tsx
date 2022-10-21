@@ -69,6 +69,7 @@ const QueriesTable = ({
                       <CustomLink
                         url="https://fleetdm.com/docs/using-fleet/standard-query-library"
                         text="import Fleet’s standard query library"
+                        newTab
                       />
                     </p>
                     <Button

@@ -59,6 +59,7 @@ const PackInfoSidePanel = () => {
         <CustomLink
           url="https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/"
           text="documentation"
+          newTab
         />
       </p>
     </div>

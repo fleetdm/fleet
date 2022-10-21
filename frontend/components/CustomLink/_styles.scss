@@ -1,9 +1,9 @@
 .custom-link {
-  .no-wrap {
+  &__no-wrap {
     white-space: nowrap;
   }
 
-  .icon {
+  &__external-icon {
     display: inline;
     margin-left: $pad-small;
   }

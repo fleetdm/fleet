@@ -28,6 +28,7 @@ const SandboxDemoMessage = ({
         <CustomLink
           url={`https://calendly.com/fleetdm/demo?utm_source=${utmSource}`}
           text={"Schedule a demo"}
+          newTab
         />
       </p>
     </div>

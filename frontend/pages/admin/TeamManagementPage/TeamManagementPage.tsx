@@ -207,6 +207,7 @@ const TeamManagementPage = (): JSX.Element => {
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/teams"
                 text="Read about teams"
+                newTab
               />
             </p>
             <Button

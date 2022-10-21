@@ -41,6 +41,7 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/configuration-files#features"
                 text="steps to enable this feature"
+                newTab
               />
             </p>
           </div>
