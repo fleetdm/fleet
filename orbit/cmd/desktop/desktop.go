@@ -206,6 +206,7 @@ func main() {
 			defer tic.Stop()
 
 			for {
+				<-tic.C
 				failingPolicies, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
 				switch {
 				case err == nil:
@@ -242,8 +243,6 @@ func main() {
 					}
 				}
 				myDeviceItem.Enable()
-
-				<-tic.C
 			}
 		}()
 
