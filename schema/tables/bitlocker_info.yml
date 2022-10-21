@@ -15,7 +15,7 @@ notes: >-
    `protection_status = 0`
 
     For a standard HDD:
-    The volume is unencrypted, partially encrypted, or the volume's encryption key is available in the clear on the hard disk...
+    The volume is unencrypted, partially encrypted, or the volume's encryption key is available in the clear on the hard disk.
 
     For an EHDD:
     The band for the volume is perpetually unlocked, has no key manager, or is managed by a third party key manager.
