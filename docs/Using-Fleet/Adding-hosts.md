@@ -118,7 +118,7 @@ Fleet supports other methods for adding your hosts to Fleet, such as the [plain 
 
 ## Plain osquery
 
-If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's [TLS API plugin](http://osquery.readthedocs.io/en/stable/deployment/remote/). 
+Osquery's [TLS API plugin](http://osquery.readthedocs.io/en/stable/deployment/remote/) lets you use the native osqueryd binaries to connect to Fleet.
 
 You can find various ways to install osquery on your hosts at https://osquery.io/downloads. Once you have installed osquery, you need to do three things on your hosts: 
 
