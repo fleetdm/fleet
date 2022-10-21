@@ -212,7 +212,7 @@ For your convenience, osqueryd supports putting all your flags into a single fil
 osqueryd --flagfile=/etc/osquery/fleet.flags
 ```
 
-When using a flag file on Windows, make sure that paths to files in the flag file are absolute and not quoted. For example in `C:\Program Files\osquery\osquery.flags`:
+When using a flag file on Windows, make sure that file paths in the flag file are absolute and not quoted. For example, in `C:\Program Files\osquery\osquery.flags`:
 
 ```
 --tls_server_certs=C:\Program Files\osquery\fleet.pem
