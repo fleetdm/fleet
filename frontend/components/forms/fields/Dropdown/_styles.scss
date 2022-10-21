@@ -46,7 +46,6 @@
   &.dropdown__select {
     border: 1px solid $ui-fleet-blue-15;
     border-radius: $border-radius;
-    height: 40px;
     &:hover {
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
@@ -55,6 +54,7 @@
   .Select-control {
     background-color: $ui-light-grey;
     border: 0;
+    border-radius: $border-radius;
     .Select-value {
       font-size: $small;
       background-color: $ui-off-white;
@@ -137,6 +137,9 @@
       margin-left: -4px;
       border: none;
     }
+    .Select-control {
+      border-radius: $border-radius;
+    }
   }
   :hover {
     .Select-arrow {
@@ -172,11 +175,10 @@
 
   .Select-menu-outer {
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-    border-radius: 0 0 $border-radius $border-radius;
     z-index: 6;
     overflow: hidden;
     border: 0;
-    margin: 0;
+    margin: 1px 0 0;
     padding: $pad-small;
   }
 
@@ -277,7 +279,3 @@
     }
   }
 }
-
-// .is-focused {
-//   border: 1px solid $core-vibrant-blue;
-// }
