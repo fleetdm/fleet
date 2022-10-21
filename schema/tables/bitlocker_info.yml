@@ -14,19 +14,19 @@ notes: >-
 
    `protection_status = 0`
 
-    For a standard HDD:
+    For an Internal HD:
     The volume is unencrypted, partially encrypted, or the volume's encryption key is available in the clear on the hard disk.
 
-    For an EHDD:
+    For an External HD:
     The band for the volume is perpetually unlocked, has no key manager, or is managed by a third party key manager.
     This can also mean that the band is managed by BitLocker but the DisableKeyProtectors method has been called and the drive is suspended.
 
    `protection_status = 1`
 
-    For a standard HDD:
+    For an Internal HD:
     The volume is fully encrypted and the encryption key for the volume is not available in the clear on the hard disk.
 
-    For an EHDD:
+    For an External HD:
     BitLocker is the key manager for the band. The drive can be locked or unlocked but cannot be perpetually unlocked.
 
    `protection_status = 2`
