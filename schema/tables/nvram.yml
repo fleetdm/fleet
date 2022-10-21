@@ -1,0 +1,9 @@
+name: nvram
+examples: >-
+  If a Mac had a sleep failure, this query will return the reason for it.
+  
+  ```
+  
+  SELECT name, value FROM nvram WHERE name='SleepWakeFailureString';
+  
+  ```

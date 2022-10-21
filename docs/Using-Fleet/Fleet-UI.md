@@ -46,7 +46,7 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 Fleet allows you to schedule queries. Scheduled queries will send data to your log destination automatically.
 
-The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
+The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [log destinations page](../Using-Fleet/Log-destinations.md).
 
 How to schedule a query:
 

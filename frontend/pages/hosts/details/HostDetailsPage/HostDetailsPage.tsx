@@ -9,14 +9,12 @@ import classnames from "classnames";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
-import configAPI from "services/entities/config";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
-import { IConfig } from "interfaces/config";
 import {
   IHost,
   IDeviceMappingResponse,
@@ -97,11 +95,12 @@ const HostDetailsPage = ({
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
   const {
+    config,
+    currentUser,
     isGlobalAdmin,
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
-    currentUser,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -197,14 +196,6 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: features } = useQuery<
-    IConfig,
-    Error,
-    { enable_host_users: boolean; enable_software_inventory: boolean }
-  >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data.features,
-  });
-
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
@@ -298,6 +289,10 @@ const HostDetailsPage = ({
     }
   );
 
+  const featuresConfig = host?.team_id
+    ? teams?.find((t) => t.id === host.team_id)?.features
+    : config?.features;
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -323,7 +318,7 @@ const HostDetailsPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
-      "hostname",
+      "display_name",
     ])
   );
 
@@ -390,12 +385,15 @@ const HostDetailsPage = ({
         await hostAPI.destroy(host);
         renderFlash(
           "success",
-          `Host "${host.hostname}" was successfully deleted.`
+          `Host "${host.display_name}" was successfully deleted.`
         );
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.hostname}" could not be deleted.`);
+        renderFlash(
+          "error",
+          `Host "${host.display_name}" could not be deleted.`
+        );
       } finally {
         setShowDeleteHostModal(false);
         setIsUpdatingHost(false);
@@ -419,7 +417,7 @@ const HostDetailsPage = ({
         });
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.hostname}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }
@@ -600,14 +598,16 @@ const HostDetailsPage = ({
                 usersState={usersState}
                 isLoading={isLoadingHost}
                 onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={features?.enable_host_users}
+                hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
                 software={hostSoftware}
-                softwareInventoryEnabled={features?.enable_software_inventory}
+                softwareInventoryEnabled={
+                  featuresConfig?.enable_software_inventory
+                }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
               {macadmins && (
@@ -639,7 +639,7 @@ const HostDetailsPage = ({
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
             onSubmit={onDestroyHost}
-            hostName={host?.hostname}
+            hostName={host?.display_name}
             isUpdatingHost={isUpdatingHost}
           />
         )}

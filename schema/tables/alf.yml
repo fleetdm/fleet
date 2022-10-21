@@ -1,0 +1,12 @@
+name: alf
+examples: >-
+  See the state of the Application Layer Firewall on a Mac. A result of 0 means
+  it is disabled, 1 means it is enabled, and 2 means it is enabled and blocking
+  all inbound connections. See our standard query library for an example policy
+  query using this.
+
+  ```
+
+  SELECT global_state FROM alf;
+
+  ```

@@ -9,10 +9,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
+	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -20,6 +22,34 @@ import (
 
 // version is set at compile time via -ldflags
 var version = "unknown"
+
+func setupRunners() {
+	var runnerGroup run.Group
+
+	// Setting up a watcher for the communication channel
+	if runtime.GOOS == "windows" {
+		runnerGroup.Add(
+			func() error {
+				// block wait on the communication channel
+				if err := blockWaitForStopEvent(constant.DesktopAppExecName); err != nil {
+					log.Error().Err(err).Msg("There was an error on the desktop communication channel")
+					return err
+				}
+
+				log.Info().Msg("Shutdown was requested!")
+				return nil
+			},
+			func(err error) {
+				systray.Quit()
+			},
+		)
+	}
+
+	if err := runnerGroup.Run(); err != nil {
+		log.Error().Err(err).Msg("Fleet Desktop runners terminated")
+		return
+	}
+}
 
 func main() {
 	setupLogs()
@@ -40,6 +70,9 @@ func main() {
 	if fleetURL == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
 	}
+
+	// Setting up working runners such as signalHandler runner
+	go setupRunners()
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -120,7 +153,7 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.ListDevicePolicies(tokenReader.GetCached())
+					_, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
@@ -173,7 +206,7 @@ func main() {
 			defer tic.Stop()
 
 			for {
-				policies, err := client.ListDevicePolicies(tokenReader.GetCached())
+				failingPolicies, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
@@ -185,28 +218,21 @@ func main() {
 					<-checkToken()
 					continue
 				default:
-					log.Error().Err(err).Msg("get device URL")
+					log.Error().Err(err).Msg("get failing policies")
 					continue
 				}
 
-				failedPolicyCount := 0
-				for _, policy := range policies {
-					if policy.Response != "pass" {
-						failedPolicyCount++
-					}
-				}
-
-				if failedPolicyCount > 0 {
+				if failingPolicies > 0 {
 					if runtime.GOOS == "windows" {
 						// Windows (or maybe just the systray library?) doesn't support color emoji
 						// in the system tray menu, so we use text as an alternative.
-						if failedPolicyCount == 1 {
+						if failingPolicies == 1 {
 							myDeviceItem.SetTitle("My device (1 issue)")
 						} else {
-							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failedPolicyCount))
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
 						}
 					} else {
-						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
 					}
 				} else {
 					if runtime.GOOS == "windows" {

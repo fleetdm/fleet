@@ -34,7 +34,7 @@ func TestQueryResultsStoreErrors(t *testing.T) {
 		result := fleet.DistributedQueryResult{
 			DistributedQueryCampaignID: 9999,
 			Rows:                       []map[string]string{{"bing": "fds"}},
-			Host: fleet.Host{
+			Host: fleet.HostResponseForHostCheap(&fleet.Host{
 				ID: 4,
 				UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 					UpdateTimestamp: fleet.UpdateTimestamp{
@@ -42,7 +42,7 @@ func TestQueryResultsStoreErrors(t *testing.T) {
 					},
 				},
 				DetailUpdatedAt: time.Now().UTC(),
-			},
+			}),
 		}
 
 		// Write with no subscriber
@@ -108,7 +108,7 @@ func TestQueryResultsStore(t *testing.T) {
 			{
 				DistributedQueryCampaignID: 1,
 				Rows:                       []map[string]string{{"foo": "bar"}},
-				Host: fleet.Host{
+				Host: fleet.HostResponseForHostCheap(&fleet.Host{
 					ID: 1,
 					// Note these times need to be set to avoid
 					// issues with roundtrip serializing the zero
@@ -124,12 +124,12 @@ func TestQueryResultsStore(t *testing.T) {
 
 					DetailUpdatedAt: time.Now().UTC(),
 					SeenTime:        time.Now().UTC(),
-				},
+				}),
 			},
 			{
 				DistributedQueryCampaignID: 1,
 				Rows:                       []map[string]string{{"whoo": "wahh"}},
-				Host: fleet.Host{
+				Host: fleet.HostResponseForHostCheap(&fleet.Host{
 					ID: 3,
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 						UpdateTimestamp: fleet.UpdateTimestamp{
@@ -142,12 +142,12 @@ func TestQueryResultsStore(t *testing.T) {
 
 					DetailUpdatedAt: time.Now().UTC(),
 					SeenTime:        time.Now().UTC(),
-				},
+				}),
 			},
 			{
 				DistributedQueryCampaignID: 1,
 				Rows:                       []map[string]string{{"bing": "fds"}},
-				Host: fleet.Host{
+				Host: fleet.HostResponseForHostCheap(&fleet.Host{
 					ID: 4,
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 						UpdateTimestamp: fleet.UpdateTimestamp{
@@ -160,7 +160,7 @@ func TestQueryResultsStore(t *testing.T) {
 
 					DetailUpdatedAt: time.Now().UTC(),
 					SeenTime:        time.Now().UTC(),
-				},
+				}),
 			},
 		}
 
@@ -174,7 +174,7 @@ func TestQueryResultsStore(t *testing.T) {
 			{
 				DistributedQueryCampaignID: 2,
 				Rows:                       []map[string]string{{"tim": "tom"}},
-				Host: fleet.Host{
+				Host: fleet.HostResponseForHostCheap(&fleet.Host{
 					ID: 1,
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 						UpdateTimestamp: fleet.UpdateTimestamp{
@@ -187,12 +187,12 @@ func TestQueryResultsStore(t *testing.T) {
 
 					DetailUpdatedAt: time.Now().UTC(),
 					SeenTime:        time.Now().UTC(),
-				},
+				}),
 			},
 			{
 				DistributedQueryCampaignID: 2,
 				Rows:                       []map[string]string{{"slim": "slam"}},
-				Host: fleet.Host{
+				Host: fleet.HostResponseForHostCheap(&fleet.Host{
 					ID: 3,
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 						UpdateTimestamp: fleet.UpdateTimestamp{
@@ -205,7 +205,7 @@ func TestQueryResultsStore(t *testing.T) {
 
 					DetailUpdatedAt: time.Now().UTC(),
 					SeenTime:        time.Now().UTC(),
-				},
+				}),
 			},
 		}
 

@@ -272,6 +272,107 @@ spec:
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 }
 
+func TestApplyAppConfigDryRunIssue(t *testing.T) {
+	// reproduces the bug fixed by https://github.com/fleetdm/fleet/pull/8194
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
+	var currentAppConfig = &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return currentAppConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		currentAppConfig = config
+		return nil
+	}
+
+	// first, set the default app config's agent options as set after fleetctl setup
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+
+	// then, dry-run a valid app config's agent options, which made the original
+	// app config's agent options invalid JSON (when it shouldn't have modified
+	// it at all - the issue was in the cached_mysql datastore, it did not clone
+	// the app config properly).
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc_system_entries:
+              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
+              path: "/Library/Application Support/com.apple.TCC/TCC.db"
+              columns:
+                - "service"
+                - "client"
+                - "allowed"
+                - "prompt_count"
+                - "last_modified"
+`)
+
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+
+	// the saved app config was left unchanged, still equal to the original agent
+	// options
+	got := runAppForTest(t, []string{"get", "config"})
+	assert.Contains(t, got, `agent_options:
+    config:
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}`)
+}
+
 func TestApplyAppConfigUnknownFields(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
@@ -305,7 +406,7 @@ spec:
 `)
 
 	runAppCheckErr(t, []string{"apply", "-f", name},
-		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
+		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad Request: unsupported key provided: \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
 }
@@ -743,7 +844,7 @@ spec:
       config:
         blah: nope
 `,
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid top-level key for team",
@@ -769,7 +870,7 @@ spec:
       config:
         blah: nope
 `,
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid agent options dry-run",
@@ -784,7 +885,7 @@ spec:
         blah: nope
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: unknown field "blah"`,
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
 		},
 		{
 			desc: "invalid agent options force",
@@ -815,7 +916,7 @@ spec:
           aws_debug: 123
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "invalid team agent options command-line flag",
@@ -829,7 +930,7 @@ spec:
       command_line_flags:
         no_such_flag: 123
 `,
-			wantErr: `400 Bad request: command-line flags: json: unknown field "no_such_flag"`,
+			wantErr: `400 Bad Request: unsupported key provided: "no_such_flag"`,
 		},
 		{
 			desc: "valid team agent options command-line flag",
@@ -863,7 +964,7 @@ spec:
             options:
               aws_debug: 123
 `,
-			wantErr: `400 Bad request: darwin platform config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "empty config",
@@ -905,7 +1006,7 @@ spec:
   server_settings:
     foo: bar
 `,
-			wantErr: `400 Bad request: json: unknown field "foo"`,
+			wantErr: `400 Bad Request: unsupported key provided: "foo"`,
 		},
 		{
 			desc: "config with invalid key type",
@@ -928,7 +1029,7 @@ spec:
     foo: bar
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: json: unknown field "foo"`,
+			wantErr: `400 Bad Request: unsupported key provided: "foo"`,
 		},
 		{
 			desc: "config with invalid agent options data type in dry-run",
@@ -942,7 +1043,7 @@ spec:
         aws_debug: 123
 `,
 			flags:   []string{"--dry-run"},
-			wantErr: `400 Bad request: common config: json: cannot unmarshal number into Go struct field osqueryOptions.options.aws_debug of type bool`,
+			wantErr: `400 Bad Request: invalid value type at 'options.aws_debug': expected bool but got number`,
 		},
 		{
 			desc: "config with invalid agent options data type with force",
@@ -969,7 +1070,7 @@ spec:
       enable_tables: "foo"
       no_such_flag: false
 `,
-			wantErr: `command-line flags: json: unknown field "no_such_flag"`,
+			wantErr: `400 Bad Request: unsupported key provided: "no_such_flag"`,
 		},
 		{
 			desc: "config with invalid value for agent options command-line flags",
@@ -981,7 +1082,7 @@ spec:
     command_line_flags:
       enable_tables: 123
 `,
-			wantErr: `command-line flags: json: cannot unmarshal number into Go struct field osqueryCommandLineFlags.enable_tables of type string`,
+			wantErr: `400 Bad Request: invalid value type at 'enable_tables': expected string but got number`,
 		},
 		{
 			desc: "config with valid agent options command-line flags",
@@ -1029,7 +1130,7 @@ spec:
     enable_software_inventory: true
 `,
 			flags:      []string{"--dry-run"},
-			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration`,
+			wantErr:    `400 Bad request: warning: deprecated settings were used in the configuration: [host_settings]`,
 			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' spec`,
 		},
 		{

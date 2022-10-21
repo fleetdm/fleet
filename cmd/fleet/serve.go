@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -646,8 +645,6 @@ the way that the Fleet server works.
 				}
 			}
 
-			defaultWritetimeout := 40 * time.Second
-			writeTimeout := defaultWritetimeout
 			// The "GET /api/latest/fleet/queries/run" API requires
 			// WriteTimeout to be higher than the live query rest period
 			// (otherwise the response is not sent back to the client).
@@ -655,9 +652,6 @@ the way that the Fleet server works.
 			// We add 10s to the live query rest period to allow the writing
 			// of the response.
 			liveQueryRestPeriod += 10 * time.Second
-			if liveQueryRestPeriod > writeTimeout {
-				writeTimeout = liveQueryRestPeriod
-			}
 
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
@@ -667,17 +661,9 @@ the way that the Fleet server works.
 				handler = launcher.Handler(rootMux)
 			}
 
-			srv := &http.Server{
-				Addr:              config.Server.Address,
-				Handler:           handler,
-				ReadTimeout:       25 * time.Second,
-				WriteTimeout:      0,
-				ReadHeaderTimeout: 5 * time.Second,
-				IdleTimeout:       5 * time.Minute,
-				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
-				BaseContext: func(l net.Listener) context.Context {
-					return ctx
-				},
+			srv := config.Server.DefaultHTTPServer(ctx, handler)
+			if liveQueryRestPeriod > srv.WriteTimeout {
+				srv.WriteTimeout = liveQueryRestPeriod
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)

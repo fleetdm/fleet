@@ -7,6 +7,12 @@
 
   .Select {
     position: relative;
+    border: 0;
+    height: auto;
+
+    &.is-focused, &:hover {
+      border: 0;
+    }
 
     .Select-control {
       display: flex;

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
@@ -17,7 +17,7 @@ import {
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { ISelectedPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
@@ -25,7 +25,10 @@ import macadminsAPI from "services/entities/macadmins";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
-import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
+import {
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "utilities/constants";
 import { ITableQueryData } from "components/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
@@ -35,7 +38,8 @@ import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 import useInfoCard from "./components/InfoCard";
-import HostsStatus from "./cards/HostsStatus";
+import MissingHosts from "./cards/MissingHosts";
+import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
 import HostsSummary from "./cards/HostsSummary";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
@@ -48,6 +52,9 @@ import AddHostsModal from "../../components/AddHostsModal";
 import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "homepage";
+
+// Premium feature, Gb must be set between 1-100
+const LOW_DISK_SPACE_GB = 32;
 
 const Homepage = (): JSX.Element => {
   const {
@@ -65,13 +72,19 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
+    "all"
+  );
+  const [
+    selectedPlatformLabelId,
+    setSelectedPlatformLabelId,
+  ] = useState<number>();
   const [labels, setLabels] = useState<ILabelSummary[]>();
   const [macCount, setMacCount] = useState(0);
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
-  const [onlineCount, setOnlineCount] = useState(0);
-  const [offlineCount, setOfflineCount] = useState(0);
+  const [missingCount, setMissingCount] = useState(0);
+  const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
   const [softwareTitleDetail, setSoftwareTitleDetail] = useState<
     JSX.Element | string | null
@@ -125,19 +138,21 @@ const Homepage = (): JSX.Element => {
     isFetching: isHostSummaryFetching,
     error: errorHosts,
   } = useQuery<IHostSummary, Error, IHostSummary>(
-    ["host summary", currentTeam, selectedPlatform],
+    ["host summary", currentTeam, isPremiumTier, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
         teamId: currentTeam?.id,
-        platform: selectedPlatform,
+        platform: selectedPlatform !== "all" ? selectedPlatform : undefined,
+        lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
       }),
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
-        setOnlineCount(data.online_count);
-        setOfflineCount(data.offline_count);
-
+        if (isPremiumTier) {
+          setMissingCount(data.missing_30_days_count || 0);
+          setLowDiskSpaceCount(data.low_disk_space_count || 0);
+        }
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
@@ -181,7 +196,11 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const isSoftwareEnabled = config?.features?.enable_software_inventory;
+  const featuresConfig = currentTeam?.id
+    ? teams?.find((t) => t.id === currentTeam.id)?.features
+    : config?.features;
+  const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
   const SOFTWARE_DEFAULT_SORT_HEADER = "hosts_count";
   const SOFTWARE_DEFAULT_PAGE_SIZE = 8;
@@ -289,6 +308,25 @@ const Homepage = (): JSX.Element => {
     }
   );
 
+  // Sets selected platform label id for links to filtered manage host page
+  useEffect(() => {
+    if (labels) {
+      const getLabel = (
+        labelString: string,
+        summaryLabels: ILabelSummary[]
+      ): ILabelSummary | undefined => {
+        return Object.values(summaryLabels).find((label: ILabelSummary) => {
+          return label.label_type === "builtin" && label.name === labelString;
+        });
+      };
+
+      if (selectedPlatform !== "all") {
+        const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
+        setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+      }
+    }
+  }, [labels, selectedPlatform]);
+
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -321,6 +359,7 @@ const Homepage = (): JSX.Element => {
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
+        selectedPlatformLabelId={selectedPlatformLabelId}
         labels={labels}
         errorHosts={!!errorHosts}
       />
@@ -354,12 +393,24 @@ const Homepage = (): JSX.Element => {
     !software?.software &&
     software?.counts_updated_at === null;
 
-  const HostsStatusCard = useInfoCard({
+  const MissingHostsCard = useInfoCard({
     title: "",
     children: (
-      <HostsStatus
-        onlineCount={onlineCount}
-        offlineCount={offlineCount}
+      <MissingHosts
+        missingCount={missingCount}
+        isLoadingHosts={isHostSummaryFetching}
+        showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+      />
+    ),
+  });
+
+  const LowDiskSpaceHostsCard = useInfoCard({
+    title: "",
+    children: (
+      <LowDiskSpaceHosts
+        lowDiskSpaceGb={LOW_DISK_SPACE_GB}
+        lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
       />
@@ -478,7 +529,7 @@ const Homepage = (): JSX.Element => {
     children: (
       <OperatingSystems
         currentTeamId={currentTeam?.id}
-        selectedPlatform={selectedPlatform as IOsqueryPlatform}
+        selectedPlatform={selectedPlatform}
         showTitle={showOperatingSystemsUI}
         setShowTitle={setShowOperatingSystemsUI}
       />
@@ -580,11 +631,13 @@ const Homepage = (): JSX.Element => {
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <Dropdown
-            value={selectedPlatform}
+            value={selectedPlatform || ""}
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: string) => setSelectedPlatform(value)}
+            onChange={(value: ISelectedPlatform) => {
+              setSelectedPlatform(value);
+            }}
           />
         </div>
         <div className="host-sections">
@@ -595,7 +648,12 @@ const Homepage = (): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            <div className={`${baseClass}__section`}>{HostsStatusCard}</div>
+            {isPremiumTier && (
+              <div className={`${baseClass}__section`}>
+                {MissingHostsCard}
+                {LowDiskSpaceHostsCard}
+              </div>
+            )}
           </>
         </div>
         {renderCards()}

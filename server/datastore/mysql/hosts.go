@@ -905,9 +905,18 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 					orbit_node_key
 				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
 			`
-			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
+			}
+			hostID, _ := result.LastInsertId()
+			level.Info(ds.logger).Log("hostID", hostID)
+			const sqlHostDisplayName = `
+				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
+			`
+			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
 		default:
 			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")

@@ -11,18 +11,23 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { IConfig } from "interfaces/config";
+import {
+  IConfig,
+  CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
+} from "interfaces/config";
 import {
   IJiraIntegration,
   IZendeskIntegration,
-  IIntegration,
+  IIntegrations,
 } from "interfaces/integration";
+import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
   ISoftwareCountResponse,
 } from "services/entities/software";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
@@ -50,7 +55,7 @@ interface IManageSoftwarePageProps {
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { vulnerable?: boolean };
+    query: { vulnerable?: string };
     search: string;
   };
 }
@@ -63,6 +68,11 @@ interface ISoftwareQueryKey {
   orderKey: string;
   orderDir?: "asc" | "desc";
   vulnerable: boolean;
+  teamId?: number;
+}
+
+interface ISoftwareConfigQueryKey {
+  scope: string;
   teamId?: number;
 }
 
@@ -89,9 +99,8 @@ const ManageSoftwarePage = ({
 }: IManageSoftwarePageProps): JSX.Element => {
   const {
     availableTeams,
+    config: globalConfig,
     currentTeam,
-    isGlobalAdmin,
-    isGlobalMaintainer,
     isOnGlobalTeam,
     isPremiumTier,
   } = useContext(AppContext);
@@ -99,17 +108,10 @@ const ManageSoftwarePage = ({
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState(false);
-  const [
-    isVulnerabilityAutomationsEnabled,
-    setIsVulnerabilityAutomationsEnabled,
-  ] = useState(false);
-  const [
-    recentVulnerabilityMaxAge,
-    setRecentVulnerabilityMaxAge,
-  ] = useState<number>();
+  // TODO: refactor usage of vulnerable query param in accordance with new patterns for query params
+  // and management of URL state
   const [filterVuln, setFilterVuln] = useState(
-    location?.query?.vulnerable || false
+    location?.query?.vulnerable === "true" || false
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [sortDirection, setSortDirection] = useState<
@@ -121,45 +123,70 @@ const ManageSoftwarePage = ({
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
+  const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
 
-  // TODO: experiment to see if we need this state and effect or can we rely solely on the router/location for the dropdown state?
   useEffect(() => {
-    setFilterVuln(!!location.query.vulnerable);
+    setFilterVuln(location?.query?.vulnerable === "true" || false);
+    // TODO: handle invalid values for vulnerable param
   }, [location]);
 
-  const { data: config } = useQuery(["config"], configAPI.loadAll, {
-    onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
-      let jiraIntegrationEnabled = false;
-      if (data.integrations.jira) {
-        jiraIntegrationEnabled = data?.integrations.jira.some(
-          (integration: IIntegration) => {
-            return integration.enable_software_vulnerabilities;
-          }
-        );
-      }
-      let zendeskIntegrationEnabled = false;
-      if (data.integrations.zendesk) {
-        zendeskIntegrationEnabled = data?.integrations.zendesk.some(
-          (integration: IIntegration) => {
-            return integration.enable_software_vulnerabilities;
-          }
-        );
-      }
-      setIsVulnerabilityAutomationsEnabled(
-        data?.webhook_settings?.vulnerabilities_webhook
-          .enable_vulnerabilities_webhook ||
-          jiraIntegrationEnabled ||
-          zendeskIntegrationEnabled
-      );
-      // Convert from nanosecond to nearest day
-      setRecentVulnerabilityMaxAge(
-        Math.round(
-          data?.vulnerabilities?.recent_vulnerability_max_age / 86400000000000
-        )
-      );
+  // softwareConfig is either the global config or the team config of the currently selected team
+  const {
+    data: softwareConfig,
+    error: softwareConfigError,
+    isFetching: isFetchingSoftwareConfig,
+    refetch: refetchSoftwareConfig,
+  } = useQuery<
+    IConfig | ILoadTeamResponse,
+    Error,
+    IConfig | ITeamConfig,
+    ISoftwareConfigQueryKey[]
+  >(
+    [{ scope: "softwareConfig", teamId: currentTeam?.id }],
+    ({ queryKey }) => {
+      const { teamId } = queryKey[0];
+      return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
     },
-  });
+    {
+      select: (data) => ("team" in data ? data.team : data),
+    }
+  );
+
+  const isSoftwareConfigLoaded =
+    !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
+
+  const isSoftwareEnabled = !!softwareConfig?.features
+    ?.enable_software_inventory;
+
+  const vulnWebhookSettings =
+    softwareConfig?.webhook_settings?.vulnerabilities_webhook;
+
+  const isVulnWebhookEnabled = !!vulnWebhookSettings?.enable_vulnerabilities_webhook;
+
+  const isVulnIntegrationEnabled = (integrations?: IIntegrations) => {
+    return (
+      !!integrations?.jira?.some((j) => j.enable_software_vulnerabilities) ||
+      !!integrations?.zendesk?.some((z) => z.enable_software_vulnerabilities)
+    );
+  };
+
+  const isAnyVulnAutomationEnabled =
+    isVulnWebhookEnabled ||
+    isVulnIntegrationEnabled(softwareConfig?.integrations);
+
+  const recentVulnerabilityMaxAge = (() => {
+    let maxAgeInNanoseconds: number | undefined;
+    if (softwareConfig && "vulnerabilities" in softwareConfig) {
+      maxAgeInNanoseconds =
+        softwareConfig.vulnerabilities.recent_vulnerability_max_age;
+    } else {
+      maxAgeInNanoseconds =
+        globalConfig?.vulnerabilities.recent_vulnerability_max_age;
+    }
+    return maxAgeInNanoseconds
+      ? Math.round(maxAgeInNanoseconds / 86400000000000) // convert from nanoseconds to days
+      : CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS;
+  })();
 
   const {
     data: software,
@@ -190,8 +217,9 @@ const ManageSoftwarePage = ({
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
       enabled:
-        isOnGlobalTeam ||
-        !!availableTeams?.find((t) => t.id === currentTeam?.id),
+        isSoftwareConfigLoaded &&
+        (isOnGlobalTeam ||
+          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -220,28 +248,14 @@ const ManageSoftwarePage = ({
     },
     {
       enabled:
-        isOnGlobalTeam ||
-        !!availableTeams?.find((t) => t.id === currentTeam?.id),
+        isSoftwareConfigLoaded &&
+        (isOnGlobalTeam ||
+          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
-    }
-  );
-
-  const canAddOrRemoveSoftwareWebhook = isGlobalAdmin || isGlobalMaintainer;
-
-  const {
-    data: softwareVulnerabilitiesWebhook,
-    isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
-    refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
-    ["config"],
-    () => configAPI.loadAll(),
-    {
-      enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfig) => data.webhook_settings.vulnerabilities_webhook,
     }
   );
 
@@ -269,16 +283,17 @@ const ManageSoftwarePage = ({
     300
   );
 
-  const toggleManageAutomationsModal = () =>
+  const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
+  }, [setShowManageAutomationsModal, showManageAutomationsModal]);
 
   const togglePreviewPayloadModal = useCallback(() => {
     setShowPreviewPayloadModal(!showPreviewPayloadModal);
   }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
 
-  const onManageAutomationsClick = () => {
-    toggleManageAutomationsModal();
-  };
+  const togglePreviewTicketModal = useCallback(() => {
+    setShowPreviewTicketModal(!showPreviewTicketModal);
+  }, [setShowPreviewTicketModal, showPreviewTicketModal]);
 
   const onCreateWebhookSubmit = async (
     configSoftwareAutomations: ISoftwareAutomations
@@ -290,7 +305,7 @@ const ManageSoftwarePage = ({
           "success",
           "Successfully updated vulnerability automations."
         );
-        refetchSoftwareVulnerabilitiesWebhook();
+        refetchSoftwareConfig();
       });
     } catch {
       renderFlash(
@@ -306,28 +321,34 @@ const ManageSoftwarePage = ({
     setPageIndex(0);
   };
 
-  const renderHeaderButtons = (
-    state: IHeaderButtonsState
-  ): JSX.Element | null => {
-    if (
-      !softwareError &&
-      state.isGlobalAdmin &&
-      (!state.isPremiumTier || state.teamId === 0) &&
-      !state.isLoading
-    ) {
-      return (
-        <Button
-          onClick={onManageAutomationsClick}
-          className={`${baseClass}__manage-automations button`}
-          variant="brand"
-        >
-          <span>Manage automations</span>
-        </Button>
-      );
-    }
-    return null;
-  };
+  // TODO: refactor/replace team dropdown header component in accordance with new patterns
+  const renderHeaderButtons = useCallback(
+    (state: IHeaderButtonsState): JSX.Element | null => {
+      const {
+        teamId,
+        isLoading,
+        isGlobalAdmin,
+        isPremiumTier: isPremium,
+      } = state;
+      const canManageAutomations =
+        isGlobalAdmin && (!isPremium || teamId === 0);
+      if (canManageAutomations && !softwareError && !isLoading) {
+        return (
+          <Button
+            onClick={toggleManageAutomationsModal}
+            className={`${baseClass}__manage-automations button`}
+            variant="brand"
+          >
+            <span>Manage automations</span>
+          </Button>
+        );
+      }
+      return null;
+    },
+    [softwareError, toggleManageAutomationsModal]
+  );
 
+  // TODO: refactor/replace team dropdown header component in accordance with new patterns
   const renderHeaderDescription = (state: ITeamsDropdownState) => {
     return (
       <p>
@@ -346,6 +367,7 @@ const ManageSoftwarePage = ({
     );
   };
 
+  // TODO: refactor/replace team dropdown header component in accordance with new patterns
   const renderHeader = useCallback(() => {
     return (
       <TeamsDropdownHeader
@@ -358,12 +380,12 @@ const ManageSoftwarePage = ({
         buttons={(state) =>
           renderHeaderButtons({
             ...state,
-            isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
+            isLoading: !isSoftwareConfigLoaded,
           })
         }
       />
     );
-  }, [router, location, isLoadingSoftwareVulnerabilitiesWebhook]);
+  }, [router, location, isSoftwareConfigLoaded, renderHeaderButtons]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -381,7 +403,6 @@ const ManageSoftwarePage = ({
       );
     }
 
-    // TODO: Use setInterval to keep last updated time current?
     if (count) {
       return (
         <div
@@ -407,7 +428,7 @@ const ManageSoftwarePage = ({
     isSoftwareEnabled,
   ]);
 
-  // TODO: retool this with react-router location descriptor objects
+  // TODO: refactor in accordance with new patterns for query params and management of URL state
   const buildUrlQueryString = (queryString: string, vulnerable: boolean) => {
     queryString = queryString.startsWith("?")
       ? queryString.slice(1)
@@ -433,6 +454,7 @@ const ManageSoftwarePage = ({
     return queryString;
   };
 
+  // TODO: refactor in accordance with new patterns for query params and management of URL state
   const onVulnFilterChange = useCallback(
     (vulnerable: boolean) => {
       setFilterVuln(vulnerable);
@@ -494,14 +516,17 @@ const ManageSoftwarePage = ({
     [isPremiumTier]
   );
 
-  return !availableTeams || !config ? (
+  return !availableTeams ||
+    !globalConfig ||
+    (!softwareConfig && !softwareConfigError) ? (
     <Spinner />
   ) : (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
         {renderHeader()}
         <div className={`${baseClass}__table`}>
-          {softwareError && !isFetchingSoftware ? (
+          {(softwareError && !isFetchingSoftware) ||
+          (softwareConfigError && !isFetchingSoftwareConfig) ? (
             <TableDataError />
           ) : (
             <TableContainer
@@ -544,19 +569,12 @@ const ManageSoftwarePage = ({
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
+            togglePreviewTicketModal={togglePreviewTicketModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
-            softwareVulnerabilityAutomationEnabled={
-              isVulnerabilityAutomationsEnabled
-            }
-            softwareVulnerabilityWebhookEnabled={
-              softwareVulnerabilitiesWebhook &&
-              softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
-            }
-            currentDestinationUrl={
-              (softwareVulnerabilitiesWebhook &&
-                softwareVulnerabilitiesWebhook.destination_url) ||
-              ""
-            }
+            showPreviewTicketModal={showPreviewTicketModal}
+            softwareVulnerabilityAutomationEnabled={isAnyVulnAutomationEnabled}
+            softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
+            currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
             recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
           />
         )}

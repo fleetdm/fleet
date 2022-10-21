@@ -1,0 +1,13 @@
+name: firefox_addons
+examples: >-
+  See Firefox extensions by user as well as information about their creator and
+  automatic update status.
+
+  ```
+
+  SELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';
+
+  ```
+columns:
+  - name: uid
+    requires_user_context: true

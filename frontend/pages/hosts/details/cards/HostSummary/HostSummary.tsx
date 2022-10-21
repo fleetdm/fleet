@@ -187,9 +187,9 @@ const HostSummary = ({
     <>
       <div className="header title">
         <div className="title__inner">
-          <div className="hostname-container">
-            <h1 className="hostname">
-              {deviceUser ? "My device" : titleData.hostname || "---"}
+          <div className="display-name-container">
+            <h1 className="display-name">
+              {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
             <p className="last-fetched">
               {`Last fetched ${humanHostDetailUpdated(

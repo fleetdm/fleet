@@ -1,0 +1,18 @@
+.query-table-notes {
+  h3 {
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  // overriding default FleetMarkdown styles here
+  &__notes-markdown {
+
+    li {
+      margin-bottom: $pad-medium;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}

@@ -99,6 +99,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				continue
 			}
 			row["host_hostname"] = res.Host.Hostname
+			row["host_display_name"] = res.Host.DisplayName
 			filteredRows = append(filteredRows, row)
 		}
 

@@ -852,7 +852,7 @@ The size of the session key.
 
 ##### session_duration
 
-The amount of time that a session should last for.
+This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration. 
 
 Valid time units are `s`, `m`, `h`.
 
@@ -967,7 +967,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_status_log_plugin
 
-Which log output plugin should be used for osquery status logs received from clients. Check out the reference documentation for osquery logging options [here in the Fleet documentation](../Using-Fleet/Osquery-logs.md).
+This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](../Using-Fleet/Log-destinations.md).
 
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
@@ -982,7 +982,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 ##### osquery_result_log_plugin
 
-Which log output plugin should be used for osquery result logs received from clients. Check out the reference documentation for osquery logging options [here in the Fleet documentation](../Using-Fleet/Osquery-logs.md).
+This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](../Using-Fleet/Log-destinations.md).
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
