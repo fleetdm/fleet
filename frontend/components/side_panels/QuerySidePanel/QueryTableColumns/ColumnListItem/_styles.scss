@@ -15,6 +15,14 @@
 
   &__name {
     font-size: $x-small;
+
+    // We need to wrap on really long column names so we override some
+    // TooltipWrapper styles here.
+    .component__tooltip-wrapper__element {
+      white-space: normal;
+      max-width: 180px;
+      overflow-wrap: anywhere;
+    }
   }
 
   // this is to override the tooltip text style from TooltipWrapper. When we

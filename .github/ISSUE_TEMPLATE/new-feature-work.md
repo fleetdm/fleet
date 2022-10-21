@@ -2,38 +2,79 @@
 name: 🎟  New feature work
 about: Specify a planned, new feature in Fleet so that engineering can provide an estimation on the time required for implementation.
 title: ''
-labels: 'needs estimation'
+labels: 'epic'
 assignees: ''
 
 ---
 
-### Goal
+## Problem
 
 TODO
-<!-- Insert the user story or high level business goal. This link is located in the 🧩 Product google document linked here: https://docs.google.com/document/d/10B4eDXHjM9lFob6VcBDFEzYR424QRH3EuTpRLbhWyzM/edit# -->
+<!-- 
+Motivate this feature by describing what is the user's problem. 
+- Who are the affected users? 
+- What is the current situation? Why does the current situation hurt? 
+- What are they doing right now to resolve this issue? Why is this so bad?
+- How many users does this affect? How do you know? Share metrics or links to videos. 
+-->
 
-### Figma
-
-TODO
-<!-- Insert the link to the feature's page in the Fleet EE (current) Figma file. This link is located in the 🧩 Product google document linked here: https://docs.google.com/document/d/10B4eDXHjM9lFob6VcBDFEzYR424QRH3EuTpRLbhWyzM/edit#. Remove this "Figma" section if there is no link present in the google doc. -->
-
-### API wireframes
-
-TODO
-<!-- Insert a link to the draft PR that includes the proposed API wireframes to support the feature work. This link is located in the 🧩 Product google document linked here: https://docs.google.com/document/d/10B4eDXHjM9lFob6VcBDFEzYR424QRH3EuTpRLbhWyzM/edit#. Remove this "API wireframes" section if there is no link present in the google doc. -->
-
-### How?
-
-#### Frontend
+## Business Case
 
 TODO
-<!-- Describe the required frontend changes to support the feature work. Include screenshot's from the feature's page in Figma when appropriate. Remove the "Frontend" section if the feature work does not require frontend changes. -->
+<!--
+Why should Fleet work on this problem? How does this contribute to our reaching our strategic goals?
+-->
 
-- [ ] 
+## Analytics
+TODO
+<!--
+- How will we know that the problem has been solved or improved? 
+- What is the current state of the measurement?
+- What measurements do you need to implement? 
+-->
 
-#### Backend
+## Requirements
+<!-- Describe the required outcomes -->
+TODO
+1. 
+2. 
+3. 
+
+<!-- Things we tend to forget about -->
+- **Documentation** Do you want a guide written about this?
+- **Analytics** How are we going to measure usage and success?
+- **QA** Any special QA notes?
+
+
+## Design
+### UI
 
 TODO
-<!-- Describe the required backend changes to support the feature work. Include screenshot's from the feature's page in Figma when appropriate. Remove the "Frontend" section if the feature work does not require frontend changes. -->
+<!-- Insert the link to the relevant Figma file. Remove this section if there are no changes necessary. -->
 
-- [ ] 
+### API
+
+TODO
+<!-- Specify what changes to the API are required.Remove this section if there are no changes necessary. -->
+
+### CLI
+
+TODO
+<!-- Specify what changes to the CLI are required. Remove this section if there are no changes necessary. -->
+
+## Related
+
+<!-- Insert related items such as child issues -->
+
+### Child issues
+Interface team
+- TODO
+
+Platform team
+- TODO
+
+Agent team
+- TODO
+
+Documentation
+- TODO

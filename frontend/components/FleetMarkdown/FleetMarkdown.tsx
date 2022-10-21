@@ -50,7 +50,7 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
         },
 
         // Overrides code display to use FleetAce with Readonly overrides.
-        code: ({ children }) => {
+        code: ({ inline, children, ...props }) => {
           const onEditorBlur = (editor?: IAceEditor) => {
             editor && editor.clearSelection();
           };
@@ -64,6 +64,14 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
             editor.renderer.visualizeFocus = noop;
           };
 
+          // Dont render the fleet ace code block for simple inline code blocks.
+          // e.g. `x = 1`
+          if (inline) {
+            return <code {...props}>{children}</code>;
+          }
+
+          // full code blocks we want to use Fleet Ace.
+          // e.g. ```SELECT * FROM USERS```
           return (
             <FleetAce
               wrapperClassName={`${baseClass}__ace-display`}

@@ -1,6 +1,16 @@
 .label-filter-select {
   width: 175px;
 
+  &:hover {
+
+    // no access to hover state from react-select in JS so this is done here.
+    .custom-dropdown-indicator {
+      & path {
+        fill: $core-vibrant-blue
+      }
+    }
+  }
+
   .label-filter-select__control {
     border: 1px solid $ui-fleet-blue-15;
     background-color: $ui-light-grey;
@@ -106,6 +116,12 @@
       width: 16px;
       height: 16px;
       margin-right: $pad-small;
+    }
+  }
+
+  &__custom-dropdown-indicator {
+    &:hover {
+      cursor: pointer;
     }
   }
 }

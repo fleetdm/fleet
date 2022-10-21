@@ -11,7 +11,10 @@ import {
   IIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
-import { IConfig } from "interfaces/config";
+import {
+  IConfig,
+  CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
+} from "interfaces/config";
 import configAPI from "services/entities/config";
 
 import ReactTooltip from "react-tooltip";
@@ -26,7 +29,7 @@ import InputField from "components/forms/fields/InputField";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
-import _, { size } from "lodash";
+import { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -327,7 +330,9 @@ const ManageAutomationsModal = ({
           <p>
             A ticket will be created in your <b>Integration</b> if a detected
             vulnerability (CVE) was published in the last{" "}
-            {recentVulnerabilityMaxAge || "30"} days.
+            {recentVulnerabilityMaxAge ||
+              CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
+            days.
           </p>
         </div>
         {(jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0) ||

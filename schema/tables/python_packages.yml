@@ -1,0 +1,13 @@
+name: python_packages
+examples: >-
+  List the versions of pip installed.
+  
+  ```
+  
+  SELECT author, name, summary, version FROM python_packages WHERE name='pip';
+  
+  ```
+columns:
+  - name: pid_with_namespace
+    platforms:
+      - linux
