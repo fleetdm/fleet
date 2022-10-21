@@ -823,6 +823,52 @@ You can verify that your agent options are valid by using [the fleetctl apply co
 
 Existing options will be overwritten by the application of this file.
 
+##### `command_line_flags` option
+
+**Note:** This feature requires Orbit, the Fleet agent manager: https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager
+
+The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options which typically requires osquery to restart for it to take effect. But now with Orbit, one can use the `command_line_flags` key to take care of that. Orbit, will write these to the flagfile on the host, and pass it to osquery. 
+
+To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
+
+Just like the other `agent_options` as above, remove the dashed lines (`--`) for Fleet to successfully update them.
+
+Here is an example of using the `command_line_flags` key:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    command_line_flags: # requires Fleet's osquery installer
+      verbose: true
+      disable_watchdog: false
+      logger_path: /path/to/logger
+```
+
+Note that the `command_line_flags` key does not support the `overrides` key, which is documented below.
+
+You can verfiy that these flags have taken effect on the hosts, by running a query against the `osquery_flags` table.
+
+If, at some point, you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
+
+To update the flags on these hosts, we recommend deploying a new package. This will update each host's enroll secret. Here's how to deploy a new package:
+
+1. First check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`
+
+**Note**: The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. One can safely ignore these errors.
+
+2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
+
+3. Copy and run the fleetctl package command to create a new package. Distribute this package to the hosts that returned results in step (1).
+
+4. Done!
+
+
+
+
+
+
 ##### Overrides option
 
 The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
