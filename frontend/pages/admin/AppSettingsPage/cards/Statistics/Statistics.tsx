@@ -101,11 +101,7 @@ const Statistics = ({
               rel="noopener noreferrer"
             >
               Learn more about usage statistics
-              <img
-                className="icon"
-                src={ExternalLinkIcon}
-                alt="Open external link"
-              />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </p>
           <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>

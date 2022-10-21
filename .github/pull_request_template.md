@@ -2,7 +2,8 @@
 
 If some of the following don't apply, delete the relevant line.
 
-- [ ] Changes file added for user-visible changes (in `changes/` and/or `orbit/changes/`).
+- [ ] Changes file added for user-visible changes in `changes/` or `orbit/changes/`.
+  See [Changes files](https://fleetdm.com/docs/contributing/committing-changes#changes-files) for more information.
 - [ ] Documented any API changes (docs/Using-Fleet/REST-API.md or docs/Contributing/API-for-contributors.md)
 - [ ] Documented any permissions changes
 - [ ] Input data is properly validated, `SELECT *` is avoided, SQL injection is prevented (using placeholders for values in statements)
