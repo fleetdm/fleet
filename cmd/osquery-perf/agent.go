@@ -785,7 +785,7 @@ func (a *agent) diskSpace() []map[string]string {
 func (a *agent) stressFeatureData(name string) []map[string]string {
 	outputMap := map[int]int{
 		// 'Big' feature, each host will generate 1,000 rows
-		0: 1_000,
+		0: 500,
 		// 'Medium' feature, each host will generate 50 rows
 		1: 50,
 		// 'Small' feature, each host will generate 1 rows
@@ -1008,7 +1008,7 @@ func main() {
 	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
-	featureNewProb := flag.Float64("feature_new_prob", 0.1, "When generating strees feature data, prob of generating new data [0, 1]")
+	featureNewProb := flag.Float64("feature_new_prob", 0.05, "When generating strees feature data, prob of generating new data [0, 1]")
 
 	flag.Parse()
 
