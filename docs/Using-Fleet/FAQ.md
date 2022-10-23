@@ -49,7 +49,8 @@
   - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
     - [Online hosts](#online-hosts)
     - [Offline hosts](#offline-hosts)
-
+  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
+  
 ## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
@@ -363,3 +364,7 @@ A host is considered online if it has connected to Fleet in the last 80 (20+60) 
 
 **Offline** hosts won't respond to a live query. These hosts may be shut down, asleep, or not connected to the internet.
 A host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
+
+## Why aren't "additional queries" being applied to hosts enrolled in a team?
+
+Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to be include these queries under `features.additional_queries` in each team's [configuration](./configuration-files.md#teams). 
