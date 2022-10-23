@@ -1004,7 +1004,7 @@ func main() {
 	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
-	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+	orbitProb := flag.Float64("orbit_prob", 0, "Probability of a host being identified as orbit install [0, 1]")
 	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
