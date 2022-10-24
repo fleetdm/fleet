@@ -1,18 +1,12 @@
 import React from "react";
 
-<<<<<<< HEAD
 interface IChevronProps {
   color?: "coreVibrantBlue" | "coreFleetBlack";
-=======
-interface IChevronDownProps {
-  color?: string;
-  //** Default direction "down" */
->>>>>>> 573109e3f (Host link start, finish Monday)
+  /** Default direction "down" */
   direction?: "up" | "down" | "left" | "right";
 }
 
 const SVG_PATH = {
-<<<<<<< HEAD
   up:
     "M7.749 5.109 3.605 9.406a.385.385 0 0 0 0 .528l.927.957c.14.145.363.145.502 0L8 7.811l2.966 3.08c.14.145.363.145.502 0l.927-.957a.385.385 0 0 0 0-.528L8.251 5.11a.345.345 0 0 0-.502 0Z",
   down:
@@ -32,37 +26,16 @@ const Chevron = ({
   color = "coreFleetBlack",
   direction = "down",
 }: IChevronProps) => {
-=======
-  up: "",
-  down:
-    "m8.751 10.891 4.144-4.297a.385.385 0 0 0 0-.528l-.927-.957a.345.345 0 0 0-.502 0L8.5 8.189l-2.966-3.08a.345.345 0 0 0-.502 0l-.927.957a.385.385 0 0 0 0 .528l4.144 4.297c.14.145.363.145.502 0Z",
-  left: "",
-  right: "",
-};
-
-const ChevronDown = ({
-  color = "#192147",
-  direction = "down",
-}: IChevronDownProps) => {
->>>>>>> 573109e3f (Host link start, finish Monday)
   return (
     <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d={SVG_PATH[direction]}
-<<<<<<< HEAD
         fill={FLEET_COLORS[color]}
-=======
-        fill={color}
->>>>>>> 573109e3f (Host link start, finish Monday)
       />
     </svg>
   );
 };
 
-<<<<<<< HEAD
 export default Chevron;
-=======
-export default ChevronDown;
->>>>>>> 573109e3f (Host link start, finish Monday)

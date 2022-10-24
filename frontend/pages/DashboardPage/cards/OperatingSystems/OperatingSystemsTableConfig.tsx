@@ -11,6 +11,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 
 import Chevron from "../../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface ICellProps {
   cell: {
@@ -75,18 +76,13 @@ const defaultTableHeaders = [
             <TextCell value={hosts_count} />
           </span>
           <span className="hosts-cell__link">
-            <Link
-              to={`${PATHS.MANAGE_HOSTS}?os_name=${encodeURIComponent(
-                name_only
-              )}&os_version=${encodeURIComponent(version)}`}
-              className="hosts-link"
-            >
-              <span className="link-text">View all hosts</span>
-              <img
-                alt="link to hosts filtered by operating system ID"
-                src={Chevron}
-              />
-            </Link>
+            <ViewAllHostsLink
+              queryParams={{
+                os_name: encodeURIComponent(name_only),
+                os_version: encodeURIComponent(version),
+              }}
+              className={"os-hosts-link"}
+            />
           </span>
         </span>
       );
