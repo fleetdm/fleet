@@ -35,7 +35,12 @@ const ViewAllHostsLink = ({
     <Button className={linkClasses} onClick={onClick} variant="text-icon">
       <>
         {condensed ? "" : "View all hosts"}
-        <Icon name={"chevron-right"} className={`${baseClass}__link-icon`} />
+        <Icon
+          name="chevron"
+          className={`${baseClass}__link-icon`}
+          direction="right"
+          color="#6a67fe"
+        />
       </>
     </Button>
   );
