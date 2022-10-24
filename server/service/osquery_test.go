@@ -2542,8 +2542,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for extra disk space and two windows-specific operating system queries, +3 for policies
-	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// all queries -4 windows only, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2656,8 +2656,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all queries -4 windows only queries
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2666,8 +2666,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for extra disk space and two windows-specific operating system queries, +3 for policies
-	require.Equal(t, len(expectedDetailQueries)-0, len(queries), distQueriesMapKeys(queries))
+	// all queries -4 windows only queries, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
