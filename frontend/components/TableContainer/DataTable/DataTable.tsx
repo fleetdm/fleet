@@ -528,7 +528,7 @@ const DataTable = ({
 
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
-                "highlight-on-hover": !disableHighlightOnHover,
+                "disable-highlight": disableHighlightOnHover,
               });
               return (
                 <tr
