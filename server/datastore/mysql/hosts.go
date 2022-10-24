@@ -3337,16 +3337,21 @@ func (ds *Datastore) UpsertHostFeatureValues(
 
 	if len(toInsert) > 0 {
 		stm := `
-INSERT INTO %s (id, host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number) 
-VALUES %s ON DUPLICATE KEY UPDATE 
-host_id = VALUES(host_id),
-some_date = VALUES(some_date),
-some_enum_str = VALUES(some_enum_str),
-some_str = VALUES(some_str), 
-some_bool = VALUES(some_bool), 
-some_decimal = VALUES(some_decimal), 
-some_number = VALUES(some_number)
+INSERT IGNORE INTO %s (id, host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number) 
+VALUES %s
 `
+
+		// 		stm := `
+		// INSERT INTO %s (id, host_id, some_date, some_enum_str, some_str, some_bool, some_decimal, some_number)
+		// VALUES %s ON DUPLICATE KEY UPDATE
+		// host_id = VALUES(host_id),
+		// some_date = VALUES(some_date),
+		// some_enum_str = VALUES(some_enum_str),
+		// some_str = VALUES(some_str),
+		// some_bool = VALUES(some_bool),
+		// some_decimal = VALUES(some_decimal),
+		// some_number = VALUES(some_number)
+		// `
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?,?),", len(toInsert)/8), ",")
 		stm = fmt.Sprintf(stm, tableName, values)
 

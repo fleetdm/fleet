@@ -2,9 +2,7 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 	"math"
-	"strings"
 )
 
 func init() {
@@ -33,16 +31,17 @@ func powerSet(original []string) [][]string {
 func Up_20221003154220(tx *sql.Tx) error {
 	nFeatures := 50
 
-	columns := []string{
-		"some_date",
-		"some_enum_str",
-		"some_str",
-		"some_bool",
-		"some_decimal",
-		"some_number",
-	}
+	// columns := []string{
+	// 	"some_date",
+	// 	"some_enum_str",
+	// 	"some_str",
+	// 	"some_bool",
+	// 	"some_decimal",
+	// 	"some_number",
+	// }
 
 	for i := 0; i < nFeatures; i++ {
+
 		stm := `
 CREATE TABLE IF NOT EXISTS host_feature_%d (
 id int(10) unsigned NOT NULL,
@@ -53,24 +52,38 @@ some_str VARCHAR(255),
 some_bool TINYINT,
 some_decimal DECIMAL(12,4),
 some_number INT,
-PRIMARY KEY (host_id, id),
-%s
+PRIMARY KEY (host_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-		`
+`
 
-		var indexStms []string
-		for j, set := range powerSet(columns) {
-			if len(set) > 0 {
-				indexStms = append(indexStms, fmt.Sprintf(
-					"INDEX host_feature_%d_%d_idx (host_id, %s)",
-					i,
-					j,
-					strings.Join(set, ","),
-				))
-			}
-		}
+		// 		stm := `
+		// CREATE TABLE IF NOT EXISTS host_feature_%d (
+		// id int(10) unsigned NOT NULL,
+		// host_id INT unsigned NOT NULL,
+		// some_date timestamp NULL,
+		// some_enum_str CHAR(10),
+		// some_str VARCHAR(255),
+		// some_bool TINYINT,
+		// some_decimal DECIMAL(12,4),
+		// some_number INT,
+		// PRIMARY KEY (host_id, id),
+		// %s
+		// ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+		// `
 
-		stm = fmt.Sprintf(stm, i, strings.Join(indexStms, ",\n"))
+		// 	var indexStms []string
+		// 	for j, set := range powerSet(columns) {
+		// 		if len(set) > 0 {
+		// 			indexStms = append(indexStms, fmt.Sprintf(
+		// 				"INDEX host_feature_%d_%d_idx (host_id, %s)",
+		// 				i,
+		// 				j,
+		// 				strings.Join(set, ","),
+		// 			))
+		// 		}
+		// 	}
+
+		// stm = fmt.Sprintf(stm, i, strings.Join(indexStms, ",\n"))
 
 		_, err := tx.Exec(stm)
 		if err != nil {
