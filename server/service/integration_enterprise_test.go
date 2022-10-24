@@ -1293,7 +1293,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	res.Body.Close()
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
-	require.False(t, getDeviceHostResp.Host.RefetchRequested)
+	require.True(t, getDeviceHostResp.Host.RefetchRequested) // refetch was automatically requested because of prior team change
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 
