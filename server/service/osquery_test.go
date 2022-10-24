@@ -743,9 +743,8 @@ func TestLabelQueries(t *testing.T) {
 	// should be turned on so that we can quickly fill labels)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -3 expected queries due to removed disk space query (only 1 of 2 active for a given platform)
-	// and removed two Windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// -4 windows specific queries: disk_space_windows, network_interface_windows, os_windows, os_version_windows
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -835,9 +834,8 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +3 for label queries, but -3 expected queries due to removed disk space query (only 1 of 2
-	// active for a given platform) and removed two Windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// +3 for label queries, but -4 windows specific queries
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -905,10 +903,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -5 due to windows not having battery, mdm, munki_info and removed disk space query and
-	// operating system query (only 1 of 2 active for a given platform)
+	// -3 unix, -2 macos,
 	// -1 due to 'windows_update_history'
-	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)-1) {
+	if !assert.Equal(t, len(expectedDetailQueries)-6, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -919,99 +916,85 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	resultJSON := `
 {
-"fleet_detail_query_network_interface": [
-		{
-				"address": "192.168.0.1",
-				"broadcast": "192.168.0.255",
-				"ibytes": "",
-				"ierrors": "",
-				"interface": "en0",
-				"ipackets": "25698094",
-				"last_change": "1474233476",
-				"mac": "5f:3d:4b:10:25:82",
-				"mask": "255.255.255.0",
-				"metric": "",
-				"mtu": "",
-				"obytes": "",
-				"oerrors": "",
-				"opackets": "",
-				"point_to_point": "",
-				"type": ""
-		}
-],
-"fleet_detail_query_os_version": [
-		{
-				"platform": "darwin",
-				"build": "15G1004",
-				"major": "10",
-				"minor": "10",
-				"name": "Mac OS X",
-				"patch": "6"
-		}
-],
-"fleet_detail_query_osquery_info": [
-		{
-				"build_distro": "10.10",
-				"build_platform": "darwin",
-				"config_hash": "3c6e4537c4d0eb71a7c6dda19d",
-				"config_valid": "1",
-				"extensions": "active",
-				"pid": "38113",
-				"start_time": "1475603155",
-				"version": "1.8.2",
-				"watcher": "38112"
-		}
-],
-"fleet_detail_query_system_info": [
-		{
-				"computer_name": "computer",
-				"cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
-				"cpu_logical_cores": "8",
-				"cpu_physical_cores": "4",
-				"cpu_subtype": "Intel x86-64h Haswell",
-				"cpu_type": "x86_64h",
-				"hardware_model": "MacBookPro11,4",
-				"hardware_serial": "ABCDEFGH",
-				"hardware_vendor": "Apple Inc.",
-				"hardware_version": "1.0",
-				"hostname": "computer.local",
-				"physical_memory": "17179869184",
-				"uuid": "uuid"
-		}
-],
-"fleet_detail_query_uptime": [
-		{
-				"days": "20",
-				"hours": "0",
-				"minutes": "48",
-				"seconds": "13",
-				"total_seconds": "1730893"
-		}
-],
-"fleet_detail_query_osquery_flags": [
-		{
-			"name":"config_tls_refresh",
-			"value":""
-		},
-		{
-			"name":"distributed_interval",
-			"value":""
-		},
-		{
-			"name":"logger_tls_period",
-			"value":""
-		}
-],
-"fleet_detail_query_orbit_info": [
-		{
-			"name":"version",
-			"value":"42"
-		},
-		{
-			"name":"device_auth_token",
-			"value":"foo"
-		}
-]
+  "fleet_detail_query_network_interface_windows": [
+    {
+      "address": "192.168.0.1",
+      "mac": "5f:3d:4b:10:25:82"
+    }
+  ],
+  "fleet_detail_query_os_version": [
+    {
+      "platform": "darwin",
+      "build": "15G1004",
+      "major": "10",
+      "minor": "10",
+      "name": "Mac OS X",
+      "patch": "6"
+    }
+  ],
+  "fleet_detail_query_osquery_info": [
+    {
+      "build_distro": "10.10",
+      "build_platform": "darwin",
+      "config_hash": "3c6e4537c4d0eb71a7c6dda19d",
+      "config_valid": "1",
+      "extensions": "active",
+      "pid": "38113",
+      "start_time": "1475603155",
+      "version": "1.8.2",
+      "watcher": "38112"
+    }
+  ],
+  "fleet_detail_query_system_info": [
+    {
+      "computer_name": "computer",
+      "cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+      "cpu_logical_cores": "8",
+      "cpu_physical_cores": "4",
+      "cpu_subtype": "Intel x86-64h Haswell",
+      "cpu_type": "x86_64h",
+      "hardware_model": "MacBookPro11,4",
+      "hardware_serial": "ABCDEFGH",
+      "hardware_vendor": "Apple Inc.",
+      "hardware_version": "1.0",
+      "hostname": "computer.local",
+      "physical_memory": "17179869184",
+      "uuid": "uuid"
+    }
+  ],
+  "fleet_detail_query_uptime": [
+    {
+      "days": "20",
+      "hours": "0",
+      "minutes": "48",
+      "seconds": "13",
+      "total_seconds": "1730893"
+    }
+  ],
+  "fleet_detail_query_osquery_flags": [
+    {
+      "name": "config_tls_refresh",
+      "value": ""
+    },
+    {
+      "name": "distributed_interval",
+      "value": ""
+    },
+    {
+      "name": "logger_tls_period",
+      "value": ""
+    }
+  ],
+  "fleet_detail_query_orbit_info": [
+    {
+      "name": "version",
+      "value": "42"
+    },
+    {
+      "name": "device_auth_token",
+      "value": "foo"
+    }
+  ]
 }
 `
 
@@ -1066,9 +1049,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// somehow confusingly, the query response above changed the host's platform
-	// from windows to darwin, so now it has all expected queries except the
-	// extra disk space one and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// from windows to darwin
+	// -4 windows queries
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1127,9 +1110,8 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -6 due to linux platform, so battery, mdm, and munki are missing, and the extra disk space
-	// query, and two windows-specific operating system queries, then +1 due to software inventory being enabled.
-	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)) {
+	// -3 macos queries, -4 windows quries, +1 for software inventory
+	if !assert.Equal(t, len(expectedDetailQueries)-6, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1387,10 +1369,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// host platform changed to darwin, so -3 for the
-	// extra disk space query and two windows-specific operating system queries,
-	// +1 for the software inventory enabled.
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
+	// -4 windows queries, +1 software inventory
+	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1514,8 +1494,8 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// -3 for the non-windows queries, +1 for the distributed query for campaign ID 42
-	if !assert.Equal(t, len(expectedDetailQueries)-3, len(queries)) {
+	// -3 unix, -2 macos, +1 for the distributed query for campaign ID 42
+	if !assert.Equal(t, len(expectedDetailQueries)-4, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -2129,9 +2109,9 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostDetailQueryPrefix + "network_interface": {{"col1": "val1"}}, // we need one detail query that updates hosts.
-			hostLabelQueryPrefix + "1":                  {{"col1": "val1"}},
-			hostAdditionalQueryPrefix + "1":             {{"col1": "val1"}},
+			hostDetailQueryPrefix + "network_interface_unix": {{"col1": "val1"}}, // we need one detail query that updates hosts.
+			hostLabelQueryPrefix + "1":                       {{"col1": "val1"}},
+			hostAdditionalQueryPrefix + "1":                  {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
@@ -2143,11 +2123,12 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	logs := buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
 	require.Len(t, parts, 1)
-	logData := make(map[string]json.RawMessage)
+
+	var logData map[string]interface{}
 	err = json.Unmarshal([]byte(parts[0]), &logData)
 	require.NoError(t, err)
-	assert.Equal(t, json.RawMessage(`"something went wrong || something went wrong"`), logData["err"])
-	assert.Equal(t, json.RawMessage(`"Missing authorization check"`), logData["internal"])
+	assert.Equal(t, "something went wrong || something went wrong", logData["err"])
+	assert.Equal(t, "Missing authorization check", logData["internal"])
 }
 
 func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
@@ -2171,7 +2152,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 	err := svc.SubmitDistributedQueryResults(
 		ctx,
 		map[string][]map[string]string{
-			hostDetailQueryPrefix + "network_interface": {{"col1": "val1"}},
+			hostDetailQueryPrefix + "network_interface_unix": {{"col1": "val1"}},
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
@@ -2354,9 +2335,8 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -3 for the extra disk space one and two windows-specific operating system queries,
-	// and +2 for the policy queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// all queries -4 windows only queries +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2412,8 +2392,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -4 windows only queries
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2422,9 +2402,8 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -3 (the extra disk space and two windows-specific operating system
-	// queries) and +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -4 windows only queries +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2452,8 +2431,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -4 windows only queries
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2462,9 +2441,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries3-2 (the extra disk space and two windows-specific operating system
-	// query) and +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -4 windows only queries +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2494,8 +2472,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries -4 windows only queries
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 }
@@ -2808,8 +2786,8 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus the extra disk space and two windows-specific operating system queries
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// all standard queries minus windows only queries
+	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	logs, err := io.ReadAll(buf)
