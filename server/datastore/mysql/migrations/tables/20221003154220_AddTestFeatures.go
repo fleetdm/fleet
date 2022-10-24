@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
 	"math"
 )
 
@@ -83,7 +84,7 @@ PRIMARY KEY (host_id, id)
 		// 		}
 		// 	}
 
-		// stm = fmt.Sprintf(stm, i, strings.Join(indexStms, ",\n"))
+		stm = fmt.Sprintf(stm, i)
 
 		_, err := tx.Exec(stm)
 		if err != nil {
