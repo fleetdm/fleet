@@ -45,7 +45,7 @@ var jiraTemplates = struct {
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
 {{ end }}
-{{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+{{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/known-exploited-vulnerabilities-catalog]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 \\
 {{ end }}{{ end }}
 

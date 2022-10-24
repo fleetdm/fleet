@@ -46,7 +46,7 @@ Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD](https://nvd.nist.gov/)): {{ .CVSSScore }}
 {{ end }}
-{{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+{{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 &nbsp;
 {{ end }}{{ end }}
 
@@ -60,8 +60,8 @@ Affected hosts:
 View the affected software and more affected hosts:
 
 1. Go to the [Software]({{ .FleetURL }}/software/manage) page in Fleet.
-2. Above the list of software, in the *Search software* box, enter "{{ .CVE }}".
-3. Hover over the affected software and select *View all hosts*.
+2. Above the list of software, in the **Search software** box, enter "{{ .CVE }}".
+3. Hover over the affected software and select **View all hosts**.
 
 ----
 
