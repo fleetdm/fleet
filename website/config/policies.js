@@ -43,5 +43,6 @@ module.exports.policies = {
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
   'view-osquery-table-details': true,
+  'try-fleet/view-sandbox-expired': true,
 
 };
