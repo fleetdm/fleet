@@ -456,7 +456,7 @@ const defaultHiddenColumns = [
   "computer_name",
   "device_mapping",
   "primary_mac",
-  "primary_ip",
+  "public_ip",
   "cpu_type",
   "memory",
   "uptime",
