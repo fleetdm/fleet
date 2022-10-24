@@ -1,7 +1,7 @@
-.homepage {
+.dashboard-page {
   background-color: $ui-off-white;
 
-  .homepage__wrapper {
+  &__wrapper {
     background-color: $ui-off-white;
   }
 
@@ -71,7 +71,7 @@
 
       // if we have an odd number of elements, take
       // the last one and stretch it across the grid
-      .homepage-info-card:nth-child(odd):last-child {
+      .dashboard-info-card:nth-child(odd):last-child {
         grid-column-start: span 2;
       }
     }
