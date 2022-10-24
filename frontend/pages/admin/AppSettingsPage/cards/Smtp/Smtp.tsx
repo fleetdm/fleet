@@ -209,7 +209,7 @@ const Smtp = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.server}
-            tooltip="The hostname / Private IP address and corresponding port of your organization's SMTP server."
+            tooltip="The hostname / private IP address and corresponding port of your organization's SMTP server."
           />
           <InputField
             label="&nbsp;"
