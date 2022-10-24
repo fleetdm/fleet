@@ -1,6 +1,4 @@
 import React from "react";
-import { Link } from "react-router";
-import PATHS from "router/paths";
 
 import {
   formatOperatingSystemDisplayName,
@@ -9,8 +7,6 @@ import {
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-
-import Chevron from "../../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface ICellProps {
