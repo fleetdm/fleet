@@ -258,6 +258,7 @@ func TestGetDetailQueries(t *testing.T) {
 		"os_unix_like",
 		"windows_update_history",
 		"kubequery_info",
+		"orbit_info",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 

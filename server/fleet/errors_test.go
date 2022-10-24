@@ -3,6 +3,7 @@ package fleet
 import (
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -29,12 +30,12 @@ func TestUserMessageErrors(t *testing.T) {
 		out string
 	}{
 		{io.EOF, "EOF"},
-		{jsonStrictDecode([]byte(`{"foo":1}`), &barString), `unsupported key provided: "foo"`},
-		{jsonStrictDecode([]byte(`{"bar":1}`), &barString), `invalid value type at 'bar': expected string but got number`},
-		{jsonStrictDecode([]byte(`{"inner":{"foo":"bar"}}`), &nestedFoo), `invalid value type at 'inner.foo': expected int but got string`},
-		{jsonStrictDecode([]byte(`{"inner":{"strings":true}}`), &nestedFoo), `invalid value type at 'inner.strings': expected array of strings but got bool`},
-		{jsonStrictDecode([]byte(`{"inner":{"ints_ints":true}}`), &nestedFoo), `invalid value type at 'inner.ints_ints': expected array of array of ints but got bool`},
-		{jsonStrictDecode([]byte(`{"inner":{"string_ptr":true}}`), &nestedFoo), `invalid value type at 'inner.string_ptr': expected string but got bool`},
+		{JSONStrictDecode(strings.NewReader(`{"foo":1}`), &barString), `unsupported key provided: "foo"`},
+		{JSONStrictDecode(strings.NewReader(`{"bar":1}`), &barString), `invalid value type at 'bar': expected string but got number`},
+		{JSONStrictDecode(strings.NewReader(`{"inner":{"foo":"bar"}}`), &nestedFoo), `invalid value type at 'inner.foo': expected int but got string`},
+		{JSONStrictDecode(strings.NewReader(`{"inner":{"strings":true}}`), &nestedFoo), `invalid value type at 'inner.strings': expected array of strings but got bool`},
+		{JSONStrictDecode(strings.NewReader(`{"inner":{"ints_ints":true}}`), &nestedFoo), `invalid value type at 'inner.ints_ints': expected array of array of ints but got bool`},
+		{JSONStrictDecode(strings.NewReader(`{"inner":{"string_ptr":true}}`), &nestedFoo), `invalid value type at 'inner.string_ptr': expected string but got bool`},
 	}
 
 	for _, c := range cases {
