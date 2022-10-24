@@ -856,7 +856,32 @@ spec:
     name: team1
     blah: nope
 `,
-			wantOutput: `[+] applied 1 teams`, // TODO(mna): currently, only agent options is validated, other unknown keys are ignored
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
+		},
+		{
+			desc: "invalid known key's value type for team cannot be forced",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 123
+`,
+			flags:   []string{"--force"},
+			wantErr: `400 Bad Request: invalid value type at 'specs.name': expected string but got number`,
+		},
+		{
+			desc: "unknown key for team can be forced",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    blah: true
+`,
+			flags:      []string{"--force"},
+			wantOutput: `[+] applied 1 teams`,
 		},
 		{
 			desc: "invalid agent options for new team",
