@@ -81,7 +81,7 @@ const solutionsTableHeaders = [
       return (
         <ViewAllHostsLink
           queryParams={{ mdm_id: cellProps.row.original.id }}
-          className={`mdm-solution-link`}
+          className="mdm-solution-link"
         />
       );
     },

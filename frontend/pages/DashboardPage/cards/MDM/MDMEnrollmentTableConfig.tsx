@@ -105,7 +105,7 @@ const enrollmentTableHeaders = [
       return (
         <ViewAllHostsLink
           queryParams={{ mdm_enrollment_status: statusParam() }}
-          className={"mdm-solution-link"}
+          className="mdm-solution-link"
         />
       );
     },

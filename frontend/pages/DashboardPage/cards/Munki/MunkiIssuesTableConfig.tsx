@@ -90,7 +90,7 @@ const munkiIssuesTableHeaders = [
           {cellProps.row.original && (
             <ViewAllHostsLink
               queryParams={{ munki_issue_id: cellProps.row.original.id }}
-              className={`munki-issue-link`}
+              className="munki-issue-link"
             />
           )}
         </>

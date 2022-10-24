@@ -81,7 +81,7 @@ const defaultTableHeaders = [
                 os_name: encodeURIComponent(name_only),
                 os_version: encodeURIComponent(version),
               }}
-              className={"os-hosts-link"}
+              className="os-hosts-link"
             />
           </span>
         </span>
