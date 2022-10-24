@@ -1,7 +1,6 @@
 import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
 import {
-  format,
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
@@ -9,7 +8,6 @@ import {
 } from "date-fns";
 import yaml from "js-yaml";
 
-import { IConfig } from "interfaces/config";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
