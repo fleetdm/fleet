@@ -559,10 +559,11 @@ func TestHostDetailQueries(t *testing.T) {
 
 	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
-	// 2 additional queries, but -3 expected queries due to removed disk space query (only 1 of 2
-	// active for a given platform) and removed two Windows-specific operating system queries,
-	// so the result is -1.
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// 2 - 4 = -2
+	// └───┼────┼─► additional queries: bim, foobar
+	//     └────┼─► windows specific queries: os_windows, os_version_windows, network_interface_windows, disk_space_windows
+	//          └─► net difference
+	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
 		assert.True(t,
