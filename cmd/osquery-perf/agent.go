@@ -785,11 +785,11 @@ func (a *agent) diskSpace() []map[string]string {
 func (a *agent) stressFeatureData(name string) []map[string]string {
 	outputMap := map[int]int{
 		// 'Big' feature, each host will generate 1,000 rows
-		0: 500,
+		0: 100,
 		// 'Medium' feature, each host will generate 50 rows
-		1: 50,
+		1: 100,
 		// 'Small' feature, each host will generate 1 rows
-		2: 1,
+		2: 100,
 	}
 
 	enumValues := map[int]string{

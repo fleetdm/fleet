@@ -1322,7 +1322,7 @@ func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) 
 		}
 	}
 
-	nStressFeatures := 10
+	nStressFeatures := 3
 	for i := 0; i < nStressFeatures; i++ {
 		featureName := fmt.Sprintf("host_feature_%d", i)
 		generatedMap[featureName] = DetailQuery{
