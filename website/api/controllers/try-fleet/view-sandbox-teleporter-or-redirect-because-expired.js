@@ -45,7 +45,7 @@ module.exports = {
       throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxDemoKey has somehow gone missing!`);
     }
 
-    // If this user's Fleet Sandbox instance is expired, they will be redirected /try-fleet/sandbox-expired by EKS.
+    // If this user's Fleet Sandbox instance is expired, they will be redirected /try-fleet/sandbox-expired by EKS. https://github.com/fleetdm/fleet/blob/3f3c0b34c4939d85cd700364370a14ae773cb07b/infrastructure/sandbox/SharedInfrastructure/eks.tf#L336-L367
 
     // Respond with view.
     return {
