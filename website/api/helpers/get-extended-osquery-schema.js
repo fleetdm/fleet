@@ -148,7 +148,7 @@ module.exports = {
                 fleetColumn.hidden = false;
               }
               if(columnHasFleetOverrides.requires_user_context) {
-                fleetColumn.requires_user_context = true;
+                fleetColumn.requires_user_context = true; // eslint-disable-line camelcase
               }
               mergedTableColumns.push(fleetColumn);
             }
