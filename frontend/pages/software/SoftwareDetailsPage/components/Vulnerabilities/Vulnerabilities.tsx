@@ -57,7 +57,6 @@ const Vulnerabilities = ({
                 defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
                 defaultSortDirection={"desc"}
                 emptyComponent={NoVulnsDetected}
-                highlightOnHover
                 isAllPagesSelected={false}
                 isLoading={isLoading}
                 isClientSidePagination

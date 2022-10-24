@@ -53,7 +53,7 @@ interface IDataTableProps {
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
-  highlightOnHover?: boolean;
+  disableHighlightOnHover?: boolean;
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
@@ -94,7 +94,7 @@ const DataTable = ({
   secondarySelectActions,
   isClientSidePagination,
   isClientSideFilter,
-  highlightOnHover,
+  disableHighlightOnHover,
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
@@ -528,7 +528,7 @@ const DataTable = ({
 
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
-                "highlight-on-hover": highlightOnHover,
+                "highlight-on-hover": !disableHighlightOnHover,
               });
               return (
                 <tr

@@ -37,7 +37,7 @@ const ViewAllHostsLink = ({
         {condensed ? "" : "View all hosts"}
         <Icon
           name="chevron"
-          className={`${baseClass}__link-icon`}
+          className={`${baseClass}__icon`}
           direction="right"
           color="#6a67fe"
         />
