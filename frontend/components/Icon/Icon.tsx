@@ -12,7 +12,7 @@ interface IIconProps {
 const baseClass = "icon";
 
 const Icon = ({ name, color, direction, className }: IIconProps) => {
-  const classsNames = classnames(baseClass, className);
+  const classNames = classnames(baseClass, className);
 
   // createPassedProps creates a props object that we pass to the specific icon
   // for values that are not null or undefined
@@ -27,7 +27,7 @@ const Icon = ({ name, color, direction, className }: IIconProps) => {
   const IconComponent = ICON_MAP[name];
 
   return (
-    <div className={classsNames}>
+    <div className={classNames}>
       <IconComponent {...props} />
     </div>
   );
