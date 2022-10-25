@@ -12,7 +12,7 @@ const LearnFleet = (): JSX.Element => {
         your device using queries.
       </p>
       <a
-        className="homepage-info-card__action-button"
+        className="dashboard-info-card__action-button"
         href="https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet"
         target="_blank"
         rel="noopener noreferrer"
