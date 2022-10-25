@@ -47,8 +47,8 @@ export const generateTableHeaders = (
       Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
     },
     {
-      title: "IP address",
-      Header: "IP address",
+      title: "Private IP address",
+      Header: "Private IP address",
       accessor: "primary_ip",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },

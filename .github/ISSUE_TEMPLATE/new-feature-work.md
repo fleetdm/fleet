@@ -44,7 +44,8 @@ TODO
 - **Documentation** Do you want a guide written about this?
 - **Analytics** How are we going to measure usage and success?
 - **QA** Any special QA notes?
-
+- **Other depts.** Should other Fleet departments such as marketing, sales, CX be informed after this is shipped?
+- **Premium** Should this be a premium-only feature?
 
 ## Design
 ### UI
@@ -64,9 +65,10 @@ TODO
 
 ## Related
 
-<!-- Insert related items such as child issues -->
+<!-- Insert related items such as parent epic or other relevant pieces of informations -->
 
 ### Child issues
+
 Interface team
 - TODO
 
