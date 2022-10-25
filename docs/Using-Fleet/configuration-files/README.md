@@ -860,7 +860,7 @@ To update the flags on these hosts, we recommend deploying a new package. This w
 
 2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
 
-3. Copy and run the fleetctl package command to create a new package. Distribute this package to the hosts that returned results in step (1).
+3. Copy and run the fleetctl package command to create a new package. Distribute this package to the hosts that returned results in step 1.
 
 4. Done!
 
