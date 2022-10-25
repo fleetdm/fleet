@@ -856,7 +856,7 @@ To update the flags on these hosts, we recommend deploying a new package. This w
 
 1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`
 
-**Note**: The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. One can safely ignore these errors.
+**Note**: The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
 
 2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
 
