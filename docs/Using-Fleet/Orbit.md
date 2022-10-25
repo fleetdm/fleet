@@ -253,7 +253,7 @@ These are the log destinations for each platform:
  Users will need administrative permissions on the host to access these log destinations.
 #### Debug
 
-You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode". Such mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
+You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode." This mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
 
 ### Uninstall
 #### Windows
