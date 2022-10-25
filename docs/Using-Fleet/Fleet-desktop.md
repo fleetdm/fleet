@@ -32,7 +32,28 @@ For information on how to set the custom transparency link via a YAML configurat
 
 ## Securing Fleet Desktop
 
+Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a Random (Version 4) UUID token to uniquely identify each host.
+
+The server uses this token to authenticate requests that give host information. To secure this access to this information, Fleet uses the following methods:
+
+**Rate Limiting**
+
 To prevent brute-forcing, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
+
+**Token Rotation**
+
+```
+ℹ️  In Fleet v4.22.0, token rotation for Fleet Desktop was introduced.
+```
+
+To protect unintentionally leaked or brute-forced tokens, starting with Fleet v4.22.0, the server will reject any token older than one hour.
+
+As a consequence, Fleet Desktop will try to issue a new token if the current token is:
+
+- Rejected by the server.
+- Older than one hour.
+
+This change is imperceptible to users, as clicking on the "My Device" tray item always uses a valid token. If an user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
 <meta name="title" value="Fleet Desktop">
 <meta name="pageOrderInSection" value="450">
