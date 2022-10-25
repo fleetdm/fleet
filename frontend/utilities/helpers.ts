@@ -781,11 +781,7 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if (
-        (Number.isFinite(value) && value !== 0) ||
-        !isEmpty(value) ||
-        typeof value === "boolean"
-      ) {
+      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: "---" });
