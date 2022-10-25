@@ -5,10 +5,12 @@ import { pick } from "lodash";
 
 import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import { IIntegrations } from "interfaces/integration";
 import {
   INewMembersBody,
   IRemoveMembersBody,
   ITeamConfig,
+  ITeamWebhookSettings,
 } from "interfaces/team";
 
 interface ILoadTeamsParams {
@@ -31,6 +33,12 @@ export interface ILoadTeamsResponse {
 
 export interface ITeamFormData {
   name: string;
+}
+
+export interface IUpdateTeamFormData {
+  name: string;
+  webhook_settings: Partial<ITeamWebhookSettings>;
+  integrations: IIntegrations;
 }
 
 export default {
@@ -65,7 +73,7 @@ export default {
     return sendRequest("GET", path);
   },
   update: (
-    { name, webhook_settings, integrations }: Partial<ITeamConfig>,
+    { name, webhook_settings, integrations }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {

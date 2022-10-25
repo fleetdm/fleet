@@ -258,8 +258,19 @@ Check out the [documentation on running database migrations](./Upgrading-Fleet.m
 
 ## What API endpoints should I expose to the public internet?
 
-If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the `/api/v1/osquery` endpoint to the public internet.
 
+If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
+
+For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
+
+If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
+
+- /api/setup
+- /api/v1/setup
+- /api/osquery/*
+- /api/latest/fleet/*
+- /api/v1/fleet/*
 ## What is the minimum version of MySQL required by Fleet?
 
 Fleet requires at least MySQL version 5.7.

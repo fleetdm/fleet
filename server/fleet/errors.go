@@ -292,6 +292,13 @@ func NewUserMessageError(err error, statusCode int) *UserMessageError {
 
 var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
 
+// IsJSONUnknownFieldError returns true if err is a JSON unknown field error.
+// There is no exported type or value for this error, so we have to match the
+// error message.
+func IsJSONUnknownFieldError(err error) bool {
+	return rxJSONUnknownField.MatchString(err.Error())
+}
+
 // UserMessage implements the user-friendly translation of the error if its
 // root cause is one of the supported types, otherwise it returns the error
 // message.

@@ -1,6 +1,6 @@
 export const LABEL_SLUG_PREFIX = "labels/";
 
-export const DEFAULT_SORT_HEADER = "hostname";
+export const DEFAULT_SORT_HEADER = "display_name";
 export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 20;
 

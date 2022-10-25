@@ -199,7 +199,7 @@ The engineer will receive calendar invitations for the appropriate meetings. Thi
 
 #### 4. Improve documentation
 
-The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
+The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
 
 ### Clearing the plate
 
@@ -354,6 +354,8 @@ In particular, host_id is a foreign key we’ve been skipping in all the new add
 - [Counts and aggregated data](#counts-and-aggregated-data)
 - [Caching data such as app config](#caching-data-such-as-app-config)
 - [Redis SCAN](#redis-scan)
+- [Fleet docs](#fleet-docs)
+- [Community support](#community-support)
 
 ### Insert on duplicate update
 
@@ -448,6 +450,78 @@ Redis has solved many scaling problems in general, but it’s not devoid of scal
 ## Fleet docs
 
 Fleet documentation explains how to use, deploy, and contribute to Fleet as simply as possible. This goes a long way in driving adoption while building our community of fans.
+
+## Community support
+
+As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
+contributors.
+
+### Version support
+
+To provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. In the current version fixes, Fleet will not backport to older releases.
+
+Community version supported for bug fixes: **Latest version only**
+
+Community support for support/troubleshooting: **Current major version**
+
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
+
+#### Merge Community PRs
+
+When merging a pull request from a community contributor:
+
+- Ensure that the checklist for the submitter is complete.
+- Verify that all necessary reviews have been approved.
+- Merge the PR.
+- Thank and congratulate the contributor.
+- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+### Reviewing PRs from the community
+
+If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+
+A PR should be merged if:
+
+- It's a change that is needed and useful.
+- The CI is passing.
+- Tests are in place.
+- Documentation is updated.
+- Changes file is created.
+
+For PRs that aren't ready to merge:
+
+- Thank the contributor for their hard work and explain why we can't merge the changes yet.
+- Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
+- Offer code review and coaching to help get the PR ready to go (see note below).
+- Keep an eye out for any updates or responses.
+
+> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR.
+
+If everything is good to go, approve the review.
+
+For PRs that will not be merged:
+
+- Thank the contributor for their effort and explain why the changes won't be merged.
+- Close the PR.
+
+## Updating docs and FAQ
+
+When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
+
+Our goal is to answer every question with a link to the docs and/or result in a documentation update.
+
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Chris McGillicuddy, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
+
+### Tracking
+
+When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
+
+- proposed change to the documentation.
+- documentation link that was sent as a response.
+- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
+
 
 ### In this section
 
@@ -675,7 +749,7 @@ See [Bug states and filters](#bug-states-and-filters) at the end of this documen
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
 
-> Some bugs may also be the domain of the digital-experience team. If QA believes this is the case, then QA should put the bug onto the g-digital-experience board and assign it to the g-digital-experience DRI. The digital experience team has their own bug process, which is not governed by this process.
+> Some bugs may be the domain of the Digital Experience team. If QA believes this is the case, then QA should put the bug onto the g-marketing board, put it into the current release, and assign it to the DRI of the Digital Experience team. The Digital Experience team has their own bug process, which is not governed by this process.
 
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
