@@ -250,7 +250,7 @@ These are the log destinations for each platform:
 - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems and `/var/log/messages` on CentOS).
 - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
-
+ Users will need administrative permissions on the host to access these log destinations.
 #### Debug
 
 You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode". Such mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
