@@ -44,7 +44,7 @@ When you install the generated Orbit installer on a host, this host will automat
 
 ### Signing installers
 
-  >**Note:** Currently, `fleetclt package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
+  >**Note:** Currently, the `fleetclt package` does not provide support for signing Windows Orbit installers. Windows installers can be signed after building.
 
 `fleetctl package` provides support for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.- [Orbit installer](#orbit-installer)
