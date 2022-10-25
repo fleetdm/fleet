@@ -9,11 +9,11 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
+Unlike the [Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
 
 ## Packs
 
-Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](../Using-Fleet/Fleet-UI.md#schedule-a-query).
+Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query).
 
 The API routes to control packs are supported for backwards compatibility.
 
@@ -518,7 +518,7 @@ Delete pack by name.
 
 ## Get or apply configuration files
 
-These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](../Using-Fleet/configuration-files/README.md).
+These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
 
 - [Get queries](#get-queries)
 - [Get query](#get-query)
@@ -2110,7 +2110,7 @@ Returns the host information about the device that makes the request.
 
 #### Refetch device's host
 
-Same as [Refetch host route](../Using-Fleet/REST-API.md#refetch-host) for the current device.
+Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refetch-host) for the current device.
 
 `POST /api/v1/fleet/device/{token}/refetch`
 
@@ -2122,7 +2122,7 @@ Same as [Refetch host route](../Using-Fleet/REST-API.md#refetch-host) for the cu
 
 #### Get device's Google Chrome profiles
 
-Same as [Get host's Google Chrome profiles](../Using-Fleet/REST-API.md#get-hosts-google-chrome-profiles) for the current device.
+Same as [Get host's Google Chrome profiles](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-google-chrome-profiles) for the current device.
 
 `GET /api/v1/fleet/device/{token}/device_mapping`
 
@@ -2134,7 +2134,7 @@ Same as [Get host's Google Chrome profiles](../Using-Fleet/REST-API.md#get-hosts
 
 #### Get device's mobile device management (MDM) and Munki information
 
-Same as [Get host's mobile device management and Munki information](../Using-Fleet/REST-API.md#get-hosts-mobile-device-management-mdm-and-munki-information) for the current device.
+Same as [Get host's mobile device management and Munki information](https://fleetdm.com/docs/using-fleet/rest-api#get-hosts-mobile-device-management-mdm-and-munki-information) for the current device.
 
 `GET /api/v1/fleet/device/{token}/macadmins`
 

@@ -5,7 +5,7 @@ strategy is a high-level overview of the **who**, **what**, **when** and **why**
 The testing plan primarily outlines the **how** of testing and covers the different practices and
 toolings used in testing.
 
-For instructions on using our testings tools, check out our [testing docs](../Contributing/Testing-and-local-development.md).
+For instructions on using our testings tools, check out our [testing docs](https://fleetdm.com/docs/contributing/testing-and-local-development).
 
 **Table of contents**
 
@@ -355,7 +355,7 @@ We use Cypress with Cypress Testing Library as our E2E testing framework. We pri
 E2E software testing and rarely mock API responses, but we make exceptions for mocking common
 network error responses and testing app integrations with external APIs.
 
-For more details on our E2E testing, check out our [Cypress documentation](../../cypress/README.md).
+For more details on our E2E testing, check out our [Cypress documentation](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/cypress/README.md).
 
 ### Additional examples
 

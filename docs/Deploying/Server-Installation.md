@@ -22,7 +22,7 @@
     - [Deploying the load balancer](#deploying-the-load-balancer)
     - [Configure DNS](#configure-dns)
 - [Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
-- [Building Fleet from Source](../Contributing/Building-Fleet.md)
+- [Building Fleet from Source](https://fleetdm.com/docs/contributing/building-fleet)
 - [Community projects](#community-projects)
 
 ## Fleet on CentOS
@@ -185,11 +185,11 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 
 ### Running Fleet with systemd
 
-See [Running with systemd](./Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
+See [Running with systemd](https://fleetdm.com/docs/deploying/configuration#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
 ### Installing and running osquery
 
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](../Using-Fleet/Adding-hosts.md) document. The steps are repeated here for the sake of a continuous tutorial.
+> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](https://fleetdm.com/docs/using-fleet/adding-hosts) document. The steps are repeated here for the sake of a continuous tutorial.
 
 To install osquery on CentOS, you can run the following:
 
