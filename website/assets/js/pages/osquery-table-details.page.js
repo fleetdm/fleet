@@ -35,6 +35,18 @@ parasails.registerPage('osquery-table-details', {
 
   },
   mounted: async function() {
+
+    // Look for a platform filter in the url e.g. ?platform=darwin
+    if(window.location.search) {
+      // https://caniuse.com/mdn-api_urlsearchparams_get
+      let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
+      let platformToFilterBy = possibleSearchParamsToFilterBy.get('platform');
+      // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
+      if(platformToFilterBy && this.userFriendlyPlatformNames[platformToFilterBy]){
+        this.selectedPlatform = platformToFilterBy;
+      }
+    }
+
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
       if(a.title < b.title){
