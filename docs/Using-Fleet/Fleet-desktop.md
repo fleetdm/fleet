@@ -34,7 +34,7 @@ For information on how to set the custom transparency link via a YAML configurat
 
 Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a Random (Version 4) UUID token to uniquely identify each host.
 
-The server uses this token to authenticate requests that give host information. To secure this access to this information, Fleet uses the following methods:
+The server uses this token to authenticate requests that give host information. To secure access to this information, Fleet uses the following methods:
 
 **Rate Limiting**
 
