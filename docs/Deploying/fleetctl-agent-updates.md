@@ -132,7 +132,7 @@ This output is _not sensitive_ and will be shared in agent deployments to verify
 
 ### Packaging with Orbit
 
-See [Orbit Docs](../Using-Fleet/Orbit.md) for more details
+See the [Orbit docs](../Using-Fleet/Orbit.md) for more details
 
 You can use `fleetctl package` to generate installer packages of Orbit (a bootstrapped OSQuery wrapper) to integrate with your Fleet instance.
 
