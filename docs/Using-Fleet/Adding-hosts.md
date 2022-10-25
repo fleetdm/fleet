@@ -29,7 +29,7 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 You can also install plain osquery on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 ## Add hosts with Orbit
 
-To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found [here](https://fleetdm.com/fleetctl-preview)
+To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
 `fleetctl package` can be used to create an Orbit installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
 
