@@ -460,7 +460,7 @@ jobs:
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
-        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
+        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 20) # there is an issue with osqueryd runner interrupt when --insecure is used that needs to be tracked down
         Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Fleet Service test #6 failed" } }
 
         # Test 7 - Check that no fleet-desktop process is running once service stops
