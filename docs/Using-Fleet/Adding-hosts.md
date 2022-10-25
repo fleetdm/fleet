@@ -31,7 +31,7 @@ You can also install plain osquery on your hosts and connect to Fleet using osqu
 
 To create an Orbit installer, you can use the `fleetctl package` command. To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
-`fleetctl package` can be used to create an Orbit installer which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
+The `fleetctl package` can create an Orbit installer, which adds macOS hosts (**.pkg**), Windows hosts (**.msi**), or Linux hosts (**.deb** or **.rpm**) to Fleet.
 
 The following command creates an Orbit installer, `.pkg` file, which adds macOS hosts to Fleet. Locate this osquery installer in the folder where the `fleetctl package` command is run.
 
