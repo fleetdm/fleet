@@ -825,7 +825,7 @@ Existing options will be overwritten by the application of this file.
 
 ##### `command_line_flags` option
 
-**Note:** This feature requires Orbit, the Fleet agent manager: https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager
+**Note:** This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
 
 The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options which typically requires osquery to restart for it to take effect. But now with Orbit, one can use the `command_line_flags` key to take care of that. Orbit, will write these to the flagfile on the host, and pass it to osquery. 
 
