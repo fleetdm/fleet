@@ -26,13 +26,13 @@ body {
 
   .tooltip {
     &:hover {
-      cursor: help;
+      cursor: default;
     }
 
     .button--disabled,
     .fleet-checkbox__tick--disabled {
       &:hover {
-        cursor: help;
+        cursor: default;
       }
     }
   }

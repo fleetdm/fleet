@@ -1,7 +1,7 @@
 .component__tooltip-wrapper {
   display: inline-flex;
   position: relative;
-  cursor: help;
+  cursor: default;
 
   &:hover {
     .component__tooltip-wrapper__tip-text {
