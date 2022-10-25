@@ -617,6 +617,20 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   }
 };
 
+export const humanHostDiskEncryptionEnabled = (
+  platform?: string,
+  diskEncriptionEnabled?: boolean
+): string => {
+  if (platform === "darwin" || platform === "windows") {
+    if (diskEncriptionEnabled) {
+      return "The disk is fully encrypted and the user must enter their password when they start their computer. If recently turned on, encryption could take awhile depending on how much information the user has stored.";
+    }
+    return "The disk is unencrypted.";
+  }
+  // There is no offstate for Linux as the property will not exist
+  return "Disk encryption is enabled.";
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";
@@ -767,7 +781,11 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+      if (
+        (Number.isFinite(value) && value !== 0) ||
+        !isEmpty(value) ||
+        typeof value === "boolean"
+      ) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: "---" });
@@ -805,6 +823,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  humanHostDiskEncryptionEnabled,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,

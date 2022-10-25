@@ -1,6 +1,7 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
@@ -13,9 +14,14 @@ import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50
 
 const baseClass = "host-summary";
 
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
+}
 interface IHostSummaryProps {
   statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
@@ -30,6 +36,7 @@ interface IHostSummaryProps {
 const HostSummary = ({
   statusClassName,
   titleData,
+  diskEncryption,
   isPremiumTier,
   isOnlyObserver,
   toggleOSPolicyModal,
@@ -147,6 +154,17 @@ const HostSummary = ({
             id={"disk-space-tooltip"}
           />
         </div>
+        {typeof diskEncryption?.enabled === "boolean" &&
+        diskEncryption?.tooltip ? (
+          <div className="info-flex__item info-flex__item--title">
+            <span className="info-flex__header">Disk encryption</span>
+            <TooltipWrapper tipContent={diskEncryption.tooltip}>
+              {diskEncryption.enabled ? "On" : "Off"}
+            </TooltipWrapper>
+          </div>
+        ) : (
+          <></>
+        )}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
           <span className="info-flex__data">
