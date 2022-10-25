@@ -16,7 +16,7 @@
   * [Packaging support](#packaging-support)
   * [Building packages](#building-packages)
     + [Update channels](#update-channels)
-    + [macOS signing & Notarization](#macos-signing---notarization)
+    + [macOS signing & notarization](#macos-signing---notarization)
     + [Orbit Osquery Result and Status Logs](#orbit-osquery-result-and-status-logs)
     + [Orbit Development](#orbit-development)
       - [Run Orbit From Source](#run-orbit-from-source)
