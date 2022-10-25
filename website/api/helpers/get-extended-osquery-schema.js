@@ -71,7 +71,7 @@ module.exports = {
         // This is done by adding a 'filename' and 'value' as search parameters to a url that creates a new folder in the schema/tables/ folder.
         let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: >- # (required) string - The description for this table. Note: this field supports markdown\n\t# Add description here\nexamples: >- # (optional) string - An example query for this table. Note: This field supports markdown\n\t# Add examples here\nnotes: >- # (optional) string - Notes about this table. Note: This field supports markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
 
-        expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema/tables/?filename='+encodeURIComponent(expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
+        expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema/tables/?filename='+encodeURIComponent('/tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
 
         expandedTables.push(expandedTableToPush);
       } else { // If this table exists in the Fleet overrides schema, we'll override the values
@@ -101,6 +101,13 @@ module.exports = {
             throw new Error(`Could not merge osquery schema with Fleet overrides. The Fleet override for the "${fleetOverridesForTable.name}" table located at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverridesForTable.name+'.yml')} has an invalid "notes". To resolve, change the "notes" for this table to be a string.`);
           } else {
             expandedTableToPush.notes = _.clone(fleetOverridesForTable.notes);
+          }
+        }
+        if(fleetOverridesForTable.hidden !== undefined) {
+          if(typeof fleetOverridesForTable.hidden !== 'boolean') {
+            throw new Error(`Could not merge osquery schema with Fleet overrides. The Fleet override for the "${fleetOverridesForTable.name}" table located at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverridesForTable.name+'.yml')} has an invalid "hidden" value. To resolve, change the value of the "hidden" property for this table to be a boolean.`);
+          } else {
+            expandedTableToPush.hidden = _.clone(fleetOverridesForTable.hidden);
           }
         }
         // If the table has Fleet overrides, we'll add the URL of the YAML file in the Fleet Github repo as the `fleetRepoUrl`, and add set the url to be where this table will live on fleetdm.com.
