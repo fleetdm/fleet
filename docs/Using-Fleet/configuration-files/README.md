@@ -850,7 +850,7 @@ Note that the `command_line_flags` key does not support the `overrides` key, whi
 
 You can verfiy that these flags have taken effect on the hosts by running a query against the `osquery_flags` table.
 
-If, at some point, you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
+If you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
 To update the flags on these hosts, we recommend deploying a new package. This will update each host's enroll secret. Here's how to deploy a new package:
 
