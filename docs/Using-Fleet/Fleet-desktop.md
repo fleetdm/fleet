@@ -46,7 +46,7 @@ To prevent brute-forcing, Fleet rate-limits the endpoints used by Fleet Desktop 
 ℹ️  In Fleet v4.22.0, token rotation for Fleet Desktop was introduced.
 ```
 
-To protect unintentionally leaked or brute-forced tokens, starting with Fleet v4.22.0, the server will reject any token older than one hour.
+To protect unintentionally leaked or brute-forced tokens, starting with Fleet v4.22.0, the server will reject any token older than one hour since it was issued.
 
 As a consequence, Fleet Desktop will try to issue a new token if the current token is:
 
