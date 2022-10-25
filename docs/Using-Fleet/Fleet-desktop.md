@@ -32,7 +32,7 @@ For information on how to set the custom transparency link via a YAML configurat
 
 ## Securing Fleet Desktop
 
-Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a Random (Version 4) UUID token to uniquely identify each host.
+Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a [Random (Version 4) UUID](https://www.rfc-editor.org/rfc/rfc4122.html#section-4.4) token to uniquely identify each host.
 
 The server uses this token to authenticate requests that give host information. To secure access to this information, Fleet uses the following methods:
 
@@ -48,7 +48,7 @@ To prevent brute-forcing, Fleet rate-limits the endpoints used by Fleet Desktop 
 
 To protect unintentionally leaked or brute-forced tokens, starting with Fleet v4.22.0, the server will reject any token older than one hour since it was issued.
 
-As a consequence, Fleet Desktop will try to issue a new token if the current token is:
+As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 - Rejected by the server.
 - Older than one hour.
