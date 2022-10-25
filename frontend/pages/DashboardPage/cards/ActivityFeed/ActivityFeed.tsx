@@ -118,6 +118,7 @@ const ActivityFeed = ({
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
         if (results.length < DEFAULT_PAGE_SIZE) {
+          console.log("results.length", results.length);
           setShowMore(false);
         }
       },
@@ -149,6 +150,9 @@ const ActivityFeed = ({
       }
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+      }
+      case ActivityType.AppliedSpecTeam: {
+        return TAGGED_TEMPLATES.editTeamCtlActivityTemplate();
       }
       case ActivityType.UserAddedBySSO: {
         return TAGGED_TEMPLATES.userAddedBySSOTempalte();
@@ -195,14 +199,17 @@ const ActivityFeed = ({
           size="small"
         />
         <div className={`${baseClass}__details`}>
-          <p className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b> {getDetail(activity)}.
+          <p>
+            <span className={`${baseClass}__details-topline`}>
+              <b>{activity.actor_full_name}</b> {getDetail(activity)}.
+            </span>
+            <br />
+            <span className={`${baseClass}__details-bottomline`}>
+              {formatDistanceToNowStrict(new Date(activity.created_at), {
+                addSuffix: true,
+              })}
+            </span>
           </p>
-          <span className={`${baseClass}__details-bottomline`}>
-            {formatDistanceToNowStrict(new Date(activity.created_at), {
-              addSuffix: true,
-            })}
-          </span>
         </div>
       </div>
     );
