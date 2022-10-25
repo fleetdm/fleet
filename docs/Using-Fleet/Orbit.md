@@ -279,4 +279,4 @@ Run the [cleanup script](./tools/cleanup/cleanup_macos.sh).
 
 ## Bugs
 
-To report a bug or request a feature, [click here](https://github.com/fleetdm/fleet/issues).
+[Create an issue](https://github.com/fleetdm/fleet/issues) to report a bug or request a feature.
