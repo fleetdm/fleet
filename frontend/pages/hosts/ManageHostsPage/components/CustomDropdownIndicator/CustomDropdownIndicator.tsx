@@ -17,11 +17,7 @@ const CustomDropdownIndicator = (
   const color = isFocused || selectProps.menuIsOpen ? "#6a67fe" : undefined;
   return (
     <components.DropdownIndicator {...props} className={baseClass}>
-      <Icon
-        name="chevron-down"
-        color={color}
-        className={`${baseClass}__icon`}
-      />
+      <Icon name="chevron" color={color} className={`${baseClass}__icon`} />
     </components.DropdownIndicator>
   );
 };

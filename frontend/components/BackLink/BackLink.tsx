@@ -20,7 +20,12 @@ const BackLink = ({ text, path }: IBackLinkProps): JSX.Element => {
   return (
     <Button className={baseClass} onClick={onClick} variant="text-icon">
       <>
-        <Icon name={"chevron-left"} className={`${baseClass}__back-icon`} />
+        <Icon
+          name="chevron"
+          className={`${baseClass}__back-icon`}
+          direction="left"
+          color="coreVibrantBlue"
+        />
         {text}
       </>
     </Button>
