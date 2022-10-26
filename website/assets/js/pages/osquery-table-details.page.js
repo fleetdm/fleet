@@ -40,7 +40,7 @@ parasails.registerPage('osquery-table-details', {
     if(window.location.search) {
       // https://caniuse.com/mdn-api_urlsearchparams_get
       let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
-      let platformToFilterBy = possibleSearchParamsToFilterBy.get('platform');
+      let platformToFilterBy = possibleSearchParamsToFilterBy.get('platformFilter');
       // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
       if(platformToFilterBy && this.userFriendlyPlatformNames[platformToFilterBy]){
         this.selectedPlatform = platformToFilterBy;
