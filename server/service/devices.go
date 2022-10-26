@@ -46,6 +46,8 @@ type fleetDesktopResponse struct {
 	FailingPolicies *uint `json:"failing_policies_count,omitempty"`
 }
 
+func (r fleetDesktopResponse) error() error { return r.Err }
+
 type getFleetDesktopRequest struct {
 	Token string `url:"token"`
 }
