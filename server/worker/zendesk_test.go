@@ -83,38 +83,99 @@ func TestZendeskRun(t *testing.T) {
 	client, err := externalsvc.NewZendeskTestClient(&externalsvc.ZendeskOptions{URL: srv.URL, GroupID: int64(123)})
 	require.NoError(t, err)
 
-	zendesk := &Zendesk{
-		FleetURL:  "https://fleetdm.com",
-		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
-		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
-			return client, nil
+	cases := []struct {
+		desc                     string
+		licenseTier              string
+		payload                  string
+		expectedSubject          string
+		expectedDescription      string
+		expectedNotInDescription string
+	}{
+		{
+			"old vuln format free",
+			fleet.TierFree,
+			`{"cve":"CVE-1234-5678"}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			`"group_id":123`,
+			"Probability of exploit",
+		},
+		{
+			"vuln free",
+			fleet.TierFree,
+			`{"vulnerability":{"cve":"CVE-1234-5678"}}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			`"group_id":123`,
+			"Probability of exploit",
+		},
+		{
+			"vuln with scores free",
+			fleet.TierFree,
+			`{"vulnerability":{"cve":"CVE-1234-5678","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			`"group_id":123`,
+			"Probability of exploit",
+		},
+		{
+			"failing global policy",
+			fleet.TierFree,
+			`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`,
+			`"subject":"test-policy policy failed on 1 host(s)"`,
+			"\\u0026policy_id=1\\u0026policy_response=failing",
+			"\\u0026team_id=",
+		},
+		{
+			"failing team policy",
+			fleet.TierPremium,
+			`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "host-1"}, {"id": 2, "hostname": "host-2"}]}}`,
+			`"subject":"test-policy-2 policy failed on 2 host(s)"`,
+			"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing",
+			"",
+		},
+		{
+			"old vuln format premium",
+			fleet.TierPremium,
+			`{"cve":"CVE-1234-5678"}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			`"group_id":123`,
+			"Probability of exploit",
+		},
+		{
+			"vuln premium",
+			fleet.TierPremium,
+			`{"vulnerability":{"cve":"CVE-1234-5678"}}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			`"group_id":123`,
+			"Probability of exploit",
+		},
+		{
+			"vuln with scores premium",
+			fleet.TierPremium,
+			`{"vulnerability":{"cve":"CVE-1234-5678","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
+			`"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Probability of exploit",
+			"",
 		},
 	}
 
-	t.Run("vuln", func(t *testing.T) {
-		expectedSubject = `"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`
-		expectedDescription = `"group_id":123`
-		expectedNotInDescription = ""
-		err = zendesk.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
-		require.NoError(t, err)
-	})
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			zendesk := &Zendesk{
+				FleetURL:  "https://fleetdm.com",
+				Datastore: ds,
+				Log:       kitlog.NewNopLogger(),
+				License:   &fleet.LicenseInfo{Tier: c.licenseTier},
+				NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
+					return client, nil
+				},
+			}
 
-	t.Run("failing global policy", func(t *testing.T) {
-		expectedSubject = `"subject":"test-policy policy failed on 1 host(s)"`
-		expectedDescription = "\\u0026policy_id=1\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
-		expectedNotInDescription = "\\u0026team_id="
-		err = zendesk.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`))
-		require.NoError(t, err)
-	})
-
-	t.Run("failing team policy", func(t *testing.T) {
-		expectedSubject = `"subject":"test-policy-2 policy failed on 2 host(s)"`
-		expectedDescription = "\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
-		expectedNotInDescription = ""
-		err = zendesk.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "host-1"}, {"id": 2, "hostname": "host-2"}]}}`))
-		require.NoError(t, err)
-	})
+			expectedSubject = c.expectedSubject
+			expectedDescription = c.expectedDescription
+			expectedNotInDescription = c.expectedNotInDescription
+			err = zendesk.Run(context.Background(), json.RawMessage(c.payload))
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestZendeskQueueVulnJobs(t *testing.T) {
@@ -141,8 +202,12 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 			CVE:        "CVE-1234-5678",
 			SoftwareID: 3,
 		}}
+		meta := make(map[string]fleet.CVEMeta, len(vulns))
+		for _, v := range vulns {
+			meta[v.CVE] = fleet.CVEMeta{CVE: v.CVE}
+		}
 
-		err := QueueZendeskVulnJobs(ctx, ds, logger, vulns)
+		err := QueueZendeskVulnJobs(ctx, ds, logger, vulns, meta)
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 		require.Equal(t, 1, count)
@@ -152,7 +217,11 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
 		}
-		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
+		theCVE := "CVE-1234-5678"
+		meta := map[string]fleet.CVEMeta{
+			theCVE: {CVE: theCVE},
+		}
+		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: theCVE}}, meta)
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -161,7 +230,11 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, io.EOF
 		}
-		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
+		theCVE := "CVE-1234-5678"
+		meta := map[string]fleet.CVEMeta{
+			theCVE: {CVE: theCVE},
+		}
+		err := QueueZendeskVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: theCVE}}, meta)
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)
@@ -292,6 +365,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
+		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)

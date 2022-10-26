@@ -202,6 +202,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
 				vulns,
+				meta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -213,6 +214,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
 				vulns,
+				meta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -468,6 +470,7 @@ func startIntegrationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	license *fleet.LicenseInfo,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = "integrations"
@@ -484,11 +487,13 @@ func startIntegrationsSchedule(
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newJiraClient,
+		License:       license,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
+		License:       license,
 	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
