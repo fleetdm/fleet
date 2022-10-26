@@ -190,11 +190,11 @@ func (s *Schedule) Start() {
 				newWait := schedInterval
 				setWaitTimes(newStart, newWait)
 
-				if ok := s.acquireLock(); !ok {
+				ok, cancelHold := s.holdLock()
+				if !ok {
 					continue
 				}
 
-				cancelLock := s.holdLock()
 				for _, job := range s.jobs {
 					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 					if err := runJob(s.ctx, job.Fn); err != nil {
@@ -223,7 +223,7 @@ func (s *Schedule) Start() {
 				}
 				schedTicker.Reset(newWait)
 
-				cancelLock()
+				cancelHold()
 			}
 		}
 	}()
@@ -343,9 +343,15 @@ func (s *Schedule) releaseLock() {
 	}
 }
 
-// holdLock starts a goroutine that periodically extends the schedule lock. It returns a cancel
-// function that releases the lock. The maximum duration of the hold is two hours.
-func (s *Schedule) holdLock() context.CancelFunc {
+// holdLock attempts to acquire a schedule lock. If it successfully acquires the lock, it starts a
+// goroutine that periodically extends the lock, and it returns `true` along with a
+// context.CancelFunc that will end the goroutine and release the lock. If it is unable to initially
+// acquire a lock, it returns `false, nil`. The maximum duration of the hold is two hours.
+func (s *Schedule) holdLock() (bool, context.CancelFunc) {
+	if ok := s.acquireLock(); !ok {
+		return false, nil
+	}
+
 	const MAX_HOLD = 2 * time.Hour
 	ctx, cancelFn := context.WithDeadline(s.ctx, time.Now().Add(MAX_HOLD))
 
@@ -364,7 +370,7 @@ func (s *Schedule) holdLock() context.CancelFunc {
 		}
 	}()
 
-	return cancelFn
+	return true, cancelFn
 }
 
 func (s *Schedule) getLockName() string {
