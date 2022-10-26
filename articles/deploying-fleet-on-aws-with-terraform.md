@@ -47,6 +47,32 @@ Now that the remote state is configured, we can move on to setting up the infras
 ## Infastructure
 https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws
 
+The infrastructure used in this deployment is available in all regions. The following resources will be created:
+
+- VPC
+  - Subnets
+    - Public
+    - Private
+  - ACLs
+  - Security Groups
+  - Application Load Balancer
+- ECS as the container orchestrator
+  - Fargate for underlying compute
+  - Task roles via IAM
+- RDS Aurora (MySQL 8.X)
+- Elasticache (Redis 6.X)
+- Firehose Delivery Stream (osquery log destination)
+- S3 bucket (the following S3 buckets can house sensitive data, thus are created with zero public access)
+  - firehose destination for osquery logs (https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/firehose.tf#L27)
+  - osquery file carving destination (https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/s3.tf#L29)
+
+### Encryption
+By default, both RDS & Elasticache are encrypted at rest and encrypted in transit. The S3 buckets are also server-side encrypted using AWS managed KMS keys.
+
+### Networking
+For more details on the networking configuration take a look at https://github.com/terraform-aws-modules/terraform-aws-vpc. In the configuration Fleet provides
+we are creating public and private subnets in addition to separate data layer for RDS and Elasticache. The configuration also defaults
+to using a single NAT Gateway.
 
 Next, we’ll update the terraform setup in the `/aws` directory's [main.tf](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to use the S3 Bucket and DynamoDB created above:
 
@@ -84,7 +110,7 @@ osquery_results_s3_bucket = "<your_org>-fleet-prod-osquery-results-archive"
 osquery_status_s3_bucket  = "<your_org>-fleet-prod-osquery-status-archive"
 ```
 
-Feel free to use whatever values you would like for the `osquery_results_s3_bucket` and `osquery_status_s3_bucket`. Just keep in mind that they need to be unique across AWS. We're setting the initial capacity for `fleet` to `0` to prevent the fleet service from attempting to start until setup is complete. 
+Feel free to use whatever values you would like for the `osquery_results_s3_bucket` and `osquery_status_s3_bucket`. Just keep in mind that they need to be unique across AWS. We're setting the initial capacity for `fleet` to `0` to prevent the fleet service from attempting to start until setup is complete. Note that your AWS CLI region should be set to the same region you intend to provision the resources. All regions are compatible.
 
 Now we’re ready to apply the terraform. From the `/aws` directory, Run:
 
@@ -92,7 +118,7 @@ Now we’re ready to apply the terraform. From the `/aws` directory, Run:
 2. `terraform workspace new <your_org>-fleet-prod`
 3. `terraform apply --var-file=prod.tfvars`
 
-You should see the planned output, and you will need to confirm the creation. Review this output, and type `yes` when you are ready. 
+You should see the planned output, and you will need to confirm the creation. Review this output, and type `yes` when you are ready. Note this will take up to 30 minutes to apply.
 
 During this process, terraform will create a `hosted zone` with an `NS` record for your domain and request a certificate from [AWS Certificate Manager (ACM)](https://aws.amazon.com/certificate-manager/). While the process is running, you'll need to add the `NS` records to your domain as well. 
 
@@ -190,6 +216,26 @@ Once the process completes, your Fleet instance is ready to use! Check out the d
 
 Setting up all the required infrastructure to run a dedicated web service in AWS can be a daunting task. The Fleet team’s goal is to provide a solid base to build from. As most AWS environments have their own specific needs and requirements, this base is intended to be modified and tailored to your specific needs.
 
+## Troubleshooting
+
+1. AWS CLI gives the error "cannot find ECS cluster" when trying to run the migration task
+   1. double-check your AWS CLI default region and make sure it is the same region you deployed the ECS cluster in
+   2. the `--cluster <arg>` might be incorrect, verify the name of your ECS cluster that was created
+2. AWS ACM fails to validate and issue certificates
+   1. verify that the NS records created in the new hosted zone are propagated to your nameserver authority
+   2. this might require multiple terraform apply runs
+3. ECS fails to deploy Fleet container image (docker pull request limit exceeded/429 errors)
+   1. if the migration task has not run successfully before the Fleet backend attempts to start it will cause the container to repeatedly fail and this can exceed docker pull request rate limits
+   2. scale down the fleet backend to zero tasks and let the pull request limit reset, this can take from 15 minutes to an hour
+   3. attempt to run migrations and then scale the Fleet backend back up
+4. If Fleet is running, but you are getting a poor experience or feel like something is wrong
+   1. check application logs emitted to AWS Cloudwatch
+   2. check performance metrics (CPU & Memory utilization) in AWS Cloudwatch
+      1. RDS
+      2. Elasticache
+      3. ECS 
+
+More troubleshooting tips can be found here https://fleetdm.com/docs/deploying/faq
 
 <meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="edwardsb">
