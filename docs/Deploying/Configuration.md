@@ -110,7 +110,7 @@ logging:
 fleet serve --config /tmp/fleet.yml
 ```
 
-For more information on using YAML configuration files with fleet, please see the [configuration files](../Using-Fleet/configuration-files/README.md) documentation.
+For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
 
 ### What are the options?
 
@@ -636,7 +636,7 @@ The address to serve the Fleet webserver.
 
 The TLS cert to use when terminating TLS.
 
-See [TLS certificate considerations](./Introduction.md#tls-certificate) for more information about certificates and Fleet.
+See [TLS certificate considerations](https://fleetdm.com/docs/deploying/introduction#tls-certificate) for more information about certificates and Fleet.
 
 - Default value: `./tools/osquery/fleet.crt`
 - Environment variable: `FLEET_SERVER_CERT`
@@ -967,7 +967,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_status_log_plugin
 
-This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](../Using-Fleet/Log-destinations.md).
+This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
@@ -982,7 +982,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 ##### osquery_result_log_plugin
 
-This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](../Using-Fleet/Log-destinations.md).
+This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 
@@ -2079,7 +2079,7 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
 
 ##### recent_vulnerability_max_age
 
-Maximum age of a vulnerability (a CVE) to be considered "recent". The age is calculated based on the published date of the CVE in the [National Vulnerability Database](https://nvd.nist.gov/) (NVD). Recent vulnerabilities play a special role in Fleet's [automations](../Using-Fleet/Automations.md), as they are reported when discovered on a host if the vulnerabilities webhook or a vulnerability integration is enabled.
+Maximum age of a vulnerability (a CVE) to be considered "recent". The age is calculated based on the published date of the CVE in the [National Vulnerability Database](https://nvd.nist.gov/) (NVD). Recent vulnerabilities play a special role in Fleet's [automations](https://fleetdm.com/docs/using-fleet/automations), as they are reported when discovered on a host if the vulnerabilities webhook or a vulnerability integration is enabled.
 
 - Default value: `720h` (30 days)
 - Environment variable: `FLEET_VULNERABILITIES_RECENT_VULNERABILITY_MAX_AGE`
