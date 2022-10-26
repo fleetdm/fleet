@@ -66,6 +66,8 @@ The on-call engineer holds responsibility for responses to technical Slack comme
 
 Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
 
+Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sesitive information, a summary of the conversation should be posted in the Slack channel as well. 
+
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
