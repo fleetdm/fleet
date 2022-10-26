@@ -118,7 +118,6 @@ const ActivityFeed = ({
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
         if (results.length < DEFAULT_PAGE_SIZE) {
-          console.log("results.length", results.length);
           setShowMore(false);
         }
       },
@@ -150,9 +149,6 @@ const ActivityFeed = ({
       }
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
-      }
-      case ActivityType.AppliedSpecTeam: {
-        return TAGGED_TEMPLATES.editTeamCtlActivityTemplate();
       }
       case ActivityType.UserAddedBySSO: {
         return TAGGED_TEMPLATES.userAddedBySSOTempalte();
