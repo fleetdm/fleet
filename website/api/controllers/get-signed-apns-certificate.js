@@ -47,15 +47,15 @@ module.exports = {
     }
 
     if(!sails.config.custom.mdmVendorCertPem) {
-      throw new Error('Cannot generate signed APNS certificate: The vendor certificate PEM (sails.config.custom.mdmVendorCertPem) is missing!')
+      throw new Error('Cannot generate signed APNS certificate: The vendor certificate PEM (sails.config.custom.mdmVendorCertPem) is missing!');
     }
 
     if(!sails.config.custom.mdmVendorKeyPem) {
-      throw new Error('Cannot generate signed APNS certificate: The vendor key PEM (sails.config.custom.mdmVendorKeyPem) is missing!')
+      throw new Error('Cannot generate signed APNS certificate: The vendor key PEM (sails.config.custom.mdmVendorKeyPem) is missing!');
     }
 
     if(!sails.config.custom.mdmVendorKeyPassphrase) {
-      throw new Error('Cannot generate signed APNS certificate: The vendor key passphrase (sails.config.custom.mdmVendorKeyPassphrase) is missing!')
+      throw new Error('Cannot generate signed APNS certificate: The vendor key passphrase (sails.config.custom.mdmVendorKeyPassphrase) is missing!');
     }
 
 
