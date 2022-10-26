@@ -36,7 +36,7 @@ parasails.registerPage('osquery-table-details', {
   },
   mounted: async function() {
 
-    // Look for a platform filter in the url e.g. ?platform=darwin
+    // Check the URL to see if a platformFilter was provided.
     if(window.location.search) {
       // https://caniuse.com/mdn-api_urlsearchparams_get
       let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
