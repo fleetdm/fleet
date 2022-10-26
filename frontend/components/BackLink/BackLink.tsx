@@ -1,16 +1,20 @@
 import React from "react";
-import { browserHistory } from "react-router";
+import { browserHistory, Link } from "react-router";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import classnames from "classnames";
 
 interface IBackLinkProps {
   text: string;
   path?: string;
+  className?: string;
 }
 
 const baseClass = "back-link";
 
-const BackLink = ({ text, path }: IBackLinkProps): JSX.Element => {
+const BackLink = ({ text, path, className }: IBackLinkProps): JSX.Element => {
+  const backLinkClass = classnames(baseClass, className);
+
   const onClick = (): void => {
     if (path) {
       browserHistory.push(path);
@@ -18,7 +22,7 @@ const BackLink = ({ text, path }: IBackLinkProps): JSX.Element => {
   };
 
   return (
-    <Button className={baseClass} onClick={onClick} variant="text-icon">
+    <Link to={path || ".."} onClick={onClick} className={backLinkClass}>
       <>
         <Icon
           name="chevron"
@@ -28,7 +32,7 @@ const BackLink = ({ text, path }: IBackLinkProps): JSX.Element => {
         />
         {text}
       </>
-    </Button>
+    </Link>
   );
 };
 export default BackLink;
