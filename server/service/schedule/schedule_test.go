@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
@@ -297,4 +300,260 @@ func TestJobPanicRecover(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Error("timeout")
 	}
+}
+
+func TestScheduleReleaseLock(t *testing.T) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	start := time.Now()
+
+	ds := new(mock.Store)
+	var mockLock struct {
+		owner  string
+		expiry time.Time
+		count  int
+
+		mu sync.Mutex
+	}
+
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		mockLock.mu.Lock()
+		defer mockLock.mu.Unlock()
+		fmt.Println("lock func called", time.Since(start))
+
+		now := time.Now()
+		if mockLock.owner == owner || now.After(mockLock.expiry) {
+			fmt.Println("acquire lock: ", owner, time.Since(start))
+			mockLock.owner = owner
+			mockLock.expiry = now.Add(expiration)
+			mockLock.count = mockLock.count + 1
+
+			return true, nil
+		}
+		return false, nil
+	}
+
+	unlock := make(chan int)
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		fmt.Println("unlock called", time.Since(start))
+		unlock <- 1
+		return nil
+	}
+
+	schedInterval := 100 * time.Millisecond
+	jobDuration := 90 * time.Millisecond
+
+	jobCount := 0
+	s := New(ctx, "test_sched", "test_instance", schedInterval, ds, WithJob("test_job", func(ctx context.Context) error {
+		fmt.Println("start job", time.Since(start))
+		time.Sleep(jobDuration)
+		jobCount++
+		fmt.Println("end job", time.Since(start))
+
+		return nil
+	}))
+	s.Start()
+
+	select {
+	// schedule starts first run and acquires a lock at 100ms
+	// schedule extends the lock every 80ms (i.e. 8/10ths of the schedule interval)
+	// schedule takes 90ms to complete its first run and unlocks at 190ms
+	case <-unlock:
+		require.Equal(t, 1, jobCount)       // schedule job starts at 100ms and finishes at 190ms
+		require.Equal(t, 2, mockLock.count) // schedule locks at 100ms (acquire lock), 180ms (hold lock)
+	case <-time.After(3 * time.Second):
+		t.Errorf("timeout")
+	}
+	require.WithinRange(t, time.Now(), start.Add(190*time.Millisecond), start.Add(200*time.Millisecond))
+
+	select {
+	// schedule starts second run at 200ms (i.e. at the start of the next full interval following
+	// the completion of the first run)
+	case <-unlock:
+		require.Equal(t, 2, jobCount)
+		require.Equal(t, 4, mockLock.count)
+	case <-time.After(3 * time.Second):
+		t.Errorf("timeout")
+	}
+	require.WithinRange(t, time.Now(), start.Add(290*time.Millisecond), start.Add(300*time.Millisecond))
+}
+
+func TestScheduleHoldLock(t *testing.T) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	start := time.Now()
+
+	ds := new(mock.Store)
+	var mockLock struct {
+		owner  string
+		expiry time.Time
+		count  int
+
+		mu sync.Mutex
+	}
+
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		mockLock.mu.Lock()
+		defer mockLock.mu.Unlock()
+		fmt.Println("lock func called", time.Since(start))
+
+		now := time.Now()
+		if mockLock.owner == owner || now.After(mockLock.expiry) {
+			fmt.Println("acquire lock: ", owner, time.Since(start))
+			mockLock.owner = owner
+			mockLock.expiry = now.Add(expiration)
+			mockLock.count = mockLock.count + 1
+
+			return true, nil
+		}
+		return false, nil
+	}
+
+	unlock := make(chan int)
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		fmt.Println("unlock called", time.Since(start))
+		unlock <- 1
+		return nil
+	}
+
+	schedInterval := 100 * time.Millisecond
+	jobDuration := 210 * time.Millisecond
+
+	jobCount := 0
+	s := New(ctx, "test_sched", "test_instance", schedInterval, ds, WithJob("test_job", func(ctx context.Context) error {
+		fmt.Println("start job", time.Since(start))
+		time.Sleep(jobDuration)
+		jobCount++
+		fmt.Println("end job", time.Since(start))
+
+		return nil
+	}))
+	s.Start()
+
+	select {
+	// schedule starts first run and acquires a lock at 100ms
+	// schedule extends the lock every 80ms (i.e. 8/10ths of the schedule interval)
+	// schedule takes 210ms to complete its first run and unlocks at 310ms
+	case <-unlock:
+		require.Equal(t, 1, jobCount)       // schedule job starts at 100ms and finishes at 300ms
+		require.Equal(t, 3, mockLock.count) // schedule locks at 100ms (acquire lock), 180ms (hold lock), 260ms (hold lock)
+	case <-time.After(3 * time.Second):
+		t.Errorf("timeout")
+	}
+	require.WithinRange(t, time.Now(), start.Add(310*time.Millisecond), start.Add(320*time.Millisecond))
+
+	select {
+	// schedule starts second run at 400ms (i.e. at the start of the next full interval following
+	// the completion of the first run)
+	case <-unlock:
+		require.Equal(t, 2, jobCount)
+		require.Equal(t, 6, mockLock.count)
+	case <-time.After(3 * time.Second):
+		t.Errorf("timeout")
+	}
+	require.WithinRange(t, time.Now(), start.Add(610*time.Millisecond), start.Add(620*time.Millisecond))
+}
+
+func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	ds := new(mock.Store)
+	mockLock := struct {
+		owner  string
+		expiry time.Time
+		mu     sync.Mutex
+	}{
+		owner:  "a",
+		expiry: time.Now().Add(1 * time.Hour),
+	}
+	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+		mockLock.mu.Lock()
+		defer mockLock.mu.Unlock()
+
+		now := time.Now()
+		if mockLock.owner == owner || now.After(mockLock.expiry) {
+			mockLock.owner = owner
+			mockLock.expiry = now.Add(expiration)
+			return true, nil
+		}
+		return false, nil
+	}
+	ds.UnlockFunc = func(context.Context, string, string) error {
+		return nil
+	}
+
+	mockConfig := struct {
+		sync.Mutex
+		duration time.Duration
+	}{
+		duration: 1 * time.Hour,
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		mockConfig.Lock()
+		defer mockConfig.Unlock()
+
+		return &fleet.AppConfig{
+			WebhookSettings: fleet.WebhookSettings{
+				Interval: fleet.Duration{
+					Duration: mockConfig.duration,
+				},
+			},
+		}, nil
+	}
+	setMockConfigInterval := func(d time.Duration) {
+		mockConfig.Lock()
+		defer mockConfig.Unlock()
+		mockConfig.duration = d
+	}
+	// simulate changes to app config
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		onTick := map[int]func(){
+			1: func() { setMockConfigInterval(1 * time.Second) },
+			2: func() { setMockConfigInterval(3 * time.Second) },
+			5: func() { setMockConfigInterval(4 * time.Second) },
+		}
+		tick := 0
+		for {
+			select {
+			case <-ticker.C:
+				tick++
+				if fn, ok := onTick[tick]; ok {
+					fn()
+				}
+			case <-time.After(10 * time.Second):
+				return
+			}
+		}
+	}()
+
+	jobsRun := 0
+	newInstanceWithSchedule := func(id string) {
+		s := New(
+			ctx, "test_schedule", id, 1*time.Hour, ds,
+			WithConfigReloadInterval(200*time.Millisecond, func(ctx context.Context) (time.Duration, error) {
+				ac, _ := ds.AppConfigFunc(ctx)
+				return ac.WebhookSettings.Interval.Duration, nil
+			}),
+			WithJob("test_job", func(ctx context.Context) error {
+				jobsRun++
+				return nil
+			}),
+		)
+		s.Start()
+	}
+	// simulate multiple schedule instances
+	go func() {
+		instanceIDs := strings.Split("abcdefghijklmnopqrstuvwxyz", "")
+		for _, id := range instanceIDs {
+			time.Sleep(300 * time.Millisecond)
+			newInstanceWithSchedule(id)
+		}
+	}()
+
+	<-time.After(10 * time.Second)
+	require.Equal(t, 3, jobsRun)
 }

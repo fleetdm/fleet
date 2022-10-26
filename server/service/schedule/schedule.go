@@ -167,7 +167,11 @@ func (s *Schedule) Start() {
 	schedTicker := time.NewTicker(currentWait)
 	g.Add(+1)
 	go func() {
-		defer g.Done()
+		defer func() {
+			fmt.Println("deferred")
+			s.releaseLock()
+			g.Done()
+		}()
 
 		for {
 			_, currWait := getWaitTimes()
@@ -175,6 +179,7 @@ func (s *Schedule) Start() {
 
 			select {
 			case <-s.ctx.Done():
+				fmt.Println("main loop done")
 				return
 
 			case <-schedTicker.C:
@@ -191,6 +196,7 @@ func (s *Schedule) Start() {
 					continue
 				}
 
+				cancelLock := s.holdLock()
 				for _, job := range s.jobs {
 					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 					if err := runJob(s.ctx, job.Fn); err != nil {
@@ -199,6 +205,28 @@ func (s *Schedule) Start() {
 						ctxerr.Handle(s.ctx, err)
 					}
 				}
+
+				totalRunningTime := time.Since(newStart)
+				schedInterval = s.getSchedInterval()
+
+				if totalRunningTime > schedInterval {
+					level.Info(s.logger).Log("cron", s.name, "msg", "total runtime (%d) exceeded schedule interval (%d)")
+				}
+
+				// set new wait to the remaining duration after dividing the total running time by the schedule interval
+				newWait = schedInterval - (totalRunningTime % schedInterval)
+				fmt.Println("new wait", newWait)
+				setWaitTimes(newStart, newWait)
+
+				select {
+				case <-schedTicker.C:
+					// pull from ticker channel in case another tick arrived during this run
+				default:
+					// ok
+				}
+				schedTicker.Reset(newWait)
+
+				cancelLock()
 			}
 		}
 	}()
@@ -257,6 +285,8 @@ func (s *Schedule) Start() {
 
 	go func() {
 		g.Wait()
+		fmt.Println("closing done")
+		s.releaseLock()
 		level.Debug(s.logger).Log("msg", "done")
 		close(s.done) // communicates that the scheduler has finished running its goroutines
 	}()
@@ -297,11 +327,7 @@ func (s *Schedule) setSchedInterval(interval time.Duration) {
 }
 
 func (s *Schedule) acquireLock() bool {
-	name := s.name
-	if s.altLockName != "" {
-		name = s.altLockName
-	}
-	locked, err := s.locker.Lock(s.ctx, name, s.instanceID, s.getSchedInterval())
+	locked, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		sentry.CaptureException(err)
@@ -312,4 +338,46 @@ func (s *Schedule) acquireLock() bool {
 	}
 	level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
 	return false
+}
+
+func (s *Schedule) releaseLock() {
+	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
+	if err != nil {
+		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
+		sentry.CaptureException(err)
+	}
+}
+
+// holdLock starts a goroutine that periodically extends the schedule lock. It returns a cancel
+// function that releases the lock. The maximum duration of the hold is two hours.
+func (s *Schedule) holdLock() context.CancelFunc {
+	const MAX_HOLD = 2 * time.Hour
+	ctx, cancelFn := context.WithDeadline(s.ctx, time.Now().Add(MAX_HOLD))
+
+	go func() {
+		ticker := time.NewTicker(s.getSchedInterval() / 10 * 8)
+
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("done with hold context")
+				s.releaseLock()
+				return
+			case <-ticker.C:
+				fmt.Println("hold lock tick")
+				s.acquireLock()
+
+			}
+		}
+	}()
+
+	return cancelFn
+}
+
+func (s *Schedule) getLockName() string {
+	name := s.name
+	if s.altLockName != "" {
+		name = s.altLockName
+	}
+	return name
 }
