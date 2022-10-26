@@ -5,6 +5,7 @@ data "aws_iam_policy_document" "fleet" {
     resources = ["*"]
   }
 
+  // allow fleet application to obtain the database password from secrets manager
   statement {
     effect    = "Allow"
     actions   = ["secretsmanager:GetSecretValue"]
@@ -29,6 +30,7 @@ data "aws_iam_policy_document" "fleet" {
     resources = ["arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:*/${var.database_user}"]
   }
 
+  // allow fleet application to write to kinesis firehose for osquery log destination configuration
   statement {
     effect = "Allow"
     actions = [
@@ -39,6 +41,7 @@ data "aws_iam_policy_document" "fleet" {
     resources = [aws_kinesis_firehose_delivery_stream.osquery_results.arn, aws_kinesis_firehose_delivery_stream.osquery_status.arn]
   }
 
+  // These actions are required for osquery file carving APIs
   // We use wildcards on these actions for buckets that are single-use.
   statement { #tfsec:ignore:aws-iam-no-policy-wildcards
     effect = "Allow"
@@ -73,6 +76,7 @@ data "aws_iam_policy_document" "assume_role" {
 
 resource "aws_iam_role" "main" {
   name               = "fleetdm-role"
+  description        = "IAM role that Fleet application assumes when running in ECS"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
@@ -82,8 +86,9 @@ resource "aws_iam_role_policy_attachment" "role_attachment" {
 }
 
 resource "aws_iam_policy" "main" {
-  name   = "fleet-iam-policy"
-  policy = data.aws_iam_policy_document.fleet.json
+  name        = "fleet-iam-policy"
+  description = "IAM policy that Fleet application uses to define access to AWS resources"
+  policy      = data.aws_iam_policy_document.fleet.json
 }
 
 resource "aws_iam_role_policy_attachment" "attachment" {

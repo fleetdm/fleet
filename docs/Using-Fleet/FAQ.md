@@ -50,7 +50,7 @@
     - [Online hosts](#online-hosts)
     - [Offline hosts](#offline-hosts)
   - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
-  
+  - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)  
 ## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
@@ -368,3 +368,12 @@ A host could also be offline if there is a connection issue between the osquery 
 ## Why aren't "additional queries" being applied to hosts enrolled in a team?
 
 Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to be include these queries under `features.additional_queries` in each team's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams). 
+
+## Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?
+
+There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results. 
+
+```
+{{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
+
+```
