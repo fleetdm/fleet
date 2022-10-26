@@ -17,10 +17,10 @@
   * [Building packages](#building-packages)
     + [Update channels](#update-channels)
     + [macOS signing & notarization](#macos-signing---notarization)
-    + [Orbit Osquery Result and Status Logs](#orbit-osquery-result-and-status-logs)
-    + [Orbit Development](#orbit-development)
-      - [Run Orbit From Source](#run-orbit-from-source)
-      - [Generate Installer Packages from Orbit Source](#generate-installer-packages-from-orbit-source)
+    + [Orbit osquery result and status logs](#orbit-osquery-result-and-status-logs)
+    + [Orbit development](#orbit-development)
+      - [Run Orbit from source](#run-orbit-from-source)
+      - [Generate installer packages from Orbit source](#generate-installer-packages-from-orbit-source)
   * [Troubleshooting](#troubleshooting)
     + [Logs](#logs)
     + [Debug](#debug)
@@ -33,7 +33,7 @@
 
 ## Introduction
 
-Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
+Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet) and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
 
 Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can
 be used with or without Orbit.
@@ -75,7 +75,7 @@ General information and flag documentation can be accessed by running `orbit --h
 
 ### Permissions
 
-Orbit generally expects root permissions to be able to create and access it's working files.
+Orbit generally expects root permissions to be able to create and access its working files.
 
 To get root level permissions:
 
@@ -115,7 +115,7 @@ orbit --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value --inse
 
 ### Osquery flags
 
-Orbit can be used as near drop-in replacement for `osqueryd`, enhancing standard osquery with autoupdate capabilities. Orbit passes through any options after `--` directly to the `osqueryd` instance.
+Orbit can be used as a near drop-in replacement for `osqueryd`, enhancing standard osquery with autoupdate capabilities. Orbit passes through any options after `--` directly to the `osqueryd` instance.
 
 For example, the following would be a typical drop-in usage of Orbit:
 
@@ -137,7 +137,7 @@ Building Windows packages requires Docker to be installed.
 
 ### Packaging support
 
-- **macOS** - `.pkg` package generation with (optional) [Notarization](https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution) and codesigning - Persistence via `launchd`.
+- **macOS** - `.pkg` package generation with (optional) [notarization](https://developer.apple.com/documentation/xcode/notarizing_macos_software_before_distribution) and codesigning - Persistence via `launchd`.
 
 - **Linux** - `.deb` (Debian, Ubuntu, etc.) & `.rpm` (RHEL, CentOS, etc.) package generation - Persistence via `systemd`.
 
@@ -181,15 +181,15 @@ Configure update channels for Orbit and osqueryd with the `--orbit-channel`, `--
 | `4.6`   | 4.6.x    |
 | `4.6.0` | 4.6.0    |
 
-Additionally `stable` and `edge` are special channel names. The `stable` channel will provide the most recent osquery version that Fleet deems to be stable. When a new version of osquery is released, it is added to the `edge` channel for beta testing. Fleet then provides input to the osquery TSC based on testing. After the version is declared stable by the osquery TSC, Fleet will promote the version to `stable` ASAP.
+Additionally, `stable` and `edge` are special channel names. The `stable` channel will provide the most recent osquery version that Fleet deems to be stable. When a new version of osquery is released, it's added to the `edge` channel for beta testing. Fleet then provides input to the osquery TSC based on testing. After the version is declared stable by the osquery TSC, Fleet will promote the version to `stable` ASAP.
 
-#### macOS signing & Notarization
+#### macOS signing & notarization
 
-Orbit's packager can automate the codesigning and Notarization steps to allow the resulting package to generate packages that appear "trusted" when install on macOS hosts. Signing & notarization are supported only on macOS hosts.
+Orbit's packager can automate the codesigning and notarization steps to allow the resulting package to generate packages that appear "trusted" when installed on macOS hosts. Signing and notarization are supported only on macOS hosts.
 
 For signing, a "Developer ID Installer" certificate must be available on the build machine ([generation instructions](https://help.apple.com/xcode/mac/current/#/dev154b28f09)). Use `security find-identity -v` to verify the existence of this certificate and make note of the identifier provided in the left column.
 
-For Notarization, valid App Store Connect credentials must be available on the build machine. Set these in the environment variables `AC_USERNAME` and `AC_PASSWORD`. It is common to configure this via [app-specific passwords](https://support.apple.com/en-ca/HT204397). Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID".
+For notarization, valid App Store Connect credentials must be available on the build machine. Set these in the environment variables `AC_USERNAME` and `AC_PASSWORD`. It's common to configure this via [app-specific passwords](https://support.apple.com/en-ca/HT204397). Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
 Build a signed and notarized macOS package with an invocation like the following:
 
@@ -197,11 +197,11 @@ Build a signed and notarized macOS package with an invocation like the following
 AC_USERNAME=zach@example.com AC_PASSWORD=llpk-sije-kjlz-jdzw fleetctl package --type=pkg --fleet-url=fleet.example.com --enroll-secret=63SBzTT+2UyW --sign-identity 3D7260BF99539C6E80A94835A8921A988F4E6498 --notarize
 ```
 
-This process may take several minutes to complete as the Notarization process completes on Apple's servers.
+This process may take several minutes, as the notarization process completes on Apple's servers.
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
-#### Orbit Osquery Result and Status Logs
+#### Orbit osquery result and status logs
 
 If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
 "status" logs to the following directories:
@@ -209,9 +209,9 @@ If the `logger_path` configuration is set to `filesystem`, Orbit will store osqu
   - macOS: /opt/orbit/osquery_log
   - Linux: /opt/orbit/osquery_log
 
-#### Orbit Development
+#### Orbit development
 
-##### Run Orbit From Source
+##### Run Orbit from source
 
 To execute orbit from source directly, run the following command:
 
@@ -235,11 +235,11 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     -- --flagfile=flagfile.txt --verbose
 ```
 
-##### Generate Installer Packages from Orbit Source
+##### Generate installer packages from Orbit source
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
-To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
-The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
+To generate an installer that contains an Orbit built from source, you need to setup a local TUF repository.
+The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](../tools/tuf/test/README.md).
 
 ### Troubleshooting
 
