@@ -1,7 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
-import { renderWithSetup } from "test/testingUtils";
+import { renderWithSetup } from "test/test-utils";
 import ClickableTableRow from "./index";
 
 const clickSpy = jest.fn();
