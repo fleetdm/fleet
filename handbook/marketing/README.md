@@ -1,9 +1,11 @@
 # Marketing
 
+## Marketing
+
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
 
-## In this section
+#### In this section
 
 - [Positioning](#positioning)
 - [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-(MQOs)
@@ -13,23 +15,23 @@ contributors. The purpose of the marketing team is to own and improve the growth
 - [Press releases](#press-releases)
 - [Sponsoring events](#sponsoring-events)
 
-## Positioning
+### Positioning
 
 Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-marketing` Slack channel. 
 
-## Marketing Qualified Opportunities (MQOs)
+### Marketing Qualified Opportunities (MQOs)
 
 Marketing's goal is to increase product usage. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up for [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [talk to an expert](https://fleetdm.com/). When these companies attend this meeting, Fleet considers them Marketing Qualified Opportunities (MQOs).
 
-## Lead enrichment
+### Lead enrichment
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-## Posting on social media as Fleet
+### Posting on social media as Fleet
 
 Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
 
-### Topics:
+#### Topics:
 
 - Fleet the product
 - Internal progress
@@ -39,7 +41,7 @@ Posting to social media should follow a [personable tone](https://fleetdm.com/ha
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
-### Guidelines:
+#### Guidelines:
 
 In keeping with our tone, use hashtags in line and only when it feels natural. If it feels forced, don’t include any.
 
@@ -47,7 +49,7 @@ Self-promotional tweets are not ideal(Same goes for, to varying degrees, Reddit,
 
 Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
 
-### Scheduling:
+#### Scheduling:
 
 Once a post is drafted, deliver it to our three main platforms.
 
@@ -58,16 +60,16 @@ Once a post is drafted, deliver it to our three main platforms.
 Log in to [Sprout Social](https://app.sproutsocial.com/publishing/) and use the compose tool to deliver the post to each platform. (credentials in 1Password).
 
 
-## Promoting blog posts on social media
+### Promoting blog posts on social media
 
 Once a blog post has been written, approved, and published, make sure that it is promoted on social media. Please refer to our [Publishing as Fleet](https://docs.google.com/document/d/1cmyVgUAqAWKZj1e_Sgt6eY-nNySAYHH3qoEnhQusph0/edit?usp=sharing) guide for more detailed information. 
 
 
-## Press releases
+### Press releases
 
 If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  Also, see [What is a press exclusive, and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
 
-### Press release boilerplate
+#### Press release boilerplate
 
 Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor endpoint detection and response and mobile device management tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to deploy and get started quickly, and it even comes with an enterprise-friendly free tier available under the MIT license.
 
@@ -75,7 +77,7 @@ IT and security teams love Fleet because of its flexibility and conventions. Ins
 
 That means better privacy, better device performance, and better data but with less noise.
 
-## Sponsoring events
+### Sponsoring events
 
 When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
 Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
@@ -96,12 +98,9 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
 
-# Community
+## Community
 
-As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
-contributors.
-
-## In this section
+#### In this section
 
 - [Communities](#communities)
 - [Goals](#goals)
@@ -114,7 +113,7 @@ contributors.
 - [Making the updates](#making-the-updates)
 - [Fleet swag](#fleet-swag)
 
-## Communities
+### Communities
 
 Fleet's users and broader audience are spread across many online platforms. Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
@@ -126,7 +125,7 @@ Fleet's users and broader audience are spread across many online platforms. Here
 - [reddit.com/r/SysAdminBlogs](https://www.reddit.com/r/SysAdminBlogs/)
 - [r/sysadmin Discord](https://discord.gg/sysadmin)
 
-## Goals
+### Goals
 
 Our primary quality objectives are _customer service_ and _defect reduction_. We try to optimize the following:
 
@@ -137,14 +136,14 @@ Our primary quality objectives are _customer service_ and _defect reduction_. We
 - Celebrating contributions
 - Triaging bugs, identifying community feature requests, community pull requests, and community questions
 
-### How?
+#### How?
 
 - Folks who post a new comment in Slack or issue on GitHub should receive a response **within one business day**. The response doesn't need to include an immediate answer.
 - If you feel confused by a question or comment raised, [request more details](#requesting-more-details) to better your understanding of the next steps.
 - If an appropriate response is outside of your scope, please post to `#help-engineering` (in the Fleet Slack)), tagging `@oncall`.
 - If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/). If you aren't sure how best to respond positively, or if you see behavior that violates the Fleet code of conduct, get help.
 
-### Requesting more details
+#### Requesting more details
 
 Typically, the _questions_, _bug reports_, and _feature requests_ raised by community members will be missing helpful context, recreation steps, or motivations.
 
@@ -163,13 +162,13 @@ Typically, the _questions_, _bug reports_, and _feature requests_ raised by comm
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?."
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-### Closing issues
+#### Closing issues
 
 It is often good to let the original poster (OP) close their issue themselves since they are usually well equipped to decide to mark the issue as resolved. In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
 
 Keep in mind that this can feel jarring to the OP. The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
 
-## Tools
+### Tools
 
 Find the script in `scripts/oncall` for use during oncall rotation (only been tested on macOS and Linux).
 Its use is optional but contains several useful commands for checking issues and PRs that may require attention.
@@ -178,7 +177,7 @@ You will need to install the following tools to use it:
 - [GitHub CLI](https://cli.github.com/manual/installation)
 - [JQ](https://stedolan.github.io/jq/download/)
 
-## Resources
+### Resources
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
@@ -186,15 +185,15 @@ There are several locations in Fleet's public and internal documentation that ca
 
 2. Use the [internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
-## Assistance from engineering
+### Assistance from engineering
 
 Community team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 
-## Pull requests
+### Pull requests
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within one business day) and get them merged or give feedback as soon as we can.
 
-## Managing community contributions
+### Managing community contributions
 
 The Community Engagement DRI is responsible for keeping an eye out for new community contributions, getting them merged if possible, and getting the right eyes on them if they require a review.
 
@@ -204,7 +203,7 @@ Each business day, the Community Engagement DRI will check open pull requests to
 2. approve and merge any community PRs that are ready to go.
 3. make sure there aren't any existing community PRs waiting for a follow-up from Fleet.
 
-### Identify community contributions
+#### Identify community contributions
 
 When a new pull request is submitted by a community contributor (someone not a member of the Fleet organization):
 
@@ -226,13 +225,13 @@ When a new pull request is submitted by a community contributor (someone not a m
 
 > Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment.
 
-## Communicate with contributors
+### Communicate with contributors
 
 Community contributions are fantastic, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working on getting their PR approved.
 
 While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to get more information and update the contributor.
 
-## Making the updates
+### Making the updates
 
 Every week, the Community Engagement DRI will:
 
@@ -245,11 +244,11 @@ Every week, the Community Engagement DRI will:
 - Submit the PR by the end of the day on Thursday.
 - Once the PR is approved, share in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of Osquery Slack Workspace and thank the community for being involved and asking questions.
 
-## Fleet swag
+### Fleet swag
 
 We want to recognize and congratulate community members for their contributions to Fleet. Nominating a contributor for Fleet swag is a great way to show our appreciation.
 
-### How to order swag
+#### How to order swag
 
 We currently deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
 
@@ -266,9 +265,9 @@ Printful order information can be found on [Printful](https://www.printful.com/d
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
 
-# Brand
+## Brand
 
-## In this section
+#### In this section
 
 - [Publishing Fleet content](#publishing-fleet-content)
 - [Writing about Fleet](#writing-about-fleet)
@@ -277,18 +276,17 @@ At this time, double-check that information within Salesforce and Typeform is ac
 - [Fleet style guide](#fleet-style-guide)
 - [Writing documentation](#writing-documentation)
 
-
-## Publishing Fleet content 
+### Publishing Fleet content 
 
 The following describes how to go about publishing and editing content at Fleet.
 
-### Publication methods
+#### Publication methods
 
 1. **Instant**: Content is published instantly. Content is approved by Brand post-facto – see links in the table below to get the required training.
 2. **Gated**: Submit content to Brand for review – see specific instructions in the table below.
 3. **Queued**: Communicate the publication date with the [DRI](https://fleetdm.com/handbook/people#directly-responsible-individuals) responsible for approving this content – refer to specific instructions linked in the table below. 
 
-### Revision methods (for editors)
+#### Revision methods (for editors)
 
 1. **Absorb**: Fix and publish yourself
 2. **Feedback**: Request changes and wait
@@ -296,11 +294,11 @@ The following describes how to go about publishing and editing content at Fleet.
 
 > Consider: **Absorb** may be risky depending on how sure the editor is about their edits. **Feedback** can be forgotten. **Pairing** is underused but can eat up more time if not careful.
 
-### Timeframe
+#### Timeframe
 
 Detail the minimum time needed for new or updated content to be live (published) and brand-approved (reviewed and revised, if necessary).
 
-### Content types
+#### Content types
 
 | Content | To publish | To revise (for editors) | Timeframe |
 |:------ |:-----------------|:-------------------------------|-----------|
@@ -317,31 +315,31 @@ Detail the minimum time needed for new or updated content to be live (published)
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 | Decks | **Instant**. Sales typically creates decks. The Brand team shouldn't be a blocker. | **Feedback** | three business days |
 
-## Writing about Fleet
+### Writing about Fleet
 
 When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management." For Fleet the product, we say either “Fleet” or “Fleet for osquery.” Employees are “Fleeties.”
 
-## Writing about osquery
+### Writing about osquery
 
 Osquery should always be written in lowercase unless used to start a sentence or heading. For example:
 
 - Open source software, built on osquery.
 - Osquery and Fleet provide structured, convenient access to information about your devices.
 
-## Open source vs. open core
+### Open source vs. open core
 
 For simplicity, Fleet is always described as "open source" in all writing and verbal communication. In specific situations, such as discussing the distinction between various kinds of open source, it can be appropriate to mention "open core" to clarify your meaning. When in doubt, go with "open source."
 
-## Fleet style guide
+### Fleet style guide
 
-### Our voice
+#### Our voice
 
 - **Clear.** Focus on what matters most. Details can clear things up, but too many are confusing. Use simple words and sentences, especially in technical conversations.
 - **Thoughtful.** Try your best to understand the topic and your audience. Choose words carefully. Outdated terms may offend modern readers. 
 - **Friendly.** Make people feel welcome. Let them know they’re talking to another human who cares. Relate to their struggles and offer solutions.
 - **Inspiring.** Empower users with practical advice. Show them what success looks like. Manage risk, not fear. Help people feel confident about handling security threats.
 
-### Our approach
+#### Our approach
 Every piece of content we write should embody our values. To make sure we succeed, we apply a design thinking approach to our writing by following these steps:
 
 - **Empathize.** Who is the reader? Why will they read it? What do they hope to get from it?
@@ -350,7 +348,7 @@ Every piece of content we write should embody our values. To make sure we succee
 - **Prototype.** Write a draft and see how it goes. Your first pass won’t be perfect. And that’s okay. If it isn’t working, try it again.
 - **Test.** Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... You get the idea.
 
-### What would Mr. Rogers say?
+#### What would Mr. Rogers say?
 We should be clear, simple, friendly, and inspiring, like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers), who deeply understood these communication skills.
 
 Here are some steps you can take to communicate like Mister Rogers:
@@ -373,20 +371,21 @@ What would Mister Rogers say? The tweet could look something like this...
 
 By Mister Rogersing our writing, we can encourage our readers to succeed by emphasizing optimism. You might not be able to apply all of these steps every time. That’s fine. Think of these as guidelines to help you simplify complex topics.
 
-## Writing documentation
+### Writing documentation
 
 You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. That puts developers in the perfect position to show users what Fleet can do.
 
 This guide will help you write docs that help users achieve their goals with Fleet.
 
-### Remember the reader
+#### Remember the reader
+
 People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
 
 - **Think of every user.** Define technical terms in the doc or include a link.
 - **Strive for simplicity.** Avoid complex sentences and long paragraphs.
 - **Be approachable.** Write like you’re meeting a new member of your team.
 
-### Answer the question
+#### Answer the question
 
 It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
 
@@ -394,7 +393,7 @@ It’s what we’re all about at Fleet. People read docs in order to accomplish 
 - **Narrow your focus.** Avoid explanations that distract from the main topic.
 - **No more, no less.** Use just enough information to give an accurate answer.
 
-### Follow a framework
+#### Follow a framework
 
 Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
 
@@ -414,7 +413,7 @@ Support your explanation with relevant references. This shows users how to put y
 
 Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
 
-### Document every change
+#### Document every change
 
 Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
 
@@ -422,7 +421,7 @@ You don’t need to wait until a change has been made to write a new doc. Starti
 
 Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before commiting a line of code.
 
-### Headings and subheadings
+#### Headings and subheadings
 
 Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
 
@@ -435,7 +434,7 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
-### Sentence case
+#### Sentence case
 
 Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels. In sentence case, we write titles as if they were sentences. For example:
 
@@ -447,17 +446,17 @@ As we use sentence case, only the first word of a heading and subheading is capi
 
 You might’ve noticed that there isn’t a period at the end of the example heading. Fleet headings and subheadings do not use end punctuation unless the heading is a question. If the heading is a question, end the heading with a question mark.
 
-### Bullet points
+#### Bullet points
 
 Bullet points are a clean and simple way to list information. But sticking to consistent rules for punctuation and capitalization can be tough. Here’s how we do it at Fleet.
 
-#### How to introduce bullet points
+##### How to introduce bullet points
 
 **Do** use a colon if you introduce a list with a complete sentence.
 
 **Do not** use a colon if you start a list right after a heading.
 
-#### How to use end punctuation with bullet points
+##### How to use end punctuation with bullet points
 
 End punctuation refers to punctuation marks that are used to end sentences, such as periods, question marks, and exclamation points.
 
@@ -477,11 +476,11 @@ End punctuation refers to punctuation marks that are used to end sentences, such
 
 **Do not** use commas or semicolons to end bullet points.
 
-#### How to capitalize bullet points
+##### How to capitalize bullet points
 
 **Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
 
-### Commas
+#### Commas
 
 When listing three or more things, use commas to separate the words. This is called a serial comma.
 
@@ -491,7 +490,7 @@ When listing three or more things, use commas to separate the words. This is cal
 
 Aside from the serial comma, use commas, as usual, to break up your sentences. If you’re unsure whether you need a comma, saying the sentence aloud can give you a clue. If you pause or take a breath, that’s when you probably need a comma.
 
-### Dashes and hyphens
+#### Dashes and hyphens
 
 Use a hyphen to link words that function as an adjective to modify a noun or to indicate a range:
 
@@ -504,7 +503,7 @@ A hyphen is unnecessary when not modifying a noun:
 - The Fleet product is released every three weeks.
 - Osquery is open source.
 
-### SQL Statements
+#### SQL Statements
 
 When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here’s an example:
 
@@ -512,7 +511,7 @@ When adding SQL statements, all SQL reserved words should be uppercase, and all 
    SELECT days, hours, total_seconds FROM uptime;
 ```
 
-### Grammarly
+#### Grammarly
 
 All of our writers and editors have access to Grammarly, which comes with a handy set of tools, including:
 
@@ -522,9 +521,9 @@ All of our writers and editors have access to Grammarly, which comes with a hand
 
 Our favorite Grammarly feature is the tone detector. It's excellent for keeping messaging on-brand and helps alleviate the doubt that often comes along for the ride during a writing assignment. Take a look at [their video](https://youtu.be/3Ct5Tgg9Imc) that sums it up better than this.
 
-## For editors
+### For editors
 
-### In this section
+#### In this section
 
 - [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
 - [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
@@ -540,7 +539,7 @@ The following is our handy guide to editor bliss at Fleet, but first, let's star
 - Articles, release posts, and press releases.
 - Social media posts.
 
-### How to make edits with GitHub
+#### How to make edits with GitHub
 
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
 1. Click the "Edit page" button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub editor).
@@ -554,7 +553,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 >
 > Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-### How to edit recently merged pull requests for the handbook
+#### How to edit recently merged pull requests for the handbook
 
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
@@ -573,13 +572,13 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 > **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
 
-### How to edit Markdown pull requests for the docs
+#### How to edit Markdown pull requests for the docs
 
 - When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
 - If no edits are needed, the editor will merge the PR. 
 - If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
 
-### How to edit articles, release posts, and press releases
+#### How to edit articles, release posts, and press releases
 
 Editing articles, release posts, and press releases usually comes in three flavors: a Google Docs draft, a new pull request, or an edit to an existing article.
 
@@ -587,7 +586,7 @@ Editing articles, release posts, and press releases usually comes in three flavo
 
 * To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
 
-### How to edit social media posts
+#### How to edit social media posts
 
 In the world of the Fleet editor, there are two types of social media posts; those scheduled to be published and those published already. 
 
@@ -599,35 +598,35 @@ Making edits to published social media posts gets a little tricky. Twitter, for 
 2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
 3. Suggest edits in the Slack thread for the Marketing team to include and re-post.
 
-## Commonly used terms
+### Commonly used terms
 
 If you find yourself feeling a little overwhelmed by all the industry terms within our space, or if you just need to look something up, our glossary of [commonly used terms](./commonly-used-terms) is here to help.
 
-## Brand resources
+### Brand resources
 
 To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
 
 See also [https://fleetdm.com/handbook/community#press-releases](https://fleetdm.com/handbook/community#press-releases) for our press-release boilerplate.
 
-## Email blasts
+### Email blasts
 
 Do you need to send out a branded email blast to multiple recipients?
 
-### The manual way
+#### The manual way
 Use "bcc" so recipients don't see each other's email addresses and send an email manually using Gmail.   (Good for small lists.  This is definitely a "thing that doesn't scale.")
 
-### The automated way
+#### The automated way
 
 - First, design the email and content. The preferred method is to base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch.
 - Bring your request to the Brand team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
-## Using Figma
+### Using Figma
 
 We use Figma for most of our design work. This includes the Fleet product, our website, and our marketing collateral. 
 
-### Which file should I use?
+#### Which file should I use?
 
 **Fleet product** All product design work is done in the [Fleet EE (scratchpad)](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=9209%3A302838) Figma doc. Check out the [README](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=2750%3A67203) for how to use this doc.
 
@@ -642,7 +641,7 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 > Looking for the official Fleet logo? Download it from: https://fleetdm.com/logos.
 
 
-## Fleet website
+### Fleet website
 
 The Brand team is responsible for production and maintenance of the Fleet website.
 
@@ -659,19 +658,19 @@ The Brand team is responsible for production and maintenance of the Fleet websit
 - [Vulnerability monitoring](#vulnerability-monitoring)
 - [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
 
-### Wireframes
+#### Wireframes
 
 Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
 
 See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
-### Design reviews
+#### Design reviews
 
 We hold regular design review sessions to evaluate, revise, and approve wireframes before moving into production.
 
 Design review sessions are hosted by [Mike Thomas](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CST). Anyone is welcome to join.   
 
-### Estimation sessions
+#### Estimation sessions
 
 We use estimation sessions to estimate the effort required to complete a prioritized task. 
 
@@ -682,7 +681,7 @@ Through these sessions, we can:
 - Avoid having the engineer make choices for “unknowns” during production.
 - More accurately plan and prioritize upcoming tasks.
 
-#### Story points
+##### Story points
 
 Story points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
 
@@ -697,12 +696,12 @@ We use the following story points to estimate website tasks:
 | 8 | Up to a week |
 | 13 | 1 to 2 weeks |
 
-### When can I merge a change to the website?
+#### When can I merge a change to the website?
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
 
 Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
 
-### How to export images for the website
+#### How to export images for the website
 In Figma:
 1. Select the layers you want to export.
 2. Confirm export settings and naming convention:
@@ -712,7 +711,7 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
-### Maintaining browser compatibility
+#### Maintaining browser compatibility
 
 A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](../docs/Using-Fleet/Supported-browsers.md).
 
@@ -721,7 +720,8 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - Document any issues in GitHub as a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
 - If in doubt about anything regarding design or layout, please reach out to the Design team.
 
-### Responding to a 5xx error on fleetdm.com
+#### Responding to a 5xx error on fleetdm.com
+
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
 * investigate the problem to determine the root cause.
 * identify affected users.
@@ -730,7 +730,7 @@ Production systems can fail for various reasons, and it can be frustrating to us
 * notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
 * Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
 
-#### Incident post-mortems
+##### Incident post-mortems
 
 When conducting an incident post-mortem, answer the following three questions:
 
@@ -738,17 +738,17 @@ When conducting an incident post-mortem, answer the following three questions:
 2. Root Cause: Why did this error happen?
 3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error. 
 
-### The "Deploy Fleet Website" GitHub action failed
+#### The "Deploy Fleet Website" GitHub action failed
 If the action fails, please complete the following steps:
 1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
 2. Select "Roll back to here" on the second to most recent deploy.
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
-### Vulnerability monitoring
+#### Vulnerability monitoring
 
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
-### How to make usability changes to the website
+#### How to make usability changes to the website
 
 We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
 
@@ -758,7 +758,6 @@ To propose changes:
 3. Present your change to the website DRI. They will approve it or suggest revisions.
 4. Code the website change. Again, the Brand team often does this, but anyone can help.
 5. Measure if the change made it easier to use. This can be tricky, but the marketing team will have ideas on how to do this.
-
 
 ## Rituals
 
