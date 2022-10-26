@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get signed APNS certificate',
 
 
-  description: 'This endpoint will run the ',
+  description: 'Returns a generated zip archive containing a signed APNS certificate.',
 
 
   inputs: {
@@ -16,7 +16,7 @@ module.exports = {
       isEmail: true,
     },
 
-    org_name: { //eslint-disable-line camelcase
+    orgName: {
       required: true,
       type: 'string',
       description: 'The name of the organization that is sending this request',
@@ -37,17 +37,29 @@ module.exports = {
 
   },
 
-  //eslint-disable-next-line camelcase
-  fn: async function({email, org_name}) {
-
+  fn: async function({email, orgName}) {
     let path = require('path');
-
 
     let binaryFileExists = await sails.helpers.fs.exists(path.resolve(sails.config.appPath, '.tools/mdm-gen-cert'));
 
     if(!binaryFileExists) {
       throw new Error('Could not generate signed APNS certificate. The mdm-gen-cert binary is missing.'); // TODO: Why would this happen?
     }
+
+    if(!sails.config.custom.mdmVendorCertPem) {
+      throw new Error('Cannot generate signed APNS certificate: The vendor certificate PEM (sails.config.custom.mdmVendorCertPem) is missing!')
+    }
+
+    if(!sails.config.custom.mdmVendorKeyPem) {
+      throw new Error('Cannot generate signed APNS certificate: The vendor key PEM (sails.config.custom.mdmVendorKeyPem) is missing!')
+    }
+
+    if(!sails.config.custom.mdmVendorKeyPassphrase) {
+      throw new Error('Cannot generate signed APNS certificate: The vendor key passphrase (sails.config.custom.mdmVendorKeyPassphrase) is missing!')
+    }
+
+
+
     // Get the domain of the provided email
     let emailDomain = email.split('@')[1];
     // If the email domain is in the list of disallowed email domains list, we'll throw an error
@@ -68,9 +80,9 @@ module.exports = {
       dir: sails.config.appPath,
       timeout: 10000, // TODO
       environmentVars: {
-        VENDOR_CERT_PEM: sails.config.custom.mdmVendorCert,
-        VENDOR_KEY_PEM: sails.config.custom.mdmVendorKey,
-        VENDOR_KEY_PASSPHRASE: sails.config.custom.mdmVendorPassphrase,
+        VENDOR_CERT_PEM: sails.config.custom.mdmVendorCertPem,
+        VENDOR_KEY_PEM: sails.config.custom.mdmVendorKeyPem,
+        VENDOR_KEY_PASSPHRASE: sails.config.custom.mdmVendorKeyPassphrase,
       },
     });
 
@@ -78,7 +90,7 @@ module.exports = {
     let downloading = await sails.helpers.fs.readStream(signedAPNSCertOutputPath);
 
     // Set the attachement filename
-    this.res.attachment(`Cetificate for ${org_name}.zip`);//eslint-disable-line camelcase
+    this.res.attachment(`Cetificate for ${orgName}.zip`);
 
     // Respond with the generated zip file, and delete it.
     await sails.helpers.fs.rmrf(signedAPNSCertOutputPath);
