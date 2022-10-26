@@ -649,6 +649,12 @@ func startCleanupsAndAggregationSchedule(
 				return ds.CleanupHostOperatingSystems(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cleanup_expired_password_reset_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredPasswordResetRequests(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",

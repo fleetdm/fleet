@@ -1,11 +1,11 @@
-# Homepage Notes
+# Dashboard Notes
 
-The homepage is designed to contain a dynamic number of informational cards with dynamic layouts
+The dashboard is designed to contain a dynamic number of informational cards with dynamic layouts
 that are based on teams (if any) and device platforms (macOS, Linux, Windows). 
 
 ## Architecture
 
-- Homepage Wrapper
+- Dashboard Wrapper
 - Components
 - Cards
 

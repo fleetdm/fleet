@@ -495,6 +495,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "munki_info":             {},
 		hostDetailQueryPrefix + "windows_update_history": {},
 		hostDetailQueryPrefix + "kubequery_info":         {},
+		hostDetailQueryPrefix + "orbit_info":             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1105,6 +1106,10 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
+	ds.SetOrUpdateHostOrbitInfoFunc = func(ctx context.Context, hostID uint, version string) error {
+		require.Equal(t, "42", version)
+		return nil
+	}
 	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
 		require.Equal(t, uint(1), hostID)
 		require.Equal(t, "foo", authToken)
@@ -1274,8 +1279,7 @@ func TestDetailQueries(t *testing.T) {
 ],
 "fleet_detail_query_orbit_info": [
 	{
-		"version": "42",
-		"device_auth_token": "foo"
+		"version": "42"
 	}
 ]
 }
