@@ -78,7 +78,7 @@ module.exports = {
     await sails.helpers.process.executeCommand.with({
       command: `./.tools/mdm-gen-cert --out ${signedAPNSCertOutputPath} --email ${email}`,
       dir: sails.config.appPath,
-      timeout: 10000, // TODO
+      timeout: 10000,
       environmentVars: {
         VENDOR_CERT_PEM: sails.config.custom.mdmVendorCertPem,
         VENDOR_KEY_PEM: sails.config.custom.mdmVendorKeyPem,
