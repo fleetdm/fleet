@@ -46,7 +46,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
 
 	// Create new host for test
-	_, err := ds.NewHost(ctx, &fleet.Host{
+	h1, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -57,8 +57,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		OsqueryHostID:   "M",
+		OsqueryVersion:  "4.9.0",
 	})
 	require.NoError(t, err)
+
+	// Create host_orbit_info record for test
+	require.NoError(t, ds.SetOrUpdateHostOrbitInfo(ctx, h1.ID, "1.1.0"))
 
 	// Create two new users for test
 	u1, err := ds.NewUser(ctx, &fleet.User{
@@ -163,6 +167,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysActual, 5)
 	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysPossible, 10)
 	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
+	assert.Equal(t, stats.HostsEnrolledByOsqueryVersion, []fleet.HostsCountByOsqueryVersion{{OsqueryVersion: "4.9.0", NumHosts: 1}})
+	assert.Equal(t, stats.HostsEnrolledByOrbitVersion, []fleet.HostsCountByOrbitVersion{{OrbitVersion: "1.1.0", NumHosts: 1}})
 
 	firstIdentifier := stats.AnonymousIdentifier
 
