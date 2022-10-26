@@ -168,7 +168,6 @@ func (s *Schedule) Start() {
 	g.Add(+1)
 	go func() {
 		defer func() {
-			fmt.Println("deferred")
 			s.releaseLock()
 			g.Done()
 		}()
@@ -179,7 +178,6 @@ func (s *Schedule) Start() {
 
 			select {
 			case <-s.ctx.Done():
-				fmt.Println("main loop done")
 				return
 
 			case <-schedTicker.C:
@@ -215,7 +213,6 @@ func (s *Schedule) Start() {
 
 				// set new wait to the remaining duration after dividing the total running time by the schedule interval
 				newWait = schedInterval - (totalRunningTime % schedInterval)
-				fmt.Println("new wait", newWait)
 				setWaitTimes(newStart, newWait)
 
 				select {
@@ -285,8 +282,6 @@ func (s *Schedule) Start() {
 
 	go func() {
 		g.Wait()
-		fmt.Println("closing done")
-		s.releaseLock()
 		level.Debug(s.logger).Log("msg", "done")
 		close(s.done) // communicates that the scheduler has finished running its goroutines
 	}()
@@ -360,11 +355,9 @@ func (s *Schedule) holdLock() context.CancelFunc {
 		for {
 			select {
 			case <-ctx.Done():
-				fmt.Println("done with hold context")
 				s.releaseLock()
 				return
 			case <-ticker.C:
-				fmt.Println("hold lock tick")
 				s.acquireLock()
 
 			}

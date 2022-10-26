@@ -320,11 +320,9 @@ func TestScheduleReleaseLock(t *testing.T) {
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		mockLock.mu.Lock()
 		defer mockLock.mu.Unlock()
-		fmt.Println("lock func called", time.Since(start))
 
 		now := time.Now()
 		if mockLock.owner == owner || now.After(mockLock.expiry) {
-			fmt.Println("acquire lock: ", owner, time.Since(start))
 			mockLock.owner = owner
 			mockLock.expiry = now.Add(expiration)
 			mockLock.count = mockLock.count + 1
@@ -336,7 +334,6 @@ func TestScheduleReleaseLock(t *testing.T) {
 
 	unlock := make(chan int)
 	ds.UnlockFunc = func(context.Context, string, string) error {
-		fmt.Println("unlock called", time.Since(start))
 		unlock <- 1
 		return nil
 	}
@@ -346,11 +343,8 @@ func TestScheduleReleaseLock(t *testing.T) {
 
 	jobCount := 0
 	s := New(ctx, "test_sched", "test_instance", schedInterval, ds, WithJob("test_job", func(ctx context.Context) error {
-		fmt.Println("start job", time.Since(start))
 		time.Sleep(jobDuration)
 		jobCount++
-		fmt.Println("end job", time.Since(start))
-
 		return nil
 	}))
 	s.Start()
@@ -397,11 +391,9 @@ func TestScheduleHoldLock(t *testing.T) {
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		mockLock.mu.Lock()
 		defer mockLock.mu.Unlock()
-		fmt.Println("lock func called", time.Since(start))
 
 		now := time.Now()
 		if mockLock.owner == owner || now.After(mockLock.expiry) {
-			fmt.Println("acquire lock: ", owner, time.Since(start))
 			mockLock.owner = owner
 			mockLock.expiry = now.Add(expiration)
 			mockLock.count = mockLock.count + 1
@@ -413,7 +405,6 @@ func TestScheduleHoldLock(t *testing.T) {
 
 	unlock := make(chan int)
 	ds.UnlockFunc = func(context.Context, string, string) error {
-		fmt.Println("unlock called", time.Since(start))
 		unlock <- 1
 		return nil
 	}
@@ -423,11 +414,8 @@ func TestScheduleHoldLock(t *testing.T) {
 
 	jobCount := 0
 	s := New(ctx, "test_sched", "test_instance", schedInterval, ds, WithJob("test_job", func(ctx context.Context) error {
-		fmt.Println("start job", time.Since(start))
 		time.Sleep(jobDuration)
 		jobCount++
-		fmt.Println("end job", time.Since(start))
-
 		return nil
 	}))
 	s.Start()
