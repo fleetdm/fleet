@@ -72,9 +72,12 @@ from
     join routes r on r.interface = ia.interface
 where
     r.destination = '0.0.0.0'
+    and r.netmask = 0
     and r.type = 'gateway'
+    and instr(ia.address, '.') > 0
 order by
-    instr(ia.address, '.') desc
+    r.metric asc
+limit 1
 `,
 		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestNetworkInterface,
@@ -90,9 +93,12 @@ from
     join routes r on r.interface = ia.address
 where
     r.destination = '0.0.0.0'
+    and r.netmask = 0
     and r.type = 'remote'
+    and instr(ia.address, '.') > 0
 order by
-    instr(ia.address, '.') desc
+    r.metric asc
+limit 1
 `,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestNetworkInterface,
