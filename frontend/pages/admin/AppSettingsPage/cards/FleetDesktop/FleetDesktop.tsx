@@ -80,7 +80,7 @@ const FleetDesktop = ({
             onBlur={validateForm}
             error={formErrors.transparency_url}
           />
-          <p className={`${baseClass}__component-label`}>
+          <p className={`${baseClass}__component-details`}>
             When an end user clicks “Transparency” in the Fleet Desktop menu, by
             default they are taken to{" "}
             <CustomLink

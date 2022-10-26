@@ -229,6 +229,11 @@
     font-size: $x-small;
   }
 
+  &__component-details {
+    margin: 0 0 $pad-medium;
+    font-size: $x-small;
+  }
+
   &__yaml {
     width: calc(90% - 50px);
     margin-bottom: $pad-medium;
