@@ -1,0 +1,1 @@
+* Fixed an Orbit MSI installer bug that caused Orbit files not to be removed during uninstallation.

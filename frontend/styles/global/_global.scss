@@ -23,19 +23,6 @@ body {
     opacity: 1; // Overrides 0.9 default opacity
     text-align: center;
   }
-
-  .tooltip {
-    &:hover {
-      cursor: help;
-    }
-
-    .button--disabled,
-    .fleet-checkbox__tick--disabled {
-      &:hover {
-        cursor: help;
-      }
-    }
-  }
 }
 
 h1,
@@ -57,10 +44,6 @@ a {
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
-}
-
-.no-wrap {
-  white-space: nowrap;
 }
 
 .body-wrap {

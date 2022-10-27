@@ -1,5 +1,4 @@
 .software-details-page {
-  &__back-link,
   &__hosts-link {
     display: flex;
     align-items: center;
@@ -9,12 +8,6 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-  }
-
-  #back-chevron {
-    width: 16px;
-    height: 16px;
-    margin: 0 $pad-small 0 0;
   }
 
   #right-chevron {

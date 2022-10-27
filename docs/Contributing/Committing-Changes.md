@@ -20,7 +20,7 @@ Fleet Device Management team members may not copy queries from external sources 
 
 Each developer (internal or external) creates a fork of the Fleet repository, committing changes to a branch within their fork. Developers submit changes by PR to be merged into Fleet.
 
-GitHub Actions automatically runs testers and linters on each PR. Please make sure that these checks pass. Checks can be run locally as described in [Testing.md](./Testing-and-local-development.md).
+GitHub Actions automatically runs testers and linters on each PR. Please make sure that these checks pass. Checks can be run locally as described in [Testing.md](https://fleetdm.com/docs/contributing/testing-and-local-development).
 
 Mark the Pull Request as a "Draft" for the features still in progress. This helps make it clear which PRs are ready for review and merge.
 

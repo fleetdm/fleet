@@ -38,7 +38,7 @@ Passwords are never stored in plaintext in the database. We store a `bcrypt`ed h
 
 #### Authentication tokens
 
-The size and expiration time of session tokens is admin-configurable. See [The documentation on session duration](../Deploying/Configuration.md#session-duration).
+The size and expiration time of session tokens is admin-configurable. See [The documentation on session duration](https://fleetdm.com/docs/deploying/configuration#session-duration).
 
 It is possible to revoke all session tokens for a user by forcing a password reset.
 

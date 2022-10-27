@@ -29,13 +29,21 @@ interface IDataColumn extends ColumnInterface {
 
 const _unshiftHostname = (headers: IDataColumn[]) => {
   const newHeaders = [...headers];
-  const i = headers.findIndex((h) => h.id === "host_hostname");
-  if (i >= 0) {
+  const displayNameIndex = headers.findIndex(
+    (h) => h.id === "host_display_name"
+  );
+  if (displayNameIndex >= 0) {
     // remove hostname header from headers
-    const [hostnameHeader] = newHeaders.splice(i, 1);
+    const [displayNameHeader] = newHeaders.splice(displayNameIndex, 1);
     // reformat title and insert at start of headers array
-    newHeaders.unshift({ ...hostnameHeader, title: "hostname" });
+    newHeaders.unshift({ ...displayNameHeader, title: "Host" });
   }
+  // TODO: Remove after v5 when host_hostname is removed rom API response.
+  const hostNameIndex = headers.findIndex((h) => h.id === "host_hostname");
+  if (hostNameIndex >= 0) {
+    newHeaders.splice(hostNameIndex, 1);
+  }
+  // end remove
   return newHeaders;
 };
 

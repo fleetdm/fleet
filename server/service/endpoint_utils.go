@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -68,8 +69,18 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
+// A value that implements requestDecoder takes control of decoding the request
+// as a whole - that is, it is responsible for decoding the body and any url
+// or query argument itself.
 type requestDecoder interface {
 	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+}
+
+// A value that implements bodyDecoder takes control of decoding the request
+// body. Other fields such as url and query parameters are decoded prior to
+// calling DecodeBody with the request's body as an io.Reader.
+type bodyDecoder interface {
+	DecodeBody(ctx context.Context, r io.Reader) error
 }
 
 // makeDecoder creates a decoder for the type for the struct passed on. If the
@@ -88,6 +99,10 @@ type requestDecoder interface {
 // If iface implements the requestDecoder interface, it returns a function that
 // calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
 // own decoding.
+//
+// If iface implements the bodyDecoder interface, it calls iface.DecodeBody
+// after having decoded any non-body fields (such as url and query parameters)
+// into the struct.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -109,25 +124,32 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		v := reflect.New(t)
 		nilBody := false
 
+		var isBodyDecoder bool
+		if _, ok := v.Interface().(bodyDecoder); ok {
+			isBodyDecoder = true
+		}
+
 		buf := bufio.NewReader(r.Body)
+		var body io.Reader = buf
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
-			var body io.Reader = buf
 			if r.Header.Get("content-encoding") == "gzip" {
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
-					return nil, err
+					return nil, badRequestErr("gzip decoder error: %w", err)
 				}
 				defer gzr.Close()
 				body = gzr
 			}
 
-			req := v.Interface()
-			if err := json.NewDecoder(body).Decode(req); err != nil {
-				return nil, err
+			if !isBodyDecoder {
+				req := v.Interface()
+				if err := json.NewDecoder(body).Decode(req); err != nil {
+					return nil, badRequestErr("json decoder error: %w", err)
+				}
+				v = reflect.ValueOf(req)
 			}
-			v = reflect.ValueOf(req)
 		}
 
 		for _, f := range allFields(v) {
@@ -180,7 +202,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 							if err == errBadRoute && optional {
 								continue
 							}
-							return nil, err
+							return nil, badRequestErr("intFromRequest: %w", err)
 						}
 						field.SetInt(v)
 
@@ -190,7 +212,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 							if err == errBadRoute && optional {
 								continue
 							}
-							return nil, err
+							return nil, badRequestErr("uintFromRequest: %w", err)
 						}
 						field.SetUint(v)
 
@@ -200,7 +222,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 							if err == errBadRoute && optional {
 								continue
 							}
-							return nil, err
+							return nil, badRequestErr("stringFromRequest: %w", err)
 						}
 						field.SetString(v)
 
@@ -212,7 +234,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 			_, jsonExpected := f.Tag.Lookup("json")
 			if jsonExpected && nilBody {
-				return nil, errors.New("Expected JSON Body")
+				return nil, badRequest("Expected JSON Body")
 			}
 
 			queryTagValue, ok := f.Tag.Lookup("query")
@@ -228,7 +250,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					if optional {
 						continue
 					}
-					return nil, fmt.Errorf("Param %s is required", f.Name)
+					return nil, badRequest(fmt.Sprintf("Param %s is required", f.Name))
 				}
 				if field.Kind() == reflect.Ptr {
 					// create the new instance of whatever it is
@@ -241,7 +263,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				case reflect.Uint:
 					queryValUint, err := strconv.Atoi(queryVal)
 					if err != nil {
-						return nil, fmt.Errorf("parsing uint from query: %w", err)
+						return nil, badRequestErr("parsing uint from query: %w", err)
 					}
 					field.SetUint(uint64(queryValUint))
 				case reflect.Bool:
@@ -258,13 +280,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 						case "":
 							queryValInt = int(fleet.OrderAscending)
 						default:
-							return fleet.ListOptions{},
-								errors.New("unknown order_direction: " + queryVal)
+							return fleet.ListOptions{}, badRequest("unknown order_direction: " + queryVal)
 						}
 					default:
 						queryValInt, err = strconv.Atoi(queryVal)
 						if err != nil {
-							return nil, fmt.Errorf("parsing int from query: %w", err)
+							return nil, badRequestErr("parsing int from query: %w", err)
 						}
 					}
 					field.SetInt(int64(queryValInt))
@@ -274,8 +295,28 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			}
 		}
 
+		if isBodyDecoder {
+			bd := v.Interface().(bodyDecoder)
+			if err := bd.DecodeBody(ctx, body); err != nil {
+				return nil, err
+			}
+		}
+
 		return v.Interface(), nil
 	}
+}
+
+func badRequest(msg string) error {
+	return &fleet.BadRequestError{Message: msg}
+}
+
+func badRequestErr(msg string, err error) error {
+	// ensure timeout errors don't become BadRequestErrors.
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return fmt.Errorf(msg, err)
+	}
+	return &fleet.BadRequestError{Message: fmt.Errorf(msg, err).Error()}
 }
 
 type authEndpointer struct {

@@ -31,7 +31,7 @@ server/fleet/emails.go:90:23: undefined: Asset
 make: *** [fleet] Error 2
 ```
 
-If you get an `undefined: Asset` error, it is likely because you did not run `make generate` before `make build`. See [Building Fleet](./Building-Fleet.md) for additional documentation on compiling the `fleet` binary.
+If you get an `undefined: Asset` error, it is likely because you did not run `make generate` before `make build`. See [Building Fleet](https://fleetdm.com/docs/contributing/building-fleet) for additional documentation on compiling the `fleet` binary.
 
 ## Adding hosts for testing
 

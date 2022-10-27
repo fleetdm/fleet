@@ -190,6 +190,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
+
 	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err

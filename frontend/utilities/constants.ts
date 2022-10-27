@@ -185,7 +185,7 @@ export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, hostname, UUID, serial number, or private IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
-  "Search hosts by name, hostname, UUID, serial number or private IP address";
+  "Search hosts by name, hostname, UUID, serial number, or private IP address";
 
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {
@@ -208,4 +208,9 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   name: "",
   password: "",
   sso_enabled: null,
+};
+
+/** Must pass agent options config as empty object */
+export const EMPTY_AGENT_OPTIONS = {
+  config: {},
 };

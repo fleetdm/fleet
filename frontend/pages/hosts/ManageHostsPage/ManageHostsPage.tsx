@@ -761,6 +761,10 @@ const ManageHostsPage = ({
         newQueryParams.team_id = currentTeam.id;
       }
 
+      if (status) {
+        newQueryParams.status = status;
+      }
+
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
@@ -1676,6 +1680,7 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
+        pageSize={100}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}

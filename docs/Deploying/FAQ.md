@@ -20,6 +20,7 @@
 - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 - [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
+- [What Redis versions are supported?](#what-redis-versions-are-supported)
 - [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
 
 ## How do I get support for working with Fleet?
@@ -34,7 +35,7 @@ Yes. Fleet scales horizontally out of the box as long as all of the Fleet server
 
 Note that osquery logs will be distributed across the Fleet servers.
 
-Read the [performance documentation](../Using-Fleet/Monitoring-Fleet.md#fleet-server-performance) for more.
+Read the [performance documentation](https://fleetdm.com/docs/using-fleet/monitoring-fleet#fleet-server-performance) for more.
 
 ## Why aren't my osquery agents connecting to Fleet?
 
@@ -101,9 +102,9 @@ These configurations cannot be managed centrally from Fleet.
 
 ## What do I do about "too many open files" errors?
 
-This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](./Configuration.md#runing-with-systemd) for an example of how to do this with systemd.
+This error usually indicates that the Fleet server has run out of file descriptors. Fix this by increasing the `ulimit` on the Fleet process. See the `LimitNOFILE` setting in the [example systemd unit file](https://fleetdm.com/docs/deploying/configuration#runing-with-systemd) for an example of how to do this with systemd.
 
-Some deployments may benefit by setting the [`--server_keepalive`](./Configuration.md#server-keepalive) flag to false.
+Some deployments may benefit by setting the [`--server_keepalive`](https://fleetdm.com/docs/deploying/configuration#server-keepalive) flag to false.
 
 This was also seen as a symptom of a different issue: if you're deploying on AWS on T type instances, there are different scenarios where the activity can increase and the instances will burst. If they run out of credits, then they'll stop processing leaving the file descriptors open.
 
@@ -129,7 +130,7 @@ Taking it a bit slower on major releases gives you an opportunity to better trac
 
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
-This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](./Configuration.md#mysql-max-open-conns) and [`--mysql_max_idle_conns`](./Configuration.md#mysql-max-idle-conns) flags appropriately.
+This could be caused by a mismatched connection limit between the Fleet server and the MySQL server that prevents Fleet from fully utilizing the database. First [determine how many open connections your MySQL server supports](https://dev.mysql.com/doc/refman/8.0/en/too-many-connections.html). Now set the [`--mysql_max_open_conns`](https://fleetdm.com/docs/deploying/configuration#mysql-max-open-conns) and [`--mysql_max_idle_conns`](https://fleetdm.com/docs/deploying/configuration#mysql-max-idle-conns) flags appropriately.
 
 ## Why am I receiving a database connection error when attempting to "prepare" the database?
 
@@ -154,13 +155,14 @@ No. Currently, Fleet is only available for self-hosting on premises or in the cl
 ## What MySQL versions are supported?
 
 Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants and these may not be addressed in future Fleet releases.
+
 ## What are the MySQL user requirements?
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
 
 ## Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](./Configuration.md#my-sql).
+You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#my-sql).
 
 ## What is duplicate enrollment and how do I fix it?
 
@@ -177,7 +179,7 @@ using `--osquery_host_identifier=uuid` will not resolve the duplicate enrollment
 the problem can be resolved by setting `--osquery_host_identifier=instance` (which will use the
 osquery generated UUID), and then delete the associated host in the Fleet UI.
 
-Find more information about [host identifiers here](./Configuration.md#osquery-host-identifier).
+Find more information about [host identifiers here](https://fleetdm.com/docs/deploying/configuration#osquery-host-identifier).
 
 ## How long are osquery enroll secrets valid?
 
@@ -254,12 +256,23 @@ are managed in the team yaml.
 
 The `unknown column` error typically occurs when the database migrations haven't been run during the upgrade process.
 
-Check out the [documentation on running database migrations](./Upgrading-Fleet.md#running-database-migrations) to resolve this issue.
+Check out the [documentation on running database migrations](https://fleetdm.com/docs/deploying/upgrading-fleet#running-database-migrations) to resolve this issue.
 
 ## What API endpoints should I expose to the public internet?
 
-If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the "/api/v1/osquery" endpoint to the public internet.
+If you would like to manage hosts that can travel outside your VPN or intranet we recommend only exposing the `/api/v1/osquery` endpoint to the public internet.
 
+If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
+
+For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
+
+If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
+
+- /api/setup
+- /api/v1/setup
+- /api/osquery/*
+- /api/latest/fleet/*
+- /api/v1/fleet/*
 ## What is the minimum version of MySQL required by Fleet?
 
 Fleet requires at least MySQL version 5.7.
@@ -267,6 +280,9 @@ Fleet requires at least MySQL version 5.7.
 ## How do I migrate from Fleet Free to Fleet Premium?
 
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in the Fleet's config file. See [here](https://fleetdm.com/docs/deploying/configuration#license) for more details. Note: You don't need to redeploy Fleet after the migration.
+
+## What Redis versions are supported?
+Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 will typically work well.
 
 ## Will my older version of Fleet work with Redis 6?
 

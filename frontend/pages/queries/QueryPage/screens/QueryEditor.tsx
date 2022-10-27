@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Link } from "react-router";
+
 import { InjectedRouter } from "react-router/lib/Router";
 import { UseMutateAsyncFunction } from "react-query";
 
@@ -12,8 +12,8 @@ import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 
+import BackLink from "components/BackLink";
 import QueryForm from "pages/queries/QueryPage/components/QueryForm";
-import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IQueryEditorProps {
   router: InjectedRouter;
@@ -139,10 +139,9 @@ const QueryEditor = ({
 
   return (
     <div className={`${baseClass}__form`}>
-      <Link to={PATHS.MANAGE_QUERIES} className={`${baseClass}__back-link`}>
-        <img src={BackChevron} alt="back chevron" id="back-chevron" />
-        <span>Back to queries</span>
-      </Link>
+      <div className={`${baseClass}__header-links`}>
+        <BackLink text="Back to queries" path={PATHS.MANAGE_QUERIES} />
+      </div>
       <QueryForm
         router={router}
         onCreateQuery={onSaveQueryFormSubmit}

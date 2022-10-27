@@ -1,0 +1,9 @@
+name: ad_config
+examples: >-
+  See the domain, if any, that the Mac is bound to.
+  
+  ```
+  
+  SELECT domain FROM ad_config;
+  
+  ```

@@ -1,5 +1,4 @@
 .user-management {
-
   &__page-description {
     font-size: $x-small;
     color: $core-fleet-black;
@@ -8,10 +7,5 @@
 
   &__sandbox-demo-message {
     margin-top: 3.5rem;
-  }
-
-  .Select-menu-outer {
-    position: absolute;
-    left: -50px !important; // Using !important to override react select styling
   }
 }

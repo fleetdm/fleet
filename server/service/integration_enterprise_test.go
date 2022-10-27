@@ -110,6 +110,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
+	// dry-run with empty body
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(errBody), `"Expected JSON Body"`)
+
+	// dry-run with invalid top-level key
+	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
+		"specs": [
+			{"name": "team_name_1", "unknown_key": true}
+		]
+	}`), http.StatusBadRequest, "dry_run", "true")
+
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
@@ -131,6 +144,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
+
+	// force create new team with invalid top-level key
+	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
+		"specs": [
+			{"name": "team_with_invalid_key", "unknown_key": true}
+		]
+	}`), http.StatusOK, "force", "true")
+
+	team, err = s.ds.TeamByName(context.Background(), "team_with_invalid_key")
+	require.NoError(t, err)
 
 	// invalid agent options command-line flag
 	agentOpts = json.RawMessage(`{"command_line_flags": {"nope": 1}}`)

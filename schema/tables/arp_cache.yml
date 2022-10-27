@@ -1,0 +1,23 @@
+name: arp_cache
+examples: >-
+  List the content of the ARP cache.
+
+  ```
+
+  SELECT address, interface, mac FROM arp_cache;
+
+  ```
+
+  On systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address. This could indicate an [ARP spoofing](https://en.wikipedia.org/wiki/ARP_spoofing) attack, in which an attacker that controls a system on the LAN attempts to funnel all remote traffic through it so they can inspect it.
+
+  ```
+
+  SELECT * FROM arp_cache WHERE address IN (INSERT_GATEWAY_IPS) AND mac NOT IN (INSERT_EXPECTED_MAC_ADDRESSES);
+
+  ```
+notes: >-
+  * The first six digits of a MAC address is the [Organizationally Unique
+  Identifier
+  (OUI)](https://en.wikipedia.org/wiki/Organizationally_unique_identifier).
+
+  * You can lookup the manufacturer and model via the MAC address using a tool like [wireshark OUI lookup](https://www.wireshark.org/tools/oui-lookup.html).

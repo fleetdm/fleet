@@ -225,6 +225,8 @@ type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uin
 
 type FindPasswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
+type CleanupExpiredPasswordResetRequestsFunc func(ctx context.Context) error
+
 type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
 type SessionByIDFunc func(ctx context.Context, id uint) (*fleet.Session, error)
@@ -436,6 +438,8 @@ type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version str
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+
+type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
 
@@ -802,6 +806,9 @@ type DataStore struct {
 	FindPasswordResetByTokenFunc        FindPasswordResetByTokenFunc
 	FindPasswordResetByTokenFuncInvoked bool
 
+	CleanupExpiredPasswordResetRequestsFunc        CleanupExpiredPasswordResetRequestsFunc
+	CleanupExpiredPasswordResetRequestsFuncInvoked bool
+
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
 
@@ -1119,6 +1126,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
+	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
@@ -1720,6 +1730,11 @@ func (s *DataStore) FindPasswordResetByToken(ctx context.Context, token string) 
 	return s.FindPasswordResetByTokenFunc(ctx, token)
 }
 
+func (s *DataStore) CleanupExpiredPasswordResetRequests(ctx context.Context) error {
+	s.CleanupExpiredPasswordResetRequestsFuncInvoked = true
+	return s.CleanupExpiredPasswordResetRequestsFunc(ctx)
+}
+
 func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
 	s.SessionByKeyFuncInvoked = true
 	return s.SessionByKeyFunc(ctx, key)
@@ -2248,6 +2263,11 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolle
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
+}
+
+func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
+	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
+	return s.SetOrUpdateHostOrbitInfoFunc(ctx, hostID, version)
 }
 
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {

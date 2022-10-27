@@ -1,6 +1,15 @@
 .label-filter-select {
   width: 175px;
 
+  &:hover {
+    // no access to hover state from react-select in JS so this is done here.
+    .custom-dropdown-indicator {
+      & path {
+        fill: $core-vibrant-blue;
+      }
+    }
+  }
+
   .label-filter-select__control {
     border: 1px solid $ui-fleet-blue-15;
     background-color: $ui-light-grey;
@@ -24,11 +33,9 @@
       position: absolute;
       content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
       transform: scale(0.5);
-      top: -2px;
       left: -6px;
     }
   }
-
 
   .label-filter-select__single-value,
   .label-filter-select__placeholder {
@@ -102,10 +109,14 @@
       white-space: nowrap;
     }
 
-    img {
-      width: 16px;
-      height: 16px;
+    .option-icon {
       margin-right: $pad-small;
+    }
+  }
+
+  &__custom-dropdown-indicator {
+    &:hover {
+      cursor: pointer;
     }
   }
 }
