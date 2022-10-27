@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
 import { IconNames, ICON_MAP } from "components/icons";
 import classnames from "classnames";
-import { DEFAULT_SORT_DIRECTION } from "pages/hosts/ManageHostsPage/constants";
 
 interface IIconProps {
   name: IconNames;
@@ -9,19 +8,11 @@ interface IIconProps {
   direction?: "up" | "down" | "left" | "right";
   className?: string;
   size?: "small" | "medium";
-  variant?: "inline";
 }
 
 const baseClass = "icon";
 
-const Icon = ({
-  name,
-  color,
-  direction,
-  className,
-  size,
-  variant,
-}: IIconProps) => {
+const Icon = ({ name, color, direction, className, size }: IIconProps) => {
   const classNames = classnames(baseClass, className);
 
   // createPassedProps creates a props object that we pass to the specific icon
@@ -31,14 +22,13 @@ const Icon = ({
       return Object.assign(
         {},
         color === undefined ? undefined : { color },
-        direction === undefined ? { DEFAULT_SORT_DIRECTION } : { direction },
-        size === undefined ? undefined : { size },
-        variant === undefined ? undefined : { variant }
+        direction === undefined ? undefined : { direction },
+        size === undefined ? undefined : { size }
       );
     };
 
     return createPassedProps();
-  }, [color, size]);
+  }, [color, direction, size]);
 
   const IconComponent = ICON_MAP[name];
 

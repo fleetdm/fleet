@@ -15,7 +15,7 @@ interface ICustomLinkProps {
   newTab?: boolean;
 }
 
-const CustomLink = ({ text, href, newTab = true }: ICustomLinkProps) => {
+const CustomLink = ({ text, href, newTab = false }: ICustomLinkProps) => {
   const target = newTab ? "_blank" : "";
   return (
     <a href={href} target={target} rel="noopener noreferrer">
@@ -46,7 +46,7 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
       remarkPlugins={[remarkGfm]}
       components={{
         a: ({ href = "", children }) => {
-          return <CustomLink text={children} href={href} />;
+          return <CustomLink text={children} href={href} newTab />;
         },
 
         // Overrides code display to use FleetAce with Readonly overrides.
