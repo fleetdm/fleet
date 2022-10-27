@@ -458,13 +458,6 @@ jobs:
         
         # There is an sporadic issue with --insecure flag being used and osqueryd which causes long shutdown time, not testing this scenario until issue this scenario is sorted out
 
-        # Test 6 - Check that no fleet-desktop process is running once service stops
-        Start-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
-        Stop-Service -Name $serviceName
-        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with fleet-desktop runner interrupt that needs to be tracked down
-        Get-Process | %{ if ($_.Name -eq "fleet-desktop") { throw "Fleet Service test #7 failed" } }
-
     - name: MSI Installer Tests
       shell: pwsh
       run: |
