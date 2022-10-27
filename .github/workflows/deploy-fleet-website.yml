@@ -63,7 +63,7 @@ jobs:
     - run: rm -f .gitignore
 
     # build storybook in the website's assets/ folder
-    - run: npm run build-storybook -- -o ./website/assets/storybook
+    - run: npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Download dependencies (including dev deps)
     - run: cd website/ && npm install
