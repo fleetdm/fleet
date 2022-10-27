@@ -28,21 +28,13 @@ const CustomLink = ({
       {multilineText}
       <span className={`${baseClass}__no-wrap`}>
         {lastWord}
-        <Icon
-          name="external-link"
-          className={`${baseClass}__external-icon`}
-          variant="inline"
-        />
+        <Icon name="external-link" className={`${baseClass}__external-icon`} />
       </span>
     </>
   ) : (
     <>
       {text}
-      <Icon
-        name="external-link"
-        className={`${baseClass}__external-icon`}
-        variant="inline"
-      />
+      <Icon name="external-link" className={`${baseClass}__external-icon`} />
     </>
   );
 
