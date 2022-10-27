@@ -15,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+var errInvalidScheme = errors.New("address must start with https:// for remote connections")
+
 // httpClient interface allows the HTTP methods to be mocked.
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -115,7 +117,7 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 
 	allowHTTP := insecureSkipVerify || strings.Contains(baseURL.Host, "localhost") || strings.Contains(baseURL.Host, "127.0.0.1")
 	if baseURL.Scheme != "https" && !allowHTTP {
-		return nil, errors.New("address must start with https:// for remote connections")
+		return nil, errInvalidScheme
 	}
 
 	rootCAPool := x509.NewCertPool()
