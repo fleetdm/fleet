@@ -20,8 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -221,7 +221,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
 				recentV,
-				meta,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -233,7 +233,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
 				recentV,
-				meta,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
