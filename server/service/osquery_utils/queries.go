@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -62,71 +61,47 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 //
 // This map should not be modified at runtime.
 var hostDetailQueries = map[string]DetailQuery{
-	"network_interface": {
-		Query: `select ia.address, id.mac, id.interface
-                        from interface_details id join interface_addresses ia
-                               on ia.interface = id.interface where length(mac) > 0
-                               order by (ibytes + obytes) desc`,
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
-			if len(rows) == 0 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					"detail_query_network_interface expected 1 or more results")
-				return nil
-			}
-
-			// Rows are ordered by traffic, so we will get the most active
-			// interface by iterating in order
-			var firstIPv4, firstIPv6 map[string]string
-			for _, row := range rows {
-				ip := net.ParseIP(row["address"])
-				if ip == nil {
-					continue
-				}
-
-				// Skip link-local and loopback interfaces
-				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
-					continue
-				}
-
-				// Skip docker interfaces as these are sometimes heavily
-				// trafficked, but rarely the interface that Fleet users want to
-				// see. https://github.com/fleetdm/fleet/issues/4754.
-				if strings.Contains(row["interface"], "docker") {
-					continue
-				}
-
-				if strings.Contains(row["address"], ":") {
-					// IPv6
-					if firstIPv6 == nil {
-						firstIPv6 = row
-					}
-				} else {
-					// IPv4
-					if firstIPv4 == nil {
-						firstIPv4 = row
-					}
-				}
-			}
-
-			var selected map[string]string
-			switch {
-			// Prefer IPv4
-			case firstIPv4 != nil:
-				selected = firstIPv4
-			// Otherwise IPv6
-			case firstIPv6 != nil:
-				selected = firstIPv6
-			// If only link-local and loopback found, still use the first
-			// interface so that we don't get an empty value.
-			default:
-				selected = rows[0]
-			}
-
-			host.PrimaryIP = selected["address"]
-			host.PrimaryMac = selected["mac"]
-			host.PublicIP = publicip.FromContext(ctx)
-			return nil
-		},
+	"network_interface_unix": {
+		Query: `
+select
+    ia.address,
+    id.mac
+from
+    interface_addresses ia
+    join interface_details id on id.interface = ia.interface
+    join routes r on r.interface = ia.interface
+where
+    r.destination = '0.0.0.0'
+    and r.netmask = 0
+    and r.type = 'gateway'
+    and instr(ia.address, '.') > 0
+order by
+    r.metric asc
+limit 1
+`,
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
+		IngestFunc: ingestNetworkInterface,
+	},
+	"network_interface_windows": {
+		Query: `
+select
+    ia.address,
+    id.mac
+from
+    interface_addresses ia
+    join interface_details id on id.interface = ia.interface
+    join routes r on r.interface = ia.address
+where
+    r.destination = '0.0.0.0'
+    and r.netmask = 0
+    and r.type = 'remote'
+    and instr(ia.address, '.') > 0
+order by
+    r.metric asc
+limit 1
+`,
+		Platforms:  []string{"windows"},
+		IngestFunc: ingestNetworkInterface,
 	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
@@ -406,6 +381,55 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		IngestFunc: ingestKubequeryInfo,
 		Discovery:  discoveryTable("kubernetes_info"),
 	},
+}
+
+func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "IngestFunc", "err",
+			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		return nil
+	}
+
+	host.PrimaryIP = rows[0]["address"]
+	host.PrimaryMac = rows[0]["mac"]
+	host.PublicIP = publicip.FromContext(ctx)
+	return nil
+}
+
+func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
+			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
+		return nil
+	}
+
+	gigsAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+	percentAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
+}
+
+func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
+	}
+
+	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
+
+	// These values are not provided by kubequery
+	host.OsqueryVersion = "kubequery"
+	host.Platform = "kubequery"
+	return nil
 }
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
@@ -1155,29 +1179,6 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
-		return nil
-	}
-	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
-			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
-		return nil
-	}
-
-	gigsAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
-	if err != nil {
-		return err
-	}
-	percentAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
-	if err != nil {
-		return err
-	}
-
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
-}
-
 func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) == 0 || failed {
 		// assume the extension is not there
@@ -1220,19 +1221,6 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
 	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
-}
-
-func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-	if len(rows) != 1 {
-		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
-	}
-
-	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
-
-	// These values are not provided by kubequery
-	host.OsqueryVersion = "kubequery"
-	host.Platform = "kubequery"
-	return nil
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
