@@ -31,7 +31,7 @@ const Icon = ({
       return Object.assign(
         {},
         color === undefined ? undefined : { color },
-        direction === undefined ? undefined : { DEFAULT_SORT_DIRECTION },
+        direction === undefined ? { DEFAULT_SORT_DIRECTION } : { direction },
         size === undefined ? undefined : { size },
         variant === undefined ? undefined : { variant }
       );
