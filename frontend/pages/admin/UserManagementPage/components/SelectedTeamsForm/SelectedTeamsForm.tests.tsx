@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 
-import { renderWithSetup } from "test/test-utils";
+import { renderWithSetup } from "test/testingUtils";
 import { userTeamStub } from "test/stubs";
 import SelectedTeamsForm from "./SelectedTeamsForm";
 

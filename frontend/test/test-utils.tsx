@@ -29,25 +29,14 @@ export const renderWithAppContext = (
   );
 };
 
-/**
-  A collection of utilities to enable easier writting of tests
- */
-
-// eslint-disable-next-line import/prefer-default-export
-export const renderWithSetup = (component: JSX.Element) => {
-  return {
-    user: userEvent.setup(),
-    ...render(component),
-  };
-};
+interface IContextOptions {
+  app?: Partial<IAppContext>;
+  notification?: Partial<INotificationContext>;
+}
 
 interface ICustomRenderOptions {
-  context?: {
-    app?: Partial<IAppContext>;
-    notification?: Partial<INotificationContext>;
-  };
+  context?: IContextOptions;
   withBackendMock?: boolean;
-  withUserEvents?: boolean;
 }
 
 // TODO: types
@@ -65,11 +54,15 @@ const CONTEXT_PROVIDER_MAP = {
 };
 
 type ContextProviderKeys = keyof typeof CONTEXT_PROVIDER_MAP;
+interface IWrapperComponentProps {
+  client?: QueryClient;
+  value?: Partial<IAppContext> | Partial<INotificationContext>;
+}
 
 const createWrapperComponent = (
   CurrentWrapper: React.FC<any>, // TODO: types
   WrapperComponent: React.FC<any>, // TODO: types
-  props: any // TODO: types
+  props: IWrapperComponentProps
 ) => {
   return ({ children }: IChildrenProp) => (
     <WrapperComponent {...props}>
@@ -79,43 +72,69 @@ const createWrapperComponent = (
 };
 
 interface IChildrenProp {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
-type RenderResultWithUser = RenderResult & { user?: UserEvent };
 
-// TODO: types
+type RenderResultWithUser = RenderResult & { user: UserEvent };
+
+const addQueryProviderWrapper = (
+  CustomWrapperComponent: ({ children }: IChildrenProp) => JSX.Element
+) => {
+  const client = new QueryClient();
+  CustomWrapperComponent = createWrapperComponent(
+    CustomWrapperComponent,
+    QueryClientProvider,
+    { client }
+  );
+
+  return CustomWrapperComponent;
+};
+
+const addContextWrappers = (
+  contextObj: IContextOptions,
+  CustomWrapperComponent: ({ children }: IChildrenProp) => JSX.Element
+) => {
+  Object.entries(contextObj).forEach(([key, value]) => {
+    CustomWrapperComponent = createWrapperComponent(
+      CustomWrapperComponent,
+      CONTEXT_PROVIDER_MAP[key as ContextProviderKeys].Provider,
+      { value }
+    );
+  });
+  return CustomWrapperComponent;
+};
+
+/**
+ * Creates a custom testing-library render function based on a configuration object.
+ * It will help set up the react context and backend mock dependencies so that
+ * you can easily set up a component for testing.
+ *
+ * This will also set up the @testing-library/user-events and expose a user object
+ * you can use to perform user interactions.
+ */
 export const createCustomRenderer = (renderOptions: ICustomRenderOptions) => {
   let CustomWrapperComponent = ({ children }: IChildrenProp) => <>{children}</>;
 
   if (renderOptions.withBackendMock) {
-    const client = new QueryClient();
-    CustomWrapperComponent = createWrapperComponent(
-      CustomWrapperComponent,
-      QueryClientProvider,
-      { client }
-    );
+    CustomWrapperComponent = addQueryProviderWrapper(CustomWrapperComponent);
   }
 
   if (renderOptions.context !== undefined) {
-    Object.keys(renderOptions.context).forEach((key) => {
-      CustomWrapperComponent = createWrapperComponent(
-        CustomWrapperComponent,
-        CONTEXT_PROVIDER_MAP[key as ContextProviderKeys].Provider,
-        { value: renderOptions.context?.[key as ContextProviderKeys] }
-      );
-    });
+    CustomWrapperComponent = addContextWrappers(
+      renderOptions.context,
+      CustomWrapperComponent
+    );
   }
 
-  return (component: JSX.Element, options?: Omit<RenderOptions, "wrapper">) => {
+  return (
+    component: React.ReactElement,
+    options?: Omit<RenderOptions, "wrapper">
+  ): RenderResultWithUser => {
     const renderResults: RenderResultWithUser = {
+      user: userEvent.setup(),
       ...render(component, { wrapper: CustomWrapperComponent, ...options }),
     };
 
-    if (renderOptions.withUserEvents) {
-      renderResults.user = userEvent.setup();
-      return renderResults as RenderResultWithUser;
-    }
-
-    return renderResults as RenderResult;
+    return renderResults;
   };
 };
