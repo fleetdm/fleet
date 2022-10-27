@@ -1,2 +1,0 @@
-- Added ingestion of `ReleaseId` from Windows registry (which will be used to populate `host.os_version`
-  in the case that `DisplayVersion` is empty)

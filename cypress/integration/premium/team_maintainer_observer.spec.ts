@@ -47,26 +47,19 @@ describe("Premium tier - Team observer/maintainer user", () => {
     describe("Dashboard", () => {
       beforeEach(() => dashboardPage.visitsDashboardPage());
       it("displays cards for all platforms", () => {
-        cy.getAttached(".homepage__wrapper").within(() => {
-          cy.findByText(/apples/i).should("exist");
-          cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".hosts-status").should("exist");
-          cy.getAttached(".home-software").should("exist");
-          // "get" because we expect it not to exist
-          cy.get(".activity-feed").should("not.exist");
-        });
+        dashboardPage.displaysCards("team", "premium");
       });
       it("displays cards for windows only", () => {
         dashboardPage.switchesPlatform("Windows");
-        dashboardPage.displaysCards("Windows");
+        dashboardPage.displaysCards("Windows", "premium");
       });
       it("displays cards for linux only", () => {
         dashboardPage.switchesPlatform("Linux");
-        dashboardPage.displaysCards("Linux");
+        dashboardPage.displaysCards("Linux", "premium");
       });
       it("displays cards for macOS only", () => {
         dashboardPage.switchesPlatform("macOS");
-        dashboardPage.displaysCards("macOS");
+        dashboardPage.displaysCards("macOS", "premium");
       });
       it("views all hosts for all platforms", () => {
         cy.findByText(/view all hosts/i).click();
@@ -75,7 +68,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         );
       });
       it("views all hosts for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
+        cy.getAttached(".dashboard-page__platforms").within(() => {
           cy.getAttached(".Select-control").click();
           cy.findByText(/windows/i).click();
         });
@@ -85,7 +78,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         );
       });
       it("views all hosts for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
+        cy.getAttached(".dashboard-page__platforms").within(() => {
           cy.getAttached(".Select-control").click();
           cy.findByText(/linux/i).click();
         });
@@ -95,7 +88,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         );
       });
       it("views all hosts for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
+        cy.getAttached(".dashboard-page__platforms").within(() => {
           cy.getAttached(".Select-control").click();
           cy.findByText(/macos/i).click();
         });

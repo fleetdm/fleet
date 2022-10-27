@@ -91,11 +91,7 @@ const FleetDesktop = ({
               rel="noopener noreferrer"
             >
               https://fleetdm.com/transparency
-              <img
-                className="icon"
-                src={ExternalLinkIcon}
-                alt="Open external link"
-              />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>{" "}
             . You can override the URL to take them to a resource of your
             choice.

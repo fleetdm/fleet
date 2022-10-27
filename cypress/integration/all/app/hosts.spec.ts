@@ -192,7 +192,7 @@ describe("Hosts flow", () => {
         });
       });
     });
-    it("renders and searches the host's software, links to filter hosts by software", () => {
+    it("renders and searches the host's software", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
         cy.findByText(/software/i).click();
       });
@@ -219,12 +219,24 @@ describe("Hosts flow", () => {
             const searchCount = parseInt(newCount[0], 10);
             expect(searchCount).to.be.lessThan(initialCount);
           });
-        cy.getAttached(".software-link").first().click({ force: true });
       });
-      cy.findByText(/libacl1 2.2.53-6/i).should("exist");
+    });
+    it("host's software table links to filter hosts by software", () => {
+      cy.getAttached(".react-tabs__tab-list").within(() => {
+        cy.findByText(/software/i).click();
+      });
+      cy.getAttached(".software-link").first().click({ force: true });
+      cy.findByText(/adduser 3.118ubuntu2/i).should("exist"); // first seeded software item
       cy.getAttached(".data-table").within(() => {
         cy.findByText(hostname).should("exist");
       });
+    });
+    it("host's software table links to software details", () => {
+      cy.getAttached(".react-tabs__tab-list").within(() => {
+        cy.findByText(/software/i).click();
+      });
+      cy.contains(/adduser/i).click();
+      cy.findByText(/adduser, 3.118ubuntu2/i).should("exist");
     });
     it("renders host's schedule", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
@@ -258,7 +270,7 @@ describe("Hosts flow", () => {
         defaultCommandTimeout: 15000,
       },
       () => {
-        cy.getAttached(".hostname-container").within(() => {
+        cy.getAttached(".display-name-container").within(() => {
           cy.contains("button", /refetch/i).click();
           cy.findByText(/fetching/i).should("exist");
           cy.contains("button", /refetch/i).should("exist");

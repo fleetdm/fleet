@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -73,6 +74,7 @@ func TestJiraRun(t *testing.T) {
 			require.Contains(t, string(body), expectedDescription)
 		}
 		if expectedNotInDescription != "" {
+			fmt.Println(string(body))
 			require.NotContains(t, string(body), expectedNotInDescription)
 		}
 
@@ -96,37 +98,100 @@ func TestJiraRun(t *testing.T) {
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{BaseURL: srv.URL})
 	require.NoError(t, err)
 
-	jira := &Jira{
-		FleetURL:  "http://example.com",
-		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
-		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
-			return client, nil
+	cases := []struct {
+		desc                     string
+		licenseTier              string
+		payload                  string
+		expectedSummary          string
+		expectedDescription      string
+		expectedNotInDescription string
+	}{
+		{
+			"old vuln format free",
+			fleet.TierFree,
+			`{"cve":"CVE-1234-5678"}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Affected hosts:",
+			"Probability of exploit",
+		},
+		{
+			"vuln free",
+			fleet.TierFree,
+			`{"vulnerability":{"cve":"CVE-1234-5678"}}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Affected hosts:",
+			"Probability of exploit",
+		},
+		{
+			"vuln with scores free",
+			fleet.TierFree,
+			`{"vulnerability":{"cve":"CVE-1234-5678","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Affected hosts:",
+			"Probability of exploit",
+		},
+		{
+			"failing global policy",
+			fleet.TierFree,
+			`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`,
+			`"summary":"test-policy policy failed on 0 host(s)"`,
+			"\\u0026policy_id=1\\u0026policy_response=failing",
+			"\\u0026team_id=",
+		},
+		{
+			"failing team policy",
+			fleet.TierPremium,
+			`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "test-1"}, {"id": 2, "hostname": "test-2"}]}}`,
+			`"summary":"test-policy-2 policy failed on 2 host(s)"`,
+			"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing",
+			"",
+		},
+		{
+			"old vuln format premium",
+			fleet.TierPremium,
+			`{"cve":"CVE-1234-5678"}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Affected hosts:",
+			"Probability of exploit",
+		},
+		{
+			"vuln premium",
+			fleet.TierPremium,
+			`{"vulnerability":{"cve":"CVE-1234-5678"}}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Affected hosts:",
+			"Probability of exploit",
+		},
+		{
+			"vuln with scores premium",
+			fleet.TierPremium,
+			`{"vulnerability":{"cve":"CVE-1234-5678","epss_probability":3.4,"cvss_score":50,"cisa_known_exploit":true}}`,
+			`"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`,
+			"Probability of exploit",
+			"",
 		},
 	}
 
-	t.Run("vuln", func(t *testing.T) {
-		expectedSummary = `"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`
-		expectedDescription, expectedNotInDescription = "", ""
-		err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
-		require.NoError(t, err)
-	})
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			jira := &Jira{
+				FleetURL:  "https://fleetdm.com",
+				Datastore: ds,
+				Log:       kitlog.NewNopLogger(),
+				License:   &fleet.LicenseInfo{Tier: c.licenseTier},
+				NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
+					return client, nil
+				},
+			}
 
-	t.Run("failing global policy", func(t *testing.T) {
-		expectedSummary = `"summary":"test-policy policy failed on 0 host(s)"`
-		expectedDescription = "\\u0026policy_id=1\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
-		expectedNotInDescription = "\\u0026team_id="
-		err = jira.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
-		require.NoError(t, err)
-	})
+			expectedSummary = c.expectedSummary
+			expectedDescription = c.expectedDescription
+			expectedNotInDescription = c.expectedNotInDescription
+			err = jira.Run(context.Background(), json.RawMessage(c.payload))
+			require.NoError(t, err)
+		})
+	}
 
-	t.Run("failing team policy", func(t *testing.T) {
-		expectedSummary = `"summary":"test-policy-2 policy failed on 2 host(s)"`
-		expectedDescription = "\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
-		expectedNotInDescription = ""
-		err = jira.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "test-1"}, {"id": 2, "hostname": "test-2"}]}}`))
-		require.NoError(t, err)
-	})
 }
 
 func TestJiraQueueVulnJobs(t *testing.T) {
@@ -140,23 +205,25 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 			count++
 			return job, nil
 		}
-		vulns := []fleet.SoftwareVulnerability{
-			{
-				CVE:        "CVE-1234-5678",
-				SoftwareID: 1,
-			}, {
-				CVE:        "CVE-1234-5678",
-				SoftwareID: 2,
-			}, {
-				CVE:        "CVE-1234-5678",
-				SoftwareID: 2,
-			}, {
-				CVE:        "CVE-1234-5678",
-				SoftwareID: 3,
-			},
+		vulns := []fleet.SoftwareVulnerability{{
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 1,
+		}, {
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 2,
+		}, {
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 2,
+		}, {
+			CVE:        "CVE-1234-5678",
+			SoftwareID: 3,
+		}}
+		meta := make(map[string]fleet.CVEMeta, len(vulns))
+		for _, v := range vulns {
+			meta[v.CVE] = fleet.CVEMeta{CVE: v.CVE}
 		}
 
-		err := QueueJiraVulnJobs(ctx, ds, logger, vulns)
+		err := QueueJiraVulnJobs(ctx, ds, logger, vulns, meta)
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 		require.Equal(t, 1, count)
@@ -166,7 +233,11 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
 		}
-		err := QueueJiraVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
+		theCVE := "CVE-1234-5678"
+		meta := map[string]fleet.CVEMeta{
+			theCVE: {CVE: theCVE},
+		}
+		err := QueueJiraVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: theCVE}}, meta)
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -175,7 +246,11 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, io.EOF
 		}
-		err := QueueJiraVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
+		theCVE := "CVE-1234-5678"
+		meta := map[string]fleet.CVEMeta{
+			theCVE: {CVE: theCVE},
+		}
+		err := QueueJiraVulnJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: theCVE}}, meta)
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)
@@ -306,6 +381,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
+		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			// keep track of project keys received in calls to NewClientFunc
 			projectKeys = append(projectKeys, opts.ProjectKey)

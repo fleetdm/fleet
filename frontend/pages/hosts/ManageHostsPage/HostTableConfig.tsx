@@ -139,14 +139,14 @@ const allHostTableHeaders: IDataColumn[] = [
     disableHidden: true,
   },
   {
-    title: "Hostname",
+    title: "Host",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "hostname",
+    accessor: "display_name",
     Cell: (cellProps: ICellProps) => (
       <LinkCell
         value={cellProps.cell.value}
@@ -158,6 +158,28 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     disableHidden: true,
+  },
+  {
+    title: "Hostname",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "hostname",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
+    title: "Computer name",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "computer_name",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Team",
@@ -274,7 +296,7 @@ const allHostTableHeaders: IDataColumn[] = [
     },
   },
   {
-    title: "IP address",
+    title: "Private IP address",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -285,12 +307,23 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
+    title: "Public IP address",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "public_ip",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
     title: "Last fetched",
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The last time the host reported vitals.
+            The last time the host<br/> reported vitals.
           `}
         >
           Last fetched
@@ -317,7 +350,7 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The last time the host was online.
+            The last time the <br/>host was online.
           `}
         >
           Last seen
@@ -419,8 +452,11 @@ const allHostTableHeaders: IDataColumn[] = [
 ];
 
 const defaultHiddenColumns = [
+  "hostname",
+  "computer_name",
   "device_mapping",
   "primary_mac",
+  "public_ip",
   "cpu_type",
   "memory",
   "uptime",

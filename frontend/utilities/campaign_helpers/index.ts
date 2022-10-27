@@ -62,7 +62,7 @@ const updateCampaignStateFromResults = (
 
     newErrors = errors.concat([
       {
-        host_hostname: host?.hostname,
+        host_display_name: host?.display_name,
         osquery_version: host?.osquery_version,
         error:
           error ||

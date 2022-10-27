@@ -308,6 +308,7 @@ var hostRefs = []string{
 	"host_device_auth",
 	"host_batteries",
 	"host_operating_system",
+	"host_orbit_info",
 	"host_munki_issues",
 	"host_display_names",
 	"windows_updates",
@@ -903,9 +904,18 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 					orbit_node_key
 				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
 			`
-			_, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
+			}
+			hostID, _ := result.LastInsertId()
+			level.Info(ds.logger).Log("hostID", hostID)
+			const sqlHostDisplayName = `
+				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
+			`
+			_, err = tx.ExecContext(ctx, sqlHostDisplayName, hostID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
 		default:
 			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
@@ -1153,8 +1163,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 }
 
 // LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
-// If the token is invalid it returns a NotFoundError.
-func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+// If the token is invalid or expired it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
 	const query = `
     SELECT
       h.id,
@@ -1205,10 +1215,10 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hda.host_id = h.id
     LEFT OUTER JOIN
       host_disks hd ON hd.host_id = hda.host_id
-    WHERE hda.token = ?`
+    WHERE hda.token = ? AND hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -1220,12 +1230,24 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_device_auth SET token = ? WHERE host_id = ?`,
-		`INSERT INTO host_device_auth (token, host_id) VALUES (?, ?)`,
-		authToken, hostID,
-	)
+	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
+	// of the statement, it inherits the default behaviour which is that the updated_at
+	// timestamp will NOT be changed if the new token is the same as the old token
+	// (which is exactly what we want). The updated_at timestamp WILL be updated if the
+	// new token is different.
+	const stmt = `
+		INSERT INTO
+			host_device_auth ( host_id, token )
+		VALUES
+			(?, ?)
+		ON DUPLICATE KEY UPDATE
+			token = VALUES(token)
+`
+	_, err := ds.writer.ExecContext(ctx, stmt, hostID, authToken)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
+	}
+	return nil
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -2113,6 +2135,15 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ? WHERE host_id = ?`,
 		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, host_id) VALUES (?, ?, ?)`,
 		gigsAvailable, percentAvailable, hostID,
+	)
+}
+
+func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_orbit_info SET version = ? WHERE host_id = ?`,
+		`INSERT INTO host_orbit_info (version, host_id) VALUES (?, ?)`,
+		version, hostID,
 	)
 }
 
@@ -3054,4 +3085,34 @@ WHERE
 		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
 	}
 	return len(ids), nil
+}
+
+func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOrbitVersion, error) {
+	var counts []fleet.HostsCountByOrbitVersion
+
+	const stmt = `
+		SELECT version as orbit_version, count(*) as num_hosts
+		FROM host_orbit_info
+		GROUP BY version
+  	`
+	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
+		return []fleet.HostsCountByOrbitVersion{}, err
+	}
+
+	return counts, nil
+}
+
+func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOsqueryVersion, error) {
+	var counts []fleet.HostsCountByOsqueryVersion
+
+	const stmt = `
+		SELECT osquery_version, count(*) as num_hosts
+		FROM hosts
+		GROUP BY osquery_version
+  	`
+	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
+		return []fleet.HostsCountByOsqueryVersion{}, err
+	}
+
+	return counts, nil
 }

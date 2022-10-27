@@ -518,17 +518,11 @@ FROM
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
-	OrbitInfoQueryName: OrbitInfoDetailQuery,
-}
-
-// OrbitInfoQueryName is the name of the query to ingest orbit_info table extension data.
-const OrbitInfoQueryName = "orbit_info"
-
-// OrbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
-var OrbitInfoDetailQuery = DetailQuery{
-	Query:            `SELECT * FROM orbit_info`,
-	DirectIngestFunc: directIngestOrbitInfo,
-	Discovery:        discoveryTable("orbit_info"),
+	"orbit_info": {
+		Query:            `SELECT version FROM orbit_info`,
+		DirectIngestFunc: directIngestOrbitInfo,
+		Discovery:        discoveryTable("orbit_info"),
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -645,6 +639,7 @@ SELECT
   '' AS vendor,
   '' AS arch
 FROM deb_packages
+WHERE status = 'install ok installed'
 UNION
 SELECT
   package AS name,
@@ -789,6 +784,23 @@ var usersQuery = DetailQuery{
 	// was generated once for each user.
 	Query:            usersQueryStr,
 	DirectIngestFunc: directIngestUsers,
+}
+
+// directIngestOrbitInfo ingests data from the orbit_info extension table.
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOrbitInfo", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
+	}
+	version := rows[0]["version"]
+	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOrbitInfo update host orbit info")
+	}
+
+	return nil
 }
 
 // directIngestOSWindows ingests selected operating system data from a host on a Windows platform
@@ -961,20 +973,6 @@ func directIngestWindowsUpdateHistory(
 	}
 
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
-}
-
-func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if len(rows) != 1 {
-		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
-	}
-	deviceAuthToken := rows[0]["device_auth_token"]
-	if deviceAuthToken == "" {
-		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
-	}
-	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
-	}
-	return nil
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
@@ -1226,8 +1224,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "ingestKubequeryInfo", "warn",
-			fmt.Sprintf("kubernetes_info expected single result got %d", len(rows)))
+		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
 	}
 
 	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])

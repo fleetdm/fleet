@@ -106,6 +106,21 @@ func (oc *OrbitClient) GetConfig() (*OrbitConfig, error) {
 	}, nil
 }
 
+// SetOrUpdateDeviceToken sends a request to the server to set or update the
+// device token with the given value.
+func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
+	verb, path := "POST", "/api/fleet/orbit/device_token"
+	params := setOrUpdateDeviceTokenRequest{
+		DeviceAuthToken: deviceAuthToken,
+	}
+	var resp setOrUpdateDeviceTokenResponse
+	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Ping sends a ping request to the orbit/ping endpoint.
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
 	err := oc.request(verb, path, nil, nil)

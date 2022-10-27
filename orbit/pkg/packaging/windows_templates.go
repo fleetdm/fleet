@@ -26,6 +26,10 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 
     <Property Id="REINSTALLMODE" Value="amus" />
 
+    <Property Id="APPLICATIONFOLDER">
+      <RegistrySearch Key="SOFTWARE\FleetDM\Orbit" Root="HKLM" Type="raw" Id="APPLICATIONFOLDER_REGSEARCH" Name="Path" />
+    </Property>
+
     <MediaTemplate EmbedCab="yes" />
 
     <MajorUpgrade AllowDowngrades="yes" />
@@ -37,6 +41,10 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
             <CreateFolder>
               <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
             </CreateFolder>
+          </Component>
+          <Component Id="C_ORBITROOT_REMOVAL" Guid="B7DFD19E-3D2B-4536-A04F-5D4DE90F3863">
+            <RegistryValue Root="HKLM" Key="SOFTWARE\FleetDM\Orbit" Name="Path" Type="string" Value="[ORBITROOT]" KeyPath="yes" />
+            <util:RemoveFolderEx On="uninstall" Property="APPLICATIONFOLDER" />
           </Component>
           <Directory Id="ORBITBIN" Name="bin">
             <Directory Id="ORBITBINORBIT" Name="orbit">
@@ -86,6 +94,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />
+      <ComponentRef Id="C_ORBITROOT_REMOVAL" />
       <ComponentRef Id="C_ORBITBIN" />
       <ComponentRef Id="C_ORBITROOT" />
     </Feature>

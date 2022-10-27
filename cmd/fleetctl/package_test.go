@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -35,12 +34,12 @@ func TestPackage(t *testing.T) {
 	// Test invalid PEM file provided in --fleet-certificate.
 	certDir := t.TempDir()
 	fleetCertificate := filepath.Join(certDir, "fleet.pem")
-	err = ioutil.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0o644))
+	err = os.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0o644))
 	require.NoError(t, err)
 	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read certificate %q: invalid PEM file", fleetCertificate))
 
 	if runtime.GOOS != "linux" {
-		runAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native on non-linux platforms fails")
+		runAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native tooling is only available in Linux")
 	}
 
 	t.Run("deb", func(t *testing.T) {

@@ -1,7 +1,7 @@
 [
   {
     "name": "account_policy_data",
-    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;\n```\n\nSee each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.\n```\nSELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;"
+    "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;\n```\n\nSee each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.\n```\nSELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;\n```"
   },
   {
     "name": "ad_config",
@@ -13,7 +13,12 @@
   },
   {
     "name": "alf_exceptions",
-    "examples": "List applications that are able to receive inbound connections across the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions\n```"
+    "examples": "List applications that are able to receive inbound connections across the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions;\n```"
+  },
+  {
+    "name": "alf_explicit_auths",
+    "examples": "List applications were granted explicit access through the firewall. This is useful when looking to see if vulnerable software is exposed to networks. \n```\nSELECT * FROM alf_exceptions;\n```",
+    "notes": "This table is currently affected by a [bug](https://github.com/osquery/osquery/issues/2322) and not returning applications visible in the preferences interface."
   },
   {
     "name": "app_schemes",
@@ -25,7 +30,12 @@
   },
   {
     "name": "arp_cache",
-    "examples": "List the content of the ARP cache. On systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address.\n```\nSELECT address, interface, mac FROM arp_cache;\n```"
+    "examples": "List the content of the ARP cache.\n```\nSELECT address, interface, mac FROM arp_cache;\n```\nOn systems located in an office or datacenter, you can use this to watch for network attacks by checking for gateway IPs that do not have the expected MAC address. This could indicate an [ARP spoofing](https://en.wikipedia.org/wiki/ARP_spoofing) attack, in which an attacker that controls a system on the LAN attempts to funnel all remote traffic through it so they can inspect it.\n```\nSELECT * FROM arp_cache WHERE address IN (INSERT_GATEWAY_IPS) AND mac NOT IN (INSERT_EXPECTED_MAC_ADDRESSES);\n```\n",
+    "notes": "* The first six digits of a MAC address is the [Organizationally Unique Identifier (OUI)](https://en.wikipedia.org/wiki/Organizationally_unique_identifier).\n* You can lookup the manufacturer and model via the MAC address using a tool like [wireshark OUI lookup](https://www.wireshark.org/tools/oui-lookup.html)."
+  },
+  {
+    "name": "asl",
+    "examples": "Apple System Logger (ASL) is deprecated since macOS 10.12. On older Macs, this table can be used to read logs. On newer ones, see the *unified_log* table. This example is from the osquery documentation.\n```\nSELECT time, message FROM asl WHERE facility = 'authpriv' AND sender = 'sudo' AND message LIKE '%python%';\n```"
   },
   {
     "name": "authorization_mechanisms",
@@ -44,8 +54,20 @@
     "examples": "List the tags assigned to an Azure VM\n```\nSELECT key, value FROM azure_instance_tags;\n```"
   },
   {
+    "name": "augeas",
+    "examples": "This table requires augeas [lenses](https://augeas.net/docs/lenses.html) to be installed in their default location. This query will output *sshd_config* as if it was a table. This is especially useful to check for specific configurations in text files.\n```\nSELECT * FROM augeas WHERE path='/etc/ssh/sshd_config';\n```"
+  },
+  {
+    "name": "battery",
+    "examples": "This table contains a lot of information about the health of batteries. This query shows how many cycles the battery of a device was used for, allowing you to identify users who put more wear on it and might need more frequent replacements.\n```\nSELECT cycle_count FROM battery;\n```"
+  },
+  {
     "name": "browser_plugins",
     "examples": "See classic browser plugins (C/NPAPI) installed by users. These plugins have been deprecated for a long time, so this query will usually not return anything.\n```\nSELECT bp.name, bp.identifier, bp.version FROM browser_plugins bp JOIN users u on bp.uid = u.uid ;\n```"
+  },
+  {
+    "name": "curl",
+    "examples": "Connect over HTTP and retrieve statistics about the process. This is useful to detect machines on slow networks, or that have no Internet access.\n```\nSELECT round_trip_time FROM curl WHERE URL='https://fleetdm.com';\n```"
   },
   {
     "name": "curl_certificate",
@@ -121,10 +143,6 @@
     "examples": "Identify Intel powered Macs that support a specific Intel CPU feature, such as sgx1.\n```\nSELECT * from cpuid WHERE feature='sgx1';\n```"
   },
   {
-    "name": "file",
-    "examples": "List zip files in the downloads folder as well as their associated sha256 hash.\n```\nSELECT f.path, h.sha256 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE '/Users/%/Downloads/%%.zip';\n```"
-  },
-  {
     "name": "device_firmware",
     "examples": "Identify the firmware version of hardware on a Mac, such as the SSD controller in this case. Older versions might indicate a problem with software updates, and this information can be useful when troubleshooting various issues.\n```\nSELECT * FROM device_firmware WHERE device='AppleANS3NVMeController';\n```"
   },
@@ -149,6 +167,26 @@
   {
     "name": "disk_events",
     "examples": "This is an evented table, and as such, is more useful if you are sending osquery logs to a SIEM or other centralized destination via Fleet. Events must be enabled. This query will contain the list of all actions related to connecting and removing disks, including SMB drives and USB storage, which can be very useful for investigative purposes.\n```\nSELECT * FROM disk_events;\n```"
+  },
+  {
+    "name": "docker_container_envs",
+    "examples": "This table allows you to list environment variables for running Docker containers. This query will output the value of a variable called *MYSQL_VERSION* for example.\n```\nSELECT key, value FROM docker_container_envs WHERE key LIKE 'MYSQL_VERSION';\n```"
+  },
+  {
+    "name": "docker_container_labels",
+    "examples": "This table exposes all Docker labels on running containers. By joining it to the [docker_containers](https://fleetdm.com/tables/docker_containers)table, we can list containers and their maintainers.\n```\nSELECT dl.value, dc.name, FROM docker_container_labels dl JOIN docker_containers dc ON dl.id = dc.id WHERE key='maintainer';\n```"
+  },
+  {
+    "name": "docker_container_mounts",
+    "examples": "List the source and destination of Docker bind and volume mounts.\n```\nSELECT dm.source, dm.destination, dm.mode, dc.name FROM docker_container_mounts dm JOIN docker_containers dc ON dm.id = dc.id;\n```"
+  },
+  {
+    "name": "docker_container_networks",
+    "examples": "List the IP address of Docker containers.\n```\nSELECT dn.ip_address, dc.name FROM docker_container_networks dn JOIN docker_containers dc ON dn.id=dc.id;\n```"
+  },
+  {
+    "name": "docker_container_ports",
+    "examples": "Identify the ports exposed at the host level and see which containers they redirect traffic to.\n```\nSELECT dc.name, dp.type, dp.port, dp.host_ip, dp.host_port FROM docker_container_ports dp JOIN docker_containers dc ON dp.id=dc.id WHERE dp.host_port !='0';\n```"
   },
   {
     "name": "event_taps",
@@ -235,10 +273,11 @@
   },
   {
     "name": "keychain_acls",
-    "examples": "Identify keychain items with permissions granted to Applications at the system or user level.SELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';\n```\nSELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';\n```"
+    "examples": "Identify keychain items with permissions granted to Applications at the system or user level.\n```\nSELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';\n```"
   },
   {
     "name": "keychain_items",
+    "columns": [{ "name": "created", "description": "Date item was created" }],
     "examples": "Identify Macs that contain certificates related to Apple application signing and notarization. (replace with your Apple Developer ID string)\n```\nSELECT * FROM keychain_items WHERE label LIKE '%8EHZ83LZNU%';\n```"
   },
   {
@@ -617,7 +656,7 @@
   },
   {
     "name": "authorized_keys",
-    "examples": "List the SSH keys allowed to connect to this host\n```\nSELECT key FROM authorized_keys;\n```",
+    "examples": "List the SSH keys allowed to connect to this host.\n```\nSELECT key FROM authorized_keys;\n```",
     "columns": [
       {
         "name": "pid_with_namespace",
@@ -631,7 +670,7 @@
   },
   {
     "name": "crontab",
-    "examples": "List commands scheduled for execution as cron jobs\n```\nSELECT * FROM crontab;\n```",
+    "examples": "List commands scheduled for execution as cron jobs.\n```\nSELECT * FROM crontab;\n```",
     "columns": [
       {
         "name": "pid_with_namespace",
@@ -651,6 +690,7 @@
   },
   {
     "name": "docker_containers",
+    "examples": "Identify containers that are running with high privileges.\n```\nSELECT state, status, image, image_id FROM docker_containers WHERE privileged='1';\n```",
     "columns": [
       {
         "name": "cgroup_namespace",
@@ -671,6 +711,10 @@
       {
         "name": "pid_namespace",
         "platforms": ["linux"]
+      },
+      {
+        "name": "privileged",
+        "description": "Is the container [privileged](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)"
       },
       {
         "name": "user_namespace",
@@ -898,6 +942,7 @@
   },
   {
     "name": "file",
+    "examples": "List zip files in the downloads folder as well as their associated sha256 hash.\n```\nSELECT f.path, h.sha256 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE '/Users/%/Downloads/%%.zip';\n```",
     "columns": [
       {
         "name": "attributes",
@@ -949,6 +994,7 @@
   },
   {
     "name": "atom_packages",
+    "examples": "List installed Atom packages and their version.\n```\nSELECT name, version, description FROM atom_packages;\n```",
     "columns": [
       {
         "name": "uid",
@@ -977,6 +1023,7 @@
   },
   {
     "name": "crashes",
+    "examples": "See software responsible for crashes. This can be useful to detect what the most problematic software in your environment is.\n```\nSELECT crash_path, identifier, responsible, exception_type FROM crashes;\n```",
     "columns": [
       {
         "name": "uid",

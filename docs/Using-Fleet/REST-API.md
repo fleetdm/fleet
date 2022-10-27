@@ -604,7 +604,7 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](../Using-Fleet/fleetctl-CLI.md#file-carving-with-fleet).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#file-carving-with-fleet).
 
 ### List carves
 
@@ -1691,13 +1691,13 @@ None.
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
-| after                   | string  | query | The value to get results after. This needs order_key defined, as that's the column that would be used.                                                                                                                                                                                                                                      |
+| after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                     |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
-| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
@@ -1708,6 +1708,7 @@ None.
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
+| disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -1716,6 +1717,8 @@ If `software_id` is specified, an additional top-level key `"software"` is retur
 If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
 
 If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the information corresponding to the `munki_issue_id`.
+
+If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
 
 #### Example
 
@@ -1831,25 +1834,23 @@ Response payload with the `munki_issue_id` filter provided:
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
-| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                 |
+| after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                    |
+| status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](../Using-Fleet/fleetctl-CLI.md#fleet-configuration-options) for an example configuration with hosts' additional information. Use `*` to get all stored fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
-| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
-| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
-| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, low_disk_space, mdm or munki filters.                                                                                                                                                                                                                                                                        |
-| disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
+| os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
-| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100. |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -2190,46 +2191,131 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 ```json
 {
   "host": {
-    "created_at": "2020-11-05T05:09:44Z",
-    "updated_at": "2020-11-05T06:03:39Z",
-    "id": 1,
-    "detail_updated_at": "2020-11-05T05:09:45Z",
-    "label_updated_at": "2020-11-05T05:14:51Z",
-    "seen_time": "2020-11-05T06:03:39Z",
-    "hostname": "2ceca32fe484",
+    "created_at": "2022-02-10T02:29:13Z",
+    "updated_at": "2022-10-14T17:07:11Z",
+    "software": [
+      {
+          "id": 16923,
+          "name": "Automat",
+          "version": "0.8.0",
+          "source": "python_packages",
+          "generated_cpe": "",
+          "vulnerabilities": null
+      }
+    ],
+    "id": 33,
+    "detail_updated_at": "2022-10-14T17:07:12Z",
+    "label_updated_at": "2022-10-14T17:07:12Z",
+    "policy_updated_at": "2022-10-14T17:07:12Z",
+    "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "seen_time": "2022-10-14T17:45:41Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-    "platform": "centos",
-    "osquery_version": "2.7.0",
-    "os_version": "CentOS Linux 7",
+    "platform": "ubuntu",
+    "osquery_version": "5.5.1",
+    "os_version": "Ubuntu 20.04.3 LTS",
     "build": "",
-    "platform_like": "rhel fedora",
-    "code_name": "",
-    "uptime": 8305000000000,
-    "memory": 2084032512,
-    "cpu_type": "6",
-    "cpu_subtype": "142",
-    "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-    "cpu_physical_cores": 4,
-    "cpu_logical_cores": 4,
+    "platform_like": "debian",
+    "code_name": "focal",
+    "uptime": 20807520000000000,
+    "memory": 1024360448,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "63",
+    "cpu_brand": "DO-Regular",
+    "cpu_physical_cores": 1,
+    "cpu_logical_cores": 1,
     "hardware_vendor": "",
     "hardware_model": "",
     "hardware_version": "",
     "hardware_serial": "",
-    "computer_name": "2ceca32fe484",
-    "display_name": "2ceca32fe484",
-    "primary_ip": "",
-    "primary_mac": "",
+    "computer_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
     "distributed_interval": 10,
-    "config_tls_refresh": 10,
-    "logger_tls_period": 8,
-    "additional": {},
-    "status": "offline",
-    "display_text": "2ceca32fe484",
-    "team_id": null,
+    "config_tls_refresh": 60,
+    "logger_tls_period": 10,
+    "team_id": 2,
+    "pack_stats": [
+      {
+        "pack_id": 1,
+        "pack_name": "Global",
+        "type": "global",
+        "query_stats": [
+          {
+            "scheduled_query_name": "Get running processes (with user_name)",
+            "scheduled_query_id": 49,
+            "query_name": "Get running processes (with user_name)",
+            "pack_name": "Global",
+            "pack_id": 1,
+            "average_memory": 260000,
+            "denylisted": false,
+            "executions": 1,
+            "interval": 86400,
+            "last_executed": "2022-10-14T10:00:01Z",
+            "output_size": 198,
+            "system_time": 20,
+            "user_time": 80,
+            "wall_time": 0
+          }
+        ]
+      }
+    ],
     "team_name": null,
-    "gigs_disk_space_available": 45.86,
-    "percent_disk_space_available": 73,
-    "pack_stats": null,
+    "gigs_disk_space_available": 19.29,
+    "percent_disk_space_available": 74,
+    "issues": {
+        "total_issues_count": 0,
+        "failing_policies_count": 0
+    },
+    "labels": [
+            {
+            "created_at": "2021-09-14T05:11:02Z",
+            "updated_at": "2021-09-14T05:11:02Z",
+            "id": 12,
+            "name": "All Linux",
+            "description": "All Linux distributions",
+            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+            "platform": "",
+            "label_type": "builtin",
+            "label_membership_type": "dynamic"
+        },
+    ],
+    "packs": [
+          {
+            "created_at": "2021-09-17T05:28:54Z",
+            "updated_at": "2021-09-17T05:28:54Z",
+            "id": 1,
+            "name": "Global",
+            "description": "Global pack",
+            "disabled": false,
+            "type": "global",
+            "labels": null,
+            "label_ids": null,
+            "hosts": null,
+            "host_ids": null,
+            "teams": null,
+            "team_ids": null
+        }
+    ],
+    "policies": [
+      {
+            "id": 142,
+            "name": "Full disk encryption enabled (macOS)",
+            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+            "author_id": 31,
+            "author_name": "",
+            "author_email": "",
+            "team_id": null,
+            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+            "platform": "darwin,linux",
+            "created_at": "2022-09-02T18:52:19Z",
+            "updated_at": "2022-09-02T18:52:19Z",
+            "response": "fail"
+        },
+    ],
     "batteries": [
       {
         "cycle_count": 999,
@@ -2243,7 +2329,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
-    }
+    },
+    "status": "online",
+    "display_text": "dogfood-ubuntu-box",
+    "display_name": "dogfood-ubuntu-box"
   }
 }
 ```
@@ -2334,7 +2423,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. |
+| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
 
 #### Example
 
@@ -2690,13 +2779,17 @@ requested by a web browser.
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
-| policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
+| policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy, munki or mdm filters.                                                                                                                                                                                                                                                                 |
+| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
+| os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
+| low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
+| label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
 
 #### Example
 
@@ -3027,14 +3120,18 @@ Returns a list of the hosts that belong to the specified label.
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| id              | integer | path  | **Required**. The label's id.                                                                                                 |
-| order_key       | string  | query | What to order results by. Can be any column in the hosts table.                                                               |
-| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| status          | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                    |
-| query           | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                            |
-| team_id         | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                   |
+| Name                     | Type    | In    | Description                                                                                                                                                                                                                |
+| ---------------          | ------- | ----- | -----------------------------------------------------------------------------------------------------------------------------                                                                                              |
+| id                       | integer | path  | **Required**. The label's id.                                                                                                                                                                                              |
+| page                     | integer | query | Page number of the results to fetch.                                                                                                                                                                                       |
+| per_page                 | integer | query | Results per page.                                                                                                                                                                                                          |
+| order_key                | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                            |
+| order_direction          | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                              |
+| after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
+| status                   | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`.                                                                                                                 |
+| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
+| team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
+| disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 
 #### Example
 
@@ -3505,6 +3602,24 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0
+    }
+  ],
+  "inherited_policies": [
+    {
+      "id": 136,
+      "name": "Arbitrary Test Policy (all platforms) (all teams)",
+      "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
+      "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
+      "author_id": 77,
+      "author_name": "Test Admin",
+      "author_email": "test@admin.com",
+      "team_id": null,
+      "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
+      "platform": "darwin,windows,linux",
+      "created_at": "2022-08-04T19:30:18Z",
+      "updated_at": "2022-08-30T15:08:26Z",
+      "passing_host_count": 10,
+      "failing_host_count": 9
     }
   ]
 }
@@ -5240,7 +5355,7 @@ _Available in Fleet Premium_
 | id                               | integer | path  | **Required.** The desired team's ID.                                                                                                                         |
 | force                            | bool    | query | Force apply the options even if there are validation errors.                                                                                                 |
 | dry_run                          | bool    | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
-| _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](./configuration-files/README.md#agent-options) for details.                              |
+| _JSON data_                      | object  | body  | The JSON to use as agent options for this team. See [Agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) for details.                              |
 
 #### Example
 
@@ -6034,7 +6149,7 @@ The Fleet server exposes a handful of API endpoints to retrieve debug informatio
 
 ### Get a summary of errors
 
-Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 
 The server only stores and returns a single instance of each error.
 

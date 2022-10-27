@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -78,6 +79,7 @@ func encodeErrorAndTrySentry(sentryEnabled bool) func(ctx context.Context, err e
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	ctxerr.Handle(ctx, err)
+	origErr := err
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -171,7 +173,19 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		enc.Encode(je)
 	default:
-		if fleet.IsForeignKey(ctxerr.Cause(err)) {
+		// when there's a tcp read timeout, the error is *net.OpError but the cause is an internal
+		// poll.DeadlineExceeded which we cannot match against, so we match against the original error
+		var opErr *net.OpError
+		if errors.As(origErr, &opErr) {
+			w.WriteHeader(http.StatusRequestTimeout)
+			je := jsonError{
+				Message: opErr.Error(),
+				Errors:  baseError(opErr.Error()),
+			}
+			enc.Encode(je)
+			return
+		}
+		if fleet.IsForeignKey(err) {
 			ve := jsonError{
 				Message: "Validation Failed",
 				Errors:  baseError(err.Error()),
@@ -196,10 +210,20 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			w.Header().Add("Retry-After", strconv.Itoa(ewra.RetryAfter()))
 		}
 
+		msg := err.Error()
+		reason := err.Error()
+		var ume *fleet.UserMessageError
+		if errors.As(err, &ume) {
+			if text := http.StatusText(status); text != "" {
+				msg = text
+			}
+			reason = ume.UserMessage()
+		}
+
 		w.WriteHeader(status)
 		je := jsonError{
-			Message: err.Error(),
-			Errors:  baseError(err.Error()),
+			Message: msg,
+			Errors:  baseError(reason),
 		}
 		enc.Encode(je)
 	}

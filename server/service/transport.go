@@ -25,6 +25,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		writeBrowserSecurityHeaders(w)
 		if coder, ok := page.error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}

@@ -1,0 +1,24 @@
+name: filevault_users
+notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+description: Information on the users able to unlock the current boot volume if protected with FileVault.
+platforms: darwin
+evented: false
+examples: >-
+  List the usernames able to unlock and boot a computer protected by FileVault, joined to
+  [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating
+  system account that owns it.
+
+  ```
+  
+  SELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;
+  
+  ```
+columns:
+  - name: username
+    description: Username of the FileVault user.
+    required: false
+    type: text
+  - name: uuid
+    description: UUID of the FileVault user, which can be joined to [users.uuid](http://fleetdm.com/tables/users).
+    required: false
+    type: text

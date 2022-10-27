@@ -27,6 +27,7 @@
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
   - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
   - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
+  - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
   - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
   - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
   - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
@@ -48,10 +49,11 @@
   - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
     - [Online hosts](#online-hosts)
     - [Offline hosts](#offline-hosts)
-
+  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
+  - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)  
 ## How can I switch to Fleet from Kolide Fleet?
 
-To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
+To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
 
 ## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
 
@@ -63,13 +65,13 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for queries or query packs.
 
-Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](./fleetctl-CLI.md#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries or query packs.
+Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries or query packs.
 
 There is, however, a way to accomplish this even though the answer to the question remains "no": Teams. As of Fleet v4.0.0, you can group hosts in Teams either by enrolling them with a team specific secret, or by transferring hosts to a team. One the hosts you want to target are part of a team, you can create a query and target the team in question.
 
 ## How often do labels refresh? Is the refresh frequency configurable?
 
-The update frequency for labels is configurable with the [—osquery_label_update_interval](../Deploying/Configuration.md#osquery-label-update-interval) flag (default 1 hour).
+The update frequency for labels is configurable with the [—osquery_label_update_interval](https://fleetdm.com/docs/deploying/configuration#osquery-label-update-interval) flag (default 1 hour).
 
 ## How do I revoke the authorization tokens for a user?
 
@@ -81,7 +83,7 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 
 ## How do I monitor a Fleet server?
 
-Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](./Monitoring-Fleet.md) documentation for details.
+Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](https://fleetdm.com/docs/using-fleet/monitoring-fleet) documentation for details.
 
 ## Can I disable password-based authentication in the Fleet UI?
 
@@ -100,7 +102,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](../Deploying/Configuration.md#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
 
 It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
 
@@ -108,7 +110,7 @@ It is possible to configure osqueryd to log query results outside of Fleet. For 
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](../Deploying/Configuration.md#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+The [logger configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
 
 ### Troubleshooting
 
@@ -118,7 +120,7 @@ Expecting results, but not seeing anything in the logs?
 - Check whether the query is scheduled in differential mode. If so, new results will only be logged when the result set changes.
 - Ensure that the query is scheduled to run on the intended platforms, and that the tables queried are supported by those platforms.
 - Use live query to `SELECT * FROM osquery_schedule` to check whether the query has been scheduled on the host.
-- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](../Deploying/Configuration.md#filesystem-status-log-file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
+- Look at the status logs provided by osquery. In a standard configuration these are available on the filesystem of the Fleet server at the path configurable by [`--filesystem_status_log_file`](https://fleetdm.com/docs/deploying/configuration#filesystem-status-log-file). This defaults to `/tmp/osquery_status`. The host will output a status log each time it executes the query.
 
 ## Why does the same query come back faster sometimes?
 
@@ -143,17 +145,17 @@ If you're seeing query results using `osqueryi` but not through Fleet, the most 
 
 You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
-However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](./REST-API.md#list-hosts) and the [`api/v1/fleet/hosts/{id}`](./REST-API.md#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
+However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) and the [`api/v1/fleet/hosts/{id}`](https://fleetdm.com/docs/using-fleet/rest-api#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
 
 For example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
 
-Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./REST-API.md#list-hosts).
+Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts).
 
-The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](../Deploying/Configuration.md#feature-flags).
+The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](https://fleetdm.com/docs/deploying/configuration#feature-flags).
 
-Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./REST-API.md#get-host).
+Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#get-host).
 
-It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./fleetctl-CLI.md#fleet-configuration-options).
+It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
 
 ## How do I automatically add hosts to packs when the hosts enroll to Fleet?
 
@@ -161,11 +163,11 @@ You can accomplish this by adding specific labels as targets of your pack. First
 
 When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack.
 
-You can also do this by setting the `targets` field in the [YAML configuration file](./fleetctl-CLI.md#query-packs) that manages the packs that are added to your Fleet instance.
+You can also do this by setting the `targets` field in the [YAML configuration file](https://fleetdm.com/docs/using-fleet/fleetctl-cli#query-packs) that manages the packs that are added to your Fleet instance.
 
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
-[Team enroll secrets](./Teams.md#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+[Team enroll secrets](https://fleetdm.com/docs/using-fleet/teams#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
 
 ## Why is my host not updating a policy's response?
 
@@ -179,11 +181,11 @@ The following are reasons why a host may not be updating a policy's response:
 
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
-* Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./Adding-hosts.md).
+* Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](https://fleetdm.com/docs/using-fleet/adding-hosts).
 
 ## How does Fleet deal with IP duplication?
 
-Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](./Teams.md) can be used to restrict queries to specific hosts.
+Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
 
 ## Can Orbit run alongside osquery?
 
@@ -208,6 +210,10 @@ You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the
 ## When will the newest version of osquery be available to Orbit?
 
 When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
+
+## Where does Orbit get update information?
+
+Orbit checks for update metadata and downloads binaries at `tuf.fleetctl.com`. 
 
 ## Can I bundle osquery extensions into Orbit?
 
@@ -235,7 +241,7 @@ This isn't currently supported, but we're working on it! You can track that issu
 
 ## Can I create reports based on historical data in Fleet?
 
-Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule. 
+Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](https://fleetdm.com/docs/using-fleet/rest-api) or the [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli) to retrieve it manually. Then save the data you need to your schedule. 
 
 ## When do I need fleetctl vs. the REST API vs. the Fleet UI?
 
@@ -251,15 +257,15 @@ In versions prior to Fleet 4.13, a password reset is needed before a new API-onl
 
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
+The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
 
 ## How often is the software inventory updated?
 
-By default, Fleet will query hosts for software inventory hourly. If you'd like to set a different interval, you can update the [periodicity](../Deploying/Configuration.md#periodicity) in your vulnerabilities configuration. 
+By default, Fleet will query hosts for software inventory hourly. If you'd like to set a different interval, you can update the [periodicity](https://fleetdm.com/docs/deploying/configuration#periodicity) in your vulnerabilities configuration. 
 
 ## Can I group results from multiple hosts?
 
-There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
+There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) or the [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
 
 ```
 $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
@@ -358,3 +364,16 @@ A host is considered online if it has connected to Fleet in the last 80 (20+60) 
 
 **Offline** hosts won't respond to a live query. These hosts may be shut down, asleep, or not connected to the internet.
 A host could also be offline if there is a connection issue between the osquery agent running in the host and Fleet (see [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)).
+
+## Why aren't "additional queries" being applied to hosts enrolled in a team?
+
+Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to be include these queries under `features.additional_queries` in each team's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams). 
+
+## Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?
+
+There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results. 
+
+```
+{{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
+
+```

@@ -30,8 +30,25 @@ var zendeskTemplates = struct {
 		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 	)),
 
-	VulnDescription: template.Must(template.New("").Parse(
+	// Zendesk uses markdown for formatting. Some reference documentation about
+	// it can be found here:
+	// https://support.zendesk.com/hc/en-us/articles/4408846544922-Formatting-text-with-Markdown
+	VulnDescription: template.Must(template.New("").Funcs(template.FuncMap{
+		// CISAKnownExploit is *bool, so any condition check on it in the template
+		// will test if nil or not, and not its actual boolean value. Hence, "deref".
+		"deref": func(b *bool) bool { return *b },
+	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}]({{ .NVDURL }}{{ .CVE }}).
+
+{{ if .IsPremium }}{{ if .EPSSProbability }}
+&nbsp;
+Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/)): {{ .EPSSProbability }}
+{{ end }}
+{{ if .CVSSScore }}CVSS score (reported by [NVD](https://nvd.nist.gov/)): {{ .CVSSScore }}
+{{ end }}
+{{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+&nbsp;
+{{ end }}{{ end }}
 
 Affected hosts:
 
@@ -43,8 +60,8 @@ Affected hosts:
 View the affected software and more affected hosts:
 
 1. Go to the [Software]({{ .FleetURL }}/software/manage) page in Fleet.
-2. Above the list of software, in the *Search software* box, enter "{{ .CVE }}".
-3. Hover over the affected software and select *View all hosts*.
+2. Above the list of software, in the **Search software** box, enter "{{ .CVE }}".
+3. Hover over the affected software and select **View all hosts**.
 
 ----
 
@@ -75,6 +92,13 @@ type zendeskVulnTplArgs struct {
 	FleetURL string
 	CVE      string
 	Hosts    []*fleet.HostShort
+
+	IsPremium bool
+
+	// the following fields are only included in the ticket for premium licenses.
+	EPSSProbability  *float64
+	CVSSScore        *float64
+	CISAKnownExploit *bool
 }
 
 type zendeskFailingPoliciesTplArgs struct {
@@ -97,6 +121,7 @@ type Zendesk struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
+	License       *fleet.LicenseInfo
 	NewClientFunc func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
@@ -199,7 +224,10 @@ func (z *Zendesk) Name() string {
 
 // zendeskArgs are the arguments for the Zendesk integration job.
 type zendeskArgs struct {
+	// CVE is deprecated but kept for backwards compatibility (there may be jobs
+	// enqueued in that format to process).
 	CVE           string             `json:"cve,omitempty"`
+	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
@@ -239,16 +267,28 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 }
 
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
-	hosts, err := z.Datastore.HostsByCVE(ctx, args.CVE)
+	vargs := args.Vulnerability
+	if vargs == nil {
+		// support the old format of vulnerability args, where only the CVE
+		// is provided.
+		vargs = &vulnArgs{
+			CVE: args.CVE,
+		}
+	}
+	hosts, err := z.Datastore.HostsByCVE(ctx, vargs.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
 	tplArgs := &zendeskVulnTplArgs{
-		NVDURL:   nvdCVEURL,
-		FleetURL: z.FleetURL,
-		CVE:      args.CVE,
-		Hosts:    hosts,
+		NVDURL:           nvdCVEURL,
+		FleetURL:         z.FleetURL,
+		CVE:              vargs.CVE,
+		Hosts:            hosts,
+		IsPremium:        z.License.IsPremium(),
+		EPSSProbability:  vargs.EPSSProbability,
+		CVSSScore:        vargs.CVSSScore,
+		CISAKnownExploit: vargs.CISAKnownExploit,
 	}
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
@@ -257,7 +297,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 	}
 	level.Debug(z.Log).Log(
 		"msg", "created zendesk ticket for cve",
-		"cve", args.CVE,
+		"cve", vargs.CVE,
 		"ticket_id", createdTicket.ID,
 	)
 	return nil
@@ -322,6 +362,7 @@ func QueueZendeskVulnJobs(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	recentVulns []fleet.SoftwareVulnerability,
+	cveMeta map[string]fleet.CVEMeta,
 ) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
@@ -341,7 +382,13 @@ func QueueZendeskVulnJobs(
 	}
 
 	for cve := range uniqCVEs {
-		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: cve})
+		args := vulnArgs{CVE: cve}
+		if meta, ok := cveMeta[cve]; ok {
+			args.EPSSProbability = meta.EPSSProbability
+			args.CVSSScore = meta.CVSSScore
+			args.CISAKnownExploit = meta.CISAKnownExploit
+		}
+		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{Vulnerability: &args})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}

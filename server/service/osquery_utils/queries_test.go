@@ -312,12 +312,12 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm",
 		"munki_info",
 		"google_chrome_profiles",
-		"orbit_info",
 		"battery",
 		"os_windows",
 		"os_unix_like",
 		"windows_update_history",
 		"kubequery_info",
+		"orbit_info",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
@@ -487,26 +487,6 @@ func TestDirectIngestMDM(t *testing.T) {
 	}, false)
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-}
-
-func TestDirectIngestOrbitInfo(t *testing.T) {
-	ds := new(mock.Store)
-	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
-		require.Equal(t, hostID, uint(1))
-		require.Equal(t, authToken, "foo")
-		return nil
-	}
-
-	host := fleet.Host{
-		ID: 1,
-	}
-
-	err := directIngestOrbitInfo(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{{
-		"version":           "42",
-		"device_auth_token": "foo",
-	}}, true)
-	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 }
 
 func TestDirectIngestChromeProfiles(t *testing.T) {
@@ -833,4 +813,17 @@ func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload, false)
 	require.NoError(t, err)
 	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
+}
+
+func TestIngestKubequeryInfo(t *testing.T) {
+	err := ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, nil)
+	require.Error(t, err)
+	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{})
+	require.Error(t, err)
+	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{
+		{
+			"cluster_name": "foo",
+		},
+	})
+	require.NoError(t, err)
 }

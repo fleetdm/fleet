@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>ManagedClient logging</string>
+			<key>PayloadEnabled</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.logging.ManagedClient.1</string>
+			<key>PayloadType</key>
+			<string>com.apple.system.logging</string>
+			<key>PayloadUUID</key>
+			<string>C773A786-2D1C-4439-A8F5-A380D749B1AA</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Subsystems</key>
+			<dict>
+				<key>com.apple.ManagedClient</key>
+				<dict>
+					<key>DEFAULT-OPTIONS</key>
+					<dict>
+						<key>Default-Privacy-Setting</key>
+						<string>Public</string>
+						<key>Level</key>
+						<dict>
+							<key>Enable</key>
+							<string>debug</string>
+							<key>Persist</key>
+							<string>debug</string>
+						</dict>
+					</dict>
+				</dict>
+			</dict>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>MDM debug mode</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdmclient</string>
+			<key>EnableDebug</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.logging.ManagedClient.3</string>
+			<key>PayloadUUID</key>
+			<string>3EFF8784-7AE1-43E0-A2BA-6B77BBA54341</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>ALR debug mode</string>
+			<key>PayloadType</key>
+			<string>com.apple.mcx.alr</string>
+			<key>EnableDebug</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.logging.ManagedClient.4</string>
+			<key>PayloadUUID</key>
+			<string>B40BE2CB-7450-411E-86FF-88C482407583</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Enables ManagedClient debug mode and logging</string>
+	<key>PayloadDisplayName</key>
+	<string>MCX debug mode and logging</string>
+	<key>PayloadIdentifier</key>
+	<string>com.apple.logging.ManagedClient</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F9D23FF2-94F2-4D9E-A981-76D5A7AD583E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

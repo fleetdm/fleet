@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -188,6 +190,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
+
 	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
@@ -276,14 +279,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// We apply the config that is incoming to the old one
 	appConfig.EnableStrictDecoding()
 	if err := json.Unmarshal(p, &appConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var legacyUsedWarning error
-	if appConfig.DidUnmarshalLegacySettings() {
+	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors
 		// were encountered.
 		legacyUsedWarning = &fleet.BadRequestError{
-			Message: "warning: deprecated settings were used in the configuration; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings",
+			Message: fmt.Sprintf("warning: deprecated settings were used in the configuration: %v; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings", legacyKeys),
 		}
 	}
 
@@ -300,11 +304,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
 		if err := fleet.ValidateJSONAgentOptions(*appConfig.AgentOptions); err != nil {
+			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
 			}
 			if !applyOpts.Force {
-				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
 			}
 		}
 	}

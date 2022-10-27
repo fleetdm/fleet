@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
+import { IOsqueryPlatform } from "interfaces/platform";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -168,7 +168,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
 };
 
 export const PLATFORM_DROPDOWN_OPTIONS = [
-  { label: "All", value: "" },
+  { label: "All", value: "all" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
   { label: "macOS", value: "darwin" },
@@ -182,10 +182,10 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search hostname, UUID, serial number, or private IP address";
+  "Search name, hostname, UUID, serial number, or private IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
-  "Search hosts by hostname, UUID, serial number or private IP address";
+  "Search hosts by name, hostname, UUID, serial number, or private IP address";
 
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {
@@ -208,4 +208,9 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   name: "",
   password: "",
   sso_enabled: null,
+};
+
+/** Must pass agent options config as empty object */
+export const EMPTY_AGENT_OPTIONS = {
+  config: {},
 };

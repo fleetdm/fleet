@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -148,11 +149,12 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 
 	if teamOptions != nil {
 		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
+			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
 			}
 			if !applyOptions.Force {
-				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
 			}
 		}
 	}
@@ -435,11 +437,12 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 		if spec.AgentOptions != nil {
 			if err := fleet.ValidateJSONAgentOptions(*spec.AgentOptions); err != nil {
+				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
 				}
 				if !applyOpts.Force {
-					return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "validate agent options")
+					return ctxerr.Wrap(ctx, err, "validate agent options")
 				}
 			}
 		}

@@ -1,3 +1,4 @@
+export type IIntegrationType = "jira" | "zendesk";
 export interface IJiraIntegration {
   url: string;
   username: string;
@@ -26,7 +27,7 @@ export interface IIntegration {
   enable_failing_policies?: boolean;
   enable_software_vulnerabilities?: boolean;
   originalIndex?: number;
-  type?: string;
+  type?: IIntegrationType;
   tableIndex?: number;
   dropdownIndex?: number;
   name?: string;
@@ -44,7 +45,7 @@ export interface IIntegrationFormData {
 
 export interface IIntegrationTableData extends IIntegrationFormData {
   originalIndex: number;
-  type: string;
+  type: IIntegrationType;
   tableIndex?: number;
   name: string;
 }

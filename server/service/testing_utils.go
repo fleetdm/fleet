@@ -226,6 +226,7 @@ type TestServerOpts struct {
 	MDMStorage          nanomdm_storage.AllStorage
 	DEPStorage          nanodep_storage.AllStorage
 	MDMPusher           nanomdm_push.Pusher
+	HTTPServerConfig    *http.Server
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -252,7 +253,14 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 	limitStore, _ := memstore.New(0)
 	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
-	server := httptest.NewServer(r)
+	server := httptest.NewUnstartedServer(r)
+	server.Config = cfg.Server.DefaultHTTPServer(context.Background(), r)
+	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
+		server.Config = opts[0].HTTPServerConfig
+		// make sure we use the application handler we just created
+		server.Config.Handler = r
+	}
+	server.Start()
 	t.Cleanup(func() {
 		server.Close()
 	})

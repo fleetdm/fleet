@@ -185,7 +185,7 @@ type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.Host
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
-type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
+type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
 
@@ -226,6 +226,8 @@ type NewPasswordResetRequestFunc func(ctx context.Context, req *fleet.PasswordRe
 type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uint) error
 
 type FindPasswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
+
+type CleanupExpiredPasswordResetRequestsFunc func(ctx context.Context) error
 
 type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
 
@@ -341,6 +343,8 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
+type CleanupStatisticsFunc func(ctx context.Context) error
+
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
 
 type NewGlobalPolicyFunc func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
@@ -375,13 +379,17 @@ type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) ([]*fleet.Policy, error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
 type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
+
+type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
+
+type InitializePolicyViolationDaysFunc func(ctx context.Context) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -432,6 +440,8 @@ type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version str
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+
+type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
 
@@ -809,6 +819,9 @@ type DataStore struct {
 	FindPasswordResetByTokenFunc        FindPasswordResetByTokenFunc
 	FindPasswordResetByTokenFuncInvoked bool
 
+	CleanupExpiredPasswordResetRequestsFunc        CleanupExpiredPasswordResetRequestsFunc
+	CleanupExpiredPasswordResetRequestsFuncInvoked bool
+
 	SessionByKeyFunc        SessionByKeyFunc
 	SessionByKeyFuncInvoked bool
 
@@ -980,6 +993,9 @@ type DataStore struct {
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
 
+	CleanupStatisticsFunc        CleanupStatisticsFunc
+	CleanupStatisticsFuncInvoked bool
+
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
 
@@ -1042,6 +1058,12 @@ type DataStore struct {
 
 	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
 	CleanupPolicyMembershipFuncInvoked bool
+
+	IncrementPolicyViolationDaysFunc        IncrementPolicyViolationDaysFunc
+	IncrementPolicyViolationDaysFuncInvoked bool
+
+	InitializePolicyViolationDaysFunc        InitializePolicyViolationDaysFunc
+	InitializePolicyViolationDaysFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -1117,6 +1139,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
+	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
@@ -1630,9 +1655,9 @@ func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.Ho
 	return s.ListHostBatteriesFunc(ctx, id)
 }
 
-func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
 	s.LoadHostByDeviceAuthTokenFuncInvoked = true
-	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
+	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken, tokenTTL)
 }
 
 func (s *DataStore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
@@ -1733,6 +1758,11 @@ func (s *DataStore) DeletePasswordResetRequestsForUser(ctx context.Context, user
 func (s *DataStore) FindPasswordResetByToken(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
 	s.FindPasswordResetByTokenFuncInvoked = true
 	return s.FindPasswordResetByTokenFunc(ctx, token)
+}
+
+func (s *DataStore) CleanupExpiredPasswordResetRequests(ctx context.Context) error {
+	s.CleanupExpiredPasswordResetRequestsFuncInvoked = true
+	return s.CleanupExpiredPasswordResetRequestsFunc(ctx)
 }
 
 func (s *DataStore) SessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
@@ -2020,6 +2050,11 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
+func (s *DataStore) CleanupStatistics(ctx context.Context) error {
+	s.CleanupStatisticsFuncInvoked = true
+	return s.CleanupStatisticsFunc(ctx)
+}
+
 func (s *DataStore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	s.ApplyPolicySpecsFuncInvoked = true
 	return s.ApplyPolicySpecsFunc(ctx, authorID, specs)
@@ -2105,7 +2140,7 @@ func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *ui
 	return s.NewTeamPolicyFunc(ctx, teamID, authorID, args)
 }
 
-func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
+func (s *DataStore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.ListTeamPoliciesFuncInvoked = true
 	return s.ListTeamPoliciesFunc(ctx, teamID)
 }
@@ -2123,6 +2158,16 @@ func (s *DataStore) TeamPolicy(ctx context.Context, teamID uint, policyID uint) 
 func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
 	s.CleanupPolicyMembershipFuncInvoked = true
 	return s.CleanupPolicyMembershipFunc(ctx, now)
+}
+
+func (s *DataStore) IncrementPolicyViolationDays(ctx context.Context) error {
+	s.IncrementPolicyViolationDaysFuncInvoked = true
+	return s.IncrementPolicyViolationDaysFunc(ctx)
+}
+
+func (s *DataStore) InitializePolicyViolationDays(ctx context.Context) error {
+	s.InitializePolicyViolationDaysFuncInvoked = true
+	return s.InitializePolicyViolationDaysFunc(ctx)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -2248,6 +2293,11 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolle
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
+}
+
+func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
+	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
+	return s.SetOrUpdateHostOrbitInfoFunc(ctx, hostID, version)
 }
 
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {

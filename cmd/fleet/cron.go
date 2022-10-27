@@ -221,6 +221,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
 				recentV,
+				meta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -232,6 +233,7 @@ func scanVulnerabilities(
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
 				recentV,
+				meta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -361,7 +363,7 @@ func checkNVDVulnerabilities(
 		err := nvd.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
-			return nil
+			// don't return, continue on ...
 		}
 	}
 
@@ -491,6 +493,7 @@ func startIntegrationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	license *fleet.LicenseInfo,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = "integrations"
@@ -507,11 +510,13 @@ func startIntegrationsSchedule(
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newJiraClient,
+		License:       license,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
+		License:       license,
 	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
@@ -672,6 +677,12 @@ func startCleanupsAndAggregationSchedule(
 				return ds.CleanupHostOperatingSystems(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cleanup_expired_password_reset_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredPasswordResetRequests(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -689,6 +700,12 @@ func startCleanupsAndAggregationSchedule(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+		schedule.WithJob(
+			"increment_policy_violation_days",
+			func(ctx context.Context) error {
+				return ds.IncrementPolicyViolationDays(ctx)
 			},
 		),
 		schedule.WithJob(
@@ -732,10 +749,14 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
 		return err
 	}
+
+	if err := ds.CleanupStatistics(ctx); err != nil {
+		return err
+	}
+
 	return ds.RecordStatisticsSent(ctx)
 }
 
@@ -777,7 +798,6 @@ func startAppleMDMDEPProfileAssigner(
 	logger kitlog.Logger,
 	loggingDebug bool,
 ) {
-
 	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),

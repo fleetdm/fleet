@@ -237,8 +237,8 @@ type Datastore interface {
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
-	// If the token is invalid it returns a NotFoundError.
-	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+	// If the token is invalid or expired it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*Host, error)
 	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
@@ -279,6 +279,8 @@ type Datastore interface {
 	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
 	FindPasswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
+	// CleanupExpiredPasswordResetRequests deletes any password reset requests that have expired.
+	CleanupExpiredPasswordResetRequests(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.
@@ -442,6 +444,9 @@ type Datastore interface {
 
 	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
+	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
+	// statistics.
+	CleanupStatistics(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
@@ -483,11 +488,19 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// IncrementPolicyViolationDays increments the aggregate count of policy violation days. One
+	// policy violation day is added for each policy that a host is failing as of the time the count
+	// is incremented. The count only increments once per 24-hour interval. If the interval has not
+	// elapsed, IncrementPolicyViolationDays returns nil without incrementing the count.
+	IncrementPolicyViolationDays(ctx context.Context) error
+	// InitializePolicyViolationDays sets the aggregated count of policy violation days to zero. If
+	// a record of the count already exists, its `created_at` timestamp is updated to the current timestamp.
+	InitializePolicyViolationDays(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
@@ -594,6 +607,8 @@ type Datastore interface {
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
+	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
+	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
 

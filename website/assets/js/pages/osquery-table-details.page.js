@@ -37,7 +37,7 @@ parasails.registerPage('osquery-table-details', {
   mounted: async function() {
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
-      if(a.name < b.name){
+      if(a.title < b.title){
         return -1;
       }
     });
@@ -45,18 +45,27 @@ parasails.registerPage('osquery-table-details', {
     if(this.tableToDisplay.keywordsForSyntaxHighlighting){
       keywordsForThisTable = this.tableToDisplay.keywordsForSyntaxHighlighting;
     }
+    keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
+      if(a.length > b.length){
+        return -1;
+      }
+    });
     (()=>{
       $('pre code').each((i, block) => {
-        window.hljs.highlightBlock(block);
-      });
-      $('.hljs').each((i, el)=>{
-        let keywordsInExample = _.filter(keywordsForThisTable, (word)=>{
-          return _.includes(_.words(el.innerText, /[^, ]+/g), word);
-        });
-        for(let keyword of keywordsInExample) {
-          let replacementHMTL = el.innerHTML.replaceAll(keyword, '<span class="hljs-attr">'+keyword+'</span>');
-          $(el).html(replacementHMTL);
+        let keywordsToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+          for(let match of block.innerHTML.match(keyword)||[]){
+            keywordsToHighlight.push(match);
+          }
         }
+        // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
+        let replacementHMTL = block.innerHTML;
+        for(let keywordInExample of keywordsToHighlight) {
+          replacementHMTL = replacementHMTL.replaceAll(keywordInExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
+        }
+        $(block).html(replacementHMTL);
+        // After we've highlighted our keywords, we'll highlight the rest of the codeblock
+        window.hljs.highlightBlock(block);
       });
       // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
       $('.hljs-keyword').each((i, el)=>{

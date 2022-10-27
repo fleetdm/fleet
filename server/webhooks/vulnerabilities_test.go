@@ -82,15 +82,15 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		now := time.Now()
 
 		hosts := []*fleet.HostShort{
-			{ID: 1, Hostname: "h1"},
-			{ID: 2, Hostname: "h2"},
-			{ID: 3, Hostname: "h3"},
-			{ID: 4, Hostname: "h4"},
+			{ID: 1, Hostname: "h1", DisplayName: "d1"},
+			{ID: 2, Hostname: "h2", DisplayName: "d2"},
+			{ID: 3, Hostname: "h3", DisplayName: "d3"},
+			{ID: 4, Hostname: "h4", DisplayName: "d4"},
 		}
-		jsonH1 := fmt.Sprintf(`{"id":1,"hostname":"h1","url":"%s/hosts/1"}`, appCfg.ServerSettings.ServerURL)
-		jsonH2 := fmt.Sprintf(`{"id":2,"hostname":"h2","url":"%s/hosts/2"}`, appCfg.ServerSettings.ServerURL)
-		jsonH3 := fmt.Sprintf(`{"id":3,"hostname":"h3","url":"%s/hosts/3"}`, appCfg.ServerSettings.ServerURL)
-		jsonH4 := fmt.Sprintf(`{"id":4,"hostname":"h4","url":"%s/hosts/4"}`, appCfg.ServerSettings.ServerURL)
+		jsonH1 := fmt.Sprintf(`{"id":1,"hostname":"h1","display_name":"d1","url":"%s/hosts/1"}`, appCfg.ServerSettings.ServerURL)
+		jsonH2 := fmt.Sprintf(`{"id":2,"hostname":"h2","display_name":"d2","url":"%s/hosts/2"}`, appCfg.ServerSettings.ServerURL)
+		jsonH3 := fmt.Sprintf(`{"id":3,"hostname":"h3","display_name":"d3","url":"%s/hosts/3"}`, appCfg.ServerSettings.ServerURL)
+		jsonH4 := fmt.Sprintf(`{"id":4,"hostname":"h4","display_name":"d4","url":"%s/hosts/4"}`, appCfg.ServerSettings.ServerURL)
 
 		cves := []string{
 			"CVE-2012-1234",

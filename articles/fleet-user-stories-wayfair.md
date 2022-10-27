@@ -21,16 +21,6 @@ We are using Fleet only in the remote query on scale, so we find Fleet is doing 
 
 We have lots of queries that generate logs, but the ones that go into alerts are verified queries that are intended to hunt malicious or suspicious activity. Those activities are known based on public threat reports, Mitre Attack, or internal Red Team exercise.
 
-### How could Fleet be better?
-
-Fleet is doing a pretty good job now by listening to users in different channels, and I’ve seen lots of my discussions and ideas come into 
-
-Fleet very fast, after a release or two. What I hope to see in Fleet are the following:
-
-- Dashboard for all Assets and Labels, what are the online, offline, and new hosts metrics and over time.
-- Audit logs for all fleet actions shipped to a remote logging destination
-- Ability to create a notebook, list of queries that you can run ad-hoc like normal queries, which makes the IR process easier if you want to run and gather lots of data at once.
-
 <meta name="category" value="success stories">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="authorFullName" value="Mike Thomas">
