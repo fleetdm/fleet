@@ -384,9 +384,9 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 }
 
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-	if len(rows) == 0 {
+	if len(rows) != 1 {
 		logger.Log("component", "service", "method", "IngestFunc", "err",
-			"detail_query_network_interface expected 1 or more results")
+			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 
