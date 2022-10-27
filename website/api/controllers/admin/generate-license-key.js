@@ -27,7 +27,9 @@ module.exports = {
 
 
   exits: {
-
+    success: {
+      outputType: 'string',
+    },
   },
 
 
