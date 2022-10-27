@@ -39,7 +39,7 @@ parasails.registerPage('generate-license', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    handleSubmittingForm: async function(argins) {
+    handleSubmittingForm: async function() {
       this.syncing = true;
       let validToDate = new Date(this.formData.validTo);
       let validToTimestamp = validToDate.getTime();
@@ -50,7 +50,7 @@ parasails.registerPage('generate-license', {
       });
     },
 
-    submittedQuoteForm: async function(quote) {
+    submittedQuoteForm: async function() {
       this.syncing = false;
       this.showResult = true;
     },

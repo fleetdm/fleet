@@ -214,8 +214,10 @@ module.exports.routes = {
 
   'GET /admin/generate-license': {
     action: 'admin/view-generate-license',
-     locals: { layout: 'layouts/layout-customer' }
-   },
+    locals: {
+      layout: 'layouts/layout-customer'
+    }
+  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
