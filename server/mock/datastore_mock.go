@@ -473,7 +473,7 @@ type ListOSVulnerabilitiesFunc func(ctx context.Context, hostID []uint) ([]fleet
 
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
-type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability)
+type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
 
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
 
@@ -2375,7 +2375,7 @@ func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities
 	return s.InsertOSVulnerabilitiesFunc(ctx, vulnerabilities, source)
 }
 
-func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) {
+func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {
 	s.DeleteOSVulnerabilitiesFuncInvoked = true
 	return s.DeleteOSVulnerabilitiesFunc(ctx, vulnerabilities)
 }
