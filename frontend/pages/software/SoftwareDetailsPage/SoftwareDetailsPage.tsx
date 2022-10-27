@@ -1,7 +1,6 @@
 import React, { useContext } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
