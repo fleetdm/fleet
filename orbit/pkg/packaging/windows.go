@@ -87,6 +87,10 @@ func BuildMSI(opt Options) (string, error) {
 		}
 	}
 
+	if err := writeEventLogFile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write eventlog file: %w", err)
+	}
+
 	if err := writeWixFile(opt, tmpDir); err != nil {
 		return "", fmt.Errorf("write wix file: %w", err)
 	}
@@ -147,6 +151,25 @@ func writeWixFile(opt Options, rootPath string) error {
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0o666); err != nil {
 		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+func writeEventLogFile(opt Options, rootPath string) error {
+	// Eventlog manifest is going to be built and dumped into working directory
+	path := filepath.Join(rootPath, "osquery.man")
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("event log manifest creation: %w", err)
+	}
+
+	var contents bytes.Buffer
+	if err := windowsOsqueryEventLogTemplate.Execute(&contents, opt); err != nil {
+		return fmt.Errorf("event log manifest creation: %w", err)
+	}
+
+	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("event log manifest creation: %w", err)
 	}
 
 	return nil
