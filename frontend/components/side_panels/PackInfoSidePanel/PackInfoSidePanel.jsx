@@ -1,8 +1,9 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+
 import DifferentialIcon from "../../../../assets/images/icon-plus-minus-black-16x16@2x.png";
 import SnapshotIcon from "../../../../assets/images/icon-snapshot-black-16x14@2x.png";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "pack-info-side-panel";
 
@@ -55,18 +56,11 @@ const PackInfoSidePanel = () => {
       </ul>
       <p>
         Learn more about log aggregation in the{" "}
-        <a
-          href="https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          documentation
-          <img
-            src={ExternalLinkIcon}
-            alt="Open external link"
-            id="new-tab-icon"
-          />
-        </a>
+        <CustomLink
+          url="https://osquery.readthedocs.io/en/stable/deployment/log-aggregation/"
+          text="documentation"
+          newTab
+        />
       </p>
     </div>
   );

@@ -1,0 +1,10 @@
+.custom-link {
+  &__no-wrap {
+    white-space: nowrap;
+  }
+
+  &__external-icon {
+    display: inline;
+    margin-left: $pad-xsmall;
+  }
+}

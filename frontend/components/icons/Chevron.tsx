@@ -17,7 +17,7 @@ const SVG_PATH = {
 };
 
 const FLEET_COLORS = {
-  coreFleetBlack: "#6a67fe",
+  coreFleetBlack: "#192147",
   coreVibrantBlue: "#6a67fe",
 };
 

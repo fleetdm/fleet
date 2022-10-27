@@ -1,7 +1,6 @@
 import React from "react";
 import { browserHistory, Link } from "react-router";
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import classnames from "classnames";
 
 interface IBackLinkProps {

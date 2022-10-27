@@ -17,9 +17,9 @@ import osqueryOptionsAPI from "services/entities/osquery_options";
 import validateYaml from "components/forms/validators/validate_yaml";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "agent-options";
 
@@ -129,17 +129,12 @@ const AgentOptionsPage = ({
         Agent options configure the osquery agent. When you update agent
         options, they will be applied the next time a host checks in to Fleet.
         <br />
-        <a
-          href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn more about agent{" "}
-          <span className="no-wrap">
-            options
-            <img alt="Open external link" src={ExternalLinkIcon} />
-          </span>
-        </a>
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+          text="Learn more about agent options"
+          newTab
+          multiline
+        />
       </p>
       {isFetchingTeamOptions ? (
         <Spinner />

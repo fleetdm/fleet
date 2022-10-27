@@ -1,7 +1,7 @@
 import classnames from "classnames";
 import React from "react";
 
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 interface ISandboxDemoMessageProps {
   /** message to display in the sandbox error */
@@ -24,15 +24,12 @@ const SandboxDemoMessage = ({
     <div className={classes}>
       <h2 className={`${baseClass}__message`}>{message}</h2>
       <p className={`${baseClass}__link-message`}>
-        Want to learn more?
-        <a
-          href={`https://calendly.com/fleetdm/demo?utm_source=${utmSource}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Schedule a demo
-          <img alt="Open external link" src={ExternalLinkIcon} />
-        </a>
+        Want to learn more?{" "}
+        <CustomLink
+          url={`https://calendly.com/fleetdm/demo?utm_source=${utmSource}`}
+          text={"Schedule a demo"}
+          newTab
+        />
       </p>
     </div>
   );
