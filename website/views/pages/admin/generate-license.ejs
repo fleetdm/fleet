@@ -1,0 +1,51 @@
+<div id="generate-license" v-cloak>
+  <div style="max-width: 600px;" class="container-fluid pb-5 px-lg-0 px-3">
+    <div class="d-flex flex-column justify-content-center mx-auto">
+      <div>
+        <h1>License key creation tool</h1>
+        <p class="pb-2 mx-auto">Use this tool to create a license key for Fleet Premium.</p>
+      </div>
+      <div purpose="form" class="flex-grow-1">
+        <div class="card card-body" v-if="!showResult">
+          <ajax-form :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :handle-submitting="handleSubmittingForm" @submitted="submittedQuoteForm($event)">
+            <div class="d-flex flex-column">
+
+              <div class="form-group col-12 px-0 mb-4">
+                <label for="organization">Organization</label>
+                <input class="form-control"  id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : '' ]" v-model.trim="formData.organization">
+                <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of the organization this license is for</div>
+              </div>
+
+              <div class="form-group col-12 px-0 mb-4">
+                <label for="numberOfHosts">Number of devices</label>
+                <input class="form-control" min="1" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" v-model.trim="formData.numberOfHosts" >
+                <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
+              </div>
+
+
+              <div class="form-group col-12 px-0">
+                <label for="validTo">When should this license expire?</label>
+                <input class="form-control" id="validTo" :class="[formErrors.validTo ? 'is-invalid' : '' ]"  type="date" placeholder="Please select an expiration date"  v-model.trim="formData.validTo">
+                <div class="invalid-feedback" v-if="formErrors.validTo">Please enter a date that this license will be valid to.</div>
+              </div>
+
+            </div>
+            <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+
+            <div class="pt-2">
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info">Create license key</ajax-button>
+            </div>
+          </ajax-form>
+        </div>
+        <div class="card card-body" v-else>
+          <p>Generated license key:</p>
+          <div purpose="result" @click="clickCopyLicenseKey()">
+            <span purpose="copied-notification">Copied to clipboard</span>
+            <code >{{generatedLicenseKey}}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
