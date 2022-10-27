@@ -37,11 +37,11 @@ func main() {
 	httpC := http.DefaultClient
 
 	ctx := context.Background()
-	ghAPI := io.NewGitHubClient(ctx, httpC, github.NewClient(httpC).Repositories, wd)
+	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
 	msrcAPI := io.NewMSRCClient(httpC, inPath, io.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
-	eBulletins, err := ghAPI.Bulletins()
+	eBulletins, err := ghAPI.Bulletins(ctx)
 	panicif(err)
 
 	var bulletins []*parsed.SecurityBulletin
