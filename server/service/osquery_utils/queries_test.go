@@ -32,9 +32,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"10.0.1.2","mac":"bc:d0:74:4b:10:6d"},
-  {"address":"fe80::89:f218:523:5e94%en0","mac":"bc:d0:74:4b:10:6d"},
-  {"address":"fd23:99ce:d29c:477b:18fe:61b3:13d:b0c1","mac":"bc:d0:74:4b:10:6d"}
+  {"address":"10.0.1.2","mac":"bc:d0:74:4b:10:6d"}
 ]`),
 		&rows,
 	))
