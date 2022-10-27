@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220921090715, Down_20220921090715)
+	MigrationClient.AddMigration(Up_20221027085019, Down_20221027085019)
 }
 
-func Up_20220921090715(tx *sql.Tx) error {
+func Up_20221027085019(tx *sql.Tx) error {
 	logger.Info.Println("Creating table operating_system_vulnerabilities...")
 
 	_, err := tx.Exec(`
@@ -36,6 +36,6 @@ func Up_20220921090715(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20220921090715(tx *sql.Tx) error {
+func Down_20221027085019(tx *sql.Tx) error {
 	return nil
 }
