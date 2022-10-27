@@ -1,12 +1,14 @@
 import React from "react";
 
 import Icon from "components/Icon";
+import classnames from "classnames";
 
 interface ICustomLinkProps {
   url: string;
   text: string;
+  className?: string;
   newTab?: boolean;
-  //* Icon wraps on new line with last word */
+  /** Icon wraps on new line with last word */
   multiline?: boolean;
 }
 
@@ -15,9 +17,12 @@ const baseClass = "custom-link";
 const CustomLink = ({
   url,
   text,
+  className,
   newTab = false,
   multiline = false,
 }: ICustomLinkProps): JSX.Element => {
+  const customLinkClass = classnames(baseClass, className);
+
   const target = newTab ? "_blank" : "";
 
   const multilineText = text.substring(0, text.lastIndexOf(" ") + 1);
@@ -28,13 +33,20 @@ const CustomLink = ({
       {multilineText}
       <span className={`${baseClass}__no-wrap`}>
         {lastWord}
-        <Icon name="external-link" className={`${baseClass}__external-icon`} />
+        {newTab && (
+          <Icon
+            name="external-link"
+            className={`${baseClass}__external-icon`}
+          />
+        )}
       </span>
     </>
   ) : (
     <>
       {text}
-      <Icon name="external-link" className={`${baseClass}__external-icon`} />
+      {newTab && (
+        <Icon name="external-link" className={`${baseClass}__external-icon`} />
+      )}
     </>
   );
 
@@ -43,7 +55,7 @@ const CustomLink = ({
       href={url}
       target={target}
       rel="noopener noreferrer"
-      className={baseClass}
+      className={customLinkClass}
     >
       {content}
     </a>
