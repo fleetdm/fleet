@@ -124,6 +124,18 @@ export const usageStatsPreview = {
       },
     ],
   },
+  hostsEnrolledByOrbitVersion: [
+    {
+      version: "1.1.0",
+      numHosts: 999,
+    },
+  ],
+  hostsEnrolledByOsqueryVersion: [
+    {
+      version: "4.9.0",
+      numHosts: 999,
+    },
+  ],
   storedErrors: [
     {
       count: 3,

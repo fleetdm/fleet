@@ -12,10 +12,6 @@
       display: inline-block;
       max-width: 100%;
 
-      &:hover {
-        cursor: help;
-      }
-
       // Removes secondary unstyled tooltip created by browser
       &::after {
         content: "";

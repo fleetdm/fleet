@@ -25,7 +25,7 @@ interface IInfoCardProps {
   showTitle?: boolean;
 }
 
-const baseClass = "homepage-info-card";
+const baseClass = "dashboard-info-card";
 
 const useInfoCard = ({
   title,

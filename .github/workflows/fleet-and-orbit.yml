@@ -18,6 +18,11 @@ on:
       - '.github/workflows/fleet-and-orbit.yml'
   workflow_dispatch: # Manual
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
 defaults:
   run:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
@@ -427,43 +432,72 @@ jobs:
         Stop-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Start-Service -Name $serviceName
-        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Test #1 failed" } }
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #1 failed" } }
 
         # Test 2 - Check that the service stops without issues
         Stop-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #2 failed" } }
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #2 failed" } }
 
         #Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
         Stop-Service -Name $serviceName
         Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
-        Get-Process | %{ if ($_.Name -eq "orbit") { throw "Test #3 failed" } }
+        Get-Process | %{ if ($_.Name -eq "orbit") { throw "Fleet Service test #3 failed" } }
 
         # Test 4 - Check that service starts in less than 3 secs
         Start-Job { Start-Service -Name $args[0] } -ArgumentList $serviceName | Out-Null #async operation
         Start-Sleep -Seconds 3
-        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Test #4 failed" } }
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #4 failed" } }
 
         #Test 5 - Check that service stops in less than $orbitMaxTimeToStartAndTeardown secs
         Start-Job { Stop-Service -Name $args[0] } -ArgumentList $serviceName  | Out-Null #async operation
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Test #5 failed" } }
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #5 failed" } }
 
         #Test 6 - Check that no osqueryd process is running once service stops (updated after graceful shutdown)
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
         Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
-        Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Test #6 failed" } }
+        Get-Process | %{ if ($_.Name -eq "osqueryd") { throw "Fleet Service test #6 failed" } }
 
         # Test 7 - Check that no fleet-desktop process is running once service stops
         Start-Service -Name $serviceName
         Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown # orbit takes some time to spawn osquery and desktop app due to update check
         Stop-Service -Name $serviceName
         Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with fleet-desktop runner interrupt that needs to be tracked down
-        Get-Process | %{ if ($_.Name -eq "fleet-desktop") { throw "Test #7 failed" } }
+        Get-Process | %{ if ($_.Name -eq "fleet-desktop") { throw "Fleet Service test #7 failed" } }
+
+    - name: MSI Installer Tests
+      shell: pwsh
+      run: |
+        # Tests setup
+        $serviceName = "Fleet osquery"
+        $registryPath = "HKLM:\SOFTWARE\FleetDM\"
+        $installerExecTime = 15
+
+        # Test 1 - Check that there is not Orbit installation folder in programfiles and no registry entries after MSI uninstallation
+        msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest1.txt
+        Start-Sleep -Seconds $installerExecTime
+        if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #1 failed" }
+        Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #1 failed" } }
+        if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #1 failed" }
+
+        # Test 2 - Check that Orbit service, installation folder and registry entry are present after installing MSI again
+        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest2.txt
+        Start-Sleep -Seconds $installerExecTime
+        if (-not (Test-Path -Path $Env:Programfiles\Orbit)) { throw "MSI Installer test #2 failed" }
+        Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Status -ne "Running") { throw "MSI Installer test #2 failed" } }
+        if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -eq 0) { throw "MSI Installer test #2 failed" }
+
+        # Test 3 - Check that there is not Orbit folder in programfiles, no fleet service entry and no registry entries after uninstalling MSI again
+        msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest3.txt
+        Start-Sleep -Seconds $installerExecTime
+        if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #3 failed" }
+        Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #3 failed" } }
+        if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #3 failed" }
 
     - name: Upload Orbit logs
       if: always()
