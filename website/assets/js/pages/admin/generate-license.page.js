@@ -26,13 +26,10 @@ parasails.registerPage('generate-license', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-
-    // Get an ISO timestamp for a year from now.
-    let validToDefaultValue = new Date(Date.now() + (365*24*60*60*1000)).toISOString();
-    // Remove everything but the date from the ISO timestamp
-    validToDefaultValue = validToDefaultValue.split('T')[0];
-    // Set the default value for the validTo input
-    this.formData.validTo = validToDefaultValue;
+    // Get a formatted date string for year from today's date.
+    let oneYearFromNowDateString = moment(Date.now() + (365*24*60*60*1000)).format('YYYY-MM-DD');
+    // Set the starting value for the validTo input
+    this.formData.validTo = oneYearFromNowDateString;
   },
   mounted: async function() {
     //…
