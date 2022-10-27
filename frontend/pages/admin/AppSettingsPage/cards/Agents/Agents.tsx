@@ -10,7 +10,8 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
+
 import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
 const baseClass = "app-config-form";
@@ -73,16 +74,13 @@ const Agents = ({
           <p className={`${baseClass}__section-description`}>
             Agent options configure the osquery agent. When you update agent
             options, they will be applied the next time a host checks in to
-            Fleet.
-            <br />
-            <a
-              href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more about agent options
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            Fleet.{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+              text="Learn more about agent options"
+              newTab
+              multiline
+            />
           </p>
           {isPremiumTier ? (
             <InfoBanner>
@@ -93,17 +91,11 @@ const Agents = ({
           ) : (
             <InfoBanner>
               Want some hosts to have different options?&nbsp;
-              <a
-                href="https://fleetdm.com/docs/using-fleet/teams"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Learn more about{" "}
-                <span className="no-wrap">
-                  teams
-                  <img alt="Open external link" src={ExternalLinkIcon} />
-                </span>
-              </a>
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/teams"
+                text="Learn more about teams"
+                newTab
+              />
             </InfoBanner>
           )}
           <p className={`${baseClass}__component-label`}>

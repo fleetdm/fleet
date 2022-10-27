@@ -3,13 +3,14 @@ import React from "react";
 import { IHostPolicy } from "interfaces/policy";
 import InfoBanner from "components/InfoBanner";
 import TableContainer from "components/TableContainer";
+import CustomLink from "components/CustomLink";
+
 import {
   generatePolicyTableHeaders,
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 import { isValidPolicyResponse } from "../../../ManageHostsPage/helpers";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -69,17 +70,12 @@ const Policies = ({
               <p>
                 This host is not updating the response for some policies. Check
                 out the Fleet documentation on&nbsp;
-                <a
-                  href="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-updating-a-policys-response"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  why the response might not be{" "}
-                  <span className="no-wrap">
-                    updating
-                    <img src={ExternalLinkIcon} alt="Open external link" />
-                  </span>
-                </a>
+                <CustomLink
+                  url="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-updating-a-policys-response"
+                  text="why the response might not be updating"
+                  newTab
+                  multiline
+                />
               </p>
             </InfoBanner>
           )}

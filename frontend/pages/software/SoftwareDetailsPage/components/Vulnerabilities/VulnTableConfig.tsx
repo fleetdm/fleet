@@ -6,7 +6,7 @@ import { formatFloatAsPercentage } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 interface IHeaderProps {
   column: {
@@ -68,17 +68,11 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
       Header: "Vulnerability",
       Cell: ({ cell: { value }, row }: ITextCellProps) => {
         return (
-          <a
-            className="text-link"
-            href={row.original.details_link}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span>
-              {value}
-              <img src={ExternalLinkIcon} alt={`link to ${value}`} />
-            </span>
-          </a>
+          <CustomLink
+            url={row.original.details_link}
+            text={value.toString()}
+            newTab
+          />
         );
       },
     },
