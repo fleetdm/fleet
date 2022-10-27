@@ -15,29 +15,9 @@
     }
   }
 
-  &__icon-wrapper {
+  &__tile-icon {
     margin-right: px-to-rem(12);
     white-space: nowrap;
-
-    img {
-      vertical-align: middle;
-      float: right;
-    }
-
-    // Scale without dead space around icons
-    #mac-os-hosts-icon,
-    #windows-hosts-icon,
-    #linux-hosts-icon {
-      width: 48px;
-    }
-
-    #missing-hosts-icon {
-      width: 28px;
-    }
-
-    #low-disk-space-hosts-icon {
-      width: 32px;
-    }
   }
 
   &__count {
