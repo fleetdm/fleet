@@ -9,6 +9,7 @@ import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 interface IHostLinkProps {
   queryParams?: QueryParams;
   className?: string;
+  /** Shows right chevron without text */
   condensed?: boolean;
 }
 
@@ -36,7 +37,7 @@ const ViewAllHostsLink = ({
       onClick={onClick}
     >
       <>
-        {condensed ? "" : "View all hosts"}
+        {!condensed && "View all hosts"}
         <Icon
           name="chevron"
           className={`${baseClass}__icon`}
