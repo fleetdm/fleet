@@ -1,5 +1,12 @@
 .view-all-hosts-link {
+  // larger clickable area
+  padding: $pad-small $pad-xxsmall;
+
   &__icon {
     margin-left: $pad-xsmall;
+
+    svg {
+      vertical-align: top;
+    }
   }
 }

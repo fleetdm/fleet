@@ -1,12 +1,10 @@
 import React from "react";
 import PATHS from "router/paths";
+import { Link, browserHistory } from "react-router";
 import classnames from "classnames";
 
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
-
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
-import { browserHistory } from "react-router";
 
 interface IHostLinkProps {
   queryParams?: QueryParams;
@@ -21,7 +19,7 @@ const ViewAllHostsLink = ({
   className,
   condensed = false,
 }: IHostLinkProps): JSX.Element => {
-  const linkClasses = classnames(baseClass, className);
+  const viewAllHostsLinkClass = classnames(baseClass, className);
 
   const onClick = (): void => {
     const path = queryParams
@@ -32,17 +30,21 @@ const ViewAllHostsLink = ({
   };
 
   return (
-    <Button className={linkClasses} onClick={onClick} variant="text-icon">
+    <Link
+      className={viewAllHostsLinkClass}
+      to={PATHS.MANAGE_HOSTS}
+      onClick={onClick}
+    >
       <>
         {condensed ? "" : "View all hosts"}
         <Icon
           name="chevron"
           className={`${baseClass}__icon`}
           direction="right"
-          color="#6a67fe"
+          color="coreVibrantBlue"
         />
       </>
-    </Button>
+    </Link>
   );
 };
 export default ViewAllHostsLink;
