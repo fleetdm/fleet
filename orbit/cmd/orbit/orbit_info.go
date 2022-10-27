@@ -13,8 +13,11 @@ import (
 
 // orbitInfoExtension implements an extension table that provides info about Orbit.
 type orbitInfoExtension struct {
-	orbitClient *service.OrbitClient
-	trw         *token.ReadWriter
+	orbitClient     *service.OrbitClient
+	orbitChannel    string
+	osquerydChannel string
+	desktopChannel  string
+	trw             *token.ReadWriter
 }
 
 var _ orbit_table.Extension = orbitInfoExtension{}
@@ -31,6 +34,9 @@ func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
 		table.TextColumn("device_auth_token"),
 		table.TextColumn("enrolled"),
 		table.TextColumn("last_recorded_error"),
+		table.TextColumn("orbit_channel"),
+		table.TextColumn("osqueryd_channel"),
+		table.TextColumn("desktop_channel"),
 	}
 }
 
@@ -53,12 +59,13 @@ func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext
 		}
 	}
 
-	return []map[string]string{
-		{
-			"version":             v,
-			"device_auth_token":   token,
-			"enrolled":            strconv.FormatBool(o.orbitClient.Enrolled()),
-			"last_recorded_error": lastRecordedError,
-		},
-	}, nil
+	return []map[string]string{{
+		"version":             v,
+		"device_auth_token":   token,
+		"enrolled":            strconv.FormatBool(o.orbitClient.Enrolled()),
+		"last_recorded_error": lastRecordedError,
+		"orbit_channel":       o.orbitChannel,
+		"osqueryd_channel":    o.osquerydChannel,
+		"desktop_channel":     o.desktopChannel,
+	}}, nil
 }
