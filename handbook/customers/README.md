@@ -207,7 +207,7 @@ To track the stage of the sales cycle that a lead is at, we use the following st
 | Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
 | SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
-At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
+At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one.
 
 - Research each prospect.
 - Praise what’s great about their company.
@@ -217,6 +217,8 @@ At times, our sales team will reach out to prospective customers before they com
 - Keep an enthusiastic and warm tone.
 - Be personable.
 - Ask for the meeting with a proposed time.
+
+Here is another [LinkedIn post](https://www.linkedin.com/posts/davidtropic_i-got-the-best-cold-email-ive-ever-gotten-activity-6991066918363267072-yeXN) with an example of a great personalized cold outreach.
 
 Importantly, when we interact with CISOs or, for that matter, any member of a prospective customer organization, we adhere to the principles in this [LinkedIn post](https://www.linkedin.com/pulse/selling-ciso-james-turner). Specifically:
 
@@ -305,7 +307,8 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell 
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
+| Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
 
 ## Slack channels

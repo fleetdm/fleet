@@ -129,3 +129,18 @@ variable "extra_security_group_cidrs" {
 variable "rds_initial_snapshot" {
   default = null
 }
+
+variable "redis_azs" {
+  default     = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  description = "the availability zones to utilize for redis"
+}
+
+variable "vpc_azs" {
+  default     = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  description = "the availability zones to utilize for vpc creation"
+}
+
+variable "region" {
+  default     = "us-east-2"
+  description = "the default availability zone to utilize for infrastructure"
+}

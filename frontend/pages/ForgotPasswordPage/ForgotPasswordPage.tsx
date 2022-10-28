@@ -10,7 +10,7 @@ import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
-import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
@@ -54,15 +54,11 @@ const ForgotPasswordPage = () => {
             <br />
             <br />
             You can find more information on resetting passwords at the{" "}
-            <a
-              href="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              Password reset FAQ
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
+              text="Password reset FAQ"
+              newTab
+            />
           </p>
         </div>
       );
