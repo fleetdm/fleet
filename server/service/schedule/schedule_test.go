@@ -332,9 +332,9 @@ func TestScheduleReleaseLock(t *testing.T) {
 		return false, nil
 	}
 
-	unlock := make(chan int)
+	unlock := make(chan struct{})
 	ds.UnlockFunc = func(context.Context, string, string) error {
-		unlock <- 1
+		unlock <- struct{}{}
 		return nil
 	}
 

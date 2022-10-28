@@ -186,9 +186,8 @@ func (s *Schedule) Start() {
 				schedInterval := s.getSchedInterval()
 				schedTicker.Reset(schedInterval)
 
-				newStart := time.Now()
-				newWait := schedInterval
-				setWaitTimes(newStart, newWait)
+				start := time.Now()
+				setWaitTimes(start, schedInterval)
 
 				ok, cancelHold := s.holdLock()
 				if !ok {
@@ -204,24 +203,25 @@ func (s *Schedule) Start() {
 					}
 				}
 
-				totalRunningTime := time.Since(newStart)
+				totalRunningTime := time.Since(start)
 				schedInterval = s.getSchedInterval()
 
 				if totalRunningTime > schedInterval {
 					level.Info(s.logger).Log("cron", s.name, "msg", "total runtime (%d) exceeded schedule interval (%d)")
 				}
 
-				// set new wait to the remaining duration after dividing the total running time by the schedule interval
-				newWait = schedInterval - (totalRunningTime % schedInterval)
-				setWaitTimes(newStart, newWait)
+				// we need to re-synchronize this schedule instance so that the next scheduled run
+				// starts at the beginning of the next full interval
+				//
+				// for example, if the schedInterval is 1hr and the totalRunningTime is 0.2 hrs
+				// then we wait 0.8 hrs until the next time we run the schedule, or if the
+				// totalRunningTime is 1.5 hrs then we wait 0.5 hrs (skipping the scheduled run that
+				// would have overlapped with the totalRunningTime)
+				remainingWait := schedInterval - (totalRunningTime % schedInterval)
+				setWaitTimes(start, remainingWait)
 
-				select {
-				case <-schedTicker.C:
-					// pull from ticker channel in case another tick arrived during this run
-				default:
-					// ok
-				}
-				schedTicker.Reset(newWait)
+				clearTickerChannel(schedTicker) // in case another tick arrived during this run
+				schedTicker.Reset(remainingWait)
 
 				cancelHold()
 			}
@@ -352,11 +352,10 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 		return false, nil
 	}
 
-	const MAX_HOLD = 2 * time.Hour
-	ctx, cancelFn := context.WithDeadline(s.ctx, time.Now().Add(MAX_HOLD))
+	ctx, cancelFn := context.WithCancel(s.ctx)
 
 	go func() {
-		ticker := time.NewTicker(s.getSchedInterval() / 10 * 8)
+		ticker := time.NewTicker(s.getSchedInterval() * 8 / 10) // hold ticker is 80% of schedule interval
 
 		for {
 			select {
@@ -379,4 +378,13 @@ func (s *Schedule) getLockName() string {
 		name = s.altLockName
 	}
 	return name
+}
+
+func clearTickerChannel(schedTicker *time.Ticker) {
+	select {
+	case <-schedTicker.C:
+		// pull from schedule ticker
+	default:
+		// ok
+	}
 }
