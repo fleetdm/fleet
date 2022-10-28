@@ -32,7 +32,7 @@ func sigusrListener(rootDir string) {
 		<-c
 
 		if err := dumpProf(rootDir); err != nil {
-			log.Warn().Err(err).Msg("Unable to create pprof")
+			log.Warn().Err(err).Msg("unable to create pprof")
 		}
 	}
 }
@@ -43,7 +43,7 @@ func dumpProf(rootDir string) error {
 	}
 	now := time.Now()
 
-	// We can't use ISO 8601/RFC 3339 because Windows does not allow colons in filenames
+	// We can't use ISO 8601/RFC 3339 because NTFS and FAT do not allow colons in filenames
 	timestamp := now.UTC().Format("2006-01-02T15-04-05")
 
 	out, err := os.Create(path.Join(rootDir, "profiles", fmt.Sprintf("profiles-%s.tar.gz", timestamp)))
@@ -68,23 +68,12 @@ func dumpProf(rootDir string) error {
 		header := tar.Header{
 			Typeflag:   tar.TypeReg,
 			Name:       fmt.Sprintf("%s.pprof", profile.Name()),
-			Linkname:   "",
 			Size:       int64(buf.Len()),
 			Mode:       0o664,
-			Uid:        0,
-			Gid:        0,
-			Uname:      "",
-			Gname:      "",
 			ModTime:    now,
 			AccessTime: now,
 			ChangeTime: now,
-			Devmajor:   0,
-			Devminor:   0,
-			Xattrs:     map[string]string{},
-			PAXRecords: map[string]string{},
-			Format:     0,
 		}
-		log.Info().Msgf("tar header: %+v", header)
 		err = tw.WriteHeader(&header)
 		if err != nil {
 			return err
