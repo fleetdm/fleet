@@ -11,6 +11,6 @@ func signalHandler(ctx context.Context) (execute func() error, interrupt func(er
 	return run.SignalHandler(ctx, os.Interrupt, os.Kill)
 }
 
-func dumpProf(rootDir string) error {
+func sigusrListener(rootDir string) error {
 	return nil
 }
