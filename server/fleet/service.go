@@ -315,6 +315,7 @@ type Service interface {
 	DisableAuthForPing(ctx context.Context)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
+	MDMData(ctx context.Context, id uint) (*HostMDM, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 	AggregatedMDMData(ctx context.Context, id *uint, platform string) (AggregatedMDMData, error)
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)

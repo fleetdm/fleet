@@ -2538,7 +2538,94 @@ user by email.
 
 ---
 
-### Get host's mobile device management (MDM) and Munki information
+### Get host's mobile device management (MDM) information
+
+Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves a host's MDM enrollment status and MDM server URL.
+
+`GET /api/v1/fleet/hosts/{id}/mdm`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id      | integer | path | **Required** The id of the host to get the details for                           |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/32/mdm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "enrollment_status": "Enrolled (automated)",
+  "server_url": "some.mdm.com",
+  "name": "Some MDM",
+  "id": 3
+}
+```
+
+---
+
+### Get mobile device management (MDM) summary
+
+Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Retrieves MDM enrollment summary.
+
+`GET /api/v1/fleet/hosts/summary/mdm`
+
+#### Parameters
+
+| Name     | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
+| -------- | ------- | ----- | -------------------------------------------------------------------------------- |
+| team_id  | integer | query | Filter by team                                                                   |
+| platform | string  | query | Filter by platform ("windows" or "darwin")                                       |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/summary/mdm?team_id=1&platform=windows`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "mobile_device_management_enrollment_status": {
+    "enrolled_manual_hosts_count": 0,
+    "enrolled_automated_hosts_count": 2,
+    "unenrolled_hosts_count": 0,
+    "hosts_count": 2
+  },
+  "mobile_device_management_solution": [
+    {
+      "id": 2,
+      "name": "Solution1",
+      "server_url": "solution1.com",
+      "hosts_count": 1
+    },
+    {
+      "id": 3,
+      "name": "Solution2",
+      "server_url": "solution2.com",
+      "hosts_count": 1
+    }
+  ]
+}
+```
+
+---
+
+### Get host's macadmin mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
@@ -2596,7 +2683,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 ---
 
-### Get aggregated host's mobile device management (MDM) and Munki information
+### Get aggregated host's macadmin mobile device management (MDM) and Munki information
 
 Requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
