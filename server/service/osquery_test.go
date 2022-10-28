@@ -835,7 +835,7 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +3 for label queries, but -4 windows specific queries
+	// +3 for label queries, but -5 windows specific queries
 	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
