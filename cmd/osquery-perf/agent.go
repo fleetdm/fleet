@@ -76,34 +76,34 @@ func (s *Stats) IncrementErrors(errors int) {
 	s.errors += errors
 }
 
-func (s *Stats) IncrementEnrollments(enrollments int) {
+func (s *Stats) IncrementEnrollments() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.enrollments += enrollments
+	s.enrollments++
 }
 
-func (s *Stats) IncrementOrbitEnrollments(orbitenrollments int) {
+func (s *Stats) IncrementOrbitEnrollments() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.orbitenrollments += orbitenrollments
+	s.orbitenrollments++
 }
 
-func (s *Stats) IncrementDistributedWrites(distributedwrites int) {
+func (s *Stats) IncrementDistributedWrites() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.distributedwrites += distributedwrites
+	s.distributedwrites++
 }
 
-func (s *Stats) IncrementOrbitErrors(orbitErrors int) {
+func (s *Stats) IncrementOrbitErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.orbitErrors += orbitErrors
+	s.orbitErrors++
 }
 
-func (s *Stats) IncrementDesktopErrors(desktopErrors int) {
+func (s *Stats) IncrementDesktopErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.desktopErrors += desktopErrors
+	s.desktopErrors++
 }
 
 func (s *Stats) Log() {
@@ -343,7 +343,7 @@ func (a *agent) runOrbitLoop() {
 
 	// orbit does a config check when it starts
 	if _, err := orbitClient.GetConfig(); err != nil {
-		a.stats.IncrementOrbitErrors(1)
+		a.stats.IncrementOrbitErrors()
 		log.Println("orbitClient.GetConfig: ", err)
 	}
 
@@ -353,12 +353,12 @@ func (a *agent) runOrbitLoop() {
 	// it also writes and checks the device token
 	if tokenRotationEnabled {
 		if err := orbitClient.SetOrUpdateDeviceToken(*a.deviceAuthToken); err != nil {
-			a.stats.IncrementOrbitErrors(1)
+			a.stats.IncrementOrbitErrors()
 			log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
 		}
 
 		if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
-			a.stats.IncrementOrbitErrors(1)
+			a.stats.IncrementOrbitErrors()
 			log.Println("deviceClient.CheckToken: ", err)
 		}
 	}
@@ -407,13 +407,13 @@ func (a *agent) runOrbitLoop() {
 		select {
 		case <-orbitConfigTicker:
 			if _, err := orbitClient.GetConfig(); err != nil {
-				a.stats.IncrementOrbitErrors(1)
+				a.stats.IncrementOrbitErrors()
 				log.Println("orbitClient.GetConfig: ", err)
 			}
 		case <-orbitTokenRemoteCheckTicker:
 			if tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
-					a.stats.IncrementOrbitErrors(1)
+					a.stats.IncrementOrbitErrors()
 					log.Println("deviceClient.CheckToken: ", err)
 				}
 			}
@@ -421,7 +421,7 @@ func (a *agent) runOrbitLoop() {
 			if tokenRotationEnabled {
 				newToken := ptr.String(uuid.NewString())
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
-					a.stats.IncrementOrbitErrors(1)
+					a.stats.IncrementOrbitErrors()
 					log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
 				}
 				a.deviceAuthToken = newToken
@@ -430,12 +430,12 @@ func (a *agent) runOrbitLoop() {
 			}
 		case <-capabilitiesCheckerTicker:
 			if err := orbitClient.Ping(); err != nil {
-				a.stats.IncrementOrbitErrors(1)
+				a.stats.IncrementOrbitErrors()
 				log.Println("orbitClient.Ping: ", err)
 			}
 		case <-fleetDesktopPolicyTicker:
 			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
-				a.stats.IncrementDesktopErrors(1)
+				a.stats.IncrementDesktopErrors()
 				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
 			}
 		}
@@ -488,14 +488,14 @@ func (a *agent) orbitEnroll() error {
 	}
 
 	a.orbitNodeKey = &parsedResp.OrbitNodeKey
-	a.stats.IncrementOrbitEnrollments(1)
+	a.stats.IncrementOrbitEnrollments()
 	return nil
 }
 
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.nodeKey = a.nodeKeyManager.Get(i)
 	if a.nodeKey != "" {
-		a.stats.IncrementEnrollments(1)
+		a.stats.IncrementEnrollments()
 		return nil
 	}
 
@@ -534,7 +534,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	}
 
 	a.nodeKey = parsedResp.NodeKey
-	a.stats.IncrementEnrollments(1)
+	a.stats.IncrementEnrollments()
 
 	a.nodeKeyManager.Add(a.nodeKey)
 
@@ -1124,7 +1124,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
-	a.stats.IncrementDistributedWrites(1)
+	a.stats.IncrementDistributedWrites()
 	// No need to read the distributed write body
 }
 
