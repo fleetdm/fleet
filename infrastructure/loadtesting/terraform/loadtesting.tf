@@ -53,7 +53,6 @@ resource "aws_ecs_task_definition" "loadtest" {
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
           "-host_count", "500",
           "-server_url", "http://${aws_lb.internal.dns_name}",
-          "-node_key_file", "nodekeys",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",
         ]
