@@ -1,0 +1,66 @@
+name: puppet_state
+notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+description: State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.
+platforms: darwin, windows, linux
+evented: false
+examples: >-
+  List resources that failed or took over a minute to evaluate.
+
+  ```
+  
+  SELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';
+  
+  ```
+columns:
+  - name: title
+    description: The name of the resource.
+    required: false
+    type: text
+  - name: file
+    description: The file that contains the resource.
+    required: false
+    type: text
+  - name: line
+    description: The line on which the resource is specified.
+    required: false
+    type: text
+  - name: resource
+    description: The resource and its title as `Type[title]`.
+    required: false
+    type: text
+  - name: resource_type
+    description: The resource type.
+    required: false
+    type: text
+  - name: evaluation_time
+    description: The amount of seconds it took to evaluate the resource.
+    required: false
+    type: text
+  - name: failed
+    description: If Puppet failed to evaluate this resource, this column is `true`.
+    required: false
+    type: text
+  - name: changed
+    description: If `change_count` is above `0`, this is `true`.
+    required: false
+    type: text
+  - name: out_of_sync
+    description: If `out_of_sync_count` is above `0`, this is `true`.
+    required: false
+    type: text
+  - name: skipped
+    description: True if this resource was skipped.
+    required: false
+    type: text
+  - name: change_count
+    description: The count of changes to be performed.
+    required: false
+    type: text
+  - name: out_of_sync_count
+    description: The number of properties that are out of sync
+    required: false
+    type: text
+  - name: corrective_change
+    description: True if a change on the system caused unexpected changes between two Puppet runs.
+    required: false
+    type: text

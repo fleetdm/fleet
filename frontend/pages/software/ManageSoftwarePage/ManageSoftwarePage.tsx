@@ -45,11 +45,11 @@ import TeamsDropdownHeader, {
 } from "components/PageHeader/TeamsDropdownHeader";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
+import CustomLink from "components/CustomLink";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -484,14 +484,11 @@ const ManageSoftwarePage = ({
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
-        <a
-          href={GITHUB_NEW_ISSUE_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          File an issue on GitHub
-          <img src={ExternalLinkIcon} alt="Open external link" />
-        </a>
+        <CustomLink
+          url={GITHUB_NEW_ISSUE_LINK}
+          text="File an issue on GitHub"
+          newTab
+        />
       </div>
     );
   };

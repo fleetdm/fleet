@@ -296,7 +296,7 @@ const allHostTableHeaders: IDataColumn[] = [
     },
   },
   {
-    title: "IP address",
+    title: "Private IP address",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -304,6 +304,17 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "primary_ip",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
+    title: "Public IP address",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "public_ip",
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
@@ -445,6 +456,7 @@ const defaultHiddenColumns = [
   "computer_name",
   "device_mapping",
   "primary_mac",
+  "public_ip",
   "cpu_type",
   "memory",
   "uptime",

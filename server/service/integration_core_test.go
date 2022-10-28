@@ -5285,7 +5285,7 @@ func (s *integrationTestSuite) TestPasswordReset() {
 
 	// attempt it again with already-used token
 	userUnusedPwd := "unusedpassw0rd!"
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userUnusedPwd}), http.StatusInternalServerError) // TODO: should be 40x, see #4406
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userUnusedPwd}), http.StatusUnauthorized)
 	res.Body.Close()
 
 	// login with the old password, should not succeed

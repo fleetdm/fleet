@@ -47,6 +47,15 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
+// NOTE: any changes to the hosts filters is likely to impact at least the following
+// endpoints, due to how they share the same implementation at the Datastore level:
+//
+// - GET /hosts (list hosts)
+// - GET /hosts/count (count hosts, which calls svc.CountHosts or svc.CountHostsInLabel)
+// - GET /labels/{id}/hosts (list hosts in label)
+// - GET /hosts/report
+//
+// Make sure the docs are updated accordingly and all endpoints behave as expected.
 type HostListOptions struct {
 	ListOptions
 

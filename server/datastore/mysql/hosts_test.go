@@ -4891,6 +4891,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// set host' disk space
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25)
 	require.NoError(t, err)
+	// set host orbit info
+	err = ds.SetOrUpdateHostOrbitInfo(context.Background(), host.ID, "1.1.0")
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {

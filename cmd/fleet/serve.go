@@ -471,7 +471,7 @@ the way that the Fleet server works.
 			if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
-			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
+			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger, license); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
 			if config.MDMApple.Enable {

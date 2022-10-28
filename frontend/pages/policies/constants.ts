@@ -423,4 +423,37 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates.",
     platform: "windows",
   },
+  {
+    key: 38,
+    query:
+      "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename like '%%Emergency Kit%%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%'));",
+    name: "No 1Password emergency kit stored on desktop or in downloads (macOS)",
+    description:
+      "Looks for PDF files with file names typically used by 1Password for emergency recovery kits.",
+    resolution:
+      "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.",
+    platform: "darwin", 
+  },
+  {
+    key: 39,
+    query:
+      "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');",
+    name: "No unencrypted SSH keys present",
+    description:
+      "Checks if unencrypted SSH keys are present on the system.",
+    resolution:
+      "Remove SSH keys that are not necessary, and encrypt those that are. On Mac and Linux, use this command to encrypt your existing SSH keys: ssh-keygen -o -p -f path/to/keyfile",
+    platform: "darwin",
+  },
+  {
+    key: 40,
+    query:
+      "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM keychain_items WHERE label LIKE '%ABCDEFG%' LIMIT 1);",
+    name: "No Apple signing or notarization credentials secrets stored (macOS)",
+    description:
+      "Looks for certificate material linked to a company's Apple Developer account, which should only be present on build servers and not workstations. Replace *ABCDEFG* with your company's identifier.",
+    resolution:
+      "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations.",
+    platform: "darwin",
+  },
 ];

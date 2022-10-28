@@ -1,1 +1,0 @@
-* Return status code 408 at tcp read timeouts instead of 500
