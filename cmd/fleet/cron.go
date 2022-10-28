@@ -20,8 +20,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
@@ -169,14 +171,31 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
-	if len(vulns) > 0 {
+	// If no automations enabled, then there is nothing else to do...
+	if vulnAutomationEnabled == "" {
+		return nil
+	}
+
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
+	vulns = append(vulns, nvdVulns...)
+	vulns = append(vulns, ovalVulns...)
+
+	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
+	if err != nil {
+		errHandler(ctx, logger, "could not fetch CVE meta", err)
+		return nil
+	}
+
+	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
+
+	if len(recentV) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
 			args := webhooks.VulnArgs{
-				Vulnerablities: vulns,
-				Meta:           meta,
+				Vulnerablities: recentV,
+				Meta:           matchingMeta,
 				AppConfig:      appConfig,
 				Time:           time.Now(),
 			}
@@ -201,8 +220,8 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
-				vulns,
-				meta,
+				recentV,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -213,8 +232,8 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
-				vulns,
-				meta,
+				recentV,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -228,48 +247,52 @@ func scanVulnerabilities(
 	return nil
 }
 
-// recentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
-// (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
-// and their meta data.
-func recentVulns(
+func checkWinVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	nvdVulns []fleet.SoftwareVulnerability,
-	ovalVulns []fleet.SoftwareVulnerability,
-	maxAge time.Duration,
-) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
-	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
-		return nil, nil
-	}
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.OSVulnerability {
+	var results []fleet.OSVulnerability
 
-	meta, err := ds.ListCVEs(ctx, maxAge)
+	// Get OS
+	os, err := ds.ListOperatingSystems(ctx)
 	if err != nil {
-		errHandler(ctx, logger, "could not fetch CVE meta", err)
-		return nil, nil
+		errHandler(ctx, logger, "fetching list of operating systems", err)
+		return nil
 	}
 
-	recent := make(map[string]fleet.CVEMeta)
-	for _, r := range meta {
-		recent[r.CVE] = r
-	}
-
-	seen := make(map[string]bool)
-	var vulns []fleet.SoftwareVulnerability
-	for _, v := range nvdVulns {
-		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
-			seen[v.Key()] = true
-			vulns = append(vulns, v)
-		}
-	}
-	for _, v := range ovalVulns {
-		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
-			seen[v.Key()] = true
-			vulns = append(vulns, v)
+	if !config.DisableDataSync {
+		// Sync MSRC definitions
+		client := fleethttp.NewClient()
+		err = msrc.Sync(ctx, client, vulnPath, os)
+		if err != nil {
+			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
 	}
 
-	return vulns, recent
+	// Analyze all Win OS using the synched MSRC artifact.
+	if !config.DisableWinOSVulnerabilities {
+		for _, o := range os {
+			start := time.Now()
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			elapsed := time.Since(start)
+			level.Debug(logger).Log(
+				"msg", "msrc-analysis-done",
+				"os name", o.Name,
+				"os version", o.Version,
+				"elapsed", elapsed,
+				"found new", len(r))
+			results = append(results, r...)
+			if err != nil {
+				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+			}
+		}
+	}
+
+	return results
 }
 
 func checkOvalVulnerabilities(

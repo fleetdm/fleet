@@ -1,4 +1,4 @@
-package oval_parsed
+package utils
 
 import (
 	"strconv"
@@ -33,7 +33,7 @@ func Rpmvercmp(a, b string) int {
 		return r
 	}
 
-	return rpmCmp(release(a), release(b))
+	return rpmCmp(Release(a), Release(b))
 }
 
 type segment struct {
@@ -219,7 +219,7 @@ func rpmCmp(a, b string) int {
 	return -1
 }
 
-func release(v string) string {
+func Release(v string) string {
 	var s int
 	e := len(v)
 	var seen bool
