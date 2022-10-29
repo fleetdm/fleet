@@ -17,13 +17,9 @@ module.exports = {
 
     sails.log('Getting average open time for issues with the "bug" label and open pull requests in the fleetdm/fleet Github repo...');
 
-    if (!sails.config.custom.githubAccessToken) {
-      throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
-    }//•
 
     let baseHeaders = {
-      'User-Agent': 'fleet test',
-      'Authorization': `token ${sails.config.custom.githubAccessToken}`
+      'User-Agent': 'Fleet average open time',
     };
 
     const oneDayInMs = (1000 * 60 * 60 * 24);
