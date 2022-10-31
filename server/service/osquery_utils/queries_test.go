@@ -24,84 +24,22 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(config.FleetConfig{}, nil)["network_interface"].IngestFunc
+	ingest := GetDetailQueries(config.FleetConfig{}, nil)["network_interface_unix"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
-	// docker interface should be skipped even though it shows up first
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"172.17.0.1","mac":"d3:4d:b3:3f:58:5b","interface":"docker0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b","interface":"en0"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
+  {"address":"10.0.1.2","mac":"bc:d0:74:4b:10:6d"}
 ]`),
 		&rows,
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
-	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
-
-	// Only IPv6
-	require.NoError(t, json.Unmarshal([]byte(`
-[
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb","interface":"en0"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
-]`),
-		&rows,
-	))
-
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "2604:3f08:1337:9411:cbe:814f:51a6:e4e3", host.PrimaryIP)
-	assert.Equal(t, "27:1b:aa:60:e8:0a", host.PrimaryMac)
-
-	// IPv6 appears before IPv4 (v4 should be prioritized)
-	require.NoError(t, json.Unmarshal([]byte(`
-[
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a","interface":"en1"},
-  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a","interface":"en1"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
-]`),
-		&rows,
-	))
-
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "205.111.43.79", host.PrimaryIP)
-	assert.Equal(t, "ab:1b:aa:60:e8:0a", host.PrimaryMac)
-
-	// Only link-local/loopback
-	require.NoError(t, json.Unmarshal([]byte(`
-[
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
-]`),
-		&rows,
-	))
-
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "127.0.0.1", host.PrimaryIP)
-	assert.Equal(t, "00:00:00:00:00:00", host.PrimaryMac)
+	assert.Equal(t, "10.0.1.2", host.PrimaryIP)
+	assert.Equal(t, "bc:d0:74:4b:10:6d", host.PrimaryMac)
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
@@ -297,10 +235,11 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
-	require.Len(t, queriesNoConfig, 18)
+	require.Len(t, queriesNoConfig, 19)
 
 	baseQueries := []string{
-		"network_interface",
+		"network_interface_unix",
+		"network_interface_windows",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -322,14 +261,14 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 17)
+	require.Len(t, queriesWithoutWinOSVuln, 18)
 
 	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
-	require.Len(t, queriesWithUsers, 20)
+	require.Len(t, queriesWithUsers, 21)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	require.Len(t, queriesWithUsersAndSoftware, 23)
+	require.Len(t, queriesWithUsersAndSoftware, 24)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }

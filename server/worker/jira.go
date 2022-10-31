@@ -376,14 +376,14 @@ func QueueJiraVulnJobs(
 	// _before_ we start processing them).
 	cves := make([]string, 0, len(recentVulns))
 	for _, vuln := range recentVulns {
-		cves = append(cves, vuln.CVE)
+		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	uniqCVEs := make(map[string]bool)
 	for _, v := range recentVulns {
-		uniqCVEs[v.CVE] = true
+		uniqCVEs[v.GetCVE()] = true
 	}
 
 	for cve := range uniqCVEs {

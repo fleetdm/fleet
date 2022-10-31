@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
@@ -37,7 +38,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 	pIDToPName := make(map[string]string, len(rXML.WinProducts))
 
 	for pID, p := range rXML.WinProducts {
-		name := parsed.NewProduct(p.FullName).Name()
+		name := parsed.NewProductFromFullName(p.FullName).Name()
 		// If the name could not be determined means that we have an un-supported Windows product
 		if name == "" {
 			continue
@@ -46,7 +47,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 		if bulletins[name] == nil {
 			bulletins[name] = parsed.NewSecurityBulletin(name)
 		}
-		bulletins[name].Products[pID] = p.FullName
+		bulletins[name].Products[pID] = parsed.NewProductFromFullName(p.FullName)
 		pIDToPName[pID] = name
 	}
 
@@ -59,19 +60,26 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 
 			// We assume that rem.Description will contain the ID portion of a KBID, which should
 			// be always a numeric value.
-			remediatedKBID, err := strconv.Atoi(rem.Description)
+			remediatedKBIDRaw, err := strconv.Atoi(rem.Description)
 			if err != nil {
 				return nil, fmt.Errorf("invalid remediation KBID %q for %s", rem.Description, v.CVE)
 			}
+			if remediatedKBIDRaw < 0 {
+				return nil, fmt.Errorf("invalid remediation KBID %q for %s", rem.Description, v.CVE)
+			}
+			remediatedKBID := uint(remediatedKBIDRaw)
 
 			// rem.Supercedence should have the ID portion of a KBID which the current vendor fix replaces.
-			var supersedes *int
+			var supersedes *uint
 			if rem.Supercedence != "" {
 				r, err := strconv.Atoi(rem.Supercedence)
 				if err != nil {
 					return nil, fmt.Errorf("invalid supercedence KBID %q for %s", rem.Supercedence, v.CVE)
 				}
-				supersedes = &r
+				if r < 0 {
+					return nil, fmt.Errorf("invalid supercedence KBID %q for %s", rem.Supercedence, v.CVE)
+				}
+				supersedes = ptr.Uint(uint(r))
 			}
 
 			for _, pID := range rem.ProductIDs {
@@ -88,6 +96,8 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 				if vuln, ok = b.Vulnerabities[v.CVE]; !ok {
 					vuln = parsed.NewVulnerability(v.PublishedDateEpoch())
 				}
+				// At this point we know that the remediation is a vendor fix that targets a windows
+				// product, so we add the remediation's product ID to the vulnerability's targeted products.
 				vuln.ProductIDs[pID] = true
 				vuln.RemediatedBy[remediatedKBID] = true
 

@@ -7,9 +7,9 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-import generateTableHeaders from "./QueriesTableConfig";
+import CustomLink from "components/CustomLink";
 
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
 const noQueriesClass = "no-queries";
@@ -66,18 +66,11 @@ const QueriesTable = ({
                   <>
                     <p>
                       Create a new query, or{" "}
-                      <a
-                        href="https://fleetdm.com/docs/using-fleet/standard-query-library"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        import Fleet’s standard query library
-                        <img
-                          src={ExternalLinkIcon}
-                          alt="Open external link"
-                          id="new-tab-icon"
-                        />
-                      </a>
+                      <CustomLink
+                        url="https://fleetdm.com/docs/using-fleet/standard-query-library"
+                        text="import Fleet’s standard query library"
+                        newTab
+                      />
                     </p>
                     <Button
                       variant="brand"
