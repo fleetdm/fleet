@@ -45,6 +45,31 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 
 	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
 
+	premiumLicense := &fleet.LicenseInfo{Tier: "premium", Organization: "Fleet"}
+	freeLicense := &fleet.LicenseInfo{Tier: "free"}
+
+	// First time running with no hosts
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, "premium", stats.LicenseTier)
+	assert.Equal(t, "Fleet", stats.Organization)
+	assert.Equal(t, 0, stats.NumHostsEnrolled)
+	assert.Equal(t, 0, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumTeams)
+	assert.Equal(t, 0, stats.NumPolicies)
+	assert.Equal(t, 0, stats.NumLabels)
+	assert.Equal(t, false, stats.SoftwareInventoryEnabled)
+	assert.Equal(t, true, stats.SystemUsersEnabled)
+	assert.Equal(t, false, stats.VulnDetectionEnabled)
+	assert.Equal(t, false, stats.HostsStatusWebHookEnabled)
+	assert.Equal(t, 0, stats.NumWeeklyActiveUsers)
+	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysActual)
+	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysPossible)
+	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
+	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{}, stats.HostsEnrolledByOsqueryVersion)
+	assert.Equal(t, []fleet.HostsCountByOrbitVersion{}, stats.HostsEnrolledByOrbitVersion)
+
 	// Create new host for test
 	h1, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -141,13 +166,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
-
-	premiumLicense := &fleet.LicenseInfo{Tier: "premium", Organization: "Fleet"}
-	freeLicense := &fleet.LicenseInfo{Tier: "free"}
-
-	// First time running, we send statistics
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, premiumLicense)
+	// Running with 1 host
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
@@ -179,8 +199,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
-
-	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
 	// create a few more hosts, with platforms and os versions
 	_, err = ds.NewHost(ctx, &fleet.Host{
@@ -252,13 +270,13 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
-	assert.Equal(t, stats.LicenseTier, "premium")
-	assert.Equal(t, stats.Organization, "Fleet")
-	assert.Equal(t, stats.NumHostsEnrolled, 5)
-	assert.Equal(t, stats.NumUsers, 2)
-	assert.Equal(t, stats.NumWeeklyActiveUsers, 0)          // no active user since last stats were sent
+	assert.Equal(t, "premium", stats.LicenseTier)
+	assert.Equal(t, "Fleet", stats.Organization)
+	assert.Equal(t, 5, stats.NumHostsEnrolled)
+	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumWeeklyActiveUsers)          // no active user since last stats were sent
 	require.Len(t, stats.HostsEnrolledByOperatingSystem, 3) // empty platform, rhel and macos
-	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysActual, 5)
+	assert.Equal(t, 5, stats.NumWeeklyPolicyViolationDaysActual)
 	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
 		{Version: "Fedora 35", NumEnrolled: 2},
 		{Version: "Fedora 36", NumEnrolled: 1},
@@ -269,7 +287,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
 		{Version: "", NumEnrolled: 1},
 	}, stats.HostsEnrolledByOperatingSystem[""])
-	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
+	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 
 	// Create multiple new sessions for a single user
 	_, err = ds.NewSession(ctx, u1.ID, "session_key2")
@@ -289,15 +307,15 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
-	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
-	assert.Equal(t, stats.LicenseTier, "premium")
-	assert.Equal(t, stats.Organization, "Fleet")
-	assert.Equal(t, stats.NumHostsEnrolled, 5)
-	assert.Equal(t, stats.NumUsers, 2)
-	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
-	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysActual, 0)
-	assert.Equal(t, stats.NumWeeklyPolicyViolationDaysPossible, 0)
-	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
+	assert.Equal(t, stats.AnonymousIdentifier, firstIdentifier)
+	assert.Equal(t, "premium", stats.LicenseTier)
+	assert.Equal(t, "Fleet", stats.Organization)
+	assert.Equal(t, 5, stats.NumHostsEnrolled)
+	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 1, stats.NumWeeklyActiveUsers)
+	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysActual)
+	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysPossible)
+	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 
 	// Add host to test hosts not responding stats
 	_, err = ds.NewHost(ctx, &fleet.Host{
@@ -318,8 +336,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
-	assert.Equal(t, stats.LicenseTier, "premium")
-	assert.Equal(t, stats.Organization, "Fleet")
+	assert.Equal(t, "premium", stats.LicenseTier)
+	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 6, stats.NumHostsEnrolled)
 	assert.Equal(t, 1, stats.NumHostsNotResponding)
 
@@ -329,6 +347,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
-	assert.Equal(t, stats.LicenseTier, "free")
-	assert.Equal(t, stats.Organization, "unknown")
+	assert.Equal(t, "free", stats.LicenseTier)
+	assert.Equal(t, "unknown", stats.Organization)
 }
