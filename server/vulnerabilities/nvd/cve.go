@@ -147,7 +147,7 @@ func TranslateCPEToCVE(
 
 	var newVulns []fleet.SoftwareVulnerability
 	for _, vuln := range vulns {
-		newCount, err := ds.InsertVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
+		newCount, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
 		if err != nil {
 			level.Error(logger).Log("cpe processing", "error", "err", err)
 			continue
