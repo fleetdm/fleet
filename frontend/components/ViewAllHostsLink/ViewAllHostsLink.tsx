@@ -22,20 +22,12 @@ const ViewAllHostsLink = ({
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsLinkClass = classnames(baseClass, className);
 
-  const onClick = (): void => {
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
-      : PATHS.MANAGE_HOSTS;
-
-    browserHistory.push(path);
-  };
+  const path = queryParams
+    ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+    : PATHS.MANAGE_HOSTS;
 
   return (
-    <Link
-      className={viewAllHostsLinkClass}
-      to={PATHS.MANAGE_HOSTS}
-      onClick={onClick}
-    >
+    <Link className={viewAllHostsLinkClass} to={path}>
       <>
         {!condensed && "View all hosts"}
         <Icon
