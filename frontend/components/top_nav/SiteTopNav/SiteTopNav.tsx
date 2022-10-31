@@ -23,7 +23,7 @@ interface ISiteTopNavProps {
   onNavItemClick: (path: string) => void;
   pathname: string;
   currentUser: IUser;
-  config: IConfig;
+  config?: Partial<IConfig>;
 }
 
 const SiteTopNav = ({
@@ -43,7 +43,7 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withContext } = navItem;
-    const orgLogoURL = config.org_info.org_logo_url;
+    const orgLogoURL = config?.org_info.org_logo_url;
     const active = navItem.location.regex.test(pathname);
 
     const navItemBaseClass = "site-nav-item";
