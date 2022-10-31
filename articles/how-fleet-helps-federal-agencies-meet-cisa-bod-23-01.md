@@ -4,7 +4,7 @@
 
 Recently, the Cybersecurity and Infrastructure Security Agency (CISA) published [Binding Operational Directive 23-01](https://www.cisa.gov/binding-operational-directive-23-01). The directive’s goal is to improve asset visibility and vulnerability detection for the Federal Civilian Executive Branch (FCEB) enterprise. FCEB agencies have until April 3, 2023 to meet or exceed BOD 23-01’s requirements.
 
-What does this mean for FCEB agencies? Ultimately, they’ll benefit from stronger security postures. That’s reassuring considering these agencies include the Department of Energy, the Department of the Treasury, and the Department of Health and Human Services.
+What does this mean for FCEB agencies? Stronger security postures. That’s reassuring considering these agencies include the Department of Energy, the Department of the Treasury, and the Department of Health and Human Services.
 
 What will it take to get there? Comprehensive, continuous reporting. The frequency and scope of these reports might seem daunting. But BOD 23-01 doesn’t have to disrupt your agency’s operations. Fleet will help you meet these requirements quickly and easily. Yes, really.
 
@@ -42,7 +42,7 @@ What if your agency wants to limit the number of third-party vendors? Fleet has 
 
 ## Protect device performance
 
-Every organization wants to ensure stability. But device performance takes on greater importance when your agency deals with public health or power plants. We’ve mentioned the shortcomings of traditional vulnerability scanners. Those performance hits hurt a lot more if your systems need to be online and fast 24/7.
+Every organization wants to ensure stability. But device performance takes on greater importance for agencies that deal with public health or power plants. We’ve mentioned the shortcomings of traditional vulnerability scanners. Those performance hits hurt a lot more if your systems need to be online and fast 24/7.
 
 Fleet’s security agent, osquery, has a lightweight resource footprint. If a query is set to exceed a certain RAM threshold, then the query will be canceled before any devices are affected. We call this the osquery watchdog. Under the default configuration, the watchdog will ensure that utilization stays below 200 MB of memory and 10% CPU. If a query is canceled, you’ll receive a notification that offers suggestions to lower its impact.
 
@@ -50,7 +50,7 @@ For queries that have been run before, Fleet also gives you the ability to measu
 
 ## Enjoy simple implementation
 
-Fleet can fit into the security ecosystem of any federal agency. Some SaaS solutions have limitations about where they can be deployed. That’s non-negotiable for agencies handling highly sensitive information. And that isn’t a problem for Fleet. You can deploy Fleet anywhere — including AWS GovCloud.
+Fleet can fit into the security ecosystem of any federal agency. Some SaaS solutions have limitations about where they can be deployed. That’s non-negotiable for agencies handling highly sensitive information. And that isn’t a problem for Fleet. You can deploy Fleet anywhere — including cloud.gov. [Learn how to deploy Fleet to cloud.gov](https://fleetdm.com/docs/deploying/cloudgov) in our documentation.
 
 The scope of just one FCEB agency can be quite broad. Complex organizational structures are a natural result. Fleet lets you assign devices to specific teams. Each team can have its own queries, schedules, and policies. So, you can tailor compliance standards to specific departments.
 
@@ -58,7 +58,7 @@ You shouldn’t have to trade one tool for another, only to discover it can’t 
 
 ## Comply with BOD 23-01
 
-Fleet helps Fortune 1000 companies achieve compliance with internal guidelines and government regulations. The ability to log historical data and run real-time queries let you address CISA requests quickly and accurately. Custom policies allow your agency to adjust enforcement as federal requirements change. This puts your agency in the position to comply with BOD 23-01 and any other directives to come.
+Fleet helps Fortune 1000 companies achieve compliance with internal guidelines and government regulations. The ability to log historical data and run real-time queries lets you address CISA requests quickly and accurately. Custom [policies](https://fleetdm.com/securing/what-are-fleet-policies) allow your agency to adjust enforcement as federal requirements change. This puts your agency in the position to comply with BOD 23-01 and any other directives to come.
 
 There’s no better way to vet a vendor than to use the platform yourself. See how Fleet can help federal agencies. [Try Fleet on your device for free](https://fleetdm.com/try-fleet/register).
 
