@@ -58,6 +58,10 @@ const FleetAce = ({
   const fixHotkeys = (editor: IAceEditor) => {
     editor.commands.removeCommand("gotoline");
     editor.commands.removeCommand("find");
+
+    // Allow users to tab through the app
+    editor.commands.removeCommand(editor.commands.byName.indent);
+    editor.commands.removeCommand(editor.commands.byName.outdent);
   };
 
   const onLoadHandler = (editor: IAceEditor) => {
