@@ -244,12 +244,16 @@ Setting up all the required infrastructure to run a dedicated web service in AWS
       - Elasticache
       - ECS
 
+
 ### Scaling Limitations
+
 It is possible to run into multiple AWS scaling limitations depending on the size of the Fleet deployment, frequency of queries, and amount of data returned.
 The Fleet backend is designed to scale horizontally (this is also enabled by default using target-tracking autoscaling policies out-of-the-box).
 
 However, it is still possible to run into AWS scaling limitations such as:
+
 #### Firehose write throughput provision exceeded errors
+
 This particular issue would only be encountered for the largest of Fleet deployments and can occur because of high volume of data and/or number of hosts, if you notice these errors in the application logs or from the AWS Firehose console try the following:
 1. Check the service limits https://docs.aws.amazon.com/firehose/latest/dev/limits.html
 2. evaluate the amount of data returned using Fleet's live query feature
