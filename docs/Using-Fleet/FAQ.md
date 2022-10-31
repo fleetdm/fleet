@@ -382,4 +382,4 @@ There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validati
 
 Depending on your infrastructure capabilities, and the number of hosts enrolled into your Fleet instance, Fleet might be slow or unresponsive after globally enabling a feature like [software inventory](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
-In those cases, we recommend a slow roll-out by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams)
+In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
