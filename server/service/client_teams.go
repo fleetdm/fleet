@@ -19,7 +19,7 @@ func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
 
 // ApplyTeams sends the list of Teams to be applied to the
 // Fleet instance.
-func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeams(specs []map[string]json.RawMessage, opts fleet.ApplySpecOptions) error {
 	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())

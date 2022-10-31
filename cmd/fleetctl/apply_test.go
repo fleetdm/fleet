@@ -189,6 +189,8 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
+	// agent options not provided, so left unchanged
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
@@ -209,6 +211,19 @@ spec:
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    agent_options:
+    name: team1
+`)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	// agent options provided but empty, clears the value
+	assert.Equal(t, "{}", string(*teamsByName["team1"].Config.AgentOptions))
 }
 
 func writeTmpYml(t *testing.T, contents string) string {

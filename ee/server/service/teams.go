@@ -518,7 +518,11 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 
 func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
 	team.Name = spec.Name
-	team.Config.AgentOptions = spec.AgentOptions
+
+	// if agent options are not provided, do not change them
+	if spec.AgentOptions != nil {
+		team.Config.AgentOptions = spec.AgentOptions
+	}
 
 	// replace (don't merge) the features with the new ones, using a config
 	// that has the global defaults applied.
