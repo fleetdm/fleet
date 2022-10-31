@@ -6,11 +6,11 @@
 
 This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
 
-Unlike the [configuration files documentation](../Using-Fleet/configuration-files/README.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
+Unlike the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
 ## Packs
 
-Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](../Using-Fleet/Fleet-UI.md#schedule-a-query).
+Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query).
 
 The `packs` YAML file is supported for backwards compatibility.
 
@@ -46,9 +46,9 @@ spec:
 
 ## Integrations
 
-Integration settings in Fleet can be configured using the `integrations` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](../Using-Fleet/configuration-files/README.md#organization-settings).
+Integration settings in Fleet can be configured using the `integrations` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
 
-> **Warning:** Be careful not to store your integration credentials in source control. The best practice is to configure integrations [via the Fleet UI](../Using-Fleet/Automations.md).
+> **Warning:** Be careful not to store your integration credentials in source control. The best practice is to configure integrations [via the Fleet UI](https://fleetdm.com/docs/using-fleet/automations).
 
 ### Jira
 
@@ -256,9 +256,9 @@ Whether the integration is configured to create Zendesk tickets for recent softw
 
 ## SMTP settings
 
-SMTP settings in Fleet can be configured using the `smtp_settings` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](../Using-Fleet/configuration-files/README.md#organization-settings).
+SMTP settings in Fleet can be configured using the `smtp_settings` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
 
-> **Warning:** Be careful not to store your SMTP credentials in source control. The best practice is to configure SMTP [via the Fleet UI](../Deploying/Configuration.md#configuring-single-sign-on-sso).
+> **Warning:** Be careful not to store your SMTP credentials in source control. The best practice is to configure SMTP [via the Fleet UI](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### smtp_settings.authentication_method
 

@@ -1037,7 +1037,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) InsertVulnerabilities(
+func (ds *Datastore) InsertSoftwareVulnerabilities(
 	ctx context.Context,
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
