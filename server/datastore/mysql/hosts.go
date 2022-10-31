@@ -3088,7 +3088,7 @@ WHERE
 }
 
 func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOrbitVersion, error) {
-	var counts []fleet.HostsCountByOrbitVersion
+	counts := make([]fleet.HostsCountByOrbitVersion, 0)
 
 	const stmt = `
 		SELECT version as orbit_version, count(*) as num_hosts
@@ -3096,14 +3096,14 @@ func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([
 		GROUP BY version
   	`
 	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
-		return []fleet.HostsCountByOrbitVersion{}, err
+		return nil, err
 	}
 
 	return counts, nil
 }
 
 func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOsqueryVersion, error) {
-	var counts []fleet.HostsCountByOsqueryVersion
+	counts := make([]fleet.HostsCountByOsqueryVersion, 0)
 
 	const stmt = `
 		SELECT osquery_version, count(*) as num_hosts
@@ -3111,7 +3111,7 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 		GROUP BY osquery_version
   	`
 	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
-		return []fleet.HostsCountByOsqueryVersion{}, err
+		return nil, err
 	}
 
 	return counts, nil
