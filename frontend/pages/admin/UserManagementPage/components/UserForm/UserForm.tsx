@@ -18,9 +18,9 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import CustomLink from "components/CustomLink";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "create-user-form";
 
@@ -295,14 +295,11 @@ const UserForm = ({
               Global users can only be members of the top level team and can
               manage or observe all users, entities, and settings in Fleet.
             </p>
-            <a
-              href="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more about user permissions
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
+              text="Learn more about user permissions"
+              newTab
+            />
           </InfoBanner>
         )}
         <Dropdown
@@ -350,14 +347,11 @@ const UserForm = ({
                   Users can be members of multiple teams and can only manage or
                   observe team-specific users, entities, and settings in Fleet.
                 </p>
-                <a
-                  href="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Learn more about user permissions
-                  <img src={ExternalLinkIcon} alt="Open external link" />
-                </a>
+                <CustomLink
+                  url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
+                  text="Learn more about user permissions"
+                  newTab
+                />
               </InfoBanner>
               <SelectedTeamsForm
                 availableTeams={availableTeams}

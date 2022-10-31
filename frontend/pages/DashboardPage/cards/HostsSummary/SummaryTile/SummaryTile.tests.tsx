@@ -75,6 +75,7 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
+        iconName={"windows-blue"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );

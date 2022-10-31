@@ -313,6 +313,7 @@ var hostRefs = []string{
 	"host_display_names",
 	"windows_updates",
 	"host_disks",
+	"operating_system_vulnerabilities",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -2965,6 +2966,35 @@ func (ds *Datastore) CountEnrolledHosts(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+func (ds *Datastore) HostIDsByOSID(
+	ctx context.Context,
+	osID uint,
+	offset int,
+	limit int,
+) ([]uint, error) {
+	var ids []uint
+
+	stmt := dialect.From("host_operating_system").
+		Select("host_id").
+		Where(
+			goqu.C("os_id").Eq(osID)).
+		Order(goqu.I("host_id").Desc()).
+		Offset(uint(offset)).
+		Limit(uint(limit))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	return ids, nil
+}
+
+// TODO Refactor this: We should be using the operating system type for this
 func (ds *Datastore) HostIDsByOSVersion(
 	ctx context.Context,
 	osVersion fleet.OSVersion,

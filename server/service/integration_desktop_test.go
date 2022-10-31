@@ -135,6 +135,13 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.Nil(t, listPoliciesResp.Policies)
+
+	// /device/desktop is not accessible for free endpoints
+	getDesktopResp := fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusPaymentRequired)
+	json.NewDecoder(res.Body).Decode(&getDesktopResp)
+	res.Body.Close()
+	require.Nil(t, getDesktopResp.FailingPolicies)
 }
 
 // TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.

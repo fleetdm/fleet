@@ -4,9 +4,9 @@ import { ISoftware } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
+import CustomLink from "components/CustomLink";
 
 import generateVulnTableHeaders from "./VulnTableConfig";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "vulnerabilities";
 
@@ -23,14 +23,11 @@ const NoVulnsDetected = (): JSX.Element => {
         <h1>No vulnerabilities detected for this software item.</h1>
         <p>
           Expecting to see vulnerabilities?{" "}
-          <a
-            href={GITHUB_NEW_ISSUE_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            File an issue on GitHub
-            <img src={ExternalLinkIcon} alt="Open external link" />
-          </a>
+          <CustomLink
+            url={GITHUB_NEW_ISSUE_LINK}
+            text="File an issue on GitHub"
+            newTab
+          />
         </p>
       </div>
     </div>
