@@ -14,6 +14,7 @@ Deploying on AWS with Fleet’s reference architecture will get you a fully func
 - Terraform installed (version 1.04 or greater)
 - AWS Account and IAM user capable of creating resources
 - Clone [Fleet](https://github.com/fleetdm/fleet) or copy the [Terraform files](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)
+- About 30 minutes
 
 ## Bootstrapping
 
@@ -80,6 +81,8 @@ to using a single NAT Gateway.
 RDS daily snapshots are enabled by default and retention is set to 30 days. If there is ever a need a snapshot identifier can be supplied via terraform variable (`rds_initial_snapshot`)
 in order to create the database from a previous snapshot.
 
+
+## Deployment
 Next, we’ll update the terraform setup in the `/aws` directory's [main.tf](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to use the S3 Bucket and DynamoDB created above:
 
 ```
@@ -225,21 +228,22 @@ Setting up all the required infrastructure to run a dedicated web service in AWS
 ## Troubleshooting
 
 1. AWS CLI gives the error "cannot find ECS cluster" when trying to run the migration task
-   1. double-check your AWS CLI default region and make sure it is the same region you deployed the ECS cluster in
-   2. the `--cluster <arg>` might be incorrect, verify the name of your ECS cluster that was created
+   - double-check your AWS CLI default region and make sure it is the same region you deployed the ECS cluster in
+   - the `--cluster <arg>` might be incorrect, verify the name of your ECS cluster that was created
 2. AWS ACM fails to validate and issue certificates
-   1. verify that the NS records created in the new hosted zone are propagated to your nameserver authority
-   2. this might require multiple terraform apply runs
+   - verify that the NS records created in the new hosted zone are propagated to your nameserver authority
+   - this might require multiple terraform apply runs
 3. ECS fails to deploy Fleet container image (docker pull request limit exceeded/429 errors)
-   1. if the migration task has not run successfully before the Fleet backend attempts to start it will cause the container to repeatedly fail and this can exceed docker pull request rate limits
-   2. scale down the fleet backend to zero tasks and let the pull request limit reset, this can take from 15 minutes to an hour
-   3. attempt to run migrations and then scale the Fleet backend back up
+   - if the migration task has not run successfully before the Fleet backend attempts to start it will cause the container to repeatedly fail and this can exceed docker pull request rate limits
+   - scale down the fleet backend to zero tasks and let the pull request limit reset, this can take from 15 minutes to an hour
+   - attempt to run migrations and then scale the Fleet backend back up
 4. If Fleet is running, but you are getting a poor experience or feel like something is wrong
-   1. check application logs emitted to AWS Cloudwatch
-   2. check performance metrics (CPU & Memory utilization) in AWS Cloudwatch
-      1. RDS
-      2. Elasticache
-      3. ECS
+   - check application logs emitted to AWS Cloudwatch
+   - check performance metrics (CPU & Memory utilization) in AWS Cloudwatch
+      - RDS
+      - Elasticache
+      - ECS
+
 ### Scaling Limitations
 It is possible to run into multiple AWS scaling limitations depending on the size of the Fleet deployment, frequency of queries, and amount of data returned.
 The Fleet backend is designed to scale horizontally (this is also enabled by default using target-tracking autoscaling policies out-of-the-box).
@@ -252,7 +256,6 @@ This particular issue would only be encountered for the largest of Fleet deploym
 3. reduce the frequency of scheduled queries
 4. reduce the amount of data returned for scheduled queries (Snapshot vs Differential queries https://osquery.readthedocs.io/en/stable/deployment/logging/)
 
-#### 
 
 More troubleshooting tips can be found here https://fleetdm.com/docs/deploying/faq
 
