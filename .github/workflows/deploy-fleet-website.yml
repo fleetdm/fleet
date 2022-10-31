@@ -51,6 +51,9 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    # Build storybook in the website's assets/ folder
+    - run: npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
     # > i.e. the one used by the Fleet server.  This is because require() in node will go
@@ -66,9 +69,6 @@ jobs:
     # > interfere with the committing and force-pushing we're doing as part of our deploy
     # > script here.  For more info, see: https://github.com/fleetdm/fleet/pull/5549
     - run: rm -f .gitignore
-
-    # build storybook in the website's assets/ folder
-    - run: npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Download dependencies (including dev deps)
     - run: cd website/ && npm install
