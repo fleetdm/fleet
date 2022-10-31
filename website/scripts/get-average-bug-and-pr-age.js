@@ -58,7 +58,7 @@ module.exports = {
       allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
       // If we recieved less results than we requested, we've reached the last page of the results.
       return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
-    });
+    }, 10000);
 
 
     for(let issue of allIssuesWithBugLabel) {
@@ -104,7 +104,7 @@ module.exports = {
       allOpenPullRequests = allOpenPullRequests.concat(pullRequests);
       // If we recieved less results than we requested, we've reached the last page of the results.
       return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
-    });
+    }, 10000);
 
     for(let pullRequest of allOpenPullRequests) {
       // Create a date object from the PR's created_at timestamp.
