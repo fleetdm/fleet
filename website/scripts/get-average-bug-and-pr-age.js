@@ -22,8 +22,9 @@ module.exports = {
       'User-Agent': 'Fleet average open time',
     };
 
-    const oneDayInMs = (1000 * 60 * 60 * 24);
+    const ONE_DAY_IN_MILLISECONDS = (1000 * 60 * 60 * 24);
     const todaysDate = new Date;
+    const NUMBER_OF_RESULTS_REQUESTED = 100;
 
 
     //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██╗   ██╗ ██████╗ ███████╗
@@ -34,45 +35,30 @@ module.exports = {
     //   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝    ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝
     //
 
-
+    let pageNumberForPossiblePaginatedResults = 0;
     let allIssuesWithBugLabel = [];
-    let pageNumberForPossiblePaginatedResults = 1;
-    let maximumResultsPerRequest = 100;
     let daysSinceBugsWereOpened = [];
 
     // Fetch all open issues in the fleetdm/fleet repo with the bug label.
-    let issuesWithBugLabel = await sails.helpers.http.get(
-      `https://api.github.com/repos/fleetdm/fleet/issues`,
-      {
-        'state': 'open',
-        'labels': 'bug',
-        'per_page': maximumResultsPerRequest,
-        'page': pageNumberForPossiblePaginatedResults,
-      },
-      baseHeaders
-    ).retry();
-
-    allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
-    // Set a flag that will be true if the number of results we recieved is the same amount of results that are sent at one time, if this is true, we will request the next set of results until this value is false.
-    let maybeNeedToCheckForMoreBugs = (issuesWithBugLabel.length === maximumResultsPerRequest);
-
-    while(maybeNeedToCheckForMoreBugs) {
+    // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+    await sails.helpers.flow.until(async ()=>{
+      // Increment the page of results we're requesting.
       pageNumberForPossiblePaginatedResults += 1;
-      let aditionalResultsToCheck = await sails.helpers.http.get(
+      let issuesWithBugLabel = await sails.helpers.http.get(
         `https://api.github.com/repos/fleetdm/fleet/issues`,
         {
           'state': 'open',
           'labels': 'bug',
-          'per_page': maximumResultsPerRequest,
+          'per_page': NUMBER_OF_RESULTS_REQUESTED,
           'page': pageNumberForPossiblePaginatedResults,
         },
         baseHeaders
       ).retry();
-      // Add these issues to the allIssuesWithBugLabel array.
-      allIssuesWithBugLabel = allIssuesWithBugLabel.concat(aditionalResultsToCheck);
-      // Update the resultsMayHaveMultiplePages to use the amount of the last set of results we recieved.
-      maybeNeedToCheckForMoreBugs = (aditionalResultsToCheck.length === maximumResultsPerRequest);
-    }
+      // Add the results to the allIssuesWithBugLabel array.
+      allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
+      // If we recieved less results than we requested, we've reached the last page of the results.
+      return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
+    });
 
 
     for(let issue of allIssuesWithBugLabel) {
@@ -81,15 +67,12 @@ module.exports = {
       // Get the amount of time this issue has been open in milliseconds.
       let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
       // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
-      let timeOpenInDaysRoundedDown = Math.floor(timeOpenInMS/oneDayInMs);
+      let timeOpenInDaysRoundedDown = Math.floor(timeOpenInMS / ONE_DAY_IN_MILLISECONDS);
       daysSinceBugsWereOpened.push(timeOpenInDaysRoundedDown);
     }
 
     // Get the average open time for bugs.
     let averageDaysBugsAreOpenFor = Math.floor(_.sum(daysSinceBugsWereOpened)/daysSinceBugsWereOpened.length);
-
-
-
 
     //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██████╗ ███████╗
     //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██╔══██╗██╔════╝
@@ -99,41 +82,29 @@ module.exports = {
     //   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝    ╚═╝     ╚═╝  ╚═╝╚══════╝
     //
 
-    let pullRequestResultsPageNumber = 1;
+    let pullRequestResultsPageNumber = 0;
     let allOpenPullRequests = [];
     let daysSincePullRequestsWereOpened = [];
 
-    allOpenPullRequests = await sails.helpers.http.get(
-      `https://api.github.com/repos/fleetdm/fleet/pulls`,
-      {
-        'state': 'open',
-        'per_page': 100,
-        'page': pullRequestResultsPageNumber,
-      },
-      baseHeaders
-    ).retry();
-
-    let maybeNeedToCheckForMorePullRequests = (allOpenPullRequests.length === 100);
-
-    // Request more results until the number of results returned is less than the amount requested.
-    while(maybeNeedToCheckForMorePullRequests) {
+    // Fetch all open pull requests in the fleetdm/fleet repo.
+    // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+    await sails.helpers.flow.until(async ()=>{
+      // Increment the page of results we're requesting.
       pullRequestResultsPageNumber += 1;
-      // Grab the next page of results
-      let moreResultsToCheck = await sails.helpers.http.get(
+      let pullRequests = await sails.helpers.http.get(
         `https://api.github.com/repos/fleetdm/fleet/pulls`,
         {
           'state': 'open',
-          'per_page': 100,
+          'per_page': NUMBER_OF_RESULTS_REQUESTED,
           'page': pullRequestResultsPageNumber,
         },
         baseHeaders
       ).retry();
-      // Update the maybeNeedToCheckForMorePullRequests variable to use the amount of results from the last request.
-      maybeNeedToCheckForMorePullRequests = (moreResultsToCheck.length === 100);
       // Add the results to the array of results.
-      allOpenPullRequests.concat(moreResultsToCheck);
-    }
-
+      allOpenPullRequests = allOpenPullRequests.concat(pullRequests);
+      // If we recieved less results than we requested, we've reached the last page of the results.
+      return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
+    });
 
     for(let pullRequest of allOpenPullRequests) {
       // Create a date object from the PR's created_at timestamp.
@@ -141,13 +112,11 @@ module.exports = {
       // Get the amount of time this issue has been open in milliseconds.
       let timeOpenInMS = Math.abs(todaysDate - pullRequestOpenedOn);
       // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array
-      let timeOpenInDaysRoundedDown = Math.floor(timeOpenInMS/oneDayInMs);
+      let timeOpenInDaysRoundedDown = Math.floor(timeOpenInMS / ONE_DAY_IN_MILLISECONDS);
       daysSincePullRequestsWereOpened.push(timeOpenInDaysRoundedDown);
     }
 
     let averageDaysPullRequestsAreOpenFor = Math.floor(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
-
-
 
     // Log the results
     sails.log(`Bugs:
