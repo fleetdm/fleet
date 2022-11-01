@@ -515,7 +515,7 @@ SELECT
 		ELSE
 			""
 	END AS release_id
-FROM 
+FROM
     os_version os,
     kernel_info k`,
 		Platforms:        []string{"windows"},
@@ -546,6 +546,27 @@ FROM
 		Query:            `SELECT version FROM orbit_info`,
 		DirectIngestFunc: directIngestOrbitInfo,
 		Discovery:        discoveryTable("orbit_info"),
+	},
+	"disk_encryption_darwin": {
+		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_linux": {
+		Query:            `SELECT 1 FROM disk_encryption WHERE encrypted = 1 AND name LIKE '/dev/dm-1';`,
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_windows": {
+		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
+		// osquery table on windows, it is always present.
 	},
 }
 
@@ -1221,6 +1242,20 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
 	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
+}
+
+func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed")
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn",
+			fmt.Sprintf("disk_encryption expected at most a single result, got %d", len(rows)))
+	}
+
+	encrypted := len(rows) > 0
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
