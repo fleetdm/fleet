@@ -1,15 +1,12 @@
 import React from "react";
 
+import { COLORS, Colors } from "styles/var/colors";
+
 interface IErrorProps {
-  color?: "coreVibrantBlue" | "coreFleetBlack";
+  color?: Colors;
 }
 
-const FLEET_COLORS = {
-  coreFleetBlack: "#192147",
-  coreVibrantBlue: "#6a67fe",
-};
-
-const Error = ({ color = "coreFleetBlack" }: IErrorProps) => {
+const Error = ({ color = "status-error" }: IErrorProps) => {
   return (
     <svg
       width="16"
@@ -22,7 +19,7 @@ const Error = ({ color = "coreFleetBlack" }: IErrorProps) => {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm1 13H7v-2h2v2zm-2-3h2V3H7v7z"
-        fill="#515774"
+        fill={COLORS[color]}
       />
     </svg>
   );
