@@ -49,11 +49,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	freeLicense := &fleet.LicenseInfo{Tier: "free"}
 
 	// First time running with no hosts
-	var stats fleet.StatisticsPayload
-	var shouldSend bool
-	var err error
-
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, "premium", stats.LicenseTier)
@@ -200,8 +196,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{{OsqueryVersion: "4.9.0", NumHosts: 1}}, stats.HostsEnrolledByOsqueryVersion)
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{{OrbitVersion: "1.1.0", NumHosts: 1}}, stats.HostsEnrolledByOrbitVersion)
-
-	firstIdentifier = stats.AnonymousIdentifier
 
 	err = ds.RecordStatisticsSent(ctx)
 	require.NoError(t, err)
