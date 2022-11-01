@@ -9,6 +9,8 @@ import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 import ExternalLink from "./ExternalLink";
+import Error from "./Error";
+import Success from "./Success";
 import Check from "./Check";
 import Plus from "./Plus";
 
@@ -18,6 +20,8 @@ export const ICON_MAP = {
   chevron: Chevron,
   check: Check,
   plus: Plus,
+  success: Success,
+  error: Error,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
