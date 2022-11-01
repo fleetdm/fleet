@@ -43,6 +43,10 @@
   }
 }
 
+.info-banner {
+  margin-top: $pad-medium;
+}
+
 .app-config-form {
   width: 100%;
 
@@ -124,16 +128,6 @@
     width: 60%;
   }
 
-  &__yaml {
-    .app-config-form__section-description {
-      width: initial;
-    }
-
-    h2 {
-      max-width: initial;
-    }
-  }
-
   &__inputs {
     width: 60%;
     float: left;
@@ -176,8 +170,13 @@
       margin: $pad-medium 0;
     }
 
-    &--webhook {
+    &--webhook,
+    &--agents {
       margin-bottom: $pad-large;
+
+      .yaml-ace__label {
+        min-height: 0;
+      }
     }
   }
 
@@ -225,7 +224,7 @@
   }
 
   &__component-label {
-    margin: 24px 0 0;
+    margin: $pad-medium 0 0;
     font-size: $x-small;
   }
 
