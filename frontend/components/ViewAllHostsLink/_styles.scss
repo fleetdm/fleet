@@ -1,5 +1,6 @@
 .view-all-hosts-link {
   display: flex;
+  align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
 
   &__icon {
