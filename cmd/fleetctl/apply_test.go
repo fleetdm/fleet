@@ -223,7 +223,7 @@ spec:
 
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	// agent options provided but empty, clears the value
-	assert.Equal(t, "{}", string(*teamsByName["team1"].Config.AgentOptions))
+	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 }
 
 func writeTmpYml(t *testing.T, contents string) string {

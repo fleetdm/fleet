@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -376,6 +377,8 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	return newSecrets, nil
 }
 
+var jsonNull = json.RawMessage(`null`)
+
 func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
@@ -435,8 +438,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return err
 		}
 
-		if spec.AgentOptions != nil {
-			if err := fleet.ValidateJSONAgentOptions(*spec.AgentOptions); err != nil {
+		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
+			if err := fleet.ValidateJSONAgentOptions(spec.AgentOptions); err != nil {
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -490,8 +493,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 }
 
 func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret) (*fleet.Team, error) {
-	agentOptions := spec.AgentOptions
-	if agentOptions == nil {
+	agentOptions := &spec.AgentOptions
+	if len(spec.AgentOptions) == 0 {
 		agentOptions = defaults.AgentOptions
 	}
 
@@ -520,8 +523,13 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 	team.Name = spec.Name
 
 	// if agent options are not provided, do not change them
-	if spec.AgentOptions != nil {
-		team.Config.AgentOptions = spec.AgentOptions
+	if len(spec.AgentOptions) > 0 {
+		if bytes.Equal(spec.AgentOptions, jsonNull) {
+			// agent options provided but null, clear existing agent option
+			team.Config.AgentOptions = nil
+		} else {
+			team.Config.AgentOptions = &spec.AgentOptions
+		}
 	}
 
 	// replace (don't merge) the features with the new ones, using a config

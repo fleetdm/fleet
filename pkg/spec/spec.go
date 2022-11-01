@@ -3,7 +3,6 @@
 package spec
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +18,7 @@ var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
 // Group holds a set of "specs" that can be applied to a Fleet server.
 type Group struct {
 	Queries  []*fleet.QuerySpec
-	Teams    []map[string]json.RawMessage
+	Teams    []json.RawMessage
 	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
@@ -35,11 +34,6 @@ type Metadata struct {
 	Kind    string          `json:"kind"`
 	Version string          `json:"apiVersion"`
 	Spec    json.RawMessage `json:"spec"`
-}
-
-// TeamSpec holds a spec to be applied to a team.
-type TeamSpec struct {
-	Team *fleet.TeamSpec `json:"team"`
 }
 
 // GroupFromBytes parses a Group from concatenated YAML specs.
@@ -119,19 +113,9 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/teams
 			// endpoint so that it is enforced for both the API and the CLI.
-			rawTeam := make(map[string]map[string]json.RawMessage)
+			rawTeam := make(map[string]json.RawMessage)
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			// special-case the agent_options key: we want to leave the team's agent
-			// options untouched if the key is not provided, but we need to clear the
-			// agent options if the key is provided but empty. Unfortunately, once
-			// the JSON payload is decoded in the API, we can't distinguish between
-			// those two cases (the AgentOptions field will be nil in both cases). To
-			// allow this, we explicitly set the JSON to `{}` if the key is provided
-			// and its value is nil.
-			if v, ok := rawTeam["team"]["agent_options"]; ok && bytes.Equal(v, []byte("null")) {
-				rawTeam["team"]["agent_options"] = json.RawMessage("{}")
 			}
 			specs.Teams = append(specs.Teams, rawTeam["team"])
 
