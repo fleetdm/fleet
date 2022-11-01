@@ -13,7 +13,7 @@ func Up_20221101103952(tx *sql.Tx) error {
 	// per volume/disk/partition/etc.).	This may change in the future, but for
 	// now we keep it simple and store the encrypted flag as a simple column
 	// in this table, just as for disk space information.
-	_, err := tx.Exec(`ALTER TABLE host_disks ADD COLUMN encrypted TINYINT(1) NOT NULL DEFAULT 0`)
+	_, err := tx.Exec(`ALTER TABLE host_disks ADD COLUMN encrypted TINYINT(1) NULL`)
 	return err
 }
 

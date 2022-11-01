@@ -390,7 +390,7 @@ SELECT
   h.public_ip,
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-  COALESCE(hd.encrypted, 0) as disk_encryption_enabled,
+  hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
   (

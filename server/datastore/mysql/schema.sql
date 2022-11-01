@@ -167,7 +167,7 @@ CREATE TABLE `host_disks` (
   `percent_disk_space_available` decimal(10,2) NOT NULL DEFAULT '0.00',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `encrypted` tinyint(1) NOT NULL DEFAULT '0',
+  `encrypted` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`host_id`),
   KEY `idx_host_disks_gigs_disk_space_available` (`gigs_disk_space_available`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
