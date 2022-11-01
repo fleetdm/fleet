@@ -432,6 +432,12 @@ LIMIT
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
+	if host.DiskEncryptionEnabled != nil && !(*host.DiskEncryptionEnabled) && fleet.IsLinux(host.Platform) {
+		// omit disk encryption information for linux if it is not enabled, as we
+		// cannot know for sure that it is not encrypted (See
+		// https://github.com/fleetdm/fleet/issues/3906).
+		host.DiskEncryptionEnabled = nil
+	}
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader, host.ID, host.Platform)
 	if err != nil {
@@ -520,7 +526,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hd.encrypted, 0) as disk_encryption_enabled,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name
 	`
@@ -1049,8 +1054,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
         h.public_ip,
         h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-        COALESCE(hd.encrypted, 0) as disk_encryption_enabled
+        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
       FROM
         hosts h
       LEFT OUTER JOIN
@@ -1131,8 +1135,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.public_ip,
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hd.encrypted, 0) as disk_encryption_enabled
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -1210,8 +1213,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       h.policy_updated_at,
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hd.encrypted, 0) as disk_encryption_enabled
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
     FROM
       host_device_auth hda
     INNER JOIN
@@ -1334,7 +1336,6 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hd.encrypted, 0) as disk_encryption_enabled,
     COALESCE(hst.seen_time, h.created_at) AS seen_time
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -1437,7 +1438,6 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hd.encrypted, 0) as disk_encryption_enabled,
       COALESCE(hst.seen_time, h.created_at) AS seen_time
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)

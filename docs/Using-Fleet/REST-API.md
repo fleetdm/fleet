@@ -2060,6 +2060,7 @@ Returns the information of the specified host.
     "additional": {},
     "gigs_disk_space_available": 46.1,
     "percent_disk_space_available": 73,
+    "disk_encryption_enabled": true,
     "users": [
       {
         "uid": 0,
