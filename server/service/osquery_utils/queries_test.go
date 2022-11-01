@@ -405,7 +405,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	assert.Equal(t, "Windows 10 Enterprise LTSC 1809", host.OSVersion)
 }
 
-func TestDirectIngestMDM(t *testing.T) {
+func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 		require.False(t, enrolled)
@@ -425,6 +425,31 @@ func TestDirectIngestMDM(t *testing.T) {
 			"enrolled":           "false",
 			"installed_from_dep": "",
 			"server_url":         "",
+		},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+}
+
+func TestDirectIngestMDMWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+		require.True(t, enrolled)
+		require.True(t, installedFromDep)
+		require.NotEmpty(t, serverURL)
+		return nil
+	}
+
+	var host fleet.Host
+	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
+
+	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{
+			"discoveryServiceURL": "some url",
+			"autopilot":           "true",
+			"providerID":          "1337",
 		},
 	}, false)
 	require.NoError(t, err)
