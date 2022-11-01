@@ -1,0 +1,5 @@
+Improve ingress resource by replacing the template with a most recent version, that enables:
+
+- Not having any annotation hardcoded, all annotations are optional.
+- Custom path, as of now it was hardcoded to `/*`, but depending on the ingress controller, it can require an extra annotation to work with regular expressions.
+- Specify ingressClassName, as it was hardcoded to `gce`, and this is a setting that might be different on each cluster.
