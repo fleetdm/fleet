@@ -922,11 +922,10 @@ type getHostMDMSummaryRequest struct {
 }
 
 func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	var (
-		req  = request.(*getHostMDMSummaryRequest)
-		resp = getHostMDMSummaryResponse{}
-		err  error
-	)
+	req := request.(*getHostMDMSummaryRequest)
+	resp := getHostMDMSummaryResponse{}
+	var err error
+
 	resp.AggregatedMDMData, err = svc.AggregatedMDMData(ctx, req.TeamID, req.Platform)
 	if err != nil {
 		return getHostMDMSummaryResponse{Err: err}, nil
@@ -1085,19 +1084,17 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 }
 
 func (svc *Service) MDMData(ctx context.Context, id uint) (*fleet.HostMDM, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
-		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-			return nil, err
-		}
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
 
-		host, err := svc.ds.HostLite(ctx, id)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "find host for macadmins")
-		}
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host for MDMData")
+	}
 
-		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-			return nil, err
-		}
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
 	}
 
 	var mdm *fleet.HostMDM

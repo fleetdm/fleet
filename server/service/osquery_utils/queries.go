@@ -1223,6 +1223,10 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
+		return nil
+	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "ingestMDMWindows", "warn",
 			fmt.Sprintf("mdm_windows expected single result got %d", len(rows)))
