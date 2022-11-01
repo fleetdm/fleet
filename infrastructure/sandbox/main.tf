@@ -228,6 +228,7 @@ module "data" {
   prefix                = "${local.prefix}-data"
   vpc                   = module.vpc
   access_logs_s3_bucket = module.shared-infrastructure.access_logs_s3_bucket
+  kms_key               = aws_kms_key.main
 }
 
 resource "aws_dynamodb_table" "lifecycle-table" {
