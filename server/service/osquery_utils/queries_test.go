@@ -235,7 +235,6 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
-	require.Len(t, queriesNoConfig, 19)
 
 	baseQueries := []string{
 		"network_interface_unix",
@@ -249,6 +248,7 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_space_unix",
 		"disk_space_windows",
 		"mdm",
+		"mdm_windows",
 		"munki_info",
 		"google_chrome_profiles",
 		"battery",
@@ -258,19 +258,22 @@ func TestGetDetailQueries(t *testing.T) {
 		"kubequery_info",
 		"orbit_info",
 	}
+
+	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 18)
+	require.Len(t, queriesWithoutWinOSVuln, 19)
 
 	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
-	require.Len(t, queriesWithUsers, 21)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
+	qs := append(baseQueries, "users", "scheduled_query_stats")
+	require.Len(t, queriesWithUsers, len(qs))
+	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	require.Len(t, queriesWithUsersAndSoftware, 24)
-	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
+	qs = append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats")
+	require.Len(t, queriesWithUsersAndSoftware, len(qs))
+	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
@@ -402,9 +405,9 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	assert.Equal(t, "Windows 10 Enterprise LTSC 1809", host.OSVersion)
 }
 
-func TestDirectIngestMDM(t *testing.T) {
+func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 		require.False(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Empty(t, serverURL)
@@ -413,15 +416,40 @@ func TestDirectIngestMDM(t *testing.T) {
 
 	var host fleet.Host
 
-	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err = directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
 			"server_url":         "",
+		},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+}
+
+func TestDirectIngestMDMWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+		require.True(t, enrolled)
+		require.True(t, installedFromDep)
+		require.NotEmpty(t, serverURL)
+		return nil
+	}
+
+	var host fleet.Host
+	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
+
+	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{
+			"discoveryServiceURL": "some url",
+			"autopilot":           "true",
+			"providerID":          "1337",
 		},
 	}, false)
 	require.NoError(t, err)
