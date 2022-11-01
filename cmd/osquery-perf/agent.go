@@ -982,7 +982,6 @@ func (a *agent) diskSpace() []map[string]string {
 func (a *agent) diskEncryption() []map[string]string {
 	// 50% of results have encryption enabled
 	enabled := rand.Intn(2) == 1
-	enabled = true
 	if enabled {
 		return []map[string]string{{"1": "1"}}
 	}
