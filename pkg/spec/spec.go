@@ -36,11 +36,6 @@ type Metadata struct {
 	Spec    json.RawMessage `json:"spec"`
 }
 
-// TeamSpec holds a spec to be applied to a team.
-type TeamSpec struct {
-	Team *fleet.TeamSpec `json:"team"`
-}
-
 // GroupFromBytes parses a Group from concatenated YAML specs.
 func GroupFromBytes(b []byte) (*Group, error) {
 	specs := &Group{}

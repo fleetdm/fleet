@@ -4430,6 +4430,17 @@ func (s *integrationTestSuite) TestAppConfig() {
 		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
 	}
 
+	// and it did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"logger_plugin": "tls"`) // default agent options has this setting
+
+	// test a change that does clear the agent options (the field is provided but empty).
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": {}
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, string(*acResp.AgentOptions), "{}")
+
 	// test a change that does modify the agent options.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"agent_options": { "config": {"views": {"foo": "bar"}} }
