@@ -440,9 +440,23 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
-		DirectIngestFunc: directIngestMDM,
+		DirectIngestFunc: directIngestMDMMac,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("mdm"),
+	},
+	"mdm_windows": {
+		Query: `
+		SELECT provid.providerID, url.discoveryServiceURL, autopilot.autopilot FROM (
+			SELECT data providerID FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
+		) provid, (
+			SELECT data discoveryServiceURL FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
+		) url, ( SELECT EXISTS (
+				SELECT 1 FROM registry WHERE KEY LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+			) autopilot
+		) autopilot;
+		`,
+		DirectIngestFunc: directIngestMDMWindows,
+		Platforms:        []string{"windows"},
 	},
 	"munki_info": {
 		Query:            `select version, errors, warnings from munki_info;`,
@@ -1200,7 +1214,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) == 0 || failed {
 		// assume the extension is not there
 		return nil
@@ -1226,7 +1240,27 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
+	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep, "")
+}
+
+func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "ingestMDMWindows", "warn",
+			fmt.Sprintf("mdm_windows expected single result got %d", len(rows)))
+	}
+	if len(rows) == 0 {
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, "", false, "")
+	}
+	autoPilot, err := strconv.ParseBool(rows[0]["autopilot"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing autopilot")
+	}
+
+	return ds.SetOrUpdateMDMData(ctx, host.ID, true, rows[0]["discoveryServiceURL"], autoPilot, rows[0]["providerID"])
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {

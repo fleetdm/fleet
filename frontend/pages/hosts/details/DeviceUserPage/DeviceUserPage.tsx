@@ -37,6 +37,10 @@ interface IDeviceUserPageProps {
 
 interface ILicense {
   tier: string;
+  device_count: number;
+  expiration: string;
+  note: string;
+  organization: string;
 }
 
 interface IHostResponse {
