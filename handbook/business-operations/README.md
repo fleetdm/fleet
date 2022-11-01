@@ -6,43 +6,9 @@ At Fleet, we use the concept of Directly Responsible Individuals (**DRI**s). Thi
 
 This person is accountable for accomplishing goals and making decisions about a particular element of Fleet.
 
-DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
+DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing and are available to view in the [codeowners file](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS).
 
-<!-- TODO: Replace most of the rows of this table with a link to website/config/custom.js and CODEOWNERS. -->
 
-<!-- TODO: Move this table to "Why this way?" to prepare for this handbook page changing. -->
-
-|    Aspect                                 | DRI         |
-| ----------------------------------------------------| ------------ |
-| Wireframes (Figma) | Noah Talerman |
-| How the product works | Noah Talerman |
-| fleetctl CLI interface (and other tools) | Tomás Touceda |
-| REST API interface design | Luke Heath |
-| [REST API docs](https://fleetdm.com/docs/using-fleet/rest-api) | Luke Heath | 
-| Postman | Luke Heath |
-| Terraform | Ben Edwards |
-| Customer PoV deployments like acme.fleetdm.com | Ben Edwards |
-| dogfood.fleetdm.com | Ben Edwards |
-| Quality of core product UI | Luke Heath |
-| Ticket movement from product to engineering | Luke Heath |
-| Lead engineering together and release retrospective | Zach Wasserman* |
-| Customer Slack channels | Kathy Satterlee |
-| Customer renewals | Mike McNeil |
-| Quality of core product backend | Tomás Touceda |
-| Quality of fleetctl (and other tools) | Tomás Touceda |
-| Final cut of what goes into each release | Zach Wasserman |
-| When we cut a release, version numbers, and whether to release | Zach Wasserman |
-| When a feature is advertised as "beta" | Zach Wasserman |
-| When a feature is placed behind a feature flag | Zach Wasserman |
-| Release notes | Noah Talerman |
-| Documentation quality | Mike Thomas |
-| Publishing release blog post, and promoting releases | Noah Talerman |
-| fleetdm.com | Mike Thomas |
-| Self-service Fleet Premium license dispenser | Mike Thomas |
-| Security disclosure and policy | Guillaume Ross | 
-| Bug process | Mo Zhu |
-
-*Luke Heath is backup 
 
 >You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
 

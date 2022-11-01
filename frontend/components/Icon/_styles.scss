@@ -1,6 +1,5 @@
 .icon {
-  // we want to ensure the icon is always centered with these styles
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  // keeps this element the same size as the svg
+  // aligns properly in text, buttons, dropdowns, summary tile custom component
+  display: inline-flex;
 }
