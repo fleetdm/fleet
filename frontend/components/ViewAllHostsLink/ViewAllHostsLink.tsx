@@ -28,15 +28,13 @@ const ViewAllHostsLink = ({
 
   return (
     <Link className={viewAllHostsLinkClass} to={path}>
-      <>
-        {!condensed && "View all hosts"}
-        <Icon
-          name="chevron"
-          className={`${baseClass}__icon`}
-          direction="right"
-          color="coreVibrantBlue"
-        />
-      </>
+      {!condensed && <span>View all hosts</span>}
+      <Icon
+        name="chevron"
+        className={`${baseClass}__icon`}
+        direction="right"
+        color="coreVibrantBlue"
+      />
     </Link>
   );
 };

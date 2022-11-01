@@ -1,6 +1,6 @@
 .view-all-hosts-link {
-  // larger clickable area
-  padding: $pad-small $pad-xxsmall;
+  display: flex;
+  padding: $pad-small $pad-xxsmall; // larger clickable area
 
   &__icon {
     margin-left: $pad-xsmall;
