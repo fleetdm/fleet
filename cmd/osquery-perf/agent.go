@@ -984,7 +984,7 @@ func (a *agent) diskEncryption() []map[string]string {
 	enabled := rand.Intn(2) == 1
 	enabled = true
 	if enabled {
-		return []map[string]string{{"col": "1"}}
+		return []map[string]string{{"1": "1"}}
 	}
 	return []map[string]string{}
 }
