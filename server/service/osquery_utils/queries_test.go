@@ -235,7 +235,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
-	require.Len(t, queriesNoConfig, 19)
+	require.Len(t, queriesNoConfig, 22)
 
 	baseQueries := []string{
 		"network_interface_unix",
@@ -257,18 +257,21 @@ func TestGetDetailQueries(t *testing.T) {
 		"windows_update_history",
 		"kubequery_info",
 		"orbit_info",
+		"disk_encryption_darwin",
+		"disk_encryption_linux",
+		"disk_encryption_windows",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 18)
+	require.Len(t, queriesWithoutWinOSVuln, 21)
 
 	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
-	require.Len(t, queriesWithUsers, 21)
+	require.Len(t, queriesWithUsers, 24)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	require.Len(t, queriesWithUsersAndSoftware, 24)
+	require.Len(t, queriesWithUsersAndSoftware, 27)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }

@@ -187,9 +187,17 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-// One of these queries is the disk space, only one of the two works in a platform. Similarly, os_version_windows
-// is only for Windows, while os_version is for all platforms.
-var expectedDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
+var allDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
+
+func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
+	queries := make(map[string]osquery_utils.DetailQuery)
+	for k, v := range allDetailQueries {
+		if v.RunsForPlatform(platform) {
+			queries[k] = v
+		}
+	}
+	return queries
+}
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -560,11 +568,8 @@ func TestHostDetailQueries(t *testing.T) {
 
 	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
-	// 2 - 4 = -2
-	// └───┼────┼─► additional queries: bim, foobar
-	//     └────┼─► windows specific queries: os_windows, os_version_windows, network_interface_windows, disk_space_windows
-	//          └─► net difference
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
+	// +2: additional queries: bim, foobar
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
 		assert.True(t,
@@ -744,8 +749,7 @@ func TestLabelQueries(t *testing.T) {
 	// should be turned on so that we can quickly fill labels)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -4 windows specific queries: disk_space_windows, network_interface_windows, os_windows, os_version_windows
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -835,8 +839,8 @@ func TestLabelQueries(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +3 for label queries, but -4 windows specific queries
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// +3 for label queries
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -904,13 +908,12 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -3 unix, -2 macos,
-	// -1 due to 'windows_update_history'
-	if !assert.Equal(t, len(expectedDetailQueries)-6, len(queries)-1) {
+	// +1 due to 'windows_update_history'
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
-		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+		require.ElementsMatch(t, osqueryMapKeys(expected), distQueriesMapKeys(queries))
 	}
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
@@ -1051,8 +1054,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 	// somehow confusingly, the query response above changed the host's platform
 	// from windows to darwin
-	// -4 windows queries
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(gotHost.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1115,12 +1117,12 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -3 macos queries, -4 windows quries, +1 for software inventory
-	if !assert.Equal(t, len(expectedDetailQueries)-6, len(queries)) {
+	// +1 for software inventory
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
-		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+		require.ElementsMatch(t, osqueryMapKeys(expected), distQueriesMapKeys(queries))
 	}
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
@@ -1373,8 +1375,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -4 windows queries, +1 software inventory
-	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
+	// +1 software inventory
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1498,12 +1500,12 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// -3 unix, -2 macos, +1 for the distributed query for campaign ID 42
-	if !assert.Equal(t, len(expectedDetailQueries)-4, len(queries)) {
+	// +1 for the distributed query for campaign ID 42, +1 for windows update history
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+2, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
-		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+		require.ElementsMatch(t, osqueryMapKeys(expected), distQueriesMapKeys(queries))
 	}
 	verifyDiscovery(t, queries, discovery)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
@@ -2339,8 +2341,8 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -4 windows only queries +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
+	// +2 policy queries
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2396,8 +2398,7 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -4 windows only queries
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2406,8 +2407,8 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -4 windows only queries +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
+	// +2 policy queries
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2435,8 +2436,7 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -4 windows only queries
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2445,8 +2445,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -4 windows only queries +2 policy queries
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), distQueriesMapKeys(queries))
+	// +2 policy queries
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2476,8 +2476,7 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries -4 windows only queries
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 }
@@ -2542,8 +2541,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -4 windows only, +3 for policies
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// +3 for policies
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2656,8 +2655,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -4 windows only queries
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2666,8 +2664,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all queries -4 windows only queries, +3 for policies
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
+	// +3 for policies
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2790,8 +2788,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// all standard queries minus windows only queries
-	require.Equal(t, len(expectedDetailQueries)-4, len(queries), distQueriesMapKeys(queries))
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	logs, err := io.ReadAll(buf)

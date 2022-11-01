@@ -1255,7 +1255,9 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	}
 
 	encrypted := len(rows) > 0
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	_ = encrypted
+	//return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return nil
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
