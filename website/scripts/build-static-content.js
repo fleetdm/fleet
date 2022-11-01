@@ -638,6 +638,42 @@ module.exports = {
         builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
 
       },
+      async()=>{
+        // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
+        let RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO = 'handbook/product/pricing-features-table.yml';// TODO: Is there a better home for this file?
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let pricingTableCategories = YAML.parse(yaml, {prettyErrors: true});
+
+        for(let category of pricingTableCategories){
+          if(!category.categoryName){ // Throw an error if a category is missing a categoryName.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml, a category in the pricing table configuration is missing a categoryName. To resolve, make sure every category in the pricing table YAML file has a categoryName');
+          }
+          if(!category.features){// Throw an error if a category is missing `features`.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml, the "'+category.categoryName+'" category in the yaml file is missing features. To resolve, add an array of features to this category.');
+          }
+          if(!_.isArray(category.features)){ // Throw an error if a category's `features`` is not an array.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml, The value of the "'+category.categoryName+'" category is invalid, to resolve, change the features for this category to be an array of objects.');
+          }
+          // Validate all features in a category.
+          for(let feature of category.features){
+            if(!feature.name) { // Throw an error if a feature is missing a `name`.
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category is missing a "name". To resolve, add a "name" to this feature '+feature);
+            }
+            if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
+            } else if(!_.contains(["Free", "Premium"], feature.tier)){ // Throw an error if a feature's `tier` is not either "Free" or "Premium".
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
+            }
+            if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "comingSoon" value (boolean). To resolve, add a comingSoon value to this feature.');
+            } else if(typeof feature.comingSoon !== 'boolean'){ // Throw an error if the `comingSoon` value is not a boolean.
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "comingSoon" value (currently set to '+feature.comingSoon+'). To resolve, change the value of "comingSoon" for this feature to be either "true" or "false".');
+            }
+          }
+        }
+        builtStaticContent.pricingTable = pricingTableCategories;
+      },
+
     ]);
 
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
