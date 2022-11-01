@@ -130,6 +130,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"TestHostDisplayName", testHostDisplayName},
+		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1642,11 +1643,14 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0)
 	require.NoError(t, err)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), h.ID, true)
+	require.NoError(t, err)
 
 	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
 	require.NoError(t, err)
 	assert.Equal(t, 1.24, h.GigsDiskSpaceAvailable)
 	assert.Equal(t, 42.0, h.PercentDiskSpaceAvailable)
+	assert.True(t, h.DiskEncryptionEnabled)
 }
 
 func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
@@ -5430,4 +5434,59 @@ func testHostIDsByOSID(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+}
+
+func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		OsqueryHostID:   "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		OsqueryHostID:   "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	// set a device host token for host 2, to test loading disk encryption by device token
+	token2 := "token2"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false)
+	require.NoError(t, err)
+
+	h, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.True(t, h.DiskEncryptionEnabled)
+
+	h, err = ds.LoadHostByNodeKey(context.Background(), host2.NodeKey)
+	require.NoError(t, err)
+	require.False(t, h.DiskEncryptionEnabled)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true)
+	require.NoError(t, err)
+
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
+	require.NoError(t, err)
+	require.True(t, h.DiskEncryptionEnabled)
 }

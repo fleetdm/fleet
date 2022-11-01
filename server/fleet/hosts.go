@@ -185,6 +185,7 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
+	DiskEncryptionEnabled     bool    `json:"disk_encryption_enabled" db:"disk_encryption_enabled" csv:"disk_encryption_enabled"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 

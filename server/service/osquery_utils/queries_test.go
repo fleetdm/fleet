@@ -769,3 +769,37 @@ func TestIngestKubequeryInfo(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestDirectDiskEncryption(t *testing.T) {
+	ds := new(mock.Store)
+	var expectEncrypted bool
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+		assert.Equal(t, expectEncrypted, encrypted)
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	// set to true (osquery returned a row)
+	expectEncrypted = true
+	err := directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"col1": "1"},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+
+	// set to false (osquery returned nothing)
+	expectEncrypted = false
+	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+
+	// failed osquery result (should not update the host)
+	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+}
