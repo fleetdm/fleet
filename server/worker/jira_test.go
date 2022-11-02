@@ -388,7 +388,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 		},
 	}
 
-	ctx := license.NewContext(context.Background(), &license.Info{Tier: license.TierFree})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
 	// run it globally - it is enabled and will not change
 	err := jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
 	require.NoError(t, err)

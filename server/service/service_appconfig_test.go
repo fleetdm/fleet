@@ -36,7 +36,7 @@ func TestCleanupURL(t *testing.T) {
 
 func TestCreateAppConfig(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -72,7 +72,7 @@ func TestCreateAppConfig(t *testing.T) {
 			return nil
 		}
 
-		ctx := test.UserContext(test.UserAdmin)
+		ctx = test.UserContext(ctx, test.UserAdmin)
 		_, err := svc.NewAppConfig(ctx, tt.configPayload)
 		require.Nil(t, err)
 
@@ -91,7 +91,7 @@ func TestCreateAppConfig(t *testing.T) {
 
 func TestEmptyEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
@@ -101,7 +101,7 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	}
 
 	err := svc.ApplyEnrollSecretSpec(
-		test.UserContext(test.UserAdmin),
+		test.UserContext(ctx, test.UserAdmin),
 		&fleet.EnrollSecretSpec{
 			Secrets: []*fleet.EnrollSecret{{}},
 		},
@@ -109,13 +109,13 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
-		test.UserContext(test.UserAdmin),
+		test.UserContext(ctx, test.UserAdmin),
 		&fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
 	)
 	require.Error(t, err, "empty secret should be disallowed")
 
 	err = svc.ApplyEnrollSecretSpec(
-		test.UserContext(test.UserAdmin),
+		test.UserContext(ctx, test.UserAdmin),
 		&fleet.EnrollSecretSpec{
 			Secrets: []*fleet.EnrollSecret{{Secret: "foo"}},
 		},
@@ -127,7 +127,7 @@ func TestNewAppConfigWithGlobalEnrollConfig(t *testing.T) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	cfg.Packaging.GlobalEnrollSecret = "xyz"
-	svc := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
 	ds.NewAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) (*fleet.AppConfig, error) {
 		return config, nil
@@ -139,7 +139,7 @@ func TestNewAppConfigWithGlobalEnrollConfig(t *testing.T) {
 		return nil
 	}
 
-	ctx := test.UserContext(test.UserAdmin)
+	ctx = test.UserContext(ctx, test.UserAdmin)
 	_, err := svc.NewAppConfig(ctx, fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://acme.co"}})
 	require.NoError(t, err)
 	require.NotNil(t, gotSecrets)
@@ -203,7 +203,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:   "test default test config (aka filesystem)",
 			fields: fields{config: config.TestConfig()},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
@@ -220,7 +220,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:   "test firehose config",
 			fields: fields{config: testFirehosePluginConfig()},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
@@ -237,7 +237,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:   "test kinesis config",
 			fields: fields{config: testKinesisPluginConfig()},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
@@ -254,7 +254,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:   "test lambda config",
 			fields: fields{config: testLambdaPluginConfig()},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
@@ -271,7 +271,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:   "test pubsub config",
 			fields: fields{config: testPubSubPluginConfig()},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
@@ -288,7 +288,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:   "test stdout config",
 			fields: fields{config: testStdoutPluginConfig()},
-			args:   args{ctx: test.UserContext(test.UserAdmin)},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			want: &fleet.Logging{
 				Debug: true,
 				Json:  false,
@@ -305,7 +305,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		{
 			name:    "test unrecognized config",
 			fields:  fields{config: testUnrecognizedPluginConfig()},
-			args:    args{ctx: test.UserContext(test.UserAdmin)},
+			args:    args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
 			wantErr: true,
 			want:    nil,
 		},
@@ -314,7 +314,7 @@ func TestService_LoggingConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := newTestServiceWithConfig(t, ds, tt.fields.config, nil, nil)
+			svc, _ := newTestServiceWithConfig(t, ds, tt.fields.config, nil, nil)
 			got, err := svc.LoggingConfig(tt.args.ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LoggingConfig() error = %v, wantErr %v", err, tt.wantErr)
@@ -329,7 +329,7 @@ func TestService_LoggingConfig(t *testing.T) {
 
 func TestModifyAppConfigPatches(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	storedConfig := &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "FleetTest"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}
 
@@ -344,7 +344,7 @@ func TestModifyAppConfigPatches(t *testing.T) {
 
 	configJSON := []byte(`{"org_info": { "org_name": "Acme", "org_logo_url": "somelogo.jpg" }}`)
 
-	ctx := test.UserContext(test.UserAdmin)
+	ctx = test.UserContext(ctx, test.UserAdmin)
 	_, err := svc.ModifyAppConfig(ctx, configJSON, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 

@@ -16,7 +16,7 @@ import (
 
 func TestLabelsAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
@@ -88,7 +88,7 @@ func TestLabelsAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: ptr.String(t.Name()), Query: ptr.String(`SELECT 1`)})
 			checkAuthErr(t, tt.shouldFailWrite, err)
@@ -145,30 +145,30 @@ func TestLabelsWithDS(t *testing.T) {
 }
 
 func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	label := &fleet.Label{
 		Name:  "foo",
 		Query: "select * from foo;",
 	}
-	label, err := ds.NewLabel(context.Background(), label)
+	label, err := ds.NewLabel(ctx, label)
 	assert.Nil(t, err)
 	assert.NotZero(t, label.ID)
 
-	labelVerify, err := svc.GetLabel(test.UserContext(test.UserAdmin), label.ID)
+	labelVerify, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, label.ID, labelVerify.ID)
 }
 
 func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	require.NoError(t, ds.MigrateData(context.Background()))
 
-	labels, err := svc.ListLabels(test.UserContext(test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
+	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
 	require.NoError(t, err)
 	require.Len(t, labels, 7)
 
-	labelsSummary, err := svc.LabelsSummary(test.UserContext(test.UserAdmin))
+	labelsSummary, err := svc.LabelsSummary(test.UserContext(ctx, test.UserAdmin))
 	require.NoError(t, err)
 	require.Len(t, labelsSummary, 7)
 }
