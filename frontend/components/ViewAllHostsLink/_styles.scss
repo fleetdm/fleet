@@ -1,13 +1,6 @@
 .view-all-hosts-link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
-
-  &__icon {
-    margin-left: $pad-xsmall;
-
-    svg {
-      vertical-align: top;
-    }
-  }
+  gap: $pad-xsmall;
 }
