@@ -621,9 +621,14 @@ export const humanHostDiskEncryptionEnabled = (
   platform?: string,
   diskEncriptionEnabled?: boolean
 ): string => {
-  if (platform === "darwin" || platform === "windows") {
+  if (platform === "darwin") {
     if (diskEncriptionEnabled) {
-      return "The disk is fully encrypted and the user must enter their password when they start their computer. If recently turned on, encryption could take awhile depending on how much information the user has stored.";
+      return "The disk is encrypted. The user must enter their<br/> password when they start their computer.";
+    }
+    return "The disk might be encrypted, but FileVault is off. The<br/> disk can be accessed without entering a password.";
+  } else if (platform === "windows") {
+    if (diskEncriptionEnabled) {
+      return "The disk is encrypted. If recently turned on,<br/> encryption could take awhile.";
     }
     return "The disk is unencrypted.";
   }

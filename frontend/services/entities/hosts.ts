@@ -1,5 +1,4 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import { sendRequest as mockSendRequest } from "services/mock_service/service/service";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost, HostStatus } from "interfaces/host";
@@ -228,7 +227,7 @@ export default {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}/${hostID}`;
 
-    return mockSendRequest("GET", path);
+    return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (
     hostID: number,
