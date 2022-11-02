@@ -23,6 +23,19 @@ import (
 
 var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 
+// Fixme: We should not make implementation details of the database schema part of the API.
+var defaultHostColumnTableAliases = map[string]string{
+	"created_at": "h.created_at",
+	"updated_at": "h.updated_at",
+}
+
+func defaultHostColumnTableAlias(s string) string {
+	if newCol, ok := defaultHostColumnTableAliases[s]; ok {
+		return newCol
+	}
+	return s
+}
+
 // NewHost creates a new host on the datastore.
 //
 // Currently only used for testing.
@@ -571,6 +584,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
+
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
