@@ -1,0 +1,9 @@
+name: osquery_flags
+examples: >-
+  If disable_events has a value of false, events are enabled.
+
+  ```
+
+  SELECT description, name, value FROM osquery_flags WHERE name='disable_events';
+
+  ```

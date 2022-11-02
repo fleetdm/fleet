@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,6 +31,7 @@ func TestTeams(t *testing.T) {
 		{"TeamAgentOptions", testTeamsAgentOptions},
 		{"TeamsDeleteRename", testTeamsDeleteRename},
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
+		{"TeamsFeatures", testTeamsFeatures},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -79,7 +81,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Empty(t, newP.Teams)
 
-			team, err = ds.TeamByName(context.Background(), tt.name)
+			_, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
@@ -224,6 +226,16 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "team2", teams[1].Name)
 	assert.Equal(t, 2, teams[1].HostCount)
 	assert.Equal(t, 1, teams[1].UserCount)
+
+	// Test that ds.Teams returns the same data as ds.ListTeams
+	// (except list of users).
+	for _, t1 := range teams {
+		t2, err := ds.Team(context.Background(), t1.ID)
+		require.NoError(t, err)
+		t2.Users = nil
+		require.Equal(t, t1, t2)
+	}
+
 }
 
 func testTeamsSummary(t *testing.T, ds *Datastore) {
@@ -423,4 +435,86 @@ func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	assertIntgURLs([]string{urld}, []string{urle, urlf}, []string{urle, urlf})
+}
+
+func testTeamsFeatures(t *testing.T, ds *Datastore) {
+	defaultFeatures := fleet.Features{}
+	defaultFeatures.ApplyDefaultsForNewInstalls()
+	ctx := context.Background()
+
+	t.Run("NULL config in the database", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE teams SET config = NULL WHERE id = ?",
+				team.ID,
+			)
+			return err
+		})
+
+		features, err := ds.TeamFeatures(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, &defaultFeatures, features)
+
+		// retrieving a team also returns a team with the default
+		// features
+		team, err = ds.Team(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
+
+		team, err = ds.TeamByName(ctx, team.Name)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
+	})
+
+	t.Run("NULL config.features in the database", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config_features"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"UPDATE teams SET config = '{}' WHERE id = ?",
+				team.ID,
+			)
+			return err
+		})
+
+		features, err := ds.TeamFeatures(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, &defaultFeatures, features)
+
+		// retrieving a team also returns a team with the default
+		// features
+		team, err = ds.Team(ctx, team.ID)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
+
+		team, err = ds.TeamByName(ctx, team.Name)
+		require.NoError(t, err)
+		assert.Equal(t, defaultFeatures, team.Config.Features)
+	})
+
+	t.Run("saves and retrieves configs", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{
+			Name: "team1",
+			Config: fleet.TeamConfig{
+				Features: fleet.Features{
+					EnableHostUsers:         false,
+					EnableSoftwareInventory: false,
+					AdditionalQueries:       nil,
+				},
+			},
+		})
+		require.NoError(t, err)
+		features, err := ds.TeamFeatures(ctx, team.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, &fleet.Features{
+			EnableHostUsers:         false,
+			EnableSoftwareInventory: false,
+			AdditionalQueries:       nil,
+		}, features)
+	})
 }

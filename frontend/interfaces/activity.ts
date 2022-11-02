@@ -1,5 +1,6 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
+import { ITeamSummary } from "./team";
 
 export enum ActivityType {
   CreatedPack = "created_pack",
@@ -17,7 +18,9 @@ export enum ActivityType {
   AppliedSpecPack = "applied_spec_pack",
   AppliedSpecPolicy = "applied_spec_policy",
   AppliedSpecSavedQuery = "applied_spec_saved_query",
+  AppliedSpecTeam = "applied_spec_team",
   UserAddedBySSO = "user_added_by_sso",
+  EditedAgentOptions = "edited_agent_options",
 }
 export interface IActivity {
   created_at: string;
@@ -38,6 +41,8 @@ export interface IActivityDetails {
   query_name?: string;
   team_id?: number;
   team_name?: string;
+  teams?: ITeamSummary[];
   targets_count?: number;
   specs?: IQuery[] | IPolicy[];
+  global?: boolean;
 }

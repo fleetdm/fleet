@@ -3,11 +3,14 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { pick } from "lodash";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import { IIntegrations } from "interfaces/integration";
 import {
   INewMembersBody,
   IRemoveMembersBody,
   ITeamConfig,
+  ITeamWebhookSettings,
 } from "interfaces/team";
 
 interface ILoadTeamsParams {
@@ -32,6 +35,12 @@ export interface ITeamFormData {
   name: string;
 }
 
+export interface IUpdateTeamFormData {
+  name: string;
+  webhook_settings: Partial<ITeamWebhookSettings>;
+  integrations: IIntegrations;
+}
+
 export default {
   create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
@@ -51,26 +60,20 @@ export default {
     return sendRequest("GET", path);
   },
   loadAll: ({
-    page = 0,
-    perPage = 20,
     globalFilter = "",
   }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
-    const { TEAMS } = endpoints;
+    const queryParams = {
+      query: globalFilter,
+    };
 
-    // TODO: add this query param logic to client class
-    const pagination = `page=${page}&per_page=${perPage}`;
-
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
-    }
-
-    const path = `${TEAMS}?${pagination}${searchQuery}`;
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.TEAMS;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
   update: (
-    { name, webhook_settings, integrations }: Partial<ITeamConfig>,
+    { name, webhook_settings, integrations }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {

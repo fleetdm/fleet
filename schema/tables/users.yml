@@ -1,0 +1,19 @@
+name: users
+examples: >-
+  List users that have interactive access via a shell that isn't false.
+  
+  ```
+  
+  SELECT * FROM users WHERE shell!='/usr/bin/false';
+  
+  ```
+columns:
+  - name: type
+    platforms:
+      - windows
+  - name: is_hidden
+    platforms:
+      - darwin
+  - name: pid_with_namespace
+    platforms:
+      - linux

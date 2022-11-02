@@ -13,7 +13,7 @@ interface ITeamsDropdownHeaderProps {
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { team_id?: string; vulnerable?: boolean };
+    query: { team_id?: string; vulnerable?: string };
     search: string;
   };
   baseClass: string;

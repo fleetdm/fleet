@@ -1,7 +1,3 @@
-variable "region" {
-  default = "us-east-2"
-}
-
 provider "aws" {
   region = var.region
 }
@@ -23,11 +19,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "3.63.0"
+      version = "4.32.0"
     }
 
     tls = {
-      source = "hashicorp/tls"
+      source  = "hashicorp/tls"
       version = "3.3.0"
     }
   }

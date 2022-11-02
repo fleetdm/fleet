@@ -33,7 +33,7 @@ class ForgotPasswordForm extends Component {
             variant="brand"
             type="submit"
           >
-            Send email
+            Get instructions
           </Button>
         </div>
       </form>

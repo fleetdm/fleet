@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -11,7 +12,6 @@ func init() {
 }
 
 func Up_20220831100036(tx *sql.Tx) error {
-	logger.Info.Println("Deleting dummy software_cpe entries...")
 	// Remove in batches
 	const deleteStmt = `DELETE FROM software_cpe WHERE cpe LIKE 'none:%' LIMIT 10000`
 
@@ -31,21 +31,27 @@ func Up_20220831100036(tx *sql.Tx) error {
 			break
 		}
 	}
-	logger.Info.Println("Done deleting dummy cpe_id entries...")
 
-	logger.Info.Println("Removing cpe_id from software_cve...")
-	const removeFkStmt = `
-ALTER TABLE software_cve DROP FOREIGN KEY software_cve_ibfk_1, ALGORITHM=INPLACE, LOCK=NONE; 
-`
-	_, err := tx.Exec(removeFkStmt)
-	if err != nil {
-		return errors.Wrapf(err, "removing cpe_id FK from software_cve")
+	// The name for the FK from software_cve to software_cpe changes depending on whether the user
+	// is running MySQL or MariaDB.
+	fkNames := []string{"software_cve_ibfk_1", "fk_software_cve_cpe_id"}
+	for _, fkName := range fkNames {
+		if fkExists(tx, "software_cve", fkName) {
+			removeFkStmt := fmt.Sprintf(`
+				ALTER TABLE software_cve DROP FOREIGN KEY %s, ALGORITHM=INPLACE, LOCK=NONE;
+			`, fkName)
+			_, err := tx.Exec(removeFkStmt)
+			if err != nil {
+				return errors.Wrapf(err, "removing cpe_id FK from software_cve")
+			}
+			break
+		}
 	}
 
 	const removeUnqStmt = `
 ALTER TABLE software_cve DROP INDEX unique_cpe_cve, ALGORITHM=INPLACE, LOCK=NONE;
 `
-	_, err = tx.Exec(removeUnqStmt)
+	_, err := tx.Exec(removeUnqStmt)
 	if err != nil {
 		return errors.Wrapf(err, "removing uniq cpe_id constraint from software_cve")
 	}
@@ -57,8 +63,6 @@ ALTER TABLE software_cve DROP COLUMN cpe_id, ALGORITHM=INPLACE, LOCK=NONE;
 	if err != nil {
 		return errors.Wrapf(err, "removing cpe_id column from software_cve")
 	}
-
-	logger.Info.Println("Done removing cpe_id from software_cve...")
 
 	return nil
 }

@@ -87,14 +87,22 @@ func BuildMSI(opt Options) (string, error) {
 		}
 	}
 
+	if err := writeEventLogFile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write eventlog file: %w", err)
+	}
+
 	if err := writeWixFile(opt, tmpDir); err != nil {
 		return "", fmt.Errorf("write wix file: %w", err)
 	}
 
 	if runtime.GOOS == "windows" {
-		// Explicitly grant read access, otherwise within the Docker container there are permissions
-		// errors.
-		out, err := exec.Command("icacls", tmpDir, "/grant", "everyone:R", "/t").CombinedOutput()
+		// Explicitly grant read access, otherwise within the Docker
+		// container there are permissions errors.
+		// "S-1-1-0" is the SID for the World/Everyone group
+		// (a group that includes all users).
+		out, err := exec.Command(
+			"icacls", tmpDir, "/grant", "*S-1-1-0:R", "/t",
+		).CombinedOutput()
 		if err != nil {
 			fmt.Println(string(out))
 			return "", fmt.Errorf("icacls: %w", err)
@@ -143,6 +151,25 @@ func writeWixFile(opt Options, rootPath string) error {
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), 0o666); err != nil {
 		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+func writeEventLogFile(opt Options, rootPath string) error {
+	// Eventlog manifest is going to be built and dumped into working directory
+	path := filepath.Join(rootPath, "osquery.man")
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("event log manifest creation: %w", err)
+	}
+
+	var contents bytes.Buffer
+	if err := windowsOsqueryEventLogTemplate.Execute(&contents, opt); err != nil {
+		return fmt.Errorf("event log manifest creation: %w", err)
+	}
+
+	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("event log manifest creation: %w", err)
 	}
 
 	return nil

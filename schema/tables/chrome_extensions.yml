@@ -1,0 +1,13 @@
+name: chrome_extensions
+examples: >-
+  List Chrome extensions by user and profile which have full access to HTTPS
+  browsing.
+
+  ```
+
+  SELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';
+
+  ```
+columns:
+  - name: uid
+    requires_user_context: true

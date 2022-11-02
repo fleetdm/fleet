@@ -116,7 +116,7 @@ const SelectTargetsMenuWrapper = (
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__options`}>
-          {hasHostTargets ? (
+          {hasHostTargets() ? (
             renderTargetGroups
           ) : (
             <>

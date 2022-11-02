@@ -47,6 +47,29 @@
               <stripe-card-element class="mb-3" id="card" busy.sync="syncing" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
               v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
             </div>
+            <div v-if="showAdditionalBillingFormInputs">
+              <div class="form-group">
+                <label for="organization">Organization</label>
+                <input class="form-control" id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : formErrors.organization === '' ]" v-model.trim="formData.organization">
+                <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
+              </div>
+              <div class="row">
+                <div class="col-12 col-sm-6 pr-sm-2">
+                  <div class="form-group">
+                    <label for="first-name">First name</label>
+                    <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name">
+                    <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-6 pl-sm-2">
+                  <div class="form-group">
+                    <label for="last-name">Last name</label>
+                    <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name">
+                    <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">
               <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a></p>
             </cloud-error>

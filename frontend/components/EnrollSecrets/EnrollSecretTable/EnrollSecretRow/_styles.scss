@@ -1,0 +1,95 @@
+.enroll-secrets {
+  &__secret {
+    display: flex;
+    align-items: center;
+    margin-bottom: $pad-medium;
+  }
+
+  .form-field {
+    margin-bottom: 0;
+  }
+
+  &__secret-input {
+    .form-field__label {
+      position: relative;
+      font-size: $x-small;
+      font-weight: $bold;
+      margin-bottom: 0;
+      width: 560px;
+    }
+
+    .input-field {
+      width: 560px;
+
+      &--disabled {
+        letter-spacing: 0;
+      }
+
+      &--password {
+        letter-spacing: 4px;
+      }
+    }
+  }
+
+  &__secret-copy-icon {
+    color: $core-vibrant-blue;
+    margin-left: $pad-small;
+    margin-right: $pad-medium;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 16px;
+    top: 12px;
+    height: 16px;
+
+    span {
+      font-weight: $regular;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__secret-download-icon {
+    display: block;
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+
+    img {
+      width: 12px;
+      height: 12px;
+      margin-left: 7px;
+    }
+  }
+
+  &--multiple-secrets {
+    .form-field__label {
+      margin-top: 0;
+    }
+
+    .enroll-secrets__secret-download-icon {
+      margin-bottom: $pad-medium;
+    }
+  }
+
+  &__edit-secret-btn,
+  &__delete-secret-btn {
+    margin: 0 $pad-small;
+  }
+}

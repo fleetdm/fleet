@@ -1,0 +1,3 @@
+- Added ingestion of host orbit version from `orbit_info` osquery extension table.
+- Added number of hosts enrolled by orbit version to usage statistics payload.
+- Added number of hosts enrolled by osquery version to usage statistics payload.

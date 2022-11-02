@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"net/http"
 	"net/url"
@@ -44,19 +45,17 @@ func TestIntegrationsSSO(t *testing.T) {
 func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	t := s.T()
 
-	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
-			EnableSSO:             true,
-			EntityID:              "https://localhost:8080",
-			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			IDPName:               "SimpleSAML",
-			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			EnableJITProvisioning: false,
-		},
-	}
-
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": false
+		}
+	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	// double-check the settings
@@ -83,18 +82,16 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 func (s *integrationSSOTestSuite) TestSSOLogin() {
 	t := s.T()
 
-	config := fleet.AppConfig{
-		SSOSettings: fleet.SSOSettings{
-			EnableSSO:   true,
-			EntityID:    "https://localhost:8080",
-			IssuerURI:   "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
-			IDPName:     "SimpleSAML",
-			MetadataURL: "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-		},
-	}
-
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
 	// users can't login if they don't have an account on free plans

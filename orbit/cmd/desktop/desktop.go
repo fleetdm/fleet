@@ -9,10 +9,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
+	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -20,6 +22,34 @@ import (
 
 // version is set at compile time via -ldflags
 var version = "unknown"
+
+func setupRunners() {
+	var runnerGroup run.Group
+
+	// Setting up a watcher for the communication channel
+	if runtime.GOOS == "windows" {
+		runnerGroup.Add(
+			func() error {
+				// block wait on the communication channel
+				if err := blockWaitForStopEvent(constant.DesktopAppExecName); err != nil {
+					log.Error().Err(err).Msg("There was an error on the desktop communication channel")
+					return err
+				}
+
+				log.Info().Msg("Shutdown was requested!")
+				return nil
+			},
+			func(err error) {
+				systray.Quit()
+			},
+		)
+	}
+
+	if err := runnerGroup.Run(); err != nil {
+		log.Error().Err(err).Msg("Fleet Desktop runners terminated")
+		return
+	}
+}
 
 func main() {
 	setupLogs()
@@ -41,11 +71,31 @@ func main() {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
 	}
 
+	// Setting up working runners such as signalHandler runner
+	go setupRunners()
+
 	onReady := func() {
 		log.Info().Msg("ready")
 
-		systray.SetTemplateIcon(icoBytes, icoBytes)
-		systray.SetTooltip("Fleet Device Management Menu.")
+		systray.SetTooltip("Fleet Desktop")
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
+
+		// Theme detection is currently only on Windows. On macOS we use template icons (which
+		// automatically change), and on Linux we don't handle it yet (Ubuntu doesn't seem to change
+		// systray colors in the default configuration when toggling light/dark).
+		if runtime.GOOS == "windows" {
+			// Set the initial theme, and watch for theme changes.
+			theme, err := getSystemTheme()
+			if err != nil {
+				log.Error().Err(err).Msg("get system theme")
+			}
+			iconManager := newIconManager(theme)
+			go func() {
+				watchSystemTheme(iconManager)
+			}()
+		}
 
 		// Add a disabled menu item with the current version
 		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
@@ -103,18 +153,16 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.ListDevicePolicies(tokenReader.GetCached())
+					_, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
+
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
-						myDeviceItem.SetTooltip("")
 						transparencyItem.Enable()
 						return
 					}
 
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
 
 					<-ticker.C
@@ -150,13 +198,16 @@ func main() {
 			}
 		}()
 
+		// poll the server to check the policy status of the host and update the
+		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
 			for {
-				policies, err := client.ListDevicePolicies(tokenReader.GetCached())
+				<-tic.C
+				failingPolicies, err := client.NumberOfFailingPolicies(tokenReader.GetCached())
 				switch {
 				case err == nil:
 					// OK
@@ -168,27 +219,30 @@ func main() {
 					<-checkToken()
 					continue
 				default:
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
-					log.Error().Err(err).Msg("get device URL")
+					log.Error().Err(err).Msg("get failing policies")
 					continue
 				}
 
-				failedPolicyCount := 0
-				for _, policy := range policies {
-					if policy.Response != "pass" {
-						failedPolicyCount++
+				if failingPolicies > 0 {
+					if runtime.GOOS == "windows" {
+						// Windows (or maybe just the systray library?) doesn't support color emoji
+						// in the system tray menu, so we use text as an alternative.
+						if failingPolicies == 1 {
+							myDeviceItem.SetTitle("My device (1 issue)")
+						} else {
+							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
+						}
+					} else {
+						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
+					}
+				} else {
+					if runtime.GOOS == "windows" {
+						myDeviceItem.SetTitle("My device")
+					} else {
+						myDeviceItem.SetTitle("🟢 My device")
 					}
 				}
-
-				if failedPolicyCount > 0 {
-					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
-				} else {
-					myDeviceItem.SetTitle("🟢 My device")
-				}
 				myDeviceItem.Enable()
-
-				<-tic.C
 			}
 		}()
 
@@ -287,4 +341,30 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+type iconManager struct {
+	theme theme
+}
+
+func newIconManager(theme theme) *iconManager {
+	m := &iconManager{
+		theme: theme,
+	}
+	m.UpdateTheme(theme)
+	return m
+}
+
+func (m *iconManager) UpdateTheme(theme theme) {
+	m.theme = theme
+	switch theme {
+	case themeDark:
+		systray.SetIcon(iconDark)
+	case themeLight:
+		systray.SetIcon(iconLight)
+	case themeUnknown:
+		log.Debug().Msg("theme unknown, using dark theme")
+	default:
+		log.Error().Str("theme", string(theme)).Msg("tried to set invalid theme")
+	}
 }

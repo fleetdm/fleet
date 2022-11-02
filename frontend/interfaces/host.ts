@@ -13,6 +13,7 @@ export default PropTypes.shape({
   id: PropTypes.number,
   detail_updated_at: PropTypes.string,
   label_updated_at: PropTypes.string,
+  policy_updated_at: PropTypes.string,
   last_enrolled_at: PropTypes.string,
   seen_time: PropTypes.string,
   refetch_requested: PropTypes.bool,
@@ -27,6 +28,7 @@ export default PropTypes.shape({
   uptime: PropTypes.number,
   memory: PropTypes.number,
   cpu_type: PropTypes.string,
+  cpu_subtype: PropTypes.string,
   cpu_brand: PropTypes.string,
   cpu_physical_cores: PropTypes.number,
   cpu_logical_cores: PropTypes.number,
@@ -56,12 +58,19 @@ export default PropTypes.shape({
   packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
-  display_text: PropTypes.string,
+  display_name: PropTypes.string,
   users: PropTypes.arrayOf(hostUserInterface),
   policies: PropTypes.arrayOf(hostPolicyInterface),
   query_results: PropTypes.arrayOf(hostQueryResult),
+  batteries: PropTypes.arrayOf(
+    PropTypes.shape({
+      cycle_count: PropTypes.number,
+      health: PropTypes.string,
+    })
+  ),
 });
 
+export type HostStatus = "online" | "offline" | "new" | "missing";
 export interface IDeviceUser {
   email: string;
   source: string;
@@ -104,7 +113,7 @@ export interface IPackStats {
 
 export interface IHostPolicyQuery {
   id: number;
-  hostname: string;
+  display_name: string;
   query_results?: unknown[];
   status?: string;
 }
@@ -118,12 +127,18 @@ interface IGeoLocation {
   };
 }
 
+interface IBattery {
+  cycle_count: number;
+  health: string;
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
   id: number;
   detail_updated_at: string;
   label_updated_at: string;
+  policy_updated_at: string;
   last_enrolled_at: string;
   seen_time: string;
   refetch_requested: boolean;
@@ -138,6 +153,7 @@ export interface IHost {
   uptime: number;
   memory: number;
   cpu_type: string;
+  cpu_subtype: string;
   cpu_brand: string;
   cpu_physical_cores: number;
   cpu_logical_cores: number;
@@ -152,10 +168,10 @@ export interface IHost {
   distributed_interval: number;
   config_tls_refresh: number;
   logger_tls_period: number;
-  team_id: number;
-  pack_stats: IPackStats[];
-  team_name: string;
-  additional: object; // eslint-disable-line @typescript-eslint/ban-types
+  team_id: number | null;
+  pack_stats: IPackStats[] | null;
+  team_name: string | null;
+  additional?: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
   gigs_disk_space_available: number;
   labels: ILabel[];
@@ -165,8 +181,9 @@ export interface IHost {
     total_issues_count: number;
     failing_policies_count: number;
   };
-  status: string;
+  status: HostStatus;
   display_text: string;
+  display_name: string;
   target_type?: string;
   users: IHostUser[];
   device_users?: IDeviceUser[];
@@ -175,4 +192,5 @@ export interface IHost {
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;
+  batteries?: IBattery[];
 }

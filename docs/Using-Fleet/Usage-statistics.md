@@ -25,57 +25,67 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
   "hostStatusWebhookEnabled": true,
+  "numWeeklyActiveUsers": 999,
+  "numWeeklyPolicyViolationDaysActual": 999,
+  "numWeeklyPolicyViolationDaysPossible": 999,
   "hostsEnrolledByOperatingSystem": {
-    "macos": [
+    "darwin": [
       {
-        "version": "12.3.1",
+        "version": "macOS 12.3.1",
         "numEnrolled": 999
       },
       ...
     ],
     "windows": [
       {
-        "version": "10, version 21H2 (W)",
+        "version": "Microsoft Windows 10, version 21H2 (W)",
         "numEnrolled": 999
       },
       ...
     ],
-    "ubuntuLinux": [
+    "ubuntu": [
       {
-        "version": "22.04 'Jammy Jellyfish' (LTS)",
+        "version": "Ubuntu 22.04 'Jammy Jellyfish' (LTS)",
         "numEnrolled": 999
       },
       ...
     ],
-    "centosLinux": [
+    "rhel": [
       {
-        "version": "12.3.1",
+        "version": "Red Hat Enterprise Linux 8.4.0",
         "numEnrolled": 999
       },
       ...
     ],
-    "debianLinux": [
+    "debian": [
       {
-        "version": "11 (Bullseye)",
+        "version": "Debian GNU/Linux 9.0.0",
         "numEnrolled": 999
       },
       ...
     ],
-    "redhatLinux": [
+    "amzn": [
       {
-        "version": "9",
-        "numEnrolled": 999
-      },
-      ...
-    ],
-    "amazonLinux": [
-      {
-        "version": "AMI",
+        "version": "Amazon Linux 2.0.0",
         "numEnrolled": 999
       },
       ...
     ]
   },
+  "hostsEnrolledByOrbitVersion": [
+    {
+      "version": "1.1.0",
+      "numHosts": 999
+    },
+    ...
+  ],
+  "hostsEnrolledByOsqueryVersion": [
+    {
+      "version": "4.9.0",
+      "numHosts": 999
+    },
+    ...
+  ],
   "storedErrors": [
     {
       "count": 3,

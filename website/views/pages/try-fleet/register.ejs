@@ -1,14 +1,14 @@
 <div id="register" v-cloak>
-  <div style="max-width:  750px; padding-top: 80px; padding-bottom: 80px;" class="container d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto px-4 px-md-3">
+  <div style="max-width:  800px; padding-top: 80px; padding-bottom: 80px;" class="container d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto px-4 px-md-3">
     <div>
     <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Play in Fleet sandbox">
     </div>
     <div style="max-width: 400px;" class="flex-column d-flex">
       <h2>Play in Fleet Sandbox</h2>
-      <p>
-        Sandbox lets you test Fleet’s features on your device. Watch our <a @click="clickOpenVideoModal()">Sandbox setup video</a> for instructions. Create your account to get started.
+      <p class="pt-3">
+        The fastest way to test Fleet. Get up and running in minutes. Ready for production deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
       </p>
-      <div class="pt-4">
+      <div class="pt-3">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
             <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Sign up with email">

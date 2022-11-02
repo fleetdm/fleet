@@ -341,6 +341,24 @@ type Integrations struct {
 	Zendesk []*ZendeskIntegration `json:"zendesk"`
 }
 
+// ValidateEnabledHostStatusIntegrations checks that the host status integrations
+// is properly configured if enabled. It adds any error it finds to the invalid
+// argument error, that can then be checked after the call for errors using
+// invalid.HasErrors.
+func ValidateEnabledHostStatusIntegrations(webhook HostStatusWebhookSettings, invalid *InvalidArgumentError) {
+	if webhook.Enable {
+		if webhook.DestinationURL == "" {
+			invalid.Append("destination_url", "destination_url is required to enable the host status webhook")
+		}
+		if webhook.DaysCount <= 0 {
+			invalid.Append("days_count", "days_count must be > 0 to enable the host status webhook")
+		}
+		if webhook.HostPercentage <= 0 {
+			invalid.Append("host_percentage", "host_percentage must be > 0 to enable the host status webhook")
+		}
+	}
+}
+
 // ValidateEnabledVulnerabilitiesIntegrations checks that a single integration
 // is enabled for vulnerabilities. It adds any error it finds to the invalid
 // argument error, that can then be checked after the call for errors using
@@ -371,6 +389,9 @@ func ValidateEnabledVulnerabilitiesIntegrations(webhook VulnerabilitiesWebhookSe
 	}
 	if zendeskEnabledCount > 1 {
 		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
+	}
+	if webhookEnabled && webhook.DestinationURL == "" {
+		invalid.Append("destination_url", "destination_url is required to enable the vulnerabilities webhook")
 	}
 }
 
@@ -404,6 +425,9 @@ func ValidateEnabledFailingPoliciesIntegrations(webhook FailingPoliciesWebhookSe
 	}
 	if zendeskEnabledCount > 1 {
 		invalid.Append("failing policies", "cannot enable more than one zendesk integration")
+	}
+	if webhookEnabled && webhook.DestinationURL == "" {
+		invalid.Append("destination_url", "destination_url is required to enable the failing policies webhook")
 	}
 }
 

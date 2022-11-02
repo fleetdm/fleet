@@ -1,0 +1,13 @@
+name: listening_ports
+examples: >-
+  List executables listening on network ports.
+
+  ```
+
+  SELECT l.port, l.pid, p.name, p.path FROM listening_ports l JOIN processes p USING (pid); 
+
+  ```
+columns:
+  - name: net_namespace
+    platforms:
+      - linux

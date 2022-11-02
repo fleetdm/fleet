@@ -127,8 +127,8 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("pack payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("pack payload verification: %s", err),
 		})
 	}
 
@@ -218,8 +218,8 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("pack payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("pack payload verification: %s", err),
 		})
 	}
 
@@ -467,8 +467,8 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 
 	for _, packSpec := range result {
 		if err := packSpec.Verify(); err != nil {
-			return nil, ctxerr.Wrap(ctx, &badRequestError{
-				message: fmt.Sprintf("pack payload verification: %s", err),
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("pack payload verification: %s", err),
 			})
 		}
 	}

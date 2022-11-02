@@ -31,7 +31,7 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix)
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, fleet.CapabilityMap{})
 	if err != nil {
 		return nil, err
 	}
@@ -84,16 +84,7 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 	}
 }
 
-func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
-	var bodyBytes []byte
-	var err error
-	if params != nil {
-		bodyBytes, err = json.Marshal(params)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
-		}
-	}
-
+func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
@@ -123,6 +114,18 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	}
 
 	return resp, nil
+}
+
+func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
+	var bodyBytes []byte
+	var err error
+	if params != nil {
+		bodyBytes, err = json.Marshal(params)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+		}
+	}
+	return c.doContextWithBodyAndHeaders(ctx, verb, path, rawQuery, bodyBytes, headers)
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
@@ -218,67 +221,98 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 }
 
 // ApplyGroup applies the given spec group to Fleet.
-func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{})) error {
+func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{}), opts fleet.ApplySpecOptions) error {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)
 		}
 	}
 	if len(specs.Queries) > 0 {
-		if err := c.ApplyQueries(specs.Queries); err != nil {
-			return fmt.Errorf("applying queries: %w", err)
+		if opts.DryRun {
+			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			if err := c.ApplyQueries(specs.Queries); err != nil {
+				return fmt.Errorf("applying queries: %w", err)
+			}
+			logfn("[+] applied %d queries\n", len(specs.Queries))
 		}
-		logfn("[+] applied %d queries\n", len(specs.Queries))
 	}
 
 	if len(specs.Labels) > 0 {
-		if err := c.ApplyLabels(specs.Labels); err != nil {
-			return fmt.Errorf("applying labels: %w", err)
+		if opts.DryRun {
+			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			if err := c.ApplyLabels(specs.Labels); err != nil {
+				return fmt.Errorf("applying labels: %w", err)
+			}
+			logfn("[+] applied %d labels\n", len(specs.Labels))
 		}
-		logfn("[+] applied %d labels\n", len(specs.Labels))
 	}
 
 	if len(specs.Policies) > 0 {
-		if err := c.ApplyPolicies(specs.Policies); err != nil {
-			return fmt.Errorf("applying policies: %w", err)
+		if opts.DryRun {
+			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			if err := c.ApplyPolicies(specs.Policies); err != nil {
+				return fmt.Errorf("applying policies: %w", err)
+			}
+			logfn("[+] applied %d policies\n", len(specs.Policies))
 		}
-		logfn("[+] applied %d policies\n", len(specs.Policies))
 	}
 
 	if len(specs.Packs) > 0 {
-		if err := c.ApplyPacks(specs.Packs); err != nil {
-			return fmt.Errorf("applying packs: %w", err)
+		if opts.DryRun {
+			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			if err := c.ApplyPacks(specs.Packs); err != nil {
+				return fmt.Errorf("applying packs: %w", err)
+			}
+			logfn("[+] applied %d packs\n", len(specs.Packs))
 		}
-		logfn("[+] applied %d packs\n", len(specs.Packs))
 	}
 
 	if specs.AppConfig != nil {
-		if err := c.ApplyAppConfig(specs.AppConfig); err != nil {
+		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
 		}
-		logfn("[+] applied fleet config\n")
-
+		if opts.DryRun {
+			logfn("[+] would've applied fleet config\n")
+		} else {
+			logfn("[+] applied fleet config\n")
+		}
 	}
 
 	if specs.EnrollSecret != nil {
-		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-			return fmt.Errorf("applying enroll secrets: %w", err)
+		if opts.DryRun {
+			logfn("[!] ignoring enroll secrets, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+				return fmt.Errorf("applying enroll secrets: %w", err)
+			}
+			logfn("[+] applied enroll secrets\n")
 		}
-		logfn("[+] applied enroll secrets\n")
 	}
 
 	if len(specs.Teams) > 0 {
-		if err := c.ApplyTeams(specs.Teams); err != nil {
+		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
-		logfn("[+] applied %d teams\n", len(specs.Teams))
+		if opts.DryRun {
+			logfn("[+] would've applied %d teams\n", len(specs.Teams))
+		} else {
+			logfn("[+] applied %d teams\n", len(specs.Teams))
+		}
 	}
 
 	if specs.UsersRoles != nil {
-		if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-			return fmt.Errorf("applying user roles: %w", err)
+		if opts.DryRun {
+			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'team' specs\n")
+		} else {
+			if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+				return fmt.Errorf("applying user roles: %w", err)
+			}
+			logfn("[+] applied user roles\n")
 		}
-		logfn("[+] applied user roles\n")
 	}
 	return nil
 }

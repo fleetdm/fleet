@@ -26,7 +26,7 @@ func TestGetPayload(t *testing.T) {
 
 	sut := Mapper{}
 
-	result := sut.GetPayload(serverURL, nil, vuln, meta)
+	result := sut.GetPayload(serverURL, nil, vuln.CVE, meta)
 	require.Equal(t, *meta.CISAKnownExploit, *result.CISAKnownExploit)
 	require.Equal(t, *meta.EPSSProbability, *result.EPSSProbability)
 	require.Equal(t, *meta.CVSSScore, *result.CVSSScore)

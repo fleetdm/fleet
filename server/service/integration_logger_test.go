@@ -99,6 +99,61 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 	}
 }
 
+func (s *integrationLoggerTestSuite) TestLoggerLogin() {
+	t := s.T()
+
+	type logEntry struct {
+		key string
+		val string
+	}
+
+	testCases := []struct {
+		loginRequest   loginRequest
+		expectedStatus int
+		expectedLogs   []logEntry
+	}{
+		{
+			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			expectedStatus: http.StatusOK,
+			expectedLogs:   []logEntry{{"email", testUsers["admin1"].Email}},
+		},
+		{
+			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			expectedStatus: http.StatusUnauthorized,
+			expectedLogs: []logEntry{
+				{"email", testUsers["admin1"].Email},
+				{"level", "error"},
+				{"internal", "invalid password"},
+			},
+		},
+		{
+			loginRequest:   loginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			expectedStatus: http.StatusUnauthorized,
+			expectedLogs: []logEntry{
+				{"email", "h4x0r@3x4mp13.c0m"},
+				{"level", "error"},
+				{"internal", "user not found"},
+			},
+		},
+	}
+	var resp loginResponse
+	for _, tt := range testCases {
+		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
+		logString := s.buf.String()
+		parts := strings.Split(strings.TrimSpace(logString), "\n")
+		require.Len(t, parts, 1)
+		logData := make(map[string]string)
+		require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
+
+		require.NotContains(t, logData, "user") // logger context is set to skip user
+
+		for _, e := range tt.expectedLogs {
+			assert.Equal(t, logData[e.key], e.val)
+		}
+		s.buf.Reset()
+	}
+}
+
 func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	t := s.T()
 
@@ -200,7 +255,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
 
 	// submit same payload without specifying gzip encoding fails
-	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusInternalServerError, nil)
+	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
 }
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {

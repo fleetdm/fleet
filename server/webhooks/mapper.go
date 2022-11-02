@@ -12,13 +12,14 @@ import (
 // VulnMapper used for mapping vulnerabilities and their associated data into the payload that
 // will be sent via thrid party webhooks.
 type VulnMapper interface {
-	GetPayload(*url.URL, []*fleet.HostShort, fleet.SoftwareVulnerability, fleet.CVEMeta) WebhookPayload
+	GetPayload(*url.URL, []*fleet.HostShort, string, fleet.CVEMeta) WebhookPayload
 }
 
 type hostPayloadPart struct {
-	ID       uint   `json:"id"`
-	Hostname string `json:"hostname"`
-	URL      string `json:"url"`
+	ID          uint   `json:"id"`
+	Hostname    string `json:"hostname"`
+	DisplayName string `json:"display_name"`
+	URL         string `json:"url"`
 }
 
 type WebhookPayload struct {
@@ -45,9 +46,10 @@ func (m *Mapper) getHostPayloadPart(
 		hostURL := *hostBaseURL
 		hostURL.Path = path.Join(hostURL.Path, "hosts", strconv.Itoa(int(h.ID)))
 		shortHosts[i] = &hostPayloadPart{
-			ID:       h.ID,
-			Hostname: h.Hostname,
-			URL:      hostURL.String(),
+			ID:          h.ID,
+			Hostname:    h.Hostname,
+			DisplayName: h.DisplayName,
+			URL:         hostURL.String(),
 		}
 	}
 	return shortHosts
@@ -56,12 +58,12 @@ func (m *Mapper) getHostPayloadPart(
 func (m *Mapper) GetPayload(
 	hostBaseURL *url.URL,
 	hosts []*fleet.HostShort,
-	vuln fleet.SoftwareVulnerability,
+	cve string,
 	meta fleet.CVEMeta,
 ) WebhookPayload {
 	return WebhookPayload{
-		CVE:   vuln.CVE,
-		Link:  fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE),
+		CVE:   cve,
+		Link:  fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 		Hosts: m.getHostPayloadPart(hostBaseURL, hosts),
 	}
 }

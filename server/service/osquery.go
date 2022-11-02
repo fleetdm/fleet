@@ -525,13 +525,6 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
-	// We always request the `orbit_info` query results, as orbit is responsible for rotating
-	// the device auth token. To prevent excessive writes to host_device_auth table, the
-	// write method (SetOrUpdateDeviceAuthToken) is handled by the cached_mysql package.
-	// See #6348.
-	queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
-	discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
-
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
 		return nil, nil, 0, osqueryError{message: err.Error()}
@@ -814,7 +807,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
-			level.Debug(svc.logger).Log("query", query, "message", messages[query])
+			ll := level.Debug(svc.logger)
+			// We'd like to log these as error for troubleshooting and improving of distributed queries.
+			if messages[query] == "distributed query is denylisted" {
+				ll = level.Error(svc.logger)
+			}
+			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
+
 		}
 		var err error
 		switch {
@@ -885,7 +884,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			} else {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
-					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, failingPolicies, passingPolicies); err != nil {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), failingPolicies, passingPolicies); err != nil {
 						logging.WithErr(ctx, err)
 					}
 				}()
@@ -988,7 +987,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID),
-		Host:                       host,
+		Host:                       fleet.HostResponseForHostCheap(&host),
 		Rows:                       rows,
 	}
 	if failed {
@@ -1109,10 +1108,11 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
-func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname string, newFailing, newPassing []uint) error {
+func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname, displayName string, newFailing, newPassing []uint) error {
 	host := fleet.PolicySetHost{
-		ID:       hostID,
-		Hostname: hostname,
+		ID:          hostID,
+		Hostname:    hostname,
+		DisplayName: displayName,
 	}
 	for _, policyID := range newFailing {
 		if err := svc.failingPolicySet.AddHost(policyID, host); err != nil {

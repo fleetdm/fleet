@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
 
@@ -18,20 +19,22 @@ func rSign(pkgPath, cert string) error {
 		return fmt.Errorf("writing cert data: %e", err)
 	}
 
-	var outBuf bytes.Buffer
-	cmd := exec.Command(
-		"rcodesign",
-		"sign",
-		pkgPath,
-		"--pem-source", pemPath,
-	)
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &outBuf
-	if err := cmd.Run(); err != nil {
-		fmt.Println(outBuf.String())
-		return fmt.Errorf("rcodesign: %w", err)
-	}
-	return nil
+	return retry.Do(func() error {
+		var outBuf bytes.Buffer
+		cmd := exec.Command(
+			"rcodesign",
+			"sign",
+			pkgPath,
+			"--pem-source", pemPath,
+		)
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &outBuf
+		if err := cmd.Run(); err != nil {
+			fmt.Println(outBuf.String())
+			return fmt.Errorf("rcodesign: %w", err)
+		}
+		return nil
+	}, retry.WithMaxAttempts(3))
 }
 
 func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
@@ -40,21 +43,24 @@ func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
 	if err != nil {
 		return fmt.Errorf("writing API keys: %e", err)
 	}
-	var outBuf bytes.Buffer
-	cmd := exec.Command("rcodesign",
-		"notarize",
-		pkg,
-		"--api-issuer", apiKeyIssuer,
-		"--api-key", apiKeyID,
-		"--staple",
-	)
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &outBuf
-	if err := cmd.Run(); err != nil {
-		fmt.Println(outBuf.String())
-		return fmt.Errorf("rcodesign notarize: %w", err)
-	}
-	return nil
+
+	return retry.Do(func() error {
+		var outBuf bytes.Buffer
+		cmd := exec.Command("rcodesign",
+			"notarize",
+			pkg,
+			"--api-issuer", apiKeyIssuer,
+			"--api-key", apiKeyID,
+			"--staple",
+		)
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &outBuf
+		if err := cmd.Run(); err != nil {
+			fmt.Println(outBuf.String())
+			return fmt.Errorf("rcodesign notarize: %w", err)
+		}
+		return nil
+	}, retry.WithMaxAttempts(3))
 }
 
 func writeAPIKeys(issuer, id, content string) (string, error) {

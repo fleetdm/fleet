@@ -15,6 +15,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import CustomLink from "components/CustomLink";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
@@ -23,7 +24,6 @@ import {
 } from "utilities/constants";
 
 import PreviewDataModal from "../PreviewDataModal";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "schedule-editor-modal";
 
@@ -263,14 +263,11 @@ const ScheduleEditorModal = ({
           </p>
           <p>
             Check out the Fleet documentation on&nbsp;
-            <a
-              href="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              how to configure a different log destination
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
+              text="how to configure a different log destination"
+              newTab
+            />
             .
           </p>
         </InfoBanner>

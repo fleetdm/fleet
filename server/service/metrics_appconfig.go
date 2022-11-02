@@ -36,7 +36,7 @@ func (mw metricsMiddleware) AppConfig(ctx context.Context) (*fleet.AppConfig, er
 	return info, err
 }
 
-func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppConfig, error) {
+func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	var (
 		info *fleet.AppConfig
 		err  error
@@ -46,6 +46,6 @@ func (mw metricsMiddleware) ModifyAppConfig(ctx context.Context, p []byte) (*fle
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	info, err = mw.Service.ModifyAppConfig(ctx, p)
+	info, err = mw.Service.ModifyAppConfig(ctx, p, applyOpts)
 	return info, err
 }

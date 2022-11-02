@@ -33,9 +33,14 @@
     box-sizing: border-box;
     color: $core-fleet-black;
     font-weight: $regular;
+    transition: border-color 100ms;
 
     ::placeholder {
       color: $core-fleet-blue;
+    }
+
+    &:hover, &:focus {
+      border: 1px solid $core-vibrant-blue;
     }
 
     &:focus {

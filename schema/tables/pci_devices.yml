@@ -1,0 +1,33 @@
+name: pci_devices
+columns:
+  - name: pci_class_id
+    platforms:
+      - linux
+  - name: pci_subclass_id
+    platforms:
+      - linux
+  - name: pci_subclass
+    platforms:
+      - linux
+  - name: subsystem_vendor_id
+    platforms:
+      - linux
+  - name: subsystem_vendor
+    platforms:
+      - linux
+  - name: subsystem_model_id
+    platforms:
+      - linux
+  - name: subsystem_model
+    platforms:
+      - linux
+examples: >-
+  This table allows you to list PCI devices. With this query, identify devices with a specific model
+  ID. This can be useful when trying to identify systems that use common hardware, for example, when
+  trying to target firmware updates or understand similarities between problematic systems.
+
+  ```
+
+  SELECT driver, model, vendor, vendor_id FROM pci_devices WHERE model_id='0x1001';
+
+  ```

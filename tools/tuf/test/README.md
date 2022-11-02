@@ -45,15 +45,24 @@ E.g. to add a new version of `orbit` for Windows:
 # Compile a new version of Orbit:
 GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 
-# Push the compiled Orbit as a new version:
+# Push the compiled Orbit as a new version
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
 ```
 
 E.g. to add a new version of `osqueryd` for macOS:
 ```sh
-# Download some version from our TUF server:
-curl --output osqueryd https://tuf.fleetctl.com/targets/osqueryd/macos/5.0.1/osqueryd
+# Generate osqueryd app bundle.
+make osqueryd-app-tar-gz version=5.5.1 out-path=.
 
-# Push the osqueryd target as a new version:
-./tools/tuf/test/push_target.sh macos osqueryd osqueryd 43
+# Push the osqueryd target as a new version
+./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.5.1
+```
+
+E.g. to add a new version of `desktop` for macOS:
+```sh
+# Compile a new version of fleet-desktop
+make desktop-app-tar-gz
+
+# Push the desktop target as a new version
+./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
 ```

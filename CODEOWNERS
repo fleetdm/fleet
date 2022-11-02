@@ -9,6 +9,7 @@ go.mod @fleetdm/go
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
 /.github/ @fleetdm/g-platform
@@ -29,6 +30,9 @@ go.mod @fleetdm/go
 # Standard query library YAML
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
 
+# Exapnded table documentation
+/schema @guillaumeross
+
 # Articles
 /articles @chris-mcgillicuddy
 
@@ -36,6 +40,12 @@ go.mod @fleetdm/go
 /website/ @eashaw
 /website/views/ @eashaw
 /website/assets/ @eashaw
+
+# Features table
+# - CEO is DRI for pricing
+# - Mo is DRI for features table
+# - Eric is DRI for website frontend code
+/website/views/pages/pricing.ejs @zhumo @eashaw @mikermcneil
 
 # Website redirects and URLs
 /website/config/routes.js @eashaw
@@ -54,17 +64,13 @@ go.mod @fleetdm/go
 
 # Handbook
 /handbook/company @mikermcneil
-/handbook/people @charlottechance
+/handbook/business-operations @hollidayn
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
-/handbook/product @noahtalerman
-/handbook/sales @alexmitchelliii
-/handbook/customers @tgauda
-/handbook/growth @timmy-k
-/handbook/community @timmy-k
-/handbook/digital-experience @mike-j-thomas @chris-mcgillicuddy
-/handbook/README.md @chris-mcgillicuddy
-/handbook/handbook @chris-mcgillicuddy
+/handbook/product @zhumo
+/handbook/customers @alexmitchelliii
+/handbook/marketing @mikermcneil
+/handbook/README.md @eashaw
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors

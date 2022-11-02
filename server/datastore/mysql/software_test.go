@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +39,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilities", testListSoftwareVulnerabilities},
-		{"InsertVulnerabilities", testInsertVulnerabilities},
+		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"SoftwareByID", testSoftwareByID},
@@ -135,10 +136,18 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
 
+	software2 := []fleet.Software{
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other"}, // "non-empty" -> "non-empty"
+		{Name: "zoo", Version: "0.0.5", Source: "rpm_packages", BundleIdentifier: ""},               // non-empty -> empty
+	}
+
 	err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
 	require.NoError(t, err)
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background(), nil)
+	err = ds.UpdateHostSoftware(context.Background(), host1.ID, software2)
+	require.NoError(t, err)
+
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background(), oval.SupportedSoftwareSources)
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -156,6 +165,9 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, software.Version)
 		require.NotEmpty(t, software.Source)
 
+		require.NotEqual(t, software.Name, "bar")
+		require.NotEqual(t, software.Name, "zoo")
+
 		if loops > 2 {
 			t.Error("Looping through more software than we have")
 		}
@@ -167,7 +179,7 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	err = ds.AddCPEForSoftware(context.Background(), fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
-	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background(), nil)
+	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background(), oval.SupportedSoftwareSources)
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -246,7 +258,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
 	}
-	_, err := ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
+	_, err := ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
@@ -502,7 +514,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003"},
 	}
 
-	_, err := ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
+	_, err := ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 
 	cveMeta := []fleet.CVEMeta{
@@ -1025,7 +1037,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
-	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithComputerName("computer1"))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
@@ -1108,7 +1120,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	})
 
 	chrome3 := host2.Software[2]
-	n, err := ds.InsertVulnerabilities(context.Background(), []fleet.SoftwareVulnerability{
+	n, err := ds.InsertSoftwareVulnerabilities(context.Background(), []fleet.SoftwareVulnerability{
 		{
 			SoftwareID: chrome3.ID,
 			CVE:        "CVE-2022-0001",
@@ -1119,7 +1131,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, int(n))
 
 	barRpm := host2.Software[0]
-	n, err = ds.InsertVulnerabilities(context.Background(),
+	n, err = ds.InsertSoftwareVulnerabilities(context.Background(),
 		[]fleet.SoftwareVulnerability{
 			{
 				SoftwareID: barRpm.ID,
@@ -1221,6 +1233,17 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 	hosts, err = ds.HostsByCVE(ctx, "CVE-2022-0001")
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
+	require.ElementsMatch(t, hosts, []*fleet.HostShort{
+		{
+			ID:          1,
+			Hostname:    "host1",
+			DisplayName: "computer1",
+		}, {
+			ID:          2,
+			Hostname:    "host2",
+			DisplayName: "host2",
+		},
+	})
 
 	// CVE of bar.rpm 0.0.3, only host 2 has it
 	hosts, err = ds.HostsByCVE(ctx, "CVE-2022-0002")
@@ -1260,8 +1283,16 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{chrome3.ID})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
-	require.Equal(t, hosts[0].Hostname, "host1")
-	require.Equal(t, hosts[1].Hostname, "host2")
+	require.ElementsMatch(t, hosts, []*fleet.HostShort{
+		{
+			ID:          1,
+			Hostname:    "host1",
+			DisplayName: "computer1",
+		}, {
+			ID:          2,
+			Hostname:    "host2",
+			DisplayName: "host2",
+		}})
 
 	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{barRpm.ID})
 	require.NoError(t, err)
@@ -1426,7 +1457,7 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 		}
 
 	}
-	n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.NVDSource)
+	n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
 	require.NoError(t, err)
 	require.Equal(t, int(n), 2)
 
@@ -1446,11 +1477,11 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
+func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	t.Run("no vulnerabilities to insert", func(t *testing.T) {
-		r, err := ds.InsertVulnerabilities(ctx, nil, fleet.UbuntuOVALSource)
+		r, err := ds.InsertSoftwareVulnerabilities(ctx, nil, fleet.UbuntuOVALSource)
 		require.Zero(t, r)
 		require.NoError(t, err)
 	})
@@ -1475,7 +1506,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
@@ -1507,11 +1538,11 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
-		n, err = ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 0, int(n))
 
@@ -1629,7 +1660,7 @@ func testSoftwareByID(t *testing.T, ds *Datastore) {
 				CVE:        fmt.Sprintf("cve-%d", i),
 			})
 		}
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 4, int(n))
 

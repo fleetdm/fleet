@@ -1,23 +1,46 @@
 .loading-spinner {
-  margin: 120px auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: $core-white;
-  width: 48px;
-  height: 48px;
-  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+
+  &.centered {
+    margin: 120px auto;
+  }
+
+  &.include-container {
+    background-color: $core-white;
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+  }
 
   .loader {
     position: relative;
     margin: 0 auto;
-    width: 34px;
 
     &:before {
       content: "";
       display: block;
       padding-top: 100%;
+    }
+  }
+
+  &.medium {
+    .loader {
+      width: 34px;
+    }
+  }
+
+  &.small {
+    .loader {
+      width: 23px;
+    }
+  }
+
+  &.x-small {
+    .loader {
+      width: 16px;
     }
   }
 

@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -24,7 +23,7 @@ import (
 type DetailQuery struct {
 	// Query is the SQL query string.
 	Query string
-	// Discovery is the SQL query that defines whether the query will run or the host or not.
+	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
 	// Platforms is a list of platforms to run the query on. If this value is
@@ -62,71 +61,47 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 //
 // This map should not be modified at runtime.
 var hostDetailQueries = map[string]DetailQuery{
-	"network_interface": {
-		Query: `select ia.address, id.mac, id.interface
-                        from interface_details id join interface_addresses ia
-                               on ia.interface = id.interface where length(mac) > 0
-                               order by (ibytes + obytes) desc`,
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
-			if len(rows) == 0 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					"detail_query_network_interface expected 1 or more results")
-				return nil
-			}
-
-			// Rows are ordered by traffic, so we will get the most active
-			// interface by iterating in order
-			var firstIPv4, firstIPv6 map[string]string
-			for _, row := range rows {
-				ip := net.ParseIP(row["address"])
-				if ip == nil {
-					continue
-				}
-
-				// Skip link-local and loopback interfaces
-				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
-					continue
-				}
-
-				// Skip docker interfaces as these are sometimes heavily
-				// trafficked, but rarely the interface that Fleet users want to
-				// see. https://github.com/fleetdm/fleet/issues/4754.
-				if strings.Contains(row["interface"], "docker") {
-					continue
-				}
-
-				if strings.Contains(row["address"], ":") {
-					// IPv6
-					if firstIPv6 == nil {
-						firstIPv6 = row
-					}
-				} else {
-					// IPv4
-					if firstIPv4 == nil {
-						firstIPv4 = row
-					}
-				}
-			}
-
-			var selected map[string]string
-			switch {
-			// Prefer IPv4
-			case firstIPv4 != nil:
-				selected = firstIPv4
-			// Otherwise IPv6
-			case firstIPv6 != nil:
-				selected = firstIPv6
-			// If only link-local and loopback found, still use the first
-			// interface so that we don't get an empty value.
-			default:
-				selected = rows[0]
-			}
-
-			host.PrimaryIP = selected["address"]
-			host.PrimaryMac = selected["mac"]
-			host.PublicIP = publicip.FromContext(ctx)
-			return nil
-		},
+	"network_interface_unix": {
+		Query: `
+select
+    ia.address,
+    id.mac
+from
+    interface_addresses ia
+    join interface_details id on id.interface = ia.interface
+    join routes r on r.interface = ia.interface
+where
+    r.destination = '0.0.0.0'
+    and r.netmask = 0
+    and r.type = 'gateway'
+    and instr(ia.address, '.') > 0
+order by
+    r.metric asc
+limit 1
+`,
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
+		IngestFunc: ingestNetworkInterface,
+	},
+	"network_interface_windows": {
+		Query: `
+select
+    ia.address,
+    id.mac
+from
+    interface_addresses ia
+    join interface_details id on id.interface = ia.interface
+    join routes r on r.interface = ia.address
+where
+    r.destination = '0.0.0.0'
+    and r.netmask = 0
+    and r.type = 'remote'
+    and instr(ia.address, '.') > 0
+order by
+    r.metric asc
+limit 1
+`,
+		Platforms:  []string{"windows"},
+		IngestFunc: ingestNetworkInterface,
 	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
@@ -174,19 +149,55 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"os_version_windows": {
 		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
-		Query: `SELECT
-			os.name,
-			r.data
+		Query: `
+WITH dv AS (
+	SELECT
+		data
+	FROM
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+),
+rid AS (
+	SELECT
+		data
+	FROM
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+)
+SELECT
+	(
+		SELECT
+			name
 		FROM
-			os_version os,
-			(
-				SELECT
-					data
-				FROM
-					registry
-				WHERE
-					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r
-		LIMIT 1`,
+			os_version) AS name,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			dv) THEN
+		(
+			SELECT
+				data
+			FROM
+				dv)
+		ELSE
+			""
+	END AS display_version,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			rid) THEN
+		(
+			SELECT
+				data
+			FROM
+				rid)
+		ELSE
+			""
+	END AS release_id`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -195,7 +206,25 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["data"])
+			var version string
+			switch {
+			case rows[0]["display_version"] != "":
+				// prefer display version if available
+				version = rows[0]["display_version"]
+			case rows[0]["release_id"] != "":
+				// otherwise release_id if available
+				version = rows[0]["release_id"]
+			default:
+				// empty value
+			}
+			if version == "" {
+				level.Debug(logger).Log(
+					"msg", "unable to identify windows version",
+					"host", host.Hostname,
+				)
+			}
+
+			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			host.OSVersion = s
@@ -336,17 +365,71 @@ var hostDetailQueries = map[string]DetailQuery{
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
        round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
 FROM mounts WHERE path = '/' LIMIT 1;`,
-		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
-		IngestFunc: ingestDiskSpace,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		DirectIngestFunc: directIngestDiskSpace,
 	},
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
        ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
-		Platforms:  []string{"windows"},
-		IngestFunc: ingestDiskSpace,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestDiskSpace,
 	},
+	"kubequery_info": {
+		Query:      `SELECT * from kubernetes_info`,
+		IngestFunc: ingestKubequeryInfo,
+		Discovery:  discoveryTable("kubernetes_info"),
+	},
+}
+
+func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "IngestFunc", "err",
+			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		return nil
+	}
+
+	host.PrimaryIP = rows[0]["address"]
+	host.PrimaryMac = rows[0]["mac"]
+	host.PublicIP = publicip.FromContext(ctx)
+	return nil
+}
+
+func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
+			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
+		return nil
+	}
+
+	gigsAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+	percentAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
+}
+
+func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
+	}
+
+	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
+
+	// These values are not provided by kubequery
+	host.OsqueryVersion = "kubequery"
+	host.Platform = "kubequery"
+	return nil
 }
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
@@ -357,9 +440,23 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
-		DirectIngestFunc: directIngestMDM,
+		DirectIngestFunc: directIngestMDMMac,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("mdm"),
+	},
+	"mdm_windows": {
+		Query: `
+		SELECT provid.providerID, url.discoveryServiceURL, autopilot.autopilot FROM (
+			SELECT data providerID FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
+		) provid, (
+			SELECT data discoveryServiceURL FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
+		) url, ( SELECT EXISTS (
+				SELECT 1 FROM registry WHERE KEY LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+			) autopilot
+		) autopilot;
+		`,
+		DirectIngestFunc: directIngestMDMWindows,
+		Platforms:        []string{"windows"},
 	},
 	"munki_info": {
 		Query:            `select version, errors, warnings from munki_info;`,
@@ -385,22 +482,56 @@ var extraDetailQueries = map[string]DetailQuery{
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
 		Query: `
+WITH dv AS (
 	SELECT
-		os.name,
-		os.arch,
-		os.platform,
-		r.version AS version,
-		k.version AS kernel_version
+		data
 	FROM
-		os_version os,
-		kernel_info k,
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+),
+rid AS (
+	SELECT
+		data
+	FROM
+		registry
+	WHERE
+		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+)
+SELECT
+	os.name,
+	os.platform,
+	os.arch,
+	k.version as kernel_version,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			dv) THEN
 		(
 			SELECT
-				data AS version
+				data
 			FROM
-				registry
-			WHERE
-				path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r`,
+				dv)
+		ELSE
+			""
+	END AS display_version,
+	CASE WHEN EXISTS (
+		SELECT
+			1
+		FROM
+			rid) THEN
+		(
+			SELECT
+				data
+			FROM
+				rid)
+		ELSE
+			""
+	END AS release_id
+FROM
+    os_version os,
+    kernel_info k`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -425,17 +556,32 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
-	OrbitInfoQueryName: OrbitInfoDetailQuery,
-}
-
-// OrbitInfoQueryName is the name of the query to ingest orbit_info table extension data.
-const OrbitInfoQueryName = "orbit_info"
-
-// OrbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
-var OrbitInfoDetailQuery = DetailQuery{
-	Query:            `SELECT * FROM orbit_info`,
-	DirectIngestFunc: directIngestOrbitInfo,
-	Discovery:        discoveryTable("orbit_info"),
+	"orbit_info": {
+		Query:            `SELECT version FROM orbit_info`,
+		DirectIngestFunc: directIngestOrbitInfo,
+		Discovery:        discoveryTable("orbit_info"),
+	},
+	"disk_encryption_darwin": {
+		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_linux": {
+		Query:            `SELECT 1 FROM disk_encryption WHERE encrypted = 1 AND name = '/dev/dm-1';`,
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_windows": {
+		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
+		// osquery table on windows, it is always present.
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -552,6 +698,7 @@ SELECT
   '' AS vendor,
   '' AS arch
 FROM deb_packages
+WHERE status = 'install ok installed'
 UNION
 SELECT
   package AS name,
@@ -698,6 +845,23 @@ var usersQuery = DetailQuery{
 	DirectIngestFunc: directIngestUsers,
 }
 
+// directIngestOrbitInfo ingests data from the orbit_info extension table.
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOrbitInfo", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
+	}
+	version := rows[0]["version"]
+	if err := ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, version); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOrbitInfo update host orbit info")
+	}
+
+	return nil
+}
+
 // directIngestOSWindows ingests selected operating system data from a host on a Windows platform
 func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
@@ -710,11 +874,29 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 
 	hostOS := fleet.OperatingSystem{
 		Name:          rows[0]["name"],
-		Version:       rows[0]["version"],
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
 		Platform:      rows[0]["platform"],
 	}
+
+	var version string
+	switch {
+	case rows[0]["display_version"] != "":
+		// prefer display version if available
+		version = rows[0]["display_version"]
+	case rows[0]["release_id"] != "":
+		// otherwise release_id if available
+		version = rows[0]["release_id"]
+	default:
+		// empty value
+	}
+	if version == "" {
+		level.Debug(logger).Log(
+			"msg", "unable to identify windows version",
+			"host", host.Hostname,
+		)
+	}
+	hostOS.Version = version
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
@@ -850,20 +1032,6 @@ func directIngestWindowsUpdateHistory(
 	}
 
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
-}
-
-func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if len(rows) != 1 {
-		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
-	}
-	deviceAuthToken := rows[0]["device_auth_token"]
-	if deviceAuthToken == "" {
-		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
-	}
-	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
-	}
-	return nil
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
@@ -1037,32 +1205,16 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 		}
 		users = append(users, u)
 	}
+	if len(users) == 0 {
+		return nil
+	}
 	if err := ds.SaveHostUsers(ctx, host.ID, users); err != nil {
 		return ctxerr.Wrap(ctx, err, "update host users")
 	}
 	return nil
 }
 
-func ingestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
-			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
-		return nil
-	}
-
-	var err error
-	host.GigsDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
-	if err != nil {
-		return err
-	}
-	host.PercentDiskSpaceAvailable, err = strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) == 0 || failed {
 		// assume the extension is not there
 		return nil
@@ -1088,7 +1240,27 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
+	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep, "")
+}
+
+func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "ingestMDMWindows", "warn",
+			fmt.Sprintf("mdm_windows expected single result got %d", len(rows)))
+	}
+	if len(rows) == 0 {
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, "", false, "")
+	}
+	autoPilot, err := strconv.ParseBool(rows[0]["autopilot"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing autopilot")
+	}
+
+	return ds.SetOrUpdateMDMData(ctx, host.ID, true, rows[0]["discoveryServiceURL"], autoPilot, rows[0]["providerID"])
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -1104,6 +1276,20 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
 	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
+}
+
+func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed")
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn",
+			fmt.Sprintf("disk_encryption expected at most a single result, got %d", len(rows)))
+	}
+
+	encrypted := len(rows) > 0
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {

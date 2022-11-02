@@ -6,11 +6,16 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/urfave/cli/v2"
 )
 
 func applyCommand() *cli.Command {
-	var flFilename string
+	var (
+		flFilename string
+		flForce    bool
+		flDryRun   bool
+	)
 	return &cli.Command{
 		Name:      "apply",
 		Usage:     "Apply files to declaratively manage osquery configurations",
@@ -22,6 +27,18 @@ func applyCommand() *cli.Command {
 				Value:       "",
 				Destination: &flFilename,
 				Usage:       "A file to apply",
+			},
+			&cli.BoolFlag{
+				Name:        "force",
+				EnvVars:     []string{"FORCE"},
+				Destination: &flForce,
+				Usage:       "Force applying the file even if it raises validation errors (only supported for 'config' and 'team' specs)",
+			},
+			&cli.BoolFlag{
+				Name:        "dry-run",
+				EnvVars:     []string{"DRY_RUN"},
+				Destination: &flDryRun,
+				Usage:       "Do not apply the file, just validate it (only supported for 'config' and 'team' specs)",
 			},
 			configFlag(),
 			contextFlag(),
@@ -46,7 +63,12 @@ func applyCommand() *cli.Command {
 			logf := func(format string, a ...interface{}) {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
-			err = fleetClient.ApplyGroup(c.Context, specs, logf)
+
+			opts := fleet.ApplySpecOptions{
+				Force:  flForce,
+				DryRun: flDryRun,
+			}
+			err = fleetClient.ApplyGroup(c.Context, specs, logf, opts)
 			if err != nil {
 				return err
 			}

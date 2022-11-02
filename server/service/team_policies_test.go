@@ -24,8 +24,8 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
-		return nil, nil
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint) (tpol, ipol []*fleet.Policy, err error) {
+		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 		return nil, nil
@@ -149,7 +149,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.ListTeamPolicies(ctx, 1)
+			_, _, err = svc.ListTeamPolicies(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetTeamPolicyByIDQueries(ctx, 1, 1)

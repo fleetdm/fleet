@@ -1,7 +1,8 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
+
+import { renderWithSetup } from "test/testingUtils";
 import { userTeamStub } from "test/stubs";
 import SelectedTeamsForm from "./SelectedTeamsForm";
 
@@ -25,11 +26,11 @@ describe("SelectedTeamsForm - component", () => {
     expect(notSelectedCheckbox).not.toBeChecked();
   });
 
-  it("Correctly passes up selected teams to parent when one of the checkboxes is changed", () => {
+  it("Correctly passes up selected teams to parent when one of the checkboxes is changed", async () => {
     const onChangeStub = jest.fn();
     const currentTeam = userTeamStub;
     const teamNotOn = { ...userTeamStub, id: 2, name: "Not Selected Team" };
-    render(
+    const { user } = renderWithSetup(
       <SelectedTeamsForm
         availableTeams={[currentTeam, teamNotOn]}
         usersCurrentTeams={[currentTeam]}
@@ -41,7 +42,7 @@ describe("SelectedTeamsForm - component", () => {
     const notSelectedCheckbox = screen.getByRole("checkbox", {
       name: "Not Selected Team",
     });
-    userEvent.click(notSelectedCheckbox);
+    await user.click(notSelectedCheckbox);
     expect(onChangeStub).toHaveBeenCalledWith([currentTeam, teamNotOn]);
     expect(notSelectedCheckbox).toBeChecked();
 
@@ -49,7 +50,7 @@ describe("SelectedTeamsForm - component", () => {
     const recentlySelectedCheckbox = screen.getByRole("checkbox", {
       name: "Not Selected Team",
     });
-    userEvent.click(recentlySelectedCheckbox);
+    await user.click(recentlySelectedCheckbox);
     expect(onChangeStub).toHaveBeenCalledWith([currentTeam]);
     expect(notSelectedCheckbox).not.toBeChecked();
   });

@@ -111,3 +111,9 @@ We do not use eksctl since we use terraform managed resources.
 #### Database debugging
 Database debugging is accessed through the rds console: https://us-east-2.console.aws.amazon.com/rds/home?region=us-east-2#database:id=sandbox-prod;is-cluster=true
 Currently only database metrics are available because performance insights is not available for serverless RDS
+
+If you need to access a specific database for any reason (such as to obtain an email address to reach out in case of an issue), the database name is the same as the instance id.  Using the database access method above, you could use the following example to obtain said email address:
+
+```bash
+mysql -h"${DBHOST}" -u"${DBUSER}" -p"${DBPASSWORD}" -D"<instance id>" <<<"SELECT email FROM users;"
+``` 

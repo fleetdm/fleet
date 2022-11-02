@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -13,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log/level"
 )
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -45,6 +48,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 
 	if p.Secrets != nil {
+		if len(p.Secrets) > fleet.MaxEnrollSecretsCount {
+			return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
+		}
 		team.Secrets = p.Secrets
 	} else {
 		// Set up a default enroll secret
@@ -132,7 +138,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	return svc.ds.SaveTeam(ctx, team)
 }
 
-func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, options json.RawMessage) (*fleet.Team, error) {
+func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -142,8 +148,23 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		return nil, err
 	}
 
-	if options != nil {
-		team.Config.AgentOptions = &options
+	if teamOptions != nil {
+		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
+			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
+			if applyOptions.Force && !applyOptions.DryRun {
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+			}
+			if !applyOptions.Force {
+				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
+			}
+		}
+	}
+	if applyOptions.DryRun {
+		return team, nil
+	}
+
+	if teamOptions != nil {
+		team.Config.AgentOptions = &teamOptions
 	} else {
 		team.Config.AgentOptions = nil
 	}
@@ -339,6 +360,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	if secrets == nil {
 		return nil, fleet.NewInvalidArgumentError("secrets", "missing required argument")
 	}
+	if len(secrets) > fleet.MaxEnrollSecretsCount {
+		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
+	}
 
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
@@ -353,7 +377,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	return newSecrets, nil
 }
 
-func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) error {
+var jsonNull = json.RawMessage(`null`)
+
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}
@@ -398,11 +424,40 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 			})
 		}
 
+		var create bool
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		switch {
 		case err == nil:
 			// OK
 		case ctxerr.Cause(err) == sql.ErrNoRows:
+			if spec.Name == "" {
+				return fleet.NewInvalidArgumentError("name", "name may not be empty")
+			}
+			create = true
+		default:
+			return err
+		}
+
+		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
+			if err := fleet.ValidateJSONAgentOptions(spec.AgentOptions); err != nil {
+				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
+				if applyOpts.Force && !applyOpts.DryRun {
+					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+				}
+				if !applyOpts.Force {
+					return ctxerr.Wrap(ctx, err, "validate agent options")
+				}
+			}
+		}
+		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
+		}
+
+		if applyOpts.DryRun {
+			continue
+		}
+
+		if create {
 			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "creating team from spec")
@@ -412,8 +467,6 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				Name: team.Name,
 			})
 			continue
-		default:
-			return err
 		}
 
 		if err := svc.editTeamFromSpec(ctx, team, spec, secrets); err != nil {
@@ -426,20 +479,22 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		})
 	}
 
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeAppliedSpecTeam,
-		&map[string]interface{}{"teams": details},
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+	if len(details) > 0 {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeAppliedSpecTeam,
+			&map[string]interface{}{"teams": details},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+		}
 	}
 	return nil
 }
 
 func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret) (*fleet.Team, error) {
-	agentOptions := spec.AgentOptions
-	if agentOptions == nil {
+	agentOptions := &spec.AgentOptions
+	if len(spec.AgentOptions) == 0 {
 		agentOptions = defaults.AgentOptions
 	}
 
@@ -466,7 +521,16 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 
 func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
 	team.Name = spec.Name
-	team.Config.AgentOptions = spec.AgentOptions
+
+	// if agent options are not provided, do not change them
+	if len(spec.AgentOptions) > 0 {
+		if bytes.Equal(spec.AgentOptions, jsonNull) {
+			// agent options provided but null, clear existing agent option
+			team.Config.AgentOptions = nil
+		} else {
+			team.Config.AgentOptions = &spec.AgentOptions
+		}
+	}
 
 	// replace (don't merge) the features with the new ones, using a config
 	// that has the global defaults applied.

@@ -354,11 +354,15 @@ module.exports = {
               // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
               let embeddedMetadata = {};
-              for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
-                let name = tag.match(/name="([^">]+)"/i)[1];
-                let value = tag.match(/value="([^">]+)"/i)[1];
-                embeddedMetadata[name] = value;
-              }//∞
+              try {
+                for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
+                  let name = tag.match(/name="([^">]+)"/i)[1];
+                  let value = tag.match(/value="([^">]+)"/i)[1];
+                  embeddedMetadata[name] = value;
+                }//∞
+              } catch (err) {
+                throw new Error(`An error occured while parsing <meta> tags in Markdown in "${path.join(topLvlRepoPath, pageSourcePath)}". Tip: Check the markdown being changed and make sure it doesn\'t contain any code snippets with <meta> inside, as this can fool the build script. Full error: ${err.message}`);
+              }
               if (Object.keys(embeddedMetadata).length >= 1) {
                 sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
               }//ﬁ
@@ -460,6 +464,10 @@ module.exports = {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
+                if(embeddedMetadata.description && embeddedMetadata.description.length > 150) {
+                  // Throwing an error if the article's description meta tag value is over 150 characters long
+                  throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
+                }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
@@ -512,6 +520,119 @@ module.exports = {
           }//∞ </each source file>
         }//∞ </each section repo path>
 
+        // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
+
+        let expandedTables = await sails.helpers.getExtendedOsquerySchema();
+
+        // Once we have our merged schema, we'll create ejs partials for each table.
+        for(let table of expandedTables) {
+          let keywordsForSyntaxHighlighting = [];
+          keywordsForSyntaxHighlighting.push(table.name);
+          if(!table.hidden) { // If a table has `"hidden": true` the table won't be shown in the final schema, and we'll ignore it
+            // Start building the markdown string for this table.
+            let tableMdString = '\n## '+table.name;
+            if(table.evented){
+              // If the table has `"evented": true`, we'll add an evented table label (in html)
+              tableMdString += '   <div purpose="evented-table-label"><span>EVENTED TABLE</span></div>\n';
+            }
+            // Add the tables description to the markdown string and start building the table in the markdown string
+            tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
+
+            // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
+            for(let column of table.columns) {
+              if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
+                let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
+                if(column.description) {
+                  columnDescriptionForTable = column.description;
+                }
+                // Replacing pipe characters with an html entity in column descriptions to keep it from breaking markdown tables.
+                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;');
+
+                keywordsForSyntaxHighlighting.push(column.name);
+                if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
+                  columnDescriptionForTable += '<br> **Required in `WHERE` clause** ';
+                }
+                if(column.requires_user_context) { // If a column has `"requires_user_context": true`, we'll add a note to the description that will be added to the table
+                  columnDescriptionForTable += '<br> **Defaults to root** ';
+                }
+                if(column.platforms) { // If a column has an array of platforms, we'll add a note to the final column description
+
+                  let platformString = '<br> **Only available on ';// start building a string to add to the column's description
+
+                  if(column.platforms.length === 2) { // Because there are only three options for platform, we can safely assume that there will be at most 2 platforms, so we'll just handle this one of two ways
+                    // If there are two values in the platforms array, we'll add the capitalized version of each to the columns description
+                    platformString += column.platforms[0]+' and '+ column.platforms[1];
+                  } else {
+                    // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
+                    platformString += column.platforms[0];
+                  }
+                  platformString += ' devices.** ';
+                  columnDescriptionForTable += platformString; // Add the platform string to the column's description.
+                }
+                tableMdString += ' | '+column.name+' | '+ column.type +' | '+columnDescriptionForTable+'|\n';
+              }
+            }
+            if(table.examples) { // If this table has a examples value (These will be in the Fleet schema JSON) We'll add the examples to the markdown string.
+              tableMdString += '\n### Example\n\n'+table.examples+'\n';
+            }
+            if(table.notes) { // If this table has a notes value (These will be in the Fleet schema JSON) We'll add the notes to the markdown string.
+              tableMdString += '\n### Notes\n\n'+table.notes+'\n';
+            }
+            // Determine the htmlId for table
+            let htmlId = (
+              'table--'+
+              table.name+
+              '--'+
+              sails.helpers.strings.random.with({len:10})
+            ).replace(/[^a-z0-9\-]/ig,'');
+
+            // Convert the markdown string to HTML.
+            let htmlString = await sails.helpers.strings.toHtml.with({mdString: tableMdString, addIdsToHeadings: false});
+
+            // Add the language-sql class to codeblocks in generated HTML partial for syntax highlighting.
+            htmlString = htmlString.replace(/(<pre><code)([^>]*)(>)/gm, '$1 class="language-sql"$2$3');
+
+            htmlString = htmlString.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{// « Modify links that are potentially external
+              // Check if this is an external link (like https://google.com) but that is ALSO not a link
+              // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
+              // If external, add target="_blank" so the link will open in a new tab.
+              let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+              // Check if this link is to fleetdm.com or www.fleetdm.com.
+              let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
+              if (isExternal) {
+                return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+              } else {
+                // Otherwise, change the link to be web root relative.
+                // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+                // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
+                if (isBaseUrl) {
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
+                } else {
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/^fleetdm\.com/, 'href="');
+                }
+              }
+            });//∞
+
+            // Determine the path of the folder where the built HTML partials will live.
+            let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
+            if (dry) {
+              sails.log('Dry run: Would have generated file:', htmlOutputPath);
+            } else {
+              await sails.helpers.fs.write(htmlOutputPath, htmlString);
+            }
+            // Add this table to the array of schemaTables in builtStaticContent.
+            builtStaticContent.markdownPages.push({
+              url: '/tables/'+encodeURIComponent(table.name),
+              title: table.name,
+              htmlId: htmlId,
+              evented: table.evented,
+              platforms: table.platforms,
+              keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
+              sectionRelativeRepoPath: table.name, // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.
+              githubUrl: table.fleetRepoUrl,
+            });
+          }
+        }
         // Attach partials dir path in what will become configuration for the Sails app.
         // (This is for easier access later, without defining this constant in more than one place.)
         builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;

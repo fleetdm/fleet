@@ -7,4 +7,8 @@
   padding: $pad-xxlarge;
   // need relative positioning for a close icon that is on some sidebars have
   position: relative;
+
+  .component__tooltip-wrapper__tip-text {
+    max-width: 280px;
+  }
 }

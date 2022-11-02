@@ -3,15 +3,15 @@
 // the configuration get properly passed down to the pool creation.
 //
 // To run a TLS redis server:
-//     * Build redis from source with `make BUILD_TLS=yes` (https://redis.io/topics/encryption)
-//     * Generate certificates and keys with `./utils/gen-test-certs.sh`
-//       (the generated files will be under ./tests/tls/)
-//     * Run `./src/redis-server --tls-port 7379 --port 0 --tls-ca-cert-file
-//       ./tests/tls/ca.crt --tls-cert-file ./tests/tls/redis.crt --tls-key-file
-//       ./tests/tls/redis.key`
-//     * Run this command to test connection, e.g.:
-//       `go run ./tools/redis-tests/tlsconnect.go -- -addr localhost:7379 -cacert ./tests/tls/ca.crt
-//        -cert ./tests/tls/redis.crt -key ./tests/tls/redis.key PING` -skip
+//   - Build redis from source with `make BUILD_TLS=yes` (https://redis.io/topics/encryption)
+//   - Generate certificates and keys with `./utils/gen-test-certs.sh`
+//     (the generated files will be under ./tests/tls/)
+//   - Run `./src/redis-server --tls-port 7379 --port 0 --tls-ca-cert-file
+//     ./tests/tls/ca.crt --tls-cert-file ./tests/tls/redis.crt --tls-key-file
+//     ./tests/tls/redis.key`
+//   - Run this command to test connection, e.g.:
+//     `go run ./tools/redis-tests/tlsconnect.go -- -addr localhost:7379 -cacert ./tests/tls/ca.crt
+//     -cert ./tests/tls/redis.crt -key ./tests/tls/redis.key PING` -skip
 package main
 
 import (

@@ -1,3 +1,5 @@
+import managePacksPage from "../../pages/managePacksPage";
+
 describe("Pack flow (empty)", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -12,15 +14,11 @@ describe("Pack flow (empty)", () => {
   describe("Manage packs page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/packs/manage");
+      managePacksPage.visitsManagePacksPage();
     });
     it("creates a new pack", () => {
-      cy.findByRole("button", { name: /create new pack/i }).click();
-      cy.findByLabelText(/name/i).click().type("Errors and crashes");
-      cy.findByLabelText(/description/i)
-        .click()
-        .type("See all user errors and window crashes.");
-      cy.findByRole("button", { name: /save query pack/i }).click();
+      managePacksPage.allowsCreatePack();
+      managePacksPage.verifiesCreatedPack();
     });
   });
 });
@@ -40,7 +38,7 @@ describe("Pack flow (seeded)", () => {
   describe("Pack details page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/packs/manage");
+      managePacksPage.visitsManagePacksPage();
       cy.getAttached(".name__cell > .button--text-link").first().click();
     });
     it("adds a query to an existing pack", () => {
@@ -74,35 +72,18 @@ describe("Pack flow (seeded)", () => {
         .click();
     });
     it("edits an existing pack", () => {
-      cy.findByLabelText(/name/i).clear().type("Server errors");
-      cy.findByLabelText(/description/i)
-        .clear()
-        .type("See all server errors.");
-      cy.findByRole("button", { name: /save/i }).click();
+      managePacksPage.allowsEditPack();
+      managePacksPage.verifiesEditedPack();
     });
   });
   describe("Manage packs page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/packs/manage");
+      managePacksPage.visitsManagePacksPage();
     });
     it("deletes an existing pack", () => {
-      cy.getAttached("tbody").within(() => {
-        cy.getAttached("tr")
-          .first()
-          .within(() => {
-            cy.getAttached(".fleet-checkbox__input").check({ force: true });
-          });
-      });
-      cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-pack-modal .modal-cta-wrap > .button--alert")
-        .contains("button", /delete/i)
-        .click({ force: true });
-      cy.findByText(/successfully deleted/i).should("be.visible");
-      cy.visit("/packs/manage");
-      cy.getAttached(".table-container").within(() => {
-        cy.findByText(/windows starter pack/i).should("not.exist");
-      });
+      managePacksPage.allowsDeletePack();
+      managePacksPage.verifiesDeletedPack();
     });
   });
 });

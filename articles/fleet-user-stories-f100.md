@@ -34,12 +34,6 @@ All that said, Fleet is exactly what we were looking for: a dead simple way to m
 
 I don’t directly deal with that — that’s our security operations team, mostly. I don’t think we deal with a lot of alert fatigue, or false positives. I would say, conservatively, that 80% of our alerts are actionable. We use Splunk mostly for historical and IR purposes. There are some alerts in there for some very specific purposes, and when they trigger, it means there’s a thing that needs to happen.
 
-### How could Fleet be better?
-
-You guys have done things well in a lot of ways, and I’m like; “this makes sense.” More improvements to the documentation would be helpful during adoption — e.g., easy to understand reference docs about YAML and config.
-
-I love Fleet. It was stupid simple to set up once we were engaged with y’all. You’ve been really responsive to feature requests and help. The fleetctl thing was especially helpful. It was something that I could have done myself, but y’all did it in a day. It’s things like this that have large knock-on effects.
-
 <meta name="category" value="success stories">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="authorFullName" value="Mike Thomas">

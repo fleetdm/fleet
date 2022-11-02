@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -63,18 +62,48 @@ func init() {
 type Stats struct {
 	errors            int
 	enrollments       int
+	orbitenrollments  int
 	distributedwrites int
+	orbitErrors       int
+	desktopErrors     int
 
 	l sync.Mutex
 }
 
-func (s *Stats) RecordStats(errors int, enrollments int, distributedwrites int) {
+func (s *Stats) IncrementErrors(errors int) {
 	s.l.Lock()
 	defer s.l.Unlock()
-
 	s.errors += errors
-	s.enrollments += enrollments
-	s.distributedwrites += distributedwrites
+}
+
+func (s *Stats) IncrementEnrollments() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.enrollments++
+}
+
+func (s *Stats) IncrementOrbitEnrollments() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.orbitenrollments++
+}
+
+func (s *Stats) IncrementDistributedWrites() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.distributedwrites++
+}
+
+func (s *Stats) IncrementOrbitErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.orbitErrors++
+}
+
+func (s *Stats) IncrementDesktopErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.desktopErrors++
 }
 
 func (s *Stats) Log() {
@@ -82,11 +111,14 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	fmt.Printf(
-		"%s :: error rate: %.2f \t enrollments: %d \t writes: %d\n",
+		"%s :: error rate: %.2f \t enrollments: %d \t orbit enrollments: %d \t writes: %d\n \t orbit errors: %d \t desktop errors: %d",
 		time.Now().String(),
 		float64(s.errors)/float64(s.enrollments),
 		s.enrollments,
+		s.orbitenrollments,
 		s.distributedwrites,
+		s.orbitErrors,
+		s.desktopErrors,
 	)
 }
 
@@ -172,6 +204,7 @@ type agent struct {
 	// Non-nil means the agent is identified as orbit osquery,
 	// nil means the agent is identified as vanilla osquery.
 	deviceAuthToken *string
+	orbitNodeKey    *string
 
 	scheduledQueries []string
 
@@ -242,7 +275,17 @@ type distributedReadResponse struct {
 	Queries map[string]string `json:"queries"`
 }
 
+func (a *agent) isOrbit() bool {
+	return a.deviceAuthToken != nil
+}
+
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
+	if a.isOrbit() {
+		if err := a.orbitEnroll(); err != nil {
+			return
+		}
+	}
+
 	if err := a.enroll(i, onlyAlreadyEnrolled); err != nil {
 		return
 	}
@@ -255,6 +298,10 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		if len(resp.Queries) > 0 {
 			a.DistributedWrite(resp.Queries)
 		}
+	}
+
+	if a.isOrbit() {
+		go a.runOrbitLoop()
 	}
 
 	configTicker := time.Tick(a.ConfigInterval)
@@ -274,20 +321,181 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	}
 }
 
+func (a *agent) runOrbitLoop() {
+	orbitClient, err := service.NewOrbitClient(
+		"",
+		a.serverAddress,
+		"",
+		true,
+		a.EnrollSecret,
+		a.UUID,
+	)
+	if err != nil {
+		log.Println("creating orbit client: ", err)
+	}
+
+	orbitClient.TestNodeKey = *a.orbitNodeKey
+
+	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "")
+	if err != nil {
+		log.Println("creating device client: ", err)
+	}
+
+	// orbit does a config check when it starts
+	if _, err := orbitClient.GetConfig(); err != nil {
+		a.stats.IncrementOrbitErrors()
+		log.Println("orbitClient.GetConfig: ", err)
+	}
+
+	tokenRotationEnabled := orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
+		orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation)
+
+	// it also writes and checks the device token
+	if tokenRotationEnabled {
+		if err := orbitClient.SetOrUpdateDeviceToken(*a.deviceAuthToken); err != nil {
+			a.stats.IncrementOrbitErrors()
+			log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+		}
+
+		if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+			a.stats.IncrementOrbitErrors()
+			log.Println("deviceClient.CheckToken: ", err)
+		}
+	}
+
+	// checkToken is used to simulate Fleet Desktop polling until a token is
+	// valid, we make a random number of requests to properly emulate what
+	// happens in the real world as there are delays that are not accounted by
+	// the way this simulation is arranged.
+	checkToken := func() {
+		min := 1
+		max := 5
+		numberOfRequests := rand.Intn(max-min+1) + min
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+			numberOfRequests--
+			if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+				log.Println("deviceClient.CheckToken: ", err)
+			}
+			if numberOfRequests == 0 {
+				break
+			}
+		}
+	}
+
+	// fleet desktop performs a burst of check token requests when it's initialized
+	checkToken()
+
+	// orbit makes a call to check the config and update the CLI flags every 5
+	// seconds
+	orbitConfigTicker := time.Tick(30 * time.Second)
+	// orbit makes a call every 5 minutes to check the validity of the device
+	// token on the server
+	orbitTokenRemoteCheckTicker := time.Tick(5 * time.Minute)
+	// orbit pings the server every 1 hour to rotate the device token
+	orbitTokenRotationTicker := time.Tick(1 * time.Hour)
+	// orbit polls the /orbit/ping endpoint every 5 minutes to check if the
+	// server capabilities have changed
+	capabilitiesCheckerTicker := time.Tick(5 * time.Minute)
+	// fleet desktop polls for policy compliance every 5 minutes
+	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
+
+	for {
+		select {
+		case <-orbitConfigTicker:
+			if _, err := orbitClient.GetConfig(); err != nil {
+				a.stats.IncrementOrbitErrors()
+				log.Println("orbitClient.GetConfig: ", err)
+			}
+		case <-orbitTokenRemoteCheckTicker:
+			if tokenRotationEnabled {
+				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+					a.stats.IncrementOrbitErrors()
+					log.Println("deviceClient.CheckToken: ", err)
+				}
+			}
+		case <-orbitTokenRotationTicker:
+			if tokenRotationEnabled {
+				newToken := ptr.String(uuid.NewString())
+				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
+					a.stats.IncrementOrbitErrors()
+					log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+				}
+				a.deviceAuthToken = newToken
+				// fleet desktop performs a burst of check token requests after a token is rotated
+				checkToken()
+			}
+		case <-capabilitiesCheckerTicker:
+			if err := orbitClient.Ping(); err != nil {
+				a.stats.IncrementOrbitErrors()
+				log.Println("orbitClient.Ping: ", err)
+			}
+		case <-fleetDesktopPolicyTicker:
+			if _, err := deviceClient.NumberOfFailingPolicies(*a.deviceAuthToken); err != nil {
+				a.stats.IncrementDesktopErrors()
+				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+			}
+		}
+	}
+}
+
 func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 	err := a.fastClient.Do(req, res)
 	for err != nil || res.StatusCode() != http.StatusOK {
 		fmt.Println(err, res.StatusCode())
-		a.stats.RecordStats(1, 0, 0)
+		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
 		err = a.fastClient.Do(req, res)
 	}
 }
 
+// TODO: add support to `alreadyEnrolled` akin to the `enroll` function.  for
+// now, we assume that the agent is not already enrolled, if you kill the agent
+// process then those Orbit node keys are gone.
+func (a *agent) orbitEnroll() error {
+	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
+
+	req := fasthttp.AcquireRequest()
+
+	jsonBytes, err := json.Marshal(params)
+	if err != nil {
+		log.Println("orbit json marshall:", err)
+		return err
+	}
+
+	req.SetBody(jsonBytes)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("application/json")
+	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
+
+	resp := fasthttp.AcquireResponse()
+
+	a.waitingDo(req, resp)
+	defer fasthttp.ReleaseResponse(resp)
+
+	if resp.StatusCode() != http.StatusOK {
+		log.Println("orbit enroll status:", resp.StatusCode())
+		return fmt.Errorf("status code: %d", resp.StatusCode())
+	}
+
+	var parsedResp service.EnrollOrbitResponse
+	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
+		log.Println("orbit json parse:", err)
+		return err
+	}
+
+	a.orbitNodeKey = &parsedResp.OrbitNodeKey
+	a.stats.IncrementOrbitEnrollments()
+	return nil
+}
+
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.nodeKey = a.nodeKeyManager.Get(i)
 	if a.nodeKey != "" {
-		a.stats.RecordStats(0, 1, 0)
+		a.stats.IncrementEnrollments()
 		return nil
 	}
 
@@ -326,7 +534,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	}
 
 	a.nodeKey = parsedResp.NodeKey
-	a.stats.RecordStats(0, 1, 0)
+	a.stats.IncrementEnrollments()
 
 	a.nodeKeyManager.Add(a.nodeKey)
 
@@ -465,7 +673,7 @@ func loadSoftware(platform string, ver string) []map[string]string {
 		fmt.Sprintf("%s_%s-software.json.bz2", platform, ver),
 	)
 
-	tmpDir, err := ioutil.TempDir("", "osquery-perf")
+	tmpDir, err := os.MkdirTemp("", "osquery-perf")
 	if err != nil {
 		panic(err)
 	}
@@ -482,7 +690,7 @@ func loadSoftware(platform string, ver string) []map[string]string {
 	}
 
 	var software []softwareJSON
-	contents, err := ioutil.ReadFile(dstPath)
+	contents, err := os.ReadFile(dstPath)
 	if err != nil {
 		log.Printf("reading vuln software for %s %s: %s\n", platform, ver, err)
 		return nil
@@ -631,7 +839,7 @@ func (a *agent) runPolicy(query string) []map[string]string {
 			{"1": "1"},
 		}
 	}
-	return nil
+	return []map[string]string{}
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
@@ -652,15 +860,6 @@ func (a *agent) randomQueryStats() []map[string]string {
 		})
 	}
 	return stats
-}
-
-func (a *agent) orbitInfo() (bool, []map[string]string) {
-	if a.deviceAuthToken != nil {
-		return true, []map[string]string{
-			{"device_auth_token": *a.deviceAuthToken, "version": "osquery-perf"},
-		}
-	}
-	return false, nil // vanilla osquery returns no results (due to discovery query).
 }
 
 func (a *agent) mdm() []map[string]string {
@@ -770,23 +969,38 @@ func (a *agent) batteries() []map[string]string {
 	return result
 }
 
+func (a *agent) diskSpace() []map[string]string {
+	// between 1-100 gigs, between 0-99 percentage available
+	gigs := rand.Intn(100)
+	gigs++
+	pct := rand.Intn(100)
+	return []map[string]string{
+		{"percent_disk_space_available": strconv.Itoa(gigs), "gigs_disk_space_available": strconv.Itoa(pct)},
+	}
+}
+
+func (a *agent) diskEncryption() []map[string]string {
+	// 50% of results have encryption enabled
+	enabled := rand.Intn(2) == 1
+	if enabled {
+		return []map[string]string{{"1": "1"}}
+	}
+	return []map[string]string{}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
 	)
 	statusOK := fleet.StatusOK
+	statusNotOK := fleet.OsqueryStatus(1)
 
 	switch {
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK
-	case name == hostDetailQueryPrefix+"orbit_info":
-		if ok, results := a.orbitInfo(); ok {
-			return true, results, &statusOK
-		}
-		return true, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -848,6 +1062,24 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			}
 		}
 		return true, results, &ss
+	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskSpace()
+		}
+		return true, results, &ss
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_"):
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryption()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
+		// Real osquery running on hosts would return no results if it was not
+		// running kubequery (due to discovery query). Returning true here so that
+		// the caller knows it is handled, will not try to return lorem-ipsum-style
+		// results.
+		return true, nil, &statusNotOK
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
@@ -907,7 +1139,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
-	a.stats.RecordStats(0, 0, 1)
+	a.stats.IncrementDistributedWrites()
 	// No need to read the distributed write body
 }
 

@@ -15,7 +15,9 @@ This document is a walkthrough guide for:
 
 ### Sync Fleet's TUF repository
 
-For simplicity we sync the repository to the USB stick.
+The `fleetctl updates --path=<SOME_PATH>` commands assume `keys/`, `staged/` and `repository/` are under
+<SOME_PATH> (default value for <SOME_PATH> is the current directory `"."`).
+
 ```sh
 cd /Volumes/FLEET-TUF/repository
 

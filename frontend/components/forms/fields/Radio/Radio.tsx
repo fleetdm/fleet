@@ -15,6 +15,7 @@ export interface IRadioProps {
   className?: string;
   disabled?: boolean;
   tooltip?: string;
+  testId?: string;
 }
 
 const Radio = ({
@@ -26,16 +27,15 @@ const Radio = ({
   disabled,
   label,
   tooltip,
+  testId,
   onChange,
 }: IRadioProps): JSX.Element => {
-  const wrapperClasses = classnames(baseClass, className);
-
-  const radioControlClass = classnames({
+  const wrapperClasses = classnames(baseClass, className, {
     [`disabled`]: disabled,
   });
 
   return (
-    <label htmlFor={id} className={`${wrapperClasses} ${radioControlClass}`}>
+    <label htmlFor={id} className={wrapperClasses} data-testid={testId}>
       <span className={`${baseClass}__input`}>
         <input
           type="radio"

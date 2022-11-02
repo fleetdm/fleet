@@ -9,6 +9,7 @@ spec:
   build: ""
   code_name: ""
   computer_name: test_host
+  display_name: test_host
   config_tls_refresh: 0
   cpu_brand: ""
   cpu_logical_cores: 0

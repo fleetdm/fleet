@@ -104,15 +104,12 @@ module.exports.custom = {
 
     'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/people': 'charlottechance',
+    'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
-    'handbook/product': 'noahtalerman',
+    'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/security': 'guillaumeross',
-    'handbook/sales': 'alexmitchelliii',
-    'handbook/digital-experience': 'mike-j-thomas',
-    'handbook/growth': 'timmy-k',
-    'handbook/customers': 'tgauda',
-    'handbook/community': ['timmy-k'],
+    'handbook/customers': ['alexmitchelliii','zayhanlon'],
+    'handbook/marketing': ['mike-j-thomas','chris-mcgillicuddy'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
@@ -120,15 +117,16 @@ module.exports.custom = {
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/package.json': 'eashaw',
 
-    'docs': ['desmi-dizney', 'chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
+    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': 'ksatter',
     'docs/Contributing/API-for-contributors.md': 'ksatter',
-    'docs/Deploying/FAQ.md': ['ksatter', 'tgauda'],
-    'docs/Contributing/FAQ.md': ['ksatter', 'tgauda'],
-    'docs/Using-Fleet/FAQ.md': ['ksatter', 'tgauda'],
+    'docs/Deploying/FAQ.md': ['ksatter'],
+    'docs/Contributing/FAQ.md': ['ksatter'],
+    'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
+    'schema/': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
   },
 
 

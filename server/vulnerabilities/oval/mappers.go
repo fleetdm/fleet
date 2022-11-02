@@ -72,12 +72,16 @@ func mapCriteria(i oval_input.CriteriaXML) (*oval_parsed.Criteria, error) {
 // Test objects can define their 'name' in one of two ways:
 // 1. Inline:
 // <:object ...>
-//      <:name>software name</:name>
+//
+//	<:name>software name</:name>
+//
 // </:object>
 //
 // 2. As a variable reference:
 // <:object ...>
-// 		<:name var_ref="var:200224390000000" var_check="at least one" />
+//
+//	<:name var_ref="var:200224390000000" var_check="at least one" />
+//
 // </:object>
 func mapPackageInfoTestObject(
 	obj oval_input.PackageInfoTestObjectXML,

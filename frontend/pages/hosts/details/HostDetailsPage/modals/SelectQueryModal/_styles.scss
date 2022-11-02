@@ -1,33 +1,4 @@
 .select-query-modal {
-  &__modal {
-    @include position(absolute, 22px null null null);
-    background-color: $core-white;
-    width: 658px;
-    padding: $pad-xxlarge;
-    border-radius: $pad-small;
-
-    .info {
-      display: flex;
-      flex-direction: column;
-
-      &__header {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: left;
-      }
-      &__data {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: left;
-        margin-top: 10px;
-      }
-    }
-  }
-
   &__no-queries {
     .info {
       &__header {
@@ -72,6 +43,8 @@
   }
 
   &__create-query {
+    display: flex;
+
     span {
       margin: 15px;
       font-weight: bold;

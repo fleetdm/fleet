@@ -9,6 +9,7 @@
 
     button {
       color: $core-vibrant-blue;
+      font-weight: $bold;
       padding: 6px;
 
       .fleeticon-chevronleft {
@@ -35,7 +36,7 @@
     }
 
     button:hover,
-    button.focus-visible {
+    button:focus {
       background-color: $ui-vibrant-blue-10;
     }
 

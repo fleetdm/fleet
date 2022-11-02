@@ -1,7 +1,6 @@
-export const ALL_HOSTS_LABEL = "all-hosts";
 export const LABEL_SLUG_PREFIX = "labels/";
 
-export const DEFAULT_SORT_HEADER = "hostname";
+export const DEFAULT_SORT_HEADER = "display_name";
 export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 20;
 
@@ -9,7 +8,7 @@ export const HOST_SELECT_STATUSES = [
   {
     disabled: false,
     label: "All hosts",
-    value: ALL_HOSTS_LABEL,
+    value: "",
     helpText: "All hosts that have been enrolled to Fleet.",
   },
   {
@@ -23,6 +22,12 @@ export const HOST_SELECT_STATUSES = [
     label: "Offline hosts",
     value: "offline",
     helpText: "Hosts that have not checked in to Fleet recently.",
+  },
+  {
+    disabled: false,
+    label: "Missing hosts",
+    value: "missing",
+    helpText: "Hosts that have been offline for 30 days or more.",
   },
   {
     disabled: false,

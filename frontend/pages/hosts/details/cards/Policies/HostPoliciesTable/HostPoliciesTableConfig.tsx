@@ -1,18 +1,9 @@
 import React from "react";
-import { Link } from "react-router";
-import PATHS from "router/paths";
 import StatusCell from "components/TableContainer/DataTable/StatusCell";
 import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse } from "utilities/constants";
-
-import Chevron from "../../../../../../../assets/images/icon-chevron-right-9x6@2x.png";
-
-const TAGGED_TEMPLATES = {
-  hostsByPolicyRoute: (policyId: number, policyResponse: PolicyResponse) => {
-    return `?policy_id=${policyId}&policy_response=${policyResponse}`;
-  },
-};
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IHeaderProps {
   column: {
@@ -92,21 +83,16 @@ const generatePolicyTableHeaders = (
         return (
           <>
             {cellProps.row.original.response && (
-              <Link
-                to={
-                  PATHS.MANAGE_HOSTS +
-                  TAGGED_TEMPLATES.hostsByPolicyRoute(
-                    cellProps.row.original.id,
+              <ViewAllHostsLink
+                queryParams={{
+                  policy_id: cellProps.row.original.id,
+                  policy_response:
                     cellProps.row.original.response === "pass"
                       ? PolicyResponse.PASSING
-                      : PolicyResponse.FAILING
-                  )
-                }
-                className={`policy-link`}
-              >
-                View all hosts{" "}
-                <img alt="link to hosts filtered by policy ID" src={Chevron} />
-              </Link>
+                      : PolicyResponse.FAILING,
+                }}
+                className="policy-link"
+              />
             )}
           </>
         );

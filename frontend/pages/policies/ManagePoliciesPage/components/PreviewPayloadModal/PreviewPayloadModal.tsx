@@ -3,7 +3,7 @@ import { syntaxHighlight } from "utilities/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "preview-data-modal";
 
@@ -31,30 +31,32 @@ const PreviewPayloadModal = ({
     hosts: [
       {
         id: 1,
-        hostname: "macbook-1",
+        display_name: "macbook-1",
         url: "https://fleet.example.com/hosts/1",
       },
       {
         id: 2,
-        hostname: "macbbook-2",
+        display_name: "macbbook-2",
         url: "https://fleet.example.com/hosts/2",
       },
     ],
   };
 
   return (
-    <Modal title={"Example payload"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Example payload"}
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+    >
       <div className={`${baseClass}__preview-modal`}>
         <p>
           Want to learn more about how automations in Fleet work?{" "}
-          <a
-            href="https://fleetdm.com/docs/using-fleet/automations"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Check out the Fleet documentation
-            <img src={ExternalLinkIcon} alt="Open external link" />
-          </a>
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/automations"
+            text="Check out the Fleet documentation"
+            newTab
+          />
         </p>
         <div className={`${baseClass}__payload-request-preview`}>
           <pre>POST https://server.com/example</pre>

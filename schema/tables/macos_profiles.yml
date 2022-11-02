@@ -1,0 +1,46 @@
+name: macos_profiles
+notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+description: High level information on installed profiles enrollment.
+platforms: darwin
+evented: false
+examples: >-
+  Identify all profiles that are not *verified*.
+  
+  ```
+  
+  SELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  
+  
+  ```
+columns:
+  - name: description
+    description: The description of the profile.
+    required: false
+    type: text
+  - name: display_name
+    description: The display name of the profile.
+    required: false
+    type: text
+  - name: identifier
+    description: The identifier of the profile. 
+    required: false
+    type: text
+  - name: install_date
+    description: Date and time at which the profile was installed.
+    required: false
+    type: text
+  - name: organization
+    description: The profile's organization value.
+    required: false
+    type: text
+  - name: type
+    description: The type of profile.
+    required: false
+    type: text
+  - name: uuid
+    description: The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.
+    required: false
+    type: text
+  - name: verification_state
+    description: The verification state of the profile.
+    required: false
+    type: text

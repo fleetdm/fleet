@@ -99,7 +99,7 @@ func TestLiveQuery(t *testing.T) {
 			fleet.DistributedQueryResult{
 				DistributedQueryCampaignID: 321,
 				Rows:                       []map[string]string{{"bing": "fds"}},
-				Host: fleet.Host{
+				Host: fleet.HostResponseForHostCheap(&fleet.Host{
 					ID: 99,
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 						UpdateTimestamp: fleet.UpdateTimestamp{
@@ -108,12 +108,12 @@ func TestLiveQuery(t *testing.T) {
 					},
 					DetailUpdatedAt: time.Now().UTC(),
 					Hostname:        "somehostname",
-				},
+				}),
 			},
 		))
 	}()
 
-	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_hostname":"somehostname"}]}
+	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
 }

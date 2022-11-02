@@ -67,7 +67,7 @@ module "aurora_mysql" {
 
   name                  = "${local.name}-mysql-iam"
   engine                = "aurora-mysql"
-  engine_version        = "5.7.mysql_aurora.2.10.2"
+  engine_version        = "8.0.mysql_aurora.3.02.0"
   instance_type         = var.db_instance_type_writer
   instance_type_replica = var.db_instance_type_reader
 
@@ -79,6 +79,7 @@ module "aurora_mysql" {
   database_name                       = var.database_name
   enable_http_endpoint                = false
   backup_retention_period             = var.rds_backup_retention_period
+  snapshot_identifier                 = var.rds_initial_snapshot
   #performance_insights_enabled       = true
 
   vpc_id                = module.vpc.vpc_id
@@ -103,17 +104,16 @@ module "aurora_mysql" {
 
   db_parameter_group_name         = aws_db_parameter_group.example_mysql.id
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.example_mysql.id
-
 }
 
 resource "aws_db_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-db-mysql-parameter-group"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-db-mysql-parameter-group"
 }
 
 resource "aws_rds_cluster_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-mysql-cluster-parameter-group"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-mysql-cluster-parameter-group"
 }

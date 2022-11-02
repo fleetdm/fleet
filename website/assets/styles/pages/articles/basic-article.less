@@ -120,7 +120,11 @@
     [purpose='checklist-item']::marker {
       display: none;
     }
-    code:not(.nohighlight):not(.mermaid) {
+    a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
+      color: inherit;
+      text-decoration: inherit;
+    }
+    code:not(.bash):not(.nohighlight):not(.mermaid) {
       background: #F1F0FF;
       padding: 4px 8px;
       font-family: @code-font;
@@ -188,7 +192,7 @@
       border: 1px solid @core-vibrant-blue-50;
       padding: 16px;
       border-radius: 8px;
-      display: inline-flex;
+      display: flex;
       img {
         display: flex;
         margin: 4px 12px 0 0;
@@ -198,9 +202,18 @@
       }
       p {
         display: block;
-        margin-bottom: 0px;
+        margin-bottom: 16px;
         line-height: 24px;
         font-size: 16px;
+      }
+      p:only-child, p:last-child {
+        margin-bottom: 0px;
+      }
+      ul:last-child {
+        margin-bottom: 0px;
+      }
+      li:last-child {
+        padding-bottom: 0px;
       }
     }
     [purpose='embedded-content'] {

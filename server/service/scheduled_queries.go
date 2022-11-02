@@ -108,8 +108,8 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery)
 
 func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	if sq.Interval < 1 || sq.Interval > fleet.MaxScheduledQueryInterval {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: "invalid scheduled query interval",
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "invalid scheduled query interval",
 		})
 	}
 

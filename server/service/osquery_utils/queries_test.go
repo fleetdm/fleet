@@ -24,84 +24,22 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(config.FleetConfig{}, nil)["network_interface"].IngestFunc
+	ingest := GetDetailQueries(config.FleetConfig{}, nil)["network_interface_unix"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
-	// docker interface should be skipped even though it shows up first
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"172.17.0.1","mac":"d3:4d:b3:3f:58:5b","interface":"docker0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b","interface":"en0"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
+  {"address":"10.0.1.2","mac":"bc:d0:74:4b:10:6d"}
 ]`),
 		&rows,
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
-	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
-
-	// Only IPv6
-	require.NoError(t, json.Unmarshal([]byte(`
-[
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb","interface":"en0"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
-]`),
-		&rows,
-	))
-
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "2604:3f08:1337:9411:cbe:814f:51a6:e4e3", host.PrimaryIP)
-	assert.Equal(t, "27:1b:aa:60:e8:0a", host.PrimaryMac)
-
-	// IPv6 appears before IPv4 (v4 should be prioritized)
-	require.NoError(t, json.Unmarshal([]byte(`
-[
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a","interface":"en1"},
-  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a","interface":"en1"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
-]`),
-		&rows,
-	))
-
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "205.111.43.79", host.PrimaryIP)
-	assert.Equal(t, "ab:1b:aa:60:e8:0a", host.PrimaryMac)
-
-	// Only link-local/loopback
-	require.NoError(t, json.Unmarshal([]byte(`
-[
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
-]`),
-		&rows,
-	))
-
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "127.0.0.1", host.PrimaryIP)
-	assert.Equal(t, "00:00:00:00:00:00", host.PrimaryMac)
+	assert.Equal(t, "10.0.1.2", host.PrimaryIP)
+	assert.Equal(t, "bc:d0:74:4b:10:6d", host.PrimaryMac)
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
@@ -297,10 +235,10 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
-	require.Len(t, queriesNoConfig, 17)
 
 	baseQueries := []string{
-		"network_interface",
+		"network_interface_unix",
+		"network_interface_windows",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -310,27 +248,35 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_space_unix",
 		"disk_space_windows",
 		"mdm",
+		"mdm_windows",
 		"munki_info",
 		"google_chrome_profiles",
-		"orbit_info",
 		"battery",
 		"os_windows",
 		"os_unix_like",
 		"windows_update_history",
+		"kubequery_info",
+		"orbit_info",
+		"disk_encryption_darwin",
+		"disk_encryption_linux",
+		"disk_encryption_windows",
 	}
+
+	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 16)
+	require.Len(t, queriesWithoutWinOSVuln, 22)
 
 	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
-	require.Len(t, queriesWithUsers, 19)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
+	qs := append(baseQueries, "users", "scheduled_query_stats")
+	require.Len(t, queriesWithUsers, len(qs))
+	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	require.Len(t, queriesWithUsersAndSoftware, 22)
-	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
+	qs = append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats")
+	require.Len(t, queriesWithUsersAndSoftware, len(qs))
+	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
@@ -430,18 +376,41 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
     "platform": "windows",
     "platform_like": "windows",
     "version": "10.0.22000",
-	"data": "21H2"
+	"display_version": "21H2",
+	"release_id": ""
 }]`),
 		&rows,
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
+
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "WinBox",
+    "arch": "64-bit",
+    "build": "17763",
+    "codename": "Microsoft Windows 10 Enterprise LTSC",
+    "major": "10",
+    "minor": "0",
+    "name": "Microsoft Windows 10 Enterprise LTSC",
+    "patch": "",
+    "platform": "windows",
+    "platform_like": "windows",
+    "version": "10.0.17763",
+	"display_version": "",
+	"release_id": "1809"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Windows 10 Enterprise LTSC 1809", host.OSVersion)
 }
 
-func TestDirectIngestMDM(t *testing.T) {
+func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 		require.False(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Empty(t, serverURL)
@@ -450,11 +419,11 @@ func TestDirectIngestMDM(t *testing.T) {
 
 	var host fleet.Host
 
-	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err = directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
@@ -465,24 +434,29 @@ func TestDirectIngestMDM(t *testing.T) {
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }
 
-func TestDirectIngestOrbitInfo(t *testing.T) {
+func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
-		require.Equal(t, hostID, uint(1))
-		require.Equal(t, authToken, "foo")
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+		require.True(t, enrolled)
+		require.True(t, installedFromDep)
+		require.NotEmpty(t, serverURL)
 		return nil
 	}
 
-	host := fleet.Host{
-		ID: 1,
-	}
-
-	err := directIngestOrbitInfo(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{{
-		"version":           "42",
-		"device_auth_token": "foo",
-	}}, true)
+	var host fleet.Host
+	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
 	require.NoError(t, err)
-	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
+
+	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{
+			"discoveryServiceURL": "some url",
+			"autopilot":           "true",
+			"providerID":          "1337",
+		},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }
 
 func TestDirectIngestChromeProfiles(t *testing.T) {
@@ -535,28 +509,49 @@ func TestDirectIngestBattery(t *testing.T) {
 func TestDirectIngestOSWindows(t *testing.T) {
 	ds := new(mock.Store)
 
-	testHost := fleet.Host{
-		ID: 1,
-	}
-	testOS := fleet.OperatingSystem{
-		Name:          "Microsoft Windows 11 Enterprise",
-		Version:       "21H2",
-		Arch:          "64-bit",
-		KernelVersion: "10.0.22000.795",
+	testCases := []struct {
+		expected fleet.OperatingSystem
+		data     []map[string]string
+	}{
+		{
+			expected: fleet.OperatingSystem{
+				Name:          "Microsoft Windows 11 Enterprise",
+				Version:       "21H2",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.22000.795",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+			},
+		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:          "Microsoft Windows 10 Enterprise LTSC",
+				Version:       "1809",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.17763",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows 10 Enterprise LTSC", "display_version": "", "release_id": "1809", "arch": "64-bit", "kernel_version": "10.0.17763"},
+			},
+		},
 	}
 
-	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
-		require.Equal(t, testHost.ID, hostID)
-		require.Equal(t, testOS, hostOS)
-		return nil
+	host := fleet.Host{ID: 1}
+
+	for _, tt := range testCases {
+		ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+			require.Equal(t, host.ID, hostID)
+			require.Equal(t, tt.expected, hostOS)
+			return nil
+		}
+
+		err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &host, ds, tt.data, false)
+		require.NoError(t, err)
+
+		require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+		ds.UpdateHostOperatingSystemFuncInvoked = false
 	}
-
-	err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &testHost, ds, []map[string]string{
-		{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
-	}, false)
-
-	require.NoError(t, err)
-	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
 }
 
 func TestDirectIngestOSUnixLike(t *testing.T) {
@@ -788,4 +783,51 @@ func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload, false)
 	require.NoError(t, err)
 	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
+}
+
+func TestIngestKubequeryInfo(t *testing.T) {
+	err := ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, nil)
+	require.Error(t, err)
+	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{})
+	require.Error(t, err)
+	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{
+		{
+			"cluster_name": "foo",
+		},
+	})
+	require.NoError(t, err)
+}
+
+func TestDirectDiskEncryption(t *testing.T) {
+	ds := new(mock.Store)
+	var expectEncrypted bool
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+		assert.Equal(t, expectEncrypted, encrypted)
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	// set to true (osquery returned a row)
+	expectEncrypted = true
+	err := directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"col1": "1"},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+
+	// set to false (osquery returned nothing)
+	expectEncrypted = false
+	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+
+	// failed osquery result (should not update the host)
+	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }

@@ -125,7 +125,6 @@ const SoftwareTable = ({
                 isClientSidePagination
                 pageSize={20}
                 isClientSideFilter
-                highlightOnHover
               />
             </div>
           )}

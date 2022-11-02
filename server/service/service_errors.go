@@ -1,17 +1,5 @@
 package service
 
-type badRequestError struct {
-	message string
-}
-
-func (e *badRequestError) Error() string {
-	return e.message
-}
-
-func (e *badRequestError) BadRequestError() []map[string]string {
-	return nil
-}
-
 type alreadyExistsError struct{}
 
 func (a alreadyExistsError) Error() string {
@@ -45,7 +33,7 @@ const (
 	ssoAccountInvalid  ssoErrCode = "account_invalid"
 )
 
-// ssoError is an error that occurs during the Single-Sign-On flow. Its code
+// ssoError is an error that occurs during the single sign-on flow. Its code
 // indicates the type of error.
 type ssoError struct {
 	err  error

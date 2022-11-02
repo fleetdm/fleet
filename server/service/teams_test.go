@@ -149,7 +149,7 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{Name: ptr.String("othername")})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.ModifyTeamAgentOptions(ctx, 1, nil)
+			_, err = svc.ModifyTeamAgentOptions(ctx, 1, nil, fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			_, err = svc.AddTeamUsers(ctx, 1, []fleet.TeamUser{})
@@ -176,7 +176,7 @@ func TestTeamAuth(t *testing.T) {
 			_, err = svc.ModifyTeamEnrollSecrets(ctx, 1, []fleet.EnrollSecret{{Secret: "newteamsecret", CreatedAt: time.Now()}})
 			checkAuthErr(t, tt.shouldFailTeamSecretsWrite, err)
 
-			err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}})
+			err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1"}}, fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
@@ -269,7 +269,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return nil
 				}
 
-				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}})
+				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
 				require.NoError(t, err)
 			})
 		}
@@ -349,7 +349,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return nil
 				}
 
-				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}})
+				err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplySpecOptions{})
 				require.NoError(t, err)
 			})
 		}

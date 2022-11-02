@@ -277,7 +277,7 @@ parasails.registerPage('state-of-device-management', {
         challengesEncountered: [
           {label: 'Too complicated to configure and understand', percent: '36.1', color: '#A182DF'},
           {label: 'Confusing or limited documentation', percent: '34.2', color: '#E59CC4'},
-          {label: 'Integrating with single-sign on (Okta, SAML, etc.)', percent: '32.7', color: '#F1AC8C'},
+          {label: 'Integrating with single sign-on (Okta, SAML, etc.)', percent: '32.7', color: '#F1AC8C'},
           {label: 'Hard to get support', percent: '32.7', color: '#91D4C7'},
           {label: 'Unable to automate everything we want with the API', percent: '32.2', color: '#C4C2CE'},
           {label: 'Didn’t know where to start', percent: '30.7', color: '#8191E5'},
@@ -299,7 +299,7 @@ parasails.registerPage('state-of-device-management', {
           {label: 'Collecting security data from enrolled devices', percent: '25.9', color: '#8191E5'},
           {label: 'GitOps workflows for configuration', percent: '24.4', color: '#23AD8E'},
           {label: 'Remotely locking or wiping devices', percent: '23.4', color: '#E5D698'},
-          {label: 'Integration with single-sign on (Okta, etc.)', percent: '23.4', color: '#B99EEF'},
+          {label: 'Integration with single sign-on (Okta, etc.)', percent: '23.4', color: '#B99EEF'},
           {label: '24/7 support', percent: '23.4', color: '#CB73A3'},
           {label: 'Developer-friendly API and webhooks', percent: '22.9', color: '#E3B6A0'},
           {label: 'Device posture information available in API or integrations ("zero trust")', percent: '22.9', color: '#91D49C'},

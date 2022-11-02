@@ -16,8 +16,9 @@
       width: 100%;
 
       &::placeholder {
-        font-style: italic;
         font-size: $x-small;
+        font-style: italic;
+        line-height: 24px;
       }
     }
 
@@ -65,7 +66,7 @@
   &__modal_container {
     @include position(absolute, 22px null null null);
     background-color: $core-white;
-    width: 658px;
+    width: 570px;
     padding: $pad-xxlarge;
     border-radius: 8px;
   }

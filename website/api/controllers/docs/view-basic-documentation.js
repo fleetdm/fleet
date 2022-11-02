@@ -75,7 +75,8 @@ module.exports = {
         thisPage.meta.description ? thisPage.meta.description // « custom meta description for this page, if provided in markdown
         : 'Documentation for Fleet for osquery.'// « otherwise use the generic description
       ),
-      showSwagForm
+      showSwagForm,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }

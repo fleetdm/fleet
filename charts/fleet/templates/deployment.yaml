@@ -46,6 +46,8 @@ spec:
             memory: {{ .Values.resources.requests.memory }}
         env:
           ## BEGIN FLEET SECTION
+          - name: FLEET_VULNERABILITIES_DATABASES_PATH
+            value: /tmp/vuln # /tmp might not work on all cloud providers by default
           - name: FLEET_SERVER_ADDRESS
             value: "0.0.0.0:{{ .Values.fleet.listenPort }}"
           - name: FLEET_AUTH_BCRYPT_COST
@@ -273,6 +275,8 @@ spec:
             port: {{ .Values.fleet.listenPort }}
         {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
+          - name: tmp
+            mountPath: /tmp
           {{- if .Values.fleet.tls.enabled }}
           - name: fleet-tls
             readOnly: true
@@ -286,6 +290,9 @@ spec:
           {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
           - name: osquery-logs
             mountPath: /logs
+          {{- end }}
+          {{- with .Values.fleet.extraVolumeMounts }}
+          {{- toYaml . | nindent 10 }}
           {{- end }}
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
@@ -318,6 +325,8 @@ spec:
       serviceAccountName: fleet
       {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
+        - name: tmp
+          emptyDir:
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
@@ -332,6 +341,9 @@ spec:
         - name: osquery-logs
           emptyDir:
             sizeLimit: "{{ .Values.osquery.logging.filesystem.volumeSize }}"
+        {{- end }}
+        {{- with .Values.fleet.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}

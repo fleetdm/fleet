@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
+	"sort"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -29,16 +31,6 @@ const (
 	AppConfigKind  = "config"
 	MaskedPassword = "********"
 )
-
-// ModifyAppConfigRequest contains application configuration information
-// sent from front end and used to change app config elements.
-type ModifyAppConfigRequest struct {
-	// TestSMTP is this is set to true, the SMTP configuration will be tested
-	// with the results of the test returned to caller. No config changes
-	// will be applied.
-	TestSMTP  bool      `json:"test_smtp"`
-	AppConfig AppConfig `json:"app_config"`
-}
 
 // SSOSettings wire format for SSO settings
 type SSOSettings struct {
@@ -133,7 +125,12 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
 
+	// when true, strictDecoding causes the UnmarshalJSON method to return an
+	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
+	// this field is set to the list of legacy settings keys during UnmarshalJSON
+	// if any legacy settings were set in the raw JSON.
+	didUnmarshalLegacySettings []string
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
@@ -262,7 +259,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.SMTPSettings.SMTPVerifySSLCerts = true
 	c.SMTPSettings.SMTPEnableTLS = true
 
-	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
+	agentOptions := json.RawMessage(`{"config": {"options": {"pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
 
 	c.Features.ApplyDefaultsForNewInstalls()
@@ -278,6 +275,10 @@ func (c *AppConfig) ApplyDefaults() {
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
 func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
 
+// DidUnmarshalLegacySettings returns the list of legacy settings keys that
+// were set in the JSON used to unmarshal this AppConfig.
+func (c *AppConfig) DidUnmarshalLegacySettings() []string { return c.didUnmarshalLegacySettings }
+
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// Define a new type, this is to prevent infinite recursion when
@@ -291,6 +292,7 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 		(*cfgStructUnmarshal)(c),
 	}
 
+	c.didUnmarshalLegacySettings = nil
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	if c.strictDecoding {
 		decoder.DisallowUnknownFields()
@@ -306,8 +308,10 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// This has the drawback of legacy fields taking precedence over new fields
 	// if both are defined.
 	if compatConfig.legacyConfig.HostSettings != nil {
+		c.didUnmarshalLegacySettings = append(c.didUnmarshalLegacySettings, "host_settings")
 		c.Features = *compatConfig.legacyConfig.HostSettings
 	}
+	sort.Strings(c.didUnmarshalLegacySettings)
 
 	return nil
 }
@@ -404,6 +408,34 @@ type ListQueryOptions struct {
 	OnlyObserverCanRun bool
 }
 
+// ApplySpecOptions are the options available when applying a YAML or JSON spec.
+type ApplySpecOptions struct {
+	// Force indicates that any validation error in the incoming payload should
+	// be ignored and the spec should be applied anyway.
+	Force bool
+	// DryRun indicates that the spec should not be applied, but the validation
+	// errors should be returned.
+	DryRun bool
+}
+
+// RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
+// query string parameters. It only sets the parameters that are not the
+// default values.
+func (o *ApplySpecOptions) RawQuery() string {
+	if o == nil {
+		return ""
+	}
+
+	query := make(url.Values)
+	if o.Force {
+		query.Set("force", "true")
+	}
+	if o.DryRun {
+		query.Set("dry_run", "true")
+	}
+	return query.Encode()
+}
+
 // EnrollSecret contains information about an enroll secret, name, and active
 // status. Enroll secrets are used for osquery authentication.
 type EnrollSecret struct {
@@ -423,6 +455,10 @@ func (e *EnrollSecret) AuthzType() string {
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
+	// Maximum number of enroll secrets that can be set per team, or globally.
+	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// if you change that value (look for the string `secrets`).
+	MaxEnrollSecretsCount = 50
 )
 
 // EnrollSecretSpec is the fleetctl spec type for enroll secrets.
@@ -536,8 +572,3 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }
-
-// DeviceAPIFeatures specifies a list of features supported
-// by the current API version. Each field in the struct is
-// meant to be a boolean value.
-type DeviceAPIFeatures struct{}

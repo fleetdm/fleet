@@ -1,5 +1,4 @@
 .manage-hosts {
-
   .header-wrap {
     display: flex;
     align-items: center;
@@ -109,12 +108,15 @@
 
         .manage-hosts__filter-dropdowns {
           display: flex;
+          margin-left: $pad-small;
         }
       }
     }
 
     // table header content responsive styles
-    @media (max-width: $break-990) {
+    // NOTE: 1100px is a custom breakpoint to deal with responsiveness of the
+    // table controls. 990px doesnt work for us in this case.
+    @media (max-width: 1100px) {
       &__header {
         flex-direction: column;
       }
@@ -152,7 +154,7 @@
 
             .form-field--dropdown,
             .manage-hosts__label-filter-dropdown {
-              flex: 1
+              flex: 1;
             }
 
             .manage-hosts__status_dropdown {
@@ -202,7 +204,7 @@
   }
 
   &__status_dropdown {
-    width: 159px;
+    width: 165px;
 
     .Select-menu-outer {
       width: 364px;

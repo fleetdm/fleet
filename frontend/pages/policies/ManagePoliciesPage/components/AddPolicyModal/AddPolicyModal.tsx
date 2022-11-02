@@ -2,7 +2,7 @@ import React, { useCallback, useContext } from "react";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router/lib/Router";
 
-import { DEFAULT_POLICY, DEFAULT_POLICIES } from "utilities/constants";
+import { DEFAULT_POLICY, DEFAULT_POLICIES } from "pages/policies/constants";
 
 import { IPolicyNew } from "interfaces/policy";
 

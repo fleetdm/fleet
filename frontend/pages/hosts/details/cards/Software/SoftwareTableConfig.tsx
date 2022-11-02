@@ -10,7 +10,7 @@ import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import Chevron from "../../../../../../assets/images/icon-chevron-right-9x6@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IHeaderProps {
   column: {
@@ -99,6 +99,22 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
     : condensed;
 };
 
+const renderBundleTooltip = (name: string, bundle: string) => (
+  <span className="name-container">
+    <TooltipWrapper
+      tipContent={`
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `}
+    >
+      {name}
+    </TooltipWrapper>
+  </span>
+);
+
 interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[];
 }
@@ -132,25 +148,12 @@ export const generateSoftwareTableHeaders = (
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: IStringCellProps) => {
-        const { name, bundle_identifier } = cellProps.row.original;
-        if (bundle_identifier) {
-          return (
-            <span className="name-container">
-              <TooltipWrapper
-                tipContent={`
-                <span>
-                  <b>Bundle identifier: </b>
-                  <br />
-                  ${bundle_identifier}
-                </span>
-              `}
-              >
-                {name}
-              </TooltipWrapper>
-            </span>
-          );
-        }
-        return <TextCell value={name} />;
+        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        return (
+          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+            {bundle ? renderBundleTooltip(name, bundle) : name}
+          </Link>
+        );
       },
       sortType: "caseInsensitive",
     },
@@ -286,13 +289,10 @@ export const generateSoftwareTableHeaders = (
       accessor: "linkToFilteredHosts",
       Cell: (cellProps: IStringCellProps) => {
         return (
-          <Link
-            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
-            className={`software-link`}
-          >
-            View all hosts{" "}
-            <img alt="link to hosts filtered by software ID" src={Chevron} />
-          </Link>
+          <ViewAllHostsLink
+            queryParams={{ software_id: cellProps.row.original.id }}
+            className="software-link"
+          />
         );
       },
       disableHidden: true,

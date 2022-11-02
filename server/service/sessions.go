@@ -153,7 +153,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx), "email", email), level.Info)
 
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
@@ -270,7 +270,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -278,7 +278,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	}
 
 	if !appConfig.SSOSettings.EnableSSO {
-		err := &badRequestError{message: "organization not configured to use sso"}
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
 	}
 
@@ -326,11 +326,11 @@ type callbackSSORequest struct{}
 func (callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decode sso callback")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decode sso callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decoding sso callback")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decoding sso callback")
 	}
 	return authResponse, nil
 }
@@ -409,7 +409,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -487,6 +487,8 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 }
 
 func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirectURL string) (*fleet.SSOSession, error) {
+	logging.WithExtras(ctx, "email", user.Email)
+
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
 		err := ctxerr.New(ctx, "user not configured to use sso")
@@ -530,7 +532,7 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	// that they have the necessary information to initiate SSO).
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(ctx, level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -632,7 +634,7 @@ type demologinRequest struct {
 func (demologinRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decode demo login")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decode demo login")
 	}
 
 	return demologinRequest{

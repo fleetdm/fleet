@@ -22,7 +22,7 @@
     - [Deploying the load balancer](#deploying-the-load-balancer)
     - [Configure DNS](#configure-dns)
 - [Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
-- [Building Fleet from Source](../Contributing/Building-Fleet.md)
+- [Building Fleet from Source](https://fleetdm.com/docs/contributing/building-fleet)
 - [Community projects](#community-projects)
 
 ## Fleet on CentOS
@@ -185,11 +185,11 @@ Now, if you go to [https://localhost:8080](https://localhost:8080) in your local
 
 ### Running Fleet with systemd
 
-See [Running with systemd](./Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
+See [Running with systemd](https://fleetdm.com/docs/deploying/configuration#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
 
 ### Installing and running osquery
 
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](../Using-Fleet/Adding-hosts.md) document. The steps are repeated here for the sake of a continuous tutorial.
+> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](https://fleetdm.com/docs/using-fleet/adding-hosts) document. The steps are repeated here for the sake of a continuous tutorial.
 
 To install osquery on CentOS, you can run the following:
 
@@ -264,8 +264,13 @@ spec:
     spec:
       containers:
       - name: fleet
-        image: fleetdm/fleet:4.19.1
+        image: fleetdm/fleet:4.22.1
         env:
+          # if running Fleet behind external ingress controller that terminates TLS
+          - name: FLEET_SERVER_TLS
+            value: FALSE
+          - name: FLEET_VULNERABILITIES_DATABASES_PATH
+            value: /tmp/vuln
           - name: FLEET_MYSQL_ADDRESS
             valueFrom:
               secretKeyRef:
@@ -291,15 +296,21 @@ spec:
               secretKeyRef:
                 name: fleet_secrets
                 key: redis_address
+        volumeMounts:
+          - name: tmp
+            mountPath: /tmp # /tmp might not work on all cloud providers by default
         resources:
           requests:
             memory: "64Mi"
             cpu: "250m"
           limits:
-            memory: "128Mi"
+            memory: "2048Mi" # vulnerability processing
             cpu: "500m"
         ports:
         - containerPort: 3000
+      volumes:
+        - name: tmp
+          emptyDir:
 
 ```
 Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.

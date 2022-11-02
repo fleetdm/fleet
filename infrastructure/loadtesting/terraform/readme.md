@@ -38,8 +38,16 @@ There are a few main places of interest to monitor the load and resource usage:
 
 ### Troubleshooting
 
+#### General Troubleshooting
+
 If terraform fails for some reason, you can make it output extra information to `stderr` by setting the `TF_LOG` environment variable to "DEBUG" or "TRACE", e.g.:
 
 `TF_LOG=DEBUG terraform apply ...`
 
 See https://www.terraform.io/internals/debugging for more details.
+
+#### ECR Cleanup Troubleshooting
+
+In a few instances, it is possible for an ECR repository to still have images left, preventing a full `terraform destroy` of a Loadtesting instance.  Use the following one-liner to clean these up before re-running `terraform destroy`:
+
+`REPOSITORY_NAME=fleet-$(terraform workspace show); aws ecr list-images --repository-name ${REPOSITORY_NAME} --query 'imageIds[*]' --output text | while read digest tag; do aws ecr batch-delete-image --repository-name ${REPOSITORY_NAME} --image-ids imageDigest=${digest}; done`

@@ -1,8 +1,8 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
+import { renderWithSetup } from "test/testingUtils";
 import OrgDetails from "components/forms/RegistrationForm/OrgDetails";
-import userEvent from "@testing-library/user-event";
 
 describe("OrgDetails - form", () => {
   const handleSubmitSpy = jest.fn();
@@ -15,45 +15,51 @@ describe("OrgDetails - form", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeInTheDocument();
   });
 
-  it("validates presence of org_name field", () => {
-    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
-    // when
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    // then
+  it("validates presence of org_name field", async () => {
+    const { user } = renderWithSetup(
+      <OrgDetails handleSubmit={handleSubmitSpy} currentPage />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
     expect(handleSubmitSpy).not.toHaveBeenCalled();
     expect(
       screen.getByText("Organization name must be present")
     ).toBeInTheDocument();
   });
 
-  it("validates the logo url field starts with https://", () => {
-    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
-    // when
-    userEvent.type(
+  it("validates the logo url field starts with https://", async () => {
+    const { user } = renderWithSetup(
+      <OrgDetails handleSubmit={handleSubmitSpy} currentPage />
+    );
+
+    await user.type(
       screen.getByRole("textbox", { name: "Organization logo URL (optional)" }),
       "http://www.thegnar.co/logo.png"
     );
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    // then
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
     expect(handleSubmitSpy).not.toHaveBeenCalled();
     expect(
       screen.getByText("Organization logo URL must start with https://")
     ).toBeInTheDocument();
   });
 
-  it("submits the form when valid", () => {
-    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
-    // when
-    userEvent.type(
+  it("submits the form when valid", async () => {
+    const { user } = renderWithSetup(
+      <OrgDetails handleSubmit={handleSubmitSpy} currentPage />
+    );
+
+    await user.type(
       screen.getByRole("textbox", { name: "Organization logo URL (optional)" }),
       "https://www.thegnar.co/logo.png"
     );
-    userEvent.type(
+    await user.type(
       screen.getByRole("textbox", { name: "Organization name" }),
       "The Gnar Co"
     );
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    // then
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
     expect(handleSubmitSpy).toHaveBeenCalledWith({
       org_logo_url: "https://www.thegnar.co/logo.png",
       org_name: "The Gnar Co",

@@ -7,11 +7,15 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/google/uuid"
 )
 
+type remoteUpdaterFunc func(token string) error
+
 type ReadWriter struct {
 	*Reader
+	remoteUpdate remoteUpdaterFunc
 }
 
 func NewReadWriter(path string) *ReadWriter {
@@ -20,7 +24,7 @@ func NewReadWriter(path string) *ReadWriter {
 	}
 }
 
-// LoadOrGeneratre tries to read a token file from disk,
+// LoadOrGenerate tries to read a token file from disk,
 // and if it doesn't exist, generates a new one.
 func (rw *ReadWriter) LoadOrGenerate() error {
 	_, err := rw.Read()
@@ -43,12 +47,45 @@ func (rw *ReadWriter) LoadOrGenerate() error {
 
 // Rotate assigns a new value to the token and writes it to disk.
 func (rw *ReadWriter) Rotate() error {
-	id, err := uuid.NewRandom()
+	uuid, err := uuid.NewRandom()
 	if err != nil {
 		return fmt.Errorf("generate identifier: %w", err)
 	}
 
-	err = os.WriteFile(rw.Path, []byte(id.String()), constant.DefaultWorldReadableFileMode)
+	id := uuid.String()
+	if err := rw.Write(id); err != nil {
+		return fmt.Errorf("writing token: %w", err)
+	}
+
+	attempts := 3
+	interval := 5 * time.Second
+	err = retry.Do(func() error {
+		return rw.Write(id)
+	}, retry.WithMaxAttempts(attempts), retry.WithInterval(interval))
+
+	if err != nil {
+		return fmt.Errorf("saving token after %d attempts: %w", attempts, err)
+	}
+
+	return nil
+}
+
+// SetRemoteUpdateFunc sets the function that will be called when the token is
+// rotated, this function is used to update a remote server with the new token.
+func (rw *ReadWriter) SetRemoteUpdateFunc(f remoteUpdaterFunc) {
+	rw.remoteUpdate = f
+}
+
+// Write writes the given token to disk, making sure it has the correct
+// permissions, and the correct modification times are set.
+func (rw *ReadWriter) Write(id string) error {
+	if rw.remoteUpdate != nil {
+		if err := rw.remoteUpdate(id); err != nil {
+			return err
+		}
+	}
+
+	err := os.WriteFile(rw.Path, []byte(id), constant.DefaultWorldReadableFileMode)
 	if err != nil {
 		return fmt.Errorf("write identifier file %q: %w", rw.Path, err)
 	}
@@ -61,7 +98,8 @@ func (rw *ReadWriter) Rotate() error {
 
 	// ensure the `mtime` is updated, we have seen tests fail in some versions of
 	// Ubuntu because this value is not update when the file is written
-	if err = os.Chtimes(rw.Path, time.Now(), time.Now()); err != nil {
+	err = os.Chtimes(rw.Path, time.Now(), time.Now())
+	if err != nil {
 		return fmt.Errorf("set mtime of identifier file %q: %w", rw.Path, err)
 	}
 

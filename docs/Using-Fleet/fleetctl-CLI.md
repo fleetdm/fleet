@@ -8,7 +8,6 @@
   - [Running Fleet](#running-fleet)
   - [`fleetctl config`](#fleetctl-config)
   - [`fleetctl setup`](#fleetctl-setup)
-  - [Connecting a host](#connecting-a-host)
   - [Query hosts](#query-hosts)
 - [Logging in to an existing Fleet instance](#logging-in-to-an-existing-fleet-instance)
 - [Using fleetctl to configure Fleet](#using-fleetctl-to-configure-fleet)
@@ -97,7 +96,7 @@ This guide illustrates:
 
 ### Running Fleet
 
-For the sake of this tutorial, we will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](../Contributing/Building-Fleet.md#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
+For the sake of this tutorial, we will be using the local development Docker Compose infrastructure to run Fleet locally. This is documented in some detail in the [developer documentation](https://fleetdm.com/docs/contributing/building-fleet#development-infrastructure), but the following are the minimal set of commands that you can run from the root of the repository (assuming that you have a working Go/JavaScript toolchain installed along with Docker Compose):
 
 ```
 docker-compose up -d
@@ -164,6 +163,7 @@ When the query is done (or you have enough results), CTRL-C and look at the `res
       "config_valid": "1",
       "extensions": "active",
       "host_hostname": "marpaia",
+      "host_display_name": "marpaia",
       "instance_id": "37840766-7182-4a68-a204-c7f577bd71e1",
       "pid": "22984",
       "start_time": "1527031727",
@@ -224,7 +224,7 @@ The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` comm
 
 The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
 
-Check out the [configuration files](./configuration-files/README.md) section of the documentation for example yaml files.
+Check out the [configuration files](https://fleetdm.com/docs/deploying/configuration) section of the documentation for example yaml files.
 
 ### Fleetctl convert
 
@@ -269,7 +269,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 ```
 
 ### Permissions for an API-only user
-An API-only user can be given the same permissions as a regular user. The default access level is `Observer`. For more information on permissions, see the [user permissions documentation](./Permissions.md#user-permissions).
+An API-only user can be given the same permissions as a regular user. The default access level is `Observer`. For more information on permissions, see the [user permissions documentation](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
 
 If you'd like your API-only user to have a different access level than the default `Observer` role, you can specify what level of access the new user should have using the `--global-role` flag:
 
@@ -339,7 +339,7 @@ Running a command with no context will use the default profile.
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](../Deploying/Configuration.md#s3-file-carving-backend).
+File carving data can be either stored in Fleet's database or to an external S3 bucket. For information on how to configure the latter, consult the [configuration docs](https://fleetdm.com/docs/deploying/configuration#s3-file-carving-backend).
 
 ### Configuration
 
@@ -477,7 +477,7 @@ fleetctl debug archive
 This will generate a `tar.gz` file with:
 
 - `prof` archives that can be inspected via `go tools pprof <archive_name_here>`.
-- A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+- A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 - Files containing database-specific information.
 
 <meta name="pageOrderInSection" value="300">

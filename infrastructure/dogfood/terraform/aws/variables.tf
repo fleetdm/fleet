@@ -56,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.19.1"
+  default     = "fleetdm/fleet:v4.22.1"
 }
 
 variable "software_inventory" {
@@ -113,7 +113,7 @@ variable "cloudwatch_log_retention" {
 
 variable "rds_backup_retention_period" {
   description = "number of days to keep snapshot backups"
-  default     = 7
+  default     = 30
 }
 
 variable "extra_security_group_cidrs" {
@@ -124,4 +124,23 @@ variable "extra_security_group_cidrs" {
     condition     = alltrue([for cidr in var.extra_security_group_cidrs : can(cidrhost(cidr, 32))])
     error_message = "The extra security groups must be a list of valid CIDRs."
   }
+}
+
+variable "rds_initial_snapshot" {
+  default = null
+}
+
+variable "redis_azs" {
+  default     = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  description = "the availability zones to utilize for redis"
+}
+
+variable "vpc_azs" {
+  default     = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  description = "the availability zones to utilize for vpc creation"
+}
+
+variable "region" {
+  default     = "us-east-2"
+  description = "the default availability zone to utilize for infrastructure"
 }

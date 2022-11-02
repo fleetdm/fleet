@@ -66,8 +66,8 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("policy payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
 	policy, err := svc.ds.NewTeamPolicy(ctx, teamID, ptr.Uint(vc.UserID()), p)
@@ -96,32 +96,33 @@ type listTeamPoliciesRequest struct {
 }
 
 type listTeamPoliciesResponse struct {
-	Policies []*fleet.Policy `json:"policies,omitempty"`
-	Err      error           `json:"error,omitempty"`
+	Policies          []*fleet.Policy `json:"policies,omitempty"`
+	InheritedPolicies []*fleet.Policy `json:"inherited_policies,omitempty"`
+	Err               error           `json:"error,omitempty"`
 }
 
 func (r listTeamPoliciesResponse) error() error { return r.Err }
 
 func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listTeamPoliciesRequest)
-	resp, err := svc.ListTeamPolicies(ctx, req.TeamID)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID)
 	if err != nil {
 		return listTeamPoliciesResponse{Err: err}, nil
 	}
-	return listTeamPoliciesResponse{Policies: resp}, nil
+	return listTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc Service) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if _, err := svc.ds.Team(ctx, teamID); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 	}
 
 	return svc.ds.ListTeamPolicies(ctx, teamID)
@@ -300,8 +301,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	if err := p.Verify(); err != nil {
-		return nil, ctxerr.Wrap(ctx, &badRequestError{
-			message: fmt.Sprintf("policy payload verification: %s", err),
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
 

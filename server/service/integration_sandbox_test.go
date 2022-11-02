@@ -84,6 +84,7 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
 	require.Equal(t, "4", r.Header.Get("Content-Length"))
 	require.Equal(t, `attachment;filename="fleet-osquery.pkg"`, r.Header.Get("Content-Disposition"))
+	require.Equal(t, `nosniff`, r.Header.Get("X-Content-Type-Options"))
 
 	// unauthorized requests
 	s.DoRawNoAuth("POST", validURL, nil, http.StatusUnauthorized)

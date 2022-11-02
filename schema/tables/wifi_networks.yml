@@ -1,0 +1,12 @@
+name: wifi_networks
+examples: >-
+  Find WiFi networks configured on Macs that are unencrypted and require a
+  captive portal. This can be useful to understand how much people use laptops
+  in hotels, airports and other environments, and is a good indicator that tools
+  such as DNS-over-HTTPS would improve privacy of connectivity.
+
+  ```
+
+  SELECT network_name FROM wifi_networks WHERE security_type='Open' AND captive_portal='1';
+
+  ```

@@ -32,6 +32,10 @@ output "mysql_secret" {
   value = aws_secretsmanager_secret.mysql
 }
 
+output "mysql_secret_kms" {
+  value = aws_kms_key.main
+}
+
 resource "aws_secretsmanager_secret_version" "mysql" {
   secret_id = aws_secretsmanager_secret.mysql.id
   secret_string = jsonencode({

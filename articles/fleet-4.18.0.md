@@ -8,11 +8,6 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 - Enjoy improved security for Fleet Desktop.
 - Show your end users a call to action in Fleet desktop for failing policies.
 
-## Automated testing for upgrading to a new version of Fleet
-**Available in Fleet Free and Fleet Premium**
-
-Automated testing allows you to quickly and easily make sure that you can upgrade without unforseen consequences. Run the test with `FLEET_VERSION_A=v4.16.0 FLEET_VERSION_B=v4.17.0 go test ./test/upgrade` and see what happens when a Fleet server with version `A` is upgraded to version `B`! For more details, check out the [ticket](https://github.com/fleetdm/fleet/pull/6376). 
-
 ## Improved security for Fleet Desktop
 **Available in Fleet Free and Fleet Premium**
 
@@ -69,5 +64,5 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorFullName" value="Kathy Satterlee">
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="publishedOn" value="2022-08-03">
-<meta name="articleTitle" value="Fleet 4.18.0 | Test Fleet upgrades before installing, better security and user messaging in Fleet Desktop">
+<meta name="articleTitle" value="Fleet 4.18.0 | Better security and user messaging in Fleet Desktop">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.18.0-cover-1600x900@2x.jpg">

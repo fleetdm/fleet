@@ -25,6 +25,10 @@ func Notarize(path, bundleIdentifier string) error {
 		return errors.New("AC_PASSWORD must be set in environment")
 	}
 
+	// This is typically optional, though seems to be required if the organization has an Apple
+	// Enterprise Dev account.
+	teamID, _ := os.LookupEnv("AC_TEAM_ID")
+
 	info, err := notarize.Notarize(
 		context.Background(),
 		&notarize.Options{
@@ -32,6 +36,7 @@ func Notarize(path, bundleIdentifier string) error {
 			BundleId: bundleIdentifier,
 			Username: username,
 			Password: password,
+			Provider: teamID,
 			Status: &statusHuman{
 				Lock: &sync.Mutex{},
 			},

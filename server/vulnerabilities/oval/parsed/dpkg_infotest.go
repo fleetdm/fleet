@@ -1,6 +1,9 @@
 package oval_parsed
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+)
 
 // DpkgInfoTest encapsulates a Dpkg info test.
 // see https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/linux-definitions-schema.html#dpkginfo_test
@@ -35,9 +38,10 @@ func (t *DpkgInfoTest) Eval(packages []fleet.Software) ([]fleet.Software, error)
 }
 
 // Returns:
-//  nObjects: How many items in the set defined by the OVAL Object set exists in the system.
-//  nStates: How many items in the set defined by the OVAL Object set satisfy the state requirements.
-//  Slice with software matching both the object and state criteria.
+//
+//	nObjects: How many items in the set defined by the OVAL Object set exists in the system.
+//	nStates: How many items in the set defined by the OVAL Object set satisfy the state requirements.
+//	Slice with software matching both the object and state criteria.
 func (t *DpkgInfoTest) matches(software []fleet.Software) (int, int, []fleet.Software, error) {
 	var nObjects int
 	var nState int
@@ -50,7 +54,7 @@ func (t *DpkgInfoTest) matches(software []fleet.Software) (int, int, []fleet.Sof
 
 				r := make([]bool, 0)
 				for _, s := range t.States {
-					evalR, err := s.Eval(p.Version, Rpmvercmp, false)
+					evalR, err := s.Eval(p.Version, utils.Rpmvercmp, false)
 					if err != nil {
 						return 0, 0, nil, err
 					}

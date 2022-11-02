@@ -152,7 +152,7 @@ Configure update channels for Orbit and osqueryd with the `--orbit-channel` and 
 | `4.6`   | 4.6.x    |
 | `4.6.0` | 4.6.0    |
 
-Additionally `stable` and `edge` are special channel names. `stable` will always return the version Fleet deems to be stable, while `edge` will provide newer releases for beta testing.
+Additionally `stable` and `edge` are special channel names. The `stable` channel will provide the most recent osquery version that Fleet deems to be stable. When a new version of osquery is released, it is added to the `edge` channel for beta testing. Fleet then provides input to the osquery TSC based on testing. After the version is declared stable by the osquery TSC, Fleet will promote the version to `stable` ASAP.
 
 #### macOS signing & Notarization
 
@@ -160,7 +160,7 @@ Orbit's packager can automate the codesigning and Notarization steps to allow th
 
 For signing, a "Developer ID Installer" certificate must be available on the build machine ([generation instructions](https://help.apple.com/xcode/mac/current/#/dev154b28f09)). Use `security find-identity -v` to verify the existence of this certificate and make note of the identifier provided in the left column.
 
-For Notarization, valid App Store Connect credentials must be available on the build machine. Set these in the environment variables `AC_USERNAME` and `AC_PASSWORD`. It is common to configure this via [app-specific passwords](https://support.apple.com/en-ca/HT204397).
+For Notarization, valid App Store Connect credentials must be available on the build machine. Set these in the environment variables `AC_USERNAME` and `AC_PASSWORD`. It is common to configure this via [app-specific passwords](https://support.apple.com/en-ca/HT204397). Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID".
 
 Build a signed and notarized macOS package with an invocation like the following:
 

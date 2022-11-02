@@ -8,12 +8,14 @@ should be discussed within the team and documented before merged.
 
 ## Table of contents
   - [Typing](#typing)
+  - [Utilities](#utilities)
   - [Components](#components)
   - [React Hooks](#react-hooks)
   - [React Context](#react-context)
   - [Fleet API Calls](#fleet-api-calls)
   - [Page Routing](#page-routing)
   - [Styles](#styles)
+  - [Icons and Images](#icons)
   - [Other](#other)
 
 ## Typing
@@ -58,6 +60,23 @@ useQuery<IHostResponse, Error, IHost>(params)
 const functionWithTableName = (tableName: string): boolean => {
   // do something
 };
+```
+
+## Utilities
+
+### Named exports
+
+We export individual utility functions and avoid exporting default objects when exporting utilities.
+
+```ts
+
+// good
+export const replaceNewLines = () => {...}
+
+// bad
+export default {
+  replaceNewLines
+}
 ```
 
 ## Components
@@ -242,6 +261,8 @@ const PageOrComponent = ({
 
 Below are a few need-to-knows about what's available in Fleet's CSS:
 
+
+
 ### Modals
 
 1) When creating a modal with a form inside, the action buttons (cancel, save, delete, etc.) should
@@ -262,6 +283,30 @@ maintain. If states need to be passed to direct children, then prop-drilling sho
 suffice as long as we do not go more than two levels deep. Otherwise, if states need
 to be used across multiple unrelated components or 3+ levels from a parent,
 then the [app's context](#react-context) should be used.
+
+## Icons and Images
+
+### Adding Icons
+
+To add a new icon:
+
+1. create a React component for the icon in `frontend/components/icons` directory. We will add the
+   SVG here.
+2. download the icon source from Figma as an SVG file
+3. run the downloaded file through an SVG optimizer such as
+   [SVGOMG](https://jakearchibald.github.io/svgomg/) or [SVG Optimizer](https://svgoptimizer.com/)
+4. download the optimized SVG and place it in created file from step 1.
+5. import the new icon in the `frontend/components/icons/index.ts` and add it the the `ICON_MAP`
+   object. The key will be the name the icon is accessible under.
+
+The icon should now be available to use with the `Icon` component from the given key name.
+
+```tsx
+// using a new icon with the given key name 'chevron`
+<Icon name="chevron" />
+```
+
+
 
 ### File size
 

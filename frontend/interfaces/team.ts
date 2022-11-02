@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
+import { IConfigFeatures, IWebhookSettings } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { IIntegrations } from "./integration";
-import { IWebhookFailingPolicies } from "./webhook";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -33,6 +33,7 @@ export interface ITeam extends ITeamSummary {
   display_text?: string;
   count?: number;
   created_at?: string;
+  features?: IConfigFeatures;
   agent_options?: {
     [key: string]: any;
   };
@@ -43,12 +44,18 @@ export interface ITeam extends ITeamSummary {
 }
 
 /**
+ * The webhook settings of a team
+ */
+export type ITeamWebhookSettings = Pick<
+  IWebhookSettings,
+  "vulnerabilities_webhook" | "failing_policies_webhook"
+>;
+
+/**
  * The integrations and webhook settings of a team
  */
 export interface ITeamAutomationsConfig {
-  webhook_settings: {
-    failing_policies_webhook: IWebhookFailingPolicies;
-  };
+  webhook_settings: ITeamWebhookSettings;
   integrations: IIntegrations;
 }
 

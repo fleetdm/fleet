@@ -1,10 +1,9 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { InjectedRouter, Link, RouteProps } from "react-router";
+import { InjectedRouter, RouteProps } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { find, toNumber } from "lodash";
-import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -27,17 +26,17 @@ import formatErrorResponse from "utilities/format_error_response";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
+import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
-import DeleteSecretModal from "../../../../components/DeleteSecretModal";
-import SecretEditorModal from "../../../../components/SecretEditorModal";
+import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
+import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../../components/EnrollSecretModal";
+import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
 
-import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
 import PencilIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
@@ -394,17 +393,13 @@ const TeamDetailsWrapper = ({
     <MainContent className={baseClass}>
       <>
         <TabsWrapper>
-          <>
-            {isGlobalAdmin && (
-              <Link
-                to={PATHS.ADMIN_TEAMS}
-                className={`${baseClass}__back-link`}
-              >
-                <img src={BackChevron} alt="back chevron" id="back-chevron" />
-                <span>Back to teams</span>
-              </Link>
-            )}
-          </>
+          {isGlobalAdmin ? (
+            <div className={`${baseClass}__header-links`}>
+              <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
+            </div>
+          ) : (
+            <></>
+          )}
           <div className={`${baseClass}__team-header`}>
             <div className={`${baseClass}__team-details`}>
               {adminTeams?.length === 1 ? (
@@ -414,7 +409,7 @@ const TeamDetailsWrapper = ({
                   selectedTeamId={toNumber(routeParams.team_id)}
                   currentUserTeams={adminTeams || []}
                   isDisabled={isLoadingTeams}
-                  disableAll
+                  includeAll={false}
                   onChange={(newSelectedValue: number) =>
                     handleTeamSelect(newSelectedValue)
                   }

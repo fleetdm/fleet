@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine AS builder
+FROM golang:1.19.1-alpine AS builder
 WORKDIR /build
 COPY . .
 RUN go get -d -v

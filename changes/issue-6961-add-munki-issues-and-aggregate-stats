@@ -1,1 +1,0 @@
-* Added the ingestion of Munki issues (error and warning messages provided by the `munki_info` macadmins osquery extension table) and added this information to the response payload of the `GET /api/v1/fleet/hosts/{id}/macadmins` endpoint, and compute aggregated stats by Munki issue, now returned as part of the `GET /api/v1/fleet/macadmins` endpoint.
