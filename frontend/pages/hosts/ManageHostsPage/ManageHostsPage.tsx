@@ -764,7 +764,6 @@ const ManageHostsPage = ({
       if (status) {
         newQueryParams.status = status;
       }
-
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;

@@ -1,11 +1,8 @@
 import React from "react";
-import { Link } from "react-router";
-
-import PATHS from "router/paths";
 import { ISoftware } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Chevron from "../../../../../assets/images/icon-chevron-blue-16x16@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -63,12 +60,11 @@ const softwareTableHeaders = [
     accessor: "id",
     Cell: (cellProps: ICellProps) => {
       return (
-        <Link
-          to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.cell.value}`}
+        <ViewAllHostsLink
+          queryParams={{ software_id: cellProps.cell.value }}
           className="software-link"
-        >
-          <img alt="link to hosts filtered by software ID" src={Chevron} />
-        </Link>
+          condensed
+        />
       );
     },
   },

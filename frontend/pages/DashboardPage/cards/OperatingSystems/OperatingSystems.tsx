@@ -154,7 +154,6 @@ const OperatingSystems = ({
             isClientSidePagination={showPaginationControls}
             disablePagination={!showPaginationControls}
             pageSize={PAGE_SIZE}
-            highlightOnHover
           />
         )}
       </div>

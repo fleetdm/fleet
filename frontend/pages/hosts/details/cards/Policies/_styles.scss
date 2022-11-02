@@ -32,15 +32,10 @@
           .policy-link {
             visibility: hidden;
             text-overflow: none;
-            img {
-              vertical-align: text-top;
-              width: 16px;
-            }
           }
           &:hover {
             .policy-link {
               visibility: visible;
-              text-overflow: none;
             }
           }
           .policy-info {
