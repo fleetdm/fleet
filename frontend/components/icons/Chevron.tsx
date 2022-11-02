@@ -2,6 +2,7 @@ import React from "react";
 
 interface IChevronProps {
   color?: "coreVibrantBlue" | "coreFleetBlack";
+  /** Default direction "down" */
   direction?: "up" | "down" | "left" | "right";
 }
 

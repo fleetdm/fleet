@@ -9,14 +9,10 @@
   .Select {
     .Select-control {
       cursor: pointer;
-      
+
       &:hover .Select-placeholder {
         color: $core-vibrant-blue;
       }
-    }
-
-    .Select-arrow {
-      margin-top: 7px;
     }
 
     &:not(.is-open) {

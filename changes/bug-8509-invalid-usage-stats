@@ -1,0 +1,1 @@
+# Fixed an issue where fleet would send invalid usage stats if no hosts were enrolled

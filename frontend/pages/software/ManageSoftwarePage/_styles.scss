@@ -49,7 +49,7 @@
     }
 
     p {
-      color: $core-dark-blue-grey;
+      color: $ui-fleet-black-75;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -134,26 +134,7 @@
           .data-table__table {
             tr {
               .software-link {
-                color: $core-vibrant-blue;
                 visibility: hidden;
-                font-weight: bold;
-                text-decoration: none;
-                vertical-align: middle;
-                padding-left: 15px;
-
-                a {
-                  text-decoration: none;
-                }
-
-                img {
-                  height: 16px;
-                  width: 16px;
-                  vertical-align: middle;
-                }
-
-                .link-text {
-                  padding-right: $pad-xxsmall;
-                }
               }
 
               &:hover {
