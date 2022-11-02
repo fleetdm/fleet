@@ -31,12 +31,13 @@ When we do prospect calls, add the customer's name in both the google doc title 
 - Make sure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
 
 #### Day of the customer call
-
+- Confirm meeting is going ahead using previous channel of contact.
+- Prepare neccessary information/ notes for the call.
 - Join the meeting two to three minutes before the start time.
 
 #### Missed customer call
 
-- If the customer does not join the call after three minutes, contact the customer with
+- If the customer does not join the call after five minutes, contact the customer with their preferred channel;
   - Slack, if we have a shared channel.
   - email, using the email address from the calendar invite.
   - LinkedIn, send a direct message.
@@ -47,6 +48,8 @@ When we do prospect calls, add the customer's name in both the google doc title 
 > **Customer etiquette**. When communicating with the customer, remember to approach the situation with empathy. Anything could have happened.
 
 ### Next steps after a customer conversation 
+- Follow up with customer appreciating their time.
+- Confirm next steps (include your teammate in the preferred channel thread)
 
 After a customer conversation, it can sometimes feel like there are 1,001 things to do, but it can be hard to know where to start.  Here are some tips: 
 
@@ -204,7 +207,7 @@ To track the stage of the sales cycle that a lead is at, we use the following st
 | Meeting scheduled | Fleet has scheduled a meeting with the lead. |
 | Working to convert | Not enough info on Lead's Budget, Authority, Need and Timing (BANT) to be converted into an opportunity. |
 | Closed nurture | Lead does not meet BANT criteria to be converted to an opportunity, but we should maintain contact with the lead as it may be fruitful in the future. |
-| Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
+| Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. Set future follow-up for Lead - things change over time.
 | SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
 At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one.
@@ -215,7 +218,7 @@ At times, our sales team will reach out to prospective customers before they com
 - State why we would love to work with them.
 - Ask questions about their company and current device management experience.
 - Keep an enthusiastic and warm tone.
-- Be personable.
+- Be personable.Be human.
 - Ask for the meeting with a proposed time.
 
 Here is another [LinkedIn post](https://www.linkedin.com/posts/davidtropic_i-got-the-best-cold-email-ive-ever-gotten-activity-6991066918363267072-yeXN) with an example of a great personalized cold outreach.
@@ -321,6 +324,9 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#g-sales`                     | Alex Mitchell |
 | `#_from-prospective-customers` | Alex Mitchell |
 
+
+
+(BRIEF GLOSSARY OF ARTICLE CONTENTS??)
 
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Customers">
