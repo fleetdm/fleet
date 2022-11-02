@@ -51,6 +51,16 @@ const TAGGED_TEMPLATES = {
       ? "edited a query using fleetctl"
       : `edited ${count === 1 ? "a query" : "queries"} using fleetctl`;
   },
+  editTeamCtlActivityTemplate: (activity: IActivity) => {
+    const count = activity.details?.teams?.length;
+    return count === 1 && activity.details?.teams ? (
+      <>
+        edited <b>{activity.details?.teams[0].name}</b> team using fleetctl
+      </>
+    ) : (
+      "edited multiple teams using fleetctl"
+    );
+  },
   userAddedBySSOTempalte: () => {
     return `was added to Fleet by SSO`;
   },
@@ -109,11 +119,7 @@ const ActivityFeed = ({
       keepPreviousData: true,
       staleTime: 5000,
       select: (data) => {
-        // We purposly removed the "applied_spec_team" activity as we are currently
-        // thinking how we want to display this in the UI.
-        return data.activities.filter(
-          (activity) => activity.type !== ActivityType.AppliedSpecTeam
-        );
+        return data.activities;
       },
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
@@ -149,6 +155,9 @@ const ActivityFeed = ({
       }
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+      }
+      case ActivityType.AppliedSpecTeam: {
+        return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
       }
       case ActivityType.UserAddedBySSO: {
         return TAGGED_TEMPLATES.userAddedBySSOTempalte();
