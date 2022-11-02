@@ -9,10 +9,6 @@ import { buildQueryStringFromParams } from "utilities/url";
 import DataError from "components/DataError";
 import SummaryTile from "./SummaryTile";
 
-import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
-import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
-import MacIcon from "../../../../../assets/images/icon-mac-48x48@2x.png";
-
 const baseClass = "hosts-summary";
 
 interface IHostSummaryProps {

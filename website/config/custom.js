@@ -109,7 +109,7 @@ module.exports.custom = {
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/security': 'guillaumeross',
     'handbook/customers': ['alexmitchelliii','zayhanlon'],
-    'handbook/marketing': ['mike-j-thomas','chris-mcgillicuddy', 'timmy-k'],
+    'handbook/marketing': ['mike-j-thomas','chris-mcgillicuddy'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',

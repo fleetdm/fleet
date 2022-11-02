@@ -23,6 +23,19 @@ import (
 
 var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 
+// Fixme: We should not make implementation details of the database schema part of the API.
+var defaultHostColumnTableAliases = map[string]string{
+	"created_at": "h.created_at",
+	"updated_at": "h.updated_at",
+}
+
+func defaultHostColumnTableAlias(s string) string {
+	if newCol, ok := defaultHostColumnTableAliases[s]; ok {
+		return newCol
+	}
+	return s
+}
+
 // NewHost creates a new host on the datastore.
 //
 // Currently only used for testing.
@@ -578,6 +591,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
+
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
@@ -3143,7 +3158,7 @@ WHERE
 }
 
 func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOrbitVersion, error) {
-	var counts []fleet.HostsCountByOrbitVersion
+	counts := make([]fleet.HostsCountByOrbitVersion, 0)
 
 	const stmt = `
 		SELECT version as orbit_version, count(*) as num_hosts
@@ -3151,14 +3166,14 @@ func amountHostsByOrbitVersionDB(ctx context.Context, db sqlx.QueryerContext) ([
 		GROUP BY version
   	`
 	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
-		return []fleet.HostsCountByOrbitVersion{}, err
+		return nil, err
 	}
 
 	return counts, nil
 }
 
 func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.HostsCountByOsqueryVersion, error) {
-	var counts []fleet.HostsCountByOsqueryVersion
+	counts := make([]fleet.HostsCountByOsqueryVersion, 0)
 
 	const stmt = `
 		SELECT osquery_version, count(*) as num_hosts
@@ -3166,7 +3181,7 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 		GROUP BY osquery_version
   	`
 	if err := sqlx.SelectContext(ctx, db, &counts, stmt); err != nil {
-		return []fleet.HostsCountByOsqueryVersion{}, err
+		return nil, err
 	}
 
 	return counts, nil
