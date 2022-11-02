@@ -852,7 +852,9 @@ You can verfiy that these flags have taken effect on the hosts by running a quer
 
 If you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
-To update the flags on these hosts, we recommend deploying a new package. This will update each host's enroll secret. Here's how to deploy a new package:
+For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated)
+
+If you prefer to deploy a new package with the updated enroll secret:
 
 1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`
 
@@ -863,9 +865,6 @@ To update the flags on these hosts, we recommend deploying a new package. This w
 3. Copy and run the fleetctl package command to create a new package. Distribute this package to the hosts that returned results in step 1.
 
 4. Done!
-
-
-
 
 
 
