@@ -442,7 +442,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
 	// statistics.

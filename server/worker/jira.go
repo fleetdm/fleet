@@ -120,7 +120,6 @@ type Jira struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
-	License       *fleet.LicenseInfo
 	NewClientFunc func(*externalsvc.JiraOptions) (JiraClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
