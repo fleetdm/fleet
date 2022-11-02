@@ -219,13 +219,6 @@ func TestEnrollAgent(t *testing.T) {
 }
 
 func TestEnrollAgentEnforceLimit(t *testing.T) {
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
-		User: &fleet.User{
-			ID:         0,
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-		},
-	})
-
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		const maxHosts = 2
 
@@ -256,9 +249,15 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		}
 
 		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
-		svc := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
+		svc, ctx := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
 			EnrollHostLimiter: redisWrapDS,
 			License:           &fleet.LicenseInfo{DeviceCount: maxHosts},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{
+			User: &fleet.User{
+				ID:         0,
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
 		})
 
 		nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host001", nil)
@@ -641,9 +640,9 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 
 	t.Run("free license", func(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: fleet.TierFree}
-		svc := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
+		svc, ctx := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
 
-		ctx := hostctx.NewContext(context.Background(), &host)
+		ctx = hostctx.NewContext(ctx, &host)
 		queries, _, _, err := svc.GetDistributedQueries(ctx)
 		require.NoError(t, err)
 		require.NotContains(t, queries, "fleet_detail_query_users")
@@ -672,10 +671,10 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 
 	t.Run("premium license", func(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		svc := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
+		svc, ctx := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
 
 		host.TeamID = nil
-		ctx := hostctx.NewContext(context.Background(), &host)
+		ctx = hostctx.NewContext(ctx, &host)
 		queries, _, _, err := svc.GetDistributedQueries(ctx)
 		require.NoError(t, err)
 		require.NotContains(t, queries, "fleet_detail_query_users")
@@ -702,9 +701,9 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 }
 
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
-	svc := newTestService(t, &mock.Store{}, nil, nil)
+	svc, ctx := newTestService(t, &mock.Store{}, nil, nil)
 
-	_, _, _, err := svc.GetDistributedQueries(context.Background())
+	_, _, _, err := svc.GetDistributedQueries(ctx)
 	require.NotNil(t, err)
 	assert.Contains(t, err.Error(), "missing host")
 }
@@ -713,7 +712,7 @@ func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := live_query_mock.New(t)
-	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
+	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
 		Platform: "darwin",
@@ -738,7 +737,7 @@ func TestLabelQueries(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
-	ctx := hostctx.NewContext(context.Background(), host)
+	ctx = hostctx.NewContext(ctx, host)
 
 	// With a new host, we should get the detail queries (and accelerate
 	// should be turned on so that we can quickly fill labels)
@@ -862,7 +861,7 @@ func TestLabelQueries(t *testing.T) {
 	require.False(t, host.RefetchRequested)
 
 	// There shouldn't be any labels now.
-	ctx = hostctx.NewContext(context.Background(), host)
+	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	require.Empty(t, queries)

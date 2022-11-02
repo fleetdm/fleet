@@ -442,7 +442,6 @@ the way that the Fleet server works.
 				liveQueryStore,
 				carveStore,
 				installerStore,
-				*license,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -456,7 +455,7 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}

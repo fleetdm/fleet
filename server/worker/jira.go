@@ -11,6 +11,7 @@ import (
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
@@ -282,7 +283,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 		FleetURL:         j.FleetURL,
 		CVE:              vargs.CVE,
 		Hosts:            hosts,
-		IsPremium:        j.License.IsPremium(),
+		IsPremium:        license.IsPremium(ctx),
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,

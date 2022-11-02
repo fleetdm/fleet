@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -62,7 +63,6 @@ func TestJiraFailer(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			return failer, nil
 		},
@@ -72,7 +72,7 @@ func TestJiraFailer(t *testing.T) {
 	cves := []string{"CVE-2018-1234", "CVE-2019-1234", "CVE-2020-1234", "CVE-2021-1234"}
 	for i := 0; i < 10; i++ {
 		cve := cves[i%len(cves)]
-		err := jira.Run(context.Background(), json.RawMessage(fmt.Sprintf(`{"cve":%q}`, cve)))
+		err := jira.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), json.RawMessage(fmt.Sprintf(`{"cve":%q}`, cve)))
 		if err != nil {
 			failedIndices = append(failedIndices, i)
 		}
@@ -121,7 +121,6 @@ func TestZendeskFailer(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			return failer, nil
 		},
@@ -131,7 +130,7 @@ func TestZendeskFailer(t *testing.T) {
 	cves := []string{"CVE-2018-1234", "CVE-2019-1234", "CVE-2020-1234", "CVE-2021-1234"}
 	for i := 0; i < 10; i++ {
 		cve := cves[i%len(cves)]
-		err := zendesk.Run(context.Background(), json.RawMessage(fmt.Sprintf(`{"cve":%q}`, cve)))
+		err := zendesk.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), json.RawMessage(fmt.Sprintf(`{"cve":%q}`, cve)))
 		if err != nil {
 			failedIndices = append(failedIndices, i)
 		}

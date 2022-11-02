@@ -472,7 +472,6 @@ func TestTransparencyURL(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
 
 	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
 		if shouldFail {
@@ -526,7 +525,8 @@ func TestTransparencyURL(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
 				OrgInfo: fleet.OrgInfo{
@@ -573,9 +573,9 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
 
-	svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	dsAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{

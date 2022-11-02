@@ -339,7 +339,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger())
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
