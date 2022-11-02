@@ -129,6 +129,7 @@ func TestHosts(t *testing.T) {
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
+		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
 		{"TestHostOrder", testHostOrder},
 	}
 	for _, c := range cases {
@@ -5497,4 +5498,54 @@ func testHostIDsByOSID(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+}
+
+func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		OsqueryHostID:   "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		OsqueryHostID:   "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false)
+	require.NoError(t, err)
+
+	h, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.True(t, *h.DiskEncryptionEnabled)
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.False(t, *h.DiskEncryptionEnabled)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true)
+	require.NoError(t, err)
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.True(t, *h.DiskEncryptionEnabled)
 }
