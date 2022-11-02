@@ -23,7 +23,7 @@ module.exports = {
   fn: async function () {
 
     if(!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.pricingTable)) {
-      throw {badConfig: 'builtStaticContent.'};
+      throw {badConfig: 'builtStaticContent.pricingTable'};
     }
     let pricingTable = sails.config.builtStaticContent.pricingTable;
 
