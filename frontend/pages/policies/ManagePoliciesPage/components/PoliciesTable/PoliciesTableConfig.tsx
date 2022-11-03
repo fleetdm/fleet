@@ -12,24 +12,8 @@ import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
-import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
-import FailIcon from "../../../../../../assets/images/icon-action-fail-16x16@2x.png";
+import { buildQueryStringFromParams } from "utilities/url";
 import PassingColumnHeader from "../PassingColumnHeader";
-import resultsTableHeaders from "pages/queries/QueryPage/components/QueryResults/QueryResultsTableConfig";
-
-// TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
-
-const TAGGED_TEMPLATES = {
-  hostsByPolicyRoute: (
-    policyId: number,
-    policyResponse: PolicyResponse,
-    teamId: number | undefined | null
-  ) => {
-    return `?policy_id=${policyId}&policy_response=${policyResponse}${
-      teamId ? `&team_id=${teamId}` : ""
-    }`;
-  },
-};
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -69,6 +53,18 @@ interface IDataColumn {
   sortType?: string;
 }
 
+const createHostsByPolicyPath = (
+  policyId: number,
+  policyResponse: PolicyResponse,
+  teamId?: number | null
+) => {
+  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+    policy_id: policyId,
+    policy_response: policyResponse,
+    team_id: teamId,
+  })}`;
+};
+
 const getPolicyRefreshTime = (ms: number): string => {
   const seconds = ms / 1000;
   if (seconds < 60) {
@@ -101,7 +97,7 @@ const generateTableHeaders = (options: {
 }): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 
-  const tableColumns: IDataColumn[] = [
+  const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
       Header: "Name",
@@ -127,14 +123,11 @@ const generateTableHeaders = (options: {
               value={`${cellProps.cell.value} host${
                 cellProps.cell.value.toString() === "1" ? "" : "s"
               }`}
-              path={
-                PATHS.MANAGE_HOSTS +
-                TAGGED_TEMPLATES.hostsByPolicyRoute(
-                  cellProps.row.original.id,
-                  PolicyResponse.PASSING,
-                  selectedTeamId
-                )
-              }
+              path={createHostsByPolicyPath(
+                cellProps.row.original.id,
+                PolicyResponse.PASSING,
+                selectedTeamId
+              )}
             />
           );
         }
@@ -172,14 +165,11 @@ const generateTableHeaders = (options: {
               value={`${cellProps.cell.value} host${
                 cellProps.cell.value.toString() === "1" ? "" : "s"
               }`}
-              path={
-                PATHS.MANAGE_HOSTS +
-                TAGGED_TEMPLATES.hostsByPolicyRoute(
-                  cellProps.row.original.id,
-                  PolicyResponse.FAILING,
-                  selectedTeamId
-                )
-              }
+              path={createHostsByPolicyPath(
+                cellProps.row.original.id,
+                PolicyResponse.FAILING,
+                selectedTeamId
+              )}
             />
           );
         }
@@ -208,7 +198,21 @@ const generateTableHeaders = (options: {
   ];
 
   if (tableType !== "inheritedPolicies") {
-    tableColumns.unshift({
+    tableHeaders.push({
+      title: "Automations",
+      Header: "Automations",
+      disableSortBy: true,
+      accessor: "webhook",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <StatusCell value={cellProps.cell.value} />
+      ),
+    });
+
+    if (!canAddOrDeletePolicy) {
+      return tableHeaders;
+    }
+
+    tableHeaders.unshift({
       id: "selection",
       Header: (cellProps: IHeaderProps) => {
         const props = cellProps.getToggleAllRowsSelectedProps();
@@ -229,19 +233,9 @@ const generateTableHeaders = (options: {
       },
       disableHidden: true,
     });
-
-    tableColumns.push({
-      title: "Automations",
-      Header: "Automations",
-      disableSortBy: true,
-      accessor: "webhook",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusCell value={cellProps.cell.value} />
-      ),
-    });
   }
 
-  return tableColumns;
+  return tableHeaders;
 };
 
 const generateDataSet = (
