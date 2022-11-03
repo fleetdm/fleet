@@ -176,8 +176,8 @@ const About = ({
           <span className="info-grid__data">{aboutData.hardware_model}</span>
         </div>
         {renderSerialAndIPs()}
-        {!deviceUser && renderMunkiData()}
-        {!deviceUser && renderMdmData()}
+        {renderMunkiData()}
+        {renderMdmData()}
         {renderDeviceUser()}
         {renderGeolocation()}
         {renderBattery()}

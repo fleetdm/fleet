@@ -8,7 +8,12 @@ import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
-import { IHost, IDeviceMappingResponse } from "interfaces/host";
+import hostAPI from "services/entities/hosts";
+import {
+  IHost,
+  IDeviceMappingResponse,
+  IMacadminsResponse,
+} from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
 import DeviceUserError from "components/DeviceUserError";
@@ -93,6 +98,19 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IDeviceMappingResponse) => data.device_mapping,
+    }
+  );
+
+  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+    ["macadmins", deviceAuthToken],
+    () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
+    {
+      enabled: !!deviceAuthToken,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IMacadminsResponse) => data.macadmins,
     }
   );
 
@@ -291,6 +309,7 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
+                    macadmins={macadmins}
                     wrapFleetHelper={wrapFleetHelper}
                     deviceUser
                   />
