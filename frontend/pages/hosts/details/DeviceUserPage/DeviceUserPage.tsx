@@ -17,7 +17,11 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  wrapFleetHelper,
+  humanHostDiskEncryptionEnabled,
+} from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -47,6 +51,13 @@ interface IHostResponse {
   host: IHost;
   org_logo_url: string;
   license: ILicense;
+  disk_encryption_enabled?: boolean;
+  platform?: string;
+}
+
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
 }
 
 const DeviceUserPage = ({
@@ -60,6 +71,10 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
+  const [
+    hostDiskEncryption,
+    setHostDiskEncryption,
+  ] = useState<IHostDiskEncryptionProps>({});
   const [host, setHost] = useState<IHost | null>();
   const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -84,7 +99,6 @@ const DeviceUserPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
   };
-
   const {
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
@@ -104,6 +118,13 @@ const DeviceUserPage = ({
         setIsPremiumTier(returnedHost.license.tier === "premium");
         setHostSoftware(returnedHost.host.software ?? []);
         setHost(returnedHost.host);
+        setHostDiskEncryption({
+          enabled: returnedHost.host.disk_encryption_enabled,
+          tooltip: humanHostDiskEncryptionEnabled(
+            returnedHost.host.platform,
+            returnedHost.host.disk_encryption_enabled
+          ),
+        });
         setOrgLogoURL(returnedHost.org_logo_url);
         if (returnedHost?.host.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
@@ -241,6 +262,7 @@ const DeviceUserPage = ({
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
+              diskEncryption={hostDiskEncryption}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
