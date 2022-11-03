@@ -1,6 +1,22 @@
 .targets-input {
   position: relative;
 
+  // &::after {
+  //   background-color: red;
+  //   content: url("../assets/images/icon-chevron-white-16x16@2x.png");
+  //   transform: scale(0.5);
+  //   width: 16px;
+  //   border-radius: 0px;
+  //   padding: 0px;
+  //   padding-left: 2px;
+  //   margin-top: 2px;
+  //   visibility: visible;
+  //   position: relative;
+  //   top: 0;
+  //   right: 0;
+  //   z-index: 9999;
+  // }
+
   &__hosts-search-dropdown {
     width: 100%;
     position: absolute;
