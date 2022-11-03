@@ -125,7 +125,7 @@
       comingSoon: false
     - name: Manage osquery extensions remotely
       tier: Premium
-      comingSoon: true
+      comingSoon: false
 
 
 
