@@ -138,13 +138,9 @@ const HostSummary = ({
           </span>
         </div>
         {titleData.issues?.total_issues_count > 0 &&
-          deviceUser &&
           isPremiumTier &&
           renderIssues()}
-        {titleData.issues?.total_issues_count > 0 &&
-          !deviceUser &&
-          renderIssues()}
-        {!deviceUser && isPremiumTier && renderHostTeam()}
+        {isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
           <DiskSpaceGraph
@@ -191,12 +187,10 @@ const HostSummary = ({
             )}
           </span>
         </div>
-        {!deviceUser && (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Osquery</span>
-            <span className="info-flex__data">{titleData.osquery_version}</span>
-          </div>
-        )}
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Osquery</span>
+          <span className="info-flex__data">{titleData.osquery_version}</span>
+        </div>
       </div>
     );
   };

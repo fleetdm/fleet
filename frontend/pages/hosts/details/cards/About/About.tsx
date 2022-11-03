@@ -152,38 +152,6 @@ const About = ({
     );
   };
 
-  if (deviceUser) {
-    return (
-      <div className="section about">
-        <p className="section__header">About</p>
-        <div className="info-grid">
-          <div className="info-grid__block">
-            <span className="info-grid__header">Last restarted</span>
-            <span className="info-grid__data">
-              {humanHostLastRestart(
-                aboutData.detail_updated_at,
-                aboutData.uptime
-              )}
-            </span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Hardware model</span>
-            <span className="info-grid__data">{aboutData.hardware_model}</span>
-          </div>
-          <div className="info-grid__block">
-            <span className="info-grid__header">Added to Fleet</span>
-            <span className="info-grid__data">
-              {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
-            </span>
-          </div>
-          {renderSerialAndIPs()}
-          {renderDeviceUser()}
-          {renderBattery()}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="section about">
       <p className="section__header">About</p>
@@ -208,8 +176,8 @@ const About = ({
           <span className="info-grid__data">{aboutData.hardware_model}</span>
         </div>
         {renderSerialAndIPs()}
-        {renderMunkiData()}
-        {renderMdmData()}
+        {!deviceUser && renderMunkiData()}
+        {!deviceUser && renderMdmData()}
         {renderDeviceUser()}
         {renderGeolocation()}
         {renderBattery()}

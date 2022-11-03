@@ -186,6 +186,7 @@ const DeviceUserPage = ({
       "detail_updated_at",
       "percent_disk_space_available",
       "gigs_disk_space_available",
+      "team_name",
     ])
   );
 
@@ -198,6 +199,7 @@ const DeviceUserPage = ({
       "hardware_serial",
       "primary_ip",
       "public_ip",
+      "geolocation",
       "batteries",
       "detail_updated_at",
     ])
