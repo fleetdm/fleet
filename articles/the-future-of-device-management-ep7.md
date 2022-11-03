@@ -21,7 +21,7 @@ In 2015, IT, system administration, programming, and DevOps professionals from a
 - What a day in the life of Mat X looks like
 - Illumating the biggest changes of MacAdmin over the years
 - The creation and journey of MDOYVR
-- Why MacAdmins came to be so community-oriented (open source eg. MicroMDM, Nudge, etc)
+- Why MacAdmins came to be so community-oriented (Offering open source tools like MicroMDM, Nudge, etc)
 - What the biggest challenges the industry and MacAdmin teams are
 - The future of MacAdmin work
 
