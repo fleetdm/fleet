@@ -3,7 +3,7 @@
 
 <iframe title="Mat X, Organizing community insights for industry growth with MacAdmin tools" allowtransparency="true" height="300" width="100%" style="border: none; min-width: min(100%, 430px);" scrolling="no" data-name="pb-iframe-player" src="https://www.podbean.com/player-v2/?from=embed&i=7dyjk-13049d4-pb&square=1&share=1&download=1&fonts=Arial&skin=f6f6f6&font-color=auto&rtl=0&logo_link=episode_page&btn-skin=666666&size=300" allowfullscreen=""></iframe>
 
-Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/mat-x-organizing-community-insights-for-industry-growth/id1641183838?i=1000584995357), [Spotify](https://open.spotify.com/episode/5wXMNulhPsXJXFpdPkk7YD?si=_6sSsyAfTAG9BamZKspwOA), or [PodBean]([https://www.podbean.com/ew/pb-z3dhr-12ced49](https://www.podbean.com/ew/pb-7dyjk-13049d4)).
+Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/mat-x-organizing-community-insights-for-industry-growth/id1641183838?i=1000584995357), [Spotify](https://open.spotify.com/episode/5wXMNulhPsXJXFpdPkk7YD?si=_6sSsyAfTAG9BamZKspwOA), or [PodBean](https://www.podbean.com/ew/pb-7dyjk-13049d4).
 
 ### Show notes: 
 
