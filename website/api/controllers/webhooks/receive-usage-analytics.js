@@ -39,7 +39,31 @@ module.exports = {
 
   fn: async function (inputs) {
 
-    await HistoricalUsageSnapshot.create(inputs);
+    let newUsageSnapshot = _.clone(inputs);
+
+    // If hostsEnrolledByOperatingSystem has values
+    if(inputs.hostsEnrolledByOperatingSystem !== {}) {
+      // Create a new object that contains an empty totalHostsByOS object.
+      hostsEnrolledByOperatingSystemWithTotals = _.extend({totalHostsByOS: {}}, inputs.hostsEnrolledByOperatingSystem);
+      let totalHostsByOperatingSystem = {};
+      // Iterate through the array of operating systems
+      for(let operatingSystem in inputs.hostsEnrolledByOperatingSystem) {
+        let totalNumberOfHostsUsingThisOperatingSystem = 0;
+        // Iterate through array of operating system versions
+        for(let osVersion of inputs.hostsEnrolledByOperatingSystem[operatingSystem]) {
+          // Add the `numEnrolled` for this version to the totalNumberOfHostsUsingThisOperatingSystem
+          totalNumberOfHostsUsingThisOperatingSystem += osVersion.numEnrolled;
+        }
+        // Add the totalNumberOfHostsUsingThisOperatingSystem value to the totalHostsByOperatingSystem object, using the name of the operating system as the key.
+        totalHostsByOperatingSystem[operatingSystem] = totalNumberOfHostsUsingThisOperatingSystem;
+      }
+      hostsEnrolledByOperatingSystemWithTotals.totalHostsByOS = _.clone(totalHostsByOperatingSystem);
+
+      // Add the hostsEnrolledByOperatingSystemWithTotals object to the newUsageSnapshot
+      newUsageSnapshot.hostsEnrolledByOperatingSystem = _.clone(hostsEnrolledByOperatingSystemWithTotals);
+    }
+
+    await HistoricalUsageSnapshot.create(newUsageSnapshot);
 
   }
 
