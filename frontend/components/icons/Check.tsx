@@ -1,10 +1,10 @@
 import React from "react";
 
-interface IChevronDownProps {
+interface ICheckProps {
   color?: string;
 }
 
-const Check = ({ color = "#6a67fe" }: IChevronDownProps) => {
+const Check = ({ color = "#6a67fe" }: ICheckProps) => {
   return (
     <svg
       width="16"

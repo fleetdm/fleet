@@ -188,23 +188,17 @@
     border-radius: 0px;
     margin-left: -4px;
     margin-top: 6px;
-    background-color: orange;
 
     &:hover {
       content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
       width: 16px;
       height: 16px;
       border-radius: 0px;
-      background-color: yellow;
     }
-  }
-  .Select-clear-indicator {
-    background-color: blue;
   }
 
   .Select-clear-zone {
     width: 30px;
-    background-color: red;
   }
 
   .Select-arrow-zone {
