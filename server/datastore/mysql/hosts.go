@@ -79,14 +79,14 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		id, _ := result.LastInsertId()
 		host.ID = uint(id)
 
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`,
 			host.ID, host.SeenTime,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
 			host.ID, host.DisplayName(),
 		)
@@ -757,7 +757,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		  hostname = '' AND
 		  osquery_version = '' AND
 		  created_at < (? - INTERVAL 5 MINUTE)`
-		if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &ids, selectIDs, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
 		}
 
@@ -765,7 +765,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 			`DELETE FROM host_display_names WHERE host_id IN (%s)`,
 			selectIDs,
 		)
-		if _, err := ds.writer.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
+		if _, err := tx.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
 		}
 
@@ -774,7 +774,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 		`
-		if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
+		if _, err := tx.ExecContext(ctx, cleanupHosts, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 		}
 
