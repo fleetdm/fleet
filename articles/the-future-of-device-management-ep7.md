@@ -1,12 +1,11 @@
 # Future of device management
-## EP 7: Mat X: Scaling infrastructure automation with open source tools
+## EP 7: Mat X: Organizing community insights for industry growth with MacAdmin tools
 
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/ep-6-whitney-champion-scaling-infrastructure-automation/id1641183838?i=1000580448335"></iframe>
+<iframe title="Mat X, Organizing community insights for industry growth with MacAdmin tools" allowtransparency="true" height="300" width="100%" style="border: none; min-width: min(100%, 430px);" scrolling="no" data-name="pb-iframe-player" src="https://www.podbean.com/player-v2/?from=embed&i=7dyjk-13049d4-pb&square=1&share=1&download=1&fonts=Arial&skin=f6f6f6&font-color=auto&rtl=0&logo_link=episode_page&btn-skin=666666&size=300" allowfullscreen=""></iframe>
 
-Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/ep-6-whitney-champion-scaling-infrastructure-automation/id1641183838?i=1000580448335), [Spotify](https://open.spotify.com/episode/4ywwvk1vSj0ENhrAg4k1Ii?si=w6dg7PlsQ0CqTQQXQb7RTQ), or [PodBean](https://www.podbean.com/ew/pb-z3dhr-12ced49).
+Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/mat-x-organizing-community-insights-for-industry-growth/id1641183838?i=1000584995357), [Spotify](https://open.spotify.com/episode/5wXMNulhPsXJXFpdPkk7YD?si=_6sSsyAfTAG9BamZKspwOA), or [PodBean]([https://www.podbean.com/ew/pb-z3dhr-12ced49](https://www.podbean.com/ew/pb-7dyjk-13049d4)).
 
-Show notes: 
-
+### Show notes: 
 
 In his day job Mat X serves the local film, VFX (visual effects), and media production industries. As an established storage, workflow and backup expert, he builds better workflows from camera to archive and back again. Working with high speed fiber channel SAN storage led to a healthy respect for well established, backup, archive and disaster recovery systems, balancing on premise LTO (linear tape open) systems which offer fast and secure backups with cloud (other people’s data centers).
 
@@ -28,3 +27,10 @@ Many years of managing Macs and other devices has created a large community of I
 - [Find Mat on Twitter.](https://twitter.com/macvfx)
 - [Find MacDevOpsYVR on Twitter.](https://twitter.com/MacDevOpsYVR)
 - [Find Mat on LinkedIn.](https://www.linkedin.com/in/matxsan/)
+
+<meta name="category" value="podcasts">
+<meta name="authorGitHubUsername" value="zwass">
+<meta name="authorFullName" value="Zach Wasserman">
+<meta name="publishedOn" value="2022-11-03">
+<meta name="articleTitle" value="Future of device management episode 7">
+<meta name="articleImageUrl" value="../website/assets/images/articles/future-of-device-management-ep7-cover-1600x900@2x.jpg">
