@@ -23,7 +23,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
 
   name                  = "${local.name}-mysql"
   engine                = "aurora-mysql"
-  engine_version        = "5.7.mysql_aurora.2.10.0"
+  engine_version        = "8.0.mysql_aurora.3.02.0"
   instance_type         = "db.r6g.4xlarge"
   instance_type_replica = "db.r6g.4xlarge"
 
@@ -68,12 +68,12 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
 
 resource "aws_db_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-db-mysql-parameter-group"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-db-mysql-parameter-group"
 }
 
 resource "aws_rds_cluster_parameter_group" "example_mysql" {
   name        = "${local.name}-aurora-mysql-cluster-parameter-group"
-  family      = "aurora-mysql5.7"
+  family      = "aurora-mysql8.0"
   description = "${local.name}-aurora-mysql-cluster-parameter-group"
 }
