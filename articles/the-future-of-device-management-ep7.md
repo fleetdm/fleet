@@ -7,7 +7,9 @@ Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/mat-x-org
 
 ### Show notes: 
 
-In his day job Mat X serves the local film, VFX (visual effects), and media production industries. As an established storage, workflow and backup expert, he builds better workflows from camera to archive and back again. Working with high speed fiber channel SAN storage led to a healthy respect for well established, backup, archive and disaster recovery systems, balancing on premise LTO (linear tape open) systems which offer fast and secure backups with cloud (other people’s data centers).
+In his day job, Mat X serves the local film, visual effects (VFX), and media production industries. As an established storage, workflow, and backup expert, he builds better workflows from camera to archive and back again.
+
+Working with high speed fiber channel SAN storage led to a healthy respect for well established backup, archive, and disaster recovery systems — balancing on-premises linear tape open (LTO) systems that offer fast and secure cloud backups.
 
 Many years of managing Macs and other devices has created a large community of IT professionals wanting to do the same. Mat X saw the new trend of Mac open-source software written through collaboration. He wanted to focus on the niche of developers (Dev) and IT (Ops) working together, so he founded a new conference called MacDevOps:YVR (MDO:YVR for short).
 
