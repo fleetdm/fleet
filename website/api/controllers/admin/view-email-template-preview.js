@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'View email preview',
+  friendlyName: 'View email template preview',
 
 
-  description: 'Display "Email preview" page.',
+  description: 'Display "email template preview" page.',
 
   urlWildcardSuffix: 'template',
 

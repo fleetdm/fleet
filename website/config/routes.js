@@ -213,7 +213,7 @@ module.exports.routes = {
   },
 
   'GET /admin/email-preview/*': {
-    action: 'admin/view-email-preview',
+    action: 'admin/view-email-template-preview',
     skipAssets: true
   },
 
