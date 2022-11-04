@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Build HTML email',
+  friendlyName: 'Generate HTML email from article',
 
 
   description: 'Generate an HTML partial for the Fleet newsletter from Markdown files in the articles/ folder of the fleetdm/fleet repo.',
@@ -19,7 +19,7 @@ module.exports = {
 
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
-    let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletter-partials';
+    let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletters';
 
 
     let extensionedArticleFilename = articleFilename;
@@ -35,7 +35,7 @@ module.exports = {
     let unextensionedArticleFilename = _.trimRight(extensionedArticleFilename, '.md');
 
     // Build the filename for the final HTML partial.
-    let extensionedFileNameForEmailPartial = unextensionedArticleFilename.replace(/\./g, '-')+'.ejs';
+    let extensionedFileNameForEmailPartial = 'email-article-'+unextensionedArticleFilename.replace(/\./g, '-')+'.ejs';
 
     // Find the Markdown file in the articles folder
     let markdownFileToConvert = path.resolve(path.join(topLvlRepoPath, '/articles/'+extensionedArticleFilename));
