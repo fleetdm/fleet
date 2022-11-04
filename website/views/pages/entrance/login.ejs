@@ -1,7 +1,13 @@
 <div id="login" v-cloak>
-  <div style="max-width: 800px;" class="container-fluid pb-5 px-lg-0 px-3">
-    <h1>Welcome to Fleet Premium</h1>
-    <p class="pb-2">Sign in to manage your Fleet Premium subscription.</p>
+  <div :purpose="[showCustomerLogin ? 'customer-login-container' : 'login-container']" class="container-fluid pb-5 px-lg-0 px-3">
+    <div v-if="showCustomerLogin">
+      <h1>Welcome to Fleet Premium</h1>
+      <p class="pb-2">Sign in to manage your Fleet Premium subscription.</p>
+    </div>
+    <div v-else>
+      <h1>Welcome to Fleet</h1>
+      <p class="pb-2">Sign in to your Fleet account.</p>
+    </div>
     <div purpose="customer-portal-form" class="d-flex flex-row justify-content-between">
       <div class="order-first flex-grow-1">
         <div class="card card-body">
@@ -28,7 +34,7 @@
         </div>
       </div>
 
-      <div class="order-last d-none d-md-block" purpose="features-list">
+      <div class="order-last d-none d-md-block" purpose="features-list" v-if="showCustomerLogin">
         <p><strong>Fleet Premium includes:</strong></p>
         <ul>
           <li><img alt="A checkmark" src="/images/check-16x16@2x.png">Everything in Fleet Free</li>
