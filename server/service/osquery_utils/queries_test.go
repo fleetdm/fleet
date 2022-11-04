@@ -410,7 +410,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 
 func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 		require.False(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Empty(t, serverURL)
@@ -436,7 +436,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 		require.True(t, enrolled)
 		require.True(t, installedFromDep)
 		require.NotEmpty(t, serverURL)
@@ -449,11 +449,10 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
 	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{
-			"discoveryServiceURL": "some url",
-			"autopilot":           "true",
-			"providerID":          "1337",
-		},
+		{"key": "discovery_service_url", "value": "some url"},
+		{"key": "autopilot", "value": "true"},
+		{"key": "providerID", "value": "1337"},
+		{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
 	}, false)
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)

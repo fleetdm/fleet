@@ -932,7 +932,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 0, resp.Count)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, false, true, "https://simplemdm.com", false, ""))
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1119,7 +1119,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "https://simplemdm.com", false, ""))
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -2619,7 +2619,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		return err
 	})
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false, ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "url", false, ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
 
 	macadminsData := macadminsDataResponse{}
@@ -2646,7 +2646,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.False(t, macadminsData.Macadmins.MunkiIssues[1].HostIssueCreatedAt.IsZero())
 	assert.Equal(t, "warning", macadminsData.Macadmins.MunkiIssues[1].IssueType)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true, ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "https://simplemdm.com", true, ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, nil))
 
 	macadminsData = macadminsDataResponse{}
@@ -2662,7 +2662,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
 	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false, ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, false, "url2", false, ""))
 
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -2690,7 +2690,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "https://kandji.io", true, ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, ""))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)

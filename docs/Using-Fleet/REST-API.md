@@ -1718,6 +1718,8 @@ If `software_id` is specified, an additional top-level key `"software"` is retur
 
 If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
 
+If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+
 If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the information corresponding to the `munki_issue_id`.
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
