@@ -27,8 +27,7 @@ const AddHostsModal = ({
   isSandboxMode,
   onCancel,
   openEnrollSecretModal,
-}: // onManageEnrollSecretsClick,
-IAddHostsModal): JSX.Element => {
+}: IAddHostsModal): JSX.Element => {
   const onManageEnrollSecretsClick = () => {
     onCancel();
     openEnrollSecretModal && openEnrollSecretModal();
@@ -41,15 +40,18 @@ IAddHostsModal): JSX.Element => {
     if (!enrollSecret) {
       return (
         <DataError>
-          {openEnrollSecretModal && (
-            <span className="info__data">
-              You have no enroll secrets.{" "}
+          <span className="info__data">
+            You have no enroll secrets.{" "}
+            {openEnrollSecretModal ? (
               <Button onClick={onManageEnrollSecretsClick} variant="text-link">
                 Manage enroll secrets
-              </Button>{" "}
-              to enroll hosts to <b>{currentTeam?.name}</b>.
-            </span>
-          )}
+              </Button>
+            ) : (
+              "Manage enroll secrets"
+            )}{" "}
+            to enroll hosts to{" "}
+            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+          </span>
         </DataError>
       );
     }
