@@ -1381,6 +1381,7 @@ const ManageHostsPage = ({
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
+        openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
     );
   };

@@ -482,6 +482,7 @@ const TeamDetailsWrapper = ({
             // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
             isSandboxMode={false}
             onCancel={toggleAddHostsModal}
+            openEnrollSecretModal={toggleManageEnrollSecretsModal}
           />
         )}
         {showManageEnrollSecretsModal && (

@@ -6,11 +6,11 @@ import Icon from "components/Icon";
 const baseClass = "data-error";
 
 interface IDataErrorProps {
+  children?: JSX.Element | string;
   card?: boolean;
-  message?: JSX.Element | string;
 }
 
-const DataError = ({ card, message }: IDataErrorProps): JSX.Element => {
+const DataError = ({ children, card }: IDataErrorProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__${card ? "card" : "inner"}`}>
@@ -19,23 +19,24 @@ const DataError = ({ card, message }: IDataErrorProps): JSX.Element => {
             <Icon name="alert" />
             Something&apos;s gone wrong.
           </span>
-          {message ? (
-            { message }
-          ) : (
-            <>
-              <span className="info__data">
-                Refresh the page or log in again.
-              </span>
-              <span className="info__data">
-                If this keeps happening, please&nbsp;
-                <CustomLink
-                  url="https://github.com/fleetdm/fleet/issues/new/choose"
-                  text="file an issue"
-                  newTab
-                />
-              </span>
-            </>
-          )}
+
+          <>
+            {children || (
+              <>
+                <span className="info__data">
+                  Refresh the page or log in again.
+                </span>
+                <span className="info__data">
+                  If this keeps happening, please&nbsp;
+                  <CustomLink
+                    url="https://github.com/fleetdm/fleet/issues/new/choose"
+                    text="file an issue"
+                    newTab
+                  />
+                </span>
+              </>
+            )}
+          </>
         </div>
       </div>
     </div>
