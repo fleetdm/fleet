@@ -139,6 +139,7 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
+    setAvailableTeams,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -333,6 +334,7 @@ const ManageHostsPage = ({
       select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
+        setAvailableTeams(responseTeams);
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
           setCurrentTeam(responseTeams[0]);
         }
