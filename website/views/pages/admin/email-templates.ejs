@@ -6,13 +6,14 @@
         <a :href="'/admin/email-preview/'+templatePath">{{templatePath}}</a>
       </li>
     </ul>
-    <h2>Preview emails generated from Markdown content</h2>
-    <ul>
-      <li v-for="templatePath of markdownEmailPaths">
-        <a :href="'/admin/email-preview/'+templatePath">{{templatePath}}</a>
-      </li>
-    </ul>
-
+    <div v-if="markdownEmailPaths.length !== 0">
+      <h2>Preview emails generated from Markdown content</h2>
+      <ul>
+        <li v-for="templatePath of markdownEmailPaths">
+          <a :href="'/admin/email-preview/'+templatePath">{{templatePath}}</a>
+        </li>
+      </ul>
+    </div>
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
