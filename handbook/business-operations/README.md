@@ -45,7 +45,7 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 
 ### Attending conferences or company travel
 
-When attending a conference or traveling for Fleet, please make a post in [#help-travel](https://fleetdm.slack.com/archives/C03V38WQFLG) on Slack with the following information:
+When attending a conference or traveling for Fleet, please make a post in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP) on Slack with the following information:
 - The start and end dates for your trip.
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
@@ -56,6 +56,16 @@ When attending a conference or traveling for Fleet, please make a post in [#help
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
 We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+
+### Non-travel purchases that exceed a Brex cardholder's limit
+
+For non-travel purchases that would require an increase in the Brex cardholder's limit, please make a post in [#g-business-opeartions](https://fleetdm.slack.com/archives/C047N5L6EGH)) on Slack with the following information:
+- The nature of the purchase (i.e. SaaS subscription and what it's used for)
+- The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
+- Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
+- If there are more ideal options to pay for the purchase (i.e. bill.com, the Fleet AP Brex card, etc.) that method will be used instead.  
+- In general, recurring purchases such as subscription services that will continually stretch the spend limit on a cardholder's Brex card should be paid through other means. 
+- For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 ### Coworking
 
@@ -586,8 +596,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#g-people`                 | Charlie Chance
 | `#help-onboarding`          | Charlie Chance
 | `#g-business-operations`    | Nathan Holliday
-| `#help-brex-memos`          | Nathan Holliday
-| `#help-travel`              | Nathan Holliday
+| `#help-brex`                | Nathan Holliday
 | `#help-ceo`                 | Charlie Chance
 | `#help-key-review-prep`     | Charlie Chance
 
