@@ -1,6 +1,7 @@
 import React from "react";
 
 import { ITeamSummary } from "interfaces/team";
+import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
@@ -16,6 +17,7 @@ interface IAddHostsModal {
   isLoading: boolean;
   isSandboxMode?: boolean;
   onCancel: () => void;
+  onManageEnrollSecretsClick?: () => void;
 }
 
 const AddHostsModal = ({
@@ -24,12 +26,23 @@ const AddHostsModal = ({
   isLoading,
   isSandboxMode,
   onCancel,
+  onManageEnrollSecretsClick,
 }: IAddHostsModal): JSX.Element => {
   const renderModalContent = () => {
     if (isLoading) {
       return <Spinner />;
     }
     if (!enrollSecret) {
+      const message = (
+        <>
+          You have no enroll secrets.{" "}
+          <Button onClick={onManageEnrollSecretsClick} variant="text-link">
+            Manage enroll secrets
+          </Button>{" "}
+          to enroll hosts to <b>{currentTeam?.name}</b>.
+        </>
+      );
+
       return <DataError />;
     }
 
