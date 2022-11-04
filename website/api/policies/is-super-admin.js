@@ -14,7 +14,8 @@ module.exports = async function (req, res, proceed) {
   // > For more about where `req.me` comes from, check out this app's
   // > custom hook (`api/hooks/custom/index.js`).
   if (!req.me) {
-    return res.unauthorized();
+    // If the request did not come from a logged-in user, we'll redirect them to an generic version of the customer login page.
+    return res.redirect('/customers/login?admin');
   }//•
 
   // Then check that this user is a "super admin".
