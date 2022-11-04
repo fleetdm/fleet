@@ -1,3 +1,63 @@
+## Fleet 4.23.0 (Nov 10, 2022)
+
+- Fixed bug where password reset token expiration was not enforced
+
+* Added preview screenshots for Jira and Zendesk vulnerability tickets for Premium users.
+
+* Improve host detail query to populate primary ip and mac address on host.
+
+- Add option to show public IP address in Hosts table
+
+Improve ingress resource by replacing the template with a most recent version, that enables:
+- Not having any annotation hardcoded, all annotations are optional.
+- Custom path, as of now it was hardcoded to `/*`, but depending on the ingress controller, it can require an extra annotation to work with regular expressions.
+- Specify ingressClassName, as it was hardcoded to `gce`, and this is a setting that might be different on each cluster.
+
+- Added ingestion of host orbit version from `orbit_info` osquery extension table.
+- Added number of hosts enrolled by orbit version to usage statistics payload.
+- Added number of hosts enrolled by osquery version to usage statistics payload.
+
+* Added arch and linuxmint to list of linux distros so that their data is displayed and host count includes them
+
+- When submitting invalid agent options, inform user how to override agent options using fleetctl force flag
+
+* Fixed a bug in `fleetctl apply` for teams, where a missing `agent_options` key in the YAML spec file would clear the existing agent options for the team (now it leaves it unchanged). If the key is present but empty, then it clears the agent options.
+
+* Activity feed includes editing team config file using fleetctl
+
+* Fixed bug with our CPE matching process. UTM.app was matching to the wrong CPE.
+
+- add tooling for writing integration tests on the frontend
+
+* Fixed an issue where fleet would send invalid usage stats if no hosts were enrolled
+
+* Update colors, issues icon
+
+* Select targets pages implements cleaner icons
+
+* Added validation of unknown keys for the Apply Teams Spec request payload (`POST /spec/teams` endpoint).
+
+* Update styling of tooltips and modals
+
+* Cleanup dashboard styling
+
+* Fixed an Orbit MSI installer bug that caused Orbit files not to be removed during uninstallation.
+
+* Orbit MSI installer now includes the necessary manifest file to use windows_event_log as a logger_plugin.
+
+- styling updates on login and forgot password pages
+
+* Use the MSRC security bulletins to scan for Windows vulnerabilities. Detected vulnerabilities are
+inserted in a new table, 'operating_system_vulnerabilities'.
+
+* Added vulnerability scores to Jira and Zendesk integrations for Fleet Premium users.
+
+* Improve database usage to prevent some deadlocks
+
+* Added ingestion of disk encryption status for hosts, and added that flag in the response of the `GET /hosts/{id}` API endpoint.
+
+* Detect Windows MDM solutions and add mdm endpoints.
+
 ## Fleet 4.22.1 (Oct 27, 2022)
 
 * Fixed the error response of the `/device/:token/desktop` endpoint causing problems on free Fleet Desktop instances on versions `1.3.x`.
