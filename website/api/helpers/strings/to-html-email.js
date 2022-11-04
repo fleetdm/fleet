@@ -97,8 +97,8 @@ module.exports = {
     }
 
     // For list items
-    customRenderer.listitem = function(textHTMl, task, checked) {
-      return `<li style="margin-bottom: 16px;">\n${textHTMl}\n</li>\n`
+    customRenderer.listitem = function(textHTML, task, checked) {
+      return `<li style="margin-bottom: 16px;">\n${textHTML}\n</li>\n`
     }
 
     customRenderer.paragraph = function(text) {
@@ -142,7 +142,7 @@ module.exports = {
       return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none; word-break: break-word;" href="${href}">${textHTML}</a>`
     }
 
-    // For Images
+    // For images
     customRenderer.image = function(href, title, textHTML) {
       let linkToImageInAssetsFolder = href.replace(/^(\.\.\/website\/assets)/gi, 'https://fleetdm.com')
       return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${linkToImageInAssetsFolder}" alt="${title}">`
