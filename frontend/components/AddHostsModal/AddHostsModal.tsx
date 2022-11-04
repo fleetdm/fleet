@@ -17,7 +17,7 @@ interface IAddHostsModal {
   isLoading: boolean;
   isSandboxMode?: boolean;
   onCancel: () => void;
-  openEnrollSecretModal: () => void;
+  openEnrollSecretModal?: () => void;
 }
 
 const AddHostsModal = ({
@@ -31,7 +31,7 @@ const AddHostsModal = ({
 IAddHostsModal): JSX.Element => {
   const onManageEnrollSecretsClick = () => {
     onCancel();
-    openEnrollSecretModal();
+    openEnrollSecretModal && openEnrollSecretModal();
   };
 
   const renderModalContent = () => {
@@ -41,13 +41,15 @@ IAddHostsModal): JSX.Element => {
     if (!enrollSecret) {
       return (
         <DataError>
-          <span className="info__data">
-            You have no enroll secrets.{" "}
-            <Button onClick={onManageEnrollSecretsClick} variant="text-link">
-              Manage enroll secrets
-            </Button>{" "}
-            to enroll hosts to <b>{currentTeam?.name}</b>.
-          </span>
+          {openEnrollSecretModal && (
+            <span className="info__data">
+              You have no enroll secrets.{" "}
+              <Button onClick={onManageEnrollSecretsClick} variant="text-link">
+                Manage enroll secrets
+              </Button>{" "}
+              to enroll hosts to <b>{currentTeam?.name}</b>.
+            </span>
+          )}
         </DataError>
       );
     }
