@@ -10,7 +10,7 @@ import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import Chevron from "../../../../../../assets/images/icon-chevron-right-9x6@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IHeaderProps {
   column: {
@@ -289,13 +289,10 @@ export const generateSoftwareTableHeaders = (
       accessor: "linkToFilteredHosts",
       Cell: (cellProps: IStringCellProps) => {
         return (
-          <Link
-            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
-            className={`software-link`}
-          >
-            View all hosts{" "}
-            <img alt="link to hosts filtered by software ID" src={Chevron} />
-          </Link>
+          <ViewAllHostsLink
+            queryParams={{ software_id: cellProps.row.original.id }}
+            className="software-link"
+          />
         );
       },
       disableHidden: true,

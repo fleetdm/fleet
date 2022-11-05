@@ -890,6 +890,50 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// MDM
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostMDMRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostMDMResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.HostMDM
+}
+
+func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getHostMDMRequest)
+	mdm, err := svc.MDMData(ctx, req.ID)
+	if err != nil {
+		return getHostMDMResponse{Err: err}, nil
+	}
+	return getHostMDMResponse{HostMDM: mdm}, nil
+}
+
+type getHostMDMSummaryResponse struct {
+	fleet.AggregatedMDMData
+	Err error `json:"error,omitempty"`
+}
+
+type getHostMDMSummaryRequest struct {
+	TeamID   *uint  `query:"team_id,optional"`
+	Platform string `query:"platform,optional"`
+}
+
+func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getHostMDMSummaryRequest)
+	resp := getHostMDMSummaryResponse{}
+	var err error
+
+	resp.AggregatedMDMData, err = svc.AggregatedMDMData(ctx, req.TeamID, req.Platform)
+	if err != nil {
+		return getHostMDMSummaryResponse{Err: err}, nil
+	}
+	return resp, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Macadmins
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1016,18 +1060,15 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MunkiIssues = issues
 
-	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	var mdmUpdatedAt, mdmSolutionsUpdatedAt time.Time
+	agg.MDMStatus, mdmUpdatedAt, err = svc.ds.AggregatedMDMStatus(ctx, teamID, "darwin")
 	if err != nil {
 		return nil, err
 	}
-	agg.MDMStatus = status
-
-	solutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	agg.MDMSolutions, mdmSolutionsUpdatedAt, err = svc.ds.AggregatedMDMSolutions(ctx, teamID, "darwin")
 	if err != nil {
 		return nil, err
 	}
-	agg.MDMSolutions = solutions
-
 	agg.CountsUpdatedAt = munkiUpdatedAt
 	if munkiIssUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = munkiIssUpdatedAt
@@ -1040,6 +1081,48 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 
 	return agg, nil
+}
+
+func (svc *Service) MDMData(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host for MDMData")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	var mdm *fleet.HostMDM
+	switch hmdm, err := svc.ds.GetHostMDM(ctx, id); {
+	case err != nil && !fleet.IsNotFound(err):
+		return nil, err
+	case err == nil:
+		mdm = hmdm
+	}
+	return mdm, nil
+}
+
+func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platform string) (fleet.AggregatedMDMData, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return fleet.AggregatedMDMData{}, err
+	}
+
+	var err error
+	data := fleet.AggregatedMDMData{}
+	data.MDMStatus, _, err = svc.ds.AggregatedMDMStatus(ctx, teamID, platform)
+	if err != nil {
+		return fleet.AggregatedMDMData{}, err
+	}
+	data.MDMSolutions, _, err = svc.ds.AggregatedMDMSolutions(ctx, teamID, platform)
+	if err != nil {
+		return fleet.AggregatedMDMData{}, err
+	}
+	return data, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

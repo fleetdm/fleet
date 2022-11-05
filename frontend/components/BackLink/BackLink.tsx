@@ -29,7 +29,7 @@ const BackLink = ({ text, path, className }: IBackLinkProps): JSX.Element => {
           direction="left"
           color="coreVibrantBlue"
         />
-        {text}
+        <span>{text}</span>
       </>
     </Link>
   );

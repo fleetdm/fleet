@@ -3,8 +3,66 @@ package parsed
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewProductFromOS(t *testing.T) {
+	os := fleet.OperatingSystem{
+		Name:          "Microsoft Windows 11 Enterprise Evaluation",
+		Version:       "21H2",
+		Arch:          "64-bit",
+		KernelVersion: "10.0.22000.795",
+		Platform:      "windows",
+	}
+
+	pA := NewProductFromOS(os)
+	pB := NewProductFromFullName("Windows 11 for x64-based Systems")
+
+	require.Equal(t, "Windows 11", pA.Name())
+	require.Equal(t, "64-bit", pA.Arch())
+
+	require.True(t, pA.Matches(pB))
+}
+
+func TestMatches(t *testing.T) {
+	t.Run("from differect products", func(t *testing.T) {
+		pA := NewProductFromFullName("Windows 10 Version 1809 for ARM64-based Systems")
+		pB := NewProductFromFullName("Windows 11 for x64-based Systems")
+
+		require.False(t, pA.Matches(pB))
+		require.False(t, pB.Matches(pA))
+	})
+
+	t.Run("from differect arch", func(t *testing.T) {
+		pA := NewProductFromFullName("Windows 11 for ARM64-based Systems")
+		pB := NewProductFromFullName("Windows 11 for x64-based Systems")
+
+		require.False(t, pA.Matches(pB))
+		require.False(t, pB.Matches(pA))
+	})
+
+	t.Run("same product but for different architecture", func(t *testing.T) {
+		pA := NewProductFromFullName("Windows 10 Version 1809 for ARM64-based Systems")
+		pB := NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems")
+		require.False(t, pA.Matches(pB))
+		require.False(t, pB.Matches(pA))
+	})
+
+	t.Run("same product one with no architecture", func(t *testing.T) {
+		pA := NewProductFromFullName("Windows 10 Version 1809")
+		pB := NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems")
+		require.True(t, pA.Matches(pB))
+		require.True(t, pB.Matches(pA))
+	})
+
+	t.Run("same product same arch", func(t *testing.T) {
+		pA := NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems")
+		pB := NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems")
+		require.True(t, pA.Matches(pB))
+		require.True(t, pB.Matches(pA))
+	})
+}
 
 func TestFullProductName(t *testing.T) {
 	testCases := []struct {
@@ -361,14 +419,14 @@ func TestFullProductName(t *testing.T) {
 
 	t.Run("#ArchFromProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			sut := NewProduct(tCase.fullName)
+			sut := NewProductFromFullName(tCase.fullName)
 			require.Equal(t, tCase.arch, sut.Arch(), tCase)
 		}
 	})
 
 	t.Run("#NameFromFullProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			sut := NewProduct(tCase.fullName)
+			sut := NewProductFromFullName(tCase.fullName)
 			require.Equal(t, tCase.prodName, sut.Name(), tCase)
 		}
 	})

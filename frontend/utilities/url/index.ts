@@ -70,6 +70,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   if (label) {
     return {};
   }
+
   switch (true) {
     case !!policyId:
       return { policy_id: policyId, policy_response: policyResponse };

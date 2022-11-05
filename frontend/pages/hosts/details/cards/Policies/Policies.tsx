@@ -91,7 +91,6 @@ const Policies = ({
             isAllPagesSelected={false}
             disablePagination
             disableCount
-            highlightOnHover
           />
         </>
       )}

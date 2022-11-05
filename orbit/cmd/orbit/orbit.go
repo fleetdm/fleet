@@ -666,6 +666,8 @@ func main() {
 		defer cancel()
 		g.Add(signalHandler(ctx))
 
+		go sigusrListener(c.String("root-dir"))
+
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
 		}
