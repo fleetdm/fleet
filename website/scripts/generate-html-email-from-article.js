@@ -15,7 +15,6 @@ module.exports = {
   fn: async function ({ articleFilename }) {
 
     let path = require('path');
-    let YAML = require('yaml');
 
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
@@ -28,7 +27,7 @@ module.exports = {
     if(!_.endsWith(articleFilename, '.md')) {
       // If the file was specified without a file extension, we'll add `.md` to the provided filename, and log a warning.
       extensionedArticleFilename = extensionedArticleFilename + '.md';
-      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFilename: '+articleFilename)
+      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFilename: '+articleFilename);
     }
 
     // Get the filename without the .md file extension. This will be used to build the final filename
@@ -60,7 +59,7 @@ module.exports = {
 
     // Find and remove any iframe elements in the markdown file
     for (let matchedIframe of (mdString.match(/<(iframe)[\s\S]+?<\/iframe>/igm) || [])) {
-      sails.log.warn('Removing an <iframe> element from the Markdown file before converting it into an HTML email: \n',matchedIframe)
+      sails.log.warn('Removing an <iframe> element from the Markdown file before converting it into an HTML email: \n',matchedIframe);
       mdString = mdString.replace(matchedIframe, '');
     }
 
