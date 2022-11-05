@@ -28,26 +28,19 @@ module.exports = {
       includeDirs: false,
       includeSymlinks: false,
     });
-    let markdownEmailDirectoryExists = await sails.helpers.fs.exists(path.join(sails.config.paths.views, 'emails/newsletter'));
 
-    let markdownEmailPaths = [];
-    // Find any email partials generated from Markdown articles.
-    if(markdownEmailDirectoryExists){
+    let markdownEmailPaths = await sails.helpers.fs.ls.with({
+      dir: path.join(sails.config.paths.views, 'emails/newsletter'),
+      depth: 99,
+      includeDirs: false,
+      includeSymlinks: false,
+    });
 
-      markdownEmailPaths = await sails.helpers.fs.ls.with({
-        dir: path.join(sails.config.paths.views, 'emails/newsletter'),
-        depth: 99,
-        includeDirs: false,
-        includeSymlinks: false,
-      });
-
-      markdownEmailPaths = markdownEmailPaths.map((templatePath)=>{
-        let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
-        let extension = path.extname(relativePath);
-        return _.trimRight(relativePath, extension);
-      });
-
-    }
+    markdownEmailPaths = markdownEmailPaths.map((templatePath)=>{
+      let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
+      let extension = path.extname(relativePath);
+      return _.trimRight(relativePath, extension);
+    });
 
     templatePaths = templatePaths.map((templatePath)=>{
       let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);

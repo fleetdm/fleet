@@ -19,7 +19,7 @@ module.exports = {
 
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
-    let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletters';
+    let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletter';
 
 
     let extensionedArticleFilename = articleFilename;
