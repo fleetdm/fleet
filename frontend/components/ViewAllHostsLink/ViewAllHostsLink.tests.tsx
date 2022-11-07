@@ -25,7 +25,7 @@ describe("ViewAllHostsLink - component", () => {
       throw new Error("View all host text is null");
     }
     // console.log("text.closest(a)", text.closest("a"));
-    const link = screen.getByRole("link", { name: "View all hosts" });
+    const link = screen.getByRole("link", { name: /View all hosts/i });
     // TODO: How to test partial link
     expect(link).toHaveAttribute("href", "/hosts/manage/&status=online");
 

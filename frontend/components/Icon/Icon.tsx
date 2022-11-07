@@ -1,10 +1,12 @@
 import React, { useMemo } from "react";
-import { IconNames, ICON_MAP } from "components/icons";
 import classnames from "classnames";
+
+import { IconNames, ICON_MAP } from "components/icons";
+import { Colors } from "styles/var/colors";
 
 interface IIconProps {
   name: IconNames;
-  color?: "coreVibrantBlue" | "coreFleetBlack";
+  color?: Colors;
   direction?: "up" | "down" | "left" | "right";
   className?: string;
   size?: "small" | "medium";
