@@ -195,14 +195,17 @@ const ActivityFeed = ({
           size="small"
         />
         <div className={`${baseClass}__details`}>
-          <p className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b> {getDetail(activity)}.
+          <p>
+            <span className={`${baseClass}__details-topline`}>
+              <b>{activity.actor_full_name}</b> {getDetail(activity)}.
+            </span>
+            <br />
+            <span className={`${baseClass}__details-bottomline`}>
+              {formatDistanceToNowStrict(new Date(activity.created_at), {
+                addSuffix: true,
+              })}
+            </span>
           </p>
-          <span className={`${baseClass}__details-bottomline`}>
-            {formatDistanceToNowStrict(new Date(activity.created_at), {
-              addSuffix: true,
-            })}
-          </span>
         </div>
       </div>
     );

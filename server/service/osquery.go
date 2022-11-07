@@ -807,7 +807,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
-			level.Debug(svc.logger).Log("query", query, "message", messages[query])
+			ll := level.Debug(svc.logger)
+			// We'd like to log these as error for troubleshooting and improving of distributed queries.
+			if messages[query] == "distributed query is denylisted" {
+				ll = level.Error(svc.logger)
+			}
+			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
+
 		}
 		var err error
 		switch {

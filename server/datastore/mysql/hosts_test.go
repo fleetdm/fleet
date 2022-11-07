@@ -128,6 +128,7 @@ func TestHosts(t *testing.T) {
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
+		{"HostIDsByOSID", testHostIDsByOSID},
 		{"TestHostDisplayName", testHostDisplayName},
 	}
 	for _, c := range cases {
@@ -889,13 +890,13 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	}
 
 	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
-	err := ds.SetOrUpdateMDMData(ctx, hostIDs[0], true, simpleMDM, true) // enrollment: automatic
+	err := ds.SetOrUpdateMDMData(ctx, hostIDs[0], true, simpleMDM, true, "") // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], true, kandji, true) // enrollment: automatic
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], true, kandji, true, "") // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], true, unknown, false) // enrollment: manual
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], true, unknown, false, "") // enrollment: manual
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, simpleMDM, false) // enrollment: unenrolled
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, simpleMDM, false, "") // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -3906,7 +3907,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err = ds.GetHostMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false, ""))
 
 	hmdm, err := ds.GetHostMDM(context.Background(), 432)
 	require.NoError(t, err)
@@ -3918,8 +3919,8 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	urlMDMID := *hmdm.MDMID
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true)) // kandji mdm name
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true, "")) // kandji mdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true, ""))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 432)
 	require.NoError(t, err)
@@ -3953,7 +3954,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// switch to simplemdm in an update
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", false)) // now simplemdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", false, "")) // now simplemdm name
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -3965,7 +3966,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, hmdm.Name)
 
 	// switch back to "url"
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "url", false, ""))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -3978,7 +3979,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	// switch to a different Kandji server URL, will have a different MDM ID as
 	// even though this is another Kandji, the URL is different.
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io/2", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io/2", false, ""))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -4064,11 +4065,19 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, issues, 0)
 	require.Zero(t, updatedAt)
-	status, updatedAt, err := ds.AggregatedMDMStatus(context.Background(), nil)
+	status, updatedAt, err := ds.AggregatedMDMStatus(context.Background(), nil, "")
 	require.NoError(t, err)
 	require.Empty(t, status)
 	require.Zero(t, updatedAt)
-	solutions, updatedAt, err := ds.AggregatedMDMSolutions(context.Background(), nil)
+	solutions, updatedAt, err := ds.AggregatedMDMSolutions(context.Background(), nil, "")
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+	require.Zero(t, updatedAt)
+	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil, "windows")
+	require.NoError(t, err)
+	require.Empty(t, status)
+	require.Zero(t, updatedAt)
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "windows")
 	require.NoError(t, err)
 	require.Len(t, solutions, 0)
 	require.Zero(t, updatedAt)
@@ -4087,11 +4096,19 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, issues)
 	require.NotZero(t, updatedAt)
-	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil)
+	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil, "")
 	require.NoError(t, err)
 	require.Empty(t, status)
 	require.NotZero(t, updatedAt)
-	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil)
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+	require.NotZero(t, updatedAt)
+	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil, "windows")
+	require.NoError(t, err)
+	require.Empty(t, status)
+	require.NotZero(t, updatedAt)
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "windows")
 	require.NoError(t, err)
 	require.Len(t, solutions, 0)
 	require.NotZero(t, updatedAt)
@@ -4148,23 +4165,23 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", true))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "https://kandji.io", true))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "https://kandji.io", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, true, "url", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, true, "url", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", true, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "https://kandji.io", true, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "https://kandji.io", true, ""))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
-	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil)
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 6, status.HostsCount)
 	assert.Equal(t, 2, status.UnenrolledHostsCount)
 	assert.Equal(t, 3, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
 
-	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil)
+	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.NoError(t, err)
 	require.Len(t, solutions, 3) // 3 different urls
 	for _, sol := range solutions {
@@ -4195,16 +4212,16 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	h1 := test.NewHost(t, ds, "h1"+t.Name(), "192.168.1.10", "1", "1", time.Now())
-	h2 := test.NewHost(t, ds, "h2"+t.Name(), "192.168.1.11", "2", "2", time.Now())
-	h3 := test.NewHost(t, ds, "h3"+t.Name(), "192.168.1.11", "3", "3", time.Now())
+	h1 := test.NewHost(t, ds, "h1"+t.Name(), "192.168.1.10", "1", "1", time.Now(), test.WithPlatform("windows"))
+	h2 := test.NewHost(t, ds, "h2"+t.Name(), "192.168.1.11", "2", "2", time.Now(), test.WithPlatform("darwin"))
+	h3 := test.NewHost(t, ds, "h3"+t.Name(), "192.168.1.11", "3", "3", time.Now(), test.WithPlatform("darwin"))
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{h2.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "https://simplemdm.com", false))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false, ""))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
 
@@ -4251,14 +4268,41 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	})
 	require.True(t, updatedAt.After(firstUpdatedAt))
 
-	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, status.HostsCount)
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
 
-	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID)
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "")
+	require.True(t, updatedAt.After(firstUpdatedAt))
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	assert.Equal(t, "https://simplemdm.com", solutions[0].ServerURL)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, solutions[0].Name)
+	assert.Equal(t, 1, solutions[0].HostsCount)
+
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "darwin")
+	require.NoError(t, err)
+	assert.Equal(t, 0, status.HostsCount)
+	assert.Equal(t, 0, status.UnenrolledHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualHostsCount)
+	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "darwin")
+	require.True(t, updatedAt.After(firstUpdatedAt))
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "windows")
+	require.NoError(t, err)
+	assert.Equal(t, 1, status.HostsCount)
+	assert.Equal(t, 0, status.UnenrolledHostsCount)
+	assert.Equal(t, 1, status.EnrolledManualHostsCount)
+	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "windows")
 	require.True(t, updatedAt.After(firstUpdatedAt))
 	require.NoError(t, err)
 	require.Len(t, solutions, 1)
@@ -4870,7 +4914,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
 	// Update host_mdm.
-	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, "", false)
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, "", false, "")
 	require.NoError(t, err)
 	// Update host_munki_info.
 	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", []string{"a"}, []string{"b"})
@@ -4893,6 +4937,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(context.Background(), host.ID, "1.1.0")
+	require.NoError(t, err)
+
+	// Operating system vulnerabilities
+	_, err = ds.writer.Exec(
+		`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
+		host.ID, 1, "cve-1",
+	)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -5341,4 +5392,85 @@ func testHostDisplayName(t *testing.T, ds *Datastore) {
 	for i, h := range hosts {
 		assert.Equal(t, expect[i], h.DisplayName())
 	}
+}
+
+func testHostIDsByOSID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	t.Run("no OS", func(t *testing.T) {
+		actual, err := ds.HostIDsByOSID(ctx, 1, 0, 100)
+		require.NoError(t, err)
+		require.Empty(t, actual)
+	})
+
+	t.Run("returns empty if no more pages", func(t *testing.T) {
+		for i := 1; i <= 510; i++ {
+			os := fleet.OperatingSystem{
+				Name:          "Microsoft Windows 11 Enterprise Evaluation II",
+				Version:       "21H2",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.22000.795",
+				Platform:      "windows",
+			}
+
+			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, uint(i+100), os))
+		}
+
+		storedOS, err := ds.ListOperatingSystems(ctx)
+		require.NoError(t, err)
+		for _, sOS := range storedOS {
+			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation II" {
+
+				actual, err := ds.HostIDsByOSID(ctx, sOS.ID, 0, 500)
+				require.NoError(t, err)
+				require.Len(t, actual, 500)
+
+				actual, err = ds.HostIDsByOSID(ctx, sOS.ID, 500, 500)
+				require.NoError(t, err)
+				require.Len(t, actual, 10)
+
+				actual, err = ds.HostIDsByOSID(ctx, sOS.ID, 510, 500)
+				require.NoError(t, err)
+				require.Empty(t, actual)
+				break
+			}
+		}
+	})
+
+	t.Run("returns matching entries", func(t *testing.T) {
+		os := []fleet.OperatingSystem{
+			{
+				Name:          "Microsoft Windows 11 Enterprise Evaluation",
+				Version:       "21H2",
+				Arch:          "64-bit",
+				KernelVersion: "10.0.22000.795",
+				Platform:      "windows",
+			},
+			{
+				Name:          "macOS",
+				Version:       "12.3.1",
+				Arch:          "x86_64",
+				KernelVersion: "21.4.0",
+				Platform:      "darwin",
+			},
+		}
+
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 1, os[0]))
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 2, os[1]))
+
+		storedOS, err := ds.ListOperatingSystems(ctx)
+		require.NoError(t, err)
+
+		for _, sOS := range storedOS {
+			actual, err := ds.HostIDsByOSID(ctx, sOS.ID, 0, 100)
+			require.NoError(t, err)
+			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation" {
+				require.Equal(t, []uint{1}, actual)
+			}
+
+			if sOS.Name == "macOS" {
+				require.Equal(t, []uint{2}, actual)
+			}
+		}
+	})
 }

@@ -1,3 +1,7 @@
+## Fleet 4.22.1 (Oct 27, 2022)
+
+* Fixed the error response of the `/device/:token/desktop` endpoint causing problems on free Fleet Desktop instances on versions `1.3.x`.
+
 ## Fleet 4.22.0 (Oct 20, 2022)
 
 * Added usage statistics for the weekly count of aggregate policy violation days. One policy violation day is counted for each policy that a host is failing, measured as of the time the count increments. The count increments once per 24-hour interval and resets each week.

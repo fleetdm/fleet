@@ -1,0 +1,9 @@
+.back-link {
+  display: flex;
+  align-items: center;
+
+  &__back-icon {
+    padding-right: $pad-small;
+    display: inline;
+  }
+}

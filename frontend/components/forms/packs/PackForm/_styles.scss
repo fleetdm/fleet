@@ -29,20 +29,4 @@
     margin: 25px 0;
     text-align: right;
   }
-
-  &__back-link {
-    display: flex;
-    align-items: center;
-    height: 20px;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-
-    #back-chevron {
-      width: 16px;
-      height: 16px;
-      margin: 0 $pad-small 0 0;
-    }
-  }
 }

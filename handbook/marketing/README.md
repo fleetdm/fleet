@@ -811,7 +811,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-public-relations`    | Tim Kern                                                            |
 | `#help-promote`             | Tim Kern                                                            |
 | `#help-swag`                | Drew Baker                                                          |
-| `#g-brand`                  | Mike Thomas                                                         |
 | `#oooh-websites`            | Mike Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
 | `#g-community`              | Kathy Satterlee                                                     |
