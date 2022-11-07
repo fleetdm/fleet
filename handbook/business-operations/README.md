@@ -6,7 +6,7 @@
 - [BizOps](#bizops)
 
 
-### Finance
+## Finance
 
 #### Monthly accounting
 Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue.  
@@ -57,7 +57,7 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 
-### BizOps
+## BizOps
 
 #### Zoom
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
