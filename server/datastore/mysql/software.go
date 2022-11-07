@@ -80,9 +80,7 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
-	})
+	return applyChangesForNewSoftwareDB(ctx, ds.writer, hostID, software, ds.minLastOpenedAtDiff)
 }
 
 func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time.Duration) bool {
@@ -218,7 +216,7 @@ func deleteUninstalledHostSoftwareDB(
 	return nil
 }
 
-func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
+func insertSoftwareAndGetID(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
 	getExistingID := func() (int64, error) {
 		var existingID int64
 		if err := sqlx.GetContext(ctx, tx, &existingID,
@@ -230,15 +228,6 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 			return 0, err
 		}
 		return existingID, nil
-	}
-
-	switch id, err := getExistingID(); {
-	case err == nil:
-		return uint(id), nil
-	case errors.Is(err, sql.ErrNoRows):
-		// OK
-	default:
-		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
 
 	_, err := tx.ExecContext(ctx,
@@ -282,7 +271,7 @@ func insertNewInstalledHostSoftwareDB(
 
 	for _, s := range incomingOrdered {
 		if _, ok := currentMap[s]; !ok {
-			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
+			id, err := insertSoftwareAndGetID(ctx, tx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
 			}
