@@ -1183,16 +1183,15 @@ func main() {
 	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
+	osTemplates := flag.String("os_templates", "mac10.14.6", "Comma separated list of host OS templates to use")
 
 	flag.Parse()
 
 	rand.Seed(*randSeed)
 
-	templateNames := []string{
-		"mac10.14.6.tmpl",
-
-		// Uncomment this to add windows hosts
-		// "windows_11.tmpl",
+	validTemplateNames := map[string]bool{
+		"mac10.14.6.tmpl": true,
+		"windows_11.tmpl": true,
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
 		// "partial_ubuntu.tmpl",
@@ -1203,10 +1202,22 @@ func main() {
 		// "ubuntu_21.10.tmpl",
 		// "ubuntu_22.04.tmpl",
 	}
+	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
+	for k := range validTemplateNames {
+		allowedTemplateNames = append(allowedTemplateNames, k)
+	}
 
 	var tmpls []*template.Template
-	for _, t := range templateNames {
-		tmpl, err := template.ParseFS(templatesFS, t)
+	requestedTemplates := strings.Split(*osTemplates, ",")
+	for _, nm := range requestedTemplates {
+		if !strings.HasSuffix(nm, ".tmpl") {
+			nm += ".tmpl"
+		}
+		if !validTemplateNames[nm] {
+			log.Fatalf("Invalid template name: %s (accepted values: %v)", nm, allowedTemplateNames)
+		}
+
+		tmpl, err := template.ParseFS(templatesFS, nm)
 		if err != nil {
 			log.Fatal("parse templates: ", err)
 		}
