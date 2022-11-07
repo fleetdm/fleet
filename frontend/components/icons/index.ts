@@ -9,6 +9,8 @@ import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
 import WindowsBlue from "./WindowsBlue";
 import ExternalLink from "./ExternalLink";
+import Error from "./Error";
+import Success from "./Success";
 import Check from "./Check";
 import Plus from "./Plus";
 import Clipboard from "./Clipboard";
@@ -26,6 +28,8 @@ export const ICON_MAP = {
   eye: Eye,
   pencil: Pencil,
   trash: TrashCan,
+  success: Success,
+  error: Error,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
