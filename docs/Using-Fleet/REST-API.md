@@ -602,7 +602,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
+To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
 For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#file-carving-with-fleet).
 
@@ -3222,6 +3222,7 @@ Returns a list of the hosts that belong to the specified label.
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 
 #### Example
 
@@ -4851,7 +4852,6 @@ Deletes the session specified by ID. When the user associated with the session n
         "hosts_count": 1
       }
     ]
-  }
 }
 ```
 
