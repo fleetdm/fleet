@@ -6,7 +6,7 @@ import { renderWithSetup } from "test/testingUtils";
 import CustomLink from "./CustomLink";
 
 describe("CustomLink - component", () => {
-  it("Custom link renders text and no icon", () => {
+  it("renders text and no icon", () => {
     render(
       <CustomLink
         url="https://github.com/fleetdm/fleet/issues/new/choose"
