@@ -13,6 +13,10 @@ import Error from "./Error";
 import Success from "./Success";
 import Check from "./Check";
 import Plus from "./Plus";
+import Clipboard from "./Clipboard";
+import Eye from "./Eye";
+import Pencil from "./Pencil";
+import TrashCan from "./TrashCan";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -20,6 +24,10 @@ export const ICON_MAP = {
   chevron: Chevron,
   check: Check,
   plus: Plus,
+  clipboard: Clipboard,
+  eye: Eye,
+  pencil: Pencil,
+  trash: TrashCan,
   success: Success,
   error: Error,
   darwin: Apple,
