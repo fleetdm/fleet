@@ -862,22 +862,22 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
-func (a *agent) mdm() []map[string]string {
-	possibleURLs := []string{
-		"https://kandji.com/1",
-		"https://jamf.com/1",
-		"https://airwatch.com/1",
-		"https://microsoft.com/1",
-		"https://simplemdm.com/1",
-		"https://example.com/1",
-		"https://kandji.com/2",
-		"https://jamf.com/2",
-		"https://airwatch.com/2",
-		"https://microsoft.com/2",
-		"https://simplemdm.com/2",
-		"https://example.com/2",
-	}
+var possibleMDMServerURLs = []string{
+	"https://kandji.com/1",
+	"https://jamf.com/1",
+	"https://airwatch.com/1",
+	"https://microsoft.com/1",
+	"https://simplemdm.com/1",
+	"https://example.com/1",
+	"https://kandji.com/2",
+	"https://jamf.com/2",
+	"https://airwatch.com/2",
+	"https://microsoft.com/2",
+	"https://simplemdm.com/2",
+	"https://example.com/2",
+}
 
+func (a *agent) mdmMac() []map[string]string {
 	enrolled := "true"
 	if rand.Intn(2) == 1 {
 		enrolled = "false"
@@ -886,9 +886,22 @@ func (a *agent) mdm() []map[string]string {
 	if rand.Intn(2) == 1 {
 		installedFromDep = "false"
 	}
-	ix := rand.Intn(len(possibleURLs))
+	ix := rand.Intn(len(possibleMDMServerURLs))
 	return []map[string]string{
-		{"enrolled": enrolled, "server_url": possibleURLs[ix], "installed_from_dep": installedFromDep},
+		{"enrolled": enrolled, "server_url": possibleMDMServerURLs[ix], "installed_from_dep": installedFromDep},
+	}
+}
+
+func (a *agent) mdmWindows() []map[string]string {
+	autopilot := "true"
+	if rand.Intn(2) == 1 {
+		autopilot = "false"
+	}
+	ix := rand.Intn(len(possibleMDMServerURLs))
+	serverURL := possibleMDMServerURLs[ix]
+	providerID := fleet.MDMNameFromServerURL(serverURL)
+	return []map[string]string{
+		{"autopilot": autopilot, "discoveryServiceURL": serverURL, "providerID": providerID},
 	}
 }
 
@@ -1004,7 +1017,13 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.mdm()
+			results = a.mdmMac()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"mdm_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.mdmWindows()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"munki_info":
