@@ -603,7 +603,7 @@ func (a *agent) CachedString(key string) string {
 	return val
 }
 
-func (a *agent) hostUsersMacOS() []map[string]string {
+func (a *agent) hostUsers() []map[string]string {
 	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
 	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
 	commonUsers := make([]map[string]string, a.userCount.common)
@@ -715,26 +715,6 @@ func loadSoftware(platform string, ver string) []map[string]string {
 
 func (a *agent) softwareWindows11() []map[string]string {
 	return loadSoftware("windows", "11")
-}
-
-func (a *agent) softwareUbuntu1604() []map[string]string {
-	return loadSoftware("ubuntu", "1604")
-}
-
-func (a *agent) softwareUbuntu1804() []map[string]string {
-	return loadSoftware("ubuntu", "1804")
-}
-
-func (a *agent) softwareUbuntu2004() []map[string]string {
-	return loadSoftware("ubuntu", "2004")
-}
-
-func (a *agent) softwareUbuntu2104() []map[string]string {
-	return loadSoftware("ubuntu", "2104")
-}
-
-func (a *agent) softwareUbuntu2110() []map[string]string {
-	return loadSoftware("ubuntu", "2110")
 }
 
 func (a *agent) softwareUbuntu2204() []map[string]string {
@@ -1047,7 +1027,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	case name == hostDetailQueryPrefix+"users":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.hostUsersMacOS()
+			results = a.hostUsers()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"software_macos":
@@ -1066,16 +1046,6 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			switch a.os {
-			case "ubuntu_16.04":
-				results = a.softwareUbuntu1604()
-			case "ubuntu_18.04":
-				results = a.softwareUbuntu1804()
-			case "ubuntu_20.04":
-				results = a.softwareUbuntu2004()
-			case "ubuntu_21.04":
-				results = a.softwareUbuntu2104()
-			case "ubuntu_21.10":
-				results = a.softwareUbuntu2110()
 			case "ubuntu_22.04":
 				results = a.softwareUbuntu2204()
 			}
@@ -1190,17 +1160,9 @@ func main() {
 	rand.Seed(*randSeed)
 
 	validTemplateNames := map[string]bool{
-		"mac10.14.6.tmpl": true,
-		"windows_11.tmpl": true,
-
-		// Uncomment this to add ubuntu hosts with vulnerable software
-		// "partial_ubuntu.tmpl",
-		// "ubuntu_16.04.tmpl",
-		// "ubuntu_18.04.tmpl",
-		// "ubuntu_20.04.tmpl",
-		// "ubuntu_21.04.tmpl",
-		// "ubuntu_21.10.tmpl",
-		// "ubuntu_22.04.tmpl",
+		"mac10.14.6.tmpl":   true,
+		"windows_11.tmpl":   true,
+		"ubuntu_22.04.tmpl": true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {

@@ -3,17 +3,19 @@
     "enroll_secret": "{{ .EnrollSecret  }}",
     "host_details": {
         "os_version": {
+            "arch": "x86_64",
             "build": "",
-            "major": "",
-            "minor": "",
-            "name": "Ubuntu 22.4.0",
-            "patch": "",
+            "codename": "jammy",
+            "major": "22",
+            "minor": "4",
+            "name": "Ubuntu",
+            "patch": "0",
             "platform": "ubuntu",
-            "platform_like": "ubuntu",
-            "version": "Ubuntu 22.4.0"
+            "platform_like": "debian",
+            "version": "22.04.1 LTS (Jammy Jellyfish)"
         },
         "osquery_info": {
-            "build_distro": "22.4.0",
+            "build_distro": "centos7",
             "build_platform": "linux",
             "config_hash": "",
             "config_valid": "0",
@@ -23,30 +25,22 @@
             "platform_mask": "21",
             "start_time": "1580931224",
             "uuid": "{{ .UUID }}",
-            "version": "4.6.0",
-            "watcher": "12946"
+            "version": "5.5.1",
+            "watcher": "-1"
         },
         "platform_info": {
-            "address": "0xff990000",
-            "date": "12/16/2019 ",
-            "extra": "MBP114; 196.0.0.0.0; root@xapp160; Mon Dec 16 15:55:18 PST 2019; 196 (B&I); F000_B00; Official Build, Release; Apple LLVM version 5.0 (clang-500.0.68) (based on LLVM 3.3svn)",
-            "revision": "196 (B&I)",
-            "size": "8388608",
-            "vendor": "Apple Inc. ",
-            "version": "196.0.0.0.0 ",
-            "volume_size": "1507328"
         },
         "system_info": {
             "computer_name": "{{ .CachedString "hostname" }}",
-            "cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+            "cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
             "cpu_logical_cores": "8",
             "cpu_physical_cores": "4",
             "cpu_subtype": "Intel x86-64h Haswell",
             "cpu_type": "x86_64h",
-            "hardware_model": "MacBookPro11,4",
-            "hardware_serial": "D02R835DG8WK",
-            "hardware_vendor": "Apple Inc.",
-            "hardware_version": "1.0",
+            "hardware_model": "",
+            "hardware_serial": "",
+            "hardware_vendor": "",
+            "hardware_version": "",
             "hostname": "{{ .CachedString "hostname" }}",
             "local_hostname": "{{ .CachedString "hostname" }}",
             "physical_memory": "17179869184",
@@ -58,23 +52,30 @@
 }
 {{- end }}
 
-{{ define "fleet_detail_query_os_version" -}}
+{{ define "fleet_detail_query_network_interface_unix" -}}
 [
   {
-    "name":"Ubuntu",
-    "version":"22.04.1 LTS (Jammy Jellyfish)",
-    "major":"22",
-    "minor":"4",
-    "patch":"0",
-    "build":"",
-    "platform":"ubuntu",
-    "platform_like":"debian",
-    "codename":"jammy",
-    "arch":"x86_64"
+    "address":"fe80::8cb:112d:ff51:1e5d%en0",
+    "mac":"f8:2d:88:93:56:5c"
   }
 ]
 {{- end }}
-
+{{ define "fleet_detail_query_os_version" -}}
+[
+  {
+		"arch": "x86_64",
+		"build": "",
+		"codename": "jammy",
+		"major": "22",
+		"minor": "4",
+		"name": "Ubuntu",
+		"patch": "0",
+		"platform": "ubuntu",
+		"platform_like": "debian",
+		"version": "22.04.1 LTS (Jammy Jellyfish)"
+  }
+]
+{{- end }}
 {{ define "fleet_detail_query_os_unix_like" -}}
 [
   {
@@ -85,30 +86,121 @@
     "patch":"0",
     "build":"",
     "platform":"ubuntu",
-    "platform_like":"debian",
-    "codename":"jammy",
     "arch":"x86_64",
     "kernel_version":"5.10.76-linuxkit"
   }
 ]
 {{- end }}
-
+{{ define "fleet_detail_query_osquery_flags" -}}
+[
+  {
+    "name":"config_refresh",
+    "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
+  },
+  {
+    "name":"distributed_interval",
+    "value":"{{ printf "%.0f" .QueryInterval.Seconds }}"
+  },
+  {
+    "name":"logger_tls_period",
+    "value":"99999"
+  }
+]
+{{- end }}
 {{ define "fleet_detail_query_osquery_info" -}}
 [
   {
     "pid":"11287",
     "uuid":"{{ .UUID }}",
     "instance_id":"{{ .UUID }}",
-    "version":"4.1.2",
+    "version":"5.5.1",
     "config_hash":"b01efbf375ac6767f259ae98751154fef727ce35",
     "config_valid":"1",
     "extensions":"inactive",
     "build_platform":"linux",
-    "build_distro":"22.4.0",
+    "build_distro":"centos7",
     "start_time":"1582857555",
-    "watcher":"11286",
-    "platform_mask":"21"
+    "watcher":"-1",
+    "platform_mask":"9"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_system_info" -}}
+[
+  {
+    "hostname":"{{ .CachedString "hostname" }}",
+    "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB",
+    "cpu_type":"x86_64h",
+    "cpu_subtype":"Intel x86-64h Haswell",
+    "cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+    "cpu_physical_cores":"4",
+    "cpu_logical_cores":"8",
+    "cpu_microcode":"",
+    "physical_memory":"17179869184",
+    "hardware_vendor":"",
+    "hardware_model":"",
+    "hardware_version":"",
+    "hardware_serial":"",
+    "computer_name":"{{ .CachedString "hostname" }}",
+    "local_hostname":"{{ .CachedString "hostname" }}"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_uptime" -}}
+[
+  {
+    "days":"0",
+    "hours":"4",
+    "minutes":"38",
+    "seconds":"11",
+    "total_seconds":"16691"
   }
 ]
 {{- end }}
 
+{{/* all hosts */}}
+{{ define "fleet_label_query_6" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All macOS hosts */}}
+{{ define "fleet_label_query_7" -}}
+[]
+{{- end }}
+
+{{/* All Ubuntu hosts */}}
+{{ define "fleet_label_query_8" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All CentOS hosts */}}
+{{ define "fleet_label_query_9" -}}
+[]
+{{- end }}
+
+{{/* All Windows hosts */}}
+{{ define "fleet_label_query_10" -}}
+[]
+{{- end }}
+
+{{/* All Red Hat hosts */}}
+{{ define "fleet_label_query_11" -}}
+[]
+{{- end }}
+
+{{/* All Linux distributions */}}
+{{ define "fleet_label_query_12" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
