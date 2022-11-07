@@ -40,7 +40,7 @@ import {
 } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import team, { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -335,6 +335,13 @@ const ManageHostsPage = ({
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         setAvailableTeams(responseTeams);
+        if (
+          responseTeams.filter(
+            (responseTeam) => responseTeam.id === currentTeam?.id
+          )
+        ) {
+          setCurrentTeam(undefined);
+        }
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
           setCurrentTeam(responseTeams[0]);
         }
