@@ -15,7 +15,9 @@ const CustomDropdownIndicator = (
   // no access to hover state here from react-select so that is done in the scss
   // file of LabelFilterSelect.
   const color =
-    isFocused || selectProps.menuIsOpen ? "coreVibrantBlue" : "coreFleetBlack";
+    isFocused || selectProps.menuIsOpen
+      ? "core-fleet-blue"
+      : "core-fleet-black";
 
   return (
     <components.DropdownIndicator {...props} className={baseClass}>

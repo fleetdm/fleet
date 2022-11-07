@@ -15,12 +15,10 @@
       font-size: $x-small;
       font-weight: $bold;
       margin-bottom: 0;
-      width: 485px;
+      width: 500px;
     }
 
     .input-field {
-      width: 560px;
-
       &--disabled {
         letter-spacing: 0;
       }
@@ -31,10 +29,13 @@
     }
   }
 
-  &__secret-copy-icon {
-    color: $core-vibrant-blue;
-    margin-left: $pad-small;
-    margin-right: $pad-medium;
+  &__copy-message {
+    position: absolute;
+    right: 65px;
+    background-color: $ui-light-grey;
+    border: solid 1px #e2e4ea;
+    border-radius: 10px;
+    padding: 2px 6px;
   }
 
   .buttons {
@@ -48,48 +49,19 @@
     span {
       font-weight: $regular;
     }
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-
-    img {
-      width: 16px;
-      height: 16px;
-    }
-  }
-
-  &__secret-download-icon {
-    display: block;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-
-    img {
-      width: 12px;
-      height: 12px;
-      margin-left: 7px;
-    }
   }
 
   &--multiple-secrets {
     .form-field__label {
       margin-top: 0;
     }
-
-    .enroll-secrets__secret-download-icon {
-      margin-bottom: $pad-medium;
-    }
   }
 
-  &__edit-secret-btn,
-  &__delete-secret-btn {
-    margin: 0 $pad-small;
+  &__show-secret-icon,
+  &__copy-secret-icon,
+  &__edit-secret-icon,
+  &__delete-secret-icon {
+    padding: 0 $pad-small;
+    margin-left: $pad-xsmall;
   }
 }
