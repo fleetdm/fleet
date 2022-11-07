@@ -125,6 +125,10 @@ the account verification message.)`,
     .intercept(['requestFailed', 'non200Response'], (err)=>{
       // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
+    })
+    .intercept({name: 'TimeoutError'}, (err)=>{
+      // If the request timed out, we'll throw a 500 error.
+      return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the request to the cloud provisioner took over timed out. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw error: '+err.stack);
     });
 
     if(!cloudProvisionerResponseData.URL) {
@@ -143,7 +147,8 @@ the account verification message.)`,
         let healthCheckResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponseData.URL+'/healthz')
         .timeout(5000)
         .tolerate('non200Response')
-        .tolerate('requestFailed');
+        .tolerate('requestFailed')
+        .tolerate({name: 'TimeoutError'});
         if(healthCheckResponse) {
           return true;
         }
@@ -187,7 +192,7 @@ the account verification message.)`,
       }
     )
     .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
+    .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
       // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
       sails.log.warn(`When a new user signed up, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
       return;
