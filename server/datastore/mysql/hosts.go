@@ -3559,7 +3559,7 @@ func (ds *Datastore) RunTrial(
 		return ctxerr.Wrap(ctx, err, "getting scenario")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &r, scenario.Scenario, params...); err != nil {
+	if err := ds.reader.ReadonlyTx(ctx, &r, scenario.Scenario, params...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil
 		}

@@ -57,6 +57,7 @@ type dbReader interface {
 
 	Close() error
 	Rebind(string) string
+	ReadonlyTx(context.Context, any, string, ...any) error
 }
 
 // Datastore is an implementation of fleet.Datastore interface backed by
@@ -331,6 +332,26 @@ func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	return nil
 }
 
+type readDB struct {
+	*sqlx.DB
+}
+
+func (r *readDB) ReadonlyTx(ctx context.Context, dest any, query string, args ...any) error {
+	tx, err := r.DB.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelReadUncommitted})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	err = tx.SelectContext(ctx, dest, query, args...)
+	if err != nil {
+		return err
+	}
+	tx.Commit()
+
+	return nil
+}
+
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &dbOptions{
@@ -368,7 +389,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 	ds := &Datastore{
 		writer:              dbWriter,
-		reader:              dbReader,
+		reader:              &readDB{dbReader},
 		logger:              options.logger,
 		clock:               c,
 		config:              config,

@@ -81,7 +81,7 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		defer cancel()
 
 		primary := ds.writer
-		replica := ds.reader.(*sqlx.DB)
+		replica := ds.reader.(*readDB)
 		replicaDB := testName + testReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
