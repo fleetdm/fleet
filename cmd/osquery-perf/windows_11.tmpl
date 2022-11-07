@@ -69,15 +69,38 @@
 {{ define "fleet_detail_query_os_version" -}}
 [
   {
-    "name":"Microsoft Windows 11 Pro",
+    "name":"Microsoft Windows 11 Enterprise",
     "version":"10.0.22000",
-    "build":"22000",
     "major":"10",
     "minor":"0",
     "patch":"",
+    "build":"22000",
     "platform":"windows",
     "platform_like":"windows",
-    "codename":""
+    "codename":"Microsoft Windows 11 Enterprise",
+    "arch":"x86_64",
+    "install_date":"1667847179"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_version_windows" -}}
+[
+  {
+    "name":"Microsoft Windows 11 Enterprise",
+    "display_version":"21H2",
+    "release_id":"2009"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_windows" -}}
+[
+  {
+    "name":"Microsoft Windows 11 Enterprise",
+    "platform":"windows",
+    "arch":"x86_64",
+    "kernel_version":"10.0.22000.1098",
+    "display_version":"21H2",
+    "release_id":"2009"
   }
 ]
 {{- end }}
@@ -100,7 +123,6 @@
 {{ define "fleet_detail_query_osquery_info" -}}
 [
   {
-
     "build_distro": "10",
     "build_platform": "windows",
     "config_hash": "09d7386d20179cb1b725ed88f38c98e3b2e72c90",
@@ -110,8 +132,7 @@
     "pid": "9072",
     "platform_mask": "2",
     "start_time": "1660223255",
-    "uuid": "AF028C41-1AAD-4025-7391-A93C26B9A17A",
-    "version": "5.4.0",
+    "version": "5.5.1",
     "watcher": "-1",
     "uuid":"{{ .UUID }}",
     "instance_id":"{{ .UUID }}"
