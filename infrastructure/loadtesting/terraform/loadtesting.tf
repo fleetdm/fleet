@@ -54,7 +54,7 @@ resource "aws_ecs_task_definition" "loadtest" {
           "-host_count", "500",
           "-server_url", "http://${aws_lb.internal.dns_name}",
           "--policy_pass_prob", "0.5",
-          "--start_period", "5m",
+          "--start_period", "15m",
         ]
       }
   ])
