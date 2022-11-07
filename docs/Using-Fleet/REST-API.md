@@ -734,7 +734,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Modify global enroll secrets](#modify-global-enroll-secrets)
 - [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
-- [Modify enroll secrets for a team](i#modify-enroll-secrets-for-a-team)
+- [Modify enroll secrets for a team](#modify-enroll-secrets-for-a-team)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
@@ -1858,6 +1858,8 @@ Response payload with the `munki_issue_id` filter provided:
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
+If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/count?page=0&per_page=100&order_key=hostname&query=2ce`
@@ -2584,7 +2586,7 @@ Currently supports Windows and MacOS. On MacOS this requires the [macadmins osqu
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
-Retrieves MDM enrollment summary.
+Retrieves MDM enrollment summary. Windows servers are excluded from the aggregated data.
 
 `GET /api/v1/fleet/hosts/summary/mdm`
 
@@ -2882,6 +2884,8 @@ requested by a web browser.
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
+
+If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
 #### Example
 
@@ -5549,7 +5553,7 @@ _Available in Fleet Premium_
 
 ## Translator
 
-- [Translate IDs](#translate-i-ds)
+- [Translate IDs](#translate-ids)
 
 ### Translate IDs
 

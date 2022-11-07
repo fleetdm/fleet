@@ -4225,7 +4225,10 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, true, "https://simplemdm.com", false, ""))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, false, true, "url", false, ""))
+
+	// Add a server, this will be ignored in lists and aggregated data.
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, ""))
+
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
 
@@ -5399,7 +5402,8 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	chk(hosts, "0001", "0003", "0004")
 
-	ds.writer.Exec(`UPDATE hosts SET created_at = created_at + id`)
+	_, err = ds.writer.Exec(`UPDATE hosts SET created_at = created_at + id`)
+	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{
