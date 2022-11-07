@@ -150,7 +150,9 @@ const ManageHostsPage = ({
       isNaN(teamIdParam) ||
       (teamIdParam &&
         availableTeams &&
-        !availableTeams.find((team) => team.id === teamIdParam))
+        !availableTeams.find(
+          (availableTeam) => availableTeam.id === teamIdParam
+        ))
     ) {
       router.replace({
         pathname: location.pathname,
@@ -967,10 +969,10 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
-  const onTransferHostSubmit = async (team: ITeam) => {
+  const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
-    const teamId = typeof team.id === "number" ? team.id : null;
+    const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -990,7 +992,7 @@ const ManageHostsPage = ({
       const successMessage =
         teamId === null
           ? `Hosts successfully removed from teams.`
-          : `Hosts successfully transferred to  ${team.name}.`;
+          : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
