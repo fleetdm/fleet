@@ -61,6 +61,7 @@ parasails.registerPage('generate-license', {
       // https://caniuse.com/mdn-api_clipboard_writetext
       navigator.clipboard.writeText(this.generatedLicenseKey);
     },
+
     clickClearFormFields: async function() {
       this.generatedLicenseKey = '';
       this.showResult = false;
