@@ -60,6 +60,14 @@ parasails.registerPage('generate-license', {
       $('[purpose="copied-notification"]').fadeIn(100).delay(2000).fadeOut(500);
       // https://caniuse.com/mdn-api_clipboard_writetext
       navigator.clipboard.writeText(this.generatedLicenseKey);
+    },
+    clickClearFormFields: async function() {
+      this.generatedLicenseKey = '';
+      this.showResult = false;
+      this.formErrors = {};
+      this.formData = {};
+      this.formData.validTo = moment(Date.now() + (365*24*60*60*1000)).format('YYYY-MM-DD');
+      await this.forceRender();
     }
   }
 });

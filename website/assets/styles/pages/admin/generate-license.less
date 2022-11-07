@@ -52,7 +52,7 @@
   }
 
   [purpose='result'] {
-    background: @bg-lt-gray;
+    border: 1px solid @bg-lt-gray;
     padding: 4px 6px;
     border-radius: 4px;
     position: relative;
@@ -60,6 +60,10 @@
       font: @code-font;
       color: @core-fleet-black;
     }
+  }
+  [purpose='copy-button'] {
+    cursor: pointer;
+    color: @core-vibrant-blue;
   }
   [purpose='copied-notification'] {
     display: none;
