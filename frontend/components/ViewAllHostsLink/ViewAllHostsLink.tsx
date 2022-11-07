@@ -33,7 +33,7 @@ const ViewAllHostsLink = ({
         name="chevron"
         className={`${baseClass}__icon`}
         direction="right"
-        color="coreVibrantBlue"
+        color="core-fleet-blue"
       />
     </Link>
   );
