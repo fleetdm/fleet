@@ -23,6 +23,19 @@ import (
 
 var hostSearchColumns = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 
+// Fixme: We should not make implementation details of the database schema part of the API.
+var defaultHostColumnTableAliases = map[string]string{
+	"created_at": "h.created_at",
+	"updated_at": "h.updated_at",
+}
+
+func defaultHostColumnTableAlias(s string) string {
+	if newCol, ok := defaultHostColumnTableAliases[s]; ok {
+		return newCol
+	}
+	return s
+}
+
 // NewHost creates a new host on the datastore.
 //
 // Currently only used for testing.
@@ -79,14 +92,14 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		id, _ := result.LastInsertId()
 		host.ID = uint(id)
 
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`,
 			host.ID, host.SeenTime,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
 			host.ID, host.DisplayName(),
 		)
@@ -390,6 +403,7 @@ SELECT
   h.public_ip,
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+  hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
   (
@@ -430,6 +444,12 @@ LIMIT
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
+	}
+	if host.DiskEncryptionEnabled != nil && !(*host.DiskEncryptionEnabled) && fleet.IsLinux(host.Platform) {
+		// omit disk encryption information for linux if it is not enabled, as we
+		// cannot know for sure that it is not encrypted (See
+		// https://github.com/fleetdm/fleet/issues/3906).
+		host.DiskEncryptionEnabled = nil
 	}
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader, host.ID, host.Platform)
@@ -516,7 +536,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
-	h.orbit_node_key,
+    h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
@@ -571,6 +591,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
+
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
@@ -757,7 +779,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		  hostname = '' AND
 		  osquery_version = '' AND
 		  created_at < (? - INTERVAL 5 MINUTE)`
-		if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &ids, selectIDs, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
 		}
 
@@ -765,7 +787,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 			`DELETE FROM host_display_names WHERE host_id IN (%s)`,
 			selectIDs,
 		)
-		if _, err := ds.writer.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
+		if _, err := tx.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
 		}
 
@@ -774,7 +796,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 		`
-		if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
+		if _, err := tx.ExecContext(ctx, cleanupHosts, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 		}
 
@@ -893,7 +915,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 			// constraint
 			sqlInsert := `
 				INSERT INTO hosts (
-					last_enrolled_at,               
+					last_enrolled_at,
 					detail_updated_at,
 					label_updated_at,
 					policy_updated_at,
@@ -1045,7 +1067,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
         h.team_id,
         h.policy_updated_at,
         h.public_ip,
-		h.orbit_node_key,
+        h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
       FROM
@@ -1326,7 +1348,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.team_id,
     h.policy_updated_at,
     h.public_ip,
-	h.orbit_node_key,
+    h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time
@@ -1428,7 +1450,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
-	  h.orbit_node_key,
+      h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) AS seen_time
@@ -2135,6 +2157,17 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ? WHERE host_id = ?`,
 		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, host_id) VALUES (?, ?, ?)`,
 		gigsAvailable, percentAvailable, hostID,
+	)
+}
+
+// SetOrUpdateHostDisksEncryption sets the host's flag indicating if the disk
+// encryption is enabled.
+func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET encrypted = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (encrypted, host_id) VALUES (?, ?)`,
+		encrypted, hostID,
 	)
 }
 

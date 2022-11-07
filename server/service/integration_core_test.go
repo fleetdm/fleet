@@ -5706,6 +5706,116 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 }
 
+func (s *integrationTestSuite) TestGetHostDiskEncryption() {
+	t := s.T()
+
+	// create Windows, mac and Linux hosts
+	hostWin, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	hostMac, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "2",
+		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "2",
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	hostLin, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "3",
+		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "3",
+		UUID:            t.Name() + "3",
+		Hostname:        t.Name() + "foo3.local",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// before any disk encryption is received, all hosts report NULL (even if
+	// some have disk space information, i.e. an entry exists in host_disks).
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostWin.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostMac.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	// set encrypted for all hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostLin.ID, true))
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostWin.ID, getHostResp.Host.ID)
+	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostMac.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
+	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
+	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	// set unencrypted for all hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, false))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostLin.ID, false))
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostWin.ID, getHostResp.Host.ID)
+	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostMac.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
+	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	// Linux does not return false, it omits the field when false
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+}
+
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 

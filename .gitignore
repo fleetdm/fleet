@@ -55,6 +55,7 @@ package-lock.json
 .terraform
 .terraform.tfstate*
 terraform.tfstate*
+*.lock.hcl
 
 # generated orbit installers and artifacts
 fleet-osquery*

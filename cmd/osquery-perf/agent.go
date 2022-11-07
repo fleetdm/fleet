@@ -979,6 +979,15 @@ func (a *agent) diskSpace() []map[string]string {
 	}
 }
 
+func (a *agent) diskEncryption() []map[string]string {
+	// 50% of results have encryption enabled
+	enabled := rand.Intn(2) == 1
+	if enabled {
+		return []map[string]string{{"1": "1"}}
+	}
+	return []map[string]string{}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -1057,6 +1066,12 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskSpace()
+		}
+		return true, results, &ss
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_"):
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryption()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":

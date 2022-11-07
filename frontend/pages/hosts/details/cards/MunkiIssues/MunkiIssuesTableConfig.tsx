@@ -1,11 +1,9 @@
 import React from "react";
 import { capitalize } from "lodash";
-import ReactTooltip from "react-tooltip";
 
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
-import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";

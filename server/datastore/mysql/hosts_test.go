@@ -129,7 +129,8 @@ func TestHosts(t *testing.T) {
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
-		{"TestHostDisplayName", testHostDisplayName},
+		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
+		{"TestHostOrder", testHostOrder},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5372,8 +5373,8 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
 }
 
-// testHostDisplayName tests listing a host sorted by display name.
-func testHostDisplayName(t *testing.T, ds *Datastore) {
+// testHostOrder tests listing a host sorted by different keys.
+func testHostOrder(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: "1", Hostname: "0001", NodeKey: "1"})
 	require.NoError(t, err)
@@ -5381,17 +5382,41 @@ func testHostDisplayName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: "3", Hostname: "0003", NodeKey: "3"})
 	require.NoError(t, err)
+	chk := func(hosts []*fleet.Host, expect ...string) {
+		require.Len(t, hosts, len(expect))
+		for i, h := range hosts {
+			assert.Equal(t, expect[i], h.DisplayName())
+		}
+	}
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey: "display_name",
 		},
 	})
 	require.NoError(t, err)
-	expect := []string{"0001", "0003", "0004"}
-	require.Len(t, hosts, len(expect))
-	for i, h := range hosts {
-		assert.Equal(t, expect[i], h.DisplayName())
-	}
+	chk(hosts, "0001", "0003", "0004")
+
+	ds.writer.Exec(`UPDATE hosts SET created_at = created_at + id`)
+
+	hosts, err = ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "created_at",
+			After:          "2010-10-22T20:22:03Z",
+			OrderDirection: fleet.OrderAscending,
+		},
+	})
+	require.NoError(t, err)
+	chk(hosts, "0001", "0004", "0003")
+
+	hosts, err = ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "created_at",
+			After:          "2180-10-22T20:22:03Z",
+			OrderDirection: fleet.OrderDescending,
+		},
+	})
+	require.NoError(t, err)
+	chk(hosts, "0003", "0004", "0001")
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {
@@ -5473,4 +5498,54 @@ func testHostIDsByOSID(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+}
+
+func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		OsqueryHostID:   "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		OsqueryHostID:   "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false)
+	require.NoError(t, err)
+
+	h, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.True(t, *h.DiskEncryptionEnabled)
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.False(t, *h.DiskEncryptionEnabled)
+
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true)
+	require.NoError(t, err)
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.True(t, *h.DiskEncryptionEnabled)
 }
