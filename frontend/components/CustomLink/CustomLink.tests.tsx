@@ -14,7 +14,7 @@ describe("CustomLink - component", () => {
     );
 
     const text = screen.getByText("file an issue");
-    const icon = screen.queryByTitle("Icon");
+    const icon = screen.getByTestId("Icon");
 
     expect(text).toBeInTheDocument();
     expect(icon).toBeNull();
@@ -34,7 +34,7 @@ describe("CustomLink - component", () => {
       />
     );
 
-    const icon = screen.getByTitle("Icon");
+    const icon = screen.getByTestId("Icon");
 
     expect(icon).toBeInTheDocument();
     expect(icon.closest("a")).toHaveAttribute("target", "_blank");

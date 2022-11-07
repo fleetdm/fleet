@@ -33,7 +33,7 @@ const Icon = ({ name, color, direction, className, size }: IIconProps) => {
   const IconComponent = ICON_MAP[name];
 
   return (
-    <div className={classNames} title="Icon">
+    <div className={classNames} data-testid="Icon">
       <IconComponent {...props} />
     </div>
   );

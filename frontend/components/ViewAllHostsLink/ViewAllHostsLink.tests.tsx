@@ -9,10 +9,10 @@ describe("ViewAllHostsLink - component", () => {
   it("renders View all hosts text and icon", () => {
     render(<ViewAllHostsLink />);
 
-    const title = screen.getByText("View all hosts");
-    const icon = screen.queryByTitle("Icon");
+    const text = screen.getByText("View all hosts");
+    const icon = screen.getByTestId("Icon");
 
-    expect(title).toBeInTheDocument();
+    expect(text).toBeInTheDocument();
     expect(icon).toBeInTheDocument();
   });
 
@@ -24,18 +24,18 @@ describe("ViewAllHostsLink - component", () => {
     if (!text) {
       throw new Error("View all host text is null");
     }
-
+    // console.log("text.closest(a)", text.closest("a"));
+    const link = screen.getByRole("link", { name: "View all hosts" });
     // TODO: How to test partial link
-    // expect(text.closest("a")).toHaveAttribute(
-    //   "href",
-    //   "/hosts/manage/&status=online"
-    // );
+    expect(link).toHaveAttribute("href", "/hosts/manage/&status=online");
+
+    console.log("link", link);
   });
 
   it("hides text when set to condensed ", async () => {
     render(<ViewAllHostsLink queryParams={{ status: "online" }} condensed />);
-    const title = screen.queryByText("View all hosts");
+    const text = screen.queryByText("View all hosts");
 
-    expect(title).toBeNull();
+    expect(text).toBeNull();
   });
 });
