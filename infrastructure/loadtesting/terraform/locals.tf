@@ -3,7 +3,7 @@ locals {
   prefix = "fleet-${terraform.workspace}"
   additional_env_vars = [for k, v in merge({
     "FLEET_VULNERABILITIES_DATABASES_PATH" : "/home/fleet"
-    "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING" : "false"
+    "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING" : "true"
     "FLEET_LOGGING_DEBUG" : "true"
     "FLEET_LOGGING_TRACING_ENABLED" : "true"
     "FLEET_LOGGING_TRACING_TYPE" : "elasticapm"
