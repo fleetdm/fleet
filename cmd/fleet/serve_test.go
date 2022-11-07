@@ -190,6 +190,15 @@ func TestAutomationsSchedule(t *testing.T) {
 	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
 		return nil
 	}
+	ds.GetLatestCronStatsFunc = func(ctx context.Context, name string) (*fleet.CronStats, error) {
+		return &fleet.CronStats{}, nil
+	}
+	ds.InsertCronStatsFunc = func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+		return 0, nil
+	}
+	ds.UpdateCronStatsFunc = func(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+		return nil
+	}
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
@@ -237,6 +246,15 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		return true, nil
 	}
 	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
+		return nil
+	}
+	ds.GetLatestCronStatsFunc = func(ctx context.Context, name string) (*fleet.CronStats, error) {
+		return &fleet.CronStats{}, nil
+	}
+	ds.InsertCronStatsFunc = func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+		return 0, nil
+	}
+	ds.UpdateCronStatsFunc = func(ctx context.Context, id int, status fleet.CronStatsStatus) error {
 		return nil
 	}
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
@@ -318,6 +336,15 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
 		return nil
 	}
+	ds.GetLatestCronStatsFunc = func(ctx context.Context, name string) (*fleet.CronStats, error) {
+		return &fleet.CronStats{}, nil
+	}
+	ds.InsertCronStatsFunc = func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+		return 0, nil
+	}
+	ds.UpdateCronStatsFunc = func(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+		return nil
+	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
 		return nil
 	}
@@ -392,6 +419,15 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ds.UnlockFunc = func(context.Context, string, string) error {
 		return nil
 	}
+	ds.GetLatestCronStatsFunc = func(ctx context.Context, name string) (*fleet.CronStats, error) {
+		return &fleet.CronStats{}, nil
+	}
+	ds.InsertCronStatsFunc = func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+		return 0, nil
+	}
+	ds.UpdateCronStatsFunc = func(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+		return nil
+	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -449,6 +485,15 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		return true, nil
 	}
 	ds.UnlockFunc = func(context.Context, string, string) error {
+		return nil
+	}
+	ds.GetLatestCronStatsFunc = func(ctx context.Context, name string) (*fleet.CronStats, error) {
+		return &fleet.CronStats{}, nil
+	}
+	ds.InsertCronStatsFunc = func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+		return 0, nil
+	}
+	ds.UpdateCronStatsFunc = func(ctx context.Context, id int, status fleet.CronStatsStatus) error {
 		return nil
 	}
 

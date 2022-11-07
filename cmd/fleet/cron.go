@@ -49,7 +49,7 @@ func startVulnerabilitiesSchedule(
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
 	s := schedule.New(
-		ctx, "vulnerabilities", instanceID, interval, ds,
+		ctx, "vulnerabilities", instanceID, interval, ds, ds,
 		schedule.WithLogger(vulnerabilitiesLogger),
 		schedule.WithJob(
 			"cron_vulnerabilities",
@@ -382,7 +382,7 @@ func startAutomationsSchedule(
 	}
 	s := schedule.New(
 		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
-		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds,
+		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
@@ -517,7 +517,7 @@ func startIntegrationsSchedule(
 	}
 
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds,
+		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithAltLockID("worker"),
 		schedule.WithLogger(logger),
 		schedule.WithJob("integrations_worker", func(ctx context.Context) error {
@@ -603,7 +603,7 @@ func startCleanupsAndAggregationSchedule(
 	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
 ) {
 	schedule.New(
-		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds,
+		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds, ds,
 		// Using leader for the lock to be backwards compatilibity with old deployments.
 		schedule.WithAltLockID("leader"),
 		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
@@ -660,6 +660,11 @@ func startCleanupsAndAggregationSchedule(
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cleanup_cron_stats", func(ctx context.Context) error {
+				return ds.CleanupCronStats(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -696,7 +701,7 @@ func startCleanupsAndAggregationSchedule(
 
 func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) {
 	schedule.New(
-		ctx, "stats", instanceID, 1*time.Hour, ds,
+		ctx, "stats", instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
 		schedule.WithJob(
 			"try_send_statistics",
@@ -799,7 +804,7 @@ func startAppleMDMDEPProfileAssigner(
 	)
 	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
 	schedule.New(
-		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
+		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
 			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
