@@ -1143,38 +1143,6 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 }
 
 func main() {
-	serverURL := flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-	enrollSecret := flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-	hostCount := flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-	randSeed := flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
-	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
-	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
-	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
-	uniqueSoftwareCount := flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
-	vulnerableSoftwareCount := flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
-	withLastOpenedSoftwareCount := flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
-	lastOpenedChangeProb := flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
-	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
-	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
-	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
-	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
-	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
-	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
-	osTemplates := flag.String("os_templates", "mac10.14.6", "Comma separated list of host OS templates to use")
-
-	flag.Parse()
-
-	rand.Seed(*randSeed)
-
-	if *onlyAlreadyEnrolled {
-		// Orbit enrollment does not support the "already enrolled" mode at the
-		// moment (see TODO in this file).
-		*orbitProb = 0
-	}
-
 	validTemplateNames := map[string]bool{
 		"mac10.14.6.tmpl":   true,
 		"windows_11.tmpl":   true,
@@ -1183,6 +1151,39 @@ func main() {
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
 		allowedTemplateNames = append(allowedTemplateNames, k)
+	}
+
+	var (
+		serverURL                   = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret                = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount                   = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed                    = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod                 = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval              = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		queryInterval               = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		onlyAlreadyEnrolled         = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
+		nodeKeyFile                 = flag.String("node_key_file", "", "File with node keys to use")
+		commonSoftwareCount         = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
+		uniqueSoftwareCount         = flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
+		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
+		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
+		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
+		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
+		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
+		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
+		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
+		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+	)
+
+	flag.Parse()
+	rand.Seed(*randSeed)
+
+	if *onlyAlreadyEnrolled {
+		// Orbit enrollment does not support the "already enrolled" mode at the
+		// moment (see TODO in this file).
+		*orbitProb = 0
 	}
 
 	var tmpls []*template.Template
