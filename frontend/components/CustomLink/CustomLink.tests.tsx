@@ -1,7 +1,5 @@
 import React from "react";
-
 import { render, screen } from "@testing-library/react";
-
 import CustomLink from "./CustomLink";
 
 describe("CustomLink - component", () => {
@@ -14,7 +12,7 @@ describe("CustomLink - component", () => {
     );
 
     const text = screen.getByText("file an issue");
-    const icon = screen.getByTestId("Icon");
+    const icon = screen.queryByTestId("Icon");
 
     expect(text).toBeInTheDocument();
     expect(icon).toBeNull();
