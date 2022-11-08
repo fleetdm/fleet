@@ -23,6 +23,9 @@ func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]flee
 }
 
 func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+	// we do this outisde of a tx so that we don't cause deadlocks because we are updating a table that might be
+	// updated by another connection on the shared table operating_system. The host_ equivalent is not shared in
+	// the sense that each host has their own rows, so it's fine to do it in a tx
 	os, err := getOrGenerateOperatingSystemDB(ctx, ds.writer, hostOS)
 	if err != nil {
 		return err

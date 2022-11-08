@@ -80,6 +80,12 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 // The update consists of deleting existing entries that are not in the given `software`
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
+	// we do this outisde of a tx so that we don't cause deadlocks because we are updating a table that might be
+	// updated by another connection on the shared table software. The host_ equivalent is not shared in
+	// the sense that each host has their own rows, so it's fine to do it in a tx and in fact we want to
+	// do it like that in that case to ensure a consistent state between the deletes/updates/inserts in
+	// host_software
+
 	currentSoftware, err := listSoftwareByHostIDShort(ctx, ds.reader, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
