@@ -246,7 +246,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{EnableSoftwareInventory: true},
