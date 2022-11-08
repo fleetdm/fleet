@@ -1,16 +1,10 @@
 import React, { useState } from "react";
-import { syntaxHighlight } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 
-import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
-import {
-  IAppConfigFormProps,
-  IFormField,
-  usageStatsPreview,
-} from "../constants";
+import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
 
@@ -19,9 +13,6 @@ const Statistics = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [showUsageStatsPreviewModal, setShowUsageStatsPreviewModal] = useState(
-    false
-  );
   const [formData, setFormData] = useState<any>({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
@@ -30,11 +21,6 @@ const Statistics = ({
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
-  };
-
-  const toggleUsageStatsPreviewModal = () => {
-    setShowUsageStatsPreviewModal(!showUsageStatsPreviewModal);
-    return false;
   };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -51,34 +37,6 @@ const Statistics = ({
     };
 
     handleSubmit(formDataToSubmit);
-  };
-
-  const renderUsageStatsPreviewModal = () => {
-    if (!showUsageStatsPreviewModal) {
-      return null;
-    }
-
-    return (
-      <Modal
-        title="Usage statistics"
-        onExit={toggleUsageStatsPreviewModal}
-        className={`${baseClass}__usage-stats-preview-modal`}
-      >
-        <>
-          <p>An example JSON payload sent to Fleet Device Management Inc.</p>
-          <pre
-            dangerouslySetInnerHTML={{
-              __html: syntaxHighlight(usageStatsPreview),
-            }}
-          />
-          <div className="modal-cta-wrap">
-            <Button type="button" onClick={toggleUsageStatsPreviewModal}>
-              Done
-            </Button>
-          </div>
-        </>
-      </Modal>
-    );
   };
 
   return (
@@ -111,15 +69,6 @@ const Statistics = ({
               Enable usage statistics
             </Checkbox>
           </div>
-          <div className={`${baseClass}__inputs ${baseClass}__inputs--preview`}>
-            <Button
-              type="button"
-              variant="inverse"
-              onClick={toggleUsageStatsPreviewModal}
-            >
-              Preview payload
-            </Button>
-          </div>
         </div>
         <Button
           type="submit"
@@ -130,7 +79,6 @@ const Statistics = ({
           Save
         </Button>
       </form>
-      {renderUsageStatsPreviewModal()}
     </>
   );
 };
