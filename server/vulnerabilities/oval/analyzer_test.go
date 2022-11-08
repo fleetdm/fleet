@@ -37,8 +37,7 @@ func extract(src, dst string, t require.TestingT) {
 	defer dstF.Close()
 
 	r := bzip2.NewReader(srcF)
-	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
-	_, err = io.Copy(dstF, r) //nolint:gosec
+	_, err = io.Copy(dstF, r) //nolint:gosec // ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
 	require.NoError(t, err)
 }
 
@@ -143,11 +142,12 @@ func withTestFixutre(
 }
 
 func assertVulns(
+	t require.TestingT,
 	ds *mysql.Datastore,
 	vulnPath string,
 	h *fleet.Host,
 	p Platform,
-	t require.TestingT,
+	source fleet.VulnerabilitySource,
 ) {
 	ctx := context.Background()
 
@@ -180,7 +180,7 @@ func assertVulns(
 	}
 	require.NotEmpty(t, expected)
 
-	storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, []uint{h.ID})
+	storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{h.ID}, fleet.UbuntuOVALSource)
 	require.NoError(t, err)
 
 	uniq := make(map[string]bool)
@@ -325,7 +325,7 @@ func TestOvalAnalyzer(t *testing.T) {
 				_, err := Analyze(ctx, ds, s.version, vulnPath, true)
 				require.NoError(t, err)
 				p := NewPlatform(s.version.Platform, s.version.Name)
-				assertVulns(ds, vulnPath, h, p, t)
+				assertVulns(t, ds, vulnPath, h, p, fleet.RHELOVALSource)
 			}, t)
 		}
 	})
@@ -358,7 +358,7 @@ func TestOvalAnalyzer(t *testing.T) {
 				require.NoError(t, err)
 
 				p := NewPlatform(v.Platform, v.Name)
-				assertVulns(ds, vulnPath, h, p, t)
+				assertVulns(t, ds, vulnPath, h, p, fleet.UbuntuOVALSource)
 			}, t)
 		}
 	})
