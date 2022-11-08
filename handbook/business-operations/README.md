@@ -114,6 +114,7 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 - [Directly responsible individuals](#directly-responsible-individuals)
 - [Benefits](#benefits)
 - [Payroll](#payroll)
+- [Security](#security)
 - [All the things](#all-the-things)
 - [Hiring](#hiring)
 - [Onboarding](#onboarding)
@@ -197,6 +198,15 @@ Operations will review the expense and reach out to the team member if they have
 #### Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 Founders evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
+
+
+### Security
+At Fleet, we care about security. Here are a few resources about Fleet's security policies and best practices.
+1. [Security Policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
+2. [Human Resources Security Policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 
 
 ### All the things
