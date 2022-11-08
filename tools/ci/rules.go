@@ -1,5 +1,5 @@
-//go:build ignore
-// +build ignore
+//go:build ruleguard
+// +build ruleguard
 
 package gorules
 
@@ -30,26 +30,20 @@ func txCheck(m dsl.Matcher) {
 		Where(m["ds"].Type.Is(`*mysql.Datastore`) && (m["fn"].Contains(`$ds.writer`) || m["fn"].Contains(`$ds.reader`))).
 		Report("improper use of ds.reader or ds.writer in a transaction")
 
-	isExported := func(v dsl.Var) bool {
-		return v.Text.Matches(`^\p{Lu}`)
-	}
-
 	// any Datastore method that receives a Tx (sqlx.ExtContext/sqlx.ExecContext)
 	// as the first argument must use it.
 	m.Match(`func ($ds *Datastore) $name($p1, $*_) $*_ { $*fn }`, `func ($ds Datastore) $name($p1, $*_) $*_ { $*fn }`).
 		Where(
-			!isExported(m["name"]) &&
-				(m["ds"].Type.Is(`*mysql.Datastore`) || m["ds"].Type.Is(`mysql.Datastore`)) &&
+			(m["ds"].Type.Is(`*mysql.Datastore`) || m["ds"].Type.Is(`mysql.Datastore`)) &&
 				(m["p1"].Type.Is(`sqlx.ExtContext`) || m["p1"].Type.Is(`sqlx.ExecContext`)) &&
 				(m["fn"].Contains(`$ds.writer`) || m["fn"].Contains(`$ds.reader`))).
 		Report("improper use of ds.reader or ds.writer in Datastore.$name")
 
 	// any Datastore method that receives a Tx (sqlx.ExtContext/sqlx.ExecerContext)
-	// as the second argument must use it.
+	// as the second argument must use it (e.g. ds.method(ctx, tx, ...)).
 	m.Match(`func ($ds *Datastore) $name($_, $p2, $*_) $*_ { $*fn }`, `func ($ds Datastore) $name($_, $p2, $*_) $*_ { $*fn }`).
 		Where(
-			!isExported(m["name"]) &&
-				(m["ds"].Type.Is(`*mysql.Datastore`) || m["ds"].Type.Is(`mysql.Datastore`)) &&
+			(m["ds"].Type.Is(`*mysql.Datastore`) || m["ds"].Type.Is(`mysql.Datastore`)) &&
 				(m["p2"].Type.Is(`sqlx.ExtContext`) || m["p2"].Type.Is(`sqlx.ExecerContext`)) &&
 				(m["fn"].Contains(`$ds.writer`) || m["fn"].Contains(`$ds.reader`))).
 		Report("improper use of ds.reader or ds.writer in Datastore.$name")
@@ -61,4 +55,13 @@ func txCheck(m dsl.Matcher) {
 			(m["p1"].Type.Is(`sqlx.ExtContext`) || m["p1"].Type.Is(`sqlx.ExecerContext`)) &&
 				(m["fn"].Contains(`$ds.writer`) || m["fn"].Contains(`$ds.reader`))).
 		Report("improper use of ds.reader or ds.writer in function literal")
+
+	// TODO: https://github.com/fleetdm/fleet/pull/8621#pullrequestreview-1172676063
+	// This misses the case where a call to a Datastore method is done in one of
+	// those functions and that method uses the reader/writer (and does not
+	// receive a Tx as argument).
+	//
+	// I don't think the ruleguard pattern-matching syntax supports such a case
+	// (recursively check if the function and any of its callees use some field),
+	// it would probably require using the lower-level go/analysis package.
 }
