@@ -180,7 +180,7 @@ func assertVulns(
 	}
 	require.NotEmpty(t, expected)
 
-	storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{h.ID}, fleet.UbuntuOVALSource)
+	storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{h.ID}, source)
 	require.NoError(t, err)
 
 	uniq := make(map[string]bool)
