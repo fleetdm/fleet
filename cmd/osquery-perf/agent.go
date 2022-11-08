@@ -1216,9 +1216,6 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
-		if strings.HasPrefix(tmpl.Name(), "partial") {
-			continue
-		}
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
 			softwareEntityCount{
 				entityCount: entityCount{
