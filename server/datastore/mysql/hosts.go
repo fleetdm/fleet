@@ -64,7 +64,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
-		result, err := ds.writer.ExecContext(
+		result, err := tx.ExecContext(
 			ctx,
 			sqlStatement,
 			host.OsqueryHostID,
