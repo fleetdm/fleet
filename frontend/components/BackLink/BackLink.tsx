@@ -1,5 +1,5 @@
 import React from "react";
-import { browserHistory, Link } from "react-router";
+import { browserHistory } from "react-router";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import classnames from "classnames";
