@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20221031180235, Down_20221031180235)
+	MigrationClient.AddMigration(Up_20221108155218, Down_20221108155218)
 }
 
-func Up_20221031180235(tx *sql.Tx) error {
+func Up_20221108155218(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE cron_stats (
 			id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -29,6 +29,6 @@ func Up_20221031180235(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20221031180235(tx *sql.Tx) error {
+func Down_20221108155218(tx *sql.Tx) error {
 	return nil
 }
