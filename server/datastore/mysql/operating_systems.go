@@ -23,11 +23,11 @@ func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]flee
 }
 
 func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+	os, err := getOrGenerateOperatingSystemDB(ctx, ds.writer, hostOS)
+	if err != nil {
+		return err
+	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		os, err := getOrGenerateOperatingSystemDB(ctx, tx, hostOS)
-		if err != nil {
-			return err
-		}
 		return upsertHostOperatingSystemDB(ctx, tx, hostID, os.ID)
 	})
 }
