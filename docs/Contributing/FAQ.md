@@ -71,7 +71,7 @@ Invalid interpolation format for "fleet01" option in service "services": "fleetd
 Failed to run docker-compose
 ```
 
-You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
+You're probably running an old version of Docker. Download the installer for your platform from the [Docker Documentation](https://docs.docker.com/compose/install/).
 
 ## What API endpoints does osquery and orbit need access to?
 
