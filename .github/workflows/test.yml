@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.19.1']
+        go-version: ['^1.19.3']
         fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
     steps:
