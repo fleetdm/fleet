@@ -1169,6 +1169,12 @@ func main() {
 
 	rand.Seed(*randSeed)
 
+	if *onlyAlreadyEnrolled {
+		// Orbit enrollment does not support the "already enrolled" mode at the
+		// moment (see TODO in this file).
+		*orbitProb = 0
+	}
+
 	validTemplateNames := map[string]bool{
 		"mac10.14.6.tmpl":   true,
 		"windows_11.tmpl":   true,
@@ -1233,7 +1239,7 @@ func main() {
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
-		go a.runLoop(i, onlyAlreadyEnrolled != nil && *onlyAlreadyEnrolled)
+		go a.runLoop(i, *onlyAlreadyEnrolled)
 		time.Sleep(sleepTime)
 	}
 
