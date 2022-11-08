@@ -873,16 +873,26 @@ func (a *agent) mdmMac() []map[string]string {
 }
 
 func (a *agent) mdmWindows() []map[string]string {
-	autopilot := "true"
-	if rand.Intn(2) == 1 {
-		autopilot = "false"
-	}
+	autopilot := rand.Intn(2) == 1
 	ix := rand.Intn(len(possibleMDMServerURLs))
 	serverURL := possibleMDMServerURLs[ix]
 	providerID := fleet.MDMNameFromServerURL(serverURL)
-	return []map[string]string{
-		{"autopilot": autopilot, "discoveryServiceURL": serverURL, "providerID": providerID},
+	installType := "Microsoft Workstation"
+	if rand.Intn(4) == 1 {
+		installType = "Microsoft Server"
 	}
+
+	rows := []map[string]string{
+		{"key": "discovery_service_url", "value": serverURL},
+		{"key": "installation_type", "value": installType},
+	}
+	if providerID != "" {
+		rows = append(rows, map[string]string{"key": "provider_id", "value": providerID})
+	}
+	if autopilot {
+		rows = append(rows, map[string]string{"key": "autopilot", "value": "true"})
+	}
+	return rows
 }
 
 var munkiIssues = func() []string {
