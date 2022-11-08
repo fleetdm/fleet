@@ -26,7 +26,8 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Gabe")).toBeInTheDocument();
     expect(screen.getByText("Luke")).toBeInTheDocument();
   });
-  it("disables pagination when there are no more activities", async () => {
+
+  it("disables next pagination when there are no more activities", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
