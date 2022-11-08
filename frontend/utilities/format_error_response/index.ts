@@ -22,7 +22,6 @@ const formatServerErrors = (errors: IError[]) => {
 };
 
 const formatErrorResponse = (errorResponse: any) => {
-  console.log("errorResponse: ", errorResponse);
   const errors =
     get(errorResponse, "message.errors") ||
     get(errorResponse, "data.errors") ||
