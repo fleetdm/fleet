@@ -367,6 +367,7 @@ func (s *Schedule) Start() {
 		g.Wait()
 		level.Debug(s.logger).Log("msg", "close schedule")
 		close(s.done) // communicates that the scheduler has finished running its goroutines
+		schedTicker.Stop()
 	}()
 }
 
@@ -442,16 +443,18 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	ctx, cancelFn := context.WithCancel(s.ctx)
 
 	go func() {
-		ticker := time.NewTicker(s.getSchedInterval() * 8 / 10) // hold ticker is 80% of schedule interval
+		t := time.NewTimer(s.getSchedInterval() * 8 / 10) // hold timer is 80% of schedule interval
 		for {
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
+				if !t.Stop() {
+					<-t.C
+				}
 				s.releaseLock()
 				return
-			case <-ticker.C:
+			case <-t.C:
 				s.acquireLock()
-				ticker.Reset(s.getSchedInterval() * 8 / 10)
+				t.Reset(s.getSchedInterval() * 8 / 10)
 			}
 		}
 	}()

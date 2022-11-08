@@ -2,11 +2,11 @@ package schedule
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -69,7 +69,7 @@ func TestScheduleLocker(t *testing.T) {
 	name := "test_schedule_locker"
 	instance := "test_instance"
 	interval := 10 * time.Millisecond
-	locker := setupMockLocker(name, instance, time.Now().Add(-interval))
+	locker := SetupMockLocker(name, instance, time.Now().Add(-interval))
 
 	jobRunCount := 0
 	s := New(ctx, name, instance, interval, locker, &nopStatsStore{},
@@ -85,7 +85,7 @@ func TestScheduleLocker(t *testing.T) {
 
 	select {
 	case <-s.Done():
-		require.Equal(t, locker.getLockCount(), jobRunCount)
+		require.Equal(t, locker.GetLockCount(), jobRunCount)
 	case <-time.After(5 * time.Second):
 		t.Error("timeout")
 	}
@@ -315,11 +315,11 @@ func TestScheduleReleaseLock(t *testing.T) {
 	schedInterval := 2000 * time.Millisecond
 	jobDuration := 1900 * time.Millisecond
 
-	ml := setupMockLocker(name, instance, time.Now().Add(-schedInterval))
-	err := ml.addChannels(t, "unlocked")
+	ml := SetupMockLocker(name, instance, time.Now().Add(-schedInterval))
+	err := ml.AddChannels(t, "unlocked")
 	require.NoError(t, err)
 
-	ms := setUpMockStatsStore(name, fleet.CronStats{
+	ms := SetUpMockStatsStore(name, fleet.CronStats{
 		ID:        1,
 		StatsType: fleet.CronStatsTypeScheduled,
 		Name:      name,
@@ -345,9 +345,9 @@ func TestScheduleReleaseLock(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Errorf("timeout")
 		t.FailNow()
-	case <-ml.unlocked:
+	case <-ml.Unlocked:
 		require.Equal(t, 1, jobCount)          // schedule job starts at 2000ms and finishes at 3900ms
-		require.Equal(t, 2, ml.getLockCount()) // schedule locks at 2000ms (acquire lock), 3600ms (hold lock)
+		require.Equal(t, 2, ml.GetLockCount()) // schedule locks at 2000ms (acquire lock), 3600ms (hold lock)
 	}
 
 	// schedule starts second run at 4000ms (i.e. at the start of the next full interval following
@@ -356,9 +356,9 @@ func TestScheduleReleaseLock(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Errorf("timeout")
 		t.FailNow()
-	case <-ml.unlocked:
+	case <-ml.Unlocked:
 		require.Equal(t, 2, jobCount)
-		require.Equal(t, 4, ml.getLockCount())
+		require.Equal(t, 4, ml.GetLockCount())
 		require.WithinRange(t, time.Now(),
 			start.Add(2*schedInterval).Add(jobDuration),
 			start.Add(2*schedInterval).Add(jobDuration).Add(20*time.Millisecond),
@@ -375,10 +375,10 @@ func TestScheduleHoldLock(t *testing.T) {
 	schedInterval := 2000 * time.Millisecond
 	jobDuration := 2100 * time.Millisecond
 
-	ml := setupMockLocker(name, instance, time.Now().Add(-schedInterval))
-	ml.addChannels(t, "unlocked")
+	ml := SetupMockLocker(name, instance, time.Now().Add(-schedInterval))
+	ml.AddChannels(t, "unlocked")
 
-	ms := setUpMockStatsStore(name, fleet.CronStats{
+	ms := SetUpMockStatsStore(name, fleet.CronStats{
 		ID:        1,
 		StatsType: fleet.CronStatsTypeScheduled,
 		Name:      name,
@@ -404,9 +404,9 @@ func TestScheduleHoldLock(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Errorf("timeout")
 		t.FailNow()
-	case <-ml.unlocked:
+	case <-ml.Unlocked:
 		require.Equal(t, 1, jobCount)          // schedule job starts at 2000ms and finishes at 5100ms
-		require.Equal(t, 2, ml.getLockCount()) // schedule locks at 2000ms (acquire lock), 3600ms (hold lock)
+		require.Equal(t, 2, ml.GetLockCount()) // schedule locks at 2000ms (acquire lock), 3600ms (hold lock)
 	}
 
 	// schedule starts second run at 6000ms (i.e. at the start of the next full interval following
@@ -415,9 +415,9 @@ func TestScheduleHoldLock(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Errorf("timeout")
 		t.FailNow()
-	case <-ml.unlocked:
+	case <-ml.Unlocked:
 		require.Equal(t, 2, jobCount)
-		require.Equal(t, 4, ml.getLockCount())
+		require.Equal(t, 4, ml.GetLockCount())
 		require.WithinRange(t, time.Now(),
 			start.Add(3*schedInterval).Add(jobDuration),
 			start.Add(3*schedInterval).Add(jobDuration).Add(20*time.Millisecond),
@@ -475,7 +475,7 @@ func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
 		}
 	}()
 
-	jobsRun := 0
+	jobsRun := uint32(0)
 	newInstanceWithSchedule := func(id string) {
 		s := New(
 			ctx, name, id, initialSchedInterval, ds, ds,
@@ -485,7 +485,7 @@ func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
 			}),
 			WithJob("test_job", func(ctx context.Context) error {
 				time.Sleep(500 * time.Millisecond)
-				jobsRun++
+				atomic.AddUint32(&jobsRun, 1)
 				return nil
 			}),
 		)
@@ -501,183 +501,5 @@ func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
 	}()
 
 	<-time.After(10 * time.Second)
-	require.Equal(t, 3, jobsRun)
-}
-
-type mockLock struct {
-	mu sync.Mutex
-
-	name      string
-	owner     string
-	expiresAt time.Time
-
-	locked    chan struct{}
-	lockCount int
-
-	unlocked    chan struct{}
-	unlockCount int
-}
-
-func (ml *mockLock) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-	ml.mu.Lock()
-	defer ml.mu.Unlock()
-
-	if name != ml.name {
-		return false, fmt.Errorf("name doesn't match")
-	}
-
-	now := time.Now()
-	if ml.owner == owner || now.After(ml.expiresAt) {
-		ml.owner = owner
-		ml.expiresAt = now.Add(expiration)
-		ml.lockCount = ml.lockCount + 1
-		if ml.locked != nil {
-			ml.locked <- struct{}{}
-		}
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func (ml *mockLock) Unlock(ctx context.Context, name string, owner string) error {
-	ml.mu.Lock()
-	defer ml.mu.Unlock()
-
-	if name != ml.name {
-		return fmt.Errorf("name doesn't match")
-	}
-	if owner != ml.owner {
-		return fmt.Errorf("owner doesn't match")
-	}
-	ml.unlockCount = ml.unlockCount + 1
-	if ml.unlocked != nil {
-		ml.unlocked <- struct{}{}
-	}
-	return nil
-}
-
-func (ml *mockLock) getLockCount() int {
-	ml.mu.Lock()
-	defer ml.mu.Unlock()
-
-	return ml.lockCount
-}
-
-func (ml *mockLock) getUnlockCount() int {
-	ml.mu.Lock()
-	defer ml.mu.Unlock()
-
-	return ml.unlockCount
-}
-
-func (ml *mockLock) addChannels(t *testing.T, chanNames ...string) error {
-	ml.mu.Lock()
-	defer ml.mu.Unlock()
-
-	for _, n := range chanNames {
-		switch n {
-		case "locked":
-			ml.locked = make(chan struct{})
-		case "unlocked":
-			ml.unlocked = make(chan struct{})
-		default:
-			t.Errorf("unrecognized channel name")
-			t.FailNow()
-		}
-	}
-
-	return nil
-}
-
-func setupMockLocker(name string, owner string, expiresAt time.Time) *mockLock {
-	return &mockLock{name: name, owner: owner, expiresAt: expiresAt}
-}
-
-type mockStatsStore struct {
-	sync.Mutex
-	stats map[int]fleet.CronStats
-
-	getStatsCalled    chan struct{}
-	insertStatsCalled chan struct{}
-	updateStatsCalled chan struct{}
-}
-
-func (m *mockStatsStore) GetLatestCronStats(ctx context.Context, name string) (*fleet.CronStats, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	var res *fleet.CronStats
-	for _, s := range m.stats {
-		s := s
-		switch {
-		case s.Name != name:
-			continue
-		case res != nil && res.CreatedAt.After(s.CreatedAt) && res.ID > s.ID:
-			continue
-		default:
-			res = &s
-		}
-	}
-	if res == nil {
-		return nil, sql.ErrNoRows
-	}
-
-	return res, nil
-}
-
-func (m *mockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	id := len(m.stats) + 1
-	m.stats[id] = fleet.CronStats{ID: id, StatsType: statsType, Name: name, Instance: instance, Status: status, CreatedAt: time.Now().Truncate(time.Second), UpdatedAt: time.Now().Truncate(time.Second)}
-
-	return id, nil
-}
-
-func (m *mockStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
-	m.Lock()
-	defer m.Unlock()
-
-	s, ok := m.stats[id]
-	if !ok {
-		return fmt.Errorf("update failed, id not found")
-	}
-	s.Status = status
-	s.UpdatedAt = time.Now().Truncate(time.Second)
-	m.stats[id] = s
-
-	return nil
-}
-
-func (m *mockStatsStore) addChannels(t *testing.T, chanNames ...string) error {
-	m.Lock()
-	defer m.Unlock()
-
-	for _, n := range chanNames {
-		switch n {
-		case "getStatsCalled":
-			m.getStatsCalled = make(chan struct{})
-		case "insertStatsCalled":
-			m.insertStatsCalled = make(chan struct{})
-		case "updateStatsCalled":
-			m.updateStatsCalled = make(chan struct{})
-		default:
-			t.Errorf("unrecognized channel name")
-			t.FailNow()
-		}
-	}
-
-	return nil
-}
-
-func setUpMockStatsStore(name string, initialStats ...fleet.CronStats) *mockStatsStore {
-	stats := make(map[int]fleet.CronStats)
-	for _, s := range initialStats {
-		stats[s.ID] = s
-	}
-	store := mockStatsStore{stats: stats, getStatsCalled: make(chan struct{}), insertStatsCalled: make(chan struct{}), updateStatsCalled: make(chan struct{})}
-
-	return &store
+	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsRun))
 }
