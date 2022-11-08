@@ -92,7 +92,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		id, _ := result.LastInsertId()
 		host.ID = uint(id)
 
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`,
 			host.ID, host.SeenTime,
 		)
@@ -331,7 +331,7 @@ var hostRefs = []string{
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	delHostRef := func(tx sqlx.ExtContext, table string) error {
-		_, err := ds.writer.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
+		_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s WHERE host_id=?`, table), hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting %s for host %d", table, hid)
 		}
