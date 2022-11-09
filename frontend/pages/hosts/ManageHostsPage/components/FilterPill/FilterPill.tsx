@@ -1,7 +1,6 @@
 import React, { ReactNode } from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-import { uniqueId } from "lodash";
 
 import Button from "components/buttons/Button";
 
