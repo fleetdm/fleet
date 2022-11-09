@@ -9,6 +9,11 @@ on:
         required: true
         type: string
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
 defaults:
   run:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
@@ -36,7 +41,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
         with:
-          go-version: 1.19.1
+          go-version: 1.19.3
 
       - name: Install Go Dependencies
         run: make deps-go

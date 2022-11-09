@@ -92,11 +92,11 @@ class TargetDetails extends Component {
         <table className={`${baseClass}__table`}>
           <tbody>
             <tr>
-              <th>IP Address</th>
+              <th>Private IP address</th>
               <td>{hostIpAddress}</td>
             </tr>
             <tr>
-              <th>MAC Address</th>
+              <th>MAC address</th>
               <td>
                 <span className={`${hostBaseClass}__mac-address`}>
                   {hostMac}

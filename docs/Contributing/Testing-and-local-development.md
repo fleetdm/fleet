@@ -7,7 +7,7 @@
 - [Test hosts](#test-hosts)
 - [Email](#email)
 - [Database backup/restore](#database-backuprestore)
-- [Seeding Data](./Seeding-Data.md)
+- [Seeding Data](https://fleetdm.com/docs/contributing/seeding-data)
 - [MySQL shell](#mysql-shell)
 - [Redis REPL](#redis-repl)
 - [Testing SSO](#testing-sso)
@@ -155,7 +155,7 @@ E2E tests are constantly evolving, and running them or examining CI results is t
 
 ### Preparation
 
-Make sure dependencies are up to date and to build the [Fleet binaries locally](./Building-Fleet.md).
+Make sure dependencies are up to date and to build the [Fleet binaries locally](https://fleetdm.com/docs/contributing/building-fleet).
 
 For Fleet Free tests:
 
@@ -409,7 +409,7 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
 
 1. Build the installers you want using `fleetctl package`. Be sure to include the `--insecure` flag
    for local testing.
-2. Use the [installerstore](../../tools/installerstore/README.md) tool to upload them to your MinIO instance.
+2. Use the [installerstore](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/tools/installerstore) tool to upload them to your MinIO instance.
 3. Configure your fleet server setting `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` to match your global enroll secret.
 4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 

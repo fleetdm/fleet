@@ -1,20 +1,4 @@
 .edit-pack-page {
-  &__back-link {
-    display: flex;
-    align-items: center;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-    height: 20px;
-
-    #back-chevron {
-      width: 16px;
-      height: 16px;
-      margin: 0 $pad-small 0 0;
-    }
-  }
-
   @at-root .has-sidebar > &__content {
     display: flex;
     flex-direction: column;

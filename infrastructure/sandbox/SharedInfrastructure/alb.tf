@@ -170,6 +170,10 @@ module "s3_bucket_for_logs" {
   ]
 }
 
+output "access_logs_s3_bucket" {
+  value = module.s3_bucket_for_logs
+}
+
 resource "aws_athena_database" "logs" {
   name   = replace("${var.prefix}-alb-logs", "-", "_")
   bucket = module.athena-s3-bucket.s3_bucket_id

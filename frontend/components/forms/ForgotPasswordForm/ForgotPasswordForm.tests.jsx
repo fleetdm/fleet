@@ -14,7 +14,7 @@ describe("ForgotPasswordForm - component", () => {
 
     expect(screen.getByRole("textbox", { name: /email/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Send email" })
+      screen.getByRole("button", { name: "Get instructions" })
     ).toBeInTheDocument();
   });
 
@@ -38,13 +38,13 @@ describe("ForgotPasswordForm - component", () => {
       <ForgotPasswordForm handleSubmit={handleSubmit} />
     );
 
-    await user.click(screen.getByRole("button", { name: "Send email" }));
+    await user.click(screen.getByRole("button", { name: "Get instructions" }));
     let emailError = screen.getByText("Email field must be completed");
     expect(emailError).toBeInTheDocument();
     expect(handleSubmit).not.toHaveBeenCalled();
 
     await user.type(screen.getByPlaceholderText("Email"), "invalid-email");
-    await user.click(screen.getByRole("button", { name: "Send email" }));
+    await user.click(screen.getByRole("button", { name: "Get instructions" }));
 
     emailError = screen.getByText("invalid-email is not a valid email");
     expect(emailError).toBeInTheDocument();
@@ -57,8 +57,8 @@ describe("ForgotPasswordForm - component", () => {
     );
 
     await user.type(screen.getByPlaceholderText("Email"), email);
-    await user.click(screen.getByRole("button", { name: "Send email" }));
 
+    await user.click(screen.getByRole("button", { name: "Get instructions" }));
     expect(handleSubmit).toHaveBeenCalledWith({ email });
   });
 });

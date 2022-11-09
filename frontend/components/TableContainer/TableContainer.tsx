@@ -64,7 +64,7 @@ interface ITableContainerProps {
   isClientSideFilter?: boolean;
   isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
   // in lieu of displaying the empty component when client-side filtering yields zero results
-  highlightOnHover?: boolean;
+  disableHighlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
   onQueryChange?:
@@ -123,7 +123,7 @@ const TableContainer = ({
   isClientSidePagination,
   isClientSideFilter,
   isMultiColumnFilter,
-  highlightOnHover,
+  disableHighlightOnHover,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
@@ -421,7 +421,7 @@ const TableContainer = ({
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
                 isClientSideFilter={isClientSideFilter}
-                highlightOnHover={highlightOnHover}
+                disableHighlightOnHover={disableHighlightOnHover}
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}

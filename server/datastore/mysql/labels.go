@@ -510,7 +510,6 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
-    %s
 	`
 	failingPoliciesSelect := `,
 		coalesce(failing_policies.count, 0) as failing_policies_count,
@@ -526,12 +525,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		failingPoliciesJoin = ""
 	}
 
-	displayNameJoin := ""
-	if opt.ListOptions.OrderKey == "display_name" {
-		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
-	}
-
-	query := fmt.Sprintf(queryFmt, failingPoliciesSelect, failingPoliciesJoin, displayNameJoin)
+	query := fmt.Sprintf(queryFmt, failingPoliciesSelect, failingPoliciesJoin)
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
@@ -547,7 +541,14 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}) {
 	params := []interface{}{lid}
 
+	if opt.ListOptions.OrderKey == "display_name" {
+		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
+	if opt.LowDiskSpaceFilter != nil {
+		query += ` AND hd.gigs_disk_space_available < ? `
+		params = append(params, *opt.LowDiskSpaceFilter)
+	}
 	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
@@ -560,14 +561,12 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
 	query := `SELECT count(*) FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-	%s`
+ 	`
 
-	displayNameJoin := ""
-	if opt.ListOptions.OrderKey == "display_name" {
-		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	if opt.LowDiskSpaceFilter != nil {
+		query += ` LEFT JOIN host_disks hd ON (h.id=hd.host_id) `
 	}
 
-	query = fmt.Sprintf(query, displayNameJoin)
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
 	var count int

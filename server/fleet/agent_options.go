@@ -3,9 +3,7 @@ package fleet
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 )
 
@@ -39,13 +37,13 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 // at the time of the Fleet release.
 func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 	var opts AgentOptions
-	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
+	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
 	}
 
 	if len(opts.CommandLineStartUpFlags) > 0 {
 		var flags osqueryCommandLineFlags
-		if err := jsonStrictDecode(opts.CommandLineStartUpFlags, &flags); err != nil {
+		if err := JSONStrictDecode(bytes.NewReader(opts.CommandLineStartUpFlags), &flags); err != nil {
 			return fmt.Errorf("command-line flags: %w", err)
 		}
 	}
@@ -482,7 +480,7 @@ type OsqueryCommandLineFlagsMacOS struct {
 // validation rules.
 func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 	var opts osqueryAgentOptions
-	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
+	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
 	}
 
@@ -492,20 +490,5 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 			return fmt.Errorf("options.logger_tls_endpoint must be a path starting with '/': %q", opts.Options.LoggerTlsEndpoint)
 		}
 	}
-	return nil
-}
-
-func jsonStrictDecode(rawJSON json.RawMessage, v interface{}) error {
-	dec := json.NewDecoder(bytes.NewReader(rawJSON))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		return err
-	}
-
-	var extra json.RawMessage
-	if dec.Decode(&extra) != io.EOF {
-		return errors.New("json: extra bytes after end of object")
-	}
-
 	return nil
 }
