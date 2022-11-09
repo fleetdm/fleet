@@ -72,6 +72,11 @@ const FleetAce = ({
   const handleDelete = (deleteCommand: string) => {
     const currentText = editorRef.current?.editor.getValue();
     const selectedText = editorRef.current?.editor.getSelectedText();
+    const range = editorRef.current?.editor.getSelectionRange();
+
+    console.log("currentText: ", currentText);
+    console.log("selectedText: ", selectedText);
+    console.log("range: ", range);
 
     if (selectedText) {
       const remainingText = currentText?.replace(selectedText, "");
