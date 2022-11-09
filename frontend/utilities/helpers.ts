@@ -617,6 +617,31 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   }
 };
 
+const DISK_ENCRYPTION_MESSAGES = {
+  darwin: {
+    enabled:
+      "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
+    disabled:
+      "The disk might be encrypted, but FileVault is off. The<br/> disk can be accessed without entering a password.",
+  },
+  windows: {
+    enabled:
+      "The disk is encrypted. If recently turned on,<br/> encryption could take awhile.",
+    disabled: "The disk is unencrypted.",
+  },
+};
+
+export const humanHostDiskEncryptionEnabled = (
+  platform?: string,
+  isDiskEncrypted = false
+): string => {
+  if (platform !== "windows" && platform !== "darwin") {
+    return "Disk encryption is enabled.";
+  }
+  const encryptionStatus = isDiskEncrypted ? "enabled" : "disabled";
+  return DISK_ENCRYPTION_MESSAGES[platform][encryptionStatus];
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";
@@ -805,6 +830,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  humanHostDiskEncryptionEnabled,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,

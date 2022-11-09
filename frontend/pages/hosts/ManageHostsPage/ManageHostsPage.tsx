@@ -40,7 +40,7 @@ import {
 } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import team, { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -139,6 +139,7 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
+    setAvailableTeams,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -149,7 +150,9 @@ const ManageHostsPage = ({
       isNaN(teamIdParam) ||
       (teamIdParam &&
         availableTeams &&
-        !availableTeams.find((team) => team.id === teamIdParam))
+        !availableTeams.find(
+          (availableTeam) => availableTeam.id === teamIdParam
+        ))
     ) {
       router.replace({
         pathname: location.pathname,
@@ -333,6 +336,14 @@ const ManageHostsPage = ({
       select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
+        setAvailableTeams(responseTeams);
+        if (
+          responseTeams.filter(
+            (responseTeam) => responseTeam.id === currentTeam?.id
+          )
+        ) {
+          setCurrentTeam(undefined);
+        }
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
           setCurrentTeam(responseTeams[0]);
         }
@@ -764,7 +775,6 @@ const ManageHostsPage = ({
       if (status) {
         newQueryParams.status = status;
       }
-
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
@@ -959,10 +969,10 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
-  const onTransferHostSubmit = async (team: ITeam) => {
+  const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
-    const teamId = typeof team.id === "number" ? team.id : null;
+    const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -982,7 +992,7 @@ const ManageHostsPage = ({
       const successMessage =
         teamId === null
           ? `Hosts successfully removed from teams.`
-          : `Hosts successfully transferred to  ${team.name}.`;
+          : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
@@ -1382,6 +1392,7 @@ const ManageHostsPage = ({
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
+        openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
     );
   };

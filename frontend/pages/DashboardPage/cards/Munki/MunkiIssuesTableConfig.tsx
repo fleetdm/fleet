@@ -1,21 +1,12 @@
 import React from "react";
 import { capitalize } from "lodash";
-import { Link } from "react-router";
-import PATHS from "router/paths";
 
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-
-import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
-
-const TAGGED_TEMPLATES = {
-  hostsByMunkiIssue: (munkiIssueId: number) => {
-    return `?munki_issue_id=${munkiIssueId}`;
-  },
-};
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -97,16 +88,10 @@ const munkiIssuesTableHeaders = [
       return (
         <>
           {cellProps.row.original && (
-            <Link
-              to={
-                PATHS.MANAGE_HOSTS +
-                TAGGED_TEMPLATES.hostsByMunkiIssue(cellProps.row.original.id)
-              }
-              className={`issue-link`}
-            >
-              View all hosts{" "}
-              <img alt="link to hosts filtered by policy ID" src={Chevron} />
-            </Link>
+            <ViewAllHostsLink
+              queryParams={{ munki_issue_id: cellProps.row.original.id }}
+              className="munki-issue-link"
+            />
           )}
         </>
       );

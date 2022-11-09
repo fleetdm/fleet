@@ -203,9 +203,9 @@ type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
 
-type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
+type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint, platform string) (fleet.AggregatedMDMStatus, time.Time, error)
 
-type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error)
+type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint, platform string) ([]fleet.AggregatedMDMSolutions, time.Time, error)
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
@@ -437,9 +437,11 @@ type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *j
 
 type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
-type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
+type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+
+type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -1140,6 +1142,9 @@ type DataStore struct {
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
 
+	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
+	SetOrUpdateHostDisksEncryptionFuncInvoked bool
+
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
@@ -1700,14 +1705,14 @@ func (s *DataStore) AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]
 	return s.AggregatedMunkiIssuesFunc(ctx, teamID)
 }
 
-func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
+func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint, platform string) (fleet.AggregatedMDMStatus, time.Time, error) {
 	s.AggregatedMDMStatusFuncInvoked = true
-	return s.AggregatedMDMStatusFunc(ctx, teamID)
+	return s.AggregatedMDMStatusFunc(ctx, teamID, platform)
 }
 
-func (s *DataStore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
+func (s *DataStore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, platform string) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
 	s.AggregatedMDMSolutionsFuncInvoked = true
-	return s.AggregatedMDMSolutionsFunc(ctx, teamID)
+	return s.AggregatedMDMSolutionsFunc(ctx, teamID, platform)
 }
 
 func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
@@ -2285,14 +2290,19 @@ func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, versi
 	return s.SetOrUpdateMunkiInfoFunc(ctx, hostID, version, errors, warnings)
 }
 
-func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 	s.SetOrUpdateMDMDataFuncInvoked = true
-	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep)
+	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
+}
+
+func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
+	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
+	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
