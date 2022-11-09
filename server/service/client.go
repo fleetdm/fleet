@@ -31,7 +31,7 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix)
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, fleet.CapabilityMap{})
 	if err != nil {
 		return nil, err
 	}
@@ -84,16 +84,7 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 	}
 }
 
-func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
-	var bodyBytes []byte
-	var err error
-	if params != nil {
-		bodyBytes, err = json.Marshal(params)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
-		}
-	}
-
+func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
@@ -123,6 +114,18 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	}
 
 	return resp, nil
+}
+
+func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
+	var bodyBytes []byte
+	var err error
+	if params != nil {
+		bodyBytes, err = json.Marshal(params)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+		}
+	}
+	return c.doContextWithBodyAndHeaders(ctx, verb, path, rawQuery, bodyBytes, headers)
 }
 
 func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {

@@ -1,19 +1,16 @@
-import { flatMap, sortBy } from "lodash";
-// @ts-ignore
-import osqueryTablesJSON from "../osquery_tables.json";
+import { flatMap } from "lodash";
 
-export const normalizeTables = (
-  tablesJSON: Record<string, unknown> | string
-) => {
-  // osquery JSON needs less parsing than it used to
-  const parsedTables =
-    typeof tablesJSON === "object" ? tablesJSON : JSON.parse(tablesJSON);
-  return sortBy(parsedTables, (table) => {
-    return table.name;
-  });
-};
+import { IOsQueryTable } from "interfaces/osquery_table";
+import osqueryFleetTablesJSON from "../../schema/osquery_fleet_schema.json";
 
-export const osqueryTables = normalizeTables(osqueryTablesJSON);
+// Typecasting explicity here as we are adding more rigid types such as
+// IOsqueryPlatform for platform names, instead of just any strings.
+const queryTable = osqueryFleetTablesJSON as IOsQueryTable[];
+
+export const osqueryTables = queryTable.sort((a, b) => {
+  return a.name >= b.name ? 1 : -1;
+});
+
 export const osqueryTableNames = flatMap(osqueryTables, (table) => {
   return table.name;
 });

@@ -4,7 +4,6 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IConfig } from "interfaces/config";
 import axios, { AxiosError } from "axios";
-import local from "utilities/local";
 
 export default {
   loadAll: (): Promise<IConfig> => {

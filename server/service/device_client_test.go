@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -22,14 +22,15 @@ func (m *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 
 	res := &http.Response{
 		StatusCode: m.statusCode,
-		Body:       ioutil.NopCloser(bytes.NewBufferString(m.resBody)),
+		Body:       io.NopCloser(bytes.NewBufferString(m.resBody)),
 	}
 
 	return res, nil
 }
 
 func TestDeviceClientGetDesktopPayload(t *testing.T) {
-	client, err := NewDeviceClient("https://test.com", "test-token", true, "")
+	client, err := NewDeviceClient("https://test.com", true, "")
+	token := "test_token"
 	require.NoError(t, err)
 
 	mockRequestDoer := &mockHttpClient{}
@@ -37,15 +38,23 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 
 	t.Run("with wrong license", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusPaymentRequired
-		_, err = client.GetDesktopPayload()
+		_, err = client.NumberOfFailingPolicies(token)
 		require.ErrorIs(t, err, ErrMissingLicense)
+	})
+
+	t.Run("with no failing policies", func(t *testing.T) {
+		mockRequestDoer.statusCode = http.StatusOK
+		mockRequestDoer.resBody = `{}`
+		result, err := client.NumberOfFailingPolicies(token)
+		require.NoError(t, err)
+		require.Equal(t, uint(0), result)
 	})
 
 	t.Run("with failing policies", func(t *testing.T) {
 		mockRequestDoer.statusCode = http.StatusOK
 		mockRequestDoer.resBody = `{"failing_policies_count": 1}`
-		res, err := client.GetDesktopPayload()
+		result, err := client.NumberOfFailingPolicies(token)
 		require.NoError(t, err)
-		require.Equal(t, uint(1), *res.FailingPolicies)
+		require.Equal(t, uint(1), result)
 	})
 }

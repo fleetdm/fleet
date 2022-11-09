@@ -1,1 +1,0 @@
-* Fix an error generating Windows packages with `fleetctl package` on non-English localizations of Windows.

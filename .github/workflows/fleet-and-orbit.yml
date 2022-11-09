@@ -1,9 +1,8 @@
-name: Test Fleetctl Package, Orbit & Fleet
-
 # This workflow tests orbit code changes (compiles orbit from source).
 # It uses a fleet instance also built and executed from source.
 #
 # It tests that orbit osquery agents enroll successfully to Fleet.
+name: Test Fleetctl Package, Orbit & Fleet
 
 on:
   push:
@@ -12,10 +11,25 @@ on:
       - patch-*
     paths:
       - 'orbit/**.go'
+      - '.github/workflows/fleet-and-orbit.yml'
   pull_request:
     paths:
       - 'orbit/**.go'
+      - '.github/workflows/fleet-and-orbit.yml'
   workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+env:
+  OSQUERY_VERSION: 5.5.1
 
 permissions:
   contents: read
@@ -37,19 +51,19 @@ jobs:
         echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
         ENROLL=$(uuidgen)
         echo "::set-output name=enroll_secret::$ENROLL"
-  
+
   run-server:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.1']
+        go-version: ['^1.19.3']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -57,7 +71,7 @@ jobs:
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     - name: Start tunnel
-      env: 
+      env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
       run: |
         # Install cloudflared
@@ -124,7 +138,6 @@ jobs:
         path: |
           fleet_log
 
-
   # Sets the enroll secret of the Fleet server.
   #
   # This job also makes sure the Fleet server is up and running.
@@ -132,13 +145,13 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.1']
+        go-version: ['^1.19.3']
     runs-on: ubuntu-latest
     needs: gen
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -167,6 +180,37 @@ jobs:
         ./build/fleetctl apply -f secrets.yml
 
 
+  # Here we generate the Fleet Desktop and osqueryd targets for
+  # macOS which can only be generated from a macOS host.
+  build-macos-targets:
+    strategy:
+      matrix:
+        go-version: ['^1.19.3']
+    runs-on: macos-latest
+    steps:
+
+    - name: Install Go
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+
+    - name: Build desktop.app.tar.gz and osqueryd.app.tar.gz
+      run: |
+        make desktop-app-tar-gz
+        make osqueryd-app-tar-gz version=$OSQUERY_VERSION out-path=.
+
+    - name: Upload desktop.app.tar.gz and osqueryd.app.tar.gz
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: macos-pre-built-apps
+        path: |
+          desktop.app.tar.gz
+          osqueryd.app.tar.gz
+
+
   # TODO(lucas): Currently, to simplify the workflow we do all in one job:
   # 1. Generate TUF repository (compile Orbit from source).
   # 2. Run TUF server on localhost.
@@ -176,39 +220,31 @@ jobs:
   # because the TUF URL is set to http://localhost:8081.
   #
   # TODO(lucas): Test the generated RPM package on a CentOS docker image.
+  #
+  # We run this job in ubuntu because Github macOS runner doesn't have Docker
+  # installed, and installing it is time consuming and unreliable.
   run-tuf-and-gen-pkgs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.19.1']
-    # We can only generate all (PKG, MSI, DEB, RPM) packages from a macOS host.
-    runs-on: macos-latest
-    needs: gen
+        go-version: ['^1.19.3']
+    runs-on: ubuntu-latest
+    needs: [gen, build-macos-targets]
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
-    # Docker needs to be installed manually on macOS.
-    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
-    - name: Install Docker
-      timeout-minutes: 20
-      run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
+    - name: Download macos pre-built apps
+      id: download
+      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      with:
+        name: macos-pre-built-apps
 
     - name: Build Repository and run TUF server
       env:
@@ -222,6 +258,8 @@ jobs:
         MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
         MSI_TUF_URL: http://localhost:8081
         ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
+        MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
+        MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: 1
         GENERATE_PKG: 1
         GENERATE_DEB: 1
         GENERATE_RPM: 1
@@ -358,7 +396,7 @@ jobs:
     needs: [run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
-    
+
     - name: Download msi
       id: download
       uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
@@ -366,11 +404,11 @@ jobs:
         name: fleet-osquery.msi
 
     - name: Install msi
+      shell: pwsh
       run: |
         msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt
 
     - name: Wait enroll
-      shell: bash
       run: |
         while curl --fail ${{ needs.gen.outputs.address }};
         do
@@ -382,6 +420,77 @@ jobs:
       shell: cmd
       run: |
         "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e "if (.[0]) then true else false end"
+
+    - name: Fleet Service Tests
+      shell: pwsh
+      run: |
+        # Tests setup
+        $serviceName = "Fleet osquery"
+        $orbitMaxTimeToStartAndTeardown = 15
+
+        # Test 1 - Check that the service starts without issues
+        Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+        Start-Service -Name $serviceName
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #1 failed" } }
+
+        # Test 2 - Check that the service stops without issues
+        Stop-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #2 failed" } }
+
+        # Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
+        Start-Service -Name $serviceName
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+        Stop-Service -Name $serviceName
+        Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
+        Get-Process | %{ if ($_.Name -eq "orbit") { throw "Fleet Service test #3 failed" } }
+
+        # Test 4 - Check that service starts in less than 3 secs
+        Start-Job { Start-Service -Name $args[0] } -ArgumentList $serviceName | Out-Null #async operation
+        Start-Sleep -Seconds 3
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #4 failed" } }
+
+        # Test 5 - Check that service stops in less than $orbitMaxTimeToStartAndTeardown secs
+        Start-Job { Stop-Service -Name $args[0] } -ArgumentList $serviceName  | Out-Null #async operation
+        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #5 failed" } }
+        
+        # There is an sporadic issue with --insecure flag being used and osqueryd which causes long shutdown time, not testing this scenario until issue this scenario is sorted out
+
+    - name: MSI Installer Tests
+      shell: pwsh
+      run: |
+        # Tests setup
+        $serviceName = "Fleet osquery"
+        $registryPath = "HKLM:\SOFTWARE\FleetDM\"
+        $installerExecTime = 15
+
+        # Test 1 - Check that there is not Orbit installation folder in programfiles and no registry entries after MSI uninstallation
+        msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest1.txt
+        Start-Sleep -Seconds $installerExecTime
+        if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #1 failed" }
+        Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #1 failed" } }
+        if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #1 failed" }
+
+        # Test 2 - Check that Orbit service, installation folder and registry entry are present after installing MSI again
+        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest2.txt
+        Start-Sleep -Seconds $installerExecTime
+        if (-not (Test-Path -Path $Env:Programfiles\Orbit)) { throw "MSI Installer test #2 failed" }
+        Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Status -ne "Running") { throw "MSI Installer test #2 failed" } }
+        if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -eq 0) { throw "MSI Installer test #2 failed" }
+
+        # Test 3 - Check that there is not Orbit folder in programfiles, no fleet service entry and no registry entries after uninstalling MSI again
+        msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest3.txt
+        Start-Sleep -Seconds $installerExecTime
+        if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #3 failed" }
+        Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #3 failed" } }
+        if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #3 failed" }
+
+        # Test 4 - Check that osquery manifest is present and that it points to the expected osqueryd.exe file
+        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest4.txt
+        Start-Sleep -Seconds $installerExecTime
+        Get-Content "$Env:Programfiles\Orbit\osquery.man" | % { if($_ -match 'resourceFileName=\"(.*?)\"') { if (-not (Test-Path -Path ([System.Environment]::ExpandEnvironmentVariables($Matches[1])))) { throw "MSI Installer test #4 failed" } } }
 
     - name: Upload Orbit logs
       if: always()

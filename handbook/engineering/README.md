@@ -151,75 +151,101 @@ How to deploy a new release to dogfood:
 3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
 4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-6. Select **Run workflow**. **main** should be selected under the **Use workflow from** field.
+6. Select **Run workflow**. **dogfood_mdm** should be selected under the **Use workflow from** field.
 
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
+> 
+> Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
 
-## On-call rotation
+## Oncall rotation
 
 ### In this section
 
+- [The rotation](#the-rotation)
 - [Responsibilities](#responsibilities)
 - [Clearing the plate](#clearing-the-plate)
-- [How to reach the on-call engineer](#how-to-reach-the-on-call-engineer)
+- [How to reach the oncall engineer](#how-to-reach-the-oncall-engineer)
 - [Handoff](#handoff)
-- [The rotation](#the-rotation)
+
+### The rotation
+
+See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
+
+Fleet team members can can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
 ### Responsibilities
 
 #### 1. Second-line response
 
-The on-call engineer is a second-line responder to questions raised by customers and community members.
+The oncall engineer is a second-line responder to questions raised by customers and community members.
 
 The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy is also responsible for the first response to messages in private customer Slack channels.
 
-We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly. When Kathy is unavailable, the on-call engineer may sometimes be asked to take over the first response duties.
+We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties.
 
 #### 2. PR reviews
 
-Pull requests may be routed through the on-call engineer for review.
+Pull requests may be routed through the oncall engineer for review.
 
-For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the on-call. For all PRs to the Fleet documentation, the content editor ([Chris McGillicuddy](https://github.com/chris-mcgillicuddy)) will either merge (for typo fixes, when only documentation files are changed) or request a review from the current on-call (for changes to code samples, or to the meaning of the text).
+For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. For all PRs to the Fleet documentation, the content editor ([Chris McGillicuddy](https://github.com/chris-mcgillicuddy)) will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
 
-In either case, if the on-call engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the on-call engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
+In either case, if the oncall engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
 
 #### 3. Customer success meetings
 
-The on-call engineer is asked to attend all the customer success meetings during the week.
+The oncall engineer is asked to attend all the customer success meetings during the week.
 
-The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
+The engineer will receive calendar invitations for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 #### 4. Improve documentation
 
-The on-call engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support.
+The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
 
 ### Clearing the plate
 
-Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering managers are asked to be aware of the [oncall rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are oncall. While it varies week to week considerably, the oncall responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-### How to reach the on-call engineer
+The remaining time after fulfilling the responsibilities of oncall is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, feel free to speak with your manager.
+
+Some ideas:
+
+* Do training/learning relevant to your work.
+* Improve the Fleet developer experience.
+* Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
+* Create a blog post (or other content) for fleetdm.com.
+* Try out an experimental refactor.
+
+At the end of your oncall shift, you will be asked to share about how you spent your time.
+
+### How to reach the oncall engineer
 
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
 
 ### Handoff
 
-Every week, the oncall engineer changes. Here are some tips for making this handoff go smoothly:
+The oncall engineer changes each week on Wednesday.
+
+A Slack reminder should notify the oncall of the handoff. Please do the following:
 
 1. The new oncall engineer should change the `@oncall` alias in Slack to point to them. In the
    search box, type "people" and select "People & user groups." Switch to the "User groups" tab.
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
-   these threads and the new on-call can select "Get notified about new replies" in the "..." menu.
+   these threads and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
-   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former on-call engineer.
+   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall engineer.
 
-### The rotation
+At the weekly "Eng Together" meeting, the oncall is asked to make a report of how they spent their time. Please answer the following:
 
-See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
+1. What were the most common support requests over the week? This can potentially give the new oncall an idea of which documentation to focus their efforts on.
+
+2. Which documentation page did you focus on? What changes were necessary?
+
+3. How did you spend the rest of your oncall week? This is a chance to demo or share what you learned.
 
 ## Incident postmortems
 
@@ -328,6 +354,8 @@ In particular, host_id is a foreign key we’ve been skipping in all the new add
 - [Counts and aggregated data](#counts-and-aggregated-data)
 - [Caching data such as app config](#caching-data-such-as-app-config)
 - [Redis SCAN](#redis-scan)
+- [Fleet docs](#fleet-docs)
+- [Community support](#community-support)
 
 ### Insert on duplicate update
 
@@ -423,12 +451,82 @@ Redis has solved many scaling problems in general, but it’s not devoid of scal
 
 Fleet documentation explains how to use, deploy, and contribute to Fleet as simply as possible. This goes a long way in driving adoption while building our community of fans.
 
+## Community support
+
+As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
+contributors.
+
+### Version support
+
+To provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. In the current version fixes, Fleet will not backport to older releases.
+
+Community version supported for bug fixes: **Latest version only**
+
+Community support for support/troubleshooting: **Current major version**
+
+Premium version supported for bug fixes: **Latest version only**
+
+Premium support for support/troubleshooting: **All versions**
+
+#### Merge Community PRs
+
+When merging a pull request from a community contributor:
+
+- Ensure that the checklist for the submitter is complete.
+- Verify that all necessary reviews have been approved.
+- Merge the PR.
+- Thank and congratulate the contributor.
+- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+### Reviewing PRs from the community
+
+If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+
+A PR should be merged if:
+
+- It's a change that is needed and useful.
+- The CI is passing.
+- Tests are in place.
+- Documentation is updated.
+- Changes file is created.
+
+For PRs that aren't ready to merge:
+
+- Thank the contributor for their hard work and explain why we can't merge the changes yet.
+- Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
+- Offer code review and coaching to help get the PR ready to go (see note below).
+- Keep an eye out for any updates or responses.
+
+> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR.
+
+If everything is good to go, approve the review.
+
+For PRs that will not be merged:
+
+- Thank the contributor for their effort and explain why the changes won't be merged.
+- Close the PR.
+
+## Updating docs and FAQ
+
+When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
+
+Our goal is to answer every question with a link to the docs and/or result in a documentation update.
+
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Chris McGillicuddy, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
+
+### Tracking
+
+When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
+
+- proposed change to the documentation.
+- documentation link that was sent as a response.
+- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
+
+
 ### In this section
 
 - [How to request a review for Markdown changes to the docs](#how-to-request-a-review-for-markdown-changes-to-the-docs)
-- [Writing documentation](#writing-documentation)
 - [Markdown](#markdown)
-- [Docs style guide](#docs-style-guide)
 - [Adding links](#adding-links)
 - [Linking to a location on GitHub](#linking-to-a-location-on-github)
 - [How to fix a broken link](#how-to-fix-a-broken-link)
@@ -438,57 +536,7 @@ Fleet documentation explains how to use, deploy, and contribute to Fleet as simp
 
 ### How to request a review for Markdown changes to the docs
 
-When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
-
-### Writing documentation
-
-You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. That puts developers in the perfect position to show users what Fleet can do.
-
-This guide will help you write docs that help users achieve their goals with Fleet.
-
-#### Remember the reader
-
-People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
-
-- **Think of every user.** Define technical terms in the doc or include a link.
-- **Strive for simplicity.** Avoid complex sentences and long paragraphs.
-- **Be approachable.** Write like you’re meeting a new member of your team.
-
-#### Answer the question
-
-It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
-
-- **Understand the question.** Be clear about the topic you’re discussing.
-- **Narrow your focus.** Avoid explanations that distract from the main topic.
-- **No more, no less.** Use just enough information to give an accurate answer.
-
-#### Follow a framework
-
-Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
-
-##### Introduction
-
-Give an overview of the topic. You don’t need to mention everything at the beginning. Briefly establish the question you’re addressing. People want to get to the answer A.S.A.P.
-
-##### Explanation
-
-You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
-
-##### Reference
-
-Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
-
-##### Troubleshooting
-
-Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
-
-#### Document every change
-
-Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
-
-You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
-
-Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before commiting a line of code.
+When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [oncall engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
 
 ### Markdown
 
@@ -565,29 +613,6 @@ This ordered list will render correctly as
    Paragraph about item one
 
 2. Item two
-
-### Docs style guide
-
-#### Headings
-
-Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
-
-Keep headings brief, organized, and in a logical order:
-
-- H1: Page title
-- H2: Main headings
-- H3: Subheadings
-- H4: Sub-subheadings (headings nested under subheadings)
-
-Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
-
-#### SQL statements
-
-When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here is an example:
-
-```sql
-   SELECT days, hours, total_seconds FROM uptime;
-```
 
 ### Adding links
 
@@ -676,6 +701,161 @@ graph TD;
     A--D
 ```
 
+## Quality
+
+### Human-oriented QA
+
+Fleet uses a human-oriented quality assurance (QA) process to make sure the product meets the standards of users and organizations.
+
+Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
+
+The goal of quality assurance is to identify corrections and improvements before release:
+- Bugs
+- Edge cases
+- Error message UX
+- Developer experience using the API/CLI
+- Operator experience looking at logs
+- API response time latency
+- UI comprehensibility
+- Simplicity
+- Data accuracy
+- Perceived data freshness
+
+### Finding bugs
+
+To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
+
+To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`.
+
+To start a preview without starting the simulated hosts, use the `--no-hosts` flag (e.g., `fleetctl preview --no-hosts`).
+
+For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug.
+
+### Bug process
+
+#### Bug States
+The lifecycle stages of a bug at Fleet are: 
+1. Inbox 
+2. Acknowledged 
+3. Reproduced 
+4. In engineering process
+5. Awaiting QA
+
+The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and board memberships. 
+
+See [Bug states and filters](#bug-states-and-filters) at the end of this document for descriptions of these states and links to each GitHub filter.
+
+#### Inbox
+When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
+At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
+
+> Some bugs may be the domain of the Digital Experience team. If QA believes this is the case, then QA should put the bug onto the g-marketing board, put it into the current release, and assign it to the DRI of the Digital Experience team. The Digital Experience team has their own bug process, which is not governed by this process.
+
+#### Weekly bug review
+QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
+
+Requesters have six weeks to provide follow-up information for each request. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but requesters are welcome to re-open and provide context.
+
+QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
+
+#### Acknowledging bugs
+If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
+
+Once reproduced, QA should document the reproduction steps and move it to the reproduced state.
+
+#### Reproduced
+When reproduced, the assigned engineering manager (EM) is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
+
+#### After reproduced
+After it's in a release formally, the bug should be treated like any other piece of work per the standard engineering process.
+
+#### Fast track for Fleeties
+Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
+
+#### Release testing
+When a release is in testing, QA should use the the Slack channel #help-release-bugs to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
+
+In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release-blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
+
+Release blockers include:
+1. Critical bugs (defined below)
+2. New functionality that impacts previous stable functionality
+3. Incomplete features as defined or implied in the specs
+
+Release blockers must be fixed before a release can be cut. Non-release-blocking bugs may be addressed during a subsequent release per the standard bug process (defined above).
+
+#### Critical bugs
+A critical bug is defined as behavior that: 
+* Blocks the normal use a workflow
+* Prevents upgrades to Fleet
+* Causes irreversible damage, such as data loss
+* Introduces a security vulnerability
+
+We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
+Raising an alarm means pinging @here in the #help-product channel with the filed bug.
+
+If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be customer experience in the community Slack or QA in the bug inbox, though it could be anyone.)
+Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
+
+Once raised, product confirms whether or not it's critical and defines expected behavior.
+When outside of working hours for the product team or if no one from product responds within 1 hour, then fall back to the #help-p1.
+
+Once the critical bug is confirmed, customer experience needs to ping both customers and the community to warn them. If CX is not available, the oncall engineer is responsible for doing this.
+If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
+
+When a critical bug is identified, we will then follow the patch release process in [our documentation](https://fleetdm.com/docs/contributing/releasing-fleet#patch-releases).
+
+#### Measurement
+We will track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring. 
+The metrics are: 
+* Number of bugs opened this week
+* total # bugs open 
+* bugs in each state (inbox, acknowledged, reproduced) 
+* Number of bugs closed this week
+
+Each week these are tracked and shared in the weekly update by Charlie Chance.
+
+#### Orphans
+Occasionally, bugs may get lost if, for example, a label is misapplied. Miscategorized issues may slip through the filters and languish in a grey zone. The “orphan” and “reproduced orphan” states exist to catch these issues. 
+Every week, the head of product is responsible for reviewing these two states to identify any that are not properly categorized in the process.
+
+### Bug states and filters
+
+#### Inbox
+The bug has just come in. 
+
+If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone and is not on a board. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+sort%3Aupdated-asc).
+
+#### Acknowledged 
+QA has gone through the inbox and has accepted it as a bug to be reproduced. 
+
+QA assigns themselves and adds it to the Release board under “awaiting QA.” [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+sort%3Aupdated-asc).
+
+#### Reproduced
+QA has reproduced the issue successfully. It should now be transferred to engineering. 
+
+Remove the “reproduce” label, add the label of the relevant team (#agent, #platform, #interface), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) Move it to “Ready” in the Release board. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+sort%3Aupdated-asc).
+
+#### Orphans 
+These are bugs that do not have the reproduce label and do not exist on the release board. This filter serves as a sanity check. There should be no bugs in this state because they are likely to be forgotten by our process. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+).
+
+#### Reproduced orphans 
+These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+-label%3A%23interface+-label%3A%23platform+-label%3A%23agent+).
+
+#### All bugs
+[See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+
+#### Bugs opened this week
+This filter returns all "bug" issues opened after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+label%3Abug+created%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
+
+#### Bugs closed this week
+This filter returns all "bug" issues closed after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+is%3Aclosed+label%3Abug+closed%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
+
+### Definitions
+
+In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
+In the above process, any reference to "QA" refers to: Reed Haynes, QA Engineer.
+
 ## Rituals
 
 The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
@@ -684,9 +864,42 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Zach Wasserman |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| On-call handoff               | Weekly              | Hand off the on-call engineering responsibilities to the next on-call engineer.                                                        | Zach Wasserman |
+| Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Zach Wasserman |
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
+| Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
+| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
+| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
+
+## Fleet Sandbox Oncall
+
+Oncall for Sandbox will happen in shifts of 1 week. The people involved in them will be:
+
+First responders:
+
+- Zachary Winnerman
+- Robert Fairburn
+
+Escalations (in order):
+
+- Tomas Touceda
+- Zach Wasserman
+
+The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
+
+Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
+
+If the issue is non user facing (provisioner/deprovisioner/temporary errors in osquery/etc), we'll proceed to address the issue. If the issue is user facing (as in, the user noticed this error first hand through the Fleet UI), then we'll proceed to identify the user and ping Mike McNeil in #help-p1 with information about the error (see below) so that he can contact them letting them know that we are aware of this issue and working on it.
+
+We should collect both the email for the customer and information for the error. If the error happens in work hours, we should make a best effort to understand where in the app the error might have occurred. For this, the oncall engineer will post in `#help-engineering` the data they know of the issue and see if anybody in the frontend team can help identify what might be causing it. It’s more helpful to say “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”, but sometimes it’s not exactly clear where the API might be used exactly.
+
+Escalation of issues will be done by hand for the moment.
+
+All infrastructure alarms will go to #g-infrastructure.
+
+The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
+
+There will not be updates on the Fleet version running in sandbox on Fridays unless there's a critical issue being fixed.
 
 ## Slack channels
 
@@ -699,6 +912,8 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#g-interface`       | Luke Heath                                                           |
 | `#g-agent`           | Zach Wasserman                                                       |
 | `#_pov-environments` | Ben Edwards                                                          |
+| `#help-qa`           | Reed Haynes                                                          |
+| `#help-release-bugs` | Reed Haynes                                                          |
 
 <meta name="maintainedBy" value="zwass">
 <meta name="title" value="🚀 Engineering">

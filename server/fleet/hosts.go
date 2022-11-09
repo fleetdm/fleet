@@ -20,6 +20,9 @@ const (
 	// StatusNew means the host has enrolled in the interval defined by
 	// NewDuration. It is independent of offline and online.
 	StatusNew = HostStatus("new")
+	// StatusMissing means the host is missing for 30 days. It is identical
+	// with StatusMIA, but StatusMIA is deprecated.
+	StatusMissing = HostStatus("missing")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -44,6 +47,15 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
+// NOTE: any changes to the hosts filters is likely to impact at least the following
+// endpoints, due to how they share the same implementation at the Datastore level:
+//
+// - GET /hosts (list hosts)
+// - GET /hosts/count (count hosts, which calls svc.CountHosts or svc.CountHostsInLabel)
+// - GET /labels/{id}/hosts (list hosts in label)
+// - GET /hosts/report
+//
+// Make sure the docs are updated accordingly and all endpoints behave as expected.
 type HostListOptions struct {
 	ListOptions
 
@@ -174,12 +186,27 @@ type Host struct {
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
+	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
+	// exportable as CSV (which is the result of List Hosts endpoint). It is
+	// a *bool because for Linux we set it to NULL and omit it from the JSON
+	// response if the host does not have disk encryption enabled. It is also
+	// omitted if we don't have encryption information yet.
+	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
+
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly
 	// encoded from this column, it is processed before marshaling, hence why the
 	// struct tag here has csv:"-".
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
+}
+
+// DisplayName returns ComputerName if it isn't empty or HostName otherwise.
+func (h *Host) DisplayName() string {
+	if cn := h.ComputerName; cn != "" {
+		return cn
+	}
+	return h.Hostname
 }
 
 type HostIssues struct {
@@ -216,16 +243,17 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID            *uint                  `json:"team_id,omitempty" db:"-"`
-	TotalsHostsCount  uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount       uint                   `json:"online_count" db:"online"`
-	OfflineCount      uint                   `json:"offline_count" db:"offline"`
-	MIACount          uint                   `json:"mia_count" db:"mia"`
-	NewCount          uint                   `json:"new_count" db:"new"`
-	AllLinuxCount     uint                   `json:"all_linux_count" db:"-"`
-	LowDiskSpaceCount *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
-	BuiltinLabels     []*LabelSummary        `json:"builtin_labels" db:"-"`
-	Platforms         []*HostSummaryPlatform `json:"platforms" db:"-"`
+	TeamID             *uint                  `json:"team_id,omitempty" db:"-"`
+	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount        uint                   `json:"online_count" db:"online"`
+	OfflineCount       uint                   `json:"offline_count" db:"offline"`
+	MIACount           uint                   `json:"mia_count" db:"mia"`
+	Missing30DaysCount uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
+	NewCount           uint                   `json:"new_count" db:"new"`
+	AllLinuxCount      uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount  *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels      []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms          []*HostSummaryPlatform `json:"platforms" db:"-"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -273,7 +301,7 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint",
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -465,6 +493,12 @@ type AggregatedMDMStatus struct {
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
 
+// AggregatedMDMData contains aggregated data from mdm installations.
+type AggregatedMDMData struct {
+	MDMStatus    AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+	MDMSolutions []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
+}
+
 // MDMSolution represents a single MDM solution, as returned by the list hosts
 // endpoint when an MDM Solution ID is provided as filter.
 type MDMSolution struct {
@@ -488,8 +522,9 @@ type AggregatedMacadminsData struct {
 
 // HostShort is a minimal host representation returned when querying hosts.
 type HostShort struct {
-	ID       uint   `json:"id" db:"id"`
-	Hostname string `json:"hostname" db:"hostname"`
+	ID          uint   `json:"id" db:"id"`
+	Hostname    string `json:"hostname" db:"hostname"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 type OSVersions struct {

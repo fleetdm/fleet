@@ -1,2 +1,0 @@
-Added new EE endpoint at '/api/_version_/fleet/device/{token}/desktop' to be used by Fleet Desktop
-to get the number of failing policies.

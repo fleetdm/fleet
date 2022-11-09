@@ -43,17 +43,21 @@
 }
 
 .Select {
-  .Select-control {
+  &.dropdown__select {
     border: 1px solid $ui-fleet-blue-15;
-    background-color: $ui-light-grey;
     border-radius: $border-radius;
-    height: 40px;
-
+    &:hover {
+      box-shadow: none;
+      border: 1px solid $core-vibrant-blue;
+    }
+  }
+  .Select-control {
+    background-color: $ui-light-grey;
+    border: 0;
+    border-radius: $border-radius;
     .Select-value {
       font-size: $small;
-      border-radius: 4px;
       background-color: $ui-off-white;
-      border: solid 1px $core-dark-blue-grey;
     }
   }
 
@@ -61,7 +65,6 @@
     font-size: $small;
     border-radius: $border-radius;
     background-color: $ui-off-white;
-    border: solid 1px $core-dark-blue-grey;
 
     .Select-value-icon {
       border: 0;
@@ -90,7 +93,7 @@
     .Select-value-label {
       font-size: $small;
       color: $core-fleet-black;
-      line-height: 28px;
+      vertical-align: middle;
     }
   }
 
@@ -107,13 +110,14 @@
     content: url("../assets/images/icon-chevron-black-16x16@2x.png");
     height: 16px;
     width: 16px;
-    margin-top: 8px;
+    vertical-align: middle;
+    margin-top: -1px;
     margin-left: -4px;
     border: none;
   }
 
   &.is-focused {
-    .Select-control {
+    &.dropdown__select {
       border: 1px solid $core-vibrant-blue;
     }
 
@@ -126,13 +130,17 @@
   }
 
   &.is-open {
-    .Select-arrow {
-      content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      height: 16px;
-      width: 16px;
-      margin-top: 12px;
-      margin-left: -4px;
-      border: none;
+    .Select-control {
+      border-radius: $border-radius;
+
+      .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+        height: 16px;
+        width: 16px;
+        margin-left: -4px;
+        border: none;
+        top: 0px;
+      }
     }
   }
   :hover {
@@ -148,7 +156,6 @@
         content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
         height: 16px;
         width: 16px;
-        margin-top: 10px;
         margin-left: -4px;
         border: none;
       }
@@ -169,11 +176,10 @@
 
   .Select-menu-outer {
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
-    border-radius: 0 0 $border-radius $border-radius;
     z-index: 6;
     overflow: hidden;
     border: 0;
-    margin: 0;
+    margin: 1px 0 0;
     padding: $pad-small;
   }
 
@@ -245,7 +251,7 @@
       flex-grow: 1;
 
       .Select-value {
-        margin-top: 2px;
+        margin-top: 1px;
 
         .Select-value-label {
           font-size: $x-small;
@@ -274,7 +280,3 @@
     }
   }
 }
-
-// .is-focused {
-//   border: 1px solid $core-vibrant-blue;
-// }

@@ -1,3 +1,5 @@
+import manageSchedulePage from "../pages/manageSchedulePage";
+
 describe("Teams flow (empty)", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -91,45 +93,12 @@ describe("Teams flow (seeded)", () => {
   describe("Manage schedules page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/schedule/manage");
+      manageSchedulePage.visitManageSchedulePage();
     });
     it("adds a query to team schedule", () => {
-      cy.getAttached(".manage-schedule-page__header").within(() => {
-        cy.contains("All teams").click({ force: true });
-        cy.contains("Oranges").click({ force: true });
-      });
-      cy.getAttached(".no-schedule__schedule-button").click();
-      cy.getAttached(".schedule-editor-modal__form").within(() => {
-        cy.findByText(/select query/i).click();
-        cy.findByText(/detect presence/i).click();
-        cy.findByText(/every day/i).click();
-        cy.findByText(/every 6 hours/i).click();
-        cy.findByText(/show advanced options/i).click();
-        cy.findByText(/snapshot/i).click();
-        cy.findByText(/ignore removals/i).click();
-        cy.getAttached(".schedule-editor-modal__form-field--platform").within(
-          () => {
-            cy.findByText(/all/i).click();
-            cy.findByText(/linux/i).click();
-          }
-        );
-        cy.getAttached(
-          ".schedule-editor-modal__form-field--osquer-vers"
-        ).within(() => {
-          cy.findByText(/all/i).click();
-          cy.findByText(/4.6.0/i).click();
-        });
-        cy.getAttached(".schedule-editor-modal__form-field--shard").within(
-          () => {
-            cy.getAttached(".input-field").click().type("50");
-          }
-        );
-        cy.getAttached(".modal-cta-wrap").within(() => {
-          cy.findByRole("button", { name: /schedule/i }).click();
-        });
-      });
-      cy.findByText(/successfully added/i).should("be.visible");
-      cy.getAttached("tbody>tr").should("have.length", 1);
+      manageSchedulePage.changesTeam("All teams", "Oranges");
+      manageSchedulePage.allowsAddSchedule();
+      manageSchedulePage.verifiesAddedSchedule();
     });
   });
   describe("Team details page", () => {
@@ -170,7 +139,7 @@ describe("Teams flow (seeded)", () => {
 
       cy.findByRole("button", { name: /save options/i }).click();
 
-      cy.contains("span", /successfully saved/i).should("exist");
+      cy.contains("span", /successfully updated/i).should("exist");
       cy.visit("/settings/teams/2/options");
 
       cy.contains(/config:/i).should("be.visible");

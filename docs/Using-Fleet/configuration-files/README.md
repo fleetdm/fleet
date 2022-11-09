@@ -6,9 +6,9 @@
 - [Teams](#teams)
 - [Organization settings](#organization-settings)
 
-Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files. 
+Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
 
-Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](../../Using-Fleet/fleetctl-CLI.md#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
+Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
 
 ## Queries
 
@@ -42,7 +42,7 @@ spec:
   query: select name, publisher, type, subscriptions, events, active from osquery_events;
 ```
 
-Continued edits and applications to this file will update the queries. 
+Continued edits and applications to this file will update the queries.
 
 If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
 
@@ -130,6 +130,7 @@ spec:
           logger_tls_period: 10
           pack_delimiter: /
       overrides: {}
+      command_line_flags: {}
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
@@ -194,6 +195,7 @@ spec:
         logger_tls_period: 10
         pack_delimiter: /
     overrides: {}
+    command_line_flags: {}
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -336,7 +338,7 @@ Whether or not Fleet sends the query needed to gather the list of software insta
 
 #### Fleet Desktop
 
-For more information about Fleet Desktop, see [Fleet Desktop's documentation](../../Using-Fleet/Fleet-desktop.md).
+For more information about Fleet Desktop, see [Fleet Desktop's documentation](https://fleetdm.com/docs/using-fleet/fleet-desktop).
 
 ##### fleet_desktop.transparency_url
 
@@ -380,9 +382,9 @@ If a host has not communicated with Fleet in the specified number of days, it wi
 
 #### Integrations
 
-For more information about integrations and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md). Only one automation can be enabled for a given automation type (e.g., for failing policies, only one of the webhooks, the Jira integration, or the Zendesk automation can be enabled).
+For more information about integrations and Fleet automations in general, see the [Automations documentation](https://fleetdm.com/docs/using-fleet/automations). Only one automation can be enabled for a given automation type (e.g., for failing policies, only one of the webhooks, the Jira integration, or the Zendesk automation can be enabled).
 
-It's recommended to use the Fleet UI to configure integrations since secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
+It's recommended to use the Fleet UI to configure integrations since secret credentials (in the form of an API token) must be provided. See the [Automations documentation](https://fleetdm.com/docs/using-fleet/automations) for the UI configuration steps.
 
 #### Organization information
 
@@ -509,11 +511,11 @@ It's recommended to use the Fleet UI to configure SMTP since a secret password m
 
 #### SSO settings
 
-For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet, and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
+For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet, and identity providers configuration, see [Configuring single sign-on (SSO)](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ##### sso_settings.enable_jit_provisioning
 
-**Available in Fleet Premium**. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+**Available in Fleet Premium**. Enables [just-in-time user provisioning](https://fleetdm.com/docs/deploying/configuration#just-in-time-jit-user-provisioning).
 
 - Optional setting (boolean)
 - Default value: `false`
@@ -635,7 +637,7 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
 
 #### Webhook settings
 
-For more information about webhooks and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md).
+For more information about webhooks and Fleet automations in general, see the [Automations documentation](https://fleetdm.com/docs/using-fleet/automations).
 
 ##### webhook_settings.interval
 
@@ -768,7 +770,7 @@ The percentage of hosts that need to be offline to trigger the webhook.
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 30 days (based on the National Vulnerability Database, NVD).
 
-Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks. It is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
+Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks. It is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](https://fleetdm.com/docs/deploying/configuration#periodicity).
 
 ###### webhook_settings.vulnerabilities_webhook.destination_url
 
@@ -811,9 +813,13 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 
 #### Agent options
 
-The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in. 
+The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in.
 
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
+
+Agent options are validated using the latest version of osquery. 
+
+You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 
@@ -960,4 +966,4 @@ spec:
 
 #### Advanced configuration
 
-> **Note:** More settings are included in the [contributor documentation](../../Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+> **Note:** More settings are included in the [contributor documentation](https://fleetdm.com/docs/contributing/configuration-for-contributors). It's possible, although not recommended, to configure these settings in the YAML configuration file.

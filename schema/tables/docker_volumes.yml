@@ -1,0 +1,4 @@
+name: docker_volumes
+columns:
+  - name: name
+    description: Volume name from `docker volume ls`

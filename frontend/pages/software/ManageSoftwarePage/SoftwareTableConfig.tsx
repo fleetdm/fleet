@@ -11,7 +11,7 @@ import { formatFloatAsPercentage } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -62,7 +62,7 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
-const withBundleTooltip = (name: string, bundle: string) => (
+const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
       tipContent={`
@@ -189,10 +189,11 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
         const { id, name, bundle_identifier: bundle } = cellProps.row.original;
         return (
           <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
-            {bundle ? withBundleTooltip(name, bundle) : name}
+            {bundle ? renderBundleTooltip(name, bundle) : name}
           </Link>
         );
       },
+      sortType: "caseInsensitive",
     },
     {
       title: "Version",
@@ -229,13 +230,10 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
             <TextCell value={cellProps.cell.value} />
           </span>
           <span className="hosts-cell__link">
-            <Link
-              to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
+            <ViewAllHostsLink
+              queryParams={{ software_id: cellProps.row.original.id }}
               className="software-link"
-            >
-              <span className="link-text">View all hosts</span>
-              <img alt="link to hosts filtered by software ID" src={Chevron} />
-            </Link>
+            />
           </span>
         </span>
       ),

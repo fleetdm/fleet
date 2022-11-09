@@ -6,16 +6,13 @@ This section outlines the release process at Fleet.
 
 The current release cadence is once every three weeks and concentrates around Wednesdays.
 
-### Release freeze period
+### Release testing
 
-To make sure we build quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, we will not merge new feature work.
+To make sure we build quality releases, Fleet has a freeze period for testing prior to each release. 
+Effective at the start of the freeze period, we will not merge new feature work.
 
-Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
-1. Regressions
-2. Security concerns
-3. Issues with features targeted for the current release
-
-Non-release blocking bugs may include known issues that were not targeted for the current release or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
+When bugs are found during release testing, use the process documented in [our handbook](https://fleetdm.com/handbook/quality#release-testing).
+Release bugs are exempt from the freeze period.
 
 ### What to do?
 
@@ -94,7 +91,11 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 > publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public
 > download, is still the latest _official_ release.
 
-5. Announce the release in the #fleet channel of [osquery
+5. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
+
+6. In the #g-infrastructure Slack channel, notify the @sandbox-oncall of the release. This way, the @sandbox-oncall individual can deploy the new version.
+
+7. Announce the release in the #fleet channel of [osquery
    Slack](https://fleetdm.com/slack) and
    update the channel's topic with the link to this release. Using `@here` requires admin
    permissions, so typically this announcement will be done by `@zwass`.
@@ -103,12 +104,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 
 ### Patch releases
 
-A patch is released when an issue with the current stable release falls under the following criteria:
-- Security concerns
-- Previously stable features are unusable/broken
-- New features are unusable/broken
-
-Any issue that meets the patch release criteria is sent to the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals).
+A patch release is required when a critical bug is found. Critical bugs are defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
 #### Process
 

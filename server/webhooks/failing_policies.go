@@ -78,17 +78,19 @@ type failingPoliciesPayload struct {
 }
 
 type failingHost struct {
-	ID       uint   `json:"id"`
-	Hostname string `json:"hostname"`
-	URL      string `json:"url"`
+	ID          uint   `json:"id"`
+	Hostname    string `json:"hostname"`
+	DisplayName string `json:"display_name"`
+	URL         string `json:"url"`
 }
 
 func makeFailingHost(host fleet.PolicySetHost, serverURL *url.URL) failingHost {
 	u := *serverURL
 	u.Path = path.Join(serverURL.Path, "hosts", strconv.FormatUint(uint64(host.ID), 10))
 	return failingHost{
-		ID:       host.ID,
-		Hostname: host.Hostname,
-		URL:      u.String(),
+		ID:          host.ID,
+		Hostname:    host.Hostname,
+		DisplayName: host.DisplayName,
+		URL:         u.String(),
 	}
 }

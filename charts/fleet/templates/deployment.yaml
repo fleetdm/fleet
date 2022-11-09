@@ -291,6 +291,9 @@ spec:
           - name: osquery-logs
             mountPath: /logs
           {{- end }}
+          {{- with .Values.fleet.extraVolumeMounts }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
       - name: cloudsql-proxy
@@ -338,6 +341,9 @@ spec:
         - name: osquery-logs
           emptyDir:
             sizeLimit: "{{ .Values.osquery.logging.filesystem.volumeSize }}"
+        {{- end }}
+        {{- with .Values.fleet.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}

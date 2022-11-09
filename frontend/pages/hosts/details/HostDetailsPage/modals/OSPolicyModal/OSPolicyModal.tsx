@@ -16,17 +16,19 @@ import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fle
 interface IRenderOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;
   onCancel: () => void;
-  titleData?: any;
+  osVersion?: string;
+  detailsUpdatedAt?: string;
   osPolicy: string;
   osPolicyLabel: string;
 }
 
-const baseClass = "render-os-policy-modal";
+const baseClass = "os-policy-modal";
 
 const RenderOSPolicyModal = ({
   onCancel,
   onCreateNewPolicy,
-  titleData,
+  osVersion,
+  detailsUpdatedAt,
   osPolicy,
   osPolicyLabel,
 }: IRenderOSPolicyModal): JSX.Element => {
@@ -70,18 +72,12 @@ const RenderOSPolicyModal = ({
   };
 
   return (
-    <Modal
-      title="Operating system"
-      onExit={onCancel}
-      className={`${baseClass}__modal`}
-    >
+    <Modal title="Operating system" onExit={onCancel} className={baseClass}>
       <>
         <p>
-          <span className={`${baseClass}__os-modal-title`}>
-            {titleData.os_version}{" "}
-          </span>
+          <span className={`${baseClass}__os-modal-title`}>{osVersion} </span>
           <span className={`${baseClass}__os-modal-updated`}>
-            Reported {humanHostDetailUpdated(titleData.detail_updated_at)}
+            Reported {humanHostDetailUpdated(detailsUpdatedAt)}
           </span>
         </p>
         <span className={`${baseClass}__os-modal-example-title`}>
@@ -98,11 +94,11 @@ const RenderOSPolicyModal = ({
           value={osPolicy}
         />
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse">
-            Close
-          </Button>
           <Button onClick={onCreateNewPolicy} variant="brand">
             Create new policy
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Close
           </Button>
         </div>
       </>

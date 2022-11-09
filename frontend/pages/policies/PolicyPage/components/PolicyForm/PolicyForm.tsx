@@ -15,7 +15,7 @@ import usePlatformSelector from "hooks/usePlaformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
-import { DEFAULT_POLICIES } from "utilities/constants";
+import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";

@@ -1,0 +1,2 @@
+* Orbit now kills any pre-existing fleet desktop processes at startup.
+* Orbit now handles SIGTERM on unix.

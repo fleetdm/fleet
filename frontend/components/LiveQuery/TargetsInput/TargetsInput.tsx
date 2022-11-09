@@ -39,9 +39,9 @@ const TargetsInput = ({
   const resultsDropdownTableHeaders = generateTableHeaders();
   const selectedTableHeaders = generateTableHeaders(handleRowRemove);
   const dropdownHosts =
-    searchResults && pullAllBy(searchResults, targetedHosts, "hostname");
+    searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
   // const finalSelectedHostTargets =
-  //   targetedHosts && filter(targetedHosts, "hostname");
+  //   targetedHosts && filter(targetedHosts, "display_name");
   const isActiveSearch =
     !isEmpty(searchText) && (!hasFetchError || isTargetsLoading);
   const isSearchError = !isEmpty(searchText) && hasFetchError;

@@ -2,7 +2,7 @@ package service
 
 import (
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
@@ -25,13 +25,15 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeBrowserSecurityHeaders(w)
+
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/react.tmpl")
 		if err != nil {
 			herr(w, "load react template: "+err.Error())
 			return
 		}
-		data, err := ioutil.ReadAll(file)
+		data, err := io.ReadAll(file)
 		if err != nil {
 			herr(w, "read bindata file: "+err.Error())
 			return

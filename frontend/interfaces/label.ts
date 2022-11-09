@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 export default PropTypes.shape({
   created_at: PropTypes.string,
   updated_at: PropTypes.string,
-  id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  id: PropTypes.oneOfType([PropTypes.number]),
   name: PropTypes.string,
   query: PropTypes.string,
   label_type: PropTypes.string,
@@ -15,7 +15,7 @@ export default PropTypes.shape({
 });
 
 export interface ILabelSummary {
-  id: number | string;
+  id: number;
   name: string;
   description?: string;
   label_type: "regular" | "builtin";

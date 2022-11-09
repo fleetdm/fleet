@@ -18,7 +18,7 @@ var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
 // Group holds a set of "specs" that can be applied to a Fleet server.
 type Group struct {
 	Queries  []*fleet.QuerySpec
-	Teams    []*fleet.TeamSpec
+	Teams    []json.RawMessage
 	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
@@ -34,11 +34,6 @@ type Metadata struct {
 	Kind    string          `json:"kind"`
 	Version string          `json:"apiVersion"`
 	Spec    json.RawMessage `json:"spec"`
-}
-
-// TeamSpec holds a spec to be applied to a team.
-type TeamSpec struct {
-	Team *fleet.TeamSpec `json:"team"`
 }
 
 // GroupFromBytes parses a Group from concatenated YAML specs.
@@ -115,11 +110,14 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.UsersRoles = userRoleSpec
 
 		case fleet.TeamKind:
-			var teamSpec TeamSpec
-			if err := yaml.Unmarshal(s.Spec, &teamSpec); err != nil {
+			// unmarshal to a raw map as we don't want to strip away unknown/invalid
+			// fields at this point - that validation is done in the apply spec/teams
+			// endpoint so that it is enforced for both the API and the CLI.
+			rawTeam := make(map[string]json.RawMessage)
+			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			specs.Teams = append(specs.Teams, teamSpec.Team)
+			specs.Teams = append(specs.Teams, rawTeam["team"])
 
 		default:
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)

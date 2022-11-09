@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -848,7 +847,7 @@ func TestResetPassword(t *testing.T) {
 		{ // bad token
 			token:       "dcbaz",
 			newPassword: test.GoodPassword,
-			wantErr:     sql.ErrNoRows,
+			wantErr:     fleet.NewAuthFailedError("invalid password reset token"),
 		},
 		{ // missing token
 			newPassword: test.GoodPassword,

@@ -7,7 +7,7 @@
 ```
 
 - [View teams](#view-teams)
-- [Create a team](#create-a-teams)
+- [Create a team](#create-a-team)
 - [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Add users to a team](#add-users-to-a-team)
@@ -56,8 +56,7 @@ Hosts can only belong to one team in Fleet.
 
 You can add hosts to a new team in Fleet by either enrolling the host with a team's enroll secret or by [transferring the host via the Fleet UI](#transfer-hosts-to-a-team) after the host has been enrolled to Fleet.
 
-To automatically add hosts to a team in Fleet, check out the ["Adding hosts"
-documentation](./Adding-hosts.md#automatically-adding-hosts-to-a-team).
+To automatically add hosts to a team in Fleet, check out the ["Adding hosts" documentation](https://fleetdm.com/docs/using-fleet/adding-hosts#automatically-adding-hosts-to-a-team).
 
 > If a host was previously enrolled using a global enroll secret, changing the host's osquery enroll
 > secret will not cause the host to be transferred to the desired team. You must delete the
@@ -93,7 +92,7 @@ To add users to a team:
 
 4. Select one or more users by searching for their full name and confirm the action.
 
-Users will be given the [Observer role](./Permissions.md#team-member-permissions) when added to the team. The [Edit a member's role](#edit-a-members-role) provides instructions on changing the permission level of users on a team.
+Users will be given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions) when added to the team. The [Edit a member's role](#edit-a-members-role) provides instructions on changing the permission level of users on a team.
 
 ## Edit a member's role
 

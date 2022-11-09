@@ -1,0 +1,20 @@
+name: process_events
+columns:
+  - name: status
+    platforms:
+      - darwin
+  - name: fsuid
+    platforms:
+      - linux
+  - name: suid
+    platforms:
+      - linux
+  - name: fsgid
+    platforms:
+      - linux
+  - name: sgid
+    platforms:
+      - linux
+  - name: syscall
+    platforms:
+      - linux

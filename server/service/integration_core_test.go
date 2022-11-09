@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -54,6 +55,39 @@ func TestIntegrations(t *testing.T) {
 	suite.Run(t, testingSuite)
 }
 
+type slowReader struct{}
+
+func (s *slowReader) Read(p []byte) (n int, err error) {
+	time.Sleep(3 * time.Second)
+	return 0, nil
+}
+
+func (s *integrationTestSuite) TestSlowOsqueryHost() {
+	t := s.T()
+	_, server := RunServerForTestsWithDS(
+		t,
+		s.ds,
+		&TestServerOpts{
+			SkipCreateTestUsers: true,
+			//nolint:gosec // G112: server is just run for testing this explicit config.
+			HTTPServerConfig: &http.Server{ReadTimeout: 2 * time.Second},
+		},
+	)
+	defer func() {
+		server.Close()
+	}()
+
+	req, err := http.NewRequest("POST", server.URL+"/api/v1/osquery/distributed/write", &slowReader{})
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient()
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
+}
+
 func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	t := s.T()
 
@@ -81,6 +115,20 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "either global role or team role needs to be defined")
+}
+
+func (s *integrationTestSuite) TestUserEmailValidation() {
+	params := fleet.UserPayload{
+		Name:       ptr.String("user_invalid_email"),
+		Email:      ptr.String("invalid"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+
+	params.Email = ptr.String("user_valid_mail@example.com")
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
@@ -502,7 +550,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		soft1 = host.Software[1]
 	}
 
-	n, err := s.ds.InsertVulnerabilities(
+	n, err := s.ds.InsertSoftwareVulnerabilities(
 		context.Background(), []fleet.SoftwareVulnerability{
 			{
 				SoftwareID: soft1.ID,
@@ -884,7 +932,9 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 0, resp.Count)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, true, "https://simplemdm.com", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, false, true, "https://simplemdm.com", false, ""))
+	// also create server with MDM information, which is ignored.
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[2].ID, true, true, "https://simplemdm.com", false, ""))
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1071,7 +1121,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "https://simplemdm.com", false, ""))
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1761,6 +1811,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
+	require.Len(t, policiesResponse.InheritedPolicies, 0)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -2386,7 +2437,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	// list hosts response includes device mappings
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
 	require.Len(t, listHosts.Hosts, 3)
-	hostsByID := make(map[uint]HostResponse)
+	hostsByID := make(map[uint]fleet.HostResponse)
 	for _, h := range listHosts.Hosts {
 		hostsByID[h.ID] = h
 	}
@@ -2452,7 +2503,7 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	var listHosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
 
-	hostsByID := make(map[uint]HostResponse)
+	hostsByID := make(map[uint]fleet.HostResponse)
 	for _, h := range listHosts.Hosts {
 		hostsByID[h.ID] = h
 	}
@@ -2493,6 +2544,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		OsqueryHostID:   "1",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, hostAll)
@@ -2508,6 +2560,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		OsqueryHostID:   "2",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, hostNothing)
@@ -2523,6 +2576,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		PrimaryIP:       "192.168.1.3",
 		PrimaryMac:      "30-65-EC-6F-C4-5F",
 		OsqueryHostID:   "3",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, hostOnlyMunki)
@@ -2538,6 +2592,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		PrimaryIP:       "192.168.1.4",
 		PrimaryMac:      "30-65-EC-6F-C4-5A",
 		OsqueryHostID:   "4",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, hostOnlyMDM)
@@ -2553,6 +2608,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		PrimaryIP:       "192.168.1.5",
 		PrimaryMac:      "30-65-EC-6F-D5-5A",
 		OsqueryHostID:   "5",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, hostMDMNoID)
@@ -2565,7 +2621,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		return err
 	})
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "url", false, ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
 
 	macadminsData := macadminsDataResponse{}
@@ -2592,7 +2648,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.False(t, macadminsData.Macadmins.MunkiIssues[1].HostIssueCreatedAt.IsZero())
 	assert.Equal(t, "warning", macadminsData.Macadmins.MunkiIssues[1].IssueType)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "https://simplemdm.com", true, ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, nil))
 
 	macadminsData = macadminsDataResponse{}
@@ -2608,7 +2664,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
 	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, false, "url2", false, ""))
 
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -2636,7 +2692,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "https://kandji.io", true))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, ""))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
@@ -2810,9 +2866,26 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, len(hosts))
 
+	// list hosts in label searching by display_name
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
+	assert.Len(t, listHostsResp.Hosts, len(hosts))
+	// first in the list is the last one, as the names are ordered with the index
+	// of creation, and vice-versa
+	assert.Equal(t, hosts[len(hosts)-1].ID, listHostsResp.Hosts[0].ID)
+	assert.Equal(t, hosts[0].ID, listHostsResp.Hosts[len(hosts)-1].ID)
+
+	// count hosts in label order by display_name
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl2.ID), "order_key", "display_name", "order_direction", "desc")
+	assert.Equal(t, len(hosts), countResp.Count)
+
 	// lists hosts in label without hosts
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl1.ID), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// count hosts in label
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl1.ID))
+	assert.Equal(t, 0, countResp.Count)
 
 	// lists hosts in invalid label
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
@@ -4359,6 +4432,17 @@ func (s *integrationTestSuite) TestAppConfig() {
 		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
 	}
 
+	// and it did not update the appconfig
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"logger_plugin": "tls"`) // default agent options has this setting
+
+	// test a change that does clear the agent options (the field is provided but empty).
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": {}
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, string(*acResp.AgentOptions), "{}")
+
 	// test a change that does modify the agent options.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"agent_options": { "config": {"views": {"foo": "bar"}} }
@@ -4412,6 +4496,36 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotContains(t, string(*acResp.AgentOptions), `"invalid"`)
 
+	// set valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":"table1"}}
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// set invalid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"no_such_flag":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.NotContains(t, string(*acResp.AgentOptions), `"no_such_flag"`)
+
+	// set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusBadRequest, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+
+	// force-set invalid value for a valid agent options command-line flag
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "command_line_flags": {"enable_tables":true}}
+  }`), http.StatusOK, &acResp, "force", "true")
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotContains(t, string(*acResp.AgentOptions), `"enable_tables": "table1"`)
+	require.Contains(t, string(*acResp.AgentOptions), `"enable_tables": true`)
+
 	// dry-run valid appconfig that uses legacy settings (returns error)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"host_settings": { "additional_queries": {"foo": "bar"} }
@@ -4443,6 +4557,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 			Secrets: []*fleet.EnrollSecret{{Secret: "XYZ"}},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// apply spec, too many secrets
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
+		},
+	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// get enroll secrets, one
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -4598,7 +4719,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	}
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
+	n, err := s.ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 	require.Equal(t, 10, int(n))
 
@@ -4932,6 +5053,63 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	require.NotEmpty(t, resp.NodeKey)
 }
 
+func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
+	t := s.T()
+	ctx := context.Background()
+	host := s.createHosts(t)[0]
+
+	// set the enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Empty(t, getHostResp.Host.Policies)
+
+	// create a policy and make the host fail it
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
+	require.NoError(t, err)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// refetch the host details
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Len(t, *getHostResp.Host.Policies, 1)
+
+	// re-enroll the host, but using a different platform
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: host.OsqueryHostID,
+		HostDetails:    map[string](map[string]string){"os_version": map[string]string{"platform": "windows"}},
+	})
+	require.NoError(t, err)
+
+	// prevent the enroll cooldown from being applied
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
+			host.ID,
+		)
+		return err
+	})
+	var resp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
+	require.NotEmpty(t, resp.NodeKey)
+
+	// refetch the host details
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+
+	// policies should be gone
+	require.Empty(t, getHostResp.Host.Policies)
+}
+
 func (s *integrationTestSuite) TestCarve() {
 	t := s.T()
 	hosts := s.createHosts(t)
@@ -5125,7 +5303,7 @@ func (s *integrationTestSuite) TestPasswordReset() {
 
 	// attempt it again with already-used token
 	userUnusedPwd := "unusedpassw0rd!"
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userUnusedPwd}), http.StatusInternalServerError) // TODO: should be 40x, see #4406
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/reset_password", jsonMustMarshal(t, resetPasswordRequest{PasswordResetToken: token, NewPassword: userUnusedPwd}), http.StatusUnauthorized)
 	res.Body.Close()
 
 	// login with the old password, should not succeed
@@ -5353,7 +5531,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 44)        // total number of cols
+	require.Len(t, rows[0], 45)        // total number of cols
 	t.Log(rows[0])
 
 	const (
@@ -5383,8 +5561,10 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, rows[0], "hostname") // first row contains headers
 	require.Contains(t, res.Header, "Content-Disposition")
 	require.Contains(t, res.Header, "Content-Type")
+	require.Contains(t, res.Header, "X-Content-Type-Options")
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
+	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
 
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")
@@ -5528,6 +5708,116 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 }
 
+func (s *integrationTestSuite) TestGetHostDiskEncryption() {
+	t := s.T()
+
+	// create Windows, mac and Linux hosts
+	hostWin, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	hostMac, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "2",
+		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "2",
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	hostLin, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "3",
+		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "3",
+		UUID:            t.Name() + "3",
+		Hostname:        t.Name() + "foo3.local",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// before any disk encryption is received, all hosts report NULL (even if
+	// some have disk space information, i.e. an entry exists in host_disks).
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostWin.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostMac.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	// set encrypted for all hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, true))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostLin.ID, true))
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostWin.ID, getHostResp.Host.ID)
+	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostMac.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
+	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
+	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	// set unencrypted for all hosts
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostMac.ID, false))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostLin.ID, false))
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostWin.ID, getHostResp.Host.ID)
+	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostMac.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostMac.ID, getHostResp.Host.ID)
+	require.False(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	// Linux does not return false, it omits the field when false
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
+	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+}
+
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
@@ -5566,6 +5856,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)
 	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
+}
+
+func (s *integrationTestSuite) TestPingEndpoints() {
+	s.DoRaw("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
+
+	s.DoRaw("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
+	// unauthenticated works too
+	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
 // this test can be deleted once the "v1" version is removed.

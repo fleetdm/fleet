@@ -3,7 +3,9 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -25,12 +27,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanodep/client"
+	nanodep_client "github.com/micromdm/nanodep/client"
+	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
+	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -102,7 +109,112 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-type txFn func(sqlx.ExtContext) error
+// NewMDMAppleSCEPDepot returns a *scep_mysql.MySQLDepot that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*scep_mysql.MySQLDepot, error) {
+	s, err := scep_mysql.NewMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
+	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.writer.DB))
+	if err != nil {
+		return nil, err
+	}
+	return &NanoMDMStorage{
+		MySQLStorage: s,
+		pushCertPEM:  pushCertPEM,
+		pushKeyPEM:   pushKeyPEM,
+	}, nil
+}
+
+// NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
+type NanoMDMStorage struct {
+	*nanomdm_mysql.MySQLStorage
+
+	pushCertPEM []byte
+	pushKeyPEM  []byte
+}
+
+// RetrievePushCert partially implements nanomdm_storage.PushCertStore.
+//
+// Always returns "0" as stale token because we are not storing the APNS in MySQL storage,
+// and instead loading them at startup, thus the APNS will never be considered stale.
+func (s *NanoMDMStorage) RetrievePushCert(
+	ctx context.Context, topic string,
+) (cert *tls.Certificate, staleToken string, err error) {
+	tlsCert, err := tls.X509KeyPair(s.pushCertPEM, s.pushKeyPEM)
+	if err != nil {
+		return nil, "", err
+	}
+	return &tlsCert, "0", nil
+}
+
+// IsPushCertStale partially implements nanomdm_storage.PushCertStore.
+//
+// Given that we are not storing the APNS certificate in MySQL storage, and instead loading
+// them at startup (as env variables), the APNS will never be considered stale.
+//
+// TODO(lucas): Revisit solution to support changing the APNS.
+func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
+	return false, nil
+}
+
+// StorePushCert partially implements nanomdm_storage.PushCertStore.
+//
+// Leaving this unimplemented as APNS certificate and key are not stored in MySQL storage,
+// instead they are loaded to memory at startup.
+func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
+	return errors.New("unimplemented")
+}
+
+// NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, error) {
+	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.writer.DB))
+	if err != nil {
+		return nil, err
+	}
+
+	var tokens nanodep_client.OAuth1Tokens
+	if err := json.Unmarshal(depTokens, &tokens); err != nil {
+		return nil, err
+	}
+	return &NanoDEPStorage{
+		MySQLStorage: s,
+		tokens:       tokens,
+	}, nil
+}
+
+// NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides functionality to load
+// DEP auth tokens from memory.
+type NanoDEPStorage struct {
+	*nanodep_mysql.MySQLStorage
+
+	tokens nanodep_client.OAuth1Tokens
+}
+
+// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
+//
+// RetrieveAuthTokens returns the DEP auth tokens stored in memory.
+func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+	return &s.tokens, nil
+}
+
+// StoreAuthTokens partially implements nanodep.AuthTokensStorer.
+//
+// Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
+// instead they are loaded to memory at startup.
+func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *client.OAuth1Tokens) error {
+	return errors.New("unimplemented")
+}
+
+type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
 	name string
@@ -392,17 +504,19 @@ func (ds *Datastore) MigrateData(ctx context.Context) error {
 // Returns two lists of version IDs (one for "table" and one for "data").
 func (ds *Datastore) loadMigrations(
 	ctx context.Context,
+	writer *sql.DB,
+	reader dbReader,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
-	tables.MigrationClient.GetDBVersion(ds.writer.DB)
-	data.MigrationClient.GetDBVersion(ds.writer.DB)
+	tables.MigrationClient.GetDBVersion(writer)
+	data.MigrationClient.GetDBVersion(writer)
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
-	if err := sqlx.SelectContext(ctx, ds.reader, &tableRecs,
+	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
 		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &dataRecs,
+	if err := sqlx.SelectContext(ctx, reader, &dataRecs,
 		"SELECT version_id FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
@@ -413,29 +527,37 @@ func (ds *Datastore) loadMigrations(
 // MigrationStatus will return the current status of the migrations
 // comparing the known migrations in code and the applied migrations in the database.
 //
-// It assumes some deployments may perform migrations out of order.
+// It assumes some deployments may have performed migrations out of order.
 func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
 	}
-	appliedTable, appliedData, err := ds.loadMigrations(ctx)
+	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.writer.DB, ds.reader)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
+	return compareMigrations(
+		tables.MigrationClient.Migrations,
+		data.MigrationClient.Migrations,
+		appliedTable,
+		appliedData,
+	), nil
+}
+
+// It assumes some deployments may have performed migrations out of order.
+func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, appliedTable, appliedData []int64) *fleet.MigrationStatus {
 	if len(appliedTable) == 0 && len(appliedData) == 0 {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.NoMigrationsCompleted,
-		}, nil
+		}
 	}
 
-	knownTable := tables.MigrationClient.Migrations
 	missingTable, unknownTable, equalTable := compareVersions(
 		getVersionsFromMigrations(knownTable),
 		appliedTable,
 		knownUnknownTableMigrations,
 	)
 
-	knownData := data.MigrationClient.Migrations
 	missingData, unknownData, equalData := compareVersions(
 		getVersionsFromMigrations(knownData),
 		appliedData,
@@ -445,25 +567,30 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	if equalData && equalTable {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.AllMigrationsCompleted,
-		}, nil
+		}
 	}
 
+	//
 	// The following code assumes there cannot be migrations missing on
 	// "table" and database being ahead on "data" (and vice-versa).
-	if len(unknownTable) > 0 || len(unknownData) > 0 {
+	//
+
+	// Check for missing migrations first, as these are more important
+	// to detect than the unknown migrations.
+	if len(missingTable) > 0 || len(missingData) > 0 {
 		return &fleet.MigrationStatus{
-			StatusCode:   fleet.UnknownMigrations,
-			UnknownTable: unknownTable,
-			UnknownData:  unknownData,
-		}, nil
+			StatusCode:   fleet.SomeMigrationsCompleted,
+			MissingTable: missingTable,
+			MissingData:  missingData,
+		}
 	}
 
-	// len(missingTable) > 0 || len(missingData) > 0
+	// len(unknownTable) > 0 || len(unknownData) > 0
 	return &fleet.MigrationStatus{
-		StatusCode:   fleet.SomeMigrationsCompleted,
-		MissingTable: missingTable,
-		MissingData:  missingData,
-	}, nil
+		StatusCode:   fleet.UnknownMigrations,
+		UnknownTable: unknownTable,
+		UnknownData:  unknownData,
+	}
 }
 
 var (
@@ -582,7 +709,19 @@ func (ds *Datastore) Close() error {
 
 // sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
 func sanitizeColumn(col string) string {
-	return columnCharsRegexp.ReplaceAllString(col, "")
+	col = columnCharsRegexp.ReplaceAllString(col, "")
+	oldParts := strings.Split(col, ".")
+	parts := oldParts[:0]
+	for _, p := range oldParts {
+		if len(p) != 0 {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	col = "`" + strings.Join(parts, "`.`") + "`"
+	return col
 }
 
 // appendListOptionsToSelect will apply the given list options to ds and
@@ -843,6 +982,7 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"clientFoundRows":      []string{"true"},
 		"allowNativePasswords": []string{"true"},
 		"group_concat_max_len": []string{"4194304"},
+		"multiStatements":      []string{"true"},
 	}
 	if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)

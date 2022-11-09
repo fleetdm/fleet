@@ -83,12 +83,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
     "enable_software_inventory": false,
     "additional_queries": {"foo": "bar"}
   }`)
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts, Features: &features}}}
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, Features: &features}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
-
 	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 	require.Equal(t, fleet.Features{
@@ -107,8 +106,21 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
+
+	// dry-run with empty body
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(errBody), `"Expected JSON Body"`)
+
+	// dry-run with invalid top-level key
+	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
+		"specs": [
+			{"name": "team_name_1", "unknown_key": true}
+		]
+	}`), http.StatusBadRequest, "dry_run", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
@@ -116,21 +128,63 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// dry-run with valid agent options
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 
+	// apply without agent options specified
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// agent options are unchanged, not cleared
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+
+	// apply with agent options specified but null
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: json.RawMessage(`null`)}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// agent options are cleared
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Nil(t, team.Config.AgentOptions)
+
 	// force with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"foo": "qux"}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "force", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
+
+	// force create new team with invalid top-level key
+	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
+		"specs": [
+			{"name": "team_with_invalid_key", "unknown_key": true}
+		]
+	}`), http.StatusOK, "force", "true")
+
+	team, err = s.ds.TeamByName(context.Background(), "team_with_invalid_key")
+	require.NoError(t, err)
+
+	// invalid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"nope": 1}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+
+	// valid agent options command-line flag
+	agentOpts = json.RawMessage(`{"command_line_flags": {"enable_tables": "abcd"}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Contains(t, string(*team.Config.AgentOptions), `"enable_tables": "abcd"`)
 
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
@@ -270,6 +324,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	ts := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 0)
+	require.Len(t, ts.InheritedPolicies, 0)
+
+	// create a global policy
+	gpol, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "TestGlobalPolicy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	defer func() {
+		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{gpol.ID})
+		require.NoError(t, err)
+	}()
 
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
 	require.NoError(t, err)
@@ -289,6 +352,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	assert.Equal(t, "Some description", ts.Policies[0].Description)
 	require.NotNil(t, ts.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution", *ts.Policies[0].Resolution)
+	require.Len(t, ts.InheritedPolicies, 1)
+	assert.Equal(t, gpol.Name, ts.InheritedPolicies[0].Name)
+	assert.Equal(t, gpol.ID, ts.InheritedPolicies[0].ID)
 
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
 	deletePolicyResp := deleteTeamPoliciesResponse{}
@@ -335,6 +401,10 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	// Test bad requests
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
+
+	// too many secrets
+	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
@@ -430,6 +500,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
+	// create a team with too many secrets
+	team3 := &fleet.Team{
+		Name:        name + "lots_of_secrets",
+		Description: "Team3 description",
+		Secrets:     createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
+	}
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
+
 	// list teams
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
@@ -449,6 +528,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Contains(t, tmResp.Team.Description, "Alt ")
+
+	// modify a team with a NULL config
+	defaultFeatures := fleet.Features{}
+	defaultFeatures.ApplyDefaultsForNewInstalls()
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, team.ID)
+		return err
+	})
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
+
+	// modify a team with an empty config
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, team.ID)
+		return err
+	})
+	tmResp.Team = nil
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
 
 	// modify non-existing team
 	tmResp.Team = nil
@@ -549,7 +648,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}`), http.StatusBadRequest, "dry_run", "true")
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.Contains(t, string(body), "cannot unmarshal string into Go struct field osqueryOptions.options.aws_debug of type bool")
+	require.Contains(t, string(body), "invalid value type at 'options.aws_debug': expected bool but got string")
 
 	// modify team agent using valid options with dry-run
 	tmResp.Team = nil
@@ -1239,7 +1338,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
-	getDesktopResp := FleetDesktopResponse{}
+	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&getDesktopResp)
 	res.Body.Close()

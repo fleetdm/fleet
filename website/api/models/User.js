@@ -185,6 +185,12 @@ without necessarily having a billing card.`
     fleetSandboxDemoKey: {
       type: 'string',
       description: 'The UUID that is used as the password of this user\'s Fleet Sandbox instance that is generated when the user signs up. Only used to log the user into their Fleet Sandbox instance while it is still live.',
+    },
+
+    signupReason: {
+      type: 'string',
+      description: 'The reason this user signed up for a fleetdm.com account',
+      isIn: ['Try Fleet Sandbox', 'Buy a license'],
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

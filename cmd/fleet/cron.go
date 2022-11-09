@@ -14,17 +14,24 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/micromdm/nanodep/godep"
+	nanodep_log "github.com/micromdm/nanodep/log"
+	depsync "github.com/micromdm/nanodep/sync"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -164,14 +171,31 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
-	if len(vulns) > 0 {
+	// If no automations enabled, then there is nothing else to do...
+	if vulnAutomationEnabled == "" {
+		return nil
+	}
+
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
+	vulns = append(vulns, nvdVulns...)
+	vulns = append(vulns, ovalVulns...)
+
+	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
+	if err != nil {
+		errHandler(ctx, logger, "could not fetch CVE meta", err)
+		return nil
+	}
+
+	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
+
+	if len(recentV) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
 			args := webhooks.VulnArgs{
-				Vulnerablities: vulns,
-				Meta:           meta,
+				Vulnerablities: recentV,
+				Meta:           matchingMeta,
 				AppConfig:      appConfig,
 				Time:           time.Now(),
 			}
@@ -196,7 +220,8 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
-				vulns,
+				recentV,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -207,7 +232,8 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
-				vulns,
+				recentV,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -221,48 +247,52 @@ func scanVulnerabilities(
 	return nil
 }
 
-// recentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
-// (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
-// and their meta data.
-func recentVulns(
+func checkWinVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	nvdVulns []fleet.SoftwareVulnerability,
-	ovalVulns []fleet.SoftwareVulnerability,
-	maxAge time.Duration,
-) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
-	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
-		return nil, nil
-	}
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.OSVulnerability {
+	var results []fleet.OSVulnerability
 
-	meta, err := ds.ListCVEs(ctx, maxAge)
+	// Get OS
+	os, err := ds.ListOperatingSystems(ctx)
 	if err != nil {
-		errHandler(ctx, logger, "could not fetch CVE meta", err)
-		return nil, nil
+		errHandler(ctx, logger, "fetching list of operating systems", err)
+		return nil
 	}
 
-	recent := make(map[string]fleet.CVEMeta)
-	for _, r := range meta {
-		recent[r.CVE] = r
-	}
-
-	seen := make(map[string]bool)
-	var vulns []fleet.SoftwareVulnerability
-	for _, v := range nvdVulns {
-		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
-			seen[v.Key()] = true
-			vulns = append(vulns, v)
-		}
-	}
-	for _, v := range ovalVulns {
-		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
-			seen[v.Key()] = true
-			vulns = append(vulns, v)
+	if !config.DisableDataSync {
+		// Sync MSRC definitions
+		client := fleethttp.NewClient()
+		err = msrc.Sync(ctx, client, vulnPath, os)
+		if err != nil {
+			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
 	}
 
-	return vulns, recent
+	// Analyze all Win OS using the synched MSRC artifact.
+	if !config.DisableWinOSVulnerabilities {
+		for _, o := range os {
+			start := time.Now()
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			elapsed := time.Since(start)
+			level.Debug(logger).Log(
+				"msg", "msrc-analysis-done",
+				"os name", o.Name,
+				"os version", o.Version,
+				"elapsed", elapsed,
+				"found new", len(r))
+			results = append(results, r...)
+			if err != nil {
+				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+			}
+		}
+	}
+
+	return results
 }
 
 func checkOvalVulnerabilities(
@@ -324,31 +354,31 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		opts := vulnerabilities.SyncOptions{
+		opts := nvd.SyncOptions{
 			VulnPath:           config.DatabasesPath,
 			CPEDBURL:           config.CPEDatabaseURL,
 			CPETranslationsURL: config.CPETranslationsURL,
 			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
-		err := vulnerabilities.Sync(opts)
+		err := nvd.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
-			return nil
+			// don't return, continue on ...
 		}
 	}
 
-	if err := vulnerabilities.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
 
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
+	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
 		return nil
 	}
 
-	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -463,6 +493,7 @@ func startIntegrationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	license *fleet.LicenseInfo,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = "integrations"
@@ -479,11 +510,13 @@ func startIntegrationsSchedule(
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newJiraClient,
+		License:       license,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
+		License:       license,
 	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
@@ -644,6 +677,12 @@ func startCleanupsAndAggregationSchedule(
 				return ds.CleanupHostOperatingSystems(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cleanup_expired_password_reset_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredPasswordResetRequests(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -661,6 +700,12 @@ func startCleanupsAndAggregationSchedule(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+		schedule.WithJob(
+			"increment_policy_violation_days",
+			func(ctx context.Context) error {
+				return ds.IncrementPolicyViolationDays(ctx)
 			},
 		),
 		schedule.WithJob(
@@ -704,9 +749,103 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
 		return err
 	}
+
+	if err := ds.CleanupStatistics(ctx); err != nil {
+		return err
+	}
+
 	return ds.RecordStatisticsSent(ctx)
+}
+
+// NanoDEPLogger is a logger adapter for nanodep.
+type NanoDEPLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
+	return &NanoDEPLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoDEPLogger{
+		logger: newLogger,
+	}
+}
+
+// startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
+// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// the current configured DEP profile to them.
+func startAppleMDMDEPProfileAssigner(
+	ctx context.Context,
+	instanceID string,
+	periodicity time.Duration,
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) {
+	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	assignerOpts := []depsync.AssignerOption{
+		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
+	}
+	if loggingDebug {
+		assignerOpts = append(assignerOpts, depsync.WithDebug())
+	}
+	assigner := depsync.NewAssigner(
+		depClient,
+		apple_mdm.DEPName,
+		depStorage,
+		assignerOpts...,
+	)
+	syncer := depsync.NewSyncer(
+		depClient,
+		apple_mdm.DEPName,
+		depStorage,
+		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
+		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+			return assigner.ProcessDeviceResponse(ctx, resp)
+		}),
+	)
+	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
+	schedule.New(
+		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			if profileUUID == "" {
+				logger.Log("msg", "DEP profile not set, nothing to do")
+				return nil
+			}
+			cursor, cursorModTime, err := depStorage.RetrieveCursor(ctx, apple_mdm.DEPName)
+			if err != nil {
+				return err
+			}
+			// If the DEP Profile was changed since last sync then we clear
+			// the cursor and perform a full sync of all devices and profile assigning.
+			if cursor != "" && profileModTime.After(cursorModTime) {
+				logger.Log("msg", "clearing device syncer cursor")
+				if err := depStorage.StoreCursor(ctx, apple_mdm.DEPName, ""); err != nil {
+					return err
+				}
+			}
+			return syncer.Run(ctx)
+		}),
+	).Start()
 }

@@ -5,7 +5,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -31,7 +30,7 @@ const (
 	stagingDir = "staging"
 
 	defaultURL      = "https://tuf.fleetctl.com"
-	defaultRootKeys = `[{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6d71d3beac3b830be929f2b10d513448d49ec6bb62a680176b89ffdfca180eb4"}}]`
+	defaultRootKeys = `{"signed":{"_type":"root","spec_version":"1.0","version":2,"expires":"2023-08-22T23:10:25Z","keys":{"0cd79ade57d278957069e03a0fca6b975b95c2895fb20bdc3075f71fc19a4474":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"4627d9071a4b4a78c5ee867ea70439583b08dbe4ff23514e3bcb0a292de9406f"}},"1a4d9beb826d1ff4e036d757cfcd6e36d0f041e58d25f99ef3a20ae3f8dd71e3":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"1083b5fedbcaf8f98163f2f7083bbb2761a334b2ba8de44df7be3feb846725f6"}},"94ca5921eb097bb871272c1cc3ea2cad833cb8d4c2dea4a826646be656059640":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6512498c7596f55a23405889539fadbcefecd0909e4af0b54e29f45d49f9b9f7"}},"ae943cb8be8a849b37c66ed46bdd7e905ba3118c0c051a6ee3cd30625855a076":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"e7ffa6355dedd0cd34defc903dfac05a7a8c1855d63be24cecb5577cfde1f990"}},"d940df08b59b12c30f95622a05cc40164b78a11dd7d408395ee4f79773331b30":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"64d15cc3cbaac7eccfd9e0de5a56a0789aadfec3d02e77bf9180b8090a2c48d6"}},"e5d1873c4d5268f650a26ea3c6ffb4bec1e523875888ebb6303fac2bfd578cd0":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"5bc373a90f80b19cc025bfc1c19659ff3b1a584d23acb6ed4560e63928525aed"}},"efb4e9bd7a7d9e045edf6f5140c9835dbcbb7770850da44bf15a800b248c810e":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"0b8b28b30b44ddb733c7457a7c0f75fcbac563208ea1fe7179b5888a4f1d2237"}}},"roles":{"root":{"keyids":["e5d1873c4d5268f650a26ea3c6ffb4bec1e523875888ebb6303fac2bfd578cd0"],"threshold":1},"snapshot":{"keyids":["94ca5921eb097bb871272c1cc3ea2cad833cb8d4c2dea4a826646be656059640","1a4d9beb826d1ff4e036d757cfcd6e36d0f041e58d25f99ef3a20ae3f8dd71e3"],"threshold":1},"targets":{"keyids":["0cd79ade57d278957069e03a0fca6b975b95c2895fb20bdc3075f71fc19a4474","ae943cb8be8a849b37c66ed46bdd7e905ba3118c0c051a6ee3cd30625855a076"],"threshold":1},"timestamp":{"keyids":["efb4e9bd7a7d9e045edf6f5140c9835dbcbb7770850da44bf15a800b248c810e","d940df08b59b12c30f95622a05cc40164b78a11dd7d408395ee4f79773331b30"],"threshold":1}},"consistent_snapshot":false},"signatures":[{"keyid":"39a1db745ca254d8f8eb27493df8867264d9fb394572ecee76876f4d7e9cb753","sig":"74f39673b99ab091c71fe47b22e1cd4000206b4be4a3ab3e4439af8724e14f8983c299d0ec483fcc73a0b84e5be6acf189ad92c25a84a0d84852abe7be678c09"},{"keyid":"63b4cb9241c93bca9218c67334da3651394de4cf36c44bb1320bad7111df7bba","sig":"9411d2edf5ca57c1a9f299dcbeb295fee794e0157282df9027643fdbf98c12325d62e8b9c59b221aa5a6fa41bd68d061d86d92376a21c5e105d4b2b60b25df02"},{"keyid":"656c44011cf8b80a4da765bec1516ee9598ffca5fa7ccb51f0a9feb04e6e6cbd","sig":"e9f47a85bdae2c17f73825632f9ebc27ca5e8b112dd6a02b1094c4fd1b0f7f1eac2a57d18885aead491604d52cc60dffcd73a5ecf4e77aee1d85c7781efc3d02"},{"keyid":"950097b911794bb554d7e83aa20c8aad11efcdc98f54b775fda76ac39eafa8fb","sig":"c7b03ed2897d0acac8cabd54a01181bea9f5dc55e6151cc60c0674cdbaf50648f2d1fe6dd74d3eb40c934e371ff7db890d51056dce0b024c5f6ea8dfbbce2f0a"},{"keyid":"d6e90309d70431729bf722b089a8049efaf449230d94dc90bafa1cfc12d2b36f","sig":"350a7157b6fb02a9ed7d6398b272f71202ffcf2bb77c9cc4f9dd97880e9e8f6c85f6205fae50a22794bd4c333d17fd8fbee7fd2433fa820a40dba73f21e2d208"},{"keyid":"e5d1873c4d5268f650a26ea3c6ffb4bec1e523875888ebb6303fac2bfd578cd0","sig":"f8b085065267a9cbf799d2e725c76e4dbe70297f0bd31d75099086cb40e08003bcefd42305a453f72036cf3c7aac5fe34b9e6f394ca1a2d3f8a8d7792af45c07"}]}`
 )
 
 // Updater is responsible for managing update state.
@@ -106,19 +105,27 @@ func NewUpdater(opt Options) (*Updater, error) {
 	}
 
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
-	var rootKeys []*data.PublicKey
-	if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
-		return nil, fmt.Errorf("unmarshal root keys: %w", err)
-	}
 
+	// TODO(lucas): Related to the NOTE below.
+	//
+	// NewUpdater is used when packaging Orbit (`fleetctl package`) and by Orbit
+	// itself. We should refactor NewUpdater to receive an optional roots JSON string
+	// which would only be set when packaging Orbit. Orbit should always trust its
+	// local metadata and fail if it doesn't exist. (Alternatively introduce two New*
+	// methods, NewUpdaterFromRoots and NewUpdaterFromMeta)
+
+	// GetMeta returns empty metadata map if it doesn't exist in local store.
 	meta, err := opt.LocalStore.GetMeta()
-	if err != nil || meta["root.json"] == nil {
-		var rootKeys []*data.PublicKey
-		if err := json.Unmarshal([]byte(opt.RootKeys), &rootKeys); err != nil {
-			return nil, fmt.Errorf("unmarshal root keys: %w", err)
-		}
-		if err := tufClient.Init(rootKeys, 1); err != nil {
-			return nil, fmt.Errorf("init tuf client: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("read metadata: %w", err)
+	}
+	if meta["root.json"] == nil {
+		// NOTE: This path is currently only used when (1) packaging Orbit (`fleetctl package`) and
+		// (2) in the edge-case when Orbit's metadata JSON local file is removed for some reason.
+		// When edge-case (2) happens, Orbit will attempt to use Fleet DM's root JSON
+		// (which may be unexpected on custom TUF Orbit deployments).
+		if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
+			return nil, fmt.Errorf("client init with configuration metadata: %w", err)
 		}
 	}
 

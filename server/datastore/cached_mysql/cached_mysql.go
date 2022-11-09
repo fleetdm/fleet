@@ -35,6 +35,10 @@ func clone(v interface{}) (interface{}, error) {
 		return cloner.Clone()
 	}
 
+	if v == nil {
+		return nil, nil
+	}
+
 	// Use reflection to initialize a clone of v of the same type.
 	vv := reflect.ValueOf(v)
 
@@ -43,12 +47,15 @@ func clone(v interface{}) (interface{}, error) {
 	isPtr := false
 	if vv.Kind() == reflect.Ptr {
 		isPtr = true
+		if vv.IsNil() {
+			return nil, nil
+		}
 		vv = vv.Elem()
 	}
 
 	clone := reflect.New(vv.Type())
 
-	err := copier.Copy(clone.Interface(), v)
+	err := copier.CopyWithOption(clone.Interface(), v, copier.Option{DeepCopy: true, IgnoreEmpty: true})
 	if err != nil {
 		return nil, err
 	}

@@ -259,9 +259,9 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 		return listLabelsResponse{Err: err}, nil
 	}
 
-	hostResponses := make([]HostResponse, len(hosts))
+	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
-		h, err := hostResponseForHost(ctx, svc, host)
+		h, err := fleet.HostResponseForHost(ctx, svc, host)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}

@@ -1,0 +1,40 @@
+.query-results-heading {
+
+  &__targeted-wrapper,
+  &__percent-responded {
+    display: flex;
+    font-size: $x-small;
+  }
+
+  &__targeted-wrapper {
+    margin-top: 20px;
+    margin-bottom: $pad-small;
+  }
+
+  &__targeted-count {
+    font-weight: $bold;
+
+    .icon-tooltip {
+      margin-left: $pad-small;
+    }
+  }
+
+  &__responding-spinner {
+    margin-left: $pad-small;
+  }
+
+  &__btn-wrapper {
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
+    display: flex;
+    align-items: center;
+
+    .button {
+      padding: $pad-small $pad-medium;
+
+      &:not(:last-of-type) {
+        margin-right: $pad-small;
+      }
+    }
+  }
+}

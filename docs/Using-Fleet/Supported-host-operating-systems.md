@@ -4,7 +4,7 @@
 
 The following operating system versions are supported by the osquery agent. 
 
-| OS      | Supported Version(s)                    |
+| OS      | Supported version(s)                    |
 | :------ | :-------------------------------------  |
 | MacOS   | 10.12+                                  |
 | Windows | 10+                                     |

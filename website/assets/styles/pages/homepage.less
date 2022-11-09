@@ -69,7 +69,6 @@
   }
   [purpose='hero-logos'] {
     background-color: #192147;
-    height: 80px;
     [purpose='snowflake-logo'] {
       height: 30px;
     }
@@ -81,6 +80,12 @@
     }
     [purpose='atlassian-logo'] {
       height: 21px;
+    }
+    [purpose='segment-logo'] {
+      height: 32px;
+    }
+    [purpose='bottom-row-segment-logo'] {
+      display: none;
     }
   }
   [purpose='logo-column'] {
@@ -368,6 +373,30 @@
         font-size: 16px;
       }
     }
+    [purpose='hero-logos'] {
+      img {
+        display: inline;
+      }
+      [purpose='snowflake-logo'] {
+        height: 22px;
+        width: auto;
+      }
+      [purpose='wayfair-logo'] {
+        height: 22px;
+        width: auto;
+      }
+      [purpose='uber-logo'] {
+        height: 22px;
+        width: auto;
+      }
+      [purpose='atlassian-logo'] {
+        height: 16px;
+        width: auto;
+      }
+      [purpose='segment-logo'] {
+        height: 24px;
+      }
+    }
     [purpose='logo-column'] {
       img {
         margin-right: 20px;
@@ -420,10 +449,6 @@
       flex: 1 1 316px;
     }
 
-    [purpose='hero-logos'] {
-      height: 140px;
-    }
-
     [purpose='homepage-section'] {
       padding-left: 40px;
       padding-right: 40px;
@@ -436,7 +461,30 @@
       padding-left: 40px;
       padding-right: 40px;
     }
-
+    [purpose='hero-logos'] {
+      img {
+        display: inline;
+      }
+      [purpose='snowflake-logo'] {
+        height: 22px;
+        width: auto;
+      }
+      [purpose='wayfair-logo'] {
+        height: 22px;
+        width: auto;
+      }
+      [purpose='uber-logo'] {
+        height: 22px;
+        width: auto;
+      }
+      [purpose='atlassian-logo'] {
+        height: 16px;
+        width: auto;
+      }
+      [purpose='segment-logo'] {
+        height: 24px;
+      }
+    }
     [purpose='features'] {
       margin-top: 80px;
       margin-bottom: 80px;
@@ -578,21 +626,12 @@
       img {
         display: inline;
       }
-      [purpose='snowflake-logo'] {
-        height: 22px;
-        width: 113px;
+      [purpose='segment-logo'] {
+        display: none;
       }
-      [purpose='wayfair-logo'] {
-        height: 22px;
-        width: 113px;
-      }
-      [purpose='uber-logo'] {
-        height: 22px;
-        width: 62px;
-      }
-      [purpose='atlassian-logo'] {
-        height: 16px;
-        width: 128px;
+      [purpose='bottom-row-segment-logo'] {
+        margin-top: 24px;
+        display: flex;
       }
     }
   }

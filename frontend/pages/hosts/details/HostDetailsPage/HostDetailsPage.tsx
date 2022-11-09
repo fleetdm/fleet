@@ -1,5 +1,4 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { browserHistory } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -9,14 +8,12 @@ import classnames from "classnames";
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
-import configAPI from "services/entities/config";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
-import { IConfig } from "interfaces/config";
 import {
   IHost,
   IDeviceMappingResponse,
@@ -37,8 +34,13 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import BackLink from "components/BackLink";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  humanHostDiskEncryptionEnabled,
+  wrapFleetHelper,
+} from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -54,11 +56,9 @@ import SelectQueryModal from "./modals/SelectQueryModal";
 import TransferHostModal from "./modals/TransferHostModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import DeleteHostModal from "./modals/DeleteHostModal";
-import RenderOSPolicyModal from "./modals/OSPolicyModal";
+import OSPolicyModal from "./modals/OSPolicyModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
-
-import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
 import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
@@ -85,6 +85,11 @@ interface ISearchQueryData {
   pageIndex: number;
 }
 
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
+}
+
 const TAGGED_TEMPLATES = {
   queryByHostRoute: (hostId: number | undefined | null) => {
     return `${hostId ? `?host_ids=${hostId}` : ""}`;
@@ -97,11 +102,12 @@ const HostDetailsPage = ({
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
   const {
+    config,
+    currentUser,
     isGlobalAdmin,
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
-    currentUser,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -142,6 +148,10 @@ const HostDetailsPage = ({
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
+  const [
+    hostDiskEncryption,
+    setHostDiskEncryption,
+  ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
 
@@ -196,14 +206,6 @@ const HostDetailsPage = ({
       select: (data: IMacadminsResponse) => data.macadmins,
     }
   );
-
-  const { data: features } = useQuery<
-    IConfig,
-    Error,
-    { enable_host_users: boolean; enable_software_inventory: boolean }
-  >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data.features,
-  });
 
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
@@ -272,6 +274,13 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        setHostDiskEncryption({
+          enabled: returnedHost.disk_encryption_enabled,
+          tooltip: humanHostDiskEncryptionEnabled(
+            returnedHost.platform,
+            returnedHost.disk_encryption_enabled
+          ),
+        });
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -298,6 +307,10 @@ const HostDetailsPage = ({
     }
   );
 
+  const featuresConfig = host?.team_id
+    ? teams?.find((t) => t.id === host.team_id)?.features
+    : config?.features;
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -323,7 +336,7 @@ const HostDetailsPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
-      "hostname",
+      "display_name",
     ])
   );
 
@@ -390,12 +403,15 @@ const HostDetailsPage = ({
         await hostAPI.destroy(host);
         renderFlash(
           "success",
-          `Host "${host.hostname}" was successfully deleted.`
+          `Host "${host.display_name}" was successfully deleted.`
         );
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.hostname}" could not be deleted.`);
+        renderFlash(
+          "error",
+          `Host "${host.display_name}" could not be deleted.`
+        );
       } finally {
         setShowDeleteHostModal(false);
         setIsUpdatingHost(false);
@@ -419,7 +435,7 @@ const HostDetailsPage = ({
         });
       } catch (error) {
         console.log(error);
-        renderFlash("error", `Host "${host.hostname}" refetch error`);
+        renderFlash("error", `Host "${host.display_name}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }
@@ -541,23 +557,13 @@ const HostDetailsPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        <div>
-          <Button
-            variant={"text-icon"}
-            onClick={() => {
-              browserHistory.goBack();
-            }}
-            className={`${baseClass}__back-link`}
-          >
-            <>
-              <img src={BackChevron} alt="back chevron" id="back-chevron" />
-              <span>Back to all hosts</span>
-            </>
-          </Button>
+        <div className={`${baseClass}__header-links`}>
+          <BackLink text="Back to all hosts" />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
           titleData={titleData}
+          diskEncryption={hostDiskEncryption}
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
@@ -600,14 +606,16 @@ const HostDetailsPage = ({
                 usersState={usersState}
                 isLoading={isLoadingHost}
                 onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={features?.enable_host_users}
+                hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
                 software={hostSoftware}
-                softwareInventoryEnabled={features?.enable_software_inventory}
+                softwareInventoryEnabled={
+                  featuresConfig?.enable_software_inventory
+                }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
               {macadmins && (
@@ -639,7 +647,7 @@ const HostDetailsPage = ({
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
             onSubmit={onDestroyHost}
-            hostName={host?.hostname}
+            hostName={host?.display_name}
             isUpdatingHost={isUpdatingHost}
           />
         )}
@@ -669,10 +677,11 @@ const HostDetailsPage = ({
           />
         )}
         {showOSPolicyModal && (
-          <RenderOSPolicyModal
+          <OSPolicyModal
             onCancel={() => setShowOSPolicyModal(false)}
             onCreateNewPolicy={onCreateNewPolicy}
-            titleData={titleData}
+            osVersion={host?.os_version}
+            detailsUpdatedAt={host?.detail_updated_at}
             osPolicy={osPolicyQuery}
             osPolicyLabel={osPolicyLabel}
           />

@@ -24,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/theupdateframework/go-tuf/data"
 	"github.com/urfave/cli/v2"
 )
 
@@ -152,11 +151,32 @@ func getRoots(t *testing.T, tmpDir string) string {
 	out, err := ioutil.ReadAll(r)
 	require.NoError(t, err)
 
-	// Check output
-	var keys []data.PublicKey
+	// Check output contains the root.json
+	var keys map[string]interface{}
 	require.NoError(t, json.Unmarshal(out, &keys))
-	assert.Greater(t, len(keys[0].IDs()), 0)
-	assert.Equal(t, "ed25519", keys[0].Type)
+	signed_ := keys["signed"]
+	require.NotNil(t, signed_)
+	signed, ok := signed_.(map[string]interface{})
+	require.True(t, ok)
+	keys_ := signed["keys"]
+	require.NotNil(t, keys_)
+	require.NotEmpty(t, signed["keys"])
+	keys, ok = keys_.(map[string]interface{})
+	require.True(t, ok)
+	require.NotEmpty(t, keys)
+	// Get first key (map key is the identifier of the key).
+	var key map[string]interface{}
+	for _, key_ := range keys {
+		key, ok = key_.(map[string]interface{})
+		require.True(t, ok)
+		break
+	}
+	require.NotEmpty(t, key)
+	require.Equal(t, "ed25519", key["scheme"])
+	require.Equal(t, "ed25519", key["keytype"])
+	keyval_, ok := key["keyval"].(map[string]interface{})
+	require.True(t, ok)
+	require.NotEmpty(t, keyval_["public"]) // keyval_["public"] contains the public key.
 
 	return string(out)
 }

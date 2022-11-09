@@ -4,10 +4,12 @@ import classnames from "classnames";
 
 import { ILabel } from "interfaces/label";
 import { PLATFORM_LABEL_DISPLAY_NAMES } from "utilities/constants";
+import Icon from "components/Icon";
 
 import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { PLATFORM_TYPE_ICONS } from "./constants";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
+import CustomDropdownIndicator from "../CustomDropdownIndicator";
 
 // Extending the react-select module to add custom props we need for our custom
 // group heading. More info here:
@@ -26,6 +28,8 @@ declare module "react-select-5/dist/declarations/src/Select" {
     onBlurLabelSearchInput: React.FocusEventHandler<HTMLInputElement>;
   }
 }
+
+const baseClass = "label-filter-select";
 
 /** A custom option label to show in the dropdown. Only used in this dropdown
  * component. You will find focus and blur handlers in this component to help
@@ -46,14 +50,15 @@ const OptionLabel = (data: ILabel | IEmptyOption) => {
   return (
     <div className={"option-label"}>
       {isPlatform && (
-        <img src={PLATFORM_TYPE_ICONS[data.display_text]} alt="" />
+        <Icon
+          name={PLATFORM_TYPE_ICONS[data.display_text]}
+          className="option-icon"
+        />
       )}
       <span>{labelText}</span>
     </div>
   );
 };
-
-const baseClass = "label-filter-select";
 
 interface ILabelFilterSelectProps {
   labels: ILabel[];
@@ -158,7 +163,10 @@ const LabelFilterSelect = ({
       isSearchable={false}
       getOptionLabel={getOptionLabel}
       getOptionValue={getOptionValue}
-      components={{ GroupHeading: CustomLabelGroupHeading }}
+      components={{
+        GroupHeading: CustomLabelGroupHeading,
+        DropdownIndicator: CustomDropdownIndicator,
+      }}
       labelQuery={labelQuery}
       canAddNewLabels={canAddNewLabels}
       onChange={handleChange}

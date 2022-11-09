@@ -1,1 +1,0 @@
-- Update dogfood mysql to mysql8. Customer consumers of dogfood should upgrade by taking a snapshot of their database, and restoring it to a new database via the snapshot_identifier parameter.

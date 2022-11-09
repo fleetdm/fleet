@@ -98,7 +98,7 @@ func TestAuthenticate(t *testing.T) {
 	svc := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 
-	var loginTests = []struct {
+	loginTests := []struct {
 		name     string
 		email    string
 		password string

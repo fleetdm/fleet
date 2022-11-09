@@ -1,0 +1,9 @@
+name: azure_instance_tags
+examples: >-
+  List the tags assigned to an Azure VM
+  
+  ```
+  
+  SELECT key, value FROM azure_instance_tags;
+  
+  ```

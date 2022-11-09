@@ -169,6 +169,7 @@ func (r *Runner) Execute() error {
 		if err := r.proc.Start(); err != nil {
 			return fmt.Errorf("start osqueryd: %w", err)
 		}
+
 		if err := r.proc.WaitOrKill(ctx, 10*time.Second); err != nil {
 			return fmt.Errorf("osqueryd exited with error: %w", err)
 		}

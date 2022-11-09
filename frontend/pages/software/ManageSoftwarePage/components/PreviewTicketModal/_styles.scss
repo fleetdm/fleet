@@ -1,0 +1,15 @@
+.preview-ticket-modal {
+  &__example {
+    display: flex;
+    justify-content: center;
+    margin-top: $pad-medium;
+  }
+
+  &__jira-screenshot,
+  &__zendesk-screenshot {
+    width: 400px;
+    height: auto;
+    border-radius: 8px;
+    filter: drop-shadow(0px 4px 16px rgba(0, 0, 0, 0.1));
+  }
+}

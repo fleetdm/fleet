@@ -47,7 +47,7 @@ const PoliciesTable = ({
         defaultSortDirection={"asc"}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        disablePagination
+        isClientSidePagination
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}

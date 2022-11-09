@@ -7,7 +7,7 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %></title>
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %></title>
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
@@ -16,11 +16,11 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
     <%// Meta tags for other social previews %>
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
-    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet Device Management | Lightweight, programmable telemetry for servers and workstations' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
@@ -224,6 +224,7 @@
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/platform.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>

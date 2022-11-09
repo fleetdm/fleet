@@ -25,6 +25,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		writeBrowserSecurityHeaders(w)
 		if coder, ok := page.error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
@@ -196,7 +197,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	status := r.URL.Query().Get("status")
 	switch fleet.HostStatus(status) {
-	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA:
+	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
 		hopt.StatusFilter = fleet.HostStatus(status)
 	case "":
 		// No error when unset

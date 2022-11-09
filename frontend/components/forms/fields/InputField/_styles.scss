@@ -9,6 +9,7 @@
   font-family: "Nunito Sans", sans-serif;
   box-sizing: border-box;
   height: 40px;
+  transition: border-color 100ms;
 
   &::placeholder {
     color: $ui-fleet-black-50;
@@ -17,6 +18,11 @@
   &:focus {
     outline: none;
     border-color: $core-vibrant-blue;
+  }
+
+  &:hover {
+    box-shadow: none;
+    border: 1px solid $core-vibrant-blue;
   }
 
   &--disabled {

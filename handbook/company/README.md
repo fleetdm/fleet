@@ -14,6 +14,11 @@ We are dedicated to
 > - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
 > - 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS.
 
+### About the handbook
+
+The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+
+While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
 
 ## Culture
 

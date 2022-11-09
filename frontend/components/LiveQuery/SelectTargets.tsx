@@ -29,8 +29,7 @@ import TargetsInput from "components/LiveQuery/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
-import PlusIcon from "../../../assets/images/icon-plus-purple-32x32@2x.png";
-import CheckIcon from "../../../assets/images/icon-check-purple-32x32@2x.png";
+import Icon from "components/Icon";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -108,11 +107,7 @@ const TargetPillSelector = ({
       data-selected={isSelected}
       onClick={(e) => onClick(entity)(e)}
     >
-      <img
-        className={isSelected ? "check-icon" : "plus-icon"}
-        alt=""
-        src={isSelected ? CheckIcon : PlusIcon}
-      />
+      <Icon name={isSelected ? "check" : "plus"} />
       <span className="selector-name">{displayText()}</span>
       {/* <span className="selector-count">{entity.count}</span> */}
     </button>
@@ -325,7 +320,12 @@ const SelectTargets = ({
     if (isFetchingCounts) {
       return (
         <>
-          <Spinner small />
+          <Spinner
+            size={"x-small"}
+            includeContainer={false}
+            centered={false}
+            className={`${baseClass}__count-spinner`}
+          />
           <i style={{ color: "#8b8fa2" }}>Counting hosts</i>
         </>
       );
@@ -348,7 +348,8 @@ const SelectTargets = ({
 
     return (
       <>
-        <span>{total}</span>&nbsp;hosts targeted&nbsp; ({onlinePercentage}
+        <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
+        {onlinePercentage}
         %&nbsp;
         <TooltipWrapper
           tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}

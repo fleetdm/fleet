@@ -1,0 +1,216 @@
+package nvd
+
+import (
+	"regexp"
+	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
+
+var nonAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+var sanitizeVersionRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
+var stopWords = map[string]bool{
+	".":            true,
+	"THE":          true,
+	"The":          true,
+	"Inc":          true,
+	"Inc.":         true,
+	"Incorporated": true,
+	"Corporation":  true,
+	"Corp":         true,
+	"Foundation":   true,
+	"Software":     true,
+	"com":          true,
+	"org":          true,
+}
+
+var langCodes = map[string]bool{
+	"af-ZA": true,
+	"bg-BG": true,
+	"ca-AD": true,
+	"cs-CZ": true,
+	"cy-GB": true,
+	"da-DK": true,
+	"de-DE": true,
+	"el-GR": true,
+	"en-US": true,
+	"es-ES": true,
+	"et-EE": true,
+	"fa-IR": true,
+	"fi-FI": true,
+	"fr-FR": true,
+	"he-IL": true,
+	"hi-IN": true,
+	"hr-HR": true,
+	"hu-HU": true,
+	"id-ID": true,
+	"is-IS": true,
+	"it-IT": true,
+	"ja-JP": true,
+	"km-KH": true,
+	"ko-KR": true,
+	"lt-LT": true,
+	"lv-LV": true,
+	"mn-MN": true,
+	"nb-NO": true,
+	"nl-NL": true,
+	"nn-NO": true,
+	"pl-PL": true,
+	"pt-PT": true,
+	"ro-RO": true,
+	"ru-RU": true,
+	"sk-SK": true,
+	"sl-SI": true,
+	"sr-RS": true,
+	"sv-SE": true,
+	"th-TH": true,
+	"tr-TR": true,
+	"uk-UA": true,
+	"vi-VN": true,
+	"zh-CN": true,
+}
+
+// sanitizeSoftwareName sanitizes the software.Name by:
+// - Removing any arch string contained in the name
+// - Removing any language code
+// - Removing any general remarks (for example: 7-zip - The best software)
+// - Removing the '.app' suffix
+// - Removing any '()' and its contents
+// - Removing any extra spaces
+// - Lowercasing the name
+// - Removing parts from the bundle identifier
+func sanitizeSoftwareName(s *fleet.Software) string {
+	archs := regexp.MustCompile(` \(?x64\)?|\(?64-bit\)?|\(?64bit\)?|\(?amd64\)? `)
+	ver := regexp.MustCompile(` \.?\(?(\d+\.)?(\d+\.)?(\*|\d+)\)?\s?`)
+	gen := regexp.MustCompile(` \(\w+\)\s?`)
+	comments := regexp.MustCompile(` (-|:)\s?.+`)
+
+	r := strings.ToLower(s.Name)
+	r = strings.TrimSuffix(r, ".app")
+
+	// Remove vendor, for 'apps' the vendor name is usually after the top level domain part.
+	r = strings.Replace(r, strings.ToLower(s.Vendor), "", -1)
+	bundleParts := strings.Split(s.BundleIdentifier, ".")
+	if len(bundleParts) > 2 {
+		r = strings.Replace(r, strings.ToLower(bundleParts[1]), "", -1)
+	}
+
+	if len(r) == 0 {
+		r = strings.ToLower(s.Name)
+		r = strings.TrimSuffix(r, ".app")
+	}
+
+	r = archs.ReplaceAllString(r, "")
+	r = ver.ReplaceAllString(r, "")
+	r = gen.ReplaceAllString(r, "")
+
+	r = strings.ReplaceAll(r, "—", "-")
+	r = strings.ReplaceAll(r, "–", "-")
+	r = comments.ReplaceAllString(r, "")
+
+	for l := range langCodes {
+		ln := strings.ToLower(l)
+		r = strings.Replace(r, ln, "", -1)
+	}
+
+	r = strings.Replace(r, "(", " ", -1)
+	r = strings.Replace(r, ")", " ", -1)
+	r = strings.Join(strings.Fields(r), " ")
+
+	return r
+}
+
+func productVariations(s *fleet.Software) []string {
+	var r []string
+	rSet := make(map[string]bool)
+
+	sn := sanitizeSoftwareName(s)
+
+	withoutVendorParts := sn
+	for _, p := range strings.Split(s.Vendor, " ") {
+		pL := strings.ToLower(p)
+		withoutVendorParts = strings.Join(strings.Fields(strings.Replace(withoutVendorParts, pL, "", -1)), " ")
+	}
+	if withoutVendorParts != "" {
+		rSet[strings.Replace(withoutVendorParts, " ", "", -1)] = true
+		rSet[strings.Replace(withoutVendorParts, " ", "_", -1)] = true
+	}
+
+	rSet[strings.Replace(sn, " ", "_", -1)] = true
+	rSet[strings.Replace(sn, " ", "", -1)] = true
+
+	for re := range rSet {
+		r = append(r, re)
+	}
+
+	return r
+}
+
+func vendorVariations(s *fleet.Software) []string {
+	var r []string
+	rSet := make(map[string]bool)
+
+	if s.Vendor == "" && s.BundleIdentifier == "" {
+		return r
+	}
+
+	if s.Vendor != "" {
+		for _, v := range strings.Split(s.Vendor, " ") {
+			if !stopWords[v] {
+				rSet[strings.ToLower(v)] = true
+			}
+		}
+		rSet[strings.ToLower(strings.Replace(s.Vendor, " ", "_", -1))] = true
+		rSet[strings.ToLower(strings.Replace(s.Vendor, " ", "", -1))] = true
+	}
+
+	for _, v := range strings.Split(s.BundleIdentifier, ".") {
+		if !stopWords[v] {
+			rSet[strings.ToLower(v)] = true
+		}
+	}
+
+	for re := range rSet {
+		if re != "" {
+			r = append(r, re)
+		}
+	}
+
+	return r
+}
+
+// sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all non alpha numeric characters with spaces.
+func sanitizeMatch(s string) string {
+	s = strings.TrimSuffix(s, ".app")
+	s = nonAlphaNumeric.ReplaceAllString(s, " ")
+	return s
+}
+
+// sanitizeVersion attempts to sanitize versions and attempt to make it dot separated.
+// Eg Zoom reports version as "5.11.1 (8356)". In the NVD CPE dictionary it should be 5.11.1.8356.
+func sanitizeVersion(version string) string {
+	parts := sanitizeVersionRe.Split(version, -1)
+	return strings.Trim(strings.Join(parts, "."), ".")
+}
+
+func targetSW(s *fleet.Software) string {
+	switch s.Source {
+	case "apps":
+		return "macos"
+	case "python_packages":
+		return "python"
+	case "chrome_extensions":
+		return "chrome"
+	case "firefox_addons":
+		return "firefox"
+	case "safari_extensions":
+		return "safari"
+	case "npm_packages":
+		return `node.js`
+	case "programs":
+		return "windows"
+	}
+	return "*"
+}

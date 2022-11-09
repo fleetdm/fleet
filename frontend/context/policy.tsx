@@ -2,7 +2,7 @@ import React, { createContext, useReducer, ReactNode } from "react";
 import { find } from "lodash";
 
 import { osqueryTables } from "utilities/osquery_tables";
-import { IOsqueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
+import { IOsQueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
 import { IPlatformString } from "interfaces/platform";
 
 enum ACTIONS {
@@ -55,9 +55,13 @@ type InitialStateType = {
   setLastEditedQueryPlatform: (value: IPlatformString | null) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
-  selectedOsqueryTable: IOsqueryTable;
+  selectedOsqueryTable: IOsQueryTable;
   setSelectedOsqueryTable: (tableName: string) => void;
 };
+
+const initTable =
+  osqueryTables.find((table) => table.name === "users") ||
+  DEFAULT_OSQUERY_TABLE;
 
 const initialState = {
   lastEditedQueryId: null,
@@ -74,8 +78,7 @@ const initialState = {
   setLastEditedQueryPlatform: () => null,
   policyTeamId: 0,
   setPolicyTeamId: () => null,
-  selectedOsqueryTable:
-    find(osqueryTables, { name: "users" }) || DEFAULT_OSQUERY_TABLE,
+  selectedOsqueryTable: initTable,
   setSelectedOsqueryTable: () => null,
 };
 
@@ -89,7 +92,9 @@ const reducer = (state: InitialStateType, action: IAction) => {
     case ACTIONS.SET_SELECTED_OSQUERY_TABLE:
       return {
         ...state,
-        selectedOsqueryTable: find(osqueryTables, { name: action.tableName }),
+        selectedOsqueryTable:
+          find(osqueryTables, { name: action.tableName }) ||
+          DEFAULT_OSQUERY_TABLE,
       };
     case ACTIONS.SET_LAST_EDITED_QUERY_INFO:
       return {

@@ -1,4 +1,5 @@
 import CONSTANTS from "../../../support/constants";
+import manageHostsPage from "../../pages/manageHostsPage";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
@@ -31,7 +32,7 @@ describe("Sessions", () => {
     cy.contains("Authentication failed");
   });
   it("fails to access authenticated resource", () => {
-    cy.visit("/hosts/manage");
+    manageHostsPage.visitsManageHostsPage();
     cy.url().should("match", /\/login$/);
   });
 });

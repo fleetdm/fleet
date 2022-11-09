@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -258,29 +259,55 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader, nil)
+	return listPoliciesDB(ctx, ds.reader, nil, nil)
 }
 
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([]*fleet.Policy, error) {
-	teamWhere := "p.team_id is NULL"
+// returns the list of policies associated with the provided teamID, or the
+// global policies if teamID is nil. The pass/fail host counts are the totals
+// regardless of hosts' team if countsForTeamID is nil, or the totals just for
+// hosts that belong to the provided countsForTeamID if it is not nil.
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint) ([]*fleet.Policy, error) {
 	var args []interface{}
+
+	counts := `
+    (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+    (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+`
+	if countsForTeamID != nil {
+		counts = `
+        (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
+        (select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
+`
+		args = append(args, *countsForTeamID, *countsForTeamID)
+	}
+
+	teamWhere := "p.team_id is NULL"
 	if teamID != nil {
 		teamWhere = "p.team_id = ?"
 		args = append(args, *teamID)
 	}
+
 	var policies []*fleet.Policy
 	err := sqlx.SelectContext(
 		ctx,
 		q,
 		&policies,
-		fmt.Sprintf(`SELECT p.*,
-		    COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p
-		LEFT JOIN users u ON p.author_id = u.id
-		WHERE %s`, teamWhere), args...,
+		fmt.Sprintf(`SELECT p.id,
+      p.team_id,
+      p.resolution,
+      p.name,
+      p.query,
+      p.description,
+      p.author_id,
+      p.platforms,
+      p.created_at,
+      p.updated_at,
+      COALESCE(u.name, '<deleted>') AS author_name,
+      COALESCE(u.email, '') AS author_email,
+      %s
+    FROM policies p
+    LEFT JOIN users u ON p.author_id = u.id
+    WHERE %s`, counts, teamWhere), args...,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
@@ -289,14 +316,23 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 }
 
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
-	sql := `SELECT p.*,
-		    COALESCE(u.name, '<deleted>') AS author_name,
-			COALESCE(u.email, '') AS author_email,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p
-		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id IN (?)`
+	sql := `SELECT p.id,
+      p.team_id,
+      p.resolution,
+      p.name,
+      p.query,
+      p.description,
+      p.author_id,
+      p.platforms,
+      p.created_at,
+      p.updated_at,
+      COALESCE(u.name, '<deleted>') AS author_name,
+      COALESCE(u.email, '') AS author_email,
+      (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+      (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+      FROM policies p
+      LEFT JOIN users u ON p.author_id = u.id
+      WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
@@ -421,8 +457,17 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	return policyDB(ctx, ds.writer, uint(lastIdInt64), &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader, &teamID)
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader, &teamID, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	// get inherited (global) policies with counts of hosts for that team
+	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader, nil, &teamID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return teamPolicies, inheritedPolicies, err
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -536,6 +581,17 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
+func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	query, args, err := sqlx.In(`DELETE FROM policy_membership WHERE host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to delete policies")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec delete policies")
+	}
+	return nil
+}
+
 func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 	// it can only be from the previous team they are being transferred from
@@ -634,4 +690,157 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	}
 
 	return nil
+}
+
+// PolicyViolationDays is a structure used for aggregate counts of policy violation days.
+type PolicyViolationDays struct {
+	// FailingHostCount is an aggregate count of actual policy violations days. One actual policy
+	// violation day is added for each policy that a host is failing at the time of the count.
+	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
+	// TotalHostCount is an aggregate count of possible policy violations days. One possible policy
+	// violation day is added for each policy that a host is a member of at the time of the count.
+	TotalHostCount uint `json:"total_host_count" db:"total_host_count"`
+}
+
+func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return incrementViolationDaysDB(ctx, tx)
+	})
+}
+
+func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
+	const (
+		statsID        = 0
+		statsType      = "policy_violation_days"
+		updateInterval = 24 * time.Hour
+	)
+
+	var prevFailing uint
+	var prevTotal uint
+	var shouldIncrement bool
+
+	// get current count of policy violation days from `aggregated_stats``
+	selectStmt := `
+		SELECT 
+			json_value, 
+			created_at, 
+			updated_at 
+		FROM 
+			aggregated_stats 
+		WHERE 
+			id = ? AND type = ?`
+	dest := struct {
+		CreatedAt time.Time       `json:"created_at" db:"created_at"`
+		UpdatedAt time.Time       `json:"updated_at" db:"updated_at"`
+		StatsJSON json.RawMessage `json:"json_value" db:"json_value"`
+	}{}
+
+	err := sqlx.GetContext(ctx, tx, &dest, selectStmt, statsID, statsType)
+	switch {
+	case err == sql.ErrNoRows:
+		// no previous counts exists so initialize counts as zero and proceed to increment
+		prevFailing = 0
+		prevTotal = 0
+		shouldIncrement = true
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "selecting policy violation days aggregated stats")
+	default:
+		// increment previous counts if interval has elapsed
+		var prevStats PolicyViolationDays
+		if err := json.Unmarshal(dest.StatsJSON, &prevStats); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshal policy violation counts")
+		}
+		prevFailing = prevStats.FailingHostCount
+		prevTotal = prevStats.TotalHostCount
+		shouldIncrement = time.Now().After(dest.UpdatedAt.Add(updateInterval))
+	}
+
+	if !shouldIncrement {
+		return nil
+	}
+
+	// increment count of policy violation days by total number of failing records from
+	// `policy_membership`
+	var newCounts PolicyViolationDays
+	if err := sqlx.GetContext(ctx, tx, &newCounts, `
+	     SELECT	(select count(*) from policy_membership where passes=0) as failing_host_count,
+       		(select count(*) from policy_membership) as total_host_count`,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "count policy violation days")
+	}
+	newCounts.FailingHostCount = prevFailing + newCounts.FailingHostCount
+	newCounts.TotalHostCount = prevTotal + newCounts.TotalHostCount
+	statsJSON, err := json.Marshal(newCounts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal policy violation counts")
+	}
+
+	// upsert `aggregated_stats` with new count
+	upsertStmt := `
+		INSERT INTO 
+			aggregated_stats (id, type, json_value) 
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE 
+			json_value = VALUES(json_value)`
+	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, statsJSON); err != nil {
+		return ctxerr.Wrap(ctx, err, "update policy violation days aggregated stats")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) InitializePolicyViolationDays(ctx context.Context) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return initializePolicyViolationDaysDB(ctx, tx)
+	})
+}
+
+func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
+	const (
+		statsID   = 0
+		statsType = "policy_violation_days"
+	)
+
+	statsJSON, err := json.Marshal(PolicyViolationDays{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal policy violation counts")
+	}
+
+	stmt := `
+		INSERT INTO 
+			aggregated_stats (id, type, json_value) 
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE 
+			json_value = VALUES(json_value),
+			created_at = CURRENT_TIMESTAMP`
+	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, statsJSON); err != nil {
+		return ctxerr.Wrap(ctx, err, "initialize policy violation days aggregated stats")
+	}
+
+	return nil
+}
+
+func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (int, int, error) {
+	const (
+		statsID   = 0
+		statsType = "policy_violation_days"
+	)
+	var statsJSON json.RawMessage
+	if err := sqlx.GetContext(ctx, tx, &statsJSON, `
+		SELECT 
+			json_value 
+		FROM 
+			aggregated_stats 
+		WHERE 
+			id = ? AND type = ?
+	`, statsID, statsType); err != nil {
+		return 0, 0, err
+	}
+
+	var counts PolicyViolationDays
+	if err := json.Unmarshal(statsJSON, &counts); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "unmarshal policy violation counts")
+	}
+
+	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
 }

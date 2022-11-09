@@ -61,6 +61,12 @@
             }
           }
         }
+
+        // Position tooltip over parent div
+        .component__tooltip-wrapper {
+          position: absolute;
+          margin-top: 20px;
+        }
       }
 
       &__header {
@@ -142,12 +148,12 @@
     margin: 0;
     padding-bottom: 0;
 
-    .hostname-container {
+    .display-name-container {
       display: flex;
       align-items: center;
     }
 
-    .hostname {
+    .display-name {
       font-size: $large;
       font-weight: $bold;
     }
@@ -212,10 +218,6 @@
         }
       }
     }
-  }
-
-  .tooltip {
-    color: $ui-fleet-black-50;
   }
 
   .component__tabs-wrapper {
@@ -349,17 +351,6 @@
     display: flex;
     align-items: center;
     gap: $pad-large;
-  }
-
-  &__back-link {
-    display: flex;
-    align-items: center;
-    padding-bottom: $pad-small;
-    height: 16px;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
   }
 
   &__device_mapping {

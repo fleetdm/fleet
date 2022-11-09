@@ -1,4 +1,4 @@
-// package retry has utilities to retry operations
+// Package retry has utilities to retry operations.
 package retry
 
 import (
@@ -22,7 +22,7 @@ func WithInterval(i time.Duration) Option {
 }
 
 // WithMaxAttempts allows to specify a maximum number of attempts
-// before the doer gives up
+// before the doer gives up.
 func WithMaxAttempts(a int) Option {
 	return func(c *config) {
 		c.maxAttempts = a

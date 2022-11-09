@@ -5,7 +5,7 @@ First, create a `env` file with the following contents:
 ```
 export SERVER_URL=https://localhost:8080 # your fleet server url and port
 export CURL_FLAGS='-k -s' # set insecure flag
-export TOKEN=eyJhbGciOi... # your login token
+export TOKEN=eyJhbGciOi... # your api token
 ```
 
 Next set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scripts in the `fleet/` folder source the env file.
@@ -13,7 +13,7 @@ Next set the `FLEET_ENV_PATH` to point to the `env` file. This will let the scri
 # Examples
 
 ```
-export FLEET_ENV_PATH=/Users/victor/fleet_env
+export FLEET_ENV_PATH=./path/to/env/file/fleet_env
 
 # get my user info
 ./tools/api/fleet/me

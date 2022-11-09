@@ -46,7 +46,7 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 Fleet allows you to schedule queries. Scheduled queries will send data to your log destination automatically.
 
-The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [osquery logs guide](../Using-Fleet/Osquery-logs.md).
+The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [log destinations page](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 How to schedule a query:
 
@@ -60,13 +60,13 @@ How to schedule a query:
 
 5. Select **Schedule**.
 
-With [the teams feature](./Teams.md), you can schedule queries for groups of hosts. This allows you to collect different data for each group.
+With [the teams feature](https://fleetdm.com/docs/using-fleet/teams), you can schedule queries for groups of hosts. This allows you to collect different data for each group.
 
 > In Fleet, groups of hosts are called "teams."
 
 How to use teams to schedule queries for a group of hosts:
 
-1. If you haven't already, first [create a team](./Teams.md#create-a-team) and [transfer hosts](./Teams.md#transfer-hosts-to-a-team) to the team.
+1. If you haven't already, first [create a team](https://fleetdm.com/docs/using-fleet/teams#create-a-team) and [transfer hosts](https://fleetdm.com/docs/using-fleet/teams#transfer-hosts-to-a-team) to the team.
 
 2. In the **Teams** dropdown below the top navigation, select the team.
 
@@ -83,11 +83,11 @@ The default agent options are good to start.
 
 How to update agent options:
 
-1. In the top navigation, select your avatar and select **Settings**. Only users with the [admin role](./Permissions.md) can access the pages in **Settings**.
+1. In the top navigation, select your avatar and select **Settings**. Only users with the [admin role](https://fleetdm.com/docs/using-fleet/permissions) can access the pages in **Settings**.
 
 2. On the Organization settings page, select **Agent options** on the left side of the page.
 
-3. To see all agent options, head to the [agent options documentation](./configuration-files/README.md#agent-options).
+3. To see all agent options, head to the [agent options documentation](https://fleetdm.com/docs/deploying/configuration#agent-options).
 
 4. Place your new setting one level below the `options` key. The new setting's key should be below and one tab to the right of `options`.
 

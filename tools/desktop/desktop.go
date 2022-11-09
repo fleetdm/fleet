@@ -81,7 +81,7 @@ func macos() *cli.Command {
 				EnvVars: []string{"FLEET_DESKTOP_APPLE_AUTHORITY"},
 			},
 			&cli.BoolFlag{
-				Name:    "`notarize`",
+				Name:    "notarize",
 				Usage:   "If true, the generated application will be notarized and stapled. Requires the `AC_USERNAME` and `AC_PASSWORD` to be set in the environment",
 				EnvVars: []string{"FLEET_DESKTOP_NOTARIZE"},
 			},

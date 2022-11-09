@@ -12,6 +12,8 @@ set -e
 # FLEET_SNAPSHOT_PASSPHRASE: Snapshot role passphrase.
 # FLEET_TIMESTAMP_PASSPHRASE: Timestamp role passphrase.
 # SYSTEMS: Space separated list of systems to support in the TUF repository. Default value is: "macos windows linux"
+# MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: Set variable to use a pre-built desktop.app.tar.gz. Useful when running on non-macOS host.
+# MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: Set variable to use a pre-built osqueryd.app.tar.gz. Useful when running on non-macOS host.
 
 if [[ -z "$TUF_PATH" ]]; then
     echo "Must set the TUF_PATH environment variable."
@@ -22,7 +24,7 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-OSQUERY_MACOS_APP_BUNDLE_VERSION=5.2.3
+OSQUERY_MACOS_APP_BUNDLE_VERSION=5.5.1
 SYSTEMS=${SYSTEMS:-macos linux windows}
 
 mkdir -p $TUF_PATH/tmp
@@ -32,16 +34,17 @@ mkdir -p $TUF_PATH/tmp
 for system in $SYSTEMS; do
 
     if [[ $system == "macos" ]]; then
-        # Generate and add osqueryd .app bundle for macos-app.
-        osqueryd_path=$TUF_PATH/tmp/osqueryd.app.tar.gz
-        make osqueryd-app-tar-gz version=$OSQUERY_MACOS_APP_BUNDLE_VERSION out-path=$(dirname $osqueryd_path)
+        if [[ -z "$MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ" ]]; then
+            # Generate and add osqueryd .app bundle for macos-app.
+            make osqueryd-app-tar-gz version=$OSQUERY_MACOS_APP_BUNDLE_VERSION out-path=.
+        fi
         ./build/fleetctl updates add \
             --path $TUF_PATH \
-            --target $osqueryd_path \
+            --target osqueryd.app.tar.gz \
             --platform macos-app \
             --name osqueryd \
             --version 42.0.0 -t 42.0 -t 42 -t stable
-        rm $osqueryd_path
+        rm osqueryd.app.tar.gz
     else
         # Use latest stable version of osqueryd from our TUF server.
         osqueryd="osqueryd"
@@ -87,9 +90,11 @@ for system in $SYSTEMS; do
 
     # Add Fleet Desktop application on macos (if enabled).
     if [[ $system == "macos" && -n "$FLEET_DESKTOP" ]]; then
-        FLEET_DESKTOP_VERBOSE=1 \
-        FLEET_DESKTOP_VERSION=42.0.0 \
-        make desktop-app-tar-gz
+        if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
+            FLEET_DESKTOP_VERBOSE=1 \
+            FLEET_DESKTOP_VERSION=42.0.0 \
+            make desktop-app-tar-gz
+        fi
         ./build/fleetctl updates add \
         --path $TUF_PATH \
         --target desktop.app.tar.gz \

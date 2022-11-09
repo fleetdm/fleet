@@ -1,0 +1,8 @@
+name: deb_packages
+columns:
+  - name: pid_with_namespace
+    platforms:
+      - linux
+  - name: mount_namespace_id
+    platforms:
+      - linux

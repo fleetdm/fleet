@@ -1,20 +1,13 @@
 .software-details-page {
-  &__back-link,
   &__hosts-link {
     display: flex;
     align-items: center;
     padding-bottom: $pad-small;
-    height: 16px;
+    height: 20px;
     font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-  }
-
-  #back-chevron {
-    width: 16px;
-    height: 16px;
-    margin-right: $pad-small;
   }
 
   #right-chevron {

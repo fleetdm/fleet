@@ -51,6 +51,7 @@ func (r getInstallerResponse) error() error { return r.Err }
 func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="fleet-osquery.%s"`, r.fileExt))
 
 	// OK to just log the error here as writing anything on

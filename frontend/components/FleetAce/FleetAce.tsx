@@ -23,6 +23,8 @@ export interface IFleetAceProps {
   wrapperClassName?: string;
   hint?: string;
   labelActionComponent?: React.ReactNode;
+  style?: React.CSSProperties;
+  onBlur?: (editor?: IAceEditor) => void;
   onLoad?: (editor: IAceEditor) => void;
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
@@ -42,6 +44,8 @@ const FleetAce = ({
   wrapEnabled = false,
   wrapperClassName,
   hint,
+  style,
+  onBlur,
   onLoad,
   onChange,
   handleSubmit = noop,
@@ -54,7 +58,15 @@ const FleetAce = ({
   const fixHotkeys = (editor: IAceEditor) => {
     editor.commands.removeCommand("gotoline");
     editor.commands.removeCommand("find");
+  };
+
+  const onLoadHandler = (editor: IAceEditor) => {
+    fixHotkeys(editor);
     onLoad && onLoad(editor);
+  };
+
+  const onBlurHandler = (event: any, editor?: IAceEditor): void => {
+    onBlur && onBlur(editor);
   };
 
   const handleDelete = (deleteCommand: string) => {
@@ -114,7 +126,8 @@ const FleetAce = ({
         maxLines={20}
         name={name}
         onChange={onChange}
-        onLoad={fixHotkeys}
+        onBlur={onBlurHandler}
+        onLoad={onLoadHandler}
         readOnly={readOnly}
         setOptions={{ enableLinking: true }}
         showGutter={showGutter}
@@ -123,6 +136,7 @@ const FleetAce = ({
         value={value}
         width="100%"
         wrapEnabled={wrapEnabled}
+        style={style}
         commands={[
           {
             name: "commandName",

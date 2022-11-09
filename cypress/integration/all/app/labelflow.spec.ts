@@ -1,3 +1,5 @@
+import manageHostsPage from "../../pages/manageHostsPage";
+
 describe("Labels flow", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -14,12 +16,12 @@ describe("Labels flow", () => {
   describe("Manage hosts page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/hosts/manage");
+      manageHostsPage.visitsManageHostsPage();
     });
     it("creates a custom label", () => {
       cy.getAttached(".label-filter-select__control").click();
       cy.findByRole("button", { name: /add label/i }).click();
-      cy.getAttached(".ace_content").type(
+      cy.getAttached(".label-form__text-editor-wrapper .ace_content").type(
         "{selectall}{backspace}SELECT * FROM users;"
       );
       cy.findByLabelText(/name/i).click().type("Show all MAC users");
@@ -60,7 +62,7 @@ describe("Labels flow", () => {
     it("creates labels with special characters", () => {
       cy.getAttached(".label-filter-select__control").click();
       cy.findByRole("button", { name: /add label/i }).click();
-      cy.getAttached(".ace_content").type(
+      cy.getAttached(".label-form__text-editor-wrapper .ace_content").type(
         "{selectall}{backspace}SELECT * FROM users;"
       );
       cy.findByLabelText(/name/i)

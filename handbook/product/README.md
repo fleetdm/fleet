@@ -1,8 +1,6 @@
 # Product
 
-⚗️ #g-product: https://github.com/orgs/fleetdm/projects/17
-
-🧱📡 Fleet core roadmap: https://github.com/orgs/fleetdm/projects/8
+⚗️ Roadmap: https://github.com/orgs/fleetdm/projects/41/views/2
 
 ## Job to be done
 
@@ -13,10 +11,10 @@ overarching job to be done is the following:
 "I need a way to see what laptops and servers I have and what I need to do to keep them secure and
 compliant."
 
-## Objectives and key results
+## Objectives and key results (OKRs) and Key Performance Indicators (KPIs)
 
 Fleet uses objectives and key results (OKRs) to align the organization with measurable
-goals.
+goals, and key performance indicators (KPIs) to measure the work that achieves the goals of the OKRs. Rephased, the objectives and key results describes what you want to accomplish and the key performance indicators describe how you know you're making progress.
 
 The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
 
@@ -202,42 +200,6 @@ For the Interface group, "estimated" means UI wireframes and API design are comp
 
 ≤One business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies the original requestor of changes to the spec.
 
-## Product quality
-
-Fleet uses a human-oriented quality assurance (QA) process to make sure the product meets the standards of users and organizations.
-
-To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
-
-To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
-
-To start preview without starting the simulated hosts, use the `--no-hosts` flag (e.g., `fleetctl preview --no-hosts`).
-
-### Why human-oriented QA?
-
-Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
-
-The goal of quality assurance is to catch unexpected behavior before release:
-- Bugs
-- Edge cases
-- Error message UX
-- Developer experience using the API/CLI
-- Operator experience looking at logs
-- API response time latency
-- UI comprehensibility
-- Simplicity
-- Data accuracy
-- Perceived data freshness
-- Product’s ability to save users from themselves
-
-
-### Collecting bugs
-
-All QA steps should be possible using `fleetctl preview`. Please refer to [docs/Contributing/Testing-and-local-development.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
-
-Please start the manual QA process by creating a blank GitHub issue. As you complete each
-flow, record a list of the bugs you encounter in this new issue. Each item in this list should
-contain one sentence describing the bug and a screenshot of the item if it is a frontend bug.
-
 ## UI design
 
 ### Communicating design changes to the engineering team.
@@ -412,14 +374,9 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| 🎙 Product huddle | Daily | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. On Mondays, issues are broken down into a week's work and added into "ready." We move issues out of "delivered" every Friday. | Noah Talerman |
-| 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Noah Talerman |
-| 🎨 UI/UX huddle      | Weekly (Wednesdays) | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. We hold  separate times for 🎙 Product huddle so Mike Thomas can make it.    | Noah Talerman |
+| 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
-| 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
-| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Noah Talerman |
-| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
-| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
+| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Mo Zhu |
 
 ## Slack channels
 
@@ -427,12 +384,11 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#help-product`                     | Noah Talerman                                                       |
-| `#help-qa`                          | Reed Haynes                                                         |
+| `#help-product`                     | Mo Zhu                                                              |
 | `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |
-| `#g-mdm`                            | Noah Talerman                                                       |
+| `#g-mdm`                            | Mo Zhu                                                              |
 
-<meta name="maintainedBy" value="noahtalerman">
+<meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">

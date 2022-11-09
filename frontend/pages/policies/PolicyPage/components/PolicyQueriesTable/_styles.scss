@@ -27,7 +27,7 @@
       padding: $pad-medium $pad-large;
     }
 
-    .hostname__header {
+    .display-name__header {
       width: 70%;
     }
   }
@@ -116,8 +116,7 @@
   }
 
   &__bullet-text {
-    width: 455px;
-    text-align: left;
+    text-align: center;
   }
 }
 

@@ -43,7 +43,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       title: "Host",
       Header: "Host",
       disableSortBy: true,
-      accessor: "host_hostname",
+      accessor: "host_display_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -73,7 +73,7 @@ const generateTableHeaders = (): IDataColumn[] => {
 const generateDataSet = memoize(
   (policyHostsErrorsList: ICampaignError[] = []): ICampaignError[] => {
     policyHostsErrorsList = policyHostsErrorsList.sort((a, b) =>
-      sortUtils.caseInsensitiveAsc(a.host_hostname, b.host_hostname)
+      sortUtils.caseInsensitiveAsc(a.host_display_name, b.host_display_name)
     );
     return policyHostsErrorsList;
   }

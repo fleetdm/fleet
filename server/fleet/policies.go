@@ -242,6 +242,8 @@ type PolicySetHost struct {
 	ID uint
 	// Hostname is the host's name.
 	Hostname string
+	// DisplayName is the ComputerName if it exists, or the Hostname otherwise.
+	DisplayName string
 }
 
 type PolicyMembershipResult struct {

@@ -9,8 +9,9 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 1. Initialize your terraform environment with `terraform init`.
 1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
 1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes).
-1. Perform your tests (see next sections). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`.
-1. When you're done, clean up the environment with `terraform destroy`.
+1. Run database migrations (see [Running migrations](#running-migrations)).  You will get 500 errors and your containers will not run if you do not do this.
+1. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`.
+1. When you're done, clean up the environment with `terraform destroy`.  If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
 
 ### Running migrations
 
@@ -31,15 +32,23 @@ With the variable `loadtest_containers` you can specify how many containers of 5
 
 There are a few main places of interest to monitor the load and resource usage:
 
-* The Application Performance Monitoring (APM) dashboard: access it on your Fleet load-testing URL on port `:5601` and path `/app/apm`, e.g. `https://loadtest.fleetdm.com:5601/app/apm`.
+* The Application Performance Monitoring (APM) dashboard: access it on your Fleet load-testing URL on port `:5601` and path `/app/apm`, e.g. `https://loadtest.fleetdm.com:5601/app/apm`.  Note to do this without the VPN you will need to add your public IP Address to the load balancer for TCP Port 5601.  At the time of this writing, [this](https://us-east-2.console.aws.amazon.com/vpc/home?region=us-east-2#SecurityGroup:groupId=sg-0e67d910a662720f8) will take you directly to the security group for the load balancer if logged into the Load Testing account.
 * The APM dashboard can also be accessed via private IP over the VPN.  Use the following one-liner to get the URL: `aws ec2 describe-instances --region=us-east-2 | jq -r '.Reservations[].Instances[] | select(.State.Name == "running") | select(.Tags[] | select(.Key == "ansible_playbook_file") | .Value == "elasticsearch.yml") | "http://" + .PrivateIpAddress + ":5601/app/apm"'`.  This connects directly to the EC2 instance and doesn't use the load balancer.  
 * To monitor mysql database load, go to AWS RDS, select "Performance Insights" and the database instance to monitor (you may want to turn off auto-refresh).
 * To monitor Redis load, go to Amazon ElastiCache, select the redis cluster to monitor, and go to "Metrics".
 
 ### Troubleshooting
 
+#### General Troubleshooting
+
 If terraform fails for some reason, you can make it output extra information to `stderr` by setting the `TF_LOG` environment variable to "DEBUG" or "TRACE", e.g.:
 
 `TF_LOG=DEBUG terraform apply ...`
 
 See https://www.terraform.io/internals/debugging for more details.
+
+#### ECR Cleanup Troubleshooting
+
+In a few instances, it is possible for an ECR repository to still have images left, preventing a full `terraform destroy` of a Loadtesting instance.  Use the following one-liner to clean these up before re-running `terraform destroy`:
+
+`REPOSITORY_NAME=fleet-$(terraform workspace show); aws ecr list-images --repository-name ${REPOSITORY_NAME} --query 'imageIds[*]' --output text | while read digest tag; do aws ecr batch-delete-image --repository-name ${REPOSITORY_NAME} --image-ids imageDigest=${digest}; done`

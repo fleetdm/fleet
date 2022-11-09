@@ -13,8 +13,18 @@ on:
       - '.github/workflows/generate-osqueryd-targets.yml'
   workflow_dispatch:
 
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
 env:
-  OSQUERY_VERSION: 5.5.1
+  OSQUERY_VERSION: 5.6.0
 
 permissions:
   contents: read
@@ -63,7 +73,6 @@ jobs:
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
       - name: Download osquery msi for Windows
-        shell: bash
         run: |
           curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
 
