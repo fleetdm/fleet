@@ -43,7 +43,7 @@ Discovering that hosts are missing can cause any admin or engineer to worry. Did
 Before you can answer these questions, you need to know which hosts are missing. Fleet makes your search simple. Premium users can see how many hosts have been offline for 30 days or more on the Fleet UI homepage.
 </p>
 <p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
-Clicking the Missing card will take you to the Hosts page with the Missing filter applied — generating a list of all your missing hosts. You can also navigate to this list by pasting this URL into your browser: <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">fleet.organization.com/hosts/manage/?status=missing</code>.
+Clicking the Missing card will take you to the Hosts page with the Missing filter applied — generating a list of all your missing hosts. You can also navigate to this list by pasting this URL into your browser: <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">fleet.organization.com/hosts/manage/?status=missing</code>.
 </p>
 <p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
 <img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="https://fleetdm.com/images/articles/fleet-4.22.0-missing-hosts-2-800x450@2x.jpg" alt="null">
@@ -64,7 +64,7 @@ Know which hosts have low disk space
 Making sure hosts have the latest operating system updates is tough enough. End users have their own priorities and computer maintenance is usually low on the list. Deadlines get even tighter when IT admins find out hosts don’t have enough disk space. Fleet can help you avoid these unpleasant surprises.
 </p>
 <p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
-On the Fleet UI homepage, Premium users can see how many hosts have less than 32 GB of disk space remaining. Clicking the Low disk space card generates a list of all these devices. You can also get to this list by pasting this URL into your browser: <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">fleet.organization.com/hosts/manage/?low_disk_space=32</code>.
+On the Fleet UI homepage, Premium users can see how many hosts have less than 32 GB of disk space remaining. Clicking the Low disk space card generates a list of all these devices. You can also get to this list by pasting this URL into your browser: <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">fleet.organization.com/hosts/manage/?low_disk_space=32</code>.
 </p>
 <p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
 <img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="https://fleetdm.com/images/articles/fleet-4.22.0-low-disk-space-2-800x450@2x.jpg" alt="null">
@@ -109,7 +109,7 @@ See clearer host display names
 We’re familiar with the pros and cons of remote work by now. (Insert joke about pajamas, pets, and/or neighbors here.) But there’s one issue in particular that Fleet now solves: confusing hostnames.
 </p>
 <p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
-When working from home, a device’s hostname can be whatever the internet service provider (ISP) assigns to the device. For example, a hostname could be <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">aianas-mbp.cable.rcn.com</code>. That isn’t very helpful, especially if you have hundreds of similar results.
+When working from home, a device’s hostname can be whatever the internet service provider (ISP) assigns to the device. For example, a hostname could be <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">aianas-mbp.cable.rcn.com</code>. That isn’t very helpful, especially if you have hundreds of similar results.
 </p>
 <p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
 Fleet 4.22.0 no longer defaults to whatever the ISP provides. Instead, Fleet uses the computer name or the hostname for the display name. If the computer name has been set, then that will be the display name. If not, then Fleet will use the hostname.
@@ -124,10 +124,10 @@ Added functionality to consider device tokens as expired after one hour. This ch
 You&#39;re managing your own TUF server.
 </li>
 <li style="margin-bottom: 16px;">
-You have auto-updates disabled (<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">fleetctl package [...] --disable-updates</code>).
+You have auto-updates disabled (<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">fleetctl package [...] --disable-updates</code>).
 </li>
 <li style="margin-bottom: 16px;">
-You have channels pinned to an older version (<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0</code>).
+You have channels pinned to an older version (<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">fleetctl package [...] --orbit-channel 1.0.0 --desktop-channel 1.1.0</code>).
 </li>
 </ul>
 
@@ -136,13 +136,13 @@ You have channels pinned to an older version (<code style="display: inline; back
 Added security headers to HTML, CSV, and installer responses.
 </li>
 <li style="margin-bottom: 16px;">
-Added validation of the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">command_line_flags</code> object in the Agent Options section of Organization Settings and Team Settings.
+Added validation of the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">command_line_flags</code> object in the Agent Options section of Organization Settings and Team Settings.
 </li>
 <li style="margin-bottom: 16px;">
 Added logic to clean up irrelevant policies for a host on re-enrollment (e.g., if a host changes its OS from linux to macOS or it changes teams).
 </li>
 <li style="margin-bottom: 16px;">
-Added the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">inherited_policies</code> array to the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">GET /teams/{team_id}/policies</code> endpoint that lists the global policies inherited by the team, along with the pass/fail counts for the hosts on that team.
+Added the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">inherited_policies</code> array to the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">GET /teams/{team_id}/policies</code> endpoint that lists the global policies inherited by the team, along with the pass/fail counts for the hosts on that team.
 </li>
 <li style="margin-bottom: 16px;">
 Added a new UI state for when results are coming in from a live query or policy query.
@@ -163,7 +163,7 @@ Translated technical error messages returned by Agent options validation to be m
 Renamed machine serial to serial number and IPv4 properly to private IP address.
 </li>
 <li style="margin-bottom: 16px;">
-Fleet Premium: Updated Fleet Desktop to use the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">/device/{token}/desktop</code> API route to display the number of failing policies.
+Fleet Premium: Updated Fleet Desktop to use the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">/device/{token}/desktop</code> API route to display the number of failing policies.
 </li>
 <li style="margin-bottom: 16px;">
 Made host details software tables more responsive by adding links to software details.
@@ -175,13 +175,13 @@ Fixed a bug in which a user would not be rerouted to the Home page if already lo
 Fixed a bug in which clicking the select all checkbox did not select all in some cases.
 </li>
 <li style="margin-bottom: 16px;">
-Fixed a bug introduced in 4.21.0 where a Windows-specific query was being sent to non-Windows hosts, causing an error in query ingestion for <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">directIngestOSWindows</code>.
+Fixed a bug introduced in 4.21.0 where a Windows-specific query was being sent to non-Windows hosts, causing an error in query ingestion for <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">directIngestOSWindows</code>.
 </li>
 <li style="margin-bottom: 16px;">
 Fixed a bug in which uninstalled software (DEB packages) appeared in Fleet.
 </li>
 <li style="margin-bottom: 16px;">
-Fixed a bug in which a team that didn&#39;t have <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">config.features</code> settings was edited via the UI, then both <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">features.enable_host_users</code> and <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">features.enable_software_inventory</code> would be false insead of the global default.
+Fixed a bug in which a team that didn&#39;t have <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">config.features</code> settings was edited via the UI, then both <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">features.enable_host_users</code> and <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">features.enable_software_inventory</code> would be false insead of the global default.
 </li>
 <li style="margin-bottom: 16px;">
 Fixed a bug that resulted in false negatives for vulnerable versions of Zoom, Google Chrome, Adobe Photoshop, Node.js, Visual Studio Code, Adobe Media Encoder, VirtualBox, Adobe Premiere Pro, Pip, and Firefox software.
@@ -190,22 +190,22 @@ Fixed a bug that resulted in false negatives for vulnerable versions of Zoom, Go
 Fixed bug that caused duplicated vulnerabilities to be sent to third-party integrations.
 </li>
 <li style="margin-bottom: 16px;">
-Fixed panic in <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">ingestKubequeryInfo</code> query ingestion.
+Fixed panic in <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">ingestKubequeryInfo</code> query ingestion.
 </li>
 <li style="margin-bottom: 16px;">
-Fixed a bug in which host_count and user_count returned as <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">0</code> in the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">teams/{id}</code> endpoint.
+Fixed a bug in which host_count and user_count returned as <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">0</code> in the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">teams/{id}</code> endpoint.
 </li>
 <li style="margin-bottom: 16px;">
 Fixed a bug in which tooltips for Munki issues would be cut off at the edge of the browser window.
 </li>
 <li style="margin-bottom: 16px;">
-Fixed a bug in which running <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">fleetctl apply</code> with the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">--dry-run</code> flag would fail in some cases.
+Fixed a bug in which running <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">fleetctl apply</code> with the <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">--dry-run</code> flag would fail in some cases.
 </li>
 <li style="margin-bottom: 16px;">
 Fixed a bug in which the Hosts table displayed 20 hosts per page.
 </li>
 <li style="margin-bottom: 16px;">
-Fixed a server panic that occured when a team was edited via YAML without an <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">agent_options</code> key.
+Fixed a server panic that occured when a team was edited via YAML without an <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">agent_options</code> key.
 </li>
 </ul>
 <h2 style="font-weight: 700; font-size: 20px; line-height: 28px; margin-bottom: 16px; margin-top: 32px;">

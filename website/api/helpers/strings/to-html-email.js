@@ -117,7 +117,7 @@ module.exports = {
 
     // For inline codespans
     customRenderer.codespan = function(codeHTML) {
-      return '<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">'+codeHTML+'</code>';
+      return '<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">'+codeHTML+'</code>';
     };
 
     // For links
