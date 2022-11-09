@@ -196,7 +196,26 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Status",
-    Header: "Status",
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+             Online hosts will respond to a live query. Offline<br/>
+             hosts won’t respond to a live query because<br/>
+             they may be shut down, asleep, or not<br/>
+             connected to the internet.
+          `}
+        >
+          Status
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      );
+    },
     disableSortBy: true,
     accessor: "status",
     Cell: (cellProps: ICellProps) => (
