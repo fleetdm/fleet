@@ -30,11 +30,11 @@ Our audience is a little older. But just like the show, Mister Rogers’ method 
 
 Consider this example tweet.
 
-> Distributed workforces aren’t going anywhere anytime soon. It’s past time to start engaging meaningfully with your workforce and getting them to work with your security team instead of around them.
+- Distributed workforces aren’t going anywhere anytime soon. It’s past time to start engaging meaningfully with your workforce and getting them to work with your security team instead of around them.
 
 What would Mister Rogers say? The tweet could look something like this...
 
-> Distributed workforces are here to stay. So, it’s a great time to help employees work with your security experts (and not around them). Because stronger teams get to celebrate more victories.
+- Distributed workforces are here to stay. So, it’s a great time to help employees work with your security experts (and not around them). Because stronger teams get to celebrate more victories.
 
 By Mister Rogersing our writing, we can encourage our readers to succeed by emphasizing optimism. You might not be able to apply all of these steps every time. That’s fine. Think of these as guidelines to help you simplify complex topics.
 
@@ -135,11 +135,11 @@ They’re fun! But too many can undermine your credibility!!!1! Please use them 
 ### Abbreviations and acronyms
 If there’s a chance your reader won’t recognize an abbreviation or acronym, spell it out the first time you mention it and specify the abbreviation in parentheses. Then use the short version for all other references.
 
-<blockquote purpose="large-quote">
-A command-line interface (CLI) is a text-based user interface (UI) used to run programs, manage computer files, and interact with the computer.
+#### Example
 
-The Fleet CLI is called fleetctl.
-</blockquote>
+- A command-line interface (CLI) is a text-based user interface (UI) used to run programs, manage computer files, and interact with the computer.
+
+- The Fleet CLI is called fleetctl.
 
 If the abbreviation or acronym is well known, like API or HTML, use it instead (and don’t worry about spelling it out).
 
