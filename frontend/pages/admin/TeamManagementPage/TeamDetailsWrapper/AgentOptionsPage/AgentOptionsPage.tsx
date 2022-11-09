@@ -109,9 +109,24 @@ const AgentOptionsPage = ({
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
+
+        const agentOptionsInvalid =
+          response.data.errors[0].reason.includes("unsupported key provided") ||
+          response.data.errors[0].reason.includes("invalid value type");
+
         return renderFlash(
           "error",
-          `Could not update ${teamName} team agent options. ${response.data.errors[0].reason}`
+          <>
+            Could not update {teamName} team agent options.{" "}
+            {response.data.errors[0].reason}
+            {agentOptionsInvalid && (
+              <>
+                <br />
+                If you’re not using the latest osquery, use the fleetctl apply
+                --force command to override validation.
+              </>
+            )}
+          </>
         );
       })
       .finally(() => {

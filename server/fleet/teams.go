@@ -250,8 +250,18 @@ const (
 )
 
 type TeamSpec struct {
-	Name         string           `json:"name"`
-	AgentOptions *json.RawMessage `json:"agent_options"`
-	Secrets      []EnrollSecret   `json:"secrets"`
-	Features     *json.RawMessage `json:"features"`
+	Name string `json:"name"`
+
+	// We need to distinguish between the agent_options key being present but
+	// "empty" or being absent, as we leave the existing agent options unmodified
+	// if it is absent, and we clear it if present but empty.
+	//
+	// If the agent_options key is not provided, the field will be nil (Go nil).
+	// If the agent_options key is present but empty in the YAML, will be set to
+	// "null" (JSON null). Otherwise, if the key is present and set, it will be
+	// set to the agent options JSON object.
+	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+
+	Secrets  []EnrollSecret   `json:"secrets"`
+	Features *json.RawMessage `json:"features"`
 }

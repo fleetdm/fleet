@@ -70,20 +70,14 @@
             }
           }
 
-          .issue-link {
+          .munki-issue-link {
             visibility: hidden;
             text-overflow: none;
-            img {
-              vertical-align: text-top;
-              height: 16px;
-              width: 16px;
-            }
           }
 
           &:hover {
-            .issue-link {
+            .munki-issue-link {
               visibility: visible;
-              text-overflow: none;
             }
           }
         }

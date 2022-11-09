@@ -1,7 +1,9 @@
 import React from "react";
+import { COLORS, Colors } from "styles/var/colors";
 
 interface IChevronProps {
-  color?: "coreVibrantBlue" | "coreFleetBlack";
+  color?: Colors;
+  /** Default direction "down" */
   direction?: "up" | "down" | "left" | "right";
 }
 
@@ -16,22 +18,23 @@ const SVG_PATH = {
     "M10.891 7.749 6.594 3.605a.385.385 0 0 0-.528 0l-.957.927a.345.345 0 0 0 0 .502L8.189 8l-3.08 2.966a.345.345 0 0 0 0 .502l.957.927c.145.14.383.14.528 0l4.297-4.144a.345.345 0 0 0 0-.502Z",
 };
 
-const FLEET_COLORS = {
-  coreFleetBlack: "#192147",
-  coreVibrantBlue: "#6a67fe",
-};
-
 const Chevron = ({
-  color = "coreFleetBlack",
+  color = "core-fleet-black",
   direction = "down",
 }: IChevronProps) => {
   return (
-    <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d={SVG_PATH[direction]}
-        fill={FLEET_COLORS[color]}
+        fill={COLORS[color]}
       />
     </svg>
   );

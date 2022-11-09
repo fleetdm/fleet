@@ -205,7 +205,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Issues",
-    Header: () => <img alt="host issues" src={IssueIcon} />,
+    Header: "Issues",
     disableSortBy: true,
     accessor: "issues",
     Cell: (cellProps: ICellProps) => (

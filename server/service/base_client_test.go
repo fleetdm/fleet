@@ -92,19 +92,30 @@ func TestParseResponseGeneralErrors(t *testing.T) {
 
 func TestNewBaseClient(t *testing.T) {
 	t.Run("invalid addresses are an error", func(t *testing.T) {
-		_, err := newBaseClient("invalid", true, "", "", fleet.CapabilityMap{})
+		_, err := newBaseClient("http://foo\x7f.com/", true, "", "", fleet.CapabilityMap{})
 		require.Error(t, err)
 	})
 
 	t.Run("http is only valid in development", func(t *testing.T) {
-		_, err := newBaseClient("http://test.com", true, "", "", fleet.CapabilityMap{})
-		require.Error(t, err)
+		cases := []struct {
+			name               string
+			address            string
+			insecureSkipVerify bool
+			expectedErr        error
+		}{
+			{"http non-local URL without insecureSkipVerify", "http://test.com", false, errInvalidScheme},
+			{"http non-local URL with insecureSkipVerify", "http://test.com", true, nil},
+			{"https", "https://test.com", false, nil},
+			{"http localhost with insecureSkipVerify", "http://localhost:8080", true, nil},
+			{"http localhost without insecureSkipVerify", "http://localhost:8080", false, nil},
+			{"http local ip with insecureSkipVerify", "http://127.0.0.1:8080", true, nil},
+			{"http local ip without insecureSkipVerify", "http://127.0.0.1:8080", false, nil},
+		}
 
-		_, err = newBaseClient("http://localhost:8080", true, "", "", fleet.CapabilityMap{})
-		require.NoError(t, err)
-
-		_, err = newBaseClient("http://127.0.0.1:8080", true, "", "", fleet.CapabilityMap{})
-		require.NoError(t, err)
+		for _, c := range cases {
+			_, err := newBaseClient(c.address, c.insecureSkipVerify, "", "", fleet.CapabilityMap{})
+			require.Equal(t, c.expectedErr, err, c.name)
+		}
 	})
 }
 

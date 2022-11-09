@@ -1,5 +1,5 @@
 .icon {
-  // only style that aligns properly whether in text
-  display: inline;
-  vertical-align: middle;
+  // keeps this element the same size as the svg
+  // aligns properly in text, buttons, dropdowns, summary tile custom component
+  display: inline-flex;
 }

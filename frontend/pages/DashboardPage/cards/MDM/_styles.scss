@@ -54,18 +54,10 @@
         .mdm-solution-link {
           visibility: hidden;
           text-overflow: none;
-          img {
-            vertical-align: text-top;
-            height: 16px;
-            width: 16px;
-          }
         }
-        tr {
-          &:hover {
-            .mdm-solution-link {
-              visibility: visible;
-              text-overflow: none;
-            }
+        tr:hover {
+          .mdm-solution-link {
+            visibility: visible;
           }
         }
       }
