@@ -1508,7 +1508,7 @@ func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 
 		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.Equal(t, 1, n)
+		require.Equal(t, int64(1), n)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
