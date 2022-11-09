@@ -289,6 +289,7 @@ const TeamDetailsWrapper = ({
     try {
       await teamsAPI.destroy(currentTeam.id);
       renderFlash("success", "Team removed");
+      setCurrentTeam(undefined);
       return router.push(PATHS.ADMIN_TEAMS);
     } catch (response) {
       renderFlash("error", "Something went wrong removing the team");
