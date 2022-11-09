@@ -1,6 +1,7 @@
 import React, { ReactNode } from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 
 import Button from "components/buttons/Button";
 
@@ -35,7 +36,10 @@ const FilterPill = ({
       aria-label={`hosts filtered by ${label}`}
     >
       <>
-        <span data-tip={tooltipDescription} data-for="filter-pill-tooltip">
+        <span
+          data-tip={tooltipDescription}
+          data-for={`filter-pill-tooltip-${label}`}
+        >
           <div className={labelClasses}>
             {icon && <img src={icon} alt="" />}
             {label}
@@ -55,7 +59,7 @@ const FilterPill = ({
             place="bottom"
             effect="solid"
             backgroundColor="#3e4771"
-            id="filter-pill-tooltip"
+            id={`filter-pill-tooltip-${label}`}
             data-html
           >
             <span>{tooltipDescription}</span>
