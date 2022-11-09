@@ -267,6 +267,7 @@ const ScheduleEditorModal = ({
               url="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
               text="how to configure a different log destination"
               newTab
+              multiline
             />
             .
           </p>
