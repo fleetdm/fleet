@@ -131,7 +131,7 @@ module.exports.custom = {
   confidentialGithubRepoDRIByPath: {
     'readme.md': ['mikermcneil', 'zwass'],
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'charlottechance'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass'],
     '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
     '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
     '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
