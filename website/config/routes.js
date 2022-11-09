@@ -209,12 +209,18 @@ module.exports.routes = {
   },
 
   'GET /admin/email-preview': {
-    action: 'admin/view-email-templates'
+    action: 'admin/view-email-templates',
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
   },
 
   'GET /admin/email-preview/*': {
     action: 'admin/view-email-template-preview',
-    skipAssets: true
+    skipAssets: true,
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
   },
 
   'GET /tables/:tableName': {
