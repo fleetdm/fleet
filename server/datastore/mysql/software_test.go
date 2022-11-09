@@ -1459,7 +1459,7 @@ func testListSoftwareVulnerabilitiesByHostIDsSource(t *testing.T, ds *Datastore)
 	}
 	n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
 	require.NoError(t, err)
-	require.Equal(t, 2, n)
+	require.Equal(t, int64(2), n)
 
 	result, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.NVDSource)
 	require.NoError(t, err)
