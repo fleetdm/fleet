@@ -40,75 +40,75 @@ func TestParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// All the products we expect to see, grouped by their product name
-	expectedProducts := map[string]map[string]string{
+	expectedProducts := map[string]map[string]parsed.Product{
 		"Windows 10": {
-			"11568": "Windows 10 Version 1809 for 32-bit Systems",
-			"11569": "Windows 10 Version 1809 for x64-based Systems",
-			"11570": "Windows 10 Version 1809 for ARM64-based Systems",
-			"11712": "Windows 10 Version 1909 for 32-bit Systems",
-			"11713": "Windows 10 Version 1909 for x64-based Systems",
-			"11714": "Windows 10 Version 1909 for ARM64-based Systems",
-			"11896": "Windows 10 Version 21H1 for x64-based Systems",
-			"11897": "Windows 10 Version 21H1 for ARM64-based Systems",
-			"11898": "Windows 10 Version 21H1 for 32-bit Systems",
-			"11800": "Windows 10 Version 20H2 for x64-based Systems",
-			"11801": "Windows 10 Version 20H2 for 32-bit Systems",
-			"11802": "Windows 10 Version 20H2 for ARM64-based Systems",
-			"11929": "Windows 10 Version 21H2 for 32-bit Systems",
-			"11930": "Windows 10 Version 21H2 for ARM64-based Systems",
-			"11931": "Windows 10 Version 21H2 for x64-based Systems",
-			"10729": "Windows 10 for 32-bit Systems",
-			"10735": "Windows 10 for x64-based Systems",
-			"10852": "Windows 10 Version 1607 for 32-bit Systems",
-			"10853": "Windows 10 Version 1607 for x64-based Systems",
+			"11568": parsed.NewProductFromFullName("Windows 10 Version 1809 for 32-bit Systems"),
+			"11569": parsed.NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems"),
+			"11570": parsed.NewProductFromFullName("Windows 10 Version 1809 for ARM64-based Systems"),
+			"11712": parsed.NewProductFromFullName("Windows 10 Version 1909 for 32-bit Systems"),
+			"11713": parsed.NewProductFromFullName("Windows 10 Version 1909 for x64-based Systems"),
+			"11714": parsed.NewProductFromFullName("Windows 10 Version 1909 for ARM64-based Systems"),
+			"11896": parsed.NewProductFromFullName("Windows 10 Version 21H1 for x64-based Systems"),
+			"11897": parsed.NewProductFromFullName("Windows 10 Version 21H1 for ARM64-based Systems"),
+			"11898": parsed.NewProductFromFullName("Windows 10 Version 21H1 for 32-bit Systems"),
+			"11800": parsed.NewProductFromFullName("Windows 10 Version 20H2 for x64-based Systems"),
+			"11801": parsed.NewProductFromFullName("Windows 10 Version 20H2 for 32-bit Systems"),
+			"11802": parsed.NewProductFromFullName("Windows 10 Version 20H2 for ARM64-based Systems"),
+			"11929": parsed.NewProductFromFullName("Windows 10 Version 21H2 for 32-bit Systems"),
+			"11930": parsed.NewProductFromFullName("Windows 10 Version 21H2 for ARM64-based Systems"),
+			"11931": parsed.NewProductFromFullName("Windows 10 Version 21H2 for x64-based Systems"),
+			"10729": parsed.NewProductFromFullName("Windows 10 for 32-bit Systems"),
+			"10735": parsed.NewProductFromFullName("Windows 10 for x64-based Systems"),
+			"10852": parsed.NewProductFromFullName("Windows 10 Version 1607 for 32-bit Systems"),
+			"10853": parsed.NewProductFromFullName("Windows 10 Version 1607 for x64-based Systems"),
 		},
 		"Windows Server 2019": {
-			"11571": "Windows Server 2019",
-			"11572": "Windows Server 2019  (Server Core installation)",
+			"11571": parsed.NewProductFromFullName("Windows Server 2019"),
+			"11572": parsed.NewProductFromFullName("Windows Server 2019  (Server Core installation)"),
 		},
 		"Windows Server 2022": {
-			"11923": "Windows Server 2022",
-			"11924": "Windows Server 2022 (Server Core installation)",
+			"11923": parsed.NewProductFromFullName("Windows Server 2022"),
+			"11924": parsed.NewProductFromFullName("Windows Server 2022 (Server Core installation)"),
 		},
 		"Windows Server": {
-			"11803": "Windows Server, version 20H2 (Server Core Installation)",
+			"11803": parsed.NewProductFromFullName("Windows Server, version 20H2 (Server Core Installation)"),
 		},
 		"Windows 11": {
-			"11926": "Windows 11 for x64-based Systems",
-			"11927": "Windows 11 for ARM64-based Systems",
+			"11926": parsed.NewProductFromFullName("Windows 11 for x64-based Systems"),
+			"11927": parsed.NewProductFromFullName("Windows 11 for ARM64-based Systems"),
 		},
 		"Windows Server 2016": {
-			"10816": "Windows Server 2016",
-			"10855": "Windows Server 2016  (Server Core installation)",
+			"10816": parsed.NewProductFromFullName("Windows Server 2016"),
+			"10855": parsed.NewProductFromFullName("Windows Server 2016  (Server Core installation)"),
 		},
 		"Windows 8.1": {
-			"10481": "Windows 8.1 for 32-bit systems",
-			"10482": "Windows 8.1 for x64-based systems",
+			"10481": parsed.NewProductFromFullName("Windows 8.1 for 32-bit systems"),
+			"10482": parsed.NewProductFromFullName("Windows 8.1 for x64-based systems"),
 		},
 		"Windows RT 8.1": {
-			"10484": "Windows RT 8.1",
+			"10484": parsed.NewProductFromFullName("Windows RT 8.1"),
 		},
 		"Windows Server 2012": {
-			"10378": "Windows Server 2012",
-			"10379": "Windows Server 2012 (Server Core installation)",
+			"10378": parsed.NewProductFromFullName("Windows Server 2012"),
+			"10379": parsed.NewProductFromFullName("Windows Server 2012 (Server Core installation)"),
 		},
 		"Windows Server 2012 R2": {
-			"10483": "Windows Server 2012 R2",
-			"10543": "Windows Server 2012 R2 (Server Core installation)",
+			"10483": parsed.NewProductFromFullName("Windows Server 2012 R2"),
+			"10543": parsed.NewProductFromFullName("Windows Server 2012 R2 (Server Core installation)"),
 		},
 		"Windows 7": {
-			"10047": "Windows 7 for 32-bit Systems Service Pack 1",
-			"10048": "Windows 7 for x64-based Systems Service Pack 1",
+			"10047": parsed.NewProductFromFullName("Windows 7 for 32-bit Systems Service Pack 1"),
+			"10048": parsed.NewProductFromFullName("Windows 7 for x64-based Systems Service Pack 1"),
 		},
 		"Windows Server 2008": {
-			"9312":  "Windows Server 2008 for 32-bit Systems Service Pack 2",
-			"10287": "Windows Server 2008 for 32-bit Systems Service Pack 2 (Server Core installation)",
-			"9318":  "Windows Server 2008 for x64-based Systems Service Pack 2",
-			"9344":  "Windows Server 2008 for x64-based Systems Service Pack 2 (Server Core installation)",
+			"9312":  parsed.NewProductFromFullName("Windows Server 2008 for 32-bit Systems Service Pack 2"),
+			"10287": parsed.NewProductFromFullName("Windows Server 2008 for 32-bit Systems Service Pack 2 (Server Core installation)"),
+			"9318":  parsed.NewProductFromFullName("Windows Server 2008 for x64-based Systems Service Pack 2"),
+			"9344":  parsed.NewProductFromFullName("Windows Server 2008 for x64-based Systems Service Pack 2 (Server Core installation)"),
 		},
 		"Windows Server 2008 R2": {
-			"10051": "Windows Server 2008 R2 for x64-based Systems Service Pack 1",
-			"10049": "Windows Server 2008 R2 for x64-based Systems Service Pack 1 (Server Core installation)",
+			"10051": parsed.NewProductFromFullName("Windows Server 2008 R2 for x64-based Systems Service Pack 1"),
+			"10049": parsed.NewProductFromFullName("Windows Server 2008 R2 for x64-based Systems Service Pack 1 (Server Core installation)"),
 		},
 	}
 
@@ -736,7 +736,7 @@ func TestParser(t *testing.T) {
 					"10852": true,
 					"10853": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013941: true,
 					5013952: true,
 					5013942: true,
@@ -752,7 +752,7 @@ func TestParser(t *testing.T) {
 					"11571": true,
 					"11572": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013941: true,
 				},
 			},
@@ -765,7 +765,7 @@ func TestParser(t *testing.T) {
 					"11923": true,
 					"11924": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013944: true,
 				},
 			},
@@ -777,7 +777,7 @@ func TestParser(t *testing.T) {
 				ProductIDs: map[string]bool{
 					"11803": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013942: true,
 				},
 			},
@@ -792,7 +792,7 @@ func TestParser(t *testing.T) {
 					"9318":  true,
 					"9344":  true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014010: true,
 					5014006: true,
 				},
@@ -806,7 +806,7 @@ func TestParser(t *testing.T) {
 					"10051": true,
 					"10049": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014012: true,
 					5013999: true,
 				},
@@ -820,7 +820,7 @@ func TestParser(t *testing.T) {
 					"10378": true,
 					"10379": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014017: true,
 					5014018: true,
 				},
@@ -834,7 +834,7 @@ func TestParser(t *testing.T) {
 					"10483": true,
 					"10543": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014011: true,
 					5014001: true,
 				},
@@ -848,7 +848,7 @@ func TestParser(t *testing.T) {
 					"10047": true,
 					"10048": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014012: true,
 					5013999: true,
 				},
@@ -862,7 +862,7 @@ func TestParser(t *testing.T) {
 					"10816": true,
 					"10855": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013952: true,
 				},
 			},
@@ -875,7 +875,7 @@ func TestParser(t *testing.T) {
 					"11926": true,
 					"11927": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5013943: true,
 				},
 			},
@@ -887,7 +887,7 @@ func TestParser(t *testing.T) {
 				ProductIDs: map[string]bool{
 					"10484": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014025: true,
 				},
 			},
@@ -900,7 +900,7 @@ func TestParser(t *testing.T) {
 					"10481": true,
 					"10482": true,
 				},
-				RemediatedBy: map[int]bool{
+				RemediatedBy: map[uint]bool{
 					5014011: true,
 					5014001: true,
 				},
@@ -909,7 +909,7 @@ func TestParser(t *testing.T) {
 	}
 
 	// A random vulnerability ("CVE-2022-29137")
-	expectedVendorFixes := map[string]map[int]parsed.VendorFix{
+	expectedVendorFixes := map[string]map[uint]parsed.VendorFix{
 		"Windows 10": {
 			5013941: {
 				FixedBuild: "10.0.17763.2928",
@@ -918,7 +918,7 @@ func TestParser(t *testing.T) {
 					"11569": true,
 					"11570": true,
 				},
-				Supersedes: ptr.Int(5012647),
+				Supersedes: ptr.Uint(5012647),
 			},
 			5013952: {
 				FixedBuild: "10.0.14393.5125",
@@ -926,7 +926,7 @@ func TestParser(t *testing.T) {
 					"10852": true,
 					"10853": true,
 				},
-				Supersedes: ptr.Int(5012596),
+				Supersedes: ptr.Uint(5012596),
 			},
 			5013942: {
 				FixedBuild: "10.0.19043.1706",
@@ -941,7 +941,7 @@ func TestParser(t *testing.T) {
 					"11930": true,
 					"11931": true,
 				},
-				Supersedes: ptr.Int(5012599),
+				Supersedes: ptr.Uint(5012599),
 			},
 			5013963: {
 				FixedBuild: "10.0.10240.19297",
@@ -949,7 +949,7 @@ func TestParser(t *testing.T) {
 					"10729": true,
 					"10735": true,
 				},
-				Supersedes: ptr.Int(5012653),
+				Supersedes: ptr.Uint(5012653),
 			},
 
 			5013945: {
@@ -959,7 +959,7 @@ func TestParser(t *testing.T) {
 					"11713": true,
 					"11714": true,
 				},
-				Supersedes: ptr.Int(5012591),
+				Supersedes: ptr.Uint(5012591),
 			},
 		},
 		"Windows Server 2019": {
@@ -969,7 +969,7 @@ func TestParser(t *testing.T) {
 					"11571": true,
 					"11572": true,
 				},
-				Supersedes: ptr.Int(5012647),
+				Supersedes: ptr.Uint(5012647),
 			},
 		},
 
@@ -980,7 +980,7 @@ func TestParser(t *testing.T) {
 					"11923": true,
 					"11924": true,
 				},
-				Supersedes: ptr.Int(5012604),
+				Supersedes: ptr.Uint(5012604),
 			},
 		},
 
@@ -990,149 +990,149 @@ func TestParser(t *testing.T) {
 				ProductIDs: map[string]bool{
 					"11803": true,
 				},
-				Supersedes: ptr.Int(5012599),
+				Supersedes: ptr.Uint(5012599),
 			},
 		},
 
 		"Windows Server 2008": {
 			5014010: {
+				FixedBuild: "6.0.6003.21481",
 				ProductIDs: map[string]bool{
 					"9312":  true,
 					"10287": true,
 					"9318":  true,
 					"9344":  true,
 				},
-				FixedBuild: "6.0.6003.21481",
-				Supersedes: ptr.Int(5012658),
+				Supersedes: ptr.Uint(5012658),
 			},
 			5014006: {
+				FixedBuild: "6.0.6003.21481",
 				ProductIDs: map[string]bool{
 					"9312":  true,
 					"10287": true,
 					"9318":  true,
 					"9344":  true,
 				},
-				FixedBuild: "6.0.6003.21481",
 			},
 		},
 
 		"Windows Server 2008 R2": {
 			5014012: {
+				FixedBuild: "6.1.7601.25954",
 				ProductIDs: map[string]bool{
 					"10051": true,
 					"10049": true,
 				},
-				Supersedes: ptr.Int(5012626),
-				FixedBuild: "6.1.7601.25954",
+				Supersedes: ptr.Uint(5012626),
 			},
 			5013999: {
+				FixedBuild: "6.1.7601.25954",
 				ProductIDs: map[string]bool{
 					"10051": true,
 					"10049": true,
 				},
-				FixedBuild: "6.1.7601.25954",
 			},
 		},
 
 		"Windows Server 2012": {
 			5014017: {
+				FixedBuild: "6.2.9200.23714",
 				ProductIDs: map[string]bool{
 					"10378": true,
 					"10379": true,
 				},
-				Supersedes: ptr.Int(5012650),
-				FixedBuild: "6.2.9200.23714",
+				Supersedes: ptr.Uint(5012650),
 			},
 			5014018: {
+				FixedBuild: "6.2.9200.23714",
 				ProductIDs: map[string]bool{
 					"10378": true,
 					"10379": true,
 				},
-				FixedBuild: "6.2.9200.23714",
 			},
 		},
 
 		"Windows Server 2012 R2": {
 			5014011: {
+				FixedBuild: "6.3.9600.20371",
 				ProductIDs: map[string]bool{
 					"10483": true,
 					"10543": true,
 				},
-				FixedBuild: "6.3.9600.20371",
-				Supersedes: ptr.Int(5012670),
+				Supersedes: ptr.Uint(5012670),
 			},
 			5014001: {
+				FixedBuild: "6.3.9600.20365",
 				ProductIDs: map[string]bool{
 					"10483": true,
 					"10543": true,
 				},
-				FixedBuild: "6.3.9600.20365",
 			},
 		},
 
 		"Windows 7": {
 			5014012: {
+				FixedBuild: "6.1.7601.25954",
 				ProductIDs: map[string]bool{
 					"10047": true,
 					"10048": true,
 				},
-				Supersedes: ptr.Int(5012626),
-				FixedBuild: "6.1.7601.25954",
+				Supersedes: ptr.Uint(5012626),
 			},
 			5013999: {
+				FixedBuild: "6.1.7601.25954",
 				ProductIDs: map[string]bool{
 					"10047": true,
 					"10048": true,
 				},
-				FixedBuild: "6.1.7601.25954",
 			},
 		},
 
 		"Windows Server 2016": {
 			5013952: {
+				FixedBuild: "10.0.14393.5125",
 				ProductIDs: map[string]bool{
 					"10816": true,
 					"10855": true,
 				},
-				FixedBuild: "10.0.14393.5125",
 			},
 		},
 
 		"Windows 11": {
 			5013943: {
+				FixedBuild: "10.0.22000.675",
 				ProductIDs: map[string]bool{
 					"11926": true,
 					"11927": true,
 				},
-				FixedBuild: "10.0.22000.675",
-				Supersedes: ptr.Int(5012592),
+				Supersedes: ptr.Uint(5012592),
 			},
 		},
 
 		"Windows RT 8.1": {
 			5014025: {
+				FixedBuild: "6.3.9600.20367",
 				ProductIDs: map[string]bool{
 					"10484": true,
 				},
-				FixedBuild: "6.3.9600.20367",
 			},
 		},
 
 		"Windows 8.1": {
 			5014011: {
+				FixedBuild: "6.3.9600.20371",
 				ProductIDs: map[string]bool{
 					"10481": true,
 					"10482": true,
 				},
-				FixedBuild: "6.3.9600.20371",
-				Supersedes: ptr.Int(5012670),
+				Supersedes: ptr.Uint(5012670),
 			},
 			5014001: {
+				FixedBuild: "6.3.9600.20365",
 				ProductIDs: map[string]bool{
 					"10481": true,
 					"10482": true,
 				},
-				FixedBuild: "6.3.9600.20365",
 			},
 		},
 	}
@@ -1217,7 +1217,7 @@ func TestParser(t *testing.T) {
 				for pID, pFn := range grp {
 					expected = append(
 						expected,
-						msrcxml.Product{ProductID: pID, FullName: pFn},
+						msrcxml.Product{ProductID: pID, FullName: string(pFn)},
 					)
 				}
 			}

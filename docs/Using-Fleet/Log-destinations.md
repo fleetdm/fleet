@@ -12,14 +12,14 @@
 
 This document provides a list of the supported log destinations in Fleet.
 
-To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for [osquery logging configuration options](../Deploying/Configuration.md#osquery-status-log-plugin).
+To configure each log destination, you must set the correct osquery logging configuration options in Fleet. Check out the reference documentation for [osquery logging configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin).
 
 ## Amazon Kinesis Data Firehose
 
 Logs are written to [Amazon Kinesis Data Firehose (Firehose)](https://aws.amazon.com/kinesis/data-firehose/).
 
 - Plugin name: `firehose`
-- Flag namespace: [firehose](../Deploying/Configuration.md#firehose)
+- Flag namespace: [firehose](https://fleetdm.com/docs/deploying/configuration#firehose)
 
 This is a very good method for aggregating osquery logs into [Amazon S3](https://aws.amazon.com/s3/).
 
@@ -50,7 +50,7 @@ Splunk provides instructions on how to prepare the Splunk platform for Firehose 
 Logs are written to [Amazon Kinesis Data Streams (Kinesis)](https://aws.amazon.com/kinesis/data-streams).
 
 - Plugin name: `kinesis`
-- Flag namespace: [kinesis](../Deploying/Configuration.md#kinesis)
+- Flag namespace: [kinesis](https://fleetdm.com/docs/deploying/configuration#kinesis)
 
 Note that Kinesis logging has limits [discussed in the
 documentation](https://docs.aws.amazon.com/kinesis/latest/dev/limits.html).
@@ -62,7 +62,7 @@ in the Fleet server logs. Those osquery logs **will not** be sent to Kinesis.
 Logs are written to [AWS Lambda (Lambda)](https://aws.amazon.com/lambda/).
 
 - Plugin name: `lambda`
-- Flag namespace: [lambda](../Deploying/Configuration.md#lambda)
+- Flag namespace: [lambda](https://fleetdm.com/docs/deploying/configuration#lambda)
 
 Lambda processes logs from Fleet synchronously, so the Lambda function used must not take enough processing time that the osquery client times out while writing logs. If there is heavy processing to be done, use Lambda to store the logs in another datastore/queue before performing the long-running process.
 
@@ -82,7 +82,7 @@ Keep this in mind when using Lambda, as you're charged based on the number of re
 Logs are written to [Google Cloud Pub/Sub (Pub/Sub)](https://cloud.google.com/pubsub).
 
 - Plugin name: `pubsub`
-- Flag namespace: [pubsub](../Deploying/Configuration.md#pubsub)
+- Flag namespace: [pubsub](https://fleetdm.com/docs/deploying/configuration#pubsub)
 
 Messages over 10MB will be dropped, with a notification sent to the Fleet logs, as these can never be processed by Pub/Sub.
 
@@ -91,7 +91,7 @@ Messages over 10MB will be dropped, with a notification sent to the Fleet logs, 
 Logs are written to [Apache Kafka (Kafka)](https://kafka.apache.org/) using the [Kafka REST proxy](https://github.com/confluentinc/kafka-rest).
 
 - Plugin name: `kafkarest`
-- Flag namespace: [kafka](../Deploying/Configuration.md#kafka)
+- Flag namespace: [kafka](https://fleetdm.com/docs/deploying/configuration#kafka)
 
 Note that the REST proxy must be in place in order to send osquery logs to Kafka topics. 
 
@@ -100,7 +100,7 @@ Note that the REST proxy must be in place in order to send osquery logs to Kafka
 Logs are written to stdout.
 
 - Plugin name: `stdout`
-- Flag namespace: [stdout](../Deploying/Configuration.md#stdout)
+- Flag namespace: [stdout](https://fleetdm.com/docs/deploying/configuration#stdout)
 
 With the stdout plugin, osquery result and/or status logs are written to stdout
 on the Fleet server. This is typically used for debugging or with a log
@@ -117,7 +117,7 @@ Logs are written to the local Fleet server filesystem.
 The default log destination.
 
 - Plugin name: `filesystem`
-- Flag namespace: [filesystem](../Deploying/Configuration.md#filesystem)
+- Flag namespace: [filesystem](https://fleetdm.com/docs/deploying/configuration#filesystem)
 
 With the filesystem plugin, osquery result and/or status logs are written to the local filesystem on the Fleet server. This is typically used with a log forwarding agent on the Fleet server that will push the logs into a logging pipeline. 
 

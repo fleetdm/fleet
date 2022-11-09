@@ -3,17 +3,13 @@ package oval
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
+	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 const (
@@ -85,7 +81,7 @@ func Analyze(
 		}
 
 		for _, hId := range hIds {
-			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
+			insrt, del := utils.VulnsDelta(foundInBatch[hId], existingInBatch[hId])
 			for _, i := range insrt {
 				toInsertSet[i.Key()] = i
 			}
@@ -95,9 +91,9 @@ func Analyze(
 		}
 	}
 
-	err = batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
+	err = utils.BatchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
 		return ds.DeleteSoftwareVulnerabilities(ctx, v)
-	})
+	}, vulnBatchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +103,8 @@ func Analyze(
 		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
 	}
 
-	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := ds.InsertVulnerabilities(ctx, v, source)
+	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, v, source)
 		if err != nil {
 			return err
 		}
@@ -118,78 +114,12 @@ func Analyze(
 		}
 
 		return nil
-	})
+	}, vulnBatchSize)
 	if err != nil {
 		return nil, err
 	}
 
 	return inserted, nil
-}
-
-func batchProcess(
-	values map[string]fleet.SoftwareVulnerability,
-	dsFunc func(v []fleet.SoftwareVulnerability) error,
-) error {
-	if len(values) == 0 {
-		return nil
-	}
-
-	bSize := vulnBatchSize
-	if bSize > len(values) {
-		bSize = len(values)
-	}
-
-	buffer := make([]fleet.SoftwareVulnerability, bSize)
-	var offset, i int
-	for _, v := range values {
-		buffer[offset] = v
-		offset++
-		i++
-
-		// Consume buffer if full or if we are at the last iteration
-		if offset == bSize || i >= len(values) {
-			err := dsFunc(buffer[:offset])
-			if err != nil {
-				return err
-			}
-			offset = 0
-		}
-	}
-	return nil
-}
-
-// vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
-// and returns what to insert and what to delete.
-func vulnsDelta(
-	found []fleet.SoftwareVulnerability,
-	existing []fleet.SoftwareVulnerability,
-) (toInsert []fleet.SoftwareVulnerability, toDelete []fleet.SoftwareVulnerability) {
-	toDelete = make([]fleet.SoftwareVulnerability, 0)
-	toInsert = make([]fleet.SoftwareVulnerability, 0)
-
-	existingSet := make(map[string]bool)
-	for _, e := range existing {
-		existingSet[e.Key()] = true
-	}
-
-	foundSet := make(map[string]bool)
-	for _, f := range found {
-		foundSet[f.Key()] = true
-	}
-
-	for _, e := range existing {
-		if _, ok := foundSet[e.Key()]; !ok {
-			toDelete = append(toDelete, e)
-		}
-	}
-
-	for _, f := range found {
-		if _, ok := existingSet[f.Key()]; !ok {
-			toInsert = append(toInsert, f)
-		}
-	}
-
-	return toInsert, toDelete
 }
 
 // loadDef returns the latest oval Definition for the given platform.
@@ -198,7 +128,8 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		return nil, fmt.Errorf("platform %q not supported", platform)
 	}
 
-	latest, err := latestOvalDefFor(platform, vulnPath, time.Now())
+	fileName := platform.ToFilename(time.Now(), "json")
+	latest, err := utils.LatestFile(fileName, vulnPath)
 	if err != nil {
 		return nil, err
 	}
@@ -224,43 +155,4 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	}
 
 	return nil, fmt.Errorf("don't know how to parse file %q for %q platform", latest, platform)
-}
-
-// latestOvalDefFor returns the path of the OVAL definition for the given 'platform' in
-// 'vulnPath' for the given 'date'.
-// If not found, returns the most up to date OVAL definition for the given 'platform'
-func latestOvalDefFor(platform Platform, vulnPath string, date time.Time) (string, error) {
-	ext := "json"
-	fileName := platform.ToFilename(date, ext)
-	target := filepath.Join(vulnPath, fileName)
-
-	switch _, err := os.Stat(target); {
-	case err == nil:
-		return target, nil
-	case errors.Is(err, fs.ErrNotExist):
-		files, err := os.ReadDir(vulnPath)
-		if err != nil {
-			return "", err
-		}
-
-		prefix := strings.Split(fileName, "-")[0]
-		var latest os.FileInfo
-		for _, f := range files {
-			if strings.HasPrefix(f.Name(), prefix) && strings.HasSuffix(f.Name(), ext) {
-				info, err := f.Info()
-				if err != nil {
-					continue
-				}
-				if latest == nil || info.ModTime().After(latest.ModTime()) {
-					latest = info
-				}
-			}
-		}
-		if latest == nil {
-			return "", fmt.Errorf("file not found for platform '%s' in '%s'", platform, vulnPath)
-		}
-		return filepath.Join(vulnPath, latest.Name()), nil
-	default:
-		return "", fmt.Errorf("failed to stat %q: %w", target, err)
-	}
 }

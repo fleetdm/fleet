@@ -48,11 +48,12 @@ const EnrollSecretTable = ({
       </div>
     );
   }
+
   return (
     <div className={enrollSecretsClass}>
-      {secrets.map((secretInfo) => (
-        <EnrollSecretRow secret={secretInfo} key={secretInfo.secret} />
-      ))}
+      {secrets.map((secretInfo) => {
+        return <EnrollSecretRow secret={secretInfo} key={secretInfo.secret} />;
+      })}
     </div>
   );
 };

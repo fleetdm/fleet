@@ -16,6 +16,8 @@ type InitialStateType = {
   hideFlash: () => void;
 };
 
+export type INotificationContext = InitialStateType;
+
 const initialState = {
   notification: null,
   renderFlash: noop,
