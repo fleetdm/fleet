@@ -135,8 +135,6 @@ They’re fun! But too many can undermine your credibility!!!1! Please use them 
 ### Abbreviations and acronyms
 If there’s a chance your reader won’t recognize an abbreviation or acronym, spell it out the first time you mention it and specify the abbreviation in parentheses. Then use the short version for all other references.
 
-#### Example
-
 - A command-line interface (CLI) is a text-based user interface (UI) used to run programs, manage computer files, and interact with the computer.
 
 - The Fleet CLI is called fleetctl.
