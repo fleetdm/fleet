@@ -2,32 +2,33 @@
 
 - [Introduction](#introduction)
 - [Try Orbit](#try-orbit)
-    + [With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):](#with---fleetctl-preview--already-running--https---githubcom-fleetdm-fleet-try-fleet--)
+    - [With [`fleetctl preview` already running](https://github.com/fleetdm/fleet#try-fleet):](#with---fleetctl-preview--already-running--https---githubcom-fleetdm-fleet-try-fleet--)
 - [Capabilities](#capabilities)
 - [Usage](#usage)
-  * [Permissions](#permissions)
-    + [macOS/Linux](#macos-linux)
-    + [Windows](#windows)
-  * [Osquery shell](#osquery-shell)
-  * [Connect to a Fleet server](#connect-to-a-fleet-server)
-  * [Osquery flags](#osquery-flags)
+  - [Permissions](#permissions)
+    - [macOS/Linux](#macos-linux)
+    - [Windows](#windows)
+  - [Osquery shell](#osquery-shell)
+  - [Connect to a Fleet server](#connect-to-a-fleet-server)
+  - [Osquery flags](#osquery-flags)
 - [Packaging](#packaging)
-  * [Dependencies](#dependencies)
-  * [Packaging support](#packaging-support)
-  * [Building packages](#building-packages)
-    + [Update channels](#update-channels)
-    + [macOS signing & notarization](#macos-signing---notarization)
-    + [Orbit osquery result and status logs](#orbit-osquery-result-and-status-logs)
-    + [Orbit development](#orbit-development)
+  - [Dependencies](#dependencies)
+  - [Packaging support](#packaging-support)
+  - [Building packages](#building-packages)
+    - [Configuration options](#configuration-options)
+    - [Update channels](#update-channels)
+    - [macOS signing & notarization](#macos-signing---notarization)
+    - [Orbit osquery result and status logs](#orbit-osquery-result-and-status-logs)
+    - [Orbit development](#orbit-development)
       - [Run Orbit from source](#run-orbit-from-source)
       - [Generate installer packages from Orbit source](#generate-installer-packages-from-orbit-source)
-  * [Troubleshooting](#troubleshooting)
-    + [Logs](#logs)
-    + [Debug](#debug)
-  * [Uninstall](#uninstall)
-    + [Windows](#windows-1)
-    + [Linux](#linux)
-    + [macOS](#macos)
+  - [Troubleshooting](#troubleshooting)
+    - [Logs](#logs)
+    - [Debug](#debug)
+  - [Uninstall](#uninstall)
+    - [Windows](#windows-1)
+    - [Linux](#linux)
+    - [macOS](#macos)
 - [Bugs](#bugs)
 
 
@@ -160,8 +161,32 @@ fleetctl package --type deb --fleet-url=fleet.example.com --enroll-secret=notsos
 This will build a `.deb` package configured to communicate with a Fleet server at `fleet.example.com` using the enroll secret `notsosecret`.
 
 When the Fleet server uses a self-signed (or otherwise invalid) TLS certificate, package with the `--insecure` or `--fleet-certificate` options.
+#### Configuration options
 
-See `fleetctl package` for the full range of packaging options.
+The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
+
+|Flag | Options|
+|------|--------|
+|  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
+|--fleet-desktop |      Include Fleet Desktop. |
+|--enroll-secret |      Enroll secret for authenticating to Fleet server |
+|--fleet-url |          URL (`host:port`) of Fleet server |
+|--fleet-certificate |  Path to server certificate bundle |
+|--identifier |         Identifier for package product (default: `com.fleetdm.orbit`) |
+|--version |            Version for package product (default: `0.0.3`) |
+| --insecure  |             Disable TLS certificate verification (default: `false`) |
+| --service   |             Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`) |
+|--sign-identity |      Identity to use for macOS codesigning |
+| --notarize |             Whether to notarize macOS packages (default: `false`) |
+| --disable-updates |   Disable auto updates on the generated package (default: false) |
+|--osqueryd-channel |   Update channel of osqueryd to use (default: `stable`) |
+|--orbit-channel |      Update channel of Orbit to use (default: `stable`) |
+|--desktop-channel |    Update channel of desktop to use (default: `stable`) |
+|--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
+|--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
+| --debug     |             Enable debug logging (default: `false`) |
+| --verbose   |             Log detailed information when building the package (default: false) |
+| --help, -h    |             show help (default: `false`) |
 
 #### Fleet Desktop
 
@@ -280,3 +305,5 @@ Run the [cleanup script](./tools/cleanup/cleanup_macos.sh).
 ## Bugs
 
 [Create an issue](https://github.com/fleetdm/fleet/issues) to report a bug or request a feature.
+
+<meta name="pageOrderInSection" value="600">
