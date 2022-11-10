@@ -618,7 +618,7 @@ const HostDetailsPage = ({
                 }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
-              {macadmins && (
+              {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
