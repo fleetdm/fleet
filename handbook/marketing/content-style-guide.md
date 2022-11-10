@@ -26,7 +26,6 @@ Our audience is a little older. But just like the show, Mister Rogers’ method 
 - Rephrase the idea to eliminate anything that may not apply to your reader.
 - Add a motivational idea that gives your reader a reason to follow your advice.
 - Rephrase the new statement, repeating the first step.
-- Rephrase the idea a ﬁnal time, relating it to an important moment in your reader’s life.
 
 Consider this example tweet.
 
@@ -59,7 +58,7 @@ Osquery should always be written in lowercase unless used to start a sentence or
 Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
 
 #### Context
-Headings should guide readers through your writing. While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL.  
+Headings should guide readers through your writing. While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  
 
 Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document.
 
@@ -74,7 +73,7 @@ Keep headings brief, organized, and in a logical order:
 Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
 
 #### Sentence case
-Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels. In sentence case, we write titles as if they were sentences:
+Fleet uses sentence case capitalization for all headings across the Fleet product, fleetdm.com, our documentation, and our marketing material. In sentence case, we write titles as if they were sentences:
 
 - Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
@@ -281,7 +280,7 @@ Any change to Fleet’s code should be documented, from adding patches to buildi
 
 You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
 
-Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before commiting a line of code.
+Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before committing a line of code.
 
 
 <meta name="maintainedBy" value="chris-mcgillicuddy">
