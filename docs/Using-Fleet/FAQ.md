@@ -390,7 +390,7 @@ In those cases, we recommend a slow rollout by partially enabling the feature by
 When updating agent options, you may see an error similar to this:
 
 ```
-Could not update settings. unsupported key provided: "logger_plugin"
+[...] unsupported key provided: "logger_plugin"
 If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
 ```
 
