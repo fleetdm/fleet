@@ -48,7 +48,7 @@
 
   .input-field {
     &__textarea {
-      min-height: 70px;
+      min-height: 94px;
     }
 
     &__textarea,
@@ -60,6 +60,12 @@
       line-height: 20px;
       margin-bottom: 0;
       padding: $pad-medium $pad-large $pad-medium $pad-medium;
+    }
+  }
+
+  &__advanced {
+    .input-field {
+      height: 115px;
     }
   }
 
