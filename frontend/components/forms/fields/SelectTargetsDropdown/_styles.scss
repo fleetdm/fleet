@@ -82,10 +82,6 @@
       color: $ui-fleet-black-50;
     }
 
-    // .Select-arrow-zone {
-    //   padding-right: 30px;
-    // }
-
     &.Select--multi {
       .Select-option {
         padding: 0;
@@ -146,7 +142,6 @@
   .Select-value {
     border-radius: $border-radius;
     background-color: $core-white;
-    // border: solid 1px $ui-fleet-blue-15;
 
     .Select-value-icon {
       height: 100%;
