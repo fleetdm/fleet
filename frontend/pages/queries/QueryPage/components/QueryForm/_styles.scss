@@ -41,6 +41,7 @@
 
     .edit-link {
       cursor: pointer;
+      padding-left: 12px;
     }
 
     .name-description {
@@ -48,6 +49,7 @@
       margin: $pad-medium 24px 0 0;
       .query-name-wrapper {
         display: flex;
+
         &:not(.query-form--editing) {
           textarea:hover {
             cursor: pointer;
@@ -56,8 +58,8 @@
         }
         .edit-icon {
           position: relative;
-          left: 3px;
           top: 13px;
+          margin-left: 0;
         }
         .query-form__query-name,
         .input-sizer::after {
@@ -80,8 +82,8 @@
         }
         .edit-icon {
           position: relative;
-          left: 3px;
           top: 0;
+          margin-left: 0;
         }
       }
       .edit-icon {

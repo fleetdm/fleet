@@ -413,6 +413,7 @@ const DashboardPage = (): JSX.Element => {
         lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });

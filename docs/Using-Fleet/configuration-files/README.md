@@ -288,16 +288,16 @@ This is the additional information to collect from hosts along with the host det
 - Optional setting (dictionary of key-value strings)
 - Default value: none (empty)
 - Config file format:
-  ```
+  ```yaml
   features:
-  	additional_queries:
+    additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
   ```
 - Deprecated config file format:
-  ```
+  ```yaml
   host_settings:
-  	additional_queries:
+    additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
   ```
@@ -309,12 +309,12 @@ Whether or not Fleet sends the query needed to gather user-related data from hos
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   features:
   	enable_host_users: false
   ```
 - Deprecated config file format:
-  ```
+  ```yaml
   host_settings:
   	enable_host_users: false
   ```
@@ -326,12 +326,12 @@ Whether or not Fleet sends the query needed to gather the list of software insta
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   features:
   	enable_software_inventory: false
   ```
 - Deprecated config file format:
-  ```
+  ```yaml
   host_settings:
   	enable_software_inventory: false
   ```
@@ -347,7 +347,7 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](ht
 - Optional setting (string)
 - Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency")
 - Config file format:
-  ```
+  ```yaml
   fleet_desktop:
     transparency_url: "https://example.org/transparency"
   ```
@@ -363,7 +363,7 @@ Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   host_expiry_settings:
   	host_expiry_enabled: true
   ```
@@ -375,7 +375,7 @@ If a host has not communicated with Fleet in the specified number of days, it wi
 - Optional setting (integer)
 - Default value: `0` (must be > 0 when enabling host expiry)
 - Config file format:
-  ```
+  ```yaml
   host_expiry_settings:
   	host_expiry_window: 10
   ```
@@ -395,7 +395,7 @@ The name of the organization.
 - Required setting (string)
 - Default value: none (provided during Fleet setup)
 - Config file format:
-  ```
+  ```yaml
   org_info:
   	org_name: Fleet
   ```
@@ -407,7 +407,7 @@ The URL of the logo of the organization.
 - Optional setting (string)
 - Default value: none (uses Fleet's logo)
 - Config file format:
-  ```
+  ```yaml
   org_info:
   	org_logo_url: https://example.com/logo.png
   ```
@@ -464,7 +464,7 @@ Whether saving host-related information is done synchronously in the HTTP handle
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     deferred_save_host: true
   ```
@@ -476,7 +476,7 @@ If sending usage analytics is enabled or not.
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     enable_analytics: false
   ```
@@ -488,7 +488,7 @@ If the live query feature is disabled or not.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     live_query_disabled: true
   ```
@@ -500,7 +500,7 @@ The base URL of the fleet server, including the scheme (e.g. "https://").
 - Required setting (string)
 - Default value: none (provided during Fleet setup)
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     server_url: https://fleet.example.org:8080
   ```
@@ -520,7 +520,7 @@ For additional information on SSO configuration, including just-in-time (JIT) us
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     enable_jit_provisioning: true
   ```
@@ -532,7 +532,7 @@ Configures if single sign-on is enabled.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     enable_sso: true
   ```
@@ -544,7 +544,7 @@ Allow single sign-on login initiated by identity provider.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     enable_sso_idp_login: true
   ```
@@ -556,7 +556,7 @@ The required entity ID is a Uniform Resource Identifier (URI) that you use to id
 - Required setting if SSO is enabled, must have at least 5 characters (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     entity_id: "https://example.com"
   ```
@@ -568,7 +568,7 @@ An optional link to an image such as a logo for the identity provider.
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     idp_image_url: "https://example.com/logo"
   ```
@@ -580,7 +580,7 @@ A required human-friendly name for the identity provider that will provide singl
 - Required setting if SSO is enabled (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     idp_name: "SimpleSAML"
   ```
@@ -592,7 +592,7 @@ The issuer URI supplied by the identity provider.
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     issuer_uri: "https://example.com/saml2/sso-service"
   ```
@@ -604,7 +604,7 @@ Metadata (in XML format) provided by the identity provider.
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
   ```
@@ -616,7 +616,7 @@ A URL that references the identity provider metadata.
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     metadata_url: https://idp.example.org/idp-meta.xml
   ```
@@ -630,7 +630,7 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
 - Optional setting, must be set to enable vulnerability detection (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   vulnerability_settings:
     databases_path: "/path/to/dir"
   ```
@@ -646,7 +646,7 @@ The interval at which to check for webhook conditions. This value currently conf
 - Optional setting (time duration as a string)
 - Default value: `24h`
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     interval: "12h"
   ```
@@ -662,7 +662,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 - Optional setting, required if webhook is enabled (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       destination_url: "https://example.org/webhook_handler"
@@ -675,7 +675,7 @@ Defines whether to enable the failing policies webhook. Note that currently, if 
 - Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -688,7 +688,7 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 - Optional setting (integer).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       host_batch_size: 100
@@ -701,7 +701,7 @@ The IDs of the policies for which the webhook will be enabled.
 - Optional setting (array of integers).
 - Default value: empty.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       policy_ids:
@@ -721,7 +721,7 @@ Number of days that hosts need to be offline for to count as part of the percent
 - Optional setting, required if webhook is enabled (integer).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       days_count: 5
@@ -734,7 +734,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 - Optional setting, required if webhook is enabled (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       destination_url: "https://example.org/webhook_handler"
@@ -747,7 +747,7 @@ Defines whether the webhook check for host status will run or not.
 - Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       enable_host_status_webhook: true
@@ -760,7 +760,7 @@ The percentage of hosts that need to be offline to trigger the webhook.
 - Optional setting, required if webhook is enabled (float).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       host_percentage: 10
@@ -779,7 +779,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 - Optional setting, required if webhook is enabled (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     vulnerabilities_webhook:
       destination_url: "https://example.org/webhook_handler"
@@ -792,7 +792,7 @@ Defines whether to enable the vulnerabilities webhook.
 - Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     vulnerabilities_webhook:
       enable_vulnerabilities_webhook: true
@@ -805,7 +805,7 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 - Optional setting (integer).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     vulnerabilities_webhook:
       host_batch_size: 100
