@@ -37,7 +37,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		ctx,
 		"bash", "-c",
 		// This seems a bit brittle, but it works as of now. When it breaks we might want to look
-		// into find a more resilient mechanism for getting the status. This method discovered by
+		// into finding a more resilient mechanism for getting the status. This method discovered by
 		// @sharvilshah.
 		`defaults export com.apple.networkserviceproxy - | plutil -extract NSPServiceStatusManagerInfo raw - -o - | base64 -D | plutil -convert xml1 - -o - | plutil -p - | grep '"PrivacyProxyServiceStatus" =>' | head -1`,
 	)
