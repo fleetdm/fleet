@@ -125,7 +125,6 @@ spec:
           distributed_interval: 10
           distributed_plugin: tls
           distributed_tls_max_attempts: 3
-          logger_plugin: tls
           logger_tls_endpoint: /api/v1/osquery/log
           logger_tls_period: 10
           pack_delimiter: /
@@ -190,7 +189,6 @@ spec:
         distributed_interval: 10
         distributed_plugin: tls
         distributed_tls_max_attempts: 3
-        logger_plugin: tls
         logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
         pack_delimiter: /
@@ -823,11 +821,22 @@ You can verify that your agent options are valid by using [the fleetctl apply co
 
 Existing options will be overwritten by the application of this file.
 
-##### Overrides option
+> In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Orbit to enroll your hosts, this is done automatically. 
 
-The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
+```
+"--config_plugin=tls",
+"--config_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/config")
+```
 
-In the example file below, all Darwin and Ubuntu hosts will only receive the options specified in their respective overrides sections.
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+```
+
+
+##### Example Agent options YAML
 
 ```yaml
 apiVersion: v1
@@ -838,7 +847,6 @@ spec:
       options:
         distributed_interval: 3
         distributed_tls_max_attempts: 3
-        logger_plugin: tls
         logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
       decorators:
@@ -861,7 +869,6 @@ spec:
           options:
             distributed_interval: 10
             distributed_tls_max_attempts: 10
-            logger_plugin: tls
             logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 300
             disable_tables: chrome_extensions
@@ -877,7 +884,6 @@ spec:
           options:
             distributed_interval: 10
             distributed_tls_max_attempts: 3
-            logger_plugin: tls
             logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 60
             schedule_timeout: 60
@@ -904,8 +910,125 @@ spec:
   host_expiry_settings:
     # ...
 ```
+##### agent_options.config
 
-##### Auto table construction
+The config key sets the osqueryd configuration options for your agents. In a plain osquery deployment, these would typically be set in `osquery.conf`. Each key below represents a corresponding key in the osquery documentation. 
+
+For detailed information on osquery configuration options, check out the [osquery configuration docs](https://osquery.readthedocs.io/en/stable/deployment/configuration/). 
+
+```yaml
+agent_options:
+    config:
+      options: ~
+      decorators: ~ 
+      yara: ~
+    overrides: ~
+
+```
+
+###### agent_options.config.options
+
+In the options key, you can set your osqueryd options and feature flags. 
+
+Any command line only flags must be set using the `command_line_flags` key for Orbit agents, or by modifying the osquery flags on your hosts if you're using plain osquery. 
+
+To see a full list of flags, broken down by the method you can use to set them (configuration options vs command line flags), you can run `osqueryd --help` on a plain osquery agent. For Orbit agents, run `sudo orbit osqueryd --help`. The options will be shown there in command line format as `--key value`. In `yaml` format, that would become `key: value`. 
+
+```yaml
+agent_options:
+    config:
+      options:
+        distributed_interval: 3
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+      decorators: ~
+```
+###### agent_options.config.decorators
+
+In the decorators key, you can specify queries to include additional information in your osquery results logs. 
+
+Use `load` for details you want to update values when the configuration loads, `always` to update every time a scheduled query is run, and `interval` if you want to update on a schedule. 
+
+```yaml
+agent_options:
+    config:
+      options: ~
+      decorators:
+        load:
+          - "SELECT version FROM osquery_info"
+          - "SELECT uuid AS host_uuid FROM system_info"
+        always:
+          - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+        interval:
+          3600: "SELECT total_seconds AS uptime FROM uptime"
+```
+
+##### agent_options.config.yara
+
+You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
+
+The following is an example Fleet configuration file with YARA configuration. The values are taken from an example config supplied in the above link to the osquery documentation.
+
+```yaml
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      # ...
+      yara:
+        file_paths:
+          system_binaries:
+          - sig_group_1
+          tmp:
+          - sig_group_1
+          - sig_group_2
+        signatures:
+          sig_group_1:
+          - /Users/wxs/sigs/foo.sig
+          - /Users/wxs/sigs/bar.sig
+          sig_group_2:
+          - /Users/wxs/sigs/baz.sig
+    overrides: {}
+```
+
+##### agent_options.overrides
+
+The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
+
+In the example file below, all Darwin and Ubuntu hosts will **only** receive the options specified in their respective overrides sections.
+
+
+```yaml
+agent_options:
+  config:
+    options: ~
+    overrides:
+      # Note configs in overrides take precedence over the default config defined
+      # under the config key above. Hosts receive overrides based on the platform
+      # returned by `SELECT platform FROM os_version`. In this example, the base
+      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+      # hosts would receive their respective overrides. Note, these overrides are
+      # NOT merged with the top level configuration.
+      platforms:
+        darwin:
+          options:
+            distributed_interval: 10
+            distributed_tls_max_attempts: 10
+            logger_tls_endpoint: /api/osquery/log
+            logger_tls_period: 300
+            disable_tables: chrome_extensions
+            docker_socket: /var/run/docker.sock
+          file_paths:
+            users:
+              - /Users/%/Library/%%
+              - /Users/%/Documents/%%
+            etc:
+              - /etc/%%
+```
+##### agent_options.auto_table_construction
 
 You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
 
@@ -934,34 +1057,19 @@ spec:
                 - "last_modified"
 ```
 
-##### YARA configuration
 
-You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
+##### agent_options.command_line_flags
 
-The following is an example Fleet configuration file with YARA configuration. The values are taken from an example config supplied in the above link to the osquery documentation.
+> Requires Fleet v4.22.0 or later and Orbit v1.3.0 or later**
+
+In the `command_line_flags` key, you can update the osquery flags of your Orbit enrolled agents.
 
 ```yaml
----
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    config:
-      # ...
-      yara:
-        file_paths:
-          system_binaries:
-          - sig_group_1
-          tmp:
-          - sig_group_1
-          - sig_group_2
-        signatures:
-          sig_group_1:
-          - /Users/wxs/sigs/foo.sig
-          - /Users/wxs/sigs/bar.sig
-          sig_group_2:
-          - /Users/wxs/sigs/baz.sig
-    overrides: {}
+agent_options:
+  config:
+  overrides:
+  command_line_flags:
+    enable_file_events: true
 ```
 
 #### Advanced configuration
