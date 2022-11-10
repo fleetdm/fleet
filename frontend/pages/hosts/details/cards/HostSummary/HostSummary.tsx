@@ -134,7 +134,13 @@ const HostSummary = ({
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
           <span className={`${statusClassName} info-flex__data`}>
-            {titleData.status}
+            <TooltipWrapper
+              tipContent={`
+                Online hosts will respond to a live query.
+              `}
+            >
+              {titleData.status}
+            </TooltipWrapper>
           </span>
         </div>
         {titleData.issues?.total_issues_count > 0 &&
