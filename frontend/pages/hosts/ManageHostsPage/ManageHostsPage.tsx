@@ -1560,6 +1560,13 @@ const ManageHostsPage = ({
     ) {
       const renderFilterPill = () => {
         switch (true) {
+          // backend allows for pill combos label x low disk space
+          case showSelectedLabel && !!lowDiskSpaceHosts:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
+              </>
+            );
           case showSelectedLabel:
             return renderLabelFilterPill();
           case !!policyId:
