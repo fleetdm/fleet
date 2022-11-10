@@ -79,7 +79,7 @@ After your article is published, the Growth team will schedule your post to be p
 ## Related pages
 - [Article formatting guide](./article-formatting-guide)
 - [Markdown guide](./markdown-guide)
-- Writing style guide (todo)
+- [Content style guide](./content-style-guide)
 
 <meta name="maintainedBy" value="chris-mcgillicuddy">
 <meta name="title" value="How to submit and publish an article">
