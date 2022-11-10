@@ -71,7 +71,12 @@ const generatePolicyTableHeaders = (
       accessor: "response",
       disableSortBy: true,
       Cell: (cellProps) => {
-        return <StatusCell value={getPolicyStatus(cellProps.row.original)} />;
+        return (
+          <StatusCell
+            value={getPolicyStatus(cellProps.row.original)}
+            rowId={cellProps.row.original.id}
+          />
+        );
       },
     },
     {
