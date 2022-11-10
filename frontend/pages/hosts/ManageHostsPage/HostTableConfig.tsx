@@ -203,8 +203,8 @@ const allHostTableHeaders: IDataColumn[] = [
              Online hosts will respond to a live query. Offline<br/>
              hosts won’t respond to a live query because<br/>
              they may be shut down, asleep, or not<br/>
-             connected to the internet.
-          `}
+             connected to the internet.`
+          }
         >
           Status
         </TooltipWrapper>
