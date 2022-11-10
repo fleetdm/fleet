@@ -94,7 +94,10 @@ const generateTableHeaders = (
       ),
       accessor: "status",
       Cell: (cellProps: ICellProps) => (
-        <StatusCell value={cellProps.cell.value} />
+        <StatusCell
+          value={cellProps.cell.value}
+          rowId={cellProps.row.original.id}
+        />
       ),
     },
     {

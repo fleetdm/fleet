@@ -44,7 +44,12 @@ export const generateTableHeaders = (
       Header: "Status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <StatusCell
+          value={cellProps.cell.value}
+          rowId={parseInt(cellProps.cell.row.id, 10)}
+        />
+      ),
     },
     {
       title: "Private IP address",

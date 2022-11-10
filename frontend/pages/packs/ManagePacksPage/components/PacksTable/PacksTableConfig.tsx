@@ -148,7 +148,12 @@ const generateTableHeaders = (): IDataColumn[] => {
       Header: "Status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <StatusCell
+          value={cellProps.cell.value}
+          rowId={cellProps.row.original.id}
+        />
+      ),
     },
   ];
   return tableHeaders;
