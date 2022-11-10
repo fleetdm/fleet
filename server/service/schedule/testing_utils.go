@@ -2,7 +2,6 @@ package schedule
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -110,7 +109,7 @@ type MockStatsStore struct {
 	UpdateStatsCalled chan struct{}
 }
 
-func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (*fleet.CronStats, error) {
+func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -118,20 +117,17 @@ func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (*
 		m.GetStatsCalled <- struct{}{}
 	}
 
-	var res *fleet.CronStats
-	for _, s := range m.stats {
-		s := s
+	var res fleet.CronStats
+	for _, row := range m.stats {
+		r := row
 		switch {
-		case s.Name != name:
+		case r.Name != name:
 			continue
-		case res != nil && res.CreatedAt.After(s.CreatedAt) && res.ID > s.ID:
+		case res.CreatedAt.After(r.CreatedAt) && res.ID > r.ID:
 			continue
 		default:
-			res = &s
+			res = r
 		}
-	}
-	if res == nil {
-		return nil, sql.ErrNoRows
 	}
 
 	return res, nil

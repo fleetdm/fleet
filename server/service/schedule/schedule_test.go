@@ -28,8 +28,8 @@ func (nopLocker) Unlock(context.Context, string, string) error {
 
 type nopStatsStore struct{}
 
-func (nopStatsStore) GetLatestCronStats(ctx context.Context, name string) (*fleet.CronStats, error) {
-	return &fleet.CronStats{}, nil
+func (nopStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+	return fleet.CronStats{}, nil
 }
 
 func (nopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {

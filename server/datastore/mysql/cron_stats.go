@@ -9,21 +9,19 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) (*fleet.CronStats, error) {
+func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
 	stmt := `SELECT id, name, instance, created_at, updated_at, stats_type, status FROM cron_stats WHERE name = ? ORDER BY created_at DESC LIMIT 1`
 
 	var res fleet.CronStats
 	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, name)
 	switch {
 	case err == sql.ErrNoRows:
-		return nil, ctxerr.Wrap(ctx, notFound("CronStats").WithName(name), "select cron stats")
+		return fleet.CronStats{}, nil
 	case err != nil:
-		return nil, ctxerr.Wrap(ctx, err, "select cron stats")
+		return fleet.CronStats{}, ctxerr.Wrap(ctx, err, "select cron stats")
 	default:
-		// ok
+		return res, nil
 	}
-
-	return &res, nil
 }
 
 func (ds *Datastore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {

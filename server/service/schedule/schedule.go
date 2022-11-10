@@ -6,8 +6,6 @@ package schedule
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -69,8 +67,12 @@ type Locker interface {
 
 // CronStatsStore allows a Schedule to store and retrieve statistics pertaining to the Schedule
 type CronStatsStore interface {
-	GetLatestCronStats(ctx context.Context, name string) (*fleet.CronStats, error)
+	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
+	// are found, it returns an empty CronStats struct
+	GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error)
+	// InsertCronStats inserts cron stats for the named cron schedule
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
+	// UpdateCronStats updates the status of the identified cron stats record
 	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error
 }
 
@@ -171,20 +173,10 @@ func (s *Schedule) Start() {
 	}
 
 	stats, err := s.getStats()
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		level.Debug(s.logger).Log("msg", "start schedule, cron stats not found")
-	case err != nil:
+	if err != nil {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
 		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
-	default:
-		// ok
-	}
-
-	if stats == nil {
-		// use empty stats so created and updated timestamps will be the zero time
-		stats = &fleet.CronStats{}
 	}
 	setIntervalStartedAt(stats.CreatedAt)
 
@@ -216,24 +208,19 @@ func (s *Schedule) Start() {
 				schedInterval := s.getSchedInterval()
 
 				stats, err := s.getStats()
-				switch {
-				case errors.Is(err, sql.ErrNoRows):
-					level.Debug(s.logger).Log("msg", "cron stats not found")
-					stats = &fleet.CronStats{}
-					// ok, stats now set to empty so created and updated timestamps will be the zero time
-				case err != nil:
+				if err != nil {
 					level.Error(s.logger).Log("err", "get cron stats", "details", err)
 					sentry.CaptureException(err)
 					ctxerr.Handle(s.ctx, err)
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
 					continue
-				case stats.Status == fleet.CronStatsStatusPending:
+				}
+
+				if stats.Status == fleet.CronStatsStatusPending {
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
 					continue
-				default:
-					// ok
 				}
 
 				prevStart := getIntervalStartedAt()
@@ -462,7 +449,7 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	return true, cancelFn
 }
 
-func (s *Schedule) getStats() (*fleet.CronStats, error) {
+func (s *Schedule) getStats() (fleet.CronStats, error) {
 	return s.statsStore.GetLatestCronStats(s.ctx, s.name)
 }
 

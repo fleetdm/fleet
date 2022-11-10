@@ -69,7 +69,7 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 		require.Equal(t, c.Status, res.Status)
 		require.Equal(t, now, res.CreatedAt)
 		require.Equal(t, now, res.UpdatedAt)
-		results = append(results, *res)
+		results = append(results, res)
 	}
 
 	time.Sleep(time.Until(start.Add(2 * time.Second)))
