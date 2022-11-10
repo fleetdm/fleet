@@ -57,12 +57,14 @@
     border-radius: $border-radius;
     .Select-value {
       font-size: $small;
+      background-color: $ui-light-grey;
     }
   }
 
   .Select-value {
     font-size: $small;
     border-radius: $border-radius;
+    background-color: $ui-light-grey;
 
     .Select-value-icon {
       border: 0;
