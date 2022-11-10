@@ -72,6 +72,9 @@ func getConsoleUidGid() (uid uint32, gid uint32, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	stat := info.Sys().(*syscall.Stat_t)
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+	    return 0, 0, fmt.Errorf("unexpected type %T", info.Sys()) 
+	}
 	return stat.Uid, stat.Gid, nil
 }
