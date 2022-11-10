@@ -1,0 +1,2 @@
+* Fixed a bug where duplicate vulnerability webhook requests, jira, and zendesk tickets were being made when scanning for vulnerabilities.
+  This affected ubuntu and redhat hosts that support OVAL vulnerability detection.

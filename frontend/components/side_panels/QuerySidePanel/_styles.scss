@@ -51,6 +51,17 @@
     font-size: $x-small;
   }
 
+  // use to truncate selected long table names in the dropdown
+  &__table-select {
+    &.Select.has-value.Select--single > .Select-control .Select-value .Select-value-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 220px;
+      display: inline-block;
+    }
+  }
+
   &__evented-table-tag {
     display: inline-flex;
     align-items: center;
