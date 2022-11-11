@@ -159,6 +159,7 @@ const HostSummary = ({
               {titleData.status}
             </span>
             <ReactTooltip
+              className="status-tooltip"
               place="top"
               effect="solid"
               id="status-tooltip"

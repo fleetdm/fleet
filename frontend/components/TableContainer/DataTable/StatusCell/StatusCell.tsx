@@ -22,13 +22,14 @@ const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
     "data-table__status",
     `data-table__status--${generateClassTag(value)}`
   );
+  console.log("tooltip text:", tooltip?.tooltipText);
   const cellContent = tooltip ? (
     <>
       <div data-tip data-for={tooltip.rowId}>
         {value}
       </div>
       <ReactTooltip
-        className="online-status-tooltip"
+        className="status-tooltip"
         place="top"
         type="dark"
         effect="solid"
