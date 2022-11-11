@@ -1190,9 +1190,9 @@ const ManageHostsPage = ({
 
     const TooltipDescription = (
       <span className={`tooltip__tooltip-text`}>
-        Hosts with {name},
+        Hosts with {name || "Unknown software"},
         <br />
-        {version || ""} installed
+        {version || "version unknown"} installed
       </span>
     );
 
