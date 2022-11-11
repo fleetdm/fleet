@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Link } from "react-router";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -10,9 +9,9 @@ import PATHS from "router/paths";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import BackLink from "components/BackLink";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
-import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 const baseClass = "pack-form";
 
@@ -75,10 +74,9 @@ const EditPackForm = ({
 
   return (
     <div className={`${baseClass}__form`}>
-      <Link to={PATHS.MANAGE_PACKS} className={`${baseClass}__back-link`}>
-        <img src={BackChevron} alt="back chevron" id="back-chevron" />
-        <span>Back to packs</span>
-      </Link>
+      <div className={`${baseClass}__header-links`}>
+        <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />
+      </div>
       <form
         className={packFormClass}
         onSubmit={onFormSubmit}

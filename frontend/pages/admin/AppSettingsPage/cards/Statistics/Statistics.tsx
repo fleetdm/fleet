@@ -5,7 +5,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 
 import Modal from "components/Modal";
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 import {
   IAppConfigFormProps,
   IFormField,
@@ -95,14 +95,11 @@ const Statistics = ({
             we can make better product decisions.
             <br />
             <br />
-            <a
-              href="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more about usage statistics
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
+              text="Learn more about usage statistics"
+              newTab
+            />
           </p>
           <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
             <Checkbox

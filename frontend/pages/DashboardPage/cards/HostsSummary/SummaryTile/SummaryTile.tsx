@@ -12,7 +12,7 @@ interface ISummaryTileProps {
   isLoading: boolean;
   showUI: boolean;
   title: string;
-  iconName?: IconNames;
+  iconName: IconNames;
   tooltip?: string;
   path: string;
 }
@@ -49,11 +49,7 @@ const SummaryTile = ({
         onClick={() => handleClick()}
       >
         <>
-          {iconName && (
-            <div className={`${baseClass}__icon-wrapper`}>
-              <Icon name={iconName} className={`${baseClass}__event-icon`} />
-            </div>
-          )}
+          <Icon name={iconName} className={`${baseClass}__tile-icon`} />
           <div>
             <div
               className={`${baseClass}__count ${baseClass}__count--${kebabCase(

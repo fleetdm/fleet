@@ -77,7 +77,7 @@ You can distribute your osquery installer and add all your hosts to Fleet using 
 
 The Teams feature in Fleet allows you to place hosts in exclusive groups. With hosts segmented into Teams, you can apply unique queries and give users access to only the hosts in specific Teams.
 
-You can add a host to a team by generating and using a unique osquery installer for a team or by [manually transferring a host to a team in the Fleet UI](../Using-Fleet/Teams.md#transfer-hosts-to-a-team).
+You can add a host to a team by generating and using a unique osquery installer for a team or by [manually transferring a host to a team in the Fleet UI](https://fleetdm.com/docs/using-fleet/teams#transfer-hosts-to-a-team).
 
 To generate an osquery installer for a team:
 
@@ -248,7 +248,7 @@ time, [uninstall the existing
 osquery](https://blog.fleetdm.com/how-to-uninstall-osquery-f01cc49a37b9).
 
 If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setting for Fleet's
-[osquery_host_identifier](../Deploying/Configuration.md#osquery-host-identifier)), the new
+[osquery_host_identifier](https://fleetdm.com/docs/deploying/configuration#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
 expiration setting. To configure this setting, in the Fleet UI, head to **Settings > Organization settings > Advanced options**. 
@@ -307,8 +307,17 @@ Preferences*, run this query from Fleet:
 SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
 ```
 
-If this query returns files, the profile has been successfully applied, as *Downloads* is a
-protected location. You can now enjoy the benefits of osquery on all system files as well as start
-using the *es_process_events* table!
+If this query returns files, the profile was applied, as **Downloads** is a
+protected location. You can now enjoy the benefits of osquery on all system files and start
+using the **es_process_events** table!
+
+If this query does not return data, you can look at operating system logs to confirm whether or not full disk
+access has been applied.
+
+See the last hour of logs related to TCC permissions with this command:
+
+`log show --predicate 'subsystem == "com.apple.TCC"' --info --last 1h`
+
+You can then look for `orbit` or `osquery` to narrow down results.
 
 <meta name="pageOrderInSection" value="500">

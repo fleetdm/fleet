@@ -11,7 +11,7 @@ variable "redis_instance" {
   default = "cache.m5.large"
 }
 resource "aws_elasticache_replication_group" "default" {
-  availability_zones            = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  availability_zones            = var.redis_azs
   engine                        = "redis"
   parameter_group_name          = "default.redis6.x"
   subnet_group_name             = module.vpc.elasticache_subnet_group_name

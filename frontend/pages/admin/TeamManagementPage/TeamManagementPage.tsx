@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
 import teamsAPI, {
@@ -13,17 +14,19 @@ import teamsAPI, {
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import CustomLink from "components/CustomLink";
+
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const { currentTeam, setCurrentTeam } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -126,6 +129,9 @@ const TeamManagementPage = (): JSX.Element => {
         .destroy(teamEditing.id)
         .then(() => {
           renderFlash("success", `Successfully deleted ${teamEditing.name}.`);
+          if (currentTeam?.id === teamEditing.id) {
+            setCurrentTeam(undefined);
+          }
         })
         .catch(() => {
           renderFlash(
@@ -203,14 +209,11 @@ const TeamManagementPage = (): JSX.Element => {
             </p>
             <p>
               Want to learn more?&nbsp;
-              <a
-                href="https://fleetdm.com/docs/using-fleet/teams"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Read about teams
-                <img src={ExternalLinkIcon} alt="Open external link" />
-              </a>
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/teams"
+                text="Read about teams"
+                newTab
+              />
             </p>
             <Button
               variant="brand"
