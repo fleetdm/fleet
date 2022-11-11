@@ -30,9 +30,7 @@ func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint,
 	if err != nil {
 		return err
 	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return upsertHostOperatingSystemDB(ctx, tx, hostID, os.ID)
-	})
+	return upsertHostOperatingSystemDB(ctx, ds.writer, hostID, os.ID)
 }
 
 // getOrGenerateOperatingSystemDB queries the `operating_systems` table with the
@@ -97,7 +95,7 @@ func upsertHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID
 	}
 
 	// no row to update so insert new row
-	_, err = tx.ExecContext(ctx, "INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)", hostID, osID)
+	_, err = tx.ExecContext(ctx, "INSERT IGNORE INTO host_operating_system (host_id, os_id) VALUES (?, ?)", hostID, osID)
 	if err != nil {
 		return err
 	}
