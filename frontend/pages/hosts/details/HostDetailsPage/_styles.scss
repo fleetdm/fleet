@@ -315,6 +315,16 @@
         width: 8px;
       }
     }
+
+    &--online,
+    &--offline {
+      .status-tooltip {
+        display: block;
+        white-space: normal;
+        max-width: 160px;
+        text-transform: none;
+      }
+    }
   }
 
   .form-field--dropdown {
