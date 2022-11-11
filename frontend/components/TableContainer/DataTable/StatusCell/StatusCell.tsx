@@ -24,7 +24,7 @@ const StatusCell = ({ value, tooltipInfo }: IStatusCellProps): JSX.Element => {
   );
   const cellContent = tooltipInfo ? (
     <>
-      <div data-tip={tooltipInfo.tooltipText} data-for={tooltipInfo.rowId}>
+      <div data-tip data-for={tooltipInfo.rowId}>
         {value}
       </div>
       <ReactTooltip
@@ -34,9 +34,9 @@ const StatusCell = ({ value, tooltipInfo }: IStatusCellProps): JSX.Element => {
         effect="solid"
         id={`${tooltipInfo.rowId}`}
         backgroundColor="#3e4771"
-      />
-      {/* {tooltipInfo.tooltipText}
-        </ReactTooltip> */}
+      >
+        {tooltipInfo.tooltipText}
+      </ReactTooltip>
     </>
   ) : (
     <>{value}</>
