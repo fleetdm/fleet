@@ -258,15 +258,16 @@ func insertSoftwareAndGetID(ctx context.Context, tx sqlx.ExtContext, s fleet.Sof
 		return existingID, nil
 	}
 
-	_, err := tx.ExecContext(ctx,
-		"INSERT INTO software "+
-			"(name, version, source, `release`, vendor, arch, bundle_identifier) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?) "+
-			"ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier)",
-		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
-	)
+	insertQuery := "INSERT INTO software (bundle_identifier, name, version, source, `release`, vendor, arch) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	updateQuery := "UPDATE software SET bundle_identifier = ? WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND vendor = ? AND arch = ?"
+
+	_, err := tx.ExecContext(ctx, insertQuery, s.BundleIdentifier, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch)
+	// TODO: check that the error is duplicate key, if it is, then update, otherwise fail
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software")
+		_, err = tx.ExecContext(ctx, updateQuery, s.BundleIdentifier, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "update")
+		}
 	}
 
 	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
