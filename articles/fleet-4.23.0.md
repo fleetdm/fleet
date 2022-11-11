@@ -1,5 +1,7 @@
 # Fleet 4.23.0 | Better insight into inherited policies, improved host vitals, and more configuration visibility
 
+![Fleet 4.23.0](../website/assets/images/articles/fleet-4.23.0-1600x900.jpg)
+
 Fleet 4.23.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.23.0) or continue reading to get the highlights.
 
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
@@ -55,7 +57,6 @@ If the edits apply to a single team, you’ll see the team’s name in the activ
 
 ## More new features, improvements, and bug fixes
 
-- Added preview screenshots for Jira and Zendesk vulnerability tickets for Premium users.
 - Added option to show public IP address in Hosts table.
 - Added ingestion of host orbit version from `orbit_info` osquery extension table.
 - Added number of hosts enrolled by orbit version to usage statistics payload.
@@ -64,14 +65,11 @@ If the edits apply to a single team, you’ll see the team’s name in the activ
 - Added instructions to override agent options using fleetctl force flag when users submit invalid agent options.
 - Added support for `low_disk_space` filter for endpoint `/labels/{id}/hosts`.
 - Added cleaner icons to select target pages.
-- Added validation of unknown keys for the Apply Teams Spec request payload (`POST /spec/teams` endpoint).
+- Added validation to the `teams` YAML file. Validation now checks for invalid keys.
 - Added the ability to filter low disk space host by platform in the Fleet UI.
 - Added vulnerability scores to Jira and Zendesk integrations for Fleet Premium users.
 - Added ingestion of disk encryption status for hosts and added that flag in the response of the `GET /hosts/{id}` API endpoint.
-- Added UI polish and style fixes for query pages.
-- Added tooling for writing integration tests on the frontend.
-- Added the ability to detect Windows MDM solutions and add MDM endpoints.
-- Added the ability to scan for Windows vulnerabilities using the MSRC security bulletins to scan. Detected vulnerabilities are inserted in a new table, `operating_system_vulnerabilities`.
+- Improved the UI on the New query and Edit query pages.
 - Improved host detail query to populate primary IP and Mac address on host.
 - Improved ingress resource by replacing the template with a most recent version that enables:
    - Optional annotations. Hardcoded annotations are no longer necessary.
@@ -102,6 +100,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Chris McGillicuddy">
 <meta name="authorGitHubUsername" value="chris-mcgillicuddy">
-<meta name="publishedOn" value="2022-11-10">
+<meta name="publishedOn" value="2022-11-11">
 <meta name="articleTitle" value="Fleet 4.23.0 | Better insight into inherited policies, improved host vitals, and more configuration visibility">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.22.0-cover-800x450@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.23.0-1600x900.jpg">
