@@ -1186,14 +1186,15 @@ const ManageHostsPage = ({
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
-    const label = name && version ? `${name} ${version}` : "";
-    const TooltipDescription =
-      name && version ? (
-        <span className={`tooltip__tooltip-text`}>
-          {`Hosts with ${name}`},<br />
-          {`${version} installed`}
-        </span>
-      ) : undefined;
+    const label = `${name || "Unknown software"} ${version || ""}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts with {name || "Unknown software"},
+        <br />
+        {version || "version unknown"} installed
+      </span>
+    );
 
     return (
       <FilterPill
@@ -1560,6 +1561,13 @@ const ManageHostsPage = ({
     ) {
       const renderFilterPill = () => {
         switch (true) {
+          // backend allows for pill combos label x low disk space
+          case showSelectedLabel && !!lowDiskSpaceHosts:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
+              </>
+            );
           case showSelectedLabel:
             return renderLabelFilterPill();
           case !!policyId:

@@ -80,3 +80,8 @@
     }
   }
 }
+
+// Removes arrows on Firefox number fields
+input[type="number"] {
+  -moz-appearance: textfield;
+}

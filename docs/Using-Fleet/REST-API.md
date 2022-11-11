@@ -834,7 +834,6 @@ None.
     "spec": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
           "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
@@ -5090,8 +5089,7 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
+=            "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
@@ -5128,8 +5126,7 @@ _Available in Fleet Premium_
         "spec": {
           "config": {
             "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
+=              "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
@@ -5192,8 +5189,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
+=          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5262,7 +5258,6 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-            "logger_plugin": "tls",
             "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
@@ -5350,8 +5345,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
+=          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5407,7 +5401,6 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
           "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
@@ -5463,7 +5456,6 @@ _Available in Fleet Premium_
 {
   "config": {
     "options": {
-      "logger_plugin": "tls",
       "pack_delimiter": "/",
       "logger_tls_period": 20,
       "distributed_plugin": "tls",
@@ -5498,7 +5490,6 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
           "pack_delimiter": "/",
           "logger_tls_period": 20,
           "distributed_plugin": "tls",

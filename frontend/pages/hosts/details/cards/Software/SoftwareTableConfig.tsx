@@ -149,6 +149,13 @@ export const generateSoftwareTableHeaders = (
       disableGlobalFilter: false,
       Cell: (cellProps: IStringCellProps) => {
         const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        if (deviceUser) {
+          return bundle ? (
+            renderBundleTooltip(name, bundle)
+          ) : (
+            <span>{name}</span>
+          );
+        }
         return (
           <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
             {bundle ? renderBundleTooltip(name, bundle) : name}
