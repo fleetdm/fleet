@@ -29,6 +29,7 @@ import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
 import { STATUS_CELL_TOOLTIP_OPTIONS } from "./constants";
+
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
