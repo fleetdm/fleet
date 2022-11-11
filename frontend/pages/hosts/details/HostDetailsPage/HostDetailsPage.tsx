@@ -564,7 +564,6 @@ const HostDetailsPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
-  console.log("pathname", pathname);
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",

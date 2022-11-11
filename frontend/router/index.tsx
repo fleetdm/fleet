@@ -142,10 +142,6 @@ const routes = (
 
             <IndexRedirect to={":host_id"} />
             <Route component={HostDetailsPage}>
-              {/* <Route path=":host_id" component={HostDetails} />
-              <Route path="software" component={HostSoftware} />
-              <Route path="schedule" component={HostSchedule} />
-              <Route path="policies" component={HostPolicies} /> */}
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="software" component={HostDetailsPage} />
                 <Route path="schedule" component={HostDetailsPage} />
