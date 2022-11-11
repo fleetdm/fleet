@@ -4,6 +4,10 @@ import ReactTooltip from "react-tooltip";
 
 interface IStatusCellProps {
   value: string;
+  tooltipInfo?: {
+    rowId: number;
+    tooltipText: string;
+  };
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -13,28 +17,14 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const StatusCell = ({ value }: IStatusCellProps): JSX.Element => {
-  console.log(`value: ${value}`);
+const StatusCell = ({ value, tooltipInfo }: IStatusCellProps): JSX.Element => {
   const statusClassName = classnames(
     "data-table__status",
     `data-table__status--${generateClassTag(value)}`
   );
-  const tipContent = (value: string): string | undefined => {
-    switch (value) {
-      case "online":
-        return "Online hosts will respond to a live query.";
-      case "offline":
-        return `Offline hosts won't respond to a live query because<br/>
-                they may be shut down, asleep, or not connected to<br/>
-                the internet.`;
-    }
-  };
-
-  // TODO: get unique id for each host
-  const id = "TESTID";
-  return (
-    <span className={statusClassName}>
-      <div data-tip data-for={id}>
+  const cellContent = tooltipInfo ? (
+    <>
+      <div data-tip data-for={tooltipInfo.rowId}>
         {value}
       </div>
       <ReactTooltip
@@ -42,14 +32,16 @@ const StatusCell = ({ value }: IStatusCellProps): JSX.Element => {
         place="top"
         type="dark"
         effect="solid"
-        id={id}
+        id={`${tooltipInfo.rowId}`}
         backgroundColor="#3e4771"
       >
-        {tipContent(value)}
-        'test-tip-val'
+        {tooltipInfo.tooltipText}
       </ReactTooltip>
-    </span>
+    </>
+  ) : (
+    <>{value}</>
   );
+  return <span className={statusClassName}>{cellContent}</span>;
 };
 
 export default StatusCell;

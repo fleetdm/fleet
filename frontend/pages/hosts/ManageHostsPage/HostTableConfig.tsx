@@ -28,7 +28,7 @@ import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
-
+import { STATUS_CELL_TOOLTIP_OPTIONS } from "./constants";
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
@@ -203,8 +203,7 @@ const allHostTableHeaders: IDataColumn[] = [
              Online hosts will respond to a live query. Offline<br/>
              hosts won’t respond to a live query because<br/>
              they may be shut down, asleep, or not<br/>
-             connected to the internet.`
-          }
+             connected to the internet.`}
         >
           Status
         </TooltipWrapper>
@@ -218,9 +217,14 @@ const allHostTableHeaders: IDataColumn[] = [
     },
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps: ICellProps) => (
-      <StatusCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      const value = cellProps.cell.value;
+      const tooltipInfo = {
+        rowId: cellProps.row.original.id,
+        tooltipText: STATUS_CELL_TOOLTIP_OPTIONS[value],
+      };
+      return <StatusCell value={value} tooltipInfo={tooltipInfo} />;
+    },
   },
   {
     title: "Issues",
