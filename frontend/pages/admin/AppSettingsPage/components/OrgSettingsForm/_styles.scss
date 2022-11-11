@@ -47,6 +47,12 @@
   margin-top: $pad-medium;
 }
 
+.org-info .app-config-form {
+  &__inputs {
+    width: 60%;
+  }
+}
+
 .app-config-form {
   width: 100%;
 
@@ -90,12 +96,15 @@
 
     h2 {
       padding-bottom: $pad-small;
-      max-width: 65%;
+      max-width: 100%;
       font-size: $medium;
       font-weight: $regular;
       color: $core-fleet-black;
       border-bottom: solid 1px $ui-fleet-blue-15;
       margin: 0 0 $pad-xxlarge;
+      @media(min-width: $break-990) {
+        max-width: 65%;
+      }
     }
 
     .smtp-options {
@@ -125,14 +134,22 @@
   &__section-description {
     font-size: $x-small;
     color: $core-fleet-black;
-    width: 60%;
+    width: 100%;
+    @media(min-width: $break-990) {
+      width: 60%;
+    }
   }
 
+
+
   &__inputs {
-    width: 60%;
+    width: 100%;
     float: left;
     padding-right: $pad-small;
     box-sizing: border-box;
+    @media(min-width: $break-990) {
+      width: 60%;
+    }
 
     .input-field {
       width: 100%;
