@@ -23,7 +23,7 @@ import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
-import HostDetailsWrapper from "pages/hosts/details/HostDetailsWrapper";
+import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
 import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
@@ -141,15 +141,15 @@ const routes = (
             />
 
             <IndexRedirect to={":host_id"} />
-            <Route component={HostDetailsWrapper}>
+            <Route component={HostDetailsPage}>
               {/* <Route path=":host_id" component={HostDetails} />
               <Route path="software" component={HostSoftware} />
               <Route path="schedule" component={HostSchedule} />
               <Route path="policies" component={HostPolicies} /> */}
-              <Route path=":host_id" component={ManageSoftwarePage}>
-                <Route path="software" component={ManageSoftwarePage} />
-                <Route path="schedule" component={ManageSchedulePage} />
-                <Route path="policies" component={ManagePoliciesPage} />
+              <Route path=":host_id" component={HostDetailsPage}>
+                <Route path="software" component={HostDetailsPage} />
+                <Route path="schedule" component={HostDetailsPage} />
+                <Route path="policies" component={HostDetailsPage} />
               </Route>
             </Route>
           </Route>

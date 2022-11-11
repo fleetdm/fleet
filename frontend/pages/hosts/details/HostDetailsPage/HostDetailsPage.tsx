@@ -66,7 +66,6 @@ import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x1
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
-  children: JSX.Element;
   router: InjectedRouter; // v3
   location: {
     pathname: string;
@@ -106,8 +105,7 @@ const TAGGED_TEMPLATES = {
   },
 };
 
-const HostDetailsWrapper = ({
-  children,
+const HostDetailsPage = ({
   router,
   location: { pathname },
   params: { host_id },
@@ -566,20 +564,21 @@ const HostDetailsWrapper = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  console.log("pathname", pathname);
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",
-      title: "Details",
+      title: "details",
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
     {
       name: "Software",
-      title: "Software",
+      title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
       name: "Schedule",
-      title: "Schedule",
+      title: "schedule",
       pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
     },
     {
@@ -592,15 +591,15 @@ const HostDetailsWrapper = ({
           Policies
         </>
       ),
-      title: "Policies",
+      title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
     },
   ];
 
   const getTabIndex = (path: string): number => {
     return hostDetailsSubNav.findIndex((navItem) => {
-      // tab stays highlighted for paths that start with same pathname
-      return path.startsWith(navItem.pathname);
+      // tab stays highlighted for paths that ends with same pathname
+      return path.endsWith(navItem.pathname);
     });
   };
 
@@ -627,17 +626,16 @@ const HostDetailsWrapper = ({
           renderActionButtons={renderActionButtons}
         />
         <TabsWrapper>
-          <Tabs>
+          <Tabs
+            selectedIndex={getTabIndex(pathname)}
+            onSelect={(i) => navigateToNav(i)}
+          >
             <TabList>
-              <Tab>Details</Tab>
-              <Tab>Software</Tab>
-              <Tab>Schedule</Tab>
-              <Tab>
-                {failingPoliciesCount > 0 && (
-                  <span className="count">{failingPoliciesCount}</span>
-                )}
-                Policies
-              </Tab>
+              {hostDetailsSubNav.map((navItem) => {
+                // Bolding text when the tab is active causes a layout shift
+                // so we add a hidden pseudo element with the same text string
+                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+              })}
             </TabList>
             <TabPanel>
               <AboutCard
@@ -697,28 +695,60 @@ const HostDetailsWrapper = ({
             </TabPanel>
           </Tabs>
         </TabsWrapper>
-        <div className={`${baseClass}_wrapper`}>
-          <TabsWrapper>
-            <h1>Settings</h1>
-            <Tabs
-              selectedIndex={getTabIndex(pathname)}
-              onSelect={(i) => navigateToNav(i)}
-            >
-              <TabList>
-                {hostDetailsSubNav.map((navItem) => {
-                  // Bolding text when the tab is active causes a layout shift
-                  // so we add a hidden pseudo element with the same text string
-                  return (
-                    <Tab key={navItem.title} data-text={navItem.name}>
-                      {navItem.name}
-                    </Tab>
-                  );
-                })}
-              </TabList>
-            </Tabs>
-          </TabsWrapper>
-          {children}
-        </div>
+        <TabPanel>
+          <AboutCard
+            aboutData={aboutData}
+            deviceMapping={deviceMapping}
+            macadmins={macadmins}
+            wrapFleetHelper={wrapFleetHelper}
+          />
+          <div className="col-2">
+            <AgentOptionsCard
+              osqueryData={osqueryData}
+              wrapFleetHelper={wrapFleetHelper}
+            />
+            <LabelsCard
+              labels={host?.labels || []}
+              onLabelClick={onLabelClick}
+            />
+          </div>
+          <UsersCard
+            users={host?.users || []}
+            usersState={usersState}
+            isLoading={isLoadingHost}
+            onUsersTableSearchChange={onUsersTableSearchChange}
+            hostUsersEnabled={featuresConfig?.enable_host_users}
+          />
+        </TabPanel>
+        <TabPanel>
+          <SoftwareCard
+            isLoading={isLoadingHost}
+            software={hostSoftware}
+            softwareInventoryEnabled={featuresConfig?.enable_software_inventory}
+            deviceType={host?.platform === "darwin" ? "macos" : ""}
+          />
+          {host?.platform === "darwin" && macadmins && (
+            <MunkiIssuesCard
+              isLoading={isLoadingHost}
+              munkiIssues={macadmins.munki_issues}
+              deviceType={host?.platform === "darwin" ? "macos" : ""}
+            />
+          )}
+        </TabPanel>
+        <TabPanel>
+          <ScheduleCard
+            scheduleState={scheduleState}
+            isLoading={isLoadingHost}
+          />
+          <PacksCard packsState={packsState} isLoading={isLoadingHost} />
+        </TabPanel>
+        <TabPanel>
+          <PoliciesCard
+            policies={host?.policies || []}
+            isLoading={isLoadingHost}
+            togglePolicyDetailsModal={togglePolicyDetailsModal}
+          />
+        </TabPanel>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
@@ -767,4 +797,4 @@ const HostDetailsWrapper = ({
   );
 };
 
-export default HostDetailsWrapper;
+export default HostDetailsPage;
