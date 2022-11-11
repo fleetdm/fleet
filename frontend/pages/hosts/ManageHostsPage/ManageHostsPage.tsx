@@ -1186,14 +1186,15 @@ const ManageHostsPage = ({
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
-    const label = name && version ? `${name} ${version}` : "";
-    const TooltipDescription =
-      name && version ? (
-        <span className={`tooltip__tooltip-text`}>
-          {`Hosts with ${name}`},<br />
-          {`${version} installed`}
-        </span>
-      ) : undefined;
+    const label = `${name || "Unknown software"} ${version || ""}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts with {name},
+        <br />
+        {version || ""} installed
+      </span>
+    );
 
     return (
       <FilterPill
