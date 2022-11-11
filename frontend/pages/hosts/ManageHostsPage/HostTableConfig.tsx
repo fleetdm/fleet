@@ -219,11 +219,11 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "status",
     Cell: (cellProps: ICellProps) => {
       const value = cellProps.cell.value;
-      const tooltipInfo = {
+      const tooltip = {
         rowId: cellProps.row.original.id,
         tooltipText: STATUS_CELL_TOOLTIP_OPTIONS[value],
       };
-      return <StatusCell value={value} tooltipInfo={tooltipInfo} />;
+      return <StatusCell value={value} tooltip={tooltip} />;
     },
   },
   {

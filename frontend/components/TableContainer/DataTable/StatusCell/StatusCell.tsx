@@ -4,7 +4,7 @@ import ReactTooltip from "react-tooltip";
 
 interface IStatusCellProps {
   value: string;
-  tooltipInfo?: {
+  tooltip?: {
     rowId: number;
     tooltipText: string;
   };
@@ -17,14 +17,14 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const StatusCell = ({ value, tooltipInfo }: IStatusCellProps): JSX.Element => {
+const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
   const statusClassName = classnames(
     "data-table__status",
     `data-table__status--${generateClassTag(value)}`
   );
-  const cellContent = tooltipInfo ? (
+  const cellContent = tooltip ? (
     <>
-      <div data-tip data-for={tooltipInfo.rowId}>
+      <div data-tip data-for={tooltip.rowId}>
         {value}
       </div>
       <ReactTooltip
@@ -32,10 +32,10 @@ const StatusCell = ({ value, tooltipInfo }: IStatusCellProps): JSX.Element => {
         place="top"
         type="dark"
         effect="solid"
-        id={`${tooltipInfo.rowId}`}
+        id={`${tooltip.rowId}`}
         backgroundColor="#3e4771"
       >
-        {tooltipInfo.tooltipText}
+        {tooltip.tooltipText}
       </ReactTooltip>
     </>
   ) : (
