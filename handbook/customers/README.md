@@ -164,11 +164,11 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ### Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [pdf](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1VJu5DFDH4aveWFRhkvBHAqsZAdayMyZE/view?usp=share_link).
 
 ### Intro video
 
