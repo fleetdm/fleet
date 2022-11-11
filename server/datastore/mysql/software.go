@@ -13,6 +13,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -262,8 +263,15 @@ func insertSoftwareAndGetID(ctx context.Context, tx sqlx.ExtContext, s fleet.Sof
 	updateQuery := "UPDATE software SET bundle_identifier = ? WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND vendor = ? AND arch = ?"
 
 	_, err := tx.ExecContext(ctx, insertQuery, s.BundleIdentifier, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch)
-	// TODO: check that the error is duplicate key, if it is, then update, otherwise fail
 	if err != nil {
+		me, ok := err.(*mysql.MySQLError)
+		if !ok {
+			return 0, ctxerr.Wrap(ctx, err, "inserting software, non mysql error")
+		}
+		if me.Number != 1062 {
+			return 0, ctxerr.Wrap(ctx, me, "inserting software, error expected is duplicate key but got this instead")
+		}
+
 		_, err = tx.ExecContext(ctx, updateQuery, s.BundleIdentifier, s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "update")
