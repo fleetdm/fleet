@@ -227,7 +227,7 @@ const WelcomeHost = ({
         <div className={`${baseClass}__intro`}>
           <img alt="" src={LaptopMac} />
           <div className="info">
-            <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
+            <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
               {host.display_name}
               <img alt="" src={LinkArrow} />
             </Link>
@@ -262,7 +262,7 @@ const WelcomeHost = ({
             return null;
           })}
           {host.policies?.length > 3 && (
-            <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
+            <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
               Go to Host details to see all policies
               <img alt="" src={LinkArrow} />
             </Link>

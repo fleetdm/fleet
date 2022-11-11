@@ -66,7 +66,11 @@ import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x1
 const baseClass = "host-details";
 
 interface IHostDetailsProps {
+  children: JSX.Element;
   router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+  };
   params: Params;
 }
 
@@ -90,14 +94,22 @@ interface IHostDiskEncryptionProps {
   tooltip?: string;
 }
 
+interface IHostDetailsSubNavItem {
+  name: string | JSX.Element;
+  title: string;
+  pathname: string;
+}
+
 const TAGGED_TEMPLATES = {
   queryByHostRoute: (hostId: number | undefined | null) => {
     return `${hostId ? `?host_ids=${hostId}` : ""}`;
   },
 };
 
-const HostDetailsPage = ({
+const HostDetailsWrapper = ({
+  children,
   router,
+  location: { pathname },
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
@@ -554,6 +566,49 @@ const HostDetailsPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
+    {
+      name: "Details",
+      title: "Details",
+      pathname: PATHS.HOST_DETAILS(hostIdFromURL),
+    },
+    {
+      name: "Software",
+      title: "Software",
+      pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
+    },
+    {
+      name: "Schedule",
+      title: "Schedule",
+      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
+    },
+    {
+      name: (
+        <>
+          {" "}
+          {failingPoliciesCount > 0 && (
+            <span className="count">{failingPoliciesCount}</span>
+          )}
+          Policies
+        </>
+      ),
+      title: "Policies",
+      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+    },
+  ];
+
+  const getTabIndex = (path: string): number => {
+    return hostDetailsSubNav.findIndex((navItem) => {
+      // tab stays highlighted for paths that start with same pathname
+      return path.startsWith(navItem.pathname);
+    });
+  };
+
+  const navigateToNav = (i: number): void => {
+    const navPath = hostDetailsSubNav[i].pathname;
+    router.push(navPath);
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -642,7 +697,28 @@ const HostDetailsPage = ({
             </TabPanel>
           </Tabs>
         </TabsWrapper>
-
+        <div className={`${baseClass}_wrapper`}>
+          <TabsWrapper>
+            <h1>Settings</h1>
+            <Tabs
+              selectedIndex={getTabIndex(pathname)}
+              onSelect={(i) => navigateToNav(i)}
+            >
+              <TabList>
+                {hostDetailsSubNav.map((navItem) => {
+                  // Bolding text when the tab is active causes a layout shift
+                  // so we add a hidden pseudo element with the same text string
+                  return (
+                    <Tab key={navItem.title} data-text={navItem.name}>
+                      {navItem.name}
+                    </Tab>
+                  );
+                })}
+              </TabList>
+            </Tabs>
+          </TabsWrapper>
+          {children}
+        </div>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
@@ -691,4 +767,4 @@ const HostDetailsPage = ({
   );
 };
 
-export default HostDetailsPage;
+export default HostDetailsWrapper;

@@ -45,8 +45,17 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS: (host: IHost): string => {
-    return `${URL_PREFIX}/hosts/${host.id}`;
+  HOST_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}`;
+  },
+  HOST_SOFTWARE: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/software`;
+  },
+  HOST_SCHEDULE: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/schedule`;
+  },
+  HOST_POLICIES: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/policies`;
   },
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;

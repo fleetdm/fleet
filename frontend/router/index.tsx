@@ -23,7 +23,7 @@ import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
-import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import HostDetailsWrapper from "pages/hosts/details/HostDetailsWrapper";
 import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
@@ -101,7 +101,7 @@ const routes = (
           <IndexRedirect to={"dashboard"} />
           <Route path="dashboard" component={DashboardPage} />
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect to={"/dashboard"} />
+            <IndexRedirect to={"organization"} />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={AdminAppSettingsPage} />
@@ -139,7 +139,19 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-            <Route path=":host_id" component={HostDetailsPage} />
+
+            <IndexRedirect to={":host_id"} />
+            <Route component={HostDetailsWrapper}>
+              {/* <Route path=":host_id" component={HostDetails} />
+              <Route path="software" component={HostSoftware} />
+              <Route path="schedule" component={HostSchedule} />
+              <Route path="policies" component={HostPolicies} /> */}
+              <Route path=":host_id" component={ManageSoftwarePage}>
+                <Route path="software" component={ManageSoftwarePage} />
+                <Route path="schedule" component={ManageSchedulePage} />
+                <Route path="policies" component={ManagePoliciesPage} />
+              </Route>
+            </Route>
           </Route>
           <Route path="software">
             <IndexRedirect to={"manage"} />
