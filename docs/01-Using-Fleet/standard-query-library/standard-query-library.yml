@@ -1019,7 +1019,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: 
+  name: Geolocate via ipapi.co
   platform: darwin, linux, windows
   description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
   query: >- 
