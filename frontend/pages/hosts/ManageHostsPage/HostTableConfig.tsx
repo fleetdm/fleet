@@ -28,7 +28,7 @@ import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
-
+import { STATUS_CELL_TOOLTIP_OPTIONS } from "./constants";
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
   indeterminate: boolean;
@@ -111,17 +111,6 @@ const lastSeenTime = (status: string, seenTime: string): string => {
     return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
   }
   return "Online";
-};
-
-const tipContent = (tipText: string): string | undefined => {
-  switch (tipText) {
-    case "online":
-      return "Online hosts will respond to a live query.";
-    case "offline":
-      return "Offline hosts won't respond to a live query because they may be shut down, asleep, or not connected to the internet.";
-    default:
-      return "";
-  }
 };
 
 const allHostTableHeaders: IDataColumn[] = [
@@ -228,13 +217,14 @@ const allHostTableHeaders: IDataColumn[] = [
     },
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps: ICellProps) => (
-      <StatusCell
-        value={cellProps.cell.value}
-        rowId={cellProps.row.original.id}
-        tooltipText={tipContent(cellProps.cell.value)}
-      />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      const value = cellProps.cell.value;
+      const tooltipInfo = {
+        rowId: cellProps.row.original.id,
+        tooltipText: STATUS_CELL_TOOLTIP_OPTIONS[value],
+      };
+      return <StatusCell value={value} tooltipInfo={tooltipInfo} />;
+    },
   },
   {
     title: "Issues",
