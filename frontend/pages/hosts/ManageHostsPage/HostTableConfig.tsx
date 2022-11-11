@@ -113,6 +113,17 @@ const lastSeenTime = (status: string, seenTime: string): string => {
   return "Online";
 };
 
+const tipContent = (tipText: string): string | undefined => {
+  switch (tipText) {
+    case "online":
+      return "Online hosts will respond to a live query.";
+    case "offline":
+      return "Offline hosts won't respond to a live query because they may be shut down, asleep, or not connected to the internet.";
+    default:
+      return "";
+  }
+};
+
 const allHostTableHeaders: IDataColumn[] = [
   // We are using React Table useRowSelect functionality for the selection header.
   // More information on its API can be found here
@@ -221,6 +232,7 @@ const allHostTableHeaders: IDataColumn[] = [
       <StatusCell
         value={cellProps.cell.value}
         rowId={cellProps.row.original.id}
+        tooltipText={tipContent(cellProps.cell.value)}
       />
     ),
   },

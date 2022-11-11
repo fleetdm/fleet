@@ -204,10 +204,7 @@ const generateTableHeaders = (options: {
       disableSortBy: true,
       accessor: "webhook",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusCell
-          value={cellProps.cell.value}
-          rowId={cellProps.row.original.id}
-        />
+        <StatusCell value={cellProps.cell.value} />
       ),
     });
 
