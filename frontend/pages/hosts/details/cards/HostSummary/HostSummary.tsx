@@ -131,10 +131,6 @@ const HostSummary = ({
     </div>
   );
 
-  // TODO: should these strings be imported from an external constants file? This would be repeating
-  // functionality that exists elsewhere (i.e., ManageHosts page) – encapsulate it all in a more
-  // general location (statuscell/constants?)
-
   const renderSummary = () => {
     const hostStatus = titleData.status;
     return (
@@ -143,6 +139,8 @@ const HostSummary = ({
           <span className="info-flex__header">Status</span>
           <StatusCell
             value={hostStatus}
+            // TODO: setting id to "status-tooltip" is fine here because there is only one status
+            // per HostSummary – probably better for it to be the unique host ID
             tooltip={{
               id: "status-tooltip",
               tooltipText: getHostStatusTooltipText(hostStatus),
