@@ -5,7 +5,7 @@ import ReactTooltip from "react-tooltip";
 interface IStatusCellProps {
   value: string;
   tooltip?: {
-    rowId: number;
+    rowId?: number;
     tooltipText: string;
   };
 }

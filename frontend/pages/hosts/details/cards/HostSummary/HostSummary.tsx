@@ -11,6 +11,8 @@ import {
   wrapFleetHelper,
 } from "utilities/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+// eslint-disable-next-line import/first
+import getHostStatusTooltipText from "pages/hosts/helpers";
 
 const baseClass = "host-summary";
 
@@ -132,19 +134,9 @@ const HostSummary = ({
   // functionality that exists elsewhere (i.e., ManageHosts page) – encapsulate it all in a more
   // general location (statuscell/constants?)
 
-  const statusTooltipText = () => {
-    switch (titleData.status) {
-      case "online":
-        return "Online hosts will respond to a live query.";
-      case "offline":
-        return "Offline hosts won’t respond to a live query because they may be shut down, asleep, or not connected to the internet.";
-      default:
-        return "";
-    }
-  };
-
   const renderSummary = () => {
     console.log("titleData.status:", titleData.status);
+    const hostStatus = titleData.status;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -156,7 +148,7 @@ const HostSummary = ({
               data-for="status-tooltip"
               data-tip-disable={false}
             >
-              {titleData.status}
+              {hostStatus}
             </span>
             <ReactTooltip
               className="status-tooltip"
@@ -165,7 +157,7 @@ const HostSummary = ({
               id="status-tooltip"
               backgroundColor="#3e4771"
             >
-              {statusTooltipText()}
+              {getHostStatusTooltipText(hostStatus)}
             </ReactTooltip>
           </span>
         </div>

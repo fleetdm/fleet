@@ -29,6 +29,8 @@ import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
 import { STATUS_CELL_TOOLTIP_OPTIONS } from "./constants";
+import getHostStatusTooltipText from "../helpers";
+import { string } from "prop-types";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -222,7 +224,7 @@ const allHostTableHeaders: IDataColumn[] = [
       const value = cellProps.cell.value;
       const tooltip = {
         rowId: cellProps.row.original.id,
-        tooltipText: STATUS_CELL_TOOLTIP_OPTIONS[value],
+        tooltipText: getHostStatusTooltipText(value),
       };
       return <StatusCell value={value} tooltip={tooltip} />;
     },
