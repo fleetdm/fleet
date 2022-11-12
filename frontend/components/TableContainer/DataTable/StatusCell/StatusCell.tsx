@@ -22,7 +22,6 @@ const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
     "data-table__status",
     `data-table__status--${generateClassTag(value)}`
   );
-  console.log("tooltip text:", tooltip?.tooltipText);
   const cellContent = tooltip ? (
     <>
       <div data-tip data-for={tooltip.rowId}>
