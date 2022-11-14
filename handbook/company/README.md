@@ -252,10 +252,9 @@ The following Slack channels are maintained by Fleet's founders and executive co
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-founders`               | Mike McNeil
 | `#help-mission-control`     | Charlie Chance
-| `#help-okrs`                | Mike McNeil
-| `#help-manage`              | Mike McNeil
+| `#help-okrs`                | Charlie Chance
+| `#help-manage`              | Charlie Chance
 | `#news-fundraising`         | Mike McNeil
 | `#help-open-core-ventures`  | Mike McNeil
 | `#general`                  | N/A _(announce something company-wide)_
