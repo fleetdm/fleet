@@ -14,7 +14,7 @@ const baseClass = "component__tooltip-wrapper";
 const TooltipWrapper = ({
   children,
   tipContent,
-  position = "bottom",
+  position = "top",
   isDelayed,
   className,
 }: ITooltipWrapperProps): JSX.Element => {
