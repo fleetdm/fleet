@@ -7,12 +7,10 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       - METRICS_STORAGE_TYPE=prometheus
-      - PROMETHEUS_SERVER_URL=http://host.docker.internal:18492
+      - PROMETHEUS_SERVER_URL=http://prometheus:18492
     ports:
       - "16686:16686"
       - "14269:14269"
-      - "14268"
-      - "14250"
 
   # Collector
   otel-collector:

@@ -12,7 +12,7 @@ To get started:
 
 ```
 OTEL_SERVICE_NAME="fleet" \
-OTEL_EXPORTER_OTLP_ENDPOINT="http://host.docker.internal:4317" \
+OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317" \
 ./build/fleet serve \
   --logging_tracing_enabled=true \
   --logging_tracing_type=opentelemetry \

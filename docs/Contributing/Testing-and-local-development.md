@@ -425,6 +425,6 @@ MinIO also offers a web interface at http://localhost:9001. Credentials are `min
 
 ## Telemetry
 
-You can configure the server to record and report trace data using OpenTelemetry or Elastic APM, and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
+You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
 
 Please refer to [tools/telemetry](../../tools/telemetry/README.md) for instructions.
