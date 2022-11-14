@@ -338,6 +338,7 @@ type PackagingConfig struct {
 	S3 S3Config `yaml:"s3"`
 }
 
+/*
 // MDMAppleConfig holds all the configuration for Apple MDM.
 type MDMAppleConfig struct {
 	// Enable enables MDM functionality on Fleet.
@@ -399,6 +400,7 @@ type SCEPCAConfig struct {
 	// PEMKey contains the unencrypted PEM-encoded private key.
 	PEMKey string `yaml:"pem_key"`
 }
+*/
 
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
