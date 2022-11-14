@@ -1,4 +1,4 @@
-## Fleet 4.23.0 (Nov 10, 2022)
+## Fleet 4.23.0 (Nov 14, 2022)
 
 * Added preview screenshots for Jira and Zendesk vulnerability tickets for Premium users.
 
