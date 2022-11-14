@@ -1,6 +1,5 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/testingUtils";
 
 import PlatformCompatibility from "./PlatformCompatibility";
 
@@ -16,25 +15,37 @@ describe("Platform compatibility", () => {
     const windowsCompatibility = screen.getByText("Windows").firstElementChild;
     const linuxCompatibility = screen.getByText("Linux").firstElementChild;
 
-    expect(macCompatibility).toHaveAttribute("alt", "compatible");
-    expect(windowsCompatibility).toHaveAttribute("alt", "compatible");
-    expect(linuxCompatibility).toHaveAttribute("alt", "incompatible");
+    console.log("macCopatib", macCompatibility);
+    expect(macCompatibility).toHaveAttribute(
+      "class",
+      "icon compatible-platform"
+    );
+    expect(windowsCompatibility).toHaveAttribute(
+      "class",
+      "icon compatible-platform"
+    );
+    expect(linuxCompatibility).toHaveAttribute(
+      "class",
+      "icon incompatible-platform"
+    );
   });
-  // it("renders error state", () => {
-  //   render(<PlatformCompatibility whatToRetrieve="software" />);
+  it("renders empty state", () => {
+    render(<PlatformCompatibility compatiblePlatforms={[]} error={null} />);
 
-  //   const text = screen.getByText("Updated never");
+    const text = screen.getByText(/No platforms/i);
 
-  //   expect(text).toBeInTheDocument();
-  // });
+    expect(text).toBeInTheDocument();
+  });
+  it("renders error state", () => {
+    render(
+      <PlatformCompatibility
+        compatiblePlatforms={["macOS"]}
+        error={{ name: "Error", message: "The resource was not found." }}
+      />
+    );
 
-  // it("renders tooltip on hover", async () => {
-  //   const { user } = renderWithSetup(
-  //     <LastUpdatedText whatToRetrieve="software" />
-  //   );
+    const text = screen.getByText(/possible syntax error/i);
 
-  //   await user.hover(screen.getByText("Updated never"));
-
-  //   expect(screen.getByText(/to retrieve software/i)).toBeInTheDocument();
-  // });
+    expect(text).toBeInTheDocument();
+  });
 });
