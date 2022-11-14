@@ -271,6 +271,12 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 - [Publishing Fleet content](#publishing-fleet-content)
 - [Content style guide](#content-style-guide)
+- [For editors](#for-editors)
+- [Commonly used terms](#commonly-used-terms)
+- [Brand resources](#brand-resources)
+- [Email blasts](#email-blasts)
+- [Using Figma](#using-figma)
+- [Fleet website](#fleet-website)
 
 ### Publishing Fleet content 
 
