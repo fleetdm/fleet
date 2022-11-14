@@ -12,6 +12,7 @@ interface IHostSummaryProps {
   isLoadingHosts: boolean;
   showHostsUI: boolean;
   selectedPlatformLabelId?: number;
+  teamId?: number;
 }
 
 const MissingHosts = ({
@@ -19,10 +20,12 @@ const MissingHosts = ({
   isLoadingHosts,
   showHostsUI,
   selectedPlatformLabelId,
+  teamId,
 }: IHostSummaryProps): JSX.Element => {
   // build the manage hosts URL filtered by missing and platform
   const queryParams = {
     status: "missing",
+    team_id: teamId,
   };
   const queryString = buildQueryStringFromParams(queryParams);
   const endpoint = selectedPlatformLabelId
