@@ -76,6 +76,7 @@ If the edits apply to a single team, you’ll see the team’s name in the activ
    - Custom paths. This was hardcoded to `/*`, but it can require an extra annotation to work with regular expressions depending on the ingress controller.
    - Specified ingressClassName. This setting was hardcoded to `gce`, but it might be different on each cluster.
 - Improved database usage to prevent some deadlocks.
+- Improved styling on the App settings page.
 - Updated the Orbit MSI installer to include the necessary manifest file for using `windows_event_log` as a `logger_plugin`.
 - Updated MDM lists and aggregated data to exclude Windows servers.
 - Updated Go to 1.19.3.
@@ -92,6 +93,9 @@ If the edits apply to a single team, you’ll see the team’s name in the activ
 - Fixed a bug with our CPE matching process. UTM.app was matching the wrong CPE.
 - Fixed an issue where Fleet would send invalid usage stats if no hosts were enrolled.
 - Fixed an Orbit MSI installer bug that prevented Orbit files from being removed during uninstallation.
+- Fixed software filter when software does not have a version number.
+- Fixed validation of agent options where valid options were being rejected (such as `exclude_paths`).
+- Fixed styles for code editor gutter and query side panel table dropdown.
 
 ## Ready to upgrade?
 
