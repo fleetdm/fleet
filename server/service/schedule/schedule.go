@@ -318,12 +318,13 @@ func (s *Schedule) Start() {
 				case <-configTicker.C:
 					schedInterval := s.getSchedInterval()
 					newInterval, err := s.configReloadIntervalFn(s.ctx)
-					newInterval = truncateSecondsWithFloor(newInterval)
 					if err != nil {
 						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
 						sentry.CaptureException(err)
 						continue
 					}
+
+					newInterval = truncateSecondsWithFloor(newInterval)
 					if newInterval <= 0 {
 						level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
 						continue
@@ -332,7 +333,6 @@ func (s *Schedule) Start() {
 						continue
 					}
 					s.setSchedInterval(newInterval)
-					schedInterval = s.getSchedInterval()
 
 					intervalStartedAt := getIntervalStartedAt()
 					newWait := 10 * time.Millisecond
@@ -378,13 +378,12 @@ func (s *Schedule) Done() <-chan struct{} {
 	return s.done
 }
 
-// getScheduleInterval returns the schedule interval after truncating the duration to seconds and
-// applying a one second floor (e.g., 600ms becomes 1s, 1300ms becomes 2s, 1000ms becomes 2s)
+// getScheduleInterval returns the schedule interval
 func (s *Schedule) getSchedInterval() time.Duration {
 	s.schedIntervalMu.Lock()
 	defer s.schedIntervalMu.Unlock()
 
-	return truncateSecondsWithFloor(s.schedInterval)
+	return s.schedInterval
 }
 
 // setScheduleInterval sets the schedule interval after truncating the duration to seconds and
