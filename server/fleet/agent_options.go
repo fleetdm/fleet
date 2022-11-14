@@ -79,12 +79,17 @@ type osqueryAgentOptions struct {
 	// See https://github.com/fleetdm/fleet/issues/7871#issuecomment-1265531018
 	Packs json.RawMessage `json:"packs"`
 
-	FilePaths    map[string][]string `json:"file_paths"`
-	FileAccesses []string            `json:"file_accesses"`
+	FilePaths      map[string][]string `json:"file_paths"`
+	FilePathsQuery map[string][]string `json:"file_paths_query"`
+	FileAccesses   []string            `json:"file_accesses"`
+	ExcludePaths   map[string][]string `json:"exclude_paths"`
 
 	YARA struct {
 		Signatures map[string][]string `json:"signatures"`
 		FilePaths  map[string][]string `json:"file_paths"`
+		// Documentation for signature_urls is "hidden" in osquery's YARA page:
+		// https://osquery.readthedocs.io/en/stable/deployment/yara/#retrieving-yara-rules-at-runtime
+		SignatureURLs []string `json:"signature_urls"`
 	} `json:"yara"`
 
 	PrometheusTargets struct {
