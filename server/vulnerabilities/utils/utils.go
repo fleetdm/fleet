@@ -93,12 +93,14 @@ func VulnsDelta[T fleet.Vulnerability](
 
 	for _, e := range existing {
 		if _, ok := foundSet[e.Key()]; !ok {
+			// existing not in found, delete
 			toDelete = append(toDelete, e)
 		}
 	}
 
 	for _, f := range found {
 		if _, ok := existingSet[f.Key()]; !ok {
+			// found not in existing, insert
 			toInsert = append(toInsert, f)
 		}
 	}

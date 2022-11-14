@@ -303,7 +303,7 @@ type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs flee
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
+type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
@@ -943,8 +943,8 @@ type DataStore struct {
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
 
-	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
-	ListSoftwareVulnerabilitiesFuncInvoked bool
+	ListSoftwareVulnerabilitiesByHostIDsSourceFunc        ListSoftwareVulnerabilitiesByHostIDsSourceFunc
+	ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -1975,9 +1975,9 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uin
 	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
 }
 
-func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error) {
-	s.ListSoftwareVulnerabilitiesFuncInvoked = true
-	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
+func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
+	s.ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked = true
+	return s.ListSoftwareVulnerabilitiesByHostIDsSourceFunc(ctx, hostIDs, source)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {

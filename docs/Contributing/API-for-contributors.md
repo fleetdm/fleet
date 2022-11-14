@@ -1037,7 +1037,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "spec": {
           "config": {
             "options": {
-              "logger_plugin": "tls",
               "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",

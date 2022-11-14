@@ -10,7 +10,12 @@ import { NotificationContext } from "context/notification";
 
 import { IConfig, IWebhookSettings } from "interfaces/config";
 import { IIntegrations } from "interfaces/integration";
-import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
+import {
+  IPolicyStats,
+  ILoadAllPoliciesResponse,
+  ILoadTeamPoliciesResponse,
+  IPolicy,
+} from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
 import PATHS from "router/paths";
@@ -87,6 +92,9 @@ const ManagePolicyPage = ({
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
 
+  const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
+  const [inheritedPolicies, setInheritedPolicies] = useState<IPolicyStats[]>();
+
   useEffect(() => {
     setLastEditedQueryPlatform(null);
   }, []);
@@ -110,16 +118,18 @@ const ManagePolicyPage = ({
   );
 
   const {
-    data: teamPolicies,
     error: teamPoliciesError,
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
-  } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
+  } = useQuery<ILoadTeamPoliciesResponse, Error, ILoadTeamPoliciesResponse>(
     ["teamPolicies", teamId],
     () => teamPoliciesAPI.loadAll(teamId),
     {
       enabled: !!availableTeams && isPremiumTier && !!teamId,
-      select: (data) => data.policies,
+      onSuccess: (data) => {
+        setTeamPolicies(data.policies);
+        setInheritedPolicies(data.inherited_policies);
+      },
       staleTime: 5000,
     }
   );
@@ -475,8 +485,8 @@ const ManagePolicyPage = ({
                 <Spinner />
               ) : (
                 <PoliciesTable
-                  isLoading={isFetchingGlobalPolicies}
-                  policiesList={globalPolicies || []}
+                  isLoading={isFetchingTeamPolicies}
+                  policiesList={inheritedPolicies || []}
                   onDeletePolicyClick={noop}
                   canAddOrDeletePolicy={canAddOrDeletePolicy}
                   tableType="inheritedPolicies"
