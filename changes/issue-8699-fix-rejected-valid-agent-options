@@ -1,1 +1,0 @@
-* Fixed validation of agent options where valid options were being rejected (such as `exclude_paths`).

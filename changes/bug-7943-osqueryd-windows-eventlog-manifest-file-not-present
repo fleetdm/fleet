@@ -1,1 +1,0 @@
-* Orbit MSI installer now includes the necessary manifest file to use windows_event_log as a logger_plugin.
