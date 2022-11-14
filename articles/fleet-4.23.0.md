@@ -104,6 +104,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2022-11-11">
+<meta name="publishedOn" value="2022-11-14">
 <meta name="articleTitle" value="Fleet 4.23.0 | Better insight into inherited policies, improved host vitals, and more configuration visibility">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.23.0-1600x900.jpg">
