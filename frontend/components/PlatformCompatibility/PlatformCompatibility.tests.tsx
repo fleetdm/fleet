@@ -15,7 +15,6 @@ describe("Platform compatibility", () => {
     const windowsCompatibility = screen.getByText("Windows").firstElementChild;
     const linuxCompatibility = screen.getByText("Linux").firstElementChild;
 
-    console.log("macCopatib", macCompatibility);
     expect(macCompatibility).toHaveAttribute(
       "class",
       "icon compatible-platform"
