@@ -6,10 +6,10 @@ If you're using a free version of Fleet, you can access free community support b
 
 Customers on a paid tier of Fleet can get in touch directly for commercial support:
 
-| Level of impact | Type of support |
-| :--- | :--- |
-| Low to medium impact | Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat/email support during business hours </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> Response time: **≤4 hours** |
+| Level of impact | Response time - premium tier | Response time - ultimate tier |
+| :--- | :--- | :--- |
+| Low to medium impact </br> Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br>|  **1 business day** | **1 business day**  |
+| High to emergency impact </br> Expedited phone/chat/email support </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> |  **4 business hours** | **≤1 hour during business hours** </br> **≤2 hours outside business hours** 
 
 ## Customer success calls
 
