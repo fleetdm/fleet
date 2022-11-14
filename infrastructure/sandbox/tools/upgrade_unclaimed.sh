@@ -3,7 +3,7 @@
 set -e
 
 function get_unclaimed_instances() {
-	aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | select(.State.S == "unclaimed") | .ID.S'
+	aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | select(.State.S == "unclaimed") | .ID.S' | sort
 }
 
 function purge_instances() {
