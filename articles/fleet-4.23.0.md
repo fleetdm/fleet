@@ -1,6 +1,6 @@
 # Fleet 4.23.0 | Better insight into inherited policies, improved host vitals, and more configuration visibility
 
-![Fleet 4.23.0](../website/assets/images/articles/fleet-4.23.0-1600x900.jpg)
+![Fleet 4.23.0](../website/assets/images/articles/fleet-4.23.0-800x450@2x.jpg)
 
 Fleet 4.23.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.23.0) or continue reading to get the highlights.
 
@@ -15,7 +15,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Know which hosts on a team comply with inherited policies
 **Available in Fleet Premium**
 
-![Inherited policies table](../website/assets/images/articles/inherited-policies-table-1600x900.jpg)
+![Inherited policies table](../website/assets/images/articles/fleet-4.23.0-inherited-policies-table-800x450@2x.jpg)
 
 One of the benefits of Fleet teams is that you can assign [policies](https://fleetdm.com/securing/what-are-fleet-policies) to specific groups of devices, empowering you to [refine your compliance approach](https://fleetdm.com/securing/stay-on-course-with-your-security-compliance-goals). But your organization may have policies that apply to every device — regardless of teams or departments. We call these “inherited” policies.
 
@@ -26,7 +26,7 @@ Like team policies, you’ll see how many hosts are passing or failing inherited
 ## Separate private and public IP addresses
 **Available in Fleet Free and Fleet Premium**
 
-![IP address columns](../website/assets/images/articles/ip-address-columns-1600x900.jpg)
+![IP address columns](../website/assets/images/articles/fleet-4.23.0-ip-address-columns-800x450@2x.jpg)
 
 In previous releases of Fleet, the Hosts page listed the IP address for every device, but it didn’t specify whether these IP addresses were private or public. We’ve cleared up that confusion in Fleet 4.23.0 with updates to the Hosts page.
 
@@ -35,7 +35,7 @@ We changed the title of the “IP address” column to “Private IP address” 
 ## See host disk encryption status
 **Available in Fleet Free and Fleet Premium**
 
-![Disk encryption tooltip](../website/assets/images/articles/disk-encryption-tooltip-1600x900.jpg)
+![Disk encryption tooltip](../website/assets/images/articles/fleet-4.23.0-disk-encryption-tooltip-800x450@2x.jpg)
 
 Fleet 4.23.0 gives you the ability to see if a host has disk encryption enabled.
 
@@ -47,7 +47,7 @@ This is because Fleet detects if the `/dev/dm-1` drive is encrypted. This drive 
 ## See team configuration file edits
 **Available in Fleet Premium**
 
-![Team configuration file edit activity](../website/assets/images/articles/team-config-edit-activity-1600x900.jpg)
+![Team configuration file edit activity](../website/assets/images/articles/fleet-4.23.0-team-config-edit-activity-800x450@2x.jpg)
 
 Unexpected changes to your agent options are concerning to say the least. Fleet 4.23.0 will put you at ease.
 
@@ -106,4 +106,4 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2022-11-14">
 <meta name="articleTitle" value="Fleet 4.23.0 | Better insight into inherited policies, improved host vitals, and more configuration visibility">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.23.0-1600x900.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.23.0-800x450@2x.jpg">
