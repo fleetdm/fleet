@@ -428,7 +428,7 @@ type FleetConfig struct {
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
-	MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
+	//MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
 }
 
 type TLS struct {
@@ -985,30 +985,6 @@ func (man Manager) LoadConfig() FleetConfig {
 				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
 				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
 				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
-			},
-		},
-		MDMApple: MDMAppleConfig{
-			Enable: man.getConfigBool("mdm_apple.enable"),
-			SCEP: MDMAppleSCEPConfig{
-				CA: SCEPCAConfig{
-					PEMCert: man.getConfigString("mdm_apple.scep.ca.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.scep.ca.key_pem"),
-				},
-				Signer: SCEPSignerConfig{
-					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
-					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
-				},
-				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
-			},
-			MDM: MDMAppleMDMConfig{
-				PushCert: MDMApplePushCert{
-					PEMCert: man.getConfigString("mdm_apple.mdm.push.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.mdm.push.key_pem"),
-				},
-			},
-			DEP: MDMAppleDEP{
-				Token:           man.getConfigString("mdm_apple.dep.token"),
-				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
 			},
 		},
 	}

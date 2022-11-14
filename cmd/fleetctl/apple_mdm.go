@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"bytes"
 	"encoding/json"
@@ -1055,3 +1056,4 @@ func appleMDMInstallersDeleteCommand() *cli.Command {
 		},
 	}
 }
+*/

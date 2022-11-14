@@ -85,10 +85,6 @@ func NewService(
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
 	enrollHostLimiter fleet.EnrollHostLimiter,
-	depStorage nanodep_storage.AllStorage,
-	mdmStorage nanomdm_storage.AllStorage,
-	mdmPushService nanomdm_push.Pusher,
-	mdmPushCertTopic string,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -114,10 +110,6 @@ func NewService(
 		jitterMu:          new(sync.Mutex),
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
-		depStorage:        depStorage,
-		mdmStorage:        mdmStorage,
-		mdmPushService:    mdmPushService,
-		mdmPushCertTopic:  mdmPushCertTopic,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

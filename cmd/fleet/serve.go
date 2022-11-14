@@ -39,8 +39,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	config_apple "github.com/fleetdm/fleet/v4/server/mdm/apple/config"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -51,9 +49,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
-	"github.com/micromdm/nanomdm/cryptoutil"
-	"github.com/micromdm/nanomdm/push/buford"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -385,43 +380,44 @@ the way that the Fleet server works.
 				}
 			}
 
-			var (
-				scepStorage      *scep_mysql.MySQLDepot
-				depStorage       *mysql.NanoDEPStorage
-				mdmStorage       *mysql.NanoMDMStorage
-				mdmPushService   *nanomdm_pushsvc.PushService
-				mdmPushCertTopic string
-			)
-			if config.MDMApple.Enable {
-				if err := config_apple.Verify(config.MDMApple); err != nil {
-					initFatal(err, "verify apple mdm config")
-				}
-				scepStorage, err = mds.NewMDMAppleSCEPDepot(
-					[]byte(config.MDMApple.SCEP.CA.PEMCert),
-					[]byte(config.MDMApple.SCEP.CA.PEMKey),
-				)
-				if err != nil {
-					initFatal(err, "initialize mdm apple scep storage")
-				}
-				mdmStorage, err = mds.NewMDMAppleMDMStorage(
-					[]byte(config.MDMApple.MDM.PushCert.PEMCert),
-					[]byte(config.MDMApple.MDM.PushCert.PEMKey),
-				)
-				if err != nil {
-					initFatal(err, "initialize mdm apple MySQL storage")
-				}
-				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert([]byte(config.MDMApple.MDM.PushCert.PEMCert))
-				if err != nil {
-					initFatal(err, "extract topic from mdm push certificate")
-				}
-				depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
-				if err != nil {
-					initFatal(err, "initialize mdm apple dep storage")
-				}
-				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
-				pushProviderFactory := buford.NewPushProviderFactory()
-				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
-			}
+			// TODO(mna): MDM config/setup.
+			//var (
+			//	scepStorage      *scep_mysql.MySQLDepot
+			//	depStorage       *mysql.NanoDEPStorage
+			//	mdmStorage       *mysql.NanoMDMStorage
+			//	mdmPushService   *nanomdm_pushsvc.PushService
+			//	mdmPushCertTopic string
+			//)
+			//if config.MDMApple.Enable {
+			//	if err := config_apple.Verify(config.MDMApple); err != nil {
+			//		initFatal(err, "verify apple mdm config")
+			//	}
+			//	scepStorage, err = mds.NewMDMAppleSCEPDepot(
+			//		[]byte(config.MDMApple.SCEP.CA.PEMCert),
+			//		[]byte(config.MDMApple.SCEP.CA.PEMKey),
+			//	)
+			//	if err != nil {
+			//		initFatal(err, "initialize mdm apple scep storage")
+			//	}
+			//	mdmStorage, err = mds.NewMDMAppleMDMStorage(
+			//		[]byte(config.MDMApple.MDM.PushCert.PEMCert),
+			//		[]byte(config.MDMApple.MDM.PushCert.PEMKey),
+			//	)
+			//	if err != nil {
+			//		initFatal(err, "initialize mdm apple MySQL storage")
+			//	}
+			//	mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert([]byte(config.MDMApple.MDM.PushCert.PEMCert))
+			//	if err != nil {
+			//		initFatal(err, "extract topic from mdm push certificate")
+			//	}
+			//	depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
+			//	if err != nil {
+			//		initFatal(err, "initialize mdm apple dep storage")
+			//	}
+			//	nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+			//	pushProviderFactory := buford.NewPushProviderFactory()
+			//	mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+			//}
 
 			baseCtx := licensectx.NewContext(context.Background(), license)
 			ctx, cancelFunc := context.WithCancel(baseCtx)
@@ -445,10 +441,6 @@ the way that the Fleet server works.
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
-				depStorage,
-				mdmStorage,
-				mdmPushService,
-				mdmPushCertTopic,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -475,9 +467,9 @@ the way that the Fleet server works.
 			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
-			if config.MDMApple.Enable {
-				startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
-			}
+			//if config.MDMApple.Enable {
+			//	startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+			//}
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
@@ -571,17 +563,17 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if config.MDMApple.Enable {
-				if err := registerAppleMDMProtocolServices(
-					rootMux,
-					config.MDMApple.SCEP,
-					mdmStorage,
-					scepStorage,
-					logger,
-				); err != nil {
-					initFatal(err, "setup mdm apple services")
-				}
-			}
+			//if config.MDMApple.Enable {
+			//	if err := registerAppleMDMProtocolServices(
+			//		rootMux,
+			//		config.MDMApple.SCEP,
+			//		mdmStorage,
+			//		scepStorage,
+			//		logger,
+			//	); err != nil {
+			//		initFatal(err, "setup mdm apple services")
+			//	}
+			//}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
 				metricsHandler := basicAuthHandler(
