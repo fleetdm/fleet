@@ -401,7 +401,7 @@ const DashboardPage = (): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        teamId={currentTeam?.id} // TODO: This is a bandaid fix for useContext currentTeam not being populated for manage host page
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
@@ -415,7 +415,7 @@ const DashboardPage = (): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        teamId={currentTeam?.id} // TODO: This is a bandaid fix for useContext currentTeam not being populated for manage host page
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
