@@ -36,9 +36,3 @@ export const HOST_SELECT_STATUSES = [
     helpText: "Hosts added to Fleet in the last 24 hours.",
   },
 ];
-
-export const STATUS_CELL_TOOLTIP_OPTIONS: { [indexer: string]: string } = {
-  online: "Online hosts will respond to a live query.",
-  offline:
-    "Offline hosts won't respond to a live query because they may be shut down, asleep, or not connected to the internet.",
-};

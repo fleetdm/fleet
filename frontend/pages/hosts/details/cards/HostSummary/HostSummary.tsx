@@ -11,6 +11,9 @@ import {
   wrapFleetHelper,
 } from "utilities/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+// eslint-disable-next-line import/first
+import getHostStatusTooltipText from "pages/hosts/helpers";
+import StatusCell from "components/TableContainer/DataTable/StatusCell";
 
 const baseClass = "host-summary";
 
@@ -128,46 +131,21 @@ const HostSummary = ({
     </div>
   );
 
-  // TODO: should these strings be imported from an external constants file? This would be repeating
-  // functionality that exists elsewhere (i.e., ManageHosts page) – encapsulate it all in a more
-  // general location (statuscell/constants?)
-
-  const statusTooltipText = () => {
-    switch (titleData.status) {
-      case "online":
-        return "Online hosts will respond to a live query.";
-      case "offline":
-        return "Offline hosts won’t respond to a live query because they may be shut down, asleep, or not connected to the internet.";
-      default:
-        return "";
-    }
-  };
-
   const renderSummary = () => {
-    console.log("titleData.status:", titleData.status);
+    const hostStatus = titleData.status;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
-          <span className={`${statusClassName} info-flex__data`}>
-            <span
-              className="host-status tooltip tooltip__tooltip-icon"
-              data-tip
-              data-for="status-tooltip"
-              data-tip-disable={false}
-            >
-              {titleData.status}
-            </span>
-            <ReactTooltip
-              className="status-tooltip"
-              place="top"
-              effect="solid"
-              id="status-tooltip"
-              backgroundColor="#3e4771"
-            >
-              {statusTooltipText()}
-            </ReactTooltip>
-          </span>
+          <StatusCell
+            value={hostStatus}
+            // TODO: setting id to "status-tooltip" is fine here because there is only one status
+            // per HostSummary – probably better for it to be the unique host ID
+            tooltip={{
+              id: "status-tooltip",
+              tooltipText: getHostStatusTooltipText(hostStatus),
+            }}
+          />
         </div>
         {titleData.issues?.total_issues_count > 0 &&
           isPremiumTier &&
