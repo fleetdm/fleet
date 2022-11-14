@@ -1323,6 +1323,23 @@ spec:
 `,
 			wantErr: `422 Validation Failed: host_percentage must be > 0 to enable the host status webhook`,
 		},
+		{
+			desc: "config with FIM values for agent options (#8699)",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      file_paths:
+        ssh:
+          - /home/%/.ssh/authorized_keys
+      exclude_paths:
+        ssh:
+          - /home/ubuntu/.ssh/authorized_keys
+`,
+			wantOutput: `[+] applied fleet config`,
+		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
 	// they require a complex setup to mock the client that would communicate
