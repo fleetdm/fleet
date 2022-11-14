@@ -72,7 +72,7 @@ const HostSummary = ({
           </Button>
         </div>
         <ReactTooltip
-          place="bottom"
+          place="top"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
