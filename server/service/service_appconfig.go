@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -95,7 +96,8 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 		}
 	}
 
-	return &svc.license, nil
+	lic, _ := license.FromContext(ctx)
+	return lic, nil
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {

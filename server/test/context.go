@@ -8,6 +8,6 @@ import (
 )
 
 // UserContext returns a new context with the provided user as the viewer.
-func UserContext(user *fleet.User) context.Context {
-	return viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+func UserContext(ctx context.Context, user *fleet.User) context.Context {
+	return viewer.NewContext(ctx, viewer.Viewer{User: user})
 }

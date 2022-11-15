@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -77,7 +78,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier:                  "ident",
 			FleetVersion:                         "1.2.3",
@@ -116,7 +117,8 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
@@ -139,7 +141,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, cfg config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, cfg config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
 	recorded := false
@@ -153,7 +155,8 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, cleanedup)
@@ -176,7 +179,8 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, called)
 }
@@ -287,7 +291,8 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -472,7 +477,8 @@ func TestScanVulnerabilities(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	err := scanVulnerabilities(ctx, ds, logger, &config, appConfig, vulnPath, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := scanVulnerabilities(ctx, ds, logger, &config, appConfig, vulnPath)
 	require.NoError(t, err)
 
 	// ensure that nvd vulnerabilities are not deleted
@@ -505,7 +511,8 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
 	require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
 }
 
@@ -541,7 +548,8 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	}
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
