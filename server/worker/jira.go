@@ -11,6 +11,7 @@ import (
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
@@ -30,9 +31,24 @@ var jiraTemplates = struct {
 		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 	)),
 
-	// Jira uses wiki markup in the v2 api.
-	VulnDescription: template.Must(template.New("").Parse(
+	// Jira uses wiki markup in the v2 api. See
+	// https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=all
+	// for some reference. The `\\` marks force a newline to have the desired spacing
+	// around the scores, when present.
+	VulnDescription: template.Must(template.New("").Funcs(template.FuncMap{
+		// CISAKnownExploit is *bool, so any condition check on it in the template
+		// will test if nil or not, and not its actual boolean value. Hence, "deref".
+		"deref": func(b *bool) bool { return *b },
+	}).Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
+
+{{ if .IsPremium }}{{ if .EPSSProbability }}\\Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
+{{ end }}
+{{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
+{{ end }}
+{{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/known-exploited-vulnerabilities-catalog]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
+\\
+{{ end }}{{ end }}
 
 Affected hosts:
 
@@ -76,6 +92,13 @@ type jiraVulnTplArgs struct {
 	FleetURL string
 	CVE      string
 	Hosts    []*fleet.HostShort
+
+	IsPremium bool
+
+	// the following fields are only included in the ticket for premium licenses.
+	EPSSProbability  *float64
+	CVSSScore        *float64
+	CISAKnownExploit *bool
 }
 
 type jiraFailingPoliciesTplArgs struct {
@@ -199,7 +222,10 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 
 // jiraArgs are the arguments for the Jira integration job.
 type jiraArgs struct {
+	// CVE is deprecated but kept for backwards compatibility (there may be jobs
+	// enqueued in that format to process).
 	CVE           string             `json:"cve,omitempty"`
+	Vulnerability *vulnArgs          `json:"vulnerability,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
@@ -239,16 +265,28 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 }
 
 func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error {
-	hosts, err := j.Datastore.HostsByCVE(ctx, args.CVE)
+	vargs := args.Vulnerability
+	if vargs == nil {
+		// support the old format of vulnerability args, where only the CVE
+		// is provided.
+		vargs = &vulnArgs{
+			CVE: args.CVE,
+		}
+	}
+	hosts, err := j.Datastore.HostsByCVE(ctx, vargs.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
 	tplArgs := &jiraVulnTplArgs{
-		NVDURL:   nvdCVEURL,
-		FleetURL: j.FleetURL,
-		CVE:      args.CVE,
-		Hosts:    hosts,
+		NVDURL:           nvdCVEURL,
+		FleetURL:         j.FleetURL,
+		CVE:              vargs.CVE,
+		Hosts:            hosts,
+		IsPremium:        license.IsPremium(ctx),
+		EPSSProbability:  vargs.EPSSProbability,
+		CVSSScore:        vargs.CVSSScore,
+		CISAKnownExploit: vargs.CISAKnownExploit,
 	}
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
@@ -257,7 +295,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 	}
 	level.Debug(j.Log).Log(
 		"msg", "created jira issue for cve",
-		"cve", args.CVE,
+		"cve", vargs.CVE,
 		"issue_id", createdIssue.ID,
 		"issue_key", createdIssue.Key,
 	)
@@ -324,7 +362,13 @@ func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summary
 
 // QueueJiraVulnJobs queues the Jira vulnerability jobs to process asynchronously
 // via the worker.
-func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
+func QueueJiraVulnJobs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	recentVulns []fleet.SoftwareVulnerability,
+	cveMeta map[string]fleet.CVEMeta,
+) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
@@ -332,18 +376,24 @@ func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	// _before_ we start processing them).
 	cves := make([]string, 0, len(recentVulns))
 	for _, vuln := range recentVulns {
-		cves = append(cves, vuln.CVE)
+		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	uniqCVEs := make(map[string]bool)
 	for _, v := range recentVulns {
-		uniqCVEs[v.CVE] = true
+		uniqCVEs[v.GetCVE()] = true
 	}
 
 	for cve := range uniqCVEs {
-		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{CVE: cve})
+		args := vulnArgs{CVE: cve}
+		if meta, ok := cveMeta[cve]; ok {
+			args.EPSSProbability = meta.EPSSProbability
+			args.CVSSScore = meta.CVSSScore
+			args.CISAKnownExploit = meta.CISAKnownExploit
+		}
+		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{Vulnerability: &args})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}

@@ -8,7 +8,7 @@
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
 
-Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](../../Using-Fleet/fleetctl-CLI.md#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
+Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
 
 ## Queries
 
@@ -125,7 +125,6 @@ spec:
           distributed_interval: 10
           distributed_plugin: tls
           distributed_tls_max_attempts: 3
-          logger_plugin: tls
           logger_tls_endpoint: /api/v1/osquery/log
           logger_tls_period: 10
           pack_delimiter: /
@@ -190,7 +189,6 @@ spec:
         distributed_interval: 10
         distributed_plugin: tls
         distributed_tls_max_attempts: 3
-        logger_plugin: tls
         logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
         pack_delimiter: /
@@ -288,16 +286,16 @@ This is the additional information to collect from hosts along with the host det
 - Optional setting (dictionary of key-value strings)
 - Default value: none (empty)
 - Config file format:
-  ```
+  ```yaml
   features:
-  	additional_queries:
+    additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
   ```
 - Deprecated config file format:
-  ```
+  ```yaml
   host_settings:
-  	additional_queries:
+    additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
   ```
@@ -309,12 +307,12 @@ Whether or not Fleet sends the query needed to gather user-related data from hos
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   features:
   	enable_host_users: false
   ```
 - Deprecated config file format:
-  ```
+  ```yaml
   host_settings:
   	enable_host_users: false
   ```
@@ -326,19 +324,19 @@ Whether or not Fleet sends the query needed to gather the list of software insta
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   features:
   	enable_software_inventory: false
   ```
 - Deprecated config file format:
-  ```
+  ```yaml
   host_settings:
   	enable_software_inventory: false
   ```
 
 #### Fleet Desktop
 
-For more information about Fleet Desktop, see [Fleet Desktop's documentation](../../Using-Fleet/Fleet-desktop.md).
+For more information about Fleet Desktop, see [Fleet Desktop's documentation](https://fleetdm.com/docs/using-fleet/fleet-desktop).
 
 ##### fleet_desktop.transparency_url
 
@@ -347,7 +345,7 @@ For more information about Fleet Desktop, see [Fleet Desktop's documentation](..
 - Optional setting (string)
 - Default value: Fleet's default transparency URL ("https://fleetdm.com/transparency")
 - Config file format:
-  ```
+  ```yaml
   fleet_desktop:
     transparency_url: "https://example.org/transparency"
   ```
@@ -363,7 +361,7 @@ Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   host_expiry_settings:
   	host_expiry_enabled: true
   ```
@@ -375,16 +373,16 @@ If a host has not communicated with Fleet in the specified number of days, it wi
 - Optional setting (integer)
 - Default value: `0` (must be > 0 when enabling host expiry)
 - Config file format:
-  ```
+  ```yaml
   host_expiry_settings:
   	host_expiry_window: 10
   ```
 
 #### Integrations
 
-For more information about integrations and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md). Only one automation can be enabled for a given automation type (e.g., for failing policies, only one of the webhooks, the Jira integration, or the Zendesk automation can be enabled).
+For more information about integrations and Fleet automations in general, see the [Automations documentation](https://fleetdm.com/docs/using-fleet/automations). Only one automation can be enabled for a given automation type (e.g., for failing policies, only one of the webhooks, the Jira integration, or the Zendesk automation can be enabled).
 
-It's recommended to use the Fleet UI to configure integrations since secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
+It's recommended to use the Fleet UI to configure integrations since secret credentials (in the form of an API token) must be provided. See the [Automations documentation](https://fleetdm.com/docs/using-fleet/automations) for the UI configuration steps.
 
 #### Organization information
 
@@ -395,7 +393,7 @@ The name of the organization.
 - Required setting (string)
 - Default value: none (provided during Fleet setup)
 - Config file format:
-  ```
+  ```yaml
   org_info:
   	org_name: Fleet
   ```
@@ -407,7 +405,7 @@ The URL of the logo of the organization.
 - Optional setting (string)
 - Default value: none (uses Fleet's logo)
 - Config file format:
-  ```
+  ```yaml
   org_info:
   	org_logo_url: https://example.com/logo.png
   ```
@@ -464,7 +462,7 @@ Whether saving host-related information is done synchronously in the HTTP handle
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     deferred_save_host: true
   ```
@@ -476,7 +474,7 @@ If sending usage analytics is enabled or not.
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     enable_analytics: false
   ```
@@ -488,7 +486,7 @@ If the live query feature is disabled or not.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     live_query_disabled: true
   ```
@@ -500,7 +498,7 @@ The base URL of the fleet server, including the scheme (e.g. "https://").
 - Required setting (string)
 - Default value: none (provided during Fleet setup)
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     server_url: https://fleet.example.org:8080
   ```
@@ -511,16 +509,16 @@ It's recommended to use the Fleet UI to configure SMTP since a secret password m
 
 #### SSO settings
 
-For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet, and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
+For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet, and identity providers configuration, see [Configuring single sign-on (SSO)](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ##### sso_settings.enable_jit_provisioning
 
-**Available in Fleet Premium**. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+**Available in Fleet Premium**. Enables [just-in-time user provisioning](https://fleetdm.com/docs/deploying/configuration#just-in-time-jit-user-provisioning).
 
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     enable_jit_provisioning: true
   ```
@@ -532,7 +530,7 @@ Configures if single sign-on is enabled.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     enable_sso: true
   ```
@@ -544,7 +542,7 @@ Allow single sign-on login initiated by identity provider.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     enable_sso_idp_login: true
   ```
@@ -556,7 +554,7 @@ The required entity ID is a Uniform Resource Identifier (URI) that you use to id
 - Required setting if SSO is enabled, must have at least 5 characters (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     entity_id: "https://example.com"
   ```
@@ -568,7 +566,7 @@ An optional link to an image such as a logo for the identity provider.
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     idp_image_url: "https://example.com/logo"
   ```
@@ -580,7 +578,7 @@ A required human-friendly name for the identity provider that will provide singl
 - Required setting if SSO is enabled (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     idp_name: "SimpleSAML"
   ```
@@ -592,7 +590,7 @@ The issuer URI supplied by the identity provider.
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     issuer_uri: "https://example.com/saml2/sso-service"
   ```
@@ -604,7 +602,7 @@ Metadata (in XML format) provided by the identity provider.
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
   ```
@@ -616,7 +614,7 @@ A URL that references the identity provider metadata.
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   sso_settings:
     metadata_url: https://idp.example.org/idp-meta.xml
   ```
@@ -630,14 +628,14 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
 - Optional setting, must be set to enable vulnerability detection (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   vulnerability_settings:
     databases_path: "/path/to/dir"
   ```
 
 #### Webhook settings
 
-For more information about webhooks and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md).
+For more information about webhooks and Fleet automations in general, see the [Automations documentation](https://fleetdm.com/docs/using-fleet/automations).
 
 ##### webhook_settings.interval
 
@@ -646,7 +644,7 @@ The interval at which to check for webhook conditions. This value currently conf
 - Optional setting (time duration as a string)
 - Default value: `24h`
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     interval: "12h"
   ```
@@ -662,7 +660,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 - Optional setting, required if webhook is enabled (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       destination_url: "https://example.org/webhook_handler"
@@ -675,7 +673,7 @@ Defines whether to enable the failing policies webhook. Note that currently, if 
 - Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -688,7 +686,7 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 - Optional setting (integer).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       host_batch_size: 100
@@ -701,7 +699,7 @@ The IDs of the policies for which the webhook will be enabled.
 - Optional setting (array of integers).
 - Default value: empty.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     failing_policies_webhook:
       policy_ids:
@@ -721,7 +719,7 @@ Number of days that hosts need to be offline for to count as part of the percent
 - Optional setting, required if webhook is enabled (integer).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       days_count: 5
@@ -734,7 +732,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 - Optional setting, required if webhook is enabled (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       destination_url: "https://example.org/webhook_handler"
@@ -747,7 +745,7 @@ Defines whether the webhook check for host status will run or not.
 - Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       enable_host_status_webhook: true
@@ -760,7 +758,7 @@ The percentage of hosts that need to be offline to trigger the webhook.
 - Optional setting, required if webhook is enabled (float).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     host_status_webhook:
       host_percentage: 10
@@ -770,7 +768,7 @@ The percentage of hosts that need to be offline to trigger the webhook.
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 30 days (based on the National Vulnerability Database, NVD).
 
-Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks. It is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
+Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks. It is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](https://fleetdm.com/docs/deploying/configuration#periodicity).
 
 ###### webhook_settings.vulnerabilities_webhook.destination_url
 
@@ -779,7 +777,7 @@ The URL to `POST` to when the condition for the webhook triggers.
 - Optional setting, required if webhook is enabled (string).
 - Default value: "".
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     vulnerabilities_webhook:
       destination_url: "https://example.org/webhook_handler"
@@ -792,7 +790,7 @@ Defines whether to enable the vulnerabilities webhook.
 - Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     vulnerabilities_webhook:
       enable_vulnerabilities_webhook: true
@@ -805,7 +803,7 @@ Maximum number of hosts to batch on `POST` requests. A value of `0`, the default
 - Optional setting (integer).
 - Default value: `0`.
 - Config file format:
-  ```
+  ```yaml
   webhook_settings:
     vulnerabilities_webhook:
       host_batch_size: 100
@@ -819,15 +817,26 @@ See the [osquery documentation](https://osquery.readthedocs.io/en/stable/install
 
 Agent options are validated using the latest version of osquery. 
 
-You can verify that your agent options are valid by using [the fleetctl apply command](../../Using-Fleet/fleetctl-CLI.md#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
+You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 
-##### Overrides option
+> In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Orbit to enroll your hosts, this is done automatically. 
 
-The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
+```
+"--config_plugin=tls",
+"--config_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/config")
+```
 
-In the example file below, all Darwin and Ubuntu hosts will only receive the options specified in their respective overrides sections.
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+```
+
+
+##### Example Agent options YAML
 
 ```yaml
 apiVersion: v1
@@ -838,7 +847,6 @@ spec:
       options:
         distributed_interval: 3
         distributed_tls_max_attempts: 3
-        logger_plugin: tls
         logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
       decorators:
@@ -861,7 +869,6 @@ spec:
           options:
             distributed_interval: 10
             distributed_tls_max_attempts: 10
-            logger_plugin: tls
             logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 300
             disable_tables: chrome_extensions
@@ -877,7 +884,6 @@ spec:
           options:
             distributed_interval: 10
             distributed_tls_max_attempts: 3
-            logger_plugin: tls
             logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 60
             schedule_timeout: 60
@@ -904,37 +910,61 @@ spec:
   host_expiry_settings:
     # ...
 ```
+##### agent_options.config
 
-##### Auto table construction
+The config key sets the osqueryd configuration options for your agents. In a plain osquery deployment, these would typically be set in `osquery.conf`. Each key below represents a corresponding key in the osquery documentation. 
 
-You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
-
-If you already know what your ATC configuration needs to look like, you can add it to an options config file:
+For detailed information on osquery configuration options, check out the [osquery configuration docs](https://osquery.readthedocs.io/en/stable/deployment/configuration/). 
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
+agent_options:
     config:
-      options:
-        # ...
-    overrides:
-      platforms:
-        darwin:
-          auto_table_construction:
-            tcc_system_entries:
-              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
-              path: "/Library/Application Support/com.apple.TCC/TCC.db"
-              columns:
-                - "service"
-                - "client"
-                - "allowed"
-                - "prompt_count"
-                - "last_modified"
+      options: ~
+      decorators: ~ 
+      yara: ~
+    overrides: ~
+
 ```
 
-##### YARA configuration
+###### agent_options.config.options
+
+In the options key, you can set your osqueryd options and feature flags. 
+
+Any command line only flags must be set using the `command_line_flags` key for Orbit agents, or by modifying the osquery flags on your hosts if you're using plain osquery. 
+
+To see a full list of flags, broken down by the method you can use to set them (configuration options vs command line flags), you can run `osqueryd --help` on a plain osquery agent. For Orbit agents, run `sudo orbit osqueryd --help`. The options will be shown there in command line format as `--key value`. In `yaml` format, that would become `key: value`. 
+
+```yaml
+agent_options:
+    config:
+      options:
+        distributed_interval: 3
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+      decorators: ~
+```
+###### agent_options.config.decorators
+
+In the decorators key, you can specify queries to include additional information in your osquery results logs. 
+
+Use `load` for details you want to update values when the configuration loads, `always` to update every time a scheduled query is run, and `interval` if you want to update on a schedule. 
+
+```yaml
+agent_options:
+    config:
+      options: ~
+      decorators:
+        load:
+          - "SELECT version FROM osquery_info"
+          - "SELECT uuid AS host_uuid FROM system_info"
+        always:
+          - "SELECT user AS username FROM logged_in_users WHERE user <> '' ORDER BY time LIMIT 1"
+        interval:
+          3600: "SELECT total_seconds AS uptime FROM uptime"
+```
+
+##### agent_options.config.yara
 
 You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
 
@@ -964,6 +994,84 @@ spec:
     overrides: {}
 ```
 
+##### agent_options.overrides
+
+The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
+
+In the example file below, all Darwin and Ubuntu hosts will **only** receive the options specified in their respective overrides sections.
+
+
+```yaml
+agent_options:
+  config:
+    options: ~
+    overrides:
+      # Note configs in overrides take precedence over the default config defined
+      # under the config key above. Hosts receive overrides based on the platform
+      # returned by `SELECT platform FROM os_version`. In this example, the base
+      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+      # hosts would receive their respective overrides. Note, these overrides are
+      # NOT merged with the top level configuration.
+      platforms:
+        darwin:
+          options:
+            distributed_interval: 10
+            distributed_tls_max_attempts: 10
+            logger_tls_endpoint: /api/osquery/log
+            logger_tls_period: 300
+            disable_tables: chrome_extensions
+            docker_socket: /var/run/docker.sock
+          file_paths:
+            users:
+              - /Users/%/Library/%%
+              - /Users/%/Documents/%%
+            etc:
+              - /etc/%%
+```
+##### agent_options.auto_table_construction
+
+You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
+
+If you already know what your ATC configuration needs to look like, you can add it to an options config file:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      options:
+        # ...
+    overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc_system_entries:
+              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
+              path: "/Library/Application Support/com.apple.TCC/TCC.db"
+              columns:
+                - "service"
+                - "client"
+                - "allowed"
+                - "prompt_count"
+                - "last_modified"
+```
+
+
+##### agent_options.command_line_flags
+
+> Requires Fleet v4.22.0 or later and Orbit v1.3.0 or later**
+
+In the `command_line_flags` key, you can update the osquery flags of your Orbit enrolled agents.
+
+```yaml
+agent_options:
+  config:
+  overrides:
+  command_line_flags:
+    enable_file_events: true
+```
+
 #### Advanced configuration
 
-> **Note:** More settings are included in the [contributor documentation](../../Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
+> **Note:** More settings are included in the [contributor documentation](https://fleetdm.com/docs/contributing/configuration-for-contributors). It's possible, although not recommended, to configure these settings in the YAML configuration file.

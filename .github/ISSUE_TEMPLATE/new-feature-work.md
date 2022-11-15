@@ -25,7 +25,7 @@ TODO
 Why should Fleet work on this problem? How does this contribute to our reaching our strategic goals?
 -->
 
-## Analytics
+## Measurement
 TODO
 <!--
 - How will we know that the problem has been solved or improved? 
@@ -41,10 +41,11 @@ TODO
 3. 
 
 <!-- Things we tend to forget about -->
-- **Documentation** Do you want a guide written about this?
-- **Analytics** How are we going to measure usage and success?
+- **Documentation** Do you want a guide written about this? What things/aspects should we make sure is covered by the documentation?
+- **Analytics** How are we going to measure usage and success? Make sure engineering knows these need to be built.
 - **QA** Any special QA notes?
-
+- **Other depts.** Should other Fleet departments such as marketing, sales, CX be informed after this is shipped?
+- **Premium** Should this be a premium-only feature? If so, make sure to update the pricing page. 
 
 ## Design
 ### UI
@@ -64,9 +65,10 @@ TODO
 
 ## Related
 
-<!-- Insert related items such as child issues -->
+<!-- Insert related items such as parent epic or other relevant pieces of informations -->
 
 ### Child issues
+
 Interface team
 - TODO
 

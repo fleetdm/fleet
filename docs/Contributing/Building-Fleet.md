@@ -134,7 +134,7 @@ docker-compose up
 > - To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
 > - To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not officially supported).
 
-#### Stopping the local development environment
+### Stopping the local development environment
 
 If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
 
@@ -142,7 +142,7 @@ If you'd like to shut down the virtual infrastructure created by Docker, run the
 docker-compose down
 ```
 
-#### Setting up the database tables
+### Setting up the database tables
 
 Once you `docker-compose up` and are running the databases, you can build the code and run the following command to create the database tables:
 
@@ -158,14 +158,24 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 ./build/fleet serve --dev
 ```
 
-The server is accessible by default at [https://localhost:8080](https://localhost:8080). Note that `--dev` requires the use of `make generate-dev` as the server will not use bundled assets in this mode (you may see an error mentioning a template not found when visiting the website otherwise).
+### Developing the Fleet UI
+
+When the Fleet server is running, the Fleet UI is accessible by default at
+[https://localhost:8080](https://localhost:8080).
+
+> Note that `./build/fleet serve --dev` requires the use of `make generate-dev` because the server will not use bundled assets in this mode. (You may see an error mentioning a template not found when visiting the website otherwise.)
 
 By default, Fleet will try to connect to servers running on default ports on `localhost`. Depending on your browser's settings, you may have to click through a security warning.
 
 If you're using the Google Chrome web browser, you can always automatically bypass the security warning. Visit [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) and set the "Allow invalid certificates for resources loaded from localhost." flag to "Enabled."
 
-> Note: in Chrome version 88, there is a bug where you must first enable [chrome://flags/#temporary-unexpire-flags-m87](chrome://flags/#temporary-unexpire-flags-m87). The [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) flag will then be visible again.
+> Note: in Chrome version 88, there is a bug where you must first enable
+> [chrome://flags/#temporary-unexpire-flags-m87](chrome://flags/#temporary-unexpire-flags-m87). The
+> [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) flag will
+> then be visible again.
 
+The Fleet UI is developed with [Typescript](https://www.typescriptlang.org/) using the [React library](https://reactjs.org/docs/getting-started.html) and [SCSS](https://sass-lang.com/) for styling.
+The source code can be found in the [frontend](../../frontend/) directory.
 
 ## Debugging with Delve debugger
 

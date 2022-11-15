@@ -54,6 +54,7 @@ const QuerySidePanel = ({
         value={name}
         onChange={onSelectTable}
         placeholder="Choose Table..."
+        className={`${baseClass}__table-select`}
       />
     );
   };

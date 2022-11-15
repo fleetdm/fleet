@@ -66,6 +66,8 @@ The on-call engineer holds responsibility for responses to technical Slack comme
 
 Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
 
+Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
+
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
@@ -164,11 +166,11 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ### Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [pdf](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1VJu5DFDH4aveWFRhkvBHAqsZAdayMyZE/view?usp=share_link).
 
 ### Intro video
 
@@ -207,7 +209,7 @@ To track the stage of the sales cycle that a lead is at, we use the following st
 | Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
 | SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
-At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
+At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one.
 
 - Research each prospect.
 - Praise what’s great about their company.
@@ -217,6 +219,8 @@ At times, our sales team will reach out to prospective customers before they com
 - Keep an enthusiastic and warm tone.
 - Be personable.
 - Ask for the meeting with a proposed time.
+
+Here is another [LinkedIn post](https://www.linkedin.com/posts/davidtropic_i-got-the-best-cold-email-ive-ever-gotten-activity-6991066918363267072-yeXN) with an example of a great personalized cold outreach.
 
 Importantly, when we interact with CISOs or, for that matter, any member of a prospective customer organization, we adhere to the principles in this [LinkedIn post](https://www.linkedin.com/pulse/selling-ciso-james-turner). Specifically:
 
@@ -305,7 +309,8 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell 
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
+| Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
 
 ## Slack channels

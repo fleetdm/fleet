@@ -706,6 +706,11 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<integer>2048</integer>
 				<key>URL</key>
 				<string>{{ .SCEPURL }}</string>
+				<key>Subject</key>
+				<array>
+					<array><array><string>O</string><string>FleetDM</string></array></array>
+					<array><array><string>CN</string><string>FleetDM Identity</string></array></array>
+				</array>
 			</dict>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.fleet.mdm.apple.scep</string>

@@ -749,7 +749,7 @@ See [Bug states and filters](#bug-states-and-filters) at the end of this documen
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
 
-> Some bugs may also be the domain of the digital-experience team. If QA believes this is the case, then QA should put the bug onto the g-digital-experience board and assign it to the g-digital-experience DRI. The digital experience team has their own bug process, which is not governed by this process.
+> Some bugs may be the domain of the Digital Experience team. If QA believes this is the case, then QA should put the bug onto the g-marketing board, put it into the current release, and assign it to the DRI of the Digital Experience team. The Digital Experience team has their own bug process, which is not governed by this process.
 
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
@@ -868,6 +868,8 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
 | Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
+| Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
+| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
 
 ## Fleet Sandbox Oncall
 
