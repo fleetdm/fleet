@@ -1,6 +1,6 @@
 import { setupServer } from "msw/node";
 
-import handlers from "./server-handlers";
+import handlers from "./default-handlers";
 
 const mockServer = setupServer(...handlers);
 
