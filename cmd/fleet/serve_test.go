@@ -455,7 +455,8 @@ func TestScanVulnerabilities(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	err := scanVulnerabilities(ctx, ds, logger, &config, appConfig, vulnPath, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := scanVulnerabilities(ctx, ds, logger, &config, appConfig, vulnPath)
 	require.NoError(t, err)
 
 	// ensure that nvd vulnerabilities are not deleted
