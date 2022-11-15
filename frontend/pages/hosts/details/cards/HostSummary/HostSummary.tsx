@@ -131,18 +131,16 @@ const HostSummary = ({
   );
 
   const renderSummary = () => {
-    const hostStatus = titleData.status;
+    const { status, id } = titleData;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
           <StatusCell
-            value={hostStatus}
-            // TODO: setting id to "status-tooltip" is fine here because there is only one status
-            // per HostSummary – probably better for it to be the unique host ID
+            value={status}
             tooltip={{
-              id: "status-tooltip",
-              tooltipText: getHostStatusTooltipText(hostStatus),
+              id,
+              tooltipText: getHostStatusTooltipText(status),
             }}
           />
         </div>

@@ -5,7 +5,7 @@ import ReactTooltip from "react-tooltip";
 interface IStatusCellProps {
   value: string;
   tooltip?: {
-    id: number | string;
+    id: number;
     tooltipText: string;
   };
 }
@@ -24,7 +24,7 @@ const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
   );
   const cellContent = tooltip ? (
     <>
-      <span data-tip data-for={tooltip.id}>
+      <span data-tip data-for={`status-${tooltip.id}`}>
         {value}
       </span>
       <ReactTooltip
@@ -32,7 +32,7 @@ const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
         place="top"
         type="dark"
         effect="solid"
-        id={`${tooltip.id}`}
+        id={`status-${tooltip.id}`}
         backgroundColor="#3e4771"
       >
         {tooltip.tooltipText}
