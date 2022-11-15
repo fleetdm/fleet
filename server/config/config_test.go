@@ -39,7 +39,13 @@ func TestConfigRoundtrip(t *testing.T) {
 	v := reflect.ValueOf(original)
 	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
 		conf_v := v.Elem().Field(conf_index)
+		conf_t := conf_v.Type()
 		for key_index := 0; key_index < conf_v.NumField(); key_index++ {
+			// ignore unexported fields
+			if !conf_t.Field(key_index).IsExported() {
+				continue
+			}
+
 			key_v := conf_v.Field(key_index)
 			switch key_v.Interface().(type) {
 			case string:

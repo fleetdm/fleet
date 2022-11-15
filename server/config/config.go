@@ -439,6 +439,46 @@ type MDMConfig struct {
 	AppleAPNsKey  string `yaml:"apple_apns_key"`
 	AppleSCEPCert string `yaml:"apple_scep_cert"`
 	AppleSCEPKey  string `yaml:"apple_scep_key"`
+
+	// the following fields hold the parsed, validated TLS certificate set
+	// the first time AppleAPNs or AppleSCEP is called.
+	appleAPNs *tls.Certificate
+	appleSCEP *tls.Certificate
+}
+
+// AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) AppleAPNs() (*tls.Certificate, error) {
+	if m.appleAPNs == nil {
+		cert, err := tls.LoadX509KeyPair(m.AppleAPNsCert, m.AppleAPNsKey)
+		if err != nil {
+			return nil, fmt.Errorf("load Apple APNs certificate: %w", err)
+		}
+		m.appleAPNs = &cert
+
+		// LoadX509KeyPair does not store the parsed certificate leaf, so we do
+		// that here as we need it to read its metadata for `fleetctl get
+		// mdm-apple`.
+		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("parse Apple APNs certificate: %w", err)
+		}
+		cert.Leaf = parsed
+	}
+	return m.appleAPNs, nil
+}
+
+// AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) AppleSCEP() (*tls.Certificate, error) {
+	if m.appleSCEP == nil {
+		cert, err := tls.LoadX509KeyPair(m.AppleSCEPCert, m.AppleSCEPKey)
+		if err != nil {
+			return nil, fmt.Errorf("load Apple SCEP certificate: %w", err)
+		}
+		m.appleSCEP = &cert
+	}
+	return m.appleSCEP, nil
 }
 
 type TLS struct {
