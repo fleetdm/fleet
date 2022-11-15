@@ -380,6 +380,28 @@ the way that the Fleet server works.
 				}
 			}
 
+			if config.MDM.AppleAPNsCert != "" || config.MDM.AppleAPNsKey != "" || config.MDM.AppleSCEPCert != "" || config.MDM.AppleSCEPKey != "" {
+				// if any of the 4 flags are set and not all of them, this is an error
+				checks := map[string]string{
+					"mdm_apple_apns_cert": config.MDM.AppleAPNsCert,
+					"mdm_apple_apns_key":  config.MDM.AppleAPNsKey,
+					"mdm_apple_scep_cert": config.MDM.AppleSCEPCert,
+					"mdm_apple_scep_key":  config.MDM.AppleSCEPKey,
+				}
+				for flag, value := range checks {
+					if value == "" {
+						initFatal(fmt.Errorf("missing flag --%s", flag), "validate Apple MDM")
+					}
+				}
+
+				if _, err := config.MDM.AppleAPNs(); err != nil {
+					initFatal(err, "validate Apple APNs certificate and key")
+				}
+				if _, err := config.MDM.AppleSCEP(); err != nil {
+					initFatal(err, "validate Apple SCEP certificate and key")
+				}
+			}
+
 			// TODO(mna): MDM config/setup.
 			//var (
 			//	scepStorage      *scep_mysql.MySQLDepot
