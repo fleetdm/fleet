@@ -58,12 +58,16 @@ module.exports = {
       throw new Error('Cannot generate signed APNS certificate: The vendor key passphrase (sails.config.custom.mdmVendorKeyPassphrase) is missing!');
     }
 
+    if(!sails.config.custom.bannedEmailDomainsForCSRSigning){
+      throw new Error('Cannot generate signed APNS certificate: The array of banned email domains (sails.config.custom.bannedEmailDomainsForCSRSigning) is missing!');
+    }
+
 
 
     // Get the domain of the provided email
     let emailDomain = email.split('@')[1];
     // If the email domain is in the list of disallowed email domains list, we'll throw an error
-    if(_.includes(sails.config.custom.freeEmailDomains, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForCSRSigning, emailDomain.toLowerCase())){
       return 'invalidEmailDomain';
     }
 
