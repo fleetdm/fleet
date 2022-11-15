@@ -9,10 +9,6 @@ module.exports = {
 
   exits: {
 
-    rateLimitExceeded: {
-      description: 'Your GitHub API rate limit has been exceeded'
-    }
-
   },
 
 
