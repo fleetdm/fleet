@@ -23,6 +23,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -394,12 +395,25 @@ the way that the Fleet server works.
 					}
 				}
 
-				if _, err := config.MDM.AppleAPNs(); err != nil {
+				apnsCert, err := config.MDM.AppleAPNs()
+				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
 				}
 				if _, err := config.MDM.AppleSCEP(); err != nil {
 					initFatal(err, "validate Apple SCEP certificate and key")
 				}
+
+				const (
+					apnsConnectionTimeout = 10 * time.Second
+					apnsConnectionURL     = "https://api.sandbox.push.apple.com"
+				)
+
+				// check that the Apple APNs certificate is valid to connect to the API
+				ctx, cancel := context.WithTimeout(context.Background(), apnsConnectionTimeout)
+				if err := certificate.ValidateClientAuthTLSConnection(ctx, apnsCert, apnsConnectionURL); err != nil {
+					initFatal(err, "validate authentication with Apple APNs certificate")
+				}
+				cancel()
 			}
 
 			// TODO(mna): MDM config/setup.
