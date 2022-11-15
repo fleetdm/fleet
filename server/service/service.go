@@ -17,9 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
-	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -53,10 +50,10 @@ type Service struct {
 
 	*fleet.EnterpriseOverrides
 
-	depStorage       nanodep_storage.AllStorage
-	mdmStorage       nanomdm_storage.AllStorage
-	mdmPushService   nanomdm_push.Pusher
-	mdmPushCertTopic string
+	//depStorage       nanodep_storage.AllStorage
+	//mdmStorage       nanomdm_storage.AllStorage
+	//mdmPushService   nanomdm_push.Pusher
+	//mdmPushCertTopic string
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
