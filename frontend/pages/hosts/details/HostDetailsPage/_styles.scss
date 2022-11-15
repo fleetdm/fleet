@@ -315,17 +315,6 @@
         width: 8px;
       }
     }
-
-    &--online,
-    &--offline {
-      .status-tooltip {
-        display: block;
-        white-space: normal;
-        // max-width: 162px;
-        max-width: 320px; // setting this causes the tooltip in HostSummary to go to the side!
-        text-transform: none;
-      }
-    }
   }
 
   .form-field--dropdown {
