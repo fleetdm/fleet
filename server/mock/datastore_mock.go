@@ -303,7 +303,7 @@ type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs flee
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
+type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
@@ -437,9 +437,11 @@ type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *j
 
 type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
-type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error
+type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+
+type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -933,8 +935,8 @@ type DataStore struct {
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
 
-	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
-	ListSoftwareVulnerabilitiesFuncInvoked bool
+	ListSoftwareVulnerabilitiesByHostIDsSourceFunc        ListSoftwareVulnerabilitiesByHostIDsSourceFunc
+	ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -1139,6 +1141,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
+	SetOrUpdateHostDisksEncryptionFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -1950,9 +1955,9 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uin
 	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
 }
 
-func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error) {
-	s.ListSoftwareVulnerabilitiesFuncInvoked = true
-	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
+func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
+	s.ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked = true
+	return s.ListSoftwareVulnerabilitiesByHostIDsSourceFunc(ctx, hostIDs, source)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -2285,14 +2290,19 @@ func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, versi
 	return s.SetOrUpdateMunkiInfoFunc(ctx, hostID, version, errors, warnings)
 }
 
-func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 	s.SetOrUpdateMDMDataFuncInvoked = true
-	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep, name)
+	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
+}
+
+func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
+	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
+	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {

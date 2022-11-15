@@ -1,5 +1,5 @@
 FROM --platform=linux/amd64 golang:1.19.2-bullseye
-LABEL maintainer="Fleet Developers <hello@fleetdm.com>"
+LABEL maintainer="Fleet Developers"
 
 RUN apt-get update && apt-get install -y \
 	gcc \

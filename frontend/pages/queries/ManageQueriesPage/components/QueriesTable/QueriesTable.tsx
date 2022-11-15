@@ -49,15 +49,15 @@ const QueriesTable = ({
         <div className={`${noQueriesClass}__inner`}>
           <div className={`${noQueriesClass}__inner-text`}>
             {searchString ? (
-              <>
+              <div className={`${noQueriesClass}__no-results`}>
                 <h2>No queries match the current search criteria.</h2>
                 <p>
                   Expecting to see queries? Try again in a few seconds as the
                   system catches up.
                 </p>
-              </>
+              </div>
             ) : (
-              <>
+              <div className={`${noQueriesClass}__none-created`}>
                 <h2>You don&apos;t have any queries.</h2>
                 <p>
                   A query is a specific question you can ask about your devices.
@@ -81,7 +81,7 @@ const QueriesTable = ({
                     </Button>
                   </>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

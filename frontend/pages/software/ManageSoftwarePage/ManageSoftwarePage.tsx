@@ -557,7 +557,6 @@ const ManageSoftwarePage = ({
               renderFooter={renderTableFooter}
               disableActionButton
               hideActionButton
-              highlightOnHover
             />
           )}
         </div>

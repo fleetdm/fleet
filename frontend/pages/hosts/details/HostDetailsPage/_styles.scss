@@ -61,6 +61,12 @@
             }
           }
         }
+
+        // Position tooltip over parent div
+        .component__tooltip-wrapper {
+          position: absolute;
+          margin-top: 20px;
+        }
       }
 
       &__header {

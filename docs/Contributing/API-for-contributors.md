@@ -1037,7 +1037,6 @@ If the `name` is not already associated with an existing team, this API route cr
         "spec": {
           "config": {
             "options": {
-              "logger_plugin": "tls",
               "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
@@ -2039,6 +2038,7 @@ Returns the host information about the device that makes the request.
     "additional": {},
     "gigs_disk_space_available": 46.1,
     "percent_disk_space_available": 73,
+    "disk_encryption_enabled": true,
     "users": [
       {
         "uid": 0,

@@ -193,4 +193,5 @@ export interface IHost {
   query_results?: unknown[];
   geolocation?: IGeoLocation;
   batteries?: IBattery[];
+  disk_encryption_enabled?: boolean;
 }

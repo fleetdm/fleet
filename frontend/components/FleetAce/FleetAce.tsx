@@ -70,16 +70,10 @@ const FleetAce = ({
   };
 
   const handleDelete = (deleteCommand: string) => {
-    const currentText = editorRef.current?.editor.getValue();
     const selectedText = editorRef.current?.editor.getSelectedText();
 
     if (selectedText) {
-      const remainingText = currentText?.replace(selectedText, "");
-      if (typeof remainingText !== "undefined") {
-        onChange && onChange(remainingText);
-        editorRef.current?.editor.navigateLeft();
-        editorRef.current?.editor.clearSelection();
-      }
+      editorRef.current?.editor.removeWordLeft();
     } else {
       editorRef.current?.editor.execCommand(deleteCommand);
     }

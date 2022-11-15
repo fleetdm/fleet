@@ -27,8 +27,17 @@
   }
 
   &.Select {
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-blue-15;
+
+    &.is-focused,
+    &:hover {
+      border: 1px solid $core-vibrant-blue;
+    }
+
     .Select-control {
       min-height: 48px;
+      background-color: $ui-light-grey;
     }
 
     .Select-arrow {
@@ -38,30 +47,20 @@
       margin-left: 6px;
       border: none;
 
-      &:hover {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      }
-    }
-
-    &.is-open {
-      .Select-arrow {
-        content: url("../assets/images/icon-collapse-black-16x16@2x.png");
-        height: 16px;
-        width: 16px;
-        margin-left: 6px;
-        border: none;
-
-        &:hover {
-          content: url("../assets/images/icon-collapse-blue-16x16@2x.png");
-        }
-      }
-
       .Select-arrow-zone {
         &:hover {
           .Select-arrow {
             border-top-color: transparent;
           }
         }
+      }
+    }
+
+    &:hover,
+    &.is-open {
+      .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+        margin-left: 6px;
       }
     }
 
@@ -80,10 +79,7 @@
     .Select-placeholder {
       line-height: 53px;
       font-size: $small;
-    }
-
-    .Select-arrow-zone {
-      padding-right: 30px;
+      color: $ui-fleet-black-50;
     }
 
     &.Select--multi {
@@ -108,12 +104,6 @@
         border: 1px solid $ui-fleet-black-75;
         margin-top: 5px;
         margin-bottom: 0;
-      }
-    }
-
-    &.is-focused {
-      .Select-control {
-        border: 1px solid $core-vibrant-blue;
       }
     }
   }
@@ -152,7 +142,6 @@
   .Select-value {
     border-radius: $border-radius;
     background-color: $core-white;
-    border: solid 1px $ui-fleet-blue-15;
 
     .Select-value-icon {
       height: 100%;

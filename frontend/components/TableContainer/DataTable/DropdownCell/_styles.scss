@@ -15,9 +15,15 @@
       border: 0;
     }
 
+    &.is-focused:not(.is-open) {
+      .Select-control {
+        background-color: initial;
+      }
+    }
+
     .Select-control {
       display: flex;
-      background-color: $core-white;
+      background-color: initial;
       height: auto;
       justify-content: space-between;
       border: 0;

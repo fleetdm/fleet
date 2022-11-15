@@ -1,5 +1,6 @@
 import React from "react";
-import { browserHistory, Link } from "react-router";
+import { browserHistory } from "react-router";
+import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import classnames from "classnames";
 
@@ -21,17 +22,18 @@ const BackLink = ({ text, path, className }: IBackLinkProps): JSX.Element => {
   };
 
   return (
-    <Link to={path || ".."} onClick={onClick} className={backLinkClass}>
+    /* Need to update react-router to use Link component to go back on FF */
+    <Button onClick={onClick} className={backLinkClass} variant="text-link">
       <>
         <Icon
           name="chevron"
           className={`${baseClass}__back-icon`}
           direction="left"
-          color="coreVibrantBlue"
+          color="core-fleet-blue"
         />
         <span>{text}</span>
       </>
-    </Link>
+    </Button>
   );
 };
 export default BackLink;
