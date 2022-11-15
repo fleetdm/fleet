@@ -46,7 +46,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
-    # Set the Go version
+    # Install the right version of Go for the Golang child process that we are currently using for signing
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
@@ -77,7 +77,7 @@ jobs:
     # Compile browser assets & markdown content into generated collateral
     - run: cd website/ && npm run build-for-prod
 
-    # Build the mdm-gen-cert binary, and add it to website/.www/tools/
+    # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
     - run: cd tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
 
     # Commit newly-generated collateral locally so we can push them to Heroku below.
