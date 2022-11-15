@@ -82,6 +82,8 @@ type Datastore struct {
 	stmtCacheMu sync.Mutex
 	// stmtCache holds statements for queries.
 	stmtCache map[string]*sqlx.Stmt
+
+	getOrGenerateSoftwareIdDBMemoize *memoize[softwareKey, uint]
 }
 
 // loadOrPrepareStmt will load a statement from the statements cache.
@@ -367,15 +369,16 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	ds := &Datastore{
-		writer:              dbWriter,
-		reader:              dbReader,
-		logger:              options.logger,
-		clock:               c,
-		config:              config,
-		readReplicaConfig:   options.replicaConfig,
-		writeCh:             make(chan itemToWrite),
-		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
+		writer:                           dbWriter,
+		reader:                           dbReader,
+		logger:                           options.logger,
+		clock:                            c,
+		config:                           config,
+		readReplicaConfig:                options.replicaConfig,
+		writeCh:                          make(chan itemToWrite),
+		stmtCache:                        make(map[string]*sqlx.Stmt),
+		minLastOpenedAtDiff:              options.minLastOpenedAtDiff,
+		getOrGenerateSoftwareIdDBMemoize: Memoize[softwareKey, uint](10000),
 	}
 
 	go ds.writeChanLoop()

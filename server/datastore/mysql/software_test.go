@@ -221,7 +221,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err := ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming))
+	require.NoError(t, ds.insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming))
 	require.NoError(t, tx.Commit())
 
 	incoming = make(map[string]fleet.Software)
@@ -235,7 +235,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 
 	tx, err = ds.writer.Beginx()
 	require.NoError(t, err)
-	require.NoError(t, insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming))
+	require.NoError(t, ds.insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming))
 	require.NoError(t, tx.Commit())
 }
 

@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	twoqueue "github.com/floatdrop/2q"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -81,7 +84,7 @@ func softwareSliceToMap(softwares []fleet.Software) map[string]fleet.Software {
 // slice, updating existing entries and inserting new entries.
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
+		return ds.applyChangesForNewSoftwareDB(ctx, tx, hostID, software, ds.minLastOpenedAtDiff)
 	})
 }
 
@@ -154,7 +157,7 @@ WHERE
 	return softwares, nil
 }
 
-func applyChangesForNewSoftwareDB(
+func (ds *Datastore) applyChangesForNewSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
@@ -177,7 +180,7 @@ func applyChangesForNewSoftwareDB(
 		return err
 	}
 
-	if err = insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
+	if err = ds.insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {
 		return err
 	}
 
@@ -218,10 +221,97 @@ func deleteUninstalledHostSoftwareDB(
 	return nil
 }
 
-func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.Software) (uint, error) {
+var foo = twoqueue.New[string, uint](222)
+var grp singleflight.Group
+
+type memoize[K comparable, V any] struct {
+	cache *twoqueue.TwoQueue[K, V]
+	mu    sync.Mutex
+	grp   map[K]*waiter[V]
+}
+
+type waiter[V any] struct {
+	ch  chan interface{}
+	v   V
+	err error
+}
+
+func (m memoize[K, V]) Do(k K, f func() (V, error)) (V, error) {
+	v := m.cache.Get(k)
+	if v != nil {
+		return *v, nil
+	}
+	m.mu.Lock()
+	v = m.cache.Get(k)
+	if v != nil {
+		m.mu.Unlock()
+		return *v, nil
+	}
+	waiter, ok := m.grp[k]
+	if ok {
+		m.mu.Unlock()
+		<-waiter.ch
+		return waiter.v, waiter.err
+	}
+	waiter = m.makeWaiter(k)
+	defer func() {
+		close(waiter.ch)
+		m.mu.Lock()
+		delete(m.grp, k)
+		m.mu.Unlock()
+	}()
+	waiter.v, waiter.err = f()
+	return waiter.v, waiter.err
+}
+
+var MemoizeErr = errors.New("memoize error")
+
+func (m *memoize[K, V]) makeWaiter(k K) *waiter[V] {
+	defer m.mu.Unlock()
+	w := &waiter[V]{
+		ch:  make(chan interface{}),
+		err: MemoizeErr,
+	}
+	m.grp[k] = w
+	return w
+}
+
+func Memoize[K comparable, V any](size int) *memoize[K, V] {
+	return &memoize[K, V]{
+		cache: twoqueue.New[K, V](size),
+		mu:    sync.Mutex{},
+		grp:   make(map[K]*waiter[V]),
+	}
+}
+
+type softwareKey struct {
+	// (`name`,`version`,`source`,`release`,`vendor`,`arch`)
+	name    string
+	version string
+	source  string
+	release string
+	vendor  string
+	arch    string
+}
+
+func (ds *Datastore) getOrGenerateSoftwareIdDB(ctx context.Context, s fleet.Software) (uint, error) {
+	sk := softwareKey{
+		name:    s.Name,
+		version: s.Version,
+		source:  s.Source,
+		release: s.Release,
+		vendor:  s.Vendor,
+		arch:    s.Arch,
+	}
+	return ds.getOrGenerateSoftwareIdDBMemoize.Do(sk, func() (uint, error) {
+		return ds._getOrGenerateSoftwareIdDB(ctx, s)
+	})
+}
+
+func (ds *Datastore) _getOrGenerateSoftwareIdDB(ctx context.Context, s fleet.Software) (uint, error) {
 	getExistingID := func() (int64, error) {
 		var existingID int64
-		if err := sqlx.GetContext(ctx, tx, &existingID,
+		if err := sqlx.GetContext(ctx, ds.reader, &existingID,
 			"SELECT id FROM software "+
 				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
 				"vendor = ? AND arch = ? AND bundle_identifier = ? LIMIT 1",
@@ -241,7 +331,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
 
-	_, err := tx.ExecContext(ctx,
+	_, err := ds.writer.ExecContext(ctx,
 		"INSERT INTO software "+
 			"(name, version, source, `release`, vendor, arch, bundle_identifier) "+
 			"VALUES (?, ?, ?, ?, ?, ?, ?) "+
@@ -265,7 +355,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 }
 
 // insert host_software that is in incoming map, but not in current map.
-func insertNewInstalledHostSoftwareDB(
+func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
@@ -282,7 +372,7 @@ func insertNewInstalledHostSoftwareDB(
 
 	for _, s := range incomingOrdered {
 		if _, ok := currentMap[s]; !ok {
-			id, err := getOrGenerateSoftwareIdDB(ctx, tx, uniqueStringToSoftware(s))
+			id, err := ds.getOrGenerateSoftwareIdDB(ctx, uniqueStringToSoftware(s))
 			if err != nil {
 				return err
 			}
