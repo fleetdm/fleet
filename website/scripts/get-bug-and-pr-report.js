@@ -83,9 +83,6 @@ module.exports = {
           daysSinceBugsWereOpened.push(roundedTimeOpenInDays);
         }
 
-        // Get the average open time for bugs.
-        // return daysSinceBugsWereOpened;
-
       },
       //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
       //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
