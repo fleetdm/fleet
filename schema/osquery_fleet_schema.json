@@ -135,12 +135,13 @@
         "index": false
       }
     ],
-    "examples": "See the domain, if any, that the Mac is bound to.\n```\nSELECT domain FROM ad_config;\n```",
+    "examples": "See the [Active Directory](https://en.wikipedia.org/wiki/Active_Directory) domain, if any, that the Mac is bound to.\n```\nSELECT domain FROM ad_config;\n```",
+    "notes": "\n- Active Directory is a directory service used to manage users and computers. A domain is the high level grouping of these objects, which a workstation must join in order to provide the user with features such as Single Sign-On to internal applications using Kerberos. \n- If a host is not bound to an Active Directory domain, then the table returns no results.",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ad_config.yml"
   },
   {
     "name": "alf",
-    "description": "macOS application layer firewall (ALF) service details.",
+    "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
     "platforms": [
       "darwin"
@@ -206,6 +207,7 @@
       }
     ],
     "examples": "See the state of the Application Layer Firewall on a Mac. A result of 0 means it is disabled, 1 means it is enabled, and 2 means it is enabled and blocking all inbound connections. See our standard query library for an example policy query using this.\n```\nSELECT global_state FROM alf;\n```",
+    "notes": "- This table provides information about the built-in firewall in macOS, also known as [Application Layer Firewall (ALF)](https://support.apple.com/guide/mac-help/block-connections-to-your-mac-with-a-firewall-mh34041/mac)",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/alf.yml"
   },
   {
@@ -1120,7 +1122,7 @@
   },
   {
     "name": "augeas",
-    "description": "Configuration files parsed by augeas.",
+    "description": "Configuration files parsed by [augeas](https://augeas.net/).",
     "url": "https://fleetdm.com/tables/augeas",
     "platforms": [
       "darwin",
@@ -7947,8 +7949,8 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/etc_services.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fetc_services.yml&value=name%3A%20etc_services%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "Identify the TCP and UDP ports associated to standard services.\n```\nSELECT * FROM etc_services WHERE name='ftp';\n```",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/etc_services.yml"
   },
   {
     "name": "event_taps",
@@ -14899,38 +14901,38 @@
     "columns": [
       {
         "name": "uid",
-        "description": "User ID for the policy if available",
-        "type": "bigint",
+        "description": "User ID for the policy, if available. Otherwise, returns `-1`.",
+        "type": "BIGINT",
         "hidden": false,
         "required": false,
         "index": false
       },
       {
         "name": "policy_identifier",
-        "description": "Policy Identifier",
-        "type": "text",
+        "description": "Policy identifier, such as `ProfilePayload:1d33ef8c-da1c-4534-8458-95a4d43d849e:minLength`.",
+        "type": "TEXT",
         "hidden": false,
         "required": false,
         "index": false
       },
       {
         "name": "policy_content",
-        "description": "Policy content",
-        "type": "text",
+        "description": "Policy content, such as `policyAttributePassword matches '.{10,}'`.",
+        "type": "TEXT",
         "hidden": false,
         "required": false,
         "index": false
       },
       {
         "name": "policy_description",
-        "description": "Policy description",
-        "type": "text",
+        "description": "Policy description, such as `Contain at least 10 characters.`",
+        "type": "TEXT",
         "hidden": false,
         "required": false,
         "index": false
       }
     ],
-    "examples": "This policy query will return a 1 if the password policy requires passwords that are 10 characters or longer.\n```\nSELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);\n```",
+    "examples": "This policy query will return a 1 if the password policy requires passwords that are 10 characters or longer.\n```\nSELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);\n``` ",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/password_policy.yml"
   },
   {
@@ -15709,8 +15711,9 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/power_sensors.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fpower_sensors.yml&value=name%3A%20power_sensors%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "See the total power usage of an Intel Mac.\n```\nSELECT * FROM power_sensors WHERE key='PSTR';\n```",
+    "notes": "Returns useful results on Intel Macs only.",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/power_sensors.yml"
   },
   {
     "name": "powershell_events",
@@ -21835,6 +21838,7 @@
       }
     ],
     "examples": "See the current speed of the WiFi connection, in megabits per second.\n```\nSELECT transmit_rate FROM wifi_status;\n```",
+    "notes": "- `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. ",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_status.yml"
   },
   {
@@ -21929,6 +21933,7 @@
       }
     ],
     "examples": "Count the amount of wireless networks visible to the computer.\n```\nSELECT COUNT ( DISTINCT network_name ) AS \"Number of wireless networks visible\"  FROM wifi_survey;\n```",
+    "notes": "- `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. ",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_survey.yml"
   },
   {
@@ -23312,8 +23317,8 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/yara/yara.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fyara.yml&value=name%3A%20yara%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).\n```\nSELECT * FROM yara WHERE path like '/root/%%' AND sigrule IN (\n  'rule eicar {\n  strings:\n  $s1 = \"X5O!P%@AP[4\\\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\" fullword ascii\n  condition:\n  all of them\n}'\n ) AND matches='eicar';\n\n```",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara.yml"
   },
   {
     "name": "yara_events",
