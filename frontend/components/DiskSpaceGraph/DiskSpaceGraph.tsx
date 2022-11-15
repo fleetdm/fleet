@@ -7,6 +7,7 @@ interface IDiskSpaceGraphProps {
   gigsDiskSpaceAvailable: number | string;
   percentDiskSpaceAvailable: number;
   id: string;
+  os: "mac" | "windows" | "linux";
 }
 
 const DiskSpaceGraph = ({
@@ -14,9 +15,12 @@ const DiskSpaceGraph = ({
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
   id,
+  os,
 }: IDiskSpaceGraphProps): JSX.Element => {
   const diskSpaceIndicator = () => {
     switch (true) {
+      case os === "linux":
+        return "green";
       case gigsDiskSpaceAvailable < 16:
         return "red";
       case gigsDiskSpaceAvailable < 32:
@@ -26,8 +30,10 @@ const DiskSpaceGraph = ({
     }
   };
 
-  const diskSpaceTooltip = (): string | undefined => {
+  const diskSpaceTooltipText = ((): string | undefined => {
     switch (true) {
+      case os === "linux":
+        return undefined;
       case gigsDiskSpaceAvailable < 16:
         return "Not enough disk space available to install most small operating systems updates.";
       case gigsDiskSpaceAvailable < 32:
@@ -35,11 +41,14 @@ const DiskSpaceGraph = ({
       default:
         return "Enough disk space available to install most operating systems updates.";
     }
-  };
+  })();
 
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
     return <span className={`${baseClass}__data`}>No data available</span>;
   }
+
+  // const tooltip = diskSpaceTooltipText ? (
+  // ) : null;
 
   return (
     <span className={`${baseClass}__data`}>
@@ -57,18 +66,20 @@ const DiskSpaceGraph = ({
           />
         </div>
       </div>
-      <ReactTooltip
-        className={"disk-space-tooltip"}
-        place="bottom"
-        type="dark"
-        effect="solid"
-        id={id}
-        backgroundColor="#3e4771"
-      >
-        <span className={`${baseClass}__tooltip-text`}>
-          {diskSpaceTooltip()}
-        </span>
-      </ReactTooltip>
+      {diskSpaceTooltipText && (
+        <ReactTooltip
+          className={"disk-space-tooltip"}
+          place="bottom"
+          type="dark"
+          effect="solid"
+          id={id}
+          backgroundColor="#3e4771"
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            {diskSpaceTooltipText}
+          </span>
+        </ReactTooltip>
+      )}
       {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
     </span>
   );

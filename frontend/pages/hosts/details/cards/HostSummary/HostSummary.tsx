@@ -10,6 +10,7 @@ import {
   humanHostDetailUpdated,
   wrapFleetHelper,
 } from "utilities/helpers";
+import get_os_from_os_version from "utilities/get_os_from_os_version";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -129,6 +130,7 @@ const HostSummary = ({
   );
 
   const renderSummary = () => {
+    const os = get_os_from_os_version(titleData.os_version);
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -148,6 +150,7 @@ const HostSummary = ({
             gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
             percentDiskSpaceAvailable={titleData.percent_disk_space_available}
             id={"disk-space-tooltip"}
+            os={os}
           />
         </div>
         {typeof diskEncryption?.enabled === "boolean" &&
