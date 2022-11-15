@@ -71,10 +71,10 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 5,
     query:
-      "SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';",
+      "SELECT 1 FROM (SELECT encrypted, path FROM disk_encryption FULL OUTER JOIN mounts ON mounts.device_alias = disk_encryption.name) WHERE encrypted = 1 AND path = '/';",
     name: "Full disk encryption enabled (Linux)",
     description:
-      "Checks if the dm-1 device is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu. You may need to adapt this query, or submit an issue in the Fleet repo.",
+      "Checks if the device mounted at / is encrypted. There are many ways to encrypt Linux systems. You may need to adapt this query, or submit an issue in the Fleet repo.",
     resolution:
       "Ensure the image deployed to your Linux workstation includes full disk encryption.",
     platform: "linux",

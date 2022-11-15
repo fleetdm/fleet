@@ -585,7 +585,7 @@ FROM
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_linux": {
-		Query:            `SELECT 1 FROM disk_encryption WHERE encrypted = 1 AND name = '/dev/dm-1';`,
+		Query:            `SELECT 1 FROM (SELECT encrypted, path FROM disk_encryption FULL OUTER JOIN mounts ON mounts.device_alias = disk_encryption.name) WHERE encrypted = 1 AND path = '/';`,
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
