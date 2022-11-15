@@ -87,6 +87,8 @@ export interface IMunkiData {
 export interface IMDMData {
   enrollment_status: string;
   server_url: string;
+  id: number;
+  name: string;
 }
 
 export interface IMunkiIssue {
