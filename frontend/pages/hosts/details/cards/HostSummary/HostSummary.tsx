@@ -10,10 +10,9 @@ import {
   humanHostDetailUpdated,
   wrapFleetHelper,
 } from "utilities/helpers";
-import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-// eslint-disable-next-line import/first
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusCell from "components/TableContainer/DataTable/StatusCell";
+import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
 
