@@ -24,7 +24,12 @@ const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
   );
   const cellContent = tooltip ? (
     <>
-      <span data-tip data-for={`status-${tooltip.id}`}>
+      <span
+        className="host-status tooltip tooltip__tooltip-icon"
+        data-tip
+        data-for={`status-${tooltip.id}`}
+        data-tip-disable={false}
+      >
         {value}
       </span>
       <ReactTooltip
