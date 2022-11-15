@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -46,7 +47,6 @@ func startVulnerabilitiesSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
-	license *fleet.LicenseInfo,
 ) *schedule.Schedule {
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
@@ -57,7 +57,7 @@ func startVulnerabilitiesSchedule(
 			"cron_vulnerabilities",
 			func(ctx context.Context) error {
 				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config, license)
+				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
 			},
 		),
 		schedule.WithJob(
@@ -76,7 +76,6 @@ func cronVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
-	license *fleet.LicenseInfo,
 ) error {
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
@@ -112,7 +111,7 @@ func cronVulnerabilities(
 	}
 	if vulnPath != "" {
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
-		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
+		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
 	}
@@ -127,7 +126,6 @@ func scanVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
-	license *fleet.LicenseInfo,
 ) error {
 	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
@@ -200,7 +198,7 @@ func scanVulnerabilities(
 				Time:           time.Now(),
 			}
 			mapper := webhooks.NewMapper()
-			if license.IsPremium() {
+			if license.IsPremium(ctx) {
 				mapper = eewebhooks.NewMapper()
 			}
 			// send recent vulnerabilities via webhook
@@ -493,7 +491,6 @@ func startIntegrationsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	license *fleet.LicenseInfo,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = "integrations"
@@ -510,13 +507,11 @@ func startIntegrationsSchedule(
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newJiraClient,
-		License:       license,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore:     ds,
 		Log:           logger,
 		NewClientFunc: newZendeskClient,
-		License:       license,
 	}
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
@@ -717,7 +712,7 @@ func startCleanupsAndAggregationSchedule(
 	).Start()
 }
 
-func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) {
+func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger) {
 	schedule.New(
 		ctx, "stats", instanceID, 1*time.Hour, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
@@ -726,13 +721,13 @@ func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Dat
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, license)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
 			},
 		),
 	).Start()
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, license *fleet.LicenseInfo) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -741,7 +736,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config)
 	if err != nil {
 		return err
 	}

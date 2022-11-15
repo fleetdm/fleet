@@ -13,7 +13,7 @@ import (
 
 func TestListActivities(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	globalUsers := []*fleet.User{test.UserAdmin, test.UserMaintainer, test.UserObserver}
 	teamUsers := []*fleet.User{test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1, test.UserTeamObserverTeam1}
@@ -27,25 +27,25 @@ func TestListActivities(t *testing.T) {
 
 	// any global user can read activities
 	for _, u := range globalUsers {
-		activities, err := svc.ListActivities(test.UserContext(u), fleet.ListOptions{})
+		activities, err := svc.ListActivities(test.UserContext(ctx, u), fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, activities, 2)
 	}
 
 	// team users cannot read activities
 	for _, u := range teamUsers {
-		_, err := svc.ListActivities(test.UserContext(u), fleet.ListOptions{})
+		_, err := svc.ListActivities(test.UserContext(ctx, u), fleet.ListOptions{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 	}
 
 	// user with no roles cannot read activities
-	_, err := svc.ListActivities(test.UserContext(test.UserNoRoles), fleet.ListOptions{})
+	_, err := svc.ListActivities(test.UserContext(ctx, test.UserNoRoles), fleet.ListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 
 	// no user in context
-	_, err = svc.ListActivities(context.Background(), fleet.ListOptions{})
+	_, err = svc.ListActivities(ctx, fleet.ListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
