@@ -27,9 +27,9 @@ import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
-import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
-import getHostStatusTooltipText from "../helpers";
 import { string } from "prop-types";
+import getHostStatusTooltipText from "../helpers";
+import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
