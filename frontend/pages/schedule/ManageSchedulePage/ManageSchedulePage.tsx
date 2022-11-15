@@ -535,7 +535,7 @@ const ManageSchedulePage = ({
         inheritedScheduledQueriesList.length > 0 ? (
           <RevealButton
             isShowing={showInheritedQueries}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             caretPosition={"before"}
