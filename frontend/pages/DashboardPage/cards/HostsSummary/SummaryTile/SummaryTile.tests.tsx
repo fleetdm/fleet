@@ -80,7 +80,7 @@ describe("SummaryTile - component", () => {
       />
     );
 
-    const icon = screen.queryByRole("img");
+    const icon = screen.queryByRole("svg");
 
     expect(icon).toBeNull();
   });

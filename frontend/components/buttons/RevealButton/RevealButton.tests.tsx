@@ -4,62 +4,89 @@ import { renderWithSetup } from "test/testingUtils";
 
 import RevealButton from "./RevealButton";
 
+const SHOW_TEXT = "Show advanced options";
+const HIDE_TEXT = "Hide advanced options";
+const TOOLTIP_HTML = "Customize logging type and platforms";
+
 describe("Reveal button", () => {
-  it("renders show text and hide text on click", async () => {
-    const { user } = renderWithSetup(
+  it("renders show text", async () => {
+    render(
       <RevealButton
         isShowing={false}
-        hideText={"Hide advanced options"}
-        showText={"Show advanced options"}
+        hideText={HIDE_TEXT}
+        showText={SHOW_TEXT}
       />
     );
 
-    await user.hover(screen.getByText("Show advanced options"));
-
-    expect(screen.getByText(/to retrieve software/i)).toBeInTheDocument();
+    const showText = screen.getByText(SHOW_TEXT);
+    expect(showText).toBeInTheDocument();
   });
+
+  it("renders hide text", async () => {
+    render(
+      <RevealButton isShowing hideText={HIDE_TEXT} showText={SHOW_TEXT} />
+    );
+
+    const hideText = screen.getByText(HIDE_TEXT);
+    expect(hideText).toBeInTheDocument();
+  });
+
   it("hides caret by default", async () => {
     render(
       <RevealButton
         isShowing={false}
-        hideText={"Hide advanced options"}
-        showText={"Show advanced options"}
-        caretPosition={"before"}
+        hideText={HIDE_TEXT}
+        showText={SHOW_TEXT}
       />
     );
+
+    const icon = screen.queryByTestId("icon");
+
+    expect(icon).toBeNull();
   });
+
   it("renders caret on left", async () => {
     render(
       <RevealButton
         isShowing={false}
-        hideText={"Hide advanced options"}
-        showText={"Show advanced options"}
+        hideText={HIDE_TEXT}
+        showText={SHOW_TEXT}
         caretPosition={"before"}
       />
     );
+
+    const icon = screen.queryByTestId("icon");
+    expect(icon?.nextSibling).toHaveTextContent(SHOW_TEXT);
   });
+
   it("renders caret on right", async () => {
     render(
       <RevealButton
         isShowing={false}
-        hideText={"Hide advanced options"}
-        showText={"Show advanced options"}
-        caretPosition={"before"}
+        hideText={HIDE_TEXT}
+        showText={SHOW_TEXT}
+        caretPosition={"after"}
       />
     );
+
+    const icon = screen.queryByTestId("icon");
+
+    expect(icon?.previousSibling).toHaveTextContent(SHOW_TEXT);
   });
+
   it("renders tooltip on hover if provided", async () => {
     const { user } = renderWithSetup(
       <RevealButton
         isShowing={false}
-        hideText={"Hide advanced options"}
-        showText={"Show advanced options"}
+        hideText={HIDE_TEXT}
+        showText={SHOW_TEXT}
         caretPosition={"before"}
+        tooltipHtml={TOOLTIP_HTML}
       />
     );
 
-    await user.hover(screen.getByText("Show advanced options"));
+    await user.hover(screen.getByText(SHOW_TEXT));
 
-    expect(screen.getByText(/to retrieve software/i)).toBeInTheDocument();
+    expect(screen.getByText(TOOLTIP_HTML)).toBeInTheDocument();
   });
 });
