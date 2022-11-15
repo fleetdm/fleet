@@ -852,7 +852,7 @@ The size of the session key.
 
 ##### session_duration
 
-This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration. 
+This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration.
 
 Valid time units are `s`, `m`, `h`.
 
@@ -1824,6 +1824,7 @@ kafkarest:
   result_topic: osquery_result
   status_topic: osquery_status
 ```
+
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -2089,7 +2090,7 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
        recent_vulnerability_max_age: 48h
   ```
 
-### disable_win_os_vulnerabilities
+##### disable_win_os_vulnerabilities
 
 If using osquery 5.4 or later, Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
 vulnerabilities — which might be a writing-intensive process (depending on the number of Windows hosts
@@ -2102,7 +2103,6 @@ in your Fleet). Setting this to true will cause Fleet to skip both processes.
   vulnerabilities:
   	disable_win_os_vulnerabilities: true
   ```
-
 
 ##### Example YAML
 
@@ -2130,6 +2130,285 @@ on the Fleet web server.
     database_path: /some/path
   ```
 
+#### Sentry
+
+##### DSN
+
+If set then `Fleet serve` will capture errors and panics and push them to Sentry.
+
+- Default value: `""`
+- Environment variable: `FLEET_SENTRY_DSN`
+- Config file format:
+  ```
+  sentry:
+    dsn: "https://somedsnprovidedby.sentry.com/"
+  ```
+
+<meta name="pageOrderInSection" value="300">
+
+#### Prometheus
+
+##### basic_auth.username
+
+Username to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      username: "foo"
+  ```
+
+##### basic_auth.password
+
+Password to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set then the Prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      password: "bar"
+  ```
+
+#### Packaging
+
+Configurations used to control how Fleet interacts with the (coming soon)
+packaging server.  These features are currently only intended to be used within
+Fleet sandbox, but this is subject to change.
+
+##### packaging_global_enroll_secret
+
+Enroll secret to use for adding hosts to the global scope. If this value is
+set, the server won't allow changes to the enroll secret via the config
+endpoints.
+
+This value should be treated as a secret, we recommend using a
+cryptographically secure pseudo random string. For example, using `openssl`:
+
+```
+openssl rand -base64 24
+```
+
+This config only takes effect if you don't have a global enroll secret already
+stored in your database.
+
+- Default value: `""`
+- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
+- Config file format:
+  ```yaml
+  packaging:
+    global_enroll_secret: "xyz"
+  ```
+
+##### packaging_s3_bucket
+
+Name of the S3 bucket to use to store pre-built Orbit installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_BUCKET`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      bucket: some-bucket
+  ```
+
+##### packaging_s3_prefix
+
+Prefix to prepend when searching for installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      prefix:
+        installers-go-here/
+  ```
+
+##### packaging_s3_access_key_id
+
+AWS access key ID to use for S3 authentication.
+
+If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
+[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
+
+The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:GetObject`, `s3:ListBucket`.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ACCESS_KEY_ID`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### packaging_s3_secret_access_key
+
+AWS secret access key to use for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### packaging_s3_sts_assume_role_arn
+
+AWS STS role ARN to use for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### packaging_s3_endpoint_url
+
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+or running s3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      endpoint_url: http://localhost:9000
+  ```
+
+##### packaging_s3_disable_ssl
+
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      disable_ssl: false
+  ```
+
+##### packaging_s3_force_s3_path_style
+
+AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
+i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
+will use virtual hosted bucket addressing when possible
+(`http://BUCKET.s3.amazonaws.com/KEY`).
+
+See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      force_s3_path_style: false
+  ```
+
+##### packaging_s3_region
+
+AWS S3 Region. Leave blank to enable region discovery.
+
+Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_REGION`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      region: us-east-1
+  ```
+
+##### Example YAML
+
+```yaml
+packaging:
+  s3:
+    bucket: some-bucket
+    prefix: installers-go-here/
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    region: us-east-1
+```
+
+#### MDM (mobile device management)
+
+##### apple_apns_cert
+
+The path to the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_cert: /path/to/apns_cert.pem
+  ```
+
+##### apple_apns_key
+
+The path to a PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_key: /path/to/apns_key.pem
+  ```
+
+##### apple_scep_cert
+
+The path to the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_cert: /path/to/scep_cert.pem
+  ```
+
+##### apple_scep_key
+
+The path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_key: /path/to/scep_key.pem
+  ```
+
+##### Example YAML
+
+```yaml
+mdm:
+  apple_apns_cert: /path/to/apns_cert
+  apple_apns_key: /path/to/apns_key
+  apple_scep_cert: /path/to/scep_cert
+  apple_scep_key: /path/to/scep_key
+```
 
 ## Managing osquery configurations
 
@@ -2364,223 +2643,3 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
-
-#### Sentry
-
-##### DSN
-
-If set then `Fleet serve` will capture errors and panics and push them to Sentry.
-
-- Default value: `""`
-- Environment variable: `FLEET_SENTRY_DSN`
-- Config file format:
-  ```
-  sentry:
-    dsn: "https://somedsnprovidedby.sentry.com/"
-  ```
-
-<meta name="pageOrderInSection" value="300">
-
-#### Prometheus
-
-##### basic_auth.username
-
-Username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
-
-- Default value: `""`
-- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
-- Config file format:
-  ```yaml
-  prometheus:
-    basic_auth:
-      username: "foo"
-  ```
-
-##### basic_auth.password
-
-Password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set then the Prometheus `/metrics` endpoint is disabled.
-
-- Default value: `""`
-- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
-- Config file format:
-  ```yaml
-  prometheus:
-    basic_auth:
-      password: "bar"
-  ```
-
-#### Packaging
-
-Configurations used to control how Fleet interacts with the (coming soon)
-packaging server.  These features are currently only intended to be used within
-Fleet sandbox, but this is subject to change.
-
-##### packaging_global_enroll_secret
-
-Enroll secret to use for adding hosts to the global scope. If this value is
-set, the server won't allow changes to the enroll secret via the config
-endpoints.
-
-This value should be treated as a secret, we recommend using a
-cryptographically secure pseudo random string. For example, using `openssl`:
-
-```
-openssl rand -base64 24
-```
-
-This config only takes effect if you don't have a global enroll secret already
-stored in your database.
-
-- Default value: `""`
-- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
-- Config file format:
-  ```yaml
-  packaging:
-    global_enroll_secret: "xyz"
-  ```
-
-##### packaging_s3_bucket
-
-Name of the S3 bucket to use to store pre-built Orbit installers.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_BUCKET`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      bucket: some-bucket
-  ```
-
-##### packaging_s3_prefix
-
-Prefix to prepend when searching for installers.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      prefix:
-        installers-go-here/
-  ```
-
-##### packaging_s3_access_key_id
-
-AWS access key ID to use for S3 authentication.
-
-If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
-[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
-
-The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:GetObject`, `s3:ListBucket`.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_ACCESS_KEY_ID`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      access_key_id: AKIAIOSFODNN7EXAMPLE
-  ```
-
-##### packaging_s3_secret_access_key
-
-AWS secret access key to use for S3 authentication.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  ```
-
-##### packaging_s3_sts_assume_role_arn
-
-AWS STS role ARN to use for S3 authentication.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-  ```
-
-##### packaging_s3_endpoint_url
-
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
-or running s3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      endpoint_url: http://localhost:9000
-  ```
-
-##### packaging_s3_disable_ssl
-
-AWS S3 Disable SSL. Useful for local testing.
-
-- Default value: false
-- Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      disable_ssl: false
-  ```
-
-##### packaging_s3_force_s3_path_style
-
-AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
-i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
-will use virtual hosted bucket addressing when possible
-(`http://BUCKET.s3.amazonaws.com/KEY`).
-
-See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
-
-- Default value: false
-- Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      force_s3_path_style: false
-  ```
-
-##### packaging_s3_region
-
-AWS S3 Region. Leave blank to enable region discovery.
-
-Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_REGION`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      region: us-east-1
-  ```
-
-##### Example YAML
-
-```yaml
-packaging:
-  s3:
-    bucket: some-bucket
-    prefix: installers-go-here/
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-    region: us-east-1
-```
