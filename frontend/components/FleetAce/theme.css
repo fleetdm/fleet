@@ -38,10 +38,6 @@
 .ace-fleet .ace_gutter-active-line {
   background-color: rgba(174, 109, 223, 0.15);
   border-radius: 2px;
-  left: 4px;
-  right: 4px;
-  height: 24px !important;
-  margin-top: 3px;
 }
 
 .ace-fleet .ace_print-margin {

@@ -301,7 +301,7 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void",
 }
 
 func IsLinux(hostPlatform string) bool {

@@ -66,6 +66,8 @@ The on-call engineer holds responsibility for responses to technical Slack comme
 
 Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
 
+Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
+
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
@@ -164,11 +166,11 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ### Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [pdf](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1VJu5DFDH4aveWFRhkvBHAqsZAdayMyZE/view?usp=share_link).
 
 ### Intro video
 

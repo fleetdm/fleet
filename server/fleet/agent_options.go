@@ -81,10 +81,17 @@ type osqueryAgentOptions struct {
 
 	FilePaths    map[string][]string `json:"file_paths"`
 	FileAccesses []string            `json:"file_accesses"`
+	// Documentation for the following 2 fields is "hidden" in osquery's FIM page:
+	// https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/
+	FilePathsQuery map[string][]string `json:"file_paths_query"`
+	ExcludePaths   map[string][]string `json:"exclude_paths"`
 
 	YARA struct {
 		Signatures map[string][]string `json:"signatures"`
 		FilePaths  map[string][]string `json:"file_paths"`
+		// Documentation for signature_urls is "hidden" in osquery's YARA page:
+		// https://osquery.readthedocs.io/en/stable/deployment/yara/#retrieving-yara-rules-at-runtime
+		SignatureURLs []string `json:"signature_urls"`
 	} `json:"yara"`
 
 	PrometheusTargets struct {

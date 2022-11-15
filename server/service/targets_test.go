@@ -14,10 +14,10 @@ import (
 
 func TestSearchTargets(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	hosts := []*fleet.Host{
 		{Hostname: "foo.local"},
@@ -54,10 +54,10 @@ func TestSearchTargets(t *testing.T) {
 
 func TestSearchWithOmit(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 		assert.Equal(t, user, filter.User)
