@@ -316,7 +316,7 @@ func (s *Schedule) Start() {
 					configTicker.Stop()
 					return
 				case <-configTicker.C:
-					schedInterval := s.getSchedInterval()
+					prevInterval := s.getSchedInterval()
 					newInterval, err := s.configReloadIntervalFn(s.ctx)
 					if err != nil {
 						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
@@ -329,21 +329,21 @@ func (s *Schedule) Start() {
 						level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
 						continue
 					}
-					if schedInterval == newInterval {
+					if prevInterval == newInterval {
 						continue
 					}
 					s.setSchedInterval(newInterval)
 
 					intervalStartedAt := getIntervalStartedAt()
 					newWait := 10 * time.Millisecond
-					if time.Since(intervalStartedAt) < schedInterval {
-						newWait = schedInterval - time.Since(intervalStartedAt)
+					if time.Since(intervalStartedAt) < newInterval {
+						newWait = newInterval - time.Since(intervalStartedAt)
 					}
 
 					clearTickerChannel(schedTicker)
 					schedTicker.Reset(newWait)
 
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", schedInterval))
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", newInterval))
 					level.Debug(s.logger).Log("msg", fmt.Sprintf("time until next schedule tick %v", newWait))
 				}
 			}
