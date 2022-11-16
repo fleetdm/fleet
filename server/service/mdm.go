@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -25,7 +24,7 @@ func getAppleMDMEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleMDM{}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, err
 	}
 
 	// if there is no apple mdm config, fail with a 404
