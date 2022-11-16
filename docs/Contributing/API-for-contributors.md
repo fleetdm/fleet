@@ -1,8 +1,10 @@
 # API for contributors
 
 - [Packs](#packs)
+- [Mobile Device Management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
+- [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
@@ -515,6 +517,37 @@ Delete pack by name.
 `Status: 200`
 
 ---
+
+## Mobile Device Management (MDM)
+
+The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Web UI.
+
+- [Get Apple MDM](#get-apple-mdm)
+
+### Get Apple MDM
+
+`GET /api/v1/fleet/mdm/apple`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
+  "serial_number": "1234567890987654321",
+  "issuer": "Apple Application Integration 2 Certification Authority",
+  "renew_date": "2023-09-30T00:00:00Z"
+}
+```
 
 ## Get or apply configuration files
 
@@ -1965,7 +1998,7 @@ currently pending.
 
 ---
 
-### Device-authenticated routes
+## Device-authenticated routes
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
@@ -2378,7 +2411,7 @@ If an installer with the provided parameters is found.
 
 If an installer with the provided parameters doesn't exist.
 
-### Setup
+## Setup
 
 Sets up a new Fleet instance with the given parameters.
 

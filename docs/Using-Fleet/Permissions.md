@@ -41,6 +41,7 @@ Users with the Admin role receive all permissions.
 | Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*                                   |          |            | ✅    |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                              |          | ✅         | ✅    |
 | Retrieve contents from file carving                                                |          |            | ✅    |
+| View Apple Mobile Device Management (MDM) certificate information                  |          |            | ✅    |
 
 
 
@@ -52,7 +53,7 @@ Users with the Admin role receive all permissions.
 
 `Applies only to Fleet Premium`
 
-Users in Fleet either have team access or global access. 
+Users in Fleet either have team access or global access.
 
 Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [schedules](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query) , and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
 their team.
