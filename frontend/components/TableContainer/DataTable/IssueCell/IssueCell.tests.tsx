@@ -16,13 +16,11 @@ describe("Issue cell", () => {
       />
     );
 
-    // TODO: How to test icon?
-    // const icon = screen.findAllByAltText("icon");
-    // console.log("icon", icon);
-    // expect(icon).toBeInTheDocument();
+    const icon = screen.queryByTestId("icon");
 
     await user.hover(screen.getByText("4"));
 
     expect(screen.getByText(/failing policies/i)).toBeInTheDocument();
+    expect(icon).toBeInTheDocument();
   });
 });

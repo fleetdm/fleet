@@ -60,12 +60,11 @@ describe("SummaryTile - component", () => {
 
     const title = screen.getByText("Windows hosts");
     const count = screen.getByText("200");
-    // TOOD: Fix icon assertion
-    // const icon = screen.getByRole("svg");
+    const icon = screen.queryByTestId("icon");
 
     expect(title).toBeInTheDocument();
     expect(count).toBeInTheDocument();
-    // expect(icon).toBeInTheDocument();
+    expect(icon).toBeInTheDocument();
   });
 
   it("does not render icon if not provided", () => {
