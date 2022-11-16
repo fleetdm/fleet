@@ -1,5 +1,6 @@
 package mysql
 
+/*
 import (
 	"context"
 	"database/sql"
@@ -231,3 +232,4 @@ WHERE
 	}
 	return devices, nil
 }
+*/
