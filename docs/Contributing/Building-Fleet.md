@@ -49,6 +49,8 @@ Note: all packages default to the latest versions. To specify a version, place `
 
 After installing the packages, you must use **Git Bash** to continue with the [next section](#clone-and-build).
 
+If you plan to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) on your windows development environment, you can configure Docker to WSL integration by following the steps [here](https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers).
+
 ### Clone and build
 
 ```
