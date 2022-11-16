@@ -74,13 +74,6 @@ func (ml *MockLock) GetLockCount() int {
 	return ml.LockCount
 }
 
-// func (ml *mockLock) GetUnlockCount() int {
-// 	ml.mu.Lock()
-// 	defer ml.mu.Unlock()
-
-// 	return ml.UnlockCount
-// }
-
 func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
