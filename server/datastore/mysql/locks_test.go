@@ -71,7 +71,9 @@ func testLocksLockUnlock(t *testing.T, ds *Datastore) {
 	err = ds.Unlock(context.Background(), "test", owner1)
 	require.NoError(t, err)
 
-	// owner2 tries to get the lock but fails
+	time.Sleep(1 * time.Second)
+
+	// owner2 tries to get the lock and succeeds
 	locked, err = ds.Lock(context.Background(), "test", owner2, 1*time.Minute)
 	require.NoError(t, err)
 	assert.True(t, locked)
