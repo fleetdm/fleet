@@ -2,13 +2,42 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetMDMApple(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	cfg := config.TestConfig()
+	cfg.MDM.AppleAPNsCert = "testdata/server.pem"
+	cfg.MDM.AppleAPNsKey = "testdata/server.key"
+	cfg.MDM.AppleSCEPCert = "testdata/server.pem"
+	cfg.MDM.AppleSCEPKey = "testdata/server.key"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	_, err := cfg.MDM.AppleAPNs()
+	require.NoError(t, err)
+
+	ctx = test.UserContext(ctx, test.UserAdmin)
+	got, err := svc.GetAppleMDM(ctx)
+	require.NoError(t, err)
+
+	// NOTE: to inspect the test certificate, you can use:
+	// openssl x509 -in ./server/service/testdata/server.pem -text -noout
+	require.Equal(t, &fleet.AppleMDM{
+		CommonName:   "servq.groob.io",
+		SerialNumber: "1",
+		Issuer:       "groob-ca",
+		RenewDate:    time.Date(2017, 10, 24, 13, 11, 44, 0, time.UTC),
+	}, got)
+}
 
 func TestMDMAppleAuthorization(t *testing.T) {
 	ds := new(mock.Store)
