@@ -140,6 +140,8 @@ export interface IDeviceUserResponse {
   host: IHost;
   license: ILicense;
   org_logo_url: string;
+  disk_encryption_enabled?: boolean;
+  platform?: string;
 }
 
 export interface IHost {
