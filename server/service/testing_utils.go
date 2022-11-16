@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
@@ -105,6 +106,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 
 	ctx := license.NewContext(context.Background(), lic)
+
+	scheduleService := fleet.CronSchedules{Schedules: make(map[string]fleet.CronSchedule)}
+
+	if len(opts) > 0 && opts[0].StartSchedules != nil {
+		for _, fn := range opts[0].StartSchedules {
+			err = scheduleService.AddCronSchedule(fn(ctx, ds))
+			require.NoError(t, err)
+		}
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -126,6 +137,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmStorage,
 		mdmPusher,
 		"",
+		&scheduleService,
 	)
 	if err != nil {
 		panic(err)
@@ -210,6 +222,8 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
+type StartScheduleFunc func(ctx context.Context, ds fleet.Datastore) (*schedule.Schedule, error)
+
 type TestServerOpts struct {
 	Logger              kitlog.Logger
 	License             *fleet.LicenseInfo
@@ -227,6 +241,7 @@ type TestServerOpts struct {
 	DEPStorage          nanodep_storage.AllStorage
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
+	StartSchedules      []StartScheduleFunc
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,6 +21,7 @@ func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) (fleet
 	case err != nil:
 		return fleet.CronStats{}, ctxerr.Wrap(ctx, err, "select cron stats")
 	default:
+		fmt.Println("stats", res.CreatedAt)
 		return res, nil
 	}
 }
@@ -43,7 +45,17 @@ func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.C
 	stmt := `UPDATE cron_stats SET status = ? WHERE id = ?`
 
 	if _, err := ds.writer.ExecContext(ctx, stmt, status, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert cron stats")
+		return ctxerr.Wrap(ctx, err, "update cron stats")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
+	stmt := `UPDATE cron_stats SET status = ? WHERE instance = ? AND status = ?`
+
+	if _, err := ds.writer.ExecContext(ctx, stmt, toStatus, instance, fromStatus); err != nil {
+		return ctxerr.Wrap(ctx, err, "update all cron stats for instance")
 	}
 
 	return nil

@@ -403,6 +403,8 @@ type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType
 
 type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
 
+type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
+
 type CleanupCronStatsFunc func(ctx context.Context) error
 
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
@@ -1092,6 +1094,9 @@ type DataStore struct {
 
 	UpdateCronStatsFunc        UpdateCronStatsFunc
 	UpdateCronStatsFuncInvoked bool
+
+	UpdateAllCronStatsForInstanceFunc        UpdateAllCronStatsForInstanceFunc
+	UpdateAllCronStatsForInstanceFuncInvoked bool
 
 	CleanupCronStatsFunc        CleanupCronStatsFunc
 	CleanupCronStatsFuncInvoked bool
@@ -2223,6 +2228,11 @@ func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronSta
 func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
 	s.UpdateCronStatsFuncInvoked = true
 	return s.UpdateCronStatsFunc(ctx, id, status)
+}
+
+func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
+	s.UpdateAllCronStatsForInstanceFuncInvoked = true
+	return s.UpdateAllCronStatsForInstanceFunc(ctx, instance, fromStatus, toStatus)
 }
 
 func (s *DataStore) CleanupCronStats(ctx context.Context) error {
