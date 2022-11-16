@@ -132,6 +132,10 @@ interface IBattery {
   health: string;
 }
 
+export interface IHostResponse {
+  host: IHost;
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
