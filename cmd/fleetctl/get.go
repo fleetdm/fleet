@@ -273,6 +273,7 @@ func getCommand() *cli.Command {
 			getUserRolesCommand(),
 			getTeamsCommand(),
 			getSoftwareCommand(),
+			getMDMAppleCommand(),
 		},
 	}
 }
@@ -1017,6 +1018,38 @@ func getSoftwareCommand() *cli.Command {
 			}
 			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
 			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMAppleCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm_apple",
+		Aliases: []string{"mdm-apple"},
+		Usage:   "Show Apple Push Notification Service (APNs) information",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			//carves, err := client.ListCarves(fleet.CarveListOptions{Expired: expired})
+			//if err != nil {
+			//	return err
+			//}
+
+			//if len(carves) == 0 {
+			//	fmt.Println("No carves found")
+			//	return nil
+			//}
+			_ = client
 
 			return nil
 		},
