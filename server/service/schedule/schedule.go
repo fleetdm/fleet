@@ -266,7 +266,7 @@ func (s *Schedule) Start() {
 				// the schedule takes 1.5 hrs to run then we wait 0.5 hrs (skipping the scheduled
 				// tick that would have overlapped with the 1.5hrs running time)
 				schedInterval = s.getSchedInterval()
-				if time.Since(newStart) < schedInterval {
+				if time.Since(newStart) > schedInterval {
 					level.Info(s.logger).Log("msg", fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval))
 					newStart = newStart.Add(time.Since(newStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)

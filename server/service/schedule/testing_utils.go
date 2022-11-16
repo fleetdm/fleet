@@ -3,7 +3,6 @@ package schedule
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -36,7 +35,6 @@ func (ml *MockLock) Lock(ctx context.Context, name string, owner string, expirat
 	if name != ml.name {
 		return false, errors.New("name doesn't match")
 	}
-	fmt.Println("lock called", time.Now())
 
 	now := time.Now()
 	if ml.owner == owner || now.After(ml.expiresAt) {
@@ -56,8 +54,6 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
 
-	fmt.Println("unlock called", time.Now())
-
 	if name != ml.name {
 		return errors.New("name doesn't match")
 	}
@@ -67,7 +63,6 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	ml.UnlockCount = ml.UnlockCount + 1
 	if ml.Unlocked != nil {
 		ml.Unlocked <- struct{}{}
-		fmt.Println("unlocked", time.Now())
 	}
 	return nil
 }
