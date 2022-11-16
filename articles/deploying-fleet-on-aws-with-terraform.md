@@ -83,7 +83,7 @@ in order to create the database from a previous snapshot.
 
 
 ## Deployment
-Next, we’ll update the terraform setup in the `/aws` directory's [main.tf](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to use the S3 Bucket and DynamoDB created above:
+Next, we’ll update the terraform setup in the `/aws` directory's [main.tf](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to use the S3 Bucket and DynamoDB referenced above:
 
 ```
 terraform {
@@ -171,17 +171,17 @@ redis_cluster_members = toset([
 target_group_arn_suffix = "targetgroup/fleetdm/0f3bec83c8b02f58"
 ```
 
-We'll need some of these values in the next step.
+We'll need some of thes values in the next step.
 
 ## Prepare the database
 
 Now all we need to do is prepare the database for use. We'll run an AWS ECS Task that will migrate the database and prepare it for use.
 
 ```
-aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:<latest_migration_version> --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<private_subnet_id>],securityGroups=[<desired_security_group>]}"
+aws ecs run-task --cluster <ecs_cluster_name> --task-definition fleet-migrate:<fleet-migration-task-revision> --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<private_subnet_id>],securityGroups=[<backend_security_group_id>]}"
 ```
 
-Where `<migration_version>` is `fleet-migration-task-revision`, `<private_subnet_id>` is one of the private subnets, and `<desired_security_group>` is the security group from the previous output. 
+Replace `<backend_security_group_id>`, `<ecs_cluster_name>`, and `<fleet-migration-task-revision>` with the corresponding values from the previous output. Replace `<private_subnet_id>` with one of the private subnets from the previous output. 
 
 For the example output from `terraform apply` in the previous step, the command would look like this:
 
