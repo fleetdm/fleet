@@ -141,7 +141,7 @@ func New(
 		logger:               log.NewNopLogger(),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
-		schedInterval:        interval,
+		schedInterval:        truncateSecondsWithFloor(interval),
 		locker:               locker,
 		statsStore:           statsStore,
 	}
