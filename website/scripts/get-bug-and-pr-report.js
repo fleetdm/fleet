@@ -31,7 +31,7 @@ module.exports = {
     const NUMBER_OF_RESULTS_REQUESTED = 100;
 
     let daysSinceBugsWereOpened = [];
-    let roundedCommitToMergeTimeInDays = [];
+    let commitToMergeTimesInDays = [];
 
     await sails.helpers.flow.simultaneously([
 
@@ -75,8 +75,8 @@ module.exports = {
           // Get the amount of time this issue has been open in milliseconds.
           let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
-          let roundedTimeOpenInDays = Math.round(timeOpenInMS / ONE_DAY_IN_MILLISECONDS);
-          daysSinceBugsWereOpened.push(roundedTimeOpenInDays);
+          let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          daysSinceBugsWereOpened.push(timeOpenInDays);
         }
 
       },
@@ -102,13 +102,13 @@ module.exports = {
           baseHeaders
         ).retry();
 
-        // Filter the results to get Pull requests closed in the past week.
-        let pullRequestsClosedInThePastThreeWeeks = lastHundredClosedPullRequests.filter((pullRequest)=>{
+        // Filter the results to get pull requests merged in the past three weeks.
+        let pullRequestsMergedInThePastThreeWeeks = lastHundredClosedPullRequests.filter((pullRequest)=>{
           return threeWeeksAgo <= new Date(pullRequest.merged_at);
         });
 
         // To get the timestamp of the first commit for each pull request, we'll need to send a request to the commits API endpoint.
-        await sails.helpers.flow.simultaneouslyForEach(pullRequestsClosedInThePastThreeWeeks, async (pullRequest)=>{
+        await sails.helpers.flow.simultaneouslyForEach(pullRequestsMergedInThePastThreeWeeks, async (pullRequest)=>{
           // Create a date object from the PR's merged_at timestamp.
           let pullRequestMergedOn = new Date(pullRequest.merged_at);
 
@@ -120,8 +120,8 @@ module.exports = {
           // Get the amount of time this issue has been open in milliseconds.
           let timeOpenInMS = Math.abs(pullRequestMergedOn - firstCommitAt);
           // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array.
-          let roundedTimeFromFirstCommit = Math.round(timeOpenInMS / ONE_DAY_IN_MILLISECONDS);
-          roundedCommitToMergeTimeInDays.push(roundedTimeFromFirstCommit);
+          let timeFromFirstCommitInDays = Math.round(timeOpenInMS / ONE_DAY_IN_MILLISECONDS);
+          commitToMergeTimesInDays.push(timeFromFirstCommitInDays);
         });
 
       },
@@ -129,7 +129,7 @@ module.exports = {
 
     // Get the averages from the arrays of results.
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened)/daysSinceBugsWereOpened.length);
-    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(roundedCommitToMergeTimeInDays)/roundedCommitToMergeTimeInDays.length);
+    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
 
     // Log the results
     sails.log(`Bugs:
@@ -140,7 +140,7 @@ module.exports = {
 
        Pull requests:
        ------------------------------------
-       Number of pull requests closed in the past three weeks: ${roundedCommitToMergeTimeInDays.length}
+       Number of pull requests merged in the past three weeks: ${commitToMergeTimesInDays.length}
        Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
        ------------------------------------`);
   }
