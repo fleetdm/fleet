@@ -8,9 +8,9 @@ import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
-import hostAPI from "services/entities/hosts";
 import {
   IHost,
+  IHostResponse,
   IDeviceMappingResponse,
   IMacadminsResponse,
 } from "interfaces/host";
@@ -42,22 +42,6 @@ const baseClass = "device-user";
 
 interface IDeviceUserPageProps {
   params: Params;
-}
-
-interface ILicense {
-  tier: string;
-  device_count: number;
-  expiration: string;
-  note: string;
-  organization: string;
-}
-
-interface IHostResponse {
-  host: IHost;
-  org_logo_url: string;
-  license: ILicense;
-  disk_encryption_enabled?: boolean;
-  platform?: string;
 }
 
 interface IHostDiskEncryptionProps {
