@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -45,11 +46,11 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 
 	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
 
-	premiumLicense := &fleet.LicenseInfo{Tier: "premium", Organization: "Fleet"}
-	freeLicense := &fleet.LicenseInfo{Tier: "free"}
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	freeLicense := &fleet.LicenseInfo{Tier: fleet.TierFree}
 
 	// First time running with no hosts
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, "premium", stats.LicenseTier)
@@ -174,7 +175,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
 	// Running with 1 host
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
@@ -201,7 +202,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// If we try right away, it shouldn't ask to send
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, premiumLicense)
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), fleet.StatisticsFrequency, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 
@@ -273,7 +274,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Lower the frequency to trigger an "outdated" sent
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
@@ -311,7 +312,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// wait a bit and resend statistics
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, stats.AnonymousIdentifier, firstIdentifier)
@@ -339,7 +340,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, premiumLicense)
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
@@ -350,7 +351,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 
 	// trigger again with a free license, organization should be "unknown"
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, freeLicense)
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, freeLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)

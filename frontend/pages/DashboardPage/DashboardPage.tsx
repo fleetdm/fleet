@@ -401,6 +401,7 @@ const DashboardPage = (): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
@@ -413,6 +414,8 @@ const DashboardPage = (): JSX.Element => {
         lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        currentTeamId={currentTeam?.id}
       />
     ),
   });

@@ -92,14 +92,14 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 		id, _ := result.LastInsertId()
 		host.ID = uint(id)
 
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?,?)`,
 			host.ID, host.SeenTime,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
-		_, err = ds.writer.ExecContext(ctx,
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO host_display_names (host_id, display_name) VALUES (?,?)`,
 			host.ID, host.DisplayName(),
 		)
@@ -706,6 +706,9 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 			sql += ` AND hmdm.enrolled = 0`
 		}
 	}
+	if opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) `
+	}
 	return sql, params
 }
 
@@ -779,7 +782,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		  hostname = '' AND
 		  osquery_version = '' AND
 		  created_at < (? - INTERVAL 5 MINUTE)`
-		if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &ids, selectIDs, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
 		}
 
@@ -787,7 +790,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 			`DELETE FROM host_display_names WHERE host_id IN (%s)`,
 			selectIDs,
 		)
-		if _, err := ds.writer.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
+		if _, err := tx.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
 		}
 
@@ -796,7 +799,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 		`
-		if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
+		if _, err := tx.ExecContext(ctx, cleanupHosts, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 		}
 
@@ -2135,7 +2138,7 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 	return msgToID, nil
 }
 
-func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
 	if err != nil {
 		return err
@@ -2143,9 +2146,9 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, host_id) VALUES (?, ?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, mdmID, hostID,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, isServer, hostID,
 	)
 }
 
@@ -2562,16 +2565,15 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 	if teamID != nil || platform != "" {
 		query += ` JOIN hosts h ON (h.id = hm.host_id) `
 	}
-	whereAnd := "WHERE"
+	query += ` WHERE NOT COALESCE(hm.is_server, false) `
 	if teamID != nil {
 		args = append(args, *teamID)
-		query += ` WHERE h.team_id = ? `
+		query += ` AND h.team_id = ? `
 		id = *teamID
-		whereAnd = "AND"
 	}
 	if platform != "" {
 		args = append(args, platform)
-		query += whereAnd + " h.platform = ? "
+		query += " AND h.platform = ? "
 	}
 	err := sqlx.GetContext(ctx, ds.reader, &status, query, args...)
 	if err != nil {
@@ -2613,6 +2615,7 @@ func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID 
 			 FROM mobile_device_management_solutions mdms
 			 INNER JOIN host_mdm hm
 			 ON hm.mdm_id = mdms.id
+			 AND NOT COALESCE(hm.is_server, false)
 `
 	args := []interface{}{}
 	if teamID != nil || platform != "" {

@@ -12,6 +12,7 @@ const formFields = ["new_password", "new_password_confirmation"];
 
 class ResetPasswordForm extends Component {
   static propTypes = {
+    baseError: PropTypes.string,
     handleSubmit: PropTypes.func,
     fields: PropTypes.shape({
       new_password: formFieldInterface.isRequired,
@@ -20,10 +21,11 @@ class ResetPasswordForm extends Component {
   };
 
   render() {
-    const { fields, handleSubmit } = this.props;
+    const { baseError, fields, handleSubmit } = this.props;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass}>
+        {baseError && <div className="form__base-error">{baseError}</div>}
         <InputFieldWithIcon
           {...fields.new_password}
           autofocus

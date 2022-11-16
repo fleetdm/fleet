@@ -36,7 +36,11 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  humanHostDiskEncryptionEnabled,
+  wrapFleetHelper,
+} from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -52,7 +56,7 @@ import SelectQueryModal from "./modals/SelectQueryModal";
 import TransferHostModal from "./modals/TransferHostModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import DeleteHostModal from "./modals/DeleteHostModal";
-import RenderOSPolicyModal from "./modals/OSPolicyModal";
+import OSPolicyModal from "./modals/OSPolicyModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
@@ -79,6 +83,11 @@ interface ISearchQueryData {
   sortDirection: string;
   pageSize: number;
   pageIndex: number;
+}
+
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
 }
 
 const TAGGED_TEMPLATES = {
@@ -139,6 +148,10 @@ const HostDetailsPage = ({
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
+  const [
+    hostDiskEncryption,
+    setHostDiskEncryption,
+  ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
 
@@ -261,6 +274,13 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        setHostDiskEncryption({
+          enabled: returnedHost.disk_encryption_enabled,
+          tooltip: humanHostDiskEncryptionEnabled(
+            returnedHost.platform,
+            returnedHost.disk_encryption_enabled
+          ),
+        });
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -543,6 +563,7 @@ const HostDetailsPage = ({
         <HostSummaryCard
           statusClassName={statusClassName}
           titleData={titleData}
+          diskEncryption={hostDiskEncryption}
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
@@ -597,7 +618,7 @@ const HostDetailsPage = ({
                 }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
-              {macadmins && (
+              {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -656,10 +677,11 @@ const HostDetailsPage = ({
           />
         )}
         {showOSPolicyModal && (
-          <RenderOSPolicyModal
+          <OSPolicyModal
             onCancel={() => setShowOSPolicyModal(false)}
             onCreateNewPolicy={onCreateNewPolicy}
-            titleData={titleData}
+            osVersion={host?.os_version}
+            detailsUpdatedAt={host?.detail_updated_at}
             osPolicy={osPolicyQuery}
             osPolicyLabel={osPolicyLabel}
           />

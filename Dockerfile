@@ -1,5 +1,5 @@
 FROM alpine
-LABEL maintainer="Fleet Developers <hello@fleetdm.com>"
+LABEL maintainer="Fleet Developers"
 
 RUN apk --update add ca-certificates
 RUN apk --no-cache add jq

@@ -602,7 +602,7 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from osquery agents, returning the full contents to Fleet.
 
-To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) or [scheduled query](#add-scheduled-query-to-a-pack) endpoints to run a query against the `carves` table.
+To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
 For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli#file-carving-with-fleet).
 
@@ -734,7 +734,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Modify global enroll secrets](#modify-global-enroll-secrets)
 - [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
-- [Modify enroll secrets for a team](i#modify-enroll-secrets-for-a-team)
+- [Modify enroll secrets for a team](#modify-enroll-secrets-for-a-team)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
@@ -834,7 +834,6 @@ None.
     "spec": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
           "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
@@ -1718,6 +1717,8 @@ If `software_id` is specified, an additional top-level key `"software"` is retur
 
 If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
 
+If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
+
 If `munki_issue_id` is specified, an additional top-level key `"munki_issue"` is returned with the information corresponding to the `munki_issue_id`.
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
@@ -1855,6 +1856,8 @@ Response payload with the `munki_issue_id` filter provided:
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
 #### Example
 
@@ -2582,7 +2585,7 @@ Currently supports Windows and MacOS. On MacOS this requires the [macadmins osqu
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
-Retrieves MDM enrollment summary.
+Retrieves MDM enrollment summary. Windows servers are excluded from the aggregated data.
 
 `GET /api/v1/fleet/hosts/summary/mdm`
 
@@ -2880,6 +2883,8 @@ requested by a web browser.
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
+
+If `mdm_id` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
 #### Example
 
@@ -3222,6 +3227,7 @@ Returns a list of the hosts that belong to the specified label.
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 
 #### Example
 
@@ -4851,7 +4857,6 @@ Deletes the session specified by ID. When the user associated with the session n
         "hosts_count": 1
       }
     ]
-  }
 }
 ```
 
@@ -5084,8 +5089,7 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-            "logger_plugin": "tls",
-            "pack_delimiter": "/",
+=            "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
@@ -5122,8 +5126,7 @@ _Available in Fleet Premium_
         "spec": {
           "config": {
             "options": {
-              "logger_plugin": "tls",
-              "pack_delimiter": "/",
+=              "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
@@ -5186,8 +5189,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
+=          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5256,7 +5258,6 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-            "logger_plugin": "tls",
             "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
@@ -5344,8 +5345,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
-          "pack_delimiter": "/",
+=          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5401,7 +5401,6 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
           "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
@@ -5457,7 +5456,6 @@ _Available in Fleet Premium_
 {
   "config": {
     "options": {
-      "logger_plugin": "tls",
       "pack_delimiter": "/",
       "logger_tls_period": 20,
       "distributed_plugin": "tls",
@@ -5492,7 +5490,6 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-          "logger_plugin": "tls",
           "pack_delimiter": "/",
           "logger_tls_period": 20,
           "distributed_plugin": "tls",
@@ -5547,7 +5544,7 @@ _Available in Fleet Premium_
 
 ## Translator
 
-- [Translate IDs](#translate-i-ds)
+- [Translate IDs](#translate-ids)
 
 ### Translate IDs
 
