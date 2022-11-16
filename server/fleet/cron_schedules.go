@@ -78,7 +78,7 @@ func (e triggerConflictError) Error() string {
 	return msg
 }
 
-func (a triggerConflictError) StatusCode() int {
+func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 

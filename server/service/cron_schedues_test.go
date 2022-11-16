@@ -47,9 +47,10 @@ func TestCronSchedulesService(t *testing.T) {
 
 	require.NoError(t, svc.TriggerCronSchedule(ctx, "test_sched")) // first trigger sent ok and will run successfully
 
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // second trigger is immediately published on the channel; however, it won't run because the channel will be drained at the end of the first run
+	time.Sleep(10 * time.Millisecond)
+	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because first job is pending
 
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because the channel is full
+	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because first job is pending
 
 	time.Sleep(2 * time.Second)
 	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched_2")) // error because unrecognized name

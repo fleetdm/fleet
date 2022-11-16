@@ -573,7 +573,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 		{
 			name:         "test_trigger_long_runtime",
 			triggerDelay: 0,
-			jobRuntime:   1400 * time.Millisecond,
+			jobRuntime:   1300 * time.Millisecond,
 			jobsExpected: 2, // 1 triggered plus 1 scheduled (at 2s)
 		},
 		{
