@@ -47,10 +47,10 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
+import EmptyPage from "components/EmptyTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
-import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -530,6 +530,39 @@ const ManageSoftwarePage = ({
     router.push(path);
   };
 
+  const emptyHeaderText = () => {
+    if (!isSoftwareEnabled) {
+      return "Software inventory disabled";
+    }
+    if (isCollectingInventory) {
+      return "No software detected";
+    }
+    if (currentTeam && filterVuln) {
+      return "No vulnerable software detected";
+    }
+    return "No software matches the current search criteria";
+  };
+
+  const emptyInfoText = () => {
+    if (!isSoftwareEnabled) {
+      return (
+        <>
+          Users with the admin role can{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+            text="turn on software inventory"
+            newTab
+          />
+          .
+        </>
+      );
+    }
+    if (isCollectingInventory || (currentTeam && filterVuln)) {
+      return "This report is updated every hour to protect the performance of your devices.";
+    }
+    return "Try again in about 1 hour as the system catches up.";
+  };
+
   return !availableTeams ||
     !globalConfig ||
     (!softwareConfig && !softwareConfigError) ? (
@@ -549,11 +582,11 @@ const ManageSoftwarePage = ({
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
-                EmptySoftware(
-                  (!isSoftwareEnabled && "disabled") ||
-                    (isCollectingInventory && "collecting") ||
-                    "default"
-                )
+                EmptyPage({
+                  iconName: "empty-software",
+                  headerText: emptyHeaderText(),
+                  infoText: emptyInfoText(),
+                })
               }
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}

@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
 
-import { ISoftware } from "interfaces/software";
+import { ISoftware, ISoftwareResponse } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -28,7 +28,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 
 interface ISoftwareTableProps {
   isLoading: boolean;
-  software: ISoftware[];
+  software: ISoftwareResponse;
   deviceUser?: boolean;
   deviceType?: string;
   softwareInventoryEnabled?: boolean;
@@ -39,6 +39,7 @@ interface IRowProps extends Row {
   original: {
     id?: number;
   };
+  isSoftwareEnabled?: boolean;
 }
 
 const SoftwareTable = ({
@@ -48,6 +49,7 @@ const SoftwareTable = ({
   deviceType,
   softwareInventoryEnabled,
   router,
+  isSoftwareEnabled,
 }: ISoftwareTableProps): JSX.Element => {
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
@@ -109,14 +111,57 @@ const SoftwareTable = ({
     <EmptyState title="software" reason="empty-search" />
   );
 
-  if (softwareInventoryEnabled === false) {
-    return (
-      <div className="section section--software">
-        <p className="section__header">Software</p>
-        <EmptyState title="software" reason="disabled" />
-      </div>
-    );
-  }
+  // if (softwareInventoryEnabled === false) {
+  //   return (
+  //     <div className="section section--software">
+  //       <p className="section__header">Software</p>
+  //       <EmptyState title="software" reason="disabled" />
+  //     </div>
+  //   );
+  // }
+
+  // // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
+  // // collecting inventory
+  // const isCollectingInventory =
+  //   !searchQuery &&
+  //   !filterVuln &&
+  //   !currentTeam?.id &&
+  //   !pageIndex &&
+  //   !software?.software &&
+  //   software?.counts_updated_at === null;
+
+  // const emptyHeaderText = () => {
+  //   if (!isSoftwareEnabled) {
+  //     return "Software inventory disabled";
+  //   }
+  //   if (isCollectingInventory) {
+  //     return "No software detected";
+  //   }
+  //   if (currentTeam && filterVuln) {
+  //     return "No vulnerable software detected";
+  //   }
+  //   return "No software matches the current search criteria";
+  // };
+
+  // const emptyInfoText = () => {
+  //   if (!isSoftwareEnabled) {
+  //     return (
+  //       <>
+  //         Users with the admin role can{" "}
+  //         <CustomLink
+  //           url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+  //           text="turn on software inventory"
+  //           newTab
+  //         />
+  //         .
+  //       </>
+  //     );
+  //   }
+  //   if (isCollectingInventory || (currentTeam && filterVuln)) {
+  //     return "This report is updated every hour to protect the performance of your devices.";
+  //   }
+  //   return "Try again in about 1 hour as the system catches up.";
+  // };
 
   return (
     <div className="section section--software">

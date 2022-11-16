@@ -2,7 +2,11 @@ import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+<<<<<<< HEAD
 import Ex from "./Ex";
+=======
+import EmptySoftware from "./EmptySoftware";
+>>>>>>> 58073c8e2 (Work towards empty component)
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
@@ -37,6 +41,7 @@ export const ICON_MAP = {
   chevron: Chevron,
   check: Check,
   ex: Ex,
+  "empty-software": EmptySoftware,
   "external-link": ExternalLink,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,

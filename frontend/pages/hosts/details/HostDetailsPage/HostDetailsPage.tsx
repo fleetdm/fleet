@@ -682,9 +682,7 @@ const HostDetailsPage = ({
               <SoftwareCard
                 isLoading={isLoadingHost}
                 software={hostSoftware}
-                softwareInventoryEnabled={
-                  featuresConfig?.enable_software_inventory
-                }
+                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
                 router={router}
               />

@@ -1,0 +1,36 @@
+.empty-table {
+  &__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 96px auto 0; // 96px to top of div
+    max-width: 450px; // standard empty state width
+    gap: $pad-medium; // 16px between image, text, and buttons
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small; // 4px from header to info text
+
+    h2 {
+      text-align: center;
+      font-size: $small;
+      font-weight: $bold;
+      margin: 0;
+    }
+
+    p {
+      text-align: center;
+      color: $core-fleet-black;
+      font-size: $x-small;
+      margin: 0;
+    }
+  }
+
+  &__cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: $pad-small; // 8px between buttons
+  }
+}
