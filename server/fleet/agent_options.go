@@ -256,6 +256,7 @@ type osqueryOptions struct {
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
