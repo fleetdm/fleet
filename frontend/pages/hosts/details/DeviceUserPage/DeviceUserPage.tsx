@@ -13,6 +13,7 @@ import {
   IHostResponse,
   IDeviceMappingResponse,
   IMacadminsResponse,
+  IDeviceUserResponse,
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
@@ -105,7 +106,7 @@ const DeviceUserPage = ({
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
-  } = useQuery<IHostResponse, Error, IHostResponse>(
+  } = useQuery<IDeviceUserResponse, Error, IDeviceUserResponse>(
     ["host", deviceAuthToken],
     () => deviceUserAPI.loadHostDetails(deviceAuthToken),
     {
@@ -114,8 +115,8 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IHostResponse) => data,
-      onSuccess: (returnedHost: IHostResponse) => {
+      select: (data: IDeviceUserResponse) => data,
+      onSuccess: (returnedHost: IDeviceUserResponse) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
         setIsPremiumTier(returnedHost.license.tier === "premium");
         setHostSoftware(returnedHost.host.software ?? []);

@@ -6,6 +6,7 @@ import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
+import { ILicense } from "./config";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -134,6 +135,11 @@ interface IBattery {
 
 export interface IHostResponse {
   host: IHost;
+}
+export interface IDeviceUserResponse {
+  host: IHost;
+  license: ILicense;
+  org_logo_url: string;
 }
 
 export interface IHost {
