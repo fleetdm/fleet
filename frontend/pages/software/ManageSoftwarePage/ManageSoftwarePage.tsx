@@ -48,7 +48,11 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
+<<<<<<< HEAD
 import EmptyTable from "components/EmptyTable";
+=======
+import EmptyPage from "components/EmptyTable";
+>>>>>>> c0b987adf (Work towards empty component)
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";

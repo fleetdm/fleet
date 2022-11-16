@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
 
-import { ISoftware } from "interfaces/software";
+import { ISoftware, ISoftwareResponse } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -28,7 +28,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 
 interface ISoftwareTableProps {
   isLoading: boolean;
-  software: ISoftware[];
+  software: ISoftwareResponse;
   deviceUser?: boolean;
   deviceType?: string;
   isSoftwareEnabled?: boolean;
@@ -47,7 +47,6 @@ const SoftwareTable = ({
   software,
   deviceUser,
   deviceType,
-  isSoftwareEnabled,
   router,
 }: ISoftwareTableProps): JSX.Element => {
   const [searchString, setSearchString] = useState("");
@@ -68,9 +67,10 @@ const SoftwareTable = ({
     300
   );
 
-  const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
-    software,
-  ]);
+  const tableSoftware = useMemo(
+    () => generateSoftwareTableData(software.software),
+    [software]
+  );
   const tableHeaders = useMemo(
     () => generateSoftwareTableHeaders(deviceUser, router),
     [deviceUser, router]
@@ -114,11 +114,11 @@ const SoftwareTable = ({
     <div className="section section--software">
       <p className="section__header">Software</p>
 
-      {software?.length ? (
+      {software?.software.length ? (
         <>
           {software && (
             <SoftwareVulnCount
-              softwareList={software}
+              softwareList={software.software}
               deviceUser={deviceUser}
             />
           )}
