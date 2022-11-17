@@ -583,7 +583,6 @@ const HostDetailsPage = ({
     {
       name: (
         <>
-          {" "}
           {failingPoliciesCount > 0 && (
             <span className="count">{failingPoliciesCount}</span>
           )}
