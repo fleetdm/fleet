@@ -53,7 +53,7 @@ const displayIcon = (platform: IInstallerPlatform, isSelected: boolean) => {
         <Icon
           name="linux"
           size="large"
-          color={isSelected ? "coreVibrantBlue" : "coreFleetBlack"}
+          color={isSelected ? "core-fleet-blue" : "core-fleet-black"}
         />
       );
     case "macOS":
@@ -61,7 +61,7 @@ const displayIcon = (platform: IInstallerPlatform, isSelected: boolean) => {
         <Icon
           name="darwin"
           size="large"
-          color={isSelected ? "coreVibrantBlue" : "coreFleetBlack"}
+          color={isSelected ? "core-fleet-blue" : "core-fleet-black"}
         />
       );
     case "Windows":
@@ -69,7 +69,7 @@ const displayIcon = (platform: IInstallerPlatform, isSelected: boolean) => {
         <Icon
           name="windows"
           size="large"
-          color={isSelected ? "coreVibrantBlue" : "coreFleetBlack"}
+          color={isSelected ? "core-fleet-blue" : "core-fleet-black"}
         />
       );
     default:
