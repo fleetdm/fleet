@@ -54,7 +54,7 @@ interface INumberCellProps extends IRowProps {
 
 interface IPillCellProps extends IRowProps {
   cell: {
-    value: [string, number];
+    value: { indicator: string; id: number };
   };
 }
 

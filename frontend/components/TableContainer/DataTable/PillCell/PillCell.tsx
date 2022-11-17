@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import ReactTooltip from "react-tooltip";
 
 interface IPillCellProps {
-  value: [string, number];
+  value: { indicator: string; id: number };
   customIdPrefix?: string;
   hostDetails?: boolean;
 }
@@ -19,16 +19,16 @@ const PillCell = ({
   customIdPrefix,
   hostDetails,
 }: IPillCellProps): JSX.Element => {
-  const [pillText, id] = value;
-
+  console.log("value", value);
+  const { indicator, id } = value;
   const pillClassName = classnames(
     "data-table__pill",
-    `data-table__pill--${generateClassTag(pillText)}`,
+    `data-table__pill--${generateClassTag(indicator)}`,
     "tooltip"
   );
 
   const disable = () => {
-    switch (pillText) {
+    switch (indicator) {
       case "Minimal":
         return false;
       case "Considerable":
@@ -43,7 +43,7 @@ const PillCell = ({
   };
 
   const tooltipText = () => {
-    switch (pillText) {
+    switch (indicator) {
       case "Minimal":
         return (
           <>
@@ -93,7 +93,7 @@ const PillCell = ({
         data-for={`${customIdPrefix || "pill"}__${id?.toString() || uuidv4()}`}
         data-tip-disable={disable()}
       >
-        <span className={pillClassName}>{pillText}</span>
+        <span className={pillClassName}>{indicator}</span>
       </span>
       <ReactTooltip
         place="bottom"
@@ -103,7 +103,9 @@ const PillCell = ({
         id={`${customIdPrefix || "pill"}__${id?.toString() || uuidv4()}`}
         data-html
       >
-        <span className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}>
+        <span
+          className={`tooltip ${generateClassTag(indicator)}__tooltip-text`}
+        >
           {tooltipText()}
         </span>
       </ReactTooltip>

@@ -1,27 +1,19 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { renderWithSetup } from "test/testingUtils";
 
 import PillCell from "./PillCell";
 
+const PERFORMANCE_IMPACT = { indicator: "minimal", id: 3 };
+
 describe("Pill cell", () => {
-  it("renders pill text", async () => {
+  it("renders pill text and tooltip on hover", async () => {
     const { user } = renderWithSetup(
-      <PillCell value={["ok", 3]} customIdPrefix={"4"} hostDetails />
+      <PillCell value={PERFORMANCE_IMPACT} customIdPrefix={"3"} hostDetails />
     );
 
-    await user.hover(screen.getByText("4"));
+    await user.hover(screen.getByText("Minimal"));
 
-    expect(screen.getByText(/failing policies/i)).toBeInTheDocument();
-  });
-
-  it("renders tooltip on hover", async () => {
-    const { user } = renderWithSetup(
-      <PillCell value={["ok", 3]} customIdPrefix={"4"} hostDetails />
-    );
-
-    await user.hover(screen.getByText("Updated never"));
-
-    expect(screen.getByText(/to retrieve software/i)).toBeInTheDocument();
+    expect(screen.getByText(/little to no impact/i)).toBeInTheDocument();
   });
 });
