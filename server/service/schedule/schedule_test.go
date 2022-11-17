@@ -361,7 +361,7 @@ func TestScheduleReleaseLock(t *testing.T) {
 		require.Equal(t, 4, ml.GetLockCount())
 		require.WithinRange(t, time.Now(),
 			start.Add(2*schedInterval).Add(jobDuration),
-			start.Add(2*schedInterval).Add(jobDuration).Add(20*time.Millisecond),
+			start.Add(2*schedInterval).Add(jobDuration).Add(500*time.Millisecond),
 		)
 	}
 }
@@ -420,7 +420,7 @@ func TestScheduleHoldLock(t *testing.T) {
 		require.Equal(t, 4, ml.GetLockCount())
 		require.WithinRange(t, time.Now(),
 			start.Add(3*schedInterval).Add(jobDuration),
-			start.Add(3*schedInterval).Add(jobDuration).Add(20*time.Millisecond),
+			start.Add(3*schedInterval).Add(jobDuration).Add(500*time.Millisecond),
 		)
 	}
 }
