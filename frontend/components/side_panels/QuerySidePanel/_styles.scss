@@ -80,20 +80,6 @@
     }
   }
 
-  &__evented-table-tag {
-    display: inline-flex;
-    align-items: center;
-    background-color: $ui-fleet-blue-15;
-    padding: $pad-xsmall $pad-small;
-    border-radius: 6px;
-    font-size: $xxx-small;
-    font-weight: $bold;
-  }
-
-  &__event-icon {
-    margin-right: $pad-small;
-  }
-
   &__description {
     font-size: $x-small;
     overflow-wrap: break-word;
