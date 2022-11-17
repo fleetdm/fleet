@@ -694,60 +694,6 @@ const HostDetailsPage = ({
             </TabPanel>
           </Tabs>
         </TabsWrapper>
-        <TabPanel>
-          <AboutCard
-            aboutData={aboutData}
-            deviceMapping={deviceMapping}
-            macadmins={macadmins}
-            wrapFleetHelper={wrapFleetHelper}
-          />
-          <div className="col-2">
-            <AgentOptionsCard
-              osqueryData={osqueryData}
-              wrapFleetHelper={wrapFleetHelper}
-            />
-            <LabelsCard
-              labels={host?.labels || []}
-              onLabelClick={onLabelClick}
-            />
-          </div>
-          <UsersCard
-            users={host?.users || []}
-            usersState={usersState}
-            isLoading={isLoadingHost}
-            onUsersTableSearchChange={onUsersTableSearchChange}
-            hostUsersEnabled={featuresConfig?.enable_host_users}
-          />
-        </TabPanel>
-        <TabPanel>
-          <SoftwareCard
-            isLoading={isLoadingHost}
-            software={hostSoftware}
-            softwareInventoryEnabled={featuresConfig?.enable_software_inventory}
-            deviceType={host?.platform === "darwin" ? "macos" : ""}
-          />
-          {host?.platform === "darwin" && macadmins && (
-            <MunkiIssuesCard
-              isLoading={isLoadingHost}
-              munkiIssues={macadmins.munki_issues}
-              deviceType={host?.platform === "darwin" ? "macos" : ""}
-            />
-          )}
-        </TabPanel>
-        <TabPanel>
-          <ScheduleCard
-            scheduleState={scheduleState}
-            isLoading={isLoadingHost}
-          />
-          <PacksCard packsState={packsState} isLoading={isLoadingHost} />
-        </TabPanel>
-        <TabPanel>
-          <PoliciesCard
-            policies={host?.policies || []}
-            isLoading={isLoadingHost}
-            togglePolicyDetailsModal={togglePolicyDetailsModal}
-          />
-        </TabPanel>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
