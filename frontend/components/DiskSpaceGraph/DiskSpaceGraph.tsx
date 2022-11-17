@@ -56,7 +56,7 @@ const DiskSpaceGraph = ({
           <div
             className={`${baseClass}__disk-space--${diskSpaceIndicator()}`}
             style={{
-              width: `${100 - percentDiskSpaceAvailable}%`,
+              width: `${percentDiskSpaceAvailable}%`,
             }}
           />
         </div>
