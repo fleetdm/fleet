@@ -359,10 +359,7 @@ func TestScheduleReleaseLock(t *testing.T) {
 	case <-ml.Unlocked:
 		require.Equal(t, 2, jobCount)
 		require.Equal(t, 4, ml.GetLockCount())
-		require.WithinRange(t, time.Now(),
-			start.Add(2*schedInterval).Add(jobDuration),
-			start.Add(2*schedInterval).Add(jobDuration).Add(1*time.Second),
-		)
+		require.True(t, time.Now().After(start.Add(2*schedInterval).Add(jobDuration)))
 	}
 }
 

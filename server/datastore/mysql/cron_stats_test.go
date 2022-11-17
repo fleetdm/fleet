@@ -67,8 +67,8 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 		require.Equal(t, c.Name, res.Name)
 		require.Equal(t, c.Instance, res.Instance)
 		require.Equal(t, c.Status, res.Status)
-		require.Equal(t, now, res.CreatedAt)
-		require.Equal(t, now, res.UpdatedAt)
+		require.WithinRange(t, res.CreatedAt, now, now.Add(1*time.Second))
+		require.WithinRange(t, res.UpdatedAt, now, now.Add(1*time.Second))
 		results = append(results, res)
 	}
 
@@ -90,9 +90,9 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 		require.Equal(t, fleet.CronStatsStatusCompleted, r.Status)
 		require.Equal(t, results[i].CreatedAt, r.CreatedAt)
 		if cases[i].Status != fleet.CronStatsStatusCompleted {
-			require.Equal(t, start.Add(2*time.Second), r.UpdatedAt)
+			require.WithinRange(t, r.UpdatedAt, start.Add(2*time.Second), time.Now())
 		} else {
-			require.Equal(t, start, r.UpdatedAt)
+			require.Equal(t, results[i].UpdatedAt, r.UpdatedAt)
 		}
 	}
 
@@ -106,11 +106,8 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, cases[1].Instance, res.Instance)
 	require.Equal(t, fleet.CronStatsStatusCompleted, res.Status)
 	require.Equal(t, results[1].CreatedAt, res.CreatedAt)
-	if cases[2].Status != fleet.CronStatsStatusCompleted {
-		require.Equal(t, start.Add(2*time.Second), res.UpdatedAt)
-	} else {
-		require.Equal(t, start, res.UpdatedAt)
-	}
+	require.WithinRange(t, res.UpdatedAt, start.Add(2*time.Second), time.Now()) // second case was updated from pending to completed
+
 	res, err = ds.GetLatestCronStats(ctx, "sched2")
 	require.NoError(t, err)
 	// sixth case was the last inserted for sched2
@@ -119,11 +116,8 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, cases[5].Instance, res.Instance)
 	require.Equal(t, fleet.CronStatsStatusCompleted, res.Status)
 	require.Equal(t, results[5].CreatedAt, res.CreatedAt)
-	if cases[5].Status != fleet.CronStatsStatusCompleted {
-		require.Equal(t, start.Add(2*time.Second), res.UpdatedAt)
-	} else {
-		require.Equal(t, start, res.UpdatedAt)
-	}
+	require.Equal(t, results[5].CreatedAt, res.CreatedAt)
+	require.Equal(t, results[5].UpdatedAt, res.UpdatedAt) // sixth case wasn't updated
 }
 
 func TestCleanupCronStats(t *testing.T) {
