@@ -11,7 +11,6 @@ import {
   wrapFleetHelper,
 } from "utilities/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-import { platform } from "os";
 
 const baseClass = "host-summary";
 
