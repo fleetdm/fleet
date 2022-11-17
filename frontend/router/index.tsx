@@ -98,8 +98,12 @@ const routes = (
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to={"dashboard"} />
-          <Route path="dashboard" component={DashboardPage} />
+          <IndexRedirect to={"/dashboard"} />
+          <Route path="dashboard" component={DashboardPage}>
+            <Route path="linux" component={DashboardPage} />
+            <Route path="mac" component={DashboardPage} />
+            <Route path="windows" component={DashboardPage} />
+          </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to={"/dashboard"} />
             <Route component={SettingsWrapper}>

@@ -248,7 +248,7 @@ const PageOrComponent = ({
   router,
 }: IPageProps) => {
   const doSomething = () => {
-    router.push(PATHS.HOME);
+    router.push(PATHS.DASHBOARD);
   };
 
   return (
