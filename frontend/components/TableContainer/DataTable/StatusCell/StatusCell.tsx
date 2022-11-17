@@ -18,9 +18,11 @@ const generateClassTag = (rawValue: string): string => {
 };
 
 const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
+  const classTag = generateClassTag(value);
   const statusClassName = classnames(
     "data-table__status",
-    `data-table__status--${generateClassTag(value)}`
+    `data-table__status--${classTag}`,
+    `status--${classTag}`
   );
   const cellContent = tooltip ? (
     <>

@@ -137,7 +137,7 @@ const HostSummary = ({
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
           <StatusCell
-            value={status}
+            value={status || ""} // temporary work around of integration test bug
             tooltip={{
               id,
               tooltipText: getHostStatusTooltipText(status),
