@@ -20,6 +20,7 @@ export interface ICheckboxProps {
   indeterminate?: boolean;
   parseTarget?: boolean;
   tooltip?: string;
+  isLeftLabel?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -35,6 +36,7 @@ const Checkbox = (props: ICheckboxProps) => {
     indeterminate,
     parseTarget,
     tooltip,
+    isLeftLabel,
   } = props;
 
   const handleChange = () => {
@@ -56,6 +58,7 @@ const Checkbox = (props: ICheckboxProps) => {
   const checkBoxTickClass = classnames(`${checkBoxClass}__tick`, {
     [`${checkBoxClass}__tick--disabled`]: disabled,
     [`${checkBoxClass}__tick--indeterminate`]: indeterminate,
+    [`${checkBoxClass}__tick--right`]: isLeftLabel,
   });
 
   return (
@@ -72,7 +75,6 @@ const Checkbox = (props: ICheckboxProps) => {
           type="checkbox"
         />
         <span className={checkBoxTickClass} />
-
         {tooltip ? (
           <span className={`${checkBoxClass}__label-tooltip tooltip`}>
             <TooltipWrapper tipContent={tooltip}>

@@ -18,6 +18,7 @@ interface ISetLastEditedQueryInfo {
   lastEditedQueryDescription?: string;
   lastEditedQueryBody?: string;
   lastEditedQueryResolution?: string;
+  lastEditedCriticalPolicy?: boolean;
   lastEditedQueryPlatform?: IPlatformString | null;
 }
 
@@ -46,12 +47,14 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryResolution: string;
+  lastEditedCriticalPolicy: boolean;
   lastEditedQueryPlatform: IPlatformString | null;
   setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryResolution: (value: string) => void;
+  setLastEditedCriticalPolicy: (value: boolean) => void;
   setLastEditedQueryPlatform: (value: IPlatformString | null) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
@@ -69,12 +72,14 @@ const initialState = {
   lastEditedQueryDescription: "",
   lastEditedQueryBody: "",
   lastEditedQueryResolution: "",
+  lastEditedCriticalPolicy: false,
   lastEditedQueryPlatform: null,
   setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
   setLastEditedQueryResolution: () => null,
+  setLastEditedCriticalPolicy: () => null,
   setLastEditedQueryPlatform: () => null,
   policyTeamId: 0,
   setPolicyTeamId: () => null,
@@ -119,6 +124,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
           typeof action.lastEditedQueryResolution === "undefined"
             ? state.lastEditedQueryResolution
             : action.lastEditedQueryResolution,
+        lastEditedCriticalPolicy:
+          typeof action.lastEditedCriticalPolicy === "undefined"
+            ? state.lastEditedCriticalPolicy
+            : action.lastEditedCriticalPolicy,
         lastEditedQueryPlatform:
           typeof action.lastEditedQueryPlatform === "undefined"
             ? state.lastEditedQueryPlatform
@@ -140,6 +149,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryResolution: state.lastEditedQueryResolution,
+    lastEditedCriticalPolicy: state.lastEditedCriticalPolicy,
     lastEditedQueryPlatform: state.lastEditedQueryPlatform,
     setLastEditedQueryId: (lastEditedQueryId: number) => {
       dispatch({
@@ -169,6 +179,12 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       dispatch({
         type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryResolution,
+      });
+    },
+    setLastEditedCriticalPolicy: (lastEditedCriticalPolicy: boolean) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedCriticalPolicy,
       });
     },
     setLastEditedQueryPlatform: (

@@ -9,6 +9,8 @@ import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
@@ -47,12 +49,16 @@ const NewPolicyModal = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryResolution,
+    lastEditedCriticalPolicy,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const [name, setName] = useState(lastEditedQueryName);
   const [description, setDescription] = useState(lastEditedQueryDescription);
   const [resolution, setResolution] = useState(lastEditedQueryResolution);
+  const [criticalPolicy, setCriticalPolicy] = useState(
+    lastEditedCriticalPolicy
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -129,6 +135,20 @@ const NewPolicyModal = ({
             placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
+          <Checkbox
+            name="critical-policy"
+            onChange={(value: boolean) => setCriticalPolicy(value)}
+            value={criticalPolicy}
+            isLeftLabel
+          >
+            <TooltipWrapper
+              tipContent={
+                "<p>If automations are turned on, this information<br/> is included.</p>"
+              }
+            >
+              Critical:
+            </TooltipWrapper>
+          </Checkbox>
           <div className="modal-cta-wrap">
             <span
               className={`${baseClass}__button-wrap--modal-save`}
