@@ -197,7 +197,7 @@ func TestCleanupCronStats(t *testing.T) {
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats`)
+	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -207,7 +207,7 @@ func TestCleanupCronStats(t *testing.T) {
 
 	ds.CleanupCronStats(ctx)
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats`)
+	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
 	for i, c := range cases {
