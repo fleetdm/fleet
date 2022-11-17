@@ -7,7 +7,7 @@ interface IDiskSpaceGraphProps {
   gigsDiskSpaceAvailable: number | string;
   percentDiskSpaceAvailable: number;
   id: string;
-  os: "mac" | "windows" | "linux";
+  platform: string;
 }
 
 const DiskSpaceGraph = ({
@@ -15,40 +15,35 @@ const DiskSpaceGraph = ({
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
   id,
-  os,
+  platform,
 }: IDiskSpaceGraphProps): JSX.Element => {
-  const diskSpaceIndicator = () => {
-    switch (true) {
-      case os === "linux":
-        return "green";
-      case gigsDiskSpaceAvailable < 16:
+  const diskSpaceIndicator = (): string => {
+    // return space-dependent graph colors for mac and windows hosts, green for linux
+    if (platform === "darwin" || platform === "windows") {
+      if (gigsDiskSpaceAvailable < 16) {
         return "red";
-      case gigsDiskSpaceAvailable < 32:
+      } else if (gigsDiskSpaceAvailable < 32) {
         return "yellow";
-      default:
-        return "green";
+      }
     }
+    return "green";
   };
 
   const diskSpaceTooltipText = ((): string | undefined => {
-    switch (true) {
-      case os === "linux":
-        return undefined;
-      case gigsDiskSpaceAvailable < 16:
+    if (platform === "darwin" || platform === "windows") {
+      if (gigsDiskSpaceAvailable < 16) {
         return "Not enough disk space available to install most small operating systems updates.";
-      case gigsDiskSpaceAvailable < 32:
+      } else if (gigsDiskSpaceAvailable < 32) {
         return "Not enough disk space available to install most large operating systems updates.";
-      default:
-        return "Enough disk space available to install most operating systems updates.";
+      }
+      return "Enough disk space available to install most operating systems updates.";
     }
+    return undefined;
   })();
 
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
     return <span className={`${baseClass}__data`}>No data available</span>;
   }
-
-  // const tooltip = diskSpaceTooltipText ? (
-  // ) : null;
 
   return (
     <span className={`${baseClass}__data`}>

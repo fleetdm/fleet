@@ -27,7 +27,6 @@ import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
-import get_os_from_os_version from "utilities/get_os_from_os_version";
 import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -228,17 +227,16 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: INumberCellProps): JSX.Element => {
       const {
         id,
-        os_version,
+        platform,
         percent_disk_space_available,
       } = cellProps.row.original;
-      const os = get_os_from_os_version(os_version);
       return (
         <DiskSpaceGraph
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
           id={`disk-space__${id}`}
-          os={os}
+          platform={platform}
         />
       );
     },
