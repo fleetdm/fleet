@@ -27,8 +27,11 @@ func (cs *CronSchedules) AuthzType() string {
 	return "cron_schedules"
 }
 
+type CronScheduleStarterFunc func() (CronSchedule, error)
+
 // AddCronSchedules registers a new cron schedule with the service.
-func (cs *CronSchedules) AddCronSchedule(sched CronSchedule, err error) error {
+func (cs *CronSchedules) AddCronSchedule(fn CronScheduleStarterFunc) error {
+	sched, err := fn()
 	if err != nil {
 		return err
 	}

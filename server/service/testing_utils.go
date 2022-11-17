@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
@@ -222,7 +221,7 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
-type StartScheduleFunc func(ctx context.Context, ds fleet.Datastore) (*schedule.Schedule, error)
+type TestScheduleStarterFunc func(ctx context.Context, ds fleet.Datastore) fleet.CronScheduleStarterFunc
 
 type TestServerOpts struct {
 	Logger              kitlog.Logger
@@ -241,7 +240,7 @@ type TestServerOpts struct {
 	DEPStorage          nanodep_storage.AllStorage
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
-	StartSchedules      []StartScheduleFunc
+	StartSchedules      []TestScheduleStarterFunc
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -470,28 +470,40 @@ the way that the Fleet server works.
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)); err != nil {
+			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+				return startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
+			}); err != nil {
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)); err != nil {
+			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+				return startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)); err != nil {
+			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+				return startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
+			}); err != nil {
 				initFatal(err, "failed to register vulnerabilities schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)); err != nil {
+			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+				return startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(startIntegrationsSchedule(ctx, instanceID, ds, logger)); err != nil {
+			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+				return startIntegrationsSchedule(ctx, instanceID, ds, logger)
+			}); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
 
 			if config.MDMApple.Enable {
-				if err := cronSchedulesService.AddCronSchedule(startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)); err != nil {
+				if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+					return startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
 			}

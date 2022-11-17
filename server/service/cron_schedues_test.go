@@ -28,18 +28,20 @@ func TestCronSchedulesService(t *testing.T) {
 	})
 	jobsDone := uint32(0)
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{StartSchedules: []StartScheduleFunc{
-		func(ctx context.Context, ds fleet.Datastore) (*schedule.Schedule, error) {
-			s := schedule.New(
-				ctx, "test_sched", "id", 1*time.Second, locker, statsStore,
-				schedule.WithJob("test_job", func(ctx context.Context) error {
-					time.Sleep(100 * time.Millisecond)
-					atomic.AddUint32(&jobsDone, 1)
-					return nil
-				}),
-			)
-			s.Start()
-			return s, nil
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{StartSchedules: []TestScheduleStarterFunc{
+		func(ctx context.Context, ds fleet.Datastore) fleet.CronScheduleStarterFunc {
+			return func() (fleet.CronSchedule, error) {
+				s := schedule.New(
+					ctx, "test_sched", "id", 1*time.Second, locker, statsStore,
+					schedule.WithJob("test_job", func(ctx context.Context) error {
+						time.Sleep(100 * time.Millisecond)
+						atomic.AddUint32(&jobsDone, 1)
+						return nil
+					}),
+				)
+				s.Start()
+				return s, nil
+			}
 		},
 	}})
 
