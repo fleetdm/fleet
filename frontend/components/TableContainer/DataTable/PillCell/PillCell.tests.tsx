@@ -9,7 +9,7 @@ const PERFORMANCE_IMPACT = { indicator: "minimal", id: 3 };
 describe("Pill cell", () => {
   it("renders pill text and tooltip on hover", async () => {
     const { user } = renderWithSetup(
-      <PillCell value={PERFORMANCE_IMPACT} customIdPrefix={"3"} hostDetails />
+      <PillCell value={PERFORMANCE_IMPACT} hostDetails />
     );
 
     await user.hover(screen.getByText("Minimal"));
