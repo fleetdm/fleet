@@ -68,6 +68,9 @@ const baseClass = "host-details";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+  };
   params: Params;
 }
 
@@ -84,6 +87,12 @@ interface IHostDiskEncryptionProps {
   tooltip?: string;
 }
 
+interface IHostDetailsSubNavItem {
+  name: string | JSX.Element;
+  title: string;
+  pathname: string;
+}
+
 const TAGGED_TEMPLATES = {
   queryByHostRoute: (hostId: number | undefined | null) => {
     return `${hostId ? `?host_ids=${hostId}` : ""}`;
@@ -92,6 +101,7 @@ const TAGGED_TEMPLATES = {
 
 const HostDetailsPage = ({
   router,
+  location: { pathname },
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
@@ -548,6 +558,48 @@ const HostDetailsPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
+    {
+      name: "Details",
+      title: "details",
+      pathname: PATHS.HOST_DETAILS(hostIdFromURL),
+    },
+    {
+      name: "Software",
+      title: "software",
+      pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
+    },
+    {
+      name: "Schedule",
+      title: "schedule",
+      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
+    },
+    {
+      name: (
+        <>
+          {failingPoliciesCount > 0 && (
+            <span className="count">{failingPoliciesCount}</span>
+          )}
+          Policies
+        </>
+      ),
+      title: "policies",
+      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+    },
+  ];
+
+  const getTabIndex = (path: string): number => {
+    return hostDetailsSubNav.findIndex((navItem) => {
+      // tab stays highlighted for paths that ends with same pathname
+      return path.endsWith(navItem.pathname);
+    });
+  };
+
+  const navigateToNav = (i: number): void => {
+    const navPath = hostDetailsSubNav[i].pathname;
+    router.push(navPath);
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -566,17 +618,16 @@ const HostDetailsPage = ({
           renderActionButtons={renderActionButtons}
         />
         <TabsWrapper>
-          <Tabs>
+          <Tabs
+            selectedIndex={getTabIndex(pathname)}
+            onSelect={(i) => navigateToNav(i)}
+          >
             <TabList>
-              <Tab>Details</Tab>
-              <Tab>Software</Tab>
-              <Tab>Schedule</Tab>
-              <Tab>
-                {failingPoliciesCount > 0 && (
-                  <span className="count">{failingPoliciesCount}</span>
-                )}
-                Policies
-              </Tab>
+              {hostDetailsSubNav.map((navItem) => {
+                // Bolding text when the tab is active causes a layout shift
+                // so we add a hidden pseudo element with the same text string
+                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+              })}
             </TabList>
             <TabPanel>
               <AboutCard
@@ -636,7 +687,6 @@ const HostDetailsPage = ({
             </TabPanel>
           </Tabs>
         </TabsWrapper>
-
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
