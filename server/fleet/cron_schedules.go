@@ -9,12 +9,14 @@ import (
 type CronSchedulesService interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
 	TriggerCronSchedule(name string) error
-	// // GetCronScheduleNames returns a list of the names of all cron schedules registered with the service.
-	// GetCronScheduleNames() []string
+}
+
+func NewCronSchedules() *CronSchedules {
+	return &CronSchedules{Schedules: make(map[string]CronSchedule)}
 }
 
 type CronSchedule interface {
-	Trigger() (bool, *CronStats, error)
+	Trigger() (*CronStats, error)
 	Name() string
 }
 
@@ -43,24 +45,21 @@ func (cs *CronSchedules) AddCronSchedule(fn CronScheduleStarterFunc) error {
 func (cs *CronSchedules) TriggerCronSchedule(name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
-		return triggerNotFoundError{}
+		return triggerNotFoundError{name: name}
 	}
-	ok, stats, err := sched.Trigger()
+	stats, err := sched.Trigger()
 	switch {
 	case err != nil:
 		return err
-	case !ok:
-		if stats == nil || string(stats.Status) == "" {
-			return triggerConflictError{name: name}
-		}
+	case stats != nil:
 		return triggerConflictError{name: name, stats: stats}
 	default:
 		return nil
 	}
 }
 
-// GetCronScheduleNames returns a list of the names of all cron schedules registered with the service.
-func (cs *CronSchedules) GetCronScheduleNames() []string {
+// ScheduleNames returns a list of the names of all cron schedules registered with the service.
+func (cs *CronSchedules) ScheduleNames() []string {
 	var res []string
 	for _, sched := range cs.Schedules {
 		res = append(res, sched.Name())

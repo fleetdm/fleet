@@ -79,7 +79,7 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	}
 
 	var updatedResults []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats")
+	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats ORDER BY id")
 	require.NoError(t, err)
 	require.Len(t, updatedResults, len(cases))
 	for i, r := range updatedResults {

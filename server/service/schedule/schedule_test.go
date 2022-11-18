@@ -536,6 +536,9 @@ func TestTriggerSingleInstance(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	s.Trigger() // triggered run starts at 0.1s and runs until 0.3s
 	s.Trigger() // ignored
+	s.Trigger() // ignored
+	s.Trigger() // ignored
+	s.Trigger() // ignored
 
 	<-ticker.C  // scheduled run starts at 1s and runs until 1.2s
 	s.Trigger() // ignored
@@ -559,7 +562,7 @@ func TestTriggerSingleInstance(t *testing.T) {
 
 func TestTriggerMultipleInstances(t *testing.T) {
 	schedInterval := 1 * time.Second
-	testDuration := 3500 * time.Millisecond
+	testDuration := 3900 * time.Millisecond
 
 	cases := []struct {
 		name         string
@@ -569,13 +572,13 @@ func TestTriggerMultipleInstances(t *testing.T) {
 	}{
 		{
 			name:         "test_trigger_long_runtime",
-			triggerDelay: 0,
+			triggerDelay: 10 * time.Millisecond,
 			jobRuntime:   1300 * time.Millisecond,
 			jobsExpected: 2, // 1 triggered plus 1 scheduled (at 2s)
 		},
 		{
 			name:         "test_trigger_short_runtime",
-			triggerDelay: 0,
+			triggerDelay: 10 * time.Millisecond,
 			jobRuntime:   400 * time.Millisecond,
 			jobsExpected: 4, // 1 triggered plus 3 scheduled (at 1s, 2s, 3s)
 		},
@@ -608,11 +611,8 @@ func TestTriggerMultipleInstances(t *testing.T) {
 			s := New(
 				ctx, c.name, id, schedInterval, locker, statsStore,
 				WithJob("test_job", func(ctx context.Context) error {
-					fmt.Println("start job", id, time.Now())
 					time.Sleep(c.jobRuntime)
 					atomic.AddUint32(&jobsRun, 1)
-					fmt.Println("done job", id, time.Now())
-
 					return nil
 				}),
 			)

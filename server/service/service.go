@@ -91,7 +91,7 @@ func NewService(
 	mdmStorage nanomdm_storage.AllStorage,
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,
-	schedulesService fleet.CronSchedulesService,
+	cronSchedulesService fleet.CronSchedulesService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -121,7 +121,7 @@ func NewService(
 		mdmStorage:           mdmStorage,
 		mdmPushService:       mdmPushService,
 		mdmPushCertTopic:     mdmPushCertTopic,
-		cronSchedulesService: schedulesService,
+		cronSchedulesService: cronSchedulesService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

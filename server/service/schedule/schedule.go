@@ -141,7 +141,7 @@ func New(
 		name:                 name,
 		instanceID:           instanceID,
 		logger:               log.NewNopLogger(),
-		trigger:              make(chan struct{}, 1),
+		trigger:              make(chan struct{}),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
 		schedInterval:        truncateSecondsWithFloor(interval),
@@ -334,25 +334,30 @@ func (s *Schedule) Start() {
 	}()
 }
 
-// Trigger signals the schedule to start an ad-hoc run of all jobs. It returns true only if it is
-// able to successfully send the trigger signal. If another run is already pending, it also returns
-// available status information for the pending run.
-func (s *Schedule) Trigger() (bool, *fleet.CronStats, error) {
+// Trigger attempts to signal the schedule to start an ad-hoc run of all jobs after first checking
+// whether another run is pending. If another run is already pending, it returns available status
+// information for the pending run.
+//
+// Note that no distinction is made in the return value between the
+// case where the signal is published to the trigger channel and the case where the trigger channel
+// is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
+// cases are deemed to be equivalent.
+func (s *Schedule) Trigger() (*fleet.CronStats, error) {
 	stats, err := s.getLatestStats()
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 	if stats.Status == fleet.CronStatsStatusPending {
-		return false, &stats, nil
+		return &stats, nil
 	}
 
 	select {
 	case s.trigger <- struct{}{}:
-		return true, nil, nil
+		// ok
 	default:
 		level.Debug(s.logger).Log("msg", "trigger channel not available")
-		return false, nil, nil
 	}
+	return nil, nil
 }
 
 // Name returns the name of the schedule.

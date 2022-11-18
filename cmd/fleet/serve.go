@@ -423,7 +423,7 @@ the way that the Fleet server works.
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
-			cronSchedulesService := &fleet.CronSchedules{Schedules: make(map[string]fleet.CronSchedule)}
+			cronSchedules := fleet.NewCronSchedules()
 
 			baseCtx := licensectx.NewContext(context.Background(), license)
 			ctx, cancelFunc := context.WithCancel(baseCtx)
@@ -452,7 +452,7 @@ the way that the Fleet server works.
 				mdmStorage,
 				mdmPushService,
 				mdmPushCertTopic,
-				cronSchedulesService,
+				cronSchedules,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -470,45 +470,45 @@ the way that the Fleet server works.
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
 				return startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
 			}); err != nil {
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
 				return startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
 				return startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 			}); err != nil {
 				initFatal(err, "failed to register vulnerabilities schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
 				return startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
 
-			if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
 				return startIntegrationsSchedule(ctx, instanceID, ds, logger)
 			}); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
 
 			if config.MDMApple.Enable {
-				if err := cronSchedulesService.AddCronSchedule(func() (fleet.CronSchedule, error) {
+				if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
 					return startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
 			}
 
-			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedulesService.GetCronScheduleNames(), ", ")))
+			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))

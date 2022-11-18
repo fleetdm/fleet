@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,7 +20,6 @@ func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) (fleet
 	case err != nil:
 		return fleet.CronStats{}, ctxerr.Wrap(ctx, err, "select cron stats")
 	default:
-		fmt.Println("stats", res.CreatedAt)
 		return res, nil
 	}
 }
