@@ -1,2 +1,0 @@
-* Use the MSRC security bulletins to scan for Windows vulnerabilities. Detected vulnerabilities are
-inserted in a new table, 'operating_system_vulnerabilities'.

@@ -14,12 +14,12 @@ import (
 
 func TestNewQueryAttach(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	name := "bad"
 	query := "attach '/nope' as bad"
 	_, err := svc.NewQuery(
-		context.Background(),
+		ctx,
 		fleet.QueryPayload{Name: &name, Query: &query},
 	)
 	require.Error(t, err)
@@ -43,7 +43,7 @@ func TestFilterQueriesForObserver(t *testing.T) {
 
 func TestListQueries(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	cases := [...]struct {
 		title        string
@@ -75,7 +75,7 @@ func TestListQueries(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.title, func(t *testing.T) {
-			viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 			_, err := svc.ListQueries(viewerCtx, fleet.ListOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOpts, calledWithOpts)
@@ -85,7 +85,7 @@ func TestListQueries(t *testing.T) {
 
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	authoredQueryID := uint(1)
 	authoredQueryName := "authored"
@@ -188,7 +188,7 @@ func TestQueryAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.NewQuery(ctx, fleet.QueryPayload{Name: ptr.String("name"), Query: ptr.String("select 1")})
 			checkAuthErr(t, tt.shouldFailNew, err)

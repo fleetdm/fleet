@@ -20,8 +20,6 @@ Releases will be available at [github.com/fleetdm/fleet](http://github.com/fleet
 
 We will never charge for features that are currently free in the OSS version of Fleet. Expect to see significant investments and improvements in both the OSS and enterprise offerings.
 
-Please reach out via [hello@fleetdm.com](mailto:hello@fleetdm.com) if you are interested in becoming an early customer and helping to define the roadmap.
-
 ## Fleet 3.3.0
 
 Today we are releasing Fleet 3.3.0 with a slew of long-awaited features and improvements.

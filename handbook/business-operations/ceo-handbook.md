@@ -1,6 +1,15 @@
 # CEO handbook
 This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
 
+
+#### In this section
+
+- [Contacting the CEO](#contacting-the-ceo)
+- [OKR planning](#okr-planning)
+- [Prep work](#prep-work)
+- [Tasks as assigned](#tasks-as-assigned)
+
+
 ## Contacting the CEO
 Keeping up with Slack is tough enough, even more so if you’re the CEO. That’s why Fleeties have different ways to contact Mike depending on the urgency of the request.
 
@@ -23,50 +32,11 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
-## 1:1 Mike:Sid document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
- - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
- - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
- - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
-## Investor and advisor updates
-We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+## Prep work
 
-## Calendar audit
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
-In the notes document include:
-  1. LinkedIn profile link of all outside participants
-  2. Company profile link 
-  3. Context that helps the CEO to understand purpose of meeting at a glance
-  4. Share document with meeting participants
-
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
-
-## Gong
-How to file videos from Gong recordings (**marking as "private" in gong is not appropriate. Never use it- instead, use this process**):
-  1. Move to ¶¶ recording in google drive.
-  2. Download video from Gong, then delete it from Gong (promptly) and instead upload mp4 to appropriate ¶¶ folder in google drive.
-  3. Move generated transcript doc in google drive (promptly) instead into appropriate ¶¶ folder in google drive.
-  4. **For both video and transcript**: Double-checked permissions to make sure they are only ¶¶ viewers.
-  5. Include the links to ¶¶ video and transcript here in this doc:
-    - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
-    - Include in the doc "link to video:"
-    - Include in the doc "link to transcript:"
-
-## Private whiteboard
-From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
-  1. Start with a new doc.
-  2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
-  3. Use CMD+SHFT+V to paste the Slack convo into the doc.
-  4. Reapply formatting manually (be mindful of quotes, links, and images).
-      - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
-
-## All Hands prep
-Every month Charlie will create do the prep work for the month "✌️ All hands 🖐👋🤲👏🙌🤘" call.
+### All Hands prep
+Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
   3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreasheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
@@ -77,6 +47,62 @@ Every month Charlie will create do the prep work for the month "✌️ All hands
   8. **If applicable** Update Quarterly OKRs to reflect current OKR goals for the current quarter.
   9. Test that the transition on the last slides continue to work.
   10. **If applicable** Add new customer's logo to final slide.
+
+### Calendar audit
+As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+In the notes document include:
+  1. LinkedIn profile link of all outside participants
+  2. Company profile link 
+  3. Context that helps the CEO to understand purpose of meeting at a glance
+  4. Share document with meeting participants
+
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @CharlieChance in the #meetings channel.**
+
+### 1:1 Mike:Sid document preparation
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
+ - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
+ - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
+ - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
+ - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
+ - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+
+### Investor and advisor updates
+We like to regularly share updates about how Fleet is growing with our investors and advisors. 
+  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed.
+
+### Document preparation 
+At Fleet, document prep steps are determined by the type of meeting. 
+
+| Meeting type | Description | Automation enabled? | Meeting note preference |
+| ------------ | -------------------------------------------------------------| ------------------ | ------------- |
+| "One-off"    | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
+| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journals template |
+| 1:1 | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
+| Office hours | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
+
+
+## Tasks as assigned
+
+### Private whiteboard
+From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+  1. Start with a new doc.
+  2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
+  3. Use CMD+SHFT+V to paste the Slack convo into the doc.
+  4. Reapply formatting manually (be mindful of quotes, links, and images).
+      - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
+
+### Gong
+How to file videos from Gong recordings (**marking as "private" in gong is not appropriate. Never use it- instead, use this process**):
+  1. Move to ¶¶ recording in google drive.
+  2. Download video from Gong, then delete it from Gong (promptly) and instead upload mp4 to appropriate ¶¶ folder in google drive.
+  3. Move generated transcript doc in google drive (promptly) instead into appropriate ¶¶ folder in google drive.
+  4. **For both video and transcript**: Double-checked permissions to make sure they are only ¶¶ viewers.
+  5. Include the links to ¶¶ video and transcript here in this doc:
+    - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
+    - Include in the doc "link to video:"
+    - Include in the doc "link to transcript:"
+
 
 # Participation in the CEO shadow program
 This section explains more about the CEO shadow program.

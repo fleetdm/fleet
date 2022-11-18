@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -43,6 +44,8 @@ type Schedule struct {
 	altLockName string
 
 	jobs []Job
+
+	statsStore CronStatsStore
 }
 
 // JobFn is the signature of a Job.
@@ -60,6 +63,17 @@ type Job struct {
 type Locker interface {
 	Lock(ctx context.Context, scheduleName string, scheduleInstanceID string, expiration time.Duration) (bool, error)
 	Unlock(ctx context.Context, scheduleName string, scheduleInstanceID string) error
+}
+
+// CronStatsStore allows a Schedule to store and retrieve statistics pertaining to the Schedule
+type CronStatsStore interface {
+	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
+	// are found, it returns an empty CronStats struct
+	GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error)
+	// InsertCronStats inserts cron stats for the named cron schedule
+	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
+	// UpdateCronStats updates the status of the identified cron stats record
+	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error
 }
 
 // Option allows configuring a Schedule.
@@ -117,6 +131,7 @@ func New(
 	instanceID string,
 	interval time.Duration,
 	locker Locker,
+	statsStore CronStatsStore,
 	opts ...Option,
 ) *Schedule {
 	sch := &Schedule{
@@ -126,8 +141,9 @@ func New(
 		logger:               log.NewNopLogger(),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
-		schedInterval:        interval,
+		schedInterval:        truncateSecondsWithFloor(interval),
 		locker:               locker,
+		statsStore:           statsStore,
 	}
 	for _, fn := range opts {
 		fn(sch)
@@ -139,126 +155,206 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
-	var m sync.Mutex // protects currentStart and currentWait.
-	currentStart := time.Now()
-	currentWait := 10 * time.Second
+	var intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
+	var m sync.Mutex                // protects intervalStartedAt
 
-	getWaitTimes := func() (start time.Time, wait time.Duration) {
+	getIntervalStartedAt := func() (start time.Time) {
 		m.Lock()
 		defer m.Unlock()
 
-		return currentStart, currentWait
+		return intervalStartedAt
 	}
 
-	setWaitTimes := func(start time.Time, wait time.Duration) {
+	setIntervalStartedAt := func(start time.Time) {
 		m.Lock()
 		defer m.Unlock()
 
-		currentStart = start
-		currentWait = wait
+		intervalStartedAt = start.Truncate(time.Second)
 	}
 
-	if schedInterval := s.getSchedInterval(); schedInterval < currentWait {
-		setWaitTimes(currentStart, schedInterval)
+	stats, err := s.getStats()
+	if err != nil {
+		level.Error(s.logger).Log("err", "start schedule", "details", err)
+		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
 	}
+	setIntervalStartedAt(stats.CreatedAt)
+
+	initialWait := 10 * time.Second
+	if schedInterval := s.getSchedInterval(); schedInterval < initialWait {
+		initialWait = schedInterval
+	}
+	schedTicker := time.NewTicker(initialWait)
 
 	var g sync.WaitGroup
-
-	schedTicker := time.NewTicker(currentWait)
 	g.Add(+1)
 	go func() {
-		defer g.Done()
+		defer func() {
+			s.releaseLock()
+			g.Done()
+		}()
 
 		for {
-			_, currWait := getWaitTimes()
-			level.Debug(s.logger).Log("msg", "waiting", "current wait time", currWait)
+			level.Debug(s.logger).Log("waiting", "wait for next tick")
 
 			select {
 			case <-s.ctx.Done():
+				schedTicker.Stop()
 				return
 
 			case <-schedTicker.C:
 				level.Debug(s.logger).Log("waiting", "done")
 
 				schedInterval := s.getSchedInterval()
-				schedTicker.Reset(schedInterval)
+
+				stats, err := s.getStats()
+				if err != nil {
+					level.Error(s.logger).Log("err", "get cron stats", "details", err)
+					sentry.CaptureException(err)
+					ctxerr.Handle(s.ctx, err)
+					// skip ahead to the next interval
+					schedTicker.Reset(schedInterval)
+					continue
+				}
+
+				if stats.Status == fleet.CronStatsStatusPending {
+					// skip ahead to the next interval
+					schedTicker.Reset(schedInterval)
+					continue
+				}
+
+				prevStart := getIntervalStartedAt()
+				if stats.CreatedAt.After(prevStart) {
+					// if there's a diff between the datastore and our local value, we use the
+					// more recent timestamp and update our local value accordingly
+					setIntervalStartedAt(stats.CreatedAt)
+					prevStart = getIntervalStartedAt()
+				}
+				remainingInterval := getRemainingInterval(prevStart, schedInterval)
+
+				if time.Since(prevStart) < schedInterval {
+					// wait for the remaining interval plus a small buffer
+					schedTicker.Reset(remainingInterval + 100*time.Millisecond)
+					continue
+				}
+
+				prevFinish := stats.UpdatedAt.Truncate(time.Second)
+				prevRuntime := prevFinish.Sub(prevStart)
+				if prevRuntime > schedInterval {
+					// if the previous run took longer than the schedule interval, we wait until the start of the next full interval
+					newStart := prevStart.Add(time.Since(prevStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
+					setIntervalStartedAt(newStart)
+					schedTicker.Reset(getRemainingInterval(newStart, schedInterval))
+					continue
+				}
+
+				ok, cancelHold := s.holdLock()
+				if !ok {
+					// failed to get a lock so skip ahead to the next interval
+					schedTicker.Reset(schedInterval)
+					continue
+				}
 
 				newStart := time.Now()
-				newWait := schedInterval
-				setWaitTimes(newStart, newWait)
+				setIntervalStartedAt(newStart)
+				level.Info(s.logger).Log("status", "pending")
 
-				if ok := s.acquireLock(); !ok {
-					continue
+				statsID, err := s.insertStats(fleet.CronStatsTypeScheduled, fleet.CronStatsStatusPending)
+				if err != nil {
+					level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
+					sentry.CaptureException(err)
+					ctxerr.Handle(s.ctx, err)
 				}
 
 				for _, job := range s.jobs {
 					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 					if err := runJob(s.ctx, job.Fn); err != nil {
-						level.Error(s.logger).Log("err", job.ID, "details", err)
+						level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 						sentry.CaptureException(err)
 						ctxerr.Handle(s.ctx, err)
 					}
 				}
-			}
-		}
-	}()
+				level.Info(s.logger).Log("status", "completed")
 
-	// Periodically check for config updates and resets the schedInterval for the previous loop.
-	g.Add(+1)
-	go func() {
-		defer g.Done()
-		configTicker := time.NewTicker(200 * time.Millisecond)
-
-		for {
-			select {
-			case <-s.ctx.Done():
-				level.Info(s.logger).Log("msg", "done")
-				return
-			case <-configTicker.C:
-				level.Debug(s.logger).Log("msg", "config reload check")
-
-				configTicker.Reset(s.configReloadInterval)
-
-				schedInterval := s.getSchedInterval()
-				currStart, _ := getWaitTimes()
-
-				if s.configReloadIntervalFn == nil {
-					level.Debug(s.logger).Log("msg", "config reload interval method not set")
-					continue
-				}
-
-				newInterval, err := s.configReloadIntervalFn(s.ctx)
-				if err != nil {
-					level.Error(s.logger).Log("msg", "schedule interval config reload failed", "err", err)
+				if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
+					level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
 					sentry.CaptureException(err)
-					continue
+					ctxerr.Handle(s.ctx, err)
 				}
-				if newInterval <= 0 {
-					level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
-					continue
-				}
-				if schedInterval == newInterval {
-					level.Debug(s.logger).Log("msg", "schedule interval unchanged")
-					continue
-				}
-				s.setSchedInterval(newInterval)
 
-				newWait := 10 * time.Millisecond
-				if time.Since(currStart) < newInterval {
-					newWait = newInterval - time.Since(currStart)
+				// we need to re-synchronize this schedule instance so that the next scheduled run
+				// starts at the beginning of the next full interval
+				//
+				// for example, if the interval is 1hr and the schedule takes 0.2 hrs to run
+				// then we wait 0.8 hrs until the next time we run the schedule, or if the
+				// the schedule takes 1.5 hrs to run then we wait 0.5 hrs (skipping the scheduled
+				// tick that would have overlapped with the 1.5hrs running time)
+				schedInterval = s.getSchedInterval()
+				if time.Since(newStart) > schedInterval {
+					level.Info(s.logger).Log("msg", fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval))
+					newStart = newStart.Add(time.Since(newStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 				}
-				setWaitTimes(currStart, newWait)
-				schedTicker.Reset(newWait)
-
-				level.Debug(s.logger).Log("new schedule interval", newInterval, "new wait", newWait)
+				remainingInterval = getRemainingInterval(newStart, schedInterval)
+				clearTickerChannel(schedTicker) // in case another tick arrived during this run
+				schedTicker.Reset(remainingInterval)
+				cancelHold()
 			}
 		}
 	}()
+
+	if s.configReloadIntervalFn != nil {
+		// WithConfigReloadInterval option applies so we periodically check for config updates and
+		// reset the schedInterval for the previous loop
+		g.Add(+1)
+		go func() {
+			defer g.Done()
+
+			configTicker := time.NewTicker(s.configReloadInterval)
+			for {
+				select {
+				case <-s.ctx.Done():
+					configTicker.Stop()
+					return
+				case <-configTicker.C:
+					prevInterval := s.getSchedInterval()
+					newInterval, err := s.configReloadIntervalFn(s.ctx)
+					if err != nil {
+						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
+						sentry.CaptureException(err)
+						continue
+					}
+
+					newInterval = truncateSecondsWithFloor(newInterval)
+					if newInterval <= 0 {
+						level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
+						continue
+					}
+					if prevInterval == newInterval {
+						continue
+					}
+					s.setSchedInterval(newInterval)
+
+					intervalStartedAt := getIntervalStartedAt()
+					newWait := 10 * time.Millisecond
+					if time.Since(intervalStartedAt) < newInterval {
+						newWait = newInterval - time.Since(intervalStartedAt)
+					}
+
+					clearTickerChannel(schedTicker)
+					schedTicker.Reset(newWait)
+
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", newInterval))
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("time until next schedule tick %v", newWait))
+				}
+			}
+		}()
+	}
 
 	go func() {
 		g.Wait()
-		level.Debug(s.logger).Log("msg", "done")
+		level.Debug(s.logger).Log("msg", "close schedule")
 		close(s.done) // communicates that the scheduler has finished running its goroutines
+		schedTicker.Stop()
 	}()
 }
 
@@ -282,6 +378,7 @@ func (s *Schedule) Done() <-chan struct{} {
 	return s.done
 }
 
+// getScheduleInterval returns the schedule interval
 func (s *Schedule) getSchedInterval() time.Duration {
 	s.schedIntervalMu.Lock()
 	defer s.schedIntervalMu.Unlock()
@@ -289,19 +386,17 @@ func (s *Schedule) getSchedInterval() time.Duration {
 	return s.schedInterval
 }
 
+// setScheduleInterval sets the schedule interval after truncating the duration to seconds and
+// applying a one second floor (e.g., 600ms becomes 1s, 1300ms becomes 2s, 1000ms becomes 2s)
 func (s *Schedule) setSchedInterval(interval time.Duration) {
 	s.schedIntervalMu.Lock()
 	defer s.schedIntervalMu.Unlock()
 
-	s.schedInterval = interval
+	s.schedInterval = truncateSecondsWithFloor(interval)
 }
 
 func (s *Schedule) acquireLock() bool {
-	name := s.name
-	if s.altLockName != "" {
-		name = s.altLockName
-	}
-	locked, err := s.locker.Lock(s.ctx, name, s.instanceID, s.getSchedInterval())
+	locked, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		sentry.CaptureException(err)
@@ -312,4 +407,91 @@ func (s *Schedule) acquireLock() bool {
 	}
 	level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
 	return false
+}
+
+func (s *Schedule) releaseLock() {
+	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
+	if err != nil {
+		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
+		sentry.CaptureException(err)
+	}
+}
+
+// holdLock attempts to acquire a schedule lock. If it successfully acquires the lock, it starts a
+// goroutine that periodically extends the lock, and it returns `true` along with a
+// context.CancelFunc that will end the goroutine and release the lock. If it is unable to initially
+// acquire a lock, it returns `false, nil`. The maximum duration of the hold is two hours.
+func (s *Schedule) holdLock() (bool, context.CancelFunc) {
+	if ok := s.acquireLock(); !ok {
+		return false, nil
+	}
+
+	ctx, cancelFn := context.WithCancel(s.ctx)
+
+	go func() {
+		t := time.NewTimer(s.getSchedInterval() * 8 / 10) // hold timer is 80% of schedule interval
+		for {
+			select {
+			case <-ctx.Done():
+				if !t.Stop() {
+					<-t.C
+				}
+				s.releaseLock()
+				return
+			case <-t.C:
+				s.acquireLock()
+				t.Reset(s.getSchedInterval() * 8 / 10)
+			}
+		}
+	}()
+
+	return true, cancelFn
+}
+
+func (s *Schedule) getStats() (fleet.CronStats, error) {
+	return s.statsStore.GetLatestCronStats(s.ctx, s.name)
+}
+
+func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronStatsStatus) (int, error) {
+	return s.statsStore.InsertCronStats(s.ctx, statsType, s.name, s.instanceID, status)
+}
+
+func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
+	return s.statsStore.UpdateCronStats(s.ctx, id, status)
+}
+
+func (s *Schedule) getLockName() string {
+	name := s.name
+	if s.altLockName != "" {
+		name = s.altLockName
+	}
+	return name
+}
+
+// getRemainingInterval returns the interval minus the remainder of dividing the time since state by
+// the interval
+func getRemainingInterval(start time.Time, interval time.Duration) time.Duration {
+	if interval == 0 {
+		return 0
+	}
+	return interval - (time.Since(start) % interval)
+}
+
+// clearTickerChannel performs a non-blocking select on the ticker channel
+func clearTickerChannel(ticker *time.Ticker) {
+	select {
+	case <-ticker.C:
+		// pull from ticker channel
+	default:
+		// ok
+	}
+}
+
+// truncateSecondsWithFloor returns the result of truncating the duration to seconds and
+// and applying a one second floor (e.g., 600ms becomes 1s, 1300ms becomes 2s, 1000ms becomes 2s)
+func truncateSecondsWithFloor(d time.Duration) time.Duration {
+	if d <= 1*time.Second {
+		return 1 * time.Second
+	}
+	return d.Truncate(time.Second)
 }

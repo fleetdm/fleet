@@ -1,10 +1,12 @@
 import React, { useMemo } from "react";
-import { IconNames, ICON_MAP } from "components/icons";
 import classnames from "classnames";
+
+import { IconNames, ICON_MAP } from "components/icons";
+import { Colors } from "styles/var/colors";
 
 interface IIconProps {
   name: IconNames;
-  color?: "coreVibrantBlue" | "coreFleetBlack";
+  color?: Colors;
   direction?: "up" | "down" | "left" | "right";
   className?: string;
   size?: "small" | "medium";
@@ -33,7 +35,7 @@ const Icon = ({ name, color, direction, className, size }: IIconProps) => {
   const IconComponent = ICON_MAP[name];
 
   return (
-    <div className={classNames}>
+    <div className={classNames} data-testid="Icon">
       <IconComponent {...props} />
     </div>
   );

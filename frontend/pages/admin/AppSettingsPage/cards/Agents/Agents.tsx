@@ -69,19 +69,16 @@ const Agents = ({
   return (
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
-        <div className={`${baseClass}__yaml`}>
-          <h2>Agent options</h2>
-          <p className={`${baseClass}__section-description`}>
-            Agent options configure the osquery agent. When you update agent
-            options, they will be applied the next time a host checks in to
-            Fleet.{" "}
-            <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-              text="Learn more about agent options"
-              newTab
-              multiline
-            />
-          </p>
+        <h2>Agent options</h2>
+        <p className={`${baseClass}__section-description`}>
+          Agent options configure the osquery agent. When you update agent
+          options, they will be applied the next time a host checks in to Fleet.{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+            text="Learn more about agent options"
+            newTab
+            multiline
+          />
           {isPremiumTier ? (
             <InfoBanner>
               These options are not applied to hosts on a team. To update agent
@@ -98,6 +95,8 @@ const Agents = ({
               />
             </InfoBanner>
           )}
+        </p>
+        <div className={`${baseClass}__inputs ${baseClass}__inputs--agents`}>
           <p className={`${baseClass}__component-label`}>
             <b>YAML</b>
           </p>

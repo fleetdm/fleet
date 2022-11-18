@@ -47,7 +47,7 @@ jobs:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.19.1']
+        go-version: ['1.19.3']
     runs-on: ${{ matrix.os }}
     steps:
 

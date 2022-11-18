@@ -603,7 +603,7 @@ func (a *agent) CachedString(key string) string {
 	return val
 }
 
-func (a *agent) hostUsersMacOS() []map[string]string {
+func (a *agent) hostUsers() []map[string]string {
 	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
 	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
 	commonUsers := make([]map[string]string, a.userCount.common)
@@ -715,26 +715,6 @@ func loadSoftware(platform string, ver string) []map[string]string {
 
 func (a *agent) softwareWindows11() []map[string]string {
 	return loadSoftware("windows", "11")
-}
-
-func (a *agent) softwareUbuntu1604() []map[string]string {
-	return loadSoftware("ubuntu", "1604")
-}
-
-func (a *agent) softwareUbuntu1804() []map[string]string {
-	return loadSoftware("ubuntu", "1804")
-}
-
-func (a *agent) softwareUbuntu2004() []map[string]string {
-	return loadSoftware("ubuntu", "2004")
-}
-
-func (a *agent) softwareUbuntu2104() []map[string]string {
-	return loadSoftware("ubuntu", "2104")
-}
-
-func (a *agent) softwareUbuntu2110() []map[string]string {
-	return loadSoftware("ubuntu", "2110")
 }
 
 func (a *agent) softwareUbuntu2204() []map[string]string {
@@ -862,22 +842,22 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
-func (a *agent) mdm() []map[string]string {
-	possibleURLs := []string{
-		"https://kandji.com/1",
-		"https://jamf.com/1",
-		"https://airwatch.com/1",
-		"https://microsoft.com/1",
-		"https://simplemdm.com/1",
-		"https://example.com/1",
-		"https://kandji.com/2",
-		"https://jamf.com/2",
-		"https://airwatch.com/2",
-		"https://microsoft.com/2",
-		"https://simplemdm.com/2",
-		"https://example.com/2",
-	}
+var possibleMDMServerURLs = []string{
+	"https://kandji.com/1",
+	"https://jamf.com/1",
+	"https://airwatch.com/1",
+	"https://microsoft.com/1",
+	"https://simplemdm.com/1",
+	"https://example.com/1",
+	"https://kandji.com/2",
+	"https://jamf.com/2",
+	"https://airwatch.com/2",
+	"https://microsoft.com/2",
+	"https://simplemdm.com/2",
+	"https://example.com/2",
+}
 
+func (a *agent) mdmMac() []map[string]string {
 	enrolled := "true"
 	if rand.Intn(2) == 1 {
 		enrolled = "false"
@@ -886,10 +866,33 @@ func (a *agent) mdm() []map[string]string {
 	if rand.Intn(2) == 1 {
 		installedFromDep = "false"
 	}
-	ix := rand.Intn(len(possibleURLs))
+	ix := rand.Intn(len(possibleMDMServerURLs))
 	return []map[string]string{
-		{"enrolled": enrolled, "server_url": possibleURLs[ix], "installed_from_dep": installedFromDep},
+		{"enrolled": enrolled, "server_url": possibleMDMServerURLs[ix], "installed_from_dep": installedFromDep},
 	}
+}
+
+func (a *agent) mdmWindows() []map[string]string {
+	autopilot := rand.Intn(2) == 1
+	ix := rand.Intn(len(possibleMDMServerURLs))
+	serverURL := possibleMDMServerURLs[ix]
+	providerID := fleet.MDMNameFromServerURL(serverURL)
+	installType := "Microsoft Workstation"
+	if rand.Intn(4) == 1 {
+		installType = "Microsoft Server"
+	}
+
+	rows := []map[string]string{
+		{"key": "discovery_service_url", "value": serverURL},
+		{"key": "installation_type", "value": installType},
+	}
+	if providerID != "" {
+		rows = append(rows, map[string]string{"key": "provider_id", "value": providerID})
+	}
+	if autopilot {
+		rows = append(rows, map[string]string{"key": "autopilot", "value": "true"})
+	}
+	return rows
 }
 
 var munkiIssues = func() []string {
@@ -1004,7 +1007,13 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.mdm()
+			results = a.mdmMac()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"mdm_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.mdmWindows()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"munki_info":
@@ -1028,7 +1037,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 	case name == hostDetailQueryPrefix+"users":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
-			results = a.hostUsersMacOS()
+			results = a.hostUsers()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"software_macos":
@@ -1047,16 +1056,6 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			switch a.os {
-			case "ubuntu_16.04":
-				results = a.softwareUbuntu1604()
-			case "ubuntu_18.04":
-				results = a.softwareUbuntu1804()
-			case "ubuntu_20.04":
-				results = a.softwareUbuntu2004()
-			case "ubuntu_21.04":
-				results = a.softwareUbuntu2104()
-			case "ubuntu_21.10":
-				results = a.softwareUbuntu2110()
 			case "ubuntu_22.04":
 				results = a.softwareUbuntu2204()
 			}
@@ -1144,50 +1143,60 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 }
 
 func main() {
-	serverURL := flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-	enrollSecret := flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-	hostCount := flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-	randSeed := flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
-	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
-	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
-	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
-	uniqueSoftwareCount := flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
-	vulnerableSoftwareCount := flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
-	withLastOpenedSoftwareCount := flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
-	lastOpenedChangeProb := flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
-	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
-	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
-	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
-	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
-	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
-	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
+	validTemplateNames := map[string]bool{
+		"mac10.14.6.tmpl":   true,
+		"windows_11.tmpl":   true,
+		"ubuntu_22.04.tmpl": true,
+	}
+	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
+	for k := range validTemplateNames {
+		allowedTemplateNames = append(allowedTemplateNames, k)
+	}
+
+	var (
+		serverURL                   = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret                = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount                   = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed                    = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod                 = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval              = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		queryInterval               = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		onlyAlreadyEnrolled         = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
+		nodeKeyFile                 = flag.String("node_key_file", "", "File with node keys to use")
+		commonSoftwareCount         = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
+		uniqueSoftwareCount         = flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
+		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
+		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
+		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
+		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
+		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
+		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
+		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
+		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
+		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+	)
 
 	flag.Parse()
-
 	rand.Seed(*randSeed)
 
-	templateNames := []string{
-		"mac10.14.6.tmpl",
-
-		// Uncomment this to add windows hosts
-		// "windows_11.tmpl",
-
-		// Uncomment this to add ubuntu hosts with vulnerable software
-		// "partial_ubuntu.tmpl",
-		// "ubuntu_16.04.tmpl",
-		// "ubuntu_18.04.tmpl",
-		// "ubuntu_20.04.tmpl",
-		// "ubuntu_21.04.tmpl",
-		// "ubuntu_21.10.tmpl",
-		// "ubuntu_22.04.tmpl",
+	if *onlyAlreadyEnrolled {
+		// Orbit enrollment does not support the "already enrolled" mode at the
+		// moment (see TODO in this file).
+		*orbitProb = 0
 	}
 
 	var tmpls []*template.Template
-	for _, t := range templateNames {
-		tmpl, err := template.ParseFS(templatesFS, t)
+	requestedTemplates := strings.Split(*osTemplates, ",")
+	for _, nm := range requestedTemplates {
+		if !strings.HasSuffix(nm, ".tmpl") {
+			nm += ".tmpl"
+		}
+		if !validTemplateNames[nm] {
+			log.Fatalf("Invalid template name: %s (accepted values: %v)", nm, allowedTemplateNames)
+		}
+
+		tmpl, err := template.ParseFS(templatesFS, nm)
 		if err != nil {
 			log.Fatal("parse templates: ", err)
 		}
@@ -1208,9 +1217,6 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
-		if strings.HasPrefix(tmpl.Name(), "partial") {
-			continue
-		}
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
 			softwareEntityCount{
 				entityCount: entityCount{
@@ -1231,7 +1237,7 @@ func main() {
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
-		go a.runLoop(i, onlyAlreadyEnrolled != nil && *onlyAlreadyEnrolled)
+		go a.runLoop(i, *onlyAlreadyEnrolled)
 		time.Sleep(sleepTime)
 	}
 

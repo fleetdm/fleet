@@ -87,6 +87,8 @@ export interface IMunkiData {
 export interface IMDMData {
   enrollment_status: string;
   server_url: string;
+  id: number;
+  name: string;
 }
 
 export interface IMunkiIssue {
@@ -193,4 +195,5 @@ export interface IHost {
   query_results?: unknown[];
   geolocation?: IGeoLocation;
   batteries?: IBattery[];
+  disk_encryption_enabled?: boolean;
 }

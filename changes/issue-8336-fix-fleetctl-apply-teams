@@ -1,1 +1,0 @@
-* Fixed a bug in `fleetctl apply` for teams, where a missing `agent_options` key in the YAML spec file would clear the existing agent options for the team (now it leaves it unchanged). If the key is present but empty, then it clears the agent options.

@@ -6,7 +6,7 @@
 - [BizOps](#bizops)
 
 
-### Finance
+## Finance
 
 #### Monthly accounting
 Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue.  
@@ -57,7 +57,7 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 
-### BizOps
+## BizOps
 
 #### Zoom
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
@@ -114,6 +114,7 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 - [Directly responsible individuals](#directly-responsible-individuals)
 - [Benefits](#benefits)
 - [Payroll](#payroll)
+- [Security](#security)
 - [All the things](#all-the-things)
 - [Hiring](#hiring)
 - [Onboarding](#onboarding)
@@ -197,6 +198,15 @@ Operations will review the expense and reach out to the team member if they have
 #### Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 Founders evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
+
+
+### Security
+At Fleet, we care about security. Here are a few resources about Fleet's security policies and best practices.
+1. [Security Policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
+2. [Human Resources Security Policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 
 
 ### All the things
@@ -326,7 +336,7 @@ There are some defaults that we use for these agreements:
    - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
    - Work will commence and complete by dates: Start date and end of term date
    - Fee: Get from the contractor
-   - Hours: Default to 10 hr/week = 40hr/week
+   - Hours: Default to 10 hr/week - 40 hr/week
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
 
 #### Updating a consultant's fee
