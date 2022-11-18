@@ -6,8 +6,9 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 
-import JiraTicketScreenshot from "../../../../../../assets/images/jira-screenshot-400x517@2x.png";
-import ZendeskTicketScreenshot from "../../../../../../assets/images/zendesk-screenshot-400x455@2x.png";
+import JiraTicketScreenshot from "../../../../../../assets/images/jira-screenshot-400x316@2x.png";
+import ZendeskTicketScreenshot from "../../../../../../assets/images/zendesk-screenshot-400x483@2x.png";
+// TODO: Replace premium screenshots before merging
 import JiraTicketPremiumScreenshot from "../../../../../../assets/images/jira-screenshot-premium-400x517@2x.png";
 import ZendeskTicketPremiumScreenshot from "../../../../../../assets/images/zendesk-screenshot-premium-400x455@2x.png";
 
