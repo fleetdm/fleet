@@ -19,13 +19,14 @@ import {
   IDeviceMappingResponse,
   IMacadminsResponse,
   IPackStats,
+  IHostResponse,
 } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { IHostPolicy } from "interfaces/policy";
+import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
-import { IHostPolicy } from "interfaces/policy";
-import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import permissionUtils from "utilities/permissions";
 
@@ -70,13 +71,6 @@ interface IHostDetailsProps {
   params: Params;
 }
 
-interface IFleetQueriesResponse {
-  queries: IQuery[];
-}
-
-interface IHostResponse {
-  host: IHost;
-}
 interface ISearchQueryData {
   searchQuery: string;
   sortHeader: string;

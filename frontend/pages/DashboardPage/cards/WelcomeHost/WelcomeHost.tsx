@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 
 import { NotificationContext } from "context/notification";
-import { IHost } from "interfaces/host";
+import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import hostAPI from "services/entities/hosts";
 
@@ -18,10 +18,6 @@ import IconDisabled from "../../../../../assets/images/icon-action-disable-red-1
 import IconPassed from "../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
 import IconError from "../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
-
-interface IHostResponse {
-  host: IHost;
-}
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
