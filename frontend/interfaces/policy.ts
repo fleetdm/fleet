@@ -17,6 +17,10 @@ export default PropTypes.shape({
   updated_at: PropTypes.string.isRequired,
 });
 
+export interface IStoredPolicyResponse {
+  policy: IPolicy;
+}
+
 export interface IPolicy {
   id: number;
   name: string;

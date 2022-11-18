@@ -32,21 +32,21 @@ const ConfirmSSOInvitePage = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    const { HOME } = paths;
+    const { DASHBOARD } = paths;
 
     if (currentUser) {
-      return router.push(HOME);
+      return router.push(DASHBOARD);
     }
   }, [currentUser]);
 
   const onSubmit = async (formData: any) => {
-    const { HOME } = paths;
+    const { DASHBOARD } = paths;
 
     formData.sso_invite = true;
 
     try {
       await usersAPI.create(formData);
-      const { url } = await sessionsAPI.initializeSSO(HOME);
+      const { url } = await sessionsAPI.initializeSSO(DASHBOARD);
       window.location.href = url;
     } catch (response) {
       const errorObject = formatErrorResponse(response);

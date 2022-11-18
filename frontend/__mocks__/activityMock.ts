@@ -8,11 +8,6 @@ const DEFAULT_ACTIVITY_MOCK: IActivity = {
   actor_gravatar: "",
   actor_email: "rachel@fleetdm.com",
   type: ActivityType.EditedAgentOptions,
-  details: {
-    global: false,
-    team_id: 1,
-    team_name: "Apples",
-  },
 };
 
 const createMockActivity = (overrides?: Partial<IActivity>): IActivity => {

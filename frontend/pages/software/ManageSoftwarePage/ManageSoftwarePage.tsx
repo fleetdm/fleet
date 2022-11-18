@@ -20,13 +20,11 @@ import {
   IZendeskIntegration,
   IIntegrations,
 } from "interfaces/integration";
+import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
-import softwareAPI, {
-  ISoftwareResponse,
-  ISoftwareCountResponse,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   GITHUB_NEW_ISSUE_LINK,

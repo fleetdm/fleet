@@ -9,10 +9,10 @@ import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { IHost } from "interfaces/host";
+import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQueryFormData, IQuery } from "interfaces/query";
+import { IQueryFormData, IQuery, IStoredQueryResponse } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -30,14 +30,6 @@ interface IQueryPageProps {
   location: {
     query: { host_ids: string };
   };
-}
-
-interface IStoredQueryResponse {
-  query: IQuery;
-}
-
-interface IHostResponse {
-  host: IHost;
 }
 
 const baseClass = "query-page";
