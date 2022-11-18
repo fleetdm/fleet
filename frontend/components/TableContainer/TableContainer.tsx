@@ -13,6 +13,7 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
+// import {IRowProps } from "components/"
 
 export interface ITableQueryData {
   pageIndex: number;
@@ -73,7 +74,7 @@ interface ITableContainerProps {
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
-  onSelectSingleRow?: (value: Row) => void;
+  onSelectSingleRow?: (value: Row | IRowProps) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
