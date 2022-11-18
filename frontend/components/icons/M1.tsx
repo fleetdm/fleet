@@ -1,8 +1,8 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 
-interface IWindowsProps {
-  size: "small" | "medium" | "large";
+interface IM1Props {
+  size?: "small" | "medium" | "large";
   color?: Colors;
 }
 
@@ -12,10 +12,7 @@ const SIZE_MAP = {
   large: "24",
 };
 
-const Windows = ({
-  size = "medium",
-  color = "ui-fleet-black-75",
-}: IWindowsProps) => {
+const M1 = ({ size = "medium", color = "ui-fleet-black-75" }: IM1Props) => {
   return (
     <svg
       width={SIZE_MAP[size]}
@@ -25,11 +22,11 @@ const Windows = ({
       viewBox="0 0 16 16"
     >
       <path
-        d="m1.092 13.142 5.192 1.038V8.32H1.092v4.822ZM1.092 7.665h5.192V1.836L1.092 2.874v4.79ZM7.11 7.665h8.382V0L7.11 1.677v5.988ZM7.11 14.34 15.491 16V8.32H7.11v6.02Z"
+        d="M1.333 11.988H2.82V6.593h.044l2.156 5.395h1.05l2.151-5.395h.05v5.395h1.487V4.011h-1.93L5.563 9.744H5.53L3.262 4.01H1.333v7.977ZM13.014 11.988h1.653V4.011h-1.659l-2.062 1.432v1.482l2.035-1.382h.033v6.445Z"
         fill={COLORS[color]}
       />
     </svg>
   );
 };
 
-export default Windows;
+export default M1;

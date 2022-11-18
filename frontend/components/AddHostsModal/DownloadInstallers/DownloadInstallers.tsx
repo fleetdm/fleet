@@ -16,13 +16,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
 
-import AppleIcon from "./../../../../assets/images/icon-apple-black-24x24@2x.png";
-import AppleIconVibrant from "./../../../../assets/images/icon-apple-vibrant-blue-24x24@2x.png";
-import LinuxIcon from "./../../../../assets/images/icon-linux-black-24x24@2x.png";
-import LinuxIconVibrant from "./../../../../assets/images/icon-linux-vibrant-blue-24x24@2x.png";
-import WindowsIcon from "./../../../../assets/images/icon-windows-black-24x24@2x.png";
-import WindowsIconVibrant from "./../../../../assets/images/icon-windows-vibrant-blue-24x24@2x.png";
 import SuccessIcon from "./../../../../assets/images/icon-circle-check-blue-48x48@2x.png";
 
 interface IDownloadInstallersProps {
@@ -55,17 +50,26 @@ const displayIcon = (platform: IInstallerPlatform, isSelected: boolean) => {
     case "Linux (RPM)":
     case "Linux (deb)":
       return (
-        <img src={isSelected ? LinuxIconVibrant : LinuxIcon} alt={platform} />
+        <Icon
+          name="linux"
+          size="large"
+          color={isSelected ? "core-fleet-blue" : "core-fleet-black"}
+        />
       );
     case "macOS":
       return (
-        <img src={isSelected ? AppleIconVibrant : AppleIcon} alt={platform} />
+        <Icon
+          name="darwin"
+          size="large"
+          color={isSelected ? "core-fleet-blue" : "core-fleet-black"}
+        />
       );
     case "Windows":
       return (
-        <img
-          src={isSelected ? WindowsIconVibrant : WindowsIcon}
-          alt={platform}
+        <Icon
+          name="windows"
+          size="large"
+          color={isSelected ? "core-fleet-blue" : "core-fleet-black"}
         />
       );
     default:
@@ -235,7 +239,7 @@ const DownloadInstallers = ({
           Include&nbsp;
           <TooltipWrapper
             tipContent={
-              "<p>Lightweight application that allows end users to see information about their device.</p>"
+              "<p>Lightweight application that allows end users<br/> to see information about their device.</p>"
             }
           >
             Fleet Desktop
