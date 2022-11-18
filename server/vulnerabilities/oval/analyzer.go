@@ -50,20 +50,19 @@ func Analyze(
 
 	var offset int
 	for {
-		hIds, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
-		offset += hostsBatchSize
-
+		hostIDs, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(hIds) == 0 {
+		if len(hostIDs) == 0 {
 			break
 		}
+		offset += hostsBatchSize
 
 		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
-		for _, hId := range hIds {
-			software, err := ds.ListSoftwareForVulnDetection(ctx, hId)
+		for _, hostID := range hostIDs {
+			software, err := ds.ListSoftwareForVulnDetection(ctx, hostID)
 			if err != nil {
 				return nil, err
 			}
@@ -72,16 +71,16 @@ func Analyze(
 			if err != nil {
 				return nil, err
 			}
-			foundInBatch[hId] = evalR
+			foundInBatch[hostID] = evalR
 		}
 
-		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, hIds)
+		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, hId := range hIds {
-			insrt, del := utils.VulnsDelta(foundInBatch[hId], existingInBatch[hId])
+		for _, hostID := range hostIDs {
+			insrt, del := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
 			for _, i := range insrt {
 				toInsertSet[i.Key()] = i
 			}

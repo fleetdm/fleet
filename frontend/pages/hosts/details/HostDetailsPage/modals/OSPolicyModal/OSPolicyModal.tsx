@@ -16,7 +16,8 @@ import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fle
 interface IRenderOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;
   onCancel: () => void;
-  titleData?: any;
+  osVersion?: string;
+  detailsUpdatedAt?: string;
   osPolicy: string;
   osPolicyLabel: string;
 }
@@ -26,7 +27,8 @@ const baseClass = "os-policy-modal";
 const RenderOSPolicyModal = ({
   onCancel,
   onCreateNewPolicy,
-  titleData,
+  osVersion,
+  detailsUpdatedAt,
   osPolicy,
   osPolicyLabel,
 }: IRenderOSPolicyModal): JSX.Element => {
@@ -73,11 +75,9 @@ const RenderOSPolicyModal = ({
     <Modal title="Operating system" onExit={onCancel} className={baseClass}>
       <>
         <p>
-          <span className={`${baseClass}__os-modal-title`}>
-            {titleData.os_version}{" "}
-          </span>
+          <span className={`${baseClass}__os-modal-title`}>{osVersion} </span>
           <span className={`${baseClass}__os-modal-updated`}>
-            Reported {humanHostDetailUpdated(titleData.detail_updated_at)}
+            Reported {humanHostDetailUpdated(detailsUpdatedAt)}
           </span>
         </p>
         <span className={`${baseClass}__os-modal-example-title`}>

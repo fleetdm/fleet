@@ -42,7 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['^1.19.1']
+        go-version: ['^1.19.3']
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -88,10 +88,10 @@ jobs:
 
     - name: Build DEB with Fleet Desktop
       run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
-      
+
     - name: Build RPM
       run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
-      
+
     - name: Build RPM with Fleet Desktop
       run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 

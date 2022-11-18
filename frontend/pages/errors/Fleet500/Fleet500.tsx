@@ -16,7 +16,7 @@ const baseClass = "fleet-500";
 const Fleet500 = () => (
   <div className={baseClass}>
     <header className="primary-header">
-      <Link to={PATHS.HOME}>
+      <Link to={PATHS.DASHBOARD}>
         <img
           className="primary-header__logo"
           src={fleetLogoText}

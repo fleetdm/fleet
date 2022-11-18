@@ -39,7 +39,6 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS = {
   agent_options: {
     config: {
       options: {
-        logger_plugin: "tls",
         pack_delimiter: "/",
         logger_tls_period: 10,
         distributed_plugin: "tls",

@@ -1,12 +1,10 @@
 import React from "react";
-import { Link } from "react-router";
 
 import { IDataTableMdmFormat } from "interfaces/macadmins";
 
-import PATHS from "router/paths";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -105,13 +103,10 @@ const enrollmentTableHeaders = [
         }
       };
       return (
-        <Link
-          to={`${PATHS.MANAGE_HOSTS}?mdm_enrollment_status=${statusParam()}`}
-          className={`mdm-solution-link`}
-        >
-          View all hosts{" "}
-          <img alt="link to hosts filtered by MDM solution" src={Chevron} />
-        </Link>
+        <ViewAllHostsLink
+          queryParams={{ mdm_enrollment_status: statusParam() }}
+          className="mdm-solution-link"
+        />
       );
     },
     disableHidden: true,

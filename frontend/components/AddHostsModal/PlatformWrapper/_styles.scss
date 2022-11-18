@@ -48,7 +48,7 @@
 
   .input-field {
     &__textarea {
-      min-height: 70px;
+      min-height: 94px;
     }
 
     &__textarea,
@@ -63,6 +63,12 @@
     }
   }
 
+  &__advanced {
+    .input-field {
+      height: 115px;
+    }
+  }
+
   &__installer-copy-icon {
     color: $core-vibrant-blue;
     margin-left: $pad-small;
@@ -72,6 +78,10 @@
   &__copy-message {
     font-weight: $regular;
     vertical-align: top;
+    background-color: $ui-light-grey;
+    border: solid 1px #e2e4ea;
+    border-radius: 10px;
+    padding: 2px 6px;
   }
 
   .buttons {

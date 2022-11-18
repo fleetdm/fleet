@@ -184,8 +184,11 @@
           font-style: italic;
         }
       }
-      .highlight-on-hover:hover {
+      tr:hover {
         background-color: $ui-off-white;
+      }
+      .disable-highlight:hover {
+        background-color: initial;
       }
     }
   }

@@ -52,6 +52,7 @@
   - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
   - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)  
   - [What can I do if Fleet is slow or unresponsive after enabling a feature?](#what-can-i-do-if-fleet-is-slow-or-unresponseive-after-enabling-a-feature)
+  - [Why am I seeing an "unsupported key" error when updating agent options?](#why-am-i-seeing-an-unsupported-key-error-when-updating-agent-options)
 ## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
@@ -383,3 +384,18 @@ There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validati
 Depending on your infrastructure capabilities, and the number of hosts enrolled into your Fleet instance, Fleet might be slow or unresponsive after globally enabling a feature like [software inventory](https://fleetdm.com/docs/deploying/configuration#software-inventory).
 
 In those cases, we recommend a slow rollout by partially enabling the feature by teams using the `features` key of the [teams configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
+
+## Why am I seeing an "unsupported key" error when updating agent options?
+
+When updating agent options, you may see an error similar to this:
+
+```
+[...] unsupported key provided: "logger_plugin"
+If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
+```
+
+This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent. 
+
+If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
+
+```fleetctl apply --force -f config.yaml```

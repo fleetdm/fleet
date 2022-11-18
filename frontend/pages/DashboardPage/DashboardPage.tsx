@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
@@ -56,7 +57,17 @@ const baseClass = "dashboard-page";
 // Premium feature, Gb must be set between 1-100
 const LOW_DISK_SPACE_GB = 32;
 
-const DashboardPage = (): JSX.Element => {
+interface IDashboardProps {
+  router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+  };
+}
+
+const DashboardPage = ({
+  router,
+  location: { pathname },
+}: IDashboardProps): JSX.Element => {
   const {
     config,
     currentTeam,
@@ -113,6 +124,14 @@ const DashboardPage = (): JSX.Element => {
   const [munkiTitleDetail, setMunkiTitleDetail] = useState<
     JSX.Element | string | null
   >();
+
+  useEffect(() => {
+    const platformByPathname =
+      PLATFORM_DROPDOWN_OPTIONS?.find((platform) => platform.path === pathname)
+        ?.value || "all";
+
+    setSelectedPlatform(platformByPathname);
+  }, [pathname]);
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -401,6 +420,7 @@ const DashboardPage = (): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
@@ -413,6 +433,8 @@ const DashboardPage = (): JSX.Element => {
         lowDiskSpaceCount={lowDiskSpaceCount}
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
@@ -630,7 +652,10 @@ const DashboardPage = (): JSX.Element => {
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
             onChange={(value: ISelectedPlatform) => {
-              setSelectedPlatform(value);
+              const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
+                (platform) => platform.value === value
+              );
+              router.push(selectedPlatformOption?.path || paths.DASHBOARD);
             }}
           />
         </div>

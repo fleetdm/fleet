@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
 import teamsAPI, {
@@ -25,6 +26,7 @@ const noTeamsClass = "no-teams";
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const { currentTeam, setCurrentTeam } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -127,6 +129,9 @@ const TeamManagementPage = (): JSX.Element => {
         .destroy(teamEditing.id)
         .then(() => {
           renderFlash("success", `Successfully deleted ${teamEditing.name}.`);
+          if (currentTeam?.id === teamEditing.id) {
+            setCurrentTeam(undefined);
+          }
         })
         .catch(() => {
           renderFlash(

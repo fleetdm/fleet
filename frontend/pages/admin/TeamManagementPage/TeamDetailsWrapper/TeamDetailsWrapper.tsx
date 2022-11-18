@@ -289,6 +289,7 @@ const TeamDetailsWrapper = ({
     try {
       await teamsAPI.destroy(currentTeam.id);
       renderFlash("success", "Team removed");
+      setCurrentTeam(undefined);
       return router.push(PATHS.ADMIN_TEAMS);
     } catch (response) {
       renderFlash("error", "Something went wrong removing the team");
@@ -482,6 +483,7 @@ const TeamDetailsWrapper = ({
             // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
             isSandboxMode={false}
             onCancel={toggleAddHostsModal}
+            openEnrollSecretModal={toggleManageEnrollSecretsModal}
           />
         )}
         {showManageEnrollSecretsModal && (
