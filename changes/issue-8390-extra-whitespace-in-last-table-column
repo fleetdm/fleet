@@ -1,0 +1,2 @@
+* Fix an issue where a tooltip last table column's header could cause extra whitespace to the right
+of the table
