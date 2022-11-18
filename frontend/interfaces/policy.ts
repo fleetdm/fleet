@@ -12,10 +12,10 @@ export default PropTypes.shape({
   name: PropTypes.string.isRequired,
   query: PropTypes.string.isRequired,
   resoluton: PropTypes.string.isRequired,
+  critical: PropTypes.bool,
   response: PropTypes.string,
   team_id: PropTypes.number,
   updated_at: PropTypes.string.isRequired,
-  critical: PropTypes.bool,
 });
 
 export interface IStoredPolicyResponse {

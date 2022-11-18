@@ -49,16 +49,14 @@ const NewPolicyModal = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryResolution,
-    lastEditedCriticalPolicy,
+    lastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const [name, setName] = useState(lastEditedQueryName);
   const [description, setDescription] = useState(lastEditedQueryDescription);
   const [resolution, setResolution] = useState(lastEditedQueryResolution);
-  const [criticalPolicy, setCriticalPolicy] = useState(
-    lastEditedCriticalPolicy
-  );
+  const [critical, setCritical] = useState(lastEditedQueryCritical);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -137,14 +135,15 @@ const NewPolicyModal = ({
           {platformSelector.render()}
           <Checkbox
             name="critical-policy"
-            onChange={(value: boolean) => setCriticalPolicy(value)}
-            value={criticalPolicy}
+            onChange={(value: boolean) => setCritical(value)}
+            value={critical}
             isLeftLabel
           >
             <TooltipWrapper
               tipContent={
-                "<p>If automations are turned on, this information<br/> is included.</p>"
+                "<p>If automations are turned on, this<br/> information is included.</p>"
               }
+              isDelayed
             >
               Critical:
             </TooltipWrapper>
