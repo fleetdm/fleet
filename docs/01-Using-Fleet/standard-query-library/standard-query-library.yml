@@ -1015,4 +1015,22 @@ spec:
   tags: compliance, inventory, built-in
   platform: darwin
   contributors: GuillaumeRoss
-  
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Geolocate via ipapi.co
+  platform: darwin, linux, windows
+  description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  query: >- 
+    SELECT JSON_EXTRACT(result, '$.ip') AS ip,
+    JSON_EXTRACT(result, '$.city') AS city,
+    JSON_EXTRACT(result, '$.region') AS region,
+    JSON_EXTRACT(result, '$.country') AS country,
+    JSON_EXTRACT(result, '$.latitude') AS latitude,
+    JSON_EXTRACT(result, '$.longitude') AS longitude
+    FROM curl
+    WHERE url = 'http://ipapi.co/json';
+  purpose: inventory
+  tags: inventory
+  contributors: zwass

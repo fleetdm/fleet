@@ -339,7 +339,7 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType st
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
@@ -396,6 +396,14 @@ type LockFunc func(ctx context.Context, name string, owner string, expiration ti
 type UnlockFunc func(ctx context.Context, name string, owner string) error
 
 type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
+
+type GetLatestCronStatsFunc func(ctx context.Context, name string) (fleet.CronStats, error)
+
+type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
+
+type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+
+type CleanupCronStatsFunc func(ctx context.Context) error
 
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
@@ -1075,6 +1083,18 @@ type DataStore struct {
 
 	DBLocksFunc        DBLocksFunc
 	DBLocksFuncInvoked bool
+
+	GetLatestCronStatsFunc        GetLatestCronStatsFunc
+	GetLatestCronStatsFuncInvoked bool
+
+	InsertCronStatsFunc        InsertCronStatsFunc
+	InsertCronStatsFuncInvoked bool
+
+	UpdateCronStatsFunc        UpdateCronStatsFunc
+	UpdateCronStatsFuncInvoked bool
+
+	CleanupCronStatsFunc        CleanupCronStatsFunc
+	CleanupCronStatsFuncInvoked bool
 
 	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
 	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
@@ -2045,9 +2065,9 @@ func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(ctx, frequency, config, license)
+	return s.ShouldSendStatisticsFunc(ctx, frequency, config)
 }
 
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
@@ -2188,6 +2208,26 @@ func (s *DataStore) Unlock(ctx context.Context, name string, owner string) error
 func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	s.DBLocksFuncInvoked = true
 	return s.DBLocksFunc(ctx)
+}
+
+func (s *DataStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+	s.GetLatestCronStatsFuncInvoked = true
+	return s.GetLatestCronStatsFunc(ctx, name)
+}
+
+func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+	s.InsertCronStatsFuncInvoked = true
+	return s.InsertCronStatsFunc(ctx, statsType, name, instance, status)
+}
+
+func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+	s.UpdateCronStatsFuncInvoked = true
+	return s.UpdateCronStatsFunc(ctx, id, status)
+}
+
+func (s *DataStore) CleanupCronStats(ctx context.Context) error {
+	s.CleanupCronStatsFuncInvoked = true
+	return s.CleanupCronStatsFunc(ctx)
 }
 
 func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {

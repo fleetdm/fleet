@@ -5,7 +5,10 @@ import URL_PREFIX from "./url_prefix";
 
 export default {
   ROOT: `${URL_PREFIX}/`,
-  HOME: `${URL_PREFIX}/dashboard`,
+  DASHBOARD: `${URL_PREFIX}/dashboard`,
+  DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
+  DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
+  DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,

@@ -29,8 +29,7 @@ func TestService_ListSoftware(t *testing.T) {
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
 
-	svc := newTestService(t, ds, nil, nil)
-	ctx := context.Background()
+	svc, ctx := newTestService(t, ds, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	_, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{TeamID: ptr.Uint(42), ListOptions: fleet.ListOptions{PerPage: 77, Page: 4}})
@@ -62,7 +61,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
 		return 0, nil
 	}
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	for _, tc := range []struct {
 		name                 string
@@ -171,7 +170,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tc.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tc.user})
 
 			// List all software.
 			_, err := svc.ListSoftware(ctx, fleet.SoftwareListOptions{})

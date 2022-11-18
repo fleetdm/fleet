@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import { IQueryTableColumn } from "interfaces/osquery_table";
+import { QueryContext } from "context/query";
 
 import ColumnListItem from "./ColumnListItem";
 
@@ -32,8 +33,16 @@ interface IQueryTableColumnsProps {
 const baseClass = "query-table-columns";
 
 const QueryTableColumns = ({ columns }: IQueryTableColumnsProps) => {
+  const { selectedOsqueryTable } = useContext(QueryContext);
+
   const columnListItems = orderColumns(columns).map((column) => {
-    return <ColumnListItem key={column.name} column={column} />;
+    return (
+      <ColumnListItem
+        key={column.name}
+        column={column}
+        selectedTableName={selectedOsqueryTable.name}
+      />
+    );
   });
 
   return (

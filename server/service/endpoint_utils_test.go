@@ -275,7 +275,7 @@ func TestEndpointer(t *testing.T) {
 		return []*fleet.User{{GlobalRole: ptr.String(fleet.RoleAdmin)}}, nil
 	}
 
-	svc := newTestService(t, ds, nil, nil)
+	svc, _ := newTestService(t, ds, nil, nil)
 
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
@@ -395,7 +395,7 @@ func TestEndpointer(t *testing.T) {
 func TestEndpointerCustomMiddleware(t *testing.T) {
 	r := mux.NewRouter()
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, _ := newTestService(t, ds, nil, nil)
 
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(

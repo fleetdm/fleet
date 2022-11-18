@@ -1,4 +1,4 @@
-# Deploying Fleet on AWS with Terraform
+# Deploy Fleet on AWS with Terraform
 
 There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
@@ -263,5 +263,5 @@ More troubleshooting tips can be found here https://fleetdm.com/docs/deploying/f
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-30">
-<meta name="articleTitle" value="Deploying Fleet on AWS with Terraform">
+<meta name="articleTitle" value="Deploy Fleet on AWS with Terraform">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-cover-1600x900@2x.jpg">

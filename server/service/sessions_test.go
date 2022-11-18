@@ -18,7 +18,7 @@ import (
 
 func TestSessionAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.ListSessionsForUserFunc = func(ctx context.Context, id uint) ([]*fleet.Session, error) {
 		if id == 999 {
@@ -77,7 +77,7 @@ func TestSessionAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
 			checkAuthErr(t, tt.shouldFailRead, err)
@@ -95,7 +95,7 @@ func TestAuthenticate(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 
 	loginTests := []struct {
@@ -118,12 +118,12 @@ func TestAuthenticate(t *testing.T) {
 
 	for _, tt := range loginTests {
 		t.Run(tt.email, func(st *testing.T) {
-			loggedIn, token, err := svc.Login(test.UserContext(test.UserAdmin), tt.email, tt.password)
+			loggedIn, token, err := svc.Login(test.UserContext(ctx, test.UserAdmin), tt.email, tt.password)
 			require.Nil(st, err, "login unsuccessful")
 			assert.Equal(st, tt.email, loggedIn.Email)
 			assert.NotEmpty(st, token)
 
-			sessions, err := svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), loggedIn.ID)
+			sessions, err := svc.GetInfoAboutSessionsForUser(test.UserContext(ctx, test.UserAdmin), loggedIn.ID)
 			require.Nil(st, err)
 			require.Len(st, sessions, 1, "user should have one session")
 			session := sessions[0]
@@ -136,7 +136,7 @@ func TestAuthenticate(t *testing.T) {
 
 func TestGetSessionByKey(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	cfg := config.TestConfig()
 
 	theSession := &fleet.Session{UserID: 123, Key: "abc"}
@@ -169,7 +169,7 @@ func TestGetSessionByKey(t *testing.T) {
 
 			theSession.AccessedAt = time.Now().Add(tc.accessed)
 			theSession.APIOnly = ptr.Bool(tc.apiOnly)
-			_, err := svc.GetSessionByKey(context.Background(), theSession.Key)
+			_, err := svc.GetSessionByKey(ctx, theSession.Key)
 			if tc.fail {
 				require.Error(t, err)
 				require.ErrorAs(t, err, &authErr)

@@ -46,7 +46,7 @@ Empathy leads to better understanding, better communication, and better decision
 
 - Think and make customer-first choices.
 - Consider your counterpart.
-  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, and the people who use software and APIs you build, the people following the processes you design.
+  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, and the people following the processes you design.
   - Ask questions in a way you would want to be asked.
   - Assume others have positive intent.
   - Be kind.
@@ -252,10 +252,9 @@ The following Slack channels are maintained by Fleet's founders and executive co
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-founders`               | Mike McNeil
 | `#help-mission-control`     | Charlie Chance
-| `#help-okrs`                | Mike McNeil
-| `#help-manage`              | Mike McNeil
+| `#help-okrs`                | Charlie Chance
+| `#help-manage`              | Charlie Chance
 | `#news-fundraising`         | Mike McNeil
 | `#help-open-core-ventures`  | Mike McNeil
 | `#general`                  | N/A _(announce something company-wide)_

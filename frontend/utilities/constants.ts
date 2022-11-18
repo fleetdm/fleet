@@ -1,5 +1,6 @@
 import URL_PREFIX from "router/url_prefix";
 import { IOsqueryPlatform } from "interfaces/platform";
+import paths from "router/paths";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -167,11 +168,16 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<string, string> = {
   "Ubuntu Linux": "platform",
 };
 
-export const PLATFORM_DROPDOWN_OPTIONS = [
-  { label: "All", value: "all" },
-  { label: "Windows", value: "windows" },
-  { label: "Linux", value: "linux" },
-  { label: "macOS", value: "darwin" },
+interface IPlatformDropdownOptions {
+  label: "All" | "Windows" | "Linux" | "macOS";
+  value: "all" | "windows" | "linux" | "darwin";
+  path: string;
+}
+export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
+  { label: "All", value: "all", path: paths.DASHBOARD },
+  { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
+  { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
+  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
 ];
 
 export const PLATFORM_NAME_TO_LABEL_NAME = {
