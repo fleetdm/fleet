@@ -1,6 +1,5 @@
 package main
 
-/*
 import (
 	"crypto/x509"
 	"errors"
@@ -135,4 +134,3 @@ func registerMDM(
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
 }
-*/

@@ -57,6 +57,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
 		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
 		is                fleet.InstallerStore
+		mdmStorage        nanomdm_storage.AllStorage
+		depStorage        nanodep_storage.AllStorage
+		mdmPusher         nanomdm_push.Pusher
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -93,6 +96,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 		// allow to explicitly set installer store to nil
 		is = opts[0].Is
+		// allow to explicitly set MDM storage to nil
+		mdmStorage = opts[0].MDMStorage
+		// allow to explicitly set DEP storage to nil
+		depStorage = opts[0].DEPStorage
+		// allow to explicitly set mdm pusher to nil
+		mdmPusher = opts[0].MDMPusher
 	}
 
 	ctx := license.NewContext(context.Background(), lic)
@@ -113,6 +122,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		failingPolicySet,
 		&fleet.NoOpGeoIP{},
 		enrollHostLimiter,
+		depStorage,
+		mdmStorage,
+		mdmPusher,
+		"",
 	)
 	if err != nil {
 		panic(err)

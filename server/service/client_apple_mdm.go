@@ -1,6 +1,5 @@
 package service
 
-/*
 import (
 	"bytes"
 	"context"
@@ -175,4 +174,3 @@ func (c *Client) MDMDeleteAppleInstaller(id uint) error {
 	}
 	return nil
 }
-*/

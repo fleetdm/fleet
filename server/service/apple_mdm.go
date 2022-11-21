@@ -1,6 +1,5 @@
 package service
 
-/*
 import (
 	"bytes"
 	"context"
@@ -918,4 +917,3 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 	}
 	return installers, nil
 }
-*/

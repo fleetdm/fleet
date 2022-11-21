@@ -1,7 +1,6 @@
 // Package config has utilities to verify Apple MDM related configuration.
 package config
 
-/*
 import (
 	"encoding/json"
 	"errors"
@@ -77,4 +76,3 @@ func verifyDEPConfig(config configpkg.MDMAppleConfig) error {
 	}
 	return nil
 }
-*/
