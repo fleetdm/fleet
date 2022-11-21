@@ -537,7 +537,9 @@ func (s *Schedule) getLockName() string {
 	return name
 }
 
-// clearScheduleChannels performs a non-blocking select on the ticker and trigger channel
+// clearScheduleChannels performs a non-blocking select on the ticker and trigger channel in order
+// to drain each channel. It is intended for use in cases where a signal may have been published to
+// a channel during a pending run, in which case the expected behavior is for the signal to be dropped.
 func clearScheduleChannels(trigger chan struct{}, ticker <-chan time.Time) {
 	for {
 		select {
