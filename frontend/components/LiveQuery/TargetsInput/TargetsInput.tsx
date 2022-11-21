@@ -82,7 +82,7 @@ const TargetsInput = ({
               isAllPagesSelected={false}
               disableCount
               disablePagination
-              // disableMultiRowSelect
+              disableMultiRowSelect
               onSelectSingleRow={handleRowSelect}
             />
           </div>

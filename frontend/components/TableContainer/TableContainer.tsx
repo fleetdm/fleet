@@ -13,7 +13,6 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton";
-// import {IRowProps } from "components/"
 
 export interface ITableQueryData {
   pageIndex: number;
@@ -21,6 +20,12 @@ export interface ITableQueryData {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
+}
+
+interface IRowProps {
+  row: {
+    original: any;
+  };
 }
 
 interface ITableContainerProps {

@@ -1,10 +1,16 @@
 import React from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { Row } from "react-table";
+import { InjectedRouter } from "react-router";
+import PATHS from "router/paths";
+
+import { buildQueryStringFromParams } from "utilities/url";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+
 import generateTableHeaders from "./SoftwareTableConfig";
 import EmptySoftware from "../../../software/components/EmptySoftware";
 
@@ -18,6 +24,13 @@ interface ISoftwareCardProps {
   navTabIndex: any;
   onTabChange: any;
   onQueryChange: any;
+  router: InjectedRouter;
+}
+
+interface IRowProps extends Row {
+  original: {
+    id: number;
+  };
 }
 
 const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -35,8 +48,19 @@ const Software = ({
   onTabChange,
   onQueryChange,
   software,
+  router,
 }: ISoftwareCardProps): JSX.Element => {
   const tableHeaders = generateTableHeaders();
+
+  const handleRowSelect = (row: IRowProps) => {
+    const queryParams = { software_id: row.original.id };
+
+    const path = queryParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+      : PATHS.MANAGE_HOSTS;
+
+    router.push(path);
+  };
 
   // Renders opaque information as host information is loading
   const opacity = isSoftwareFetching ? { opacity: 0 } : { opacity: 1 };
@@ -80,6 +104,8 @@ const Software = ({
                   disableActionButton
                   pageSize={SOFTWARE_DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
+                  disableMultiRowSelect
+                  onSelectSingleRow={handleRowSelect}
                 />
               )}
             </TabPanel>

@@ -488,6 +488,7 @@ const DashboardPage = ({
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
+        router={router}
       />
     ),
   });
