@@ -1,13 +1,14 @@
 import React from "react";
 import { Column } from "react-table";
+import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { Link } from "react-router";
 
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import { formatFloatAsPercentage } from "utilities/helpers";
 
+import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -178,7 +179,10 @@ const generateVulnColumnHeader = () => {
   };
 };
 
-const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
+const generateTableHeaders = (
+  isPremiumTier?: boolean,
+  router: InjectedRouter
+): Column[] => {
   const softwareTableHeaders = [
     {
       title: "Name",
@@ -187,10 +191,18 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+
+        const onClickSoftware = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+        };
+
         return (
-          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+          <Button onClick={onClickSoftware} variant="text-link">
             {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Link>
+          </Button>
         );
       },
       sortType: "caseInsensitive",
