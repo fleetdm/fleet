@@ -20,12 +20,16 @@ DEP is also called "automatic" enrollment because it doesn't require user
 action to download and activate a profile like [manual
 enrollment](#manual-enrollment) does.
 
+Resources:
+
+- [DEP Workflow Summary](#dep-workflow-summary)
+- [MDM protocol specification][https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf].
+
 ### Manual enrollment
 
-It's a method to enroll a device to an MDM server by manually getting
-(generally by downloading from an URL) an [enrollment
-profile](#enrollment-profile) and installing it.
-
+A method to enroll a device to an MDM server by manually getting and
+installing (generally by downloading from a URL) an [enrollment
+profile](#enrollment-profile).
 
 ### ABM: Apple Business Manager
 
@@ -45,7 +49,7 @@ Apple to authenticate with them.
 
 Resources:
 
-- [MDM Protocol sumary](#mdm-protocol-summary)
+- [MDM Protocol summary](#mdm-protocol-summary)
 - [MDM protocol specification][https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf].
 
 ### Profile
@@ -148,4 +152,56 @@ The protocol is composed by the MDM Check-in protocol and the main MDM protocol.
 Used during initialization, validates if the device can be enrolled and
 notifies the server.
 
-TODO: finish summary
+It's composed by three different messages sent by the device to the server.
+
+**Authenticate**
+
+When the MDM payload is being installed, the device tries to stablish a
+connection with the server. This is when the
+[SCEP](#scep-simple-certificate-enrollment-protocol) exchange takes place.
+
+The device sends its UDID and the [topic](#push-notification-topic) that should
+be used for push notifications.
+
+The server shouldn't assume that the device has installed the MDM payload, as
+other payloads in the profile may still fail to install. When the device has
+successfully installed the MDM payload, it sends a `TokenUpdate` message.
+
+**TokenUpdate**
+
+A device sends a token update message to the server when it has installed the
+MDM payload or whenever its device push token, push magic, or unlock token
+change. These fields are needed by the server to send the device push
+notifications or passcode resets.
+
+The server should send push messages to the device only after receiving the
+first token update message.
+
+**CheckOut**
+
+The device attempts to notify the server when the MDM profile is removed.
+
+- In macOS v10.9, this only happens if the `CheckOutWhenRemoved` key in the
+  [MDM payload](#enrollment-profile) is set to true.
+- In macOS v10.8, this always happens.
+
+If network conditions don't allow the message to be delivered successfully,
+the device makes no further attempts to send the message.
+
+### Main MDM Protocol
+
+After the device is enrolled, the server (at some point in the future) sends
+out a push notification to the device, then:
+
+- The device polls the server for a [command](#commands) in response to the
+  push notification.
+- The device performs the command.
+- The device contacts the server to report the result of the last command and
+  to request the next command.
+
+To see all available commands, look under "Support for macOS Requests" in the
+MDM Protocol Reference.
+
+## DEP Workflow Summary
+
+TODO
