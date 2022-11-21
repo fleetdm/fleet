@@ -137,6 +137,12 @@ If you are running Orbit, you should add `--debug` to the command-line options. 
 also for osquery automatically. Check the [Orbit Docs](https://github.com/fleetdm/fleet/blob/main/docs/using-fleet/orbit#logs) 
 for more details as to where to find Orbit-specific logs.
 
+If you're having issues with memory leaks or failures in the orbit process, then you can create a profile dump.
+This includes information about memory allocations and thread creation in order to debug excessive memory allocation.
+They should not include any sensitive data, such as tokens. You can see more information at the [official go page](https://go.dev/doc/diagnostics#profiling).
+In order to create dumps, run `pkill -USR1 orbit` as root on macOS or Linux. The profiles should show up in a ZIP
+file in `/opt/orbit/profiles`, named according to the time they were created.
+
 If you are running Fleet Desktop, there's no change needed, you should see the log file in the following directories 
 depending on the platform:
 
