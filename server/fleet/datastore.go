@@ -675,47 +675,45 @@ type Datastore interface {
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 
-	/*
-		///////////////////////////////////////////////////////////////////////////////
-		// Apple MDM
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple MDM
 
-		// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
-		// Such enrollment profiles allow devices to enroll to Fleet MDM.
-		NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
+	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
+	// Such enrollment profiles allow devices to enroll to Fleet MDM.
+	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
-		// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
-		GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
+	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
 
-		// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
-		ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
+	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
+	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
-		// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-		// The map returned has a result for each target device ID.
-		GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
+	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
+	// The map returned has a result for each target device ID.
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)
 
-		// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
-		NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
+	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
+	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
 
-		// MDMAppleInstaller returns the installer with its contents included (MDMAppleInstaller.Installer) from its token.
-		MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
+	// MDMAppleInstaller returns the installer with its contents included (MDMAppleInstaller.Installer) from its token.
+	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
 
-		// MDMAppleInstallerDetailsByID returns the installer details of an installer, all fields except its content,
-		// (MDMAppleInstaller.Installer is nil).
-		MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
+	// MDMAppleInstallerDetailsByID returns the installer details of an installer, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil).
+	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
 
-		// DeleteMDMAppleInstaller deletes an installer.
-		DeleteMDMAppleInstaller(ctx context.Context, id uint) error
+	// DeleteMDMAppleInstaller deletes an installer.
+	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
 
-		// MDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
-		// (MDMAppleInstaller.Installer is nil) from its secret token.
-		MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
+	// MDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
+	// (MDMAppleInstaller.Installer is nil) from its secret token.
+	MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
 
-		// ListMDMAppleInstallers list all the uploaded installers.
-		ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
+	// ListMDMAppleInstallers list all the uploaded installers.
+	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
-		// MDMAppleListDevices lists all the MDM enrolled devices.
-		MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
-	*/
+	// MDMAppleListDevices lists all the MDM enrolled devices.
+	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 }
 
 const (

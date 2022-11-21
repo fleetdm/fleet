@@ -1,6 +1,5 @@
 package fleet
 
-/*
 import (
 	"encoding/json"
 
@@ -167,4 +166,3 @@ type MDMAppleCommand struct {
 func (m MDMAppleCommand) AuthzType() string {
 	return "mdm_apple_command"
 }
-*/
