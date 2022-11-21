@@ -75,7 +75,7 @@ type triggerConflictError struct {
 func (e triggerConflictError) Error() string {
 	msg := "conflicts with current status"
 	if e.stats != nil {
-		msg += fmt.Sprintf(": %s %s %s run started %v ago", e.stats.Status, e.stats.Name, e.stats.StatsType, time.Since(e.stats.CreatedAt))
+		msg += fmt.Sprintf(": %s run started %v ago", e.stats.StatsType, time.Since(e.stats.CreatedAt).Round(time.Millisecond))
 	}
 	return msg
 }
