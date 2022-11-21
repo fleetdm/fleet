@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -66,11 +67,11 @@ func ValidateConnectionContext(ctx context.Context, pool *x509.CertPool, targetU
 			},
 		},
 	}
-	conn, err := dialer.DialContext(ctx, "tcp", parsed.Host)
+	conn, err := dialer.DialContext(ctx, "tcp", getHostPort(parsed))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "dial for validate")
 	}
-	defer conn.Close()
+	conn.Close()
 
 	return nil
 }
@@ -87,15 +88,28 @@ func ValidateClientAuthTLSConnection(ctx context.Context, cert *tls.Certificate,
 
 	dialer := &tls.Dialer{
 		Config: &tls.Config{
-			ServerName:   parsed.Hostname(),
-			Certificates: []tls.Certificate{*cert},
+			Certificates:       []tls.Certificate{*cert},
+			ServerName:         parsed.Hostname(),
+			ClientSessionCache: tls.NewLRUClientSessionCache(-1),
 		},
 	}
-	conn, err := dialer.DialContext(ctx, "tcp", parsed.Host)
+	conn, err := dialer.DialContext(ctx, "tcp", getHostPort(parsed))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "dial for validate")
+		return ctxerr.Wrap(ctx, err, "TLS dial")
 	}
-	defer conn.Close()
+	conn.Close()
 
 	return nil
+}
+
+func getHostPort(u *url.URL) string {
+	host, port := u.Hostname(), u.Port()
+	if port == "" {
+		if u.Scheme == "https" {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+	return net.JoinHostPort(host, port)
 }
