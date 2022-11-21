@@ -2350,7 +2350,9 @@ packaging:
     region: us-east-1
 ```
 
-#### MDM (mobile device management)
+#### MDM (mobile device management) - IN PROGRESS
+
+> **NOTE:** This feature is currently in development and is not ready for use.
 
 ##### apple_apns_cert
 
