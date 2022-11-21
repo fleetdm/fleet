@@ -45,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
@@ -470,42 +471,54 @@ the way that the Fleet server works.
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
 
-			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
-				return startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
 			}); err != nil {
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}
 
-			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
-				return startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
-				return startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 			}); err != nil {
 				initFatal(err, "failed to register vulnerabilities schedule")
 			}
 
-			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
-				return startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
 
-			if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
-				return startIntegrationsSchedule(ctx, instanceID, ds, logger)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newIntegrationsSchedule(ctx, instanceID, ds, logger)
 			}); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
 
 			if config.MDMApple.Enable {
-				if err := cronSchedules.AddCronSchedule(func() (fleet.CronSchedule, error) {
-					return startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				s := schedule.New(ctx, "test_sched", instanceID, 5*time.Minute, ds, ds,
+					schedule.WithLogger(logger),
+					schedule.WithJob("test_job", func(context.Context) error {
+						time.Sleep(2 * time.Minute)
+						return nil
+					}))
+				return s, nil
+			}); err != nil {
+				initFatal(err, "failed to register test_sched schedule")
 			}
 
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
@@ -720,7 +733,7 @@ the way that the Fleet server works.
 				defer cancel()
 				errs <- func() error {
 					cancelFunc()
-					shutdownCronSchedulesService(ctx, ds, logger, instanceID)
+					cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
 				}()

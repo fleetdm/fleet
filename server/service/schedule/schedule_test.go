@@ -16,35 +16,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type nopLocker struct{}
-
-func (nopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
-	return true, nil
-}
-
-func (nopLocker) Unlock(context.Context, string, string) error {
-	return nil
-}
-
-type nopStatsStore struct{}
-
-func (nopStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
-	return fleet.CronStats{}, nil
-}
-
-func (nopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
-	return 0, nil
-}
-
-func (nopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
-	return nil
-}
-
 func TestNewSchedule(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobRan := false
-	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, NopLocker{}, NopStatsStore{},
 		WithJob("test_job", func(ctx context.Context) error {
 			jobRan = true
 			return nil
@@ -72,7 +48,7 @@ func TestScheduleLocker(t *testing.T) {
 	locker := SetupMockLocker(name, instance, time.Now().Add(-interval))
 
 	jobRunCount := 0
-	s := New(ctx, name, instance, interval, locker, &nopStatsStore{},
+	s := New(ctx, name, instance, interval, locker, &NopStatsStore{},
 		WithJob("test_job", func(ctx context.Context) error {
 			jobRunCount++
 			return nil
@@ -167,7 +143,7 @@ func TestMultipleSchedules(t *testing.T) {
 			opts = append(opts, WithJob(job.ID, job.Fn))
 			jobNames = append(jobNames, job.ID)
 		}
-		s := New(ctx, tc.name, tc.instanceID, tc.interval, nopLocker{}, nopStatsStore{}, opts...)
+		s := New(ctx, tc.name, tc.instanceID, tc.interval, NopLocker{}, NopStatsStore{}, opts...)
 		s.Start()
 		ss = append(ss, s)
 	}
@@ -194,7 +170,7 @@ func TestMultipleJobsInOrder(t *testing.T) {
 
 	jobs := make(chan int)
 
-	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, NopLocker{}, NopStatsStore{},
 		WithJob("test_job_1", func(ctx context.Context) error {
 			jobs <- 1
 			return nil
@@ -251,7 +227,7 @@ func TestConfigReloadCheck(t *testing.T) {
 	newSchedInterval := 2600 * time.Millisecond
 
 	jobsRun := 0
-	s := New(ctx, "test_schedule", "test_instance", initialSchedInterval, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_schedule", "test_instance", initialSchedInterval, NopLocker{}, NopStatsStore{},
 		WithConfigReloadInterval(100*time.Millisecond, func(_ context.Context) (time.Duration, error) {
 			return newSchedInterval, nil
 		}),
@@ -284,7 +260,7 @@ func TestJobPanicRecover(t *testing.T) {
 
 	jobRan := false
 
-	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, NopLocker{}, NopStatsStore{},
 		WithJob("job_1", func(ctx context.Context) error {
 			panic("job_1")
 		}),

@@ -41,7 +41,7 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	ctxerr.Handle(ctx, err)
 }
 
-func startVulnerabilitiesSchedule(
+func newVulnerabilitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -67,7 +67,6 @@ func startVulnerabilitiesSchedule(
 			},
 		),
 	)
-	s.Start()
 
 	return s, nil
 }
@@ -386,7 +385,7 @@ func checkNVDVulnerabilities(
 	return vulns
 }
 
-func startAutomationsSchedule(
+func newAutomationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -429,7 +428,7 @@ func startAutomationsSchedule(
 			},
 		),
 	)
-	s.Start()
+
 	return s, nil
 }
 
@@ -487,7 +486,7 @@ func triggerFailingPoliciesAutomation(
 	return nil
 }
 
-func startIntegrationsSchedule(
+func newIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -560,8 +559,6 @@ func startIntegrationsSchedule(
 		}),
 	)
 
-	s.Start()
-
 	return s, nil
 }
 
@@ -618,7 +615,7 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 	return failerClient
 }
 
-func startCleanupsAndAggregationSchedule(
+func newCleanupsAndAggregationSchedule(
 	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
 ) (*schedule.Schedule, error) {
 	s := schedule.New(
@@ -716,12 +713,11 @@ func startCleanupsAndAggregationSchedule(
 			},
 		),
 	)
-	s.Start()
 
 	return s, nil
 }
 
-func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
+func newSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
 	s := schedule.New(
 		ctx, "stats", instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
@@ -734,7 +730,6 @@ func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Dat
 			},
 		),
 	)
-	s.Start()
 
 	return s, nil
 }
@@ -793,10 +788,10 @@ func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
 	}
 }
 
-// startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
+// newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
 // The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
 // the current configured DEP profile to them.
-func startAppleMDMDEPProfileAssigner(
+func newAppleMDMDEPProfileAssigner(
 	ctx context.Context,
 	instanceID string,
 	periodicity time.Duration,
@@ -855,12 +850,11 @@ func startAppleMDMDEPProfileAssigner(
 			return syncer.Run(ctx)
 		}),
 	)
-	s.Start()
 
 	return s, nil
 }
 
-func shutdownCronSchedulesService(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, instanceID string) {
+func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, instanceID string) {
 	if err := ds.UpdateAllCronStatsForInstance(ctx, instanceID, fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled); err != nil {
 		logger.Log("err", "cancel pending cron stats for instance", "details", err)
 	}

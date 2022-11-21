@@ -18,6 +18,7 @@ func NewCronSchedules() *CronSchedules {
 type CronSchedule interface {
 	Trigger() (*CronStats, error)
 	Name() string
+	Start()
 }
 
 type CronSchedules struct {
@@ -29,14 +30,15 @@ func (cs *CronSchedules) AuthzType() string {
 	return "cron_schedules"
 }
 
-type CronScheduleStarterFunc func() (CronSchedule, error)
+type NewCronScheduleFunc func() (CronSchedule, error)
 
-// AddCronSchedules registers a new cron schedule with the service.
-func (cs *CronSchedules) AddCronSchedule(fn CronScheduleStarterFunc) error {
+// StartCronSchedules starts a new cron schedule and registers it with the cron schedules struct.
+func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 	sched, err := fn()
 	if err != nil {
 		return err
 	}
+	sched.Start()
 	cs.Schedules[sched.Name()] = sched
 	return nil
 }
@@ -73,7 +75,11 @@ type triggerConflictError struct {
 }
 
 func (e triggerConflictError) Error() string {
-	msg := "conflicts with current status"
+	msg := "conflicts with current status of "
+	if e.name != "" {
+		msg += fmt.Sprintf("%s ", e.name)
+	}
+	msg += "schedule"
 	if e.stats != nil {
 		msg += fmt.Sprintf(": %s run started %v ago", e.stats.StatsType, time.Since(e.stats.CreatedAt).Round(time.Millisecond))
 	}
