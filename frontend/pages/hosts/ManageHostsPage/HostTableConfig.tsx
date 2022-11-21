@@ -389,15 +389,38 @@ const allHostTableHeaders: IDataColumn[] = [
   {
     title: "Last seen",
     Header: (headerProps: IHeaderProps): JSX.Element => {
+      const title = headerProps.column.title;
       const titleWithToolTip = (
-        <TooltipWrapper
-          tipContent={`
-            The last time the <br/>host was online.
-          `}
-        >
-          Last seen
-        </TooltipWrapper>
+        <>
+          <div className="component__tooltip-wrapper" data-tip data-for={title}>
+            <div className="component__tooltip-wrapper__element">
+              Last seen
+              <div
+                className="component__tooltip-wrapper__underline"
+                data-text="Last seen"
+              />
+            </div>
+          </div>
+          <ReactTooltip
+            className="component-tooltip-wrapper"
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id={title}
+            backgroundColor="#3e4771"
+          >
+            {"The last time the host was online."}
+          </ReactTooltip>
+        </>
+        //   <TooltipWrapper
+        //     tipContent={`
+        //       The last time the <br/>host was online.
+        //     `}
+        //   >
+        //     Last seen
+        //   </TooltipWrapper>
       );
+
       return (
         <HeaderCell
           value={titleWithToolTip}
