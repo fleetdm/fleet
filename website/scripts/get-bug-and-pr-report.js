@@ -31,6 +31,7 @@ module.exports = {
     const NUMBER_OF_RESULTS_REQUESTED = 100;
 
     let daysSinceBugsWereOpened = [];
+    let daysSincePullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
 
 
@@ -126,13 +127,10 @@ module.exports = {
         await sails.helpers.flow.simultaneouslyForEach(pullRequestsMergedInThePastThreeWeeks, async (pullRequest)=>{
           // Create a date object from the PR's merged_at timestamp.
           let pullRequestMergedOn = new Date(pullRequest.merged_at);
-
           // https://docs.github.com/en/rest/commits/commits#list-commits
           let commitsOnThisPullRequest = await sails.helpers.http.get(pullRequest.commits_url, {}, baseHeaders).retry();
-
           // Create a new Date from the timestamp of the first commit on this pull request.
           let firstCommitAt = new Date(commitsOnThisPullRequest[0].commit.author.date); // https://docs.github.com/en/rest/commits/commits#list-commits--code-samples
-
           // Get the amount of time this issue has been open in milliseconds.
           let timeFromCommitToMergeInMS = pullRequestMergedOn - firstCommitAt;
           // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array.
@@ -141,12 +139,53 @@ module.exports = {
         });
 
       },
+      //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██████╗ ███████╗
+      //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██╔══██╗██╔════╝
+      //  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║    ██████╔╝██████╔╝███████╗
+      //  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║    ██╔═══╝ ██╔══██╗╚════██║
+      //  ╚██████╔╝██║     ███████╗██║ ╚████║    ██║     ██║  ██║███████║
+      //   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝    ╚═╝     ╚═╝  ╚═╝╚══════╝
+      //
+      async()=>{
+        let pullRequestResultsPageNumber = 0;
+        let allOpenPullRequests = [];
+        // Fetch all open pull requests in the fleetdm/fleet repo.
+        // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pullRequestResultsPageNumber += 1;
+          let pullRequests = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/pulls`,
+            {
+              'state': 'open',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pullRequestResultsPageNumber,
+            },
+            baseHeaders
+          ).retry();
+          // Add the results to the array of results.
+          allOpenPullRequests = allOpenPullRequests.concat(pullRequests);
+          // If we recieved less results than we requested, we've reached the last page of the results.
+          return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
+        }, 10000);
+        for(let pullRequest of allOpenPullRequests) {
+          // Create a date object from the PR's created_at timestamp.
+          let pullRequestOpenedOn = new Date(pullRequest.created_at);
+          // Get the amount of time this issue has been open in milliseconds.
+          let timeOpenInMS = Math.abs(todaysDate - pullRequestOpenedOn);
+          // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array
+          let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          daysSincePullRequestsWereOpened.push(timeOpenInDays);
+        }
+
+      }
 
     ]);
 
     // Get the averages from the arrays of results.
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened)/daysSinceBugsWereOpened.length);
     let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
+    let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
 
     // Log the results
     sails.log(`
@@ -159,7 +198,13 @@ module.exports = {
     Closed pull requests:
     ---------------------------
     Number of pull requests merged in the past three weeks: ${commitToMergeTimesInDays.length}
-    Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.`);
+    Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
+
+
+    Open pull requests
+    ---------------------------
+    Number of open pull requests in the fleetdm/fleet Github Repo: ${daysSincePullRequestsWereOpened.length}
+    Average open time: ${averageDaysPullRequestsAreOpenFor} days.`);
   }
 
 };
