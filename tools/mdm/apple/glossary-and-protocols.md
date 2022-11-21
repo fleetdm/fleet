@@ -9,7 +9,7 @@ the MDM server.
 Resources:
 
 - [SCEP summary](#scep-summary) below
-- [RFC 8894][https://datatracker.ietf.org/doc/html/rfc8894]
+- [RFC 8894](https://datatracker.ietf.org/doc/html/rfc8894)
 
 ### DEP: Device Enrollment Program
 
@@ -23,7 +23,7 @@ enrollment](#manual-enrollment) does.
 Resources:
 
 - [DEP Workflow Summary](#dep-workflow-summary)
-- [MDM protocol specification][https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf].
+- [MDM protocol specification](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)
 
 ### Manual enrollment
 
@@ -50,7 +50,7 @@ Apple to authenticate with them.
 Resources:
 
 - [MDM Protocol summary](#mdm-protocol-summary)
-- [MDM protocol specification][https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf].
+- [MDM protocol specification](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)
 
 ### Profile
 
