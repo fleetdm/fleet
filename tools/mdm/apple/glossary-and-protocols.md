@@ -204,4 +204,21 @@ MDM Protocol Reference.
 
 ## DEP Workflow Summary
 
-TODO
+In order to get information about devices enrolled through DEP, the MDM server
+needs to communicate with Apple servers periodically.
+
+The workflow looks like:
+
+1. The MDM server gets a token that will use to authenticate to Apple servers.
+   This process is described in detail in the MDM protocol reference. Some parts
+   of it can be automated by MDM solutions.
+2. The MDM server periodically pings
+   `GET https://mdmenrollment.apple.com/server/devices` and
+   `GET https://mdmenrollment.apple.com/devices/sync` to get
+   information about newly enrolled devices and changes on devices already
+   enrolled.
+3. The MDM server defines and assigns profiles to devices using `POST
+   https://mdmenrollment.apple.com/profile` and `PUT
+   https://mdmenrollment.apple.com/profile/devices`
+4. The MDM server removes profiles from a device using `DELETE
+   https://mdmenrollment.apple.com/profile/devices`
