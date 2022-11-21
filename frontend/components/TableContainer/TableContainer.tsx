@@ -21,10 +21,9 @@ export interface ITableQueryData {
   sortHeader: string;
   sortDirection: string;
 }
-
-interface IRowProps {
-  row: {
-    original: any;
+interface IRowProps extends Row {
+  original: {
+    id?: number;
   };
 }
 

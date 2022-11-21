@@ -92,7 +92,7 @@ interface IHeaderButtonsState extends ITeamsDropdownState {
 
 interface IRowProps extends Row {
   original: {
-    id: number;
+    id?: number;
   };
 }
 

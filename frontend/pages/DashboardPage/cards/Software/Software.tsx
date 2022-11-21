@@ -29,7 +29,7 @@ interface ISoftwareCardProps {
 
 interface IRowProps extends Row {
   original: {
-    id: number;
+    id?: number;
   };
 }
 
@@ -134,6 +134,8 @@ const Software = ({
                   disableActionButton
                   pageSize={SOFTWARE_DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
+                  disableMultiRowSelect
+                  onSelectSingleRow={handleRowSelect}
                 />
               )}
             </TabPanel>
