@@ -1027,6 +1027,7 @@ func getSoftwareCommand() *cli.Command {
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm_apple",
+		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
 		Aliases: []string{"mdm-apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
