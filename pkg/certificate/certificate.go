@@ -88,17 +88,23 @@ func ValidateClientAuthTLSConnection(ctx context.Context, cert *tls.Certificate,
 
 	dialer := &tls.Dialer{
 		Config: &tls.Config{
-			Certificates:       []tls.Certificate{*cert},
+			GetClientCertificate: func(reqInfo *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				return cert, nil
+			},
 			ServerName:         parsed.Hostname(),
 			ClientSessionCache: tls.NewLRUClientSessionCache(-1),
 		},
 	}
+
 	conn, err := dialer.DialContext(ctx, "tcp", getHostPort(parsed))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "TLS dial")
 	}
-	conn.Close()
+	defer conn.Close()
 
+	if _, err = conn.Read(make([]byte, 1024)); err != nil {
+		return ctxerr.Wrap(ctx, err, "read from TLS connection")
+	}
 	return nil
 }
 
