@@ -16,20 +16,20 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
 1. (AE) A customer is sent an order form
-    - If the customer requires the use of their own legal contract, the AE will send that contract to BizOps for review. Then: 
+    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
     - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
     c- If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
         - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
         - BizOps will cc the AE and stay cc’d on the contract when the final copy is sent to the CEO for Fleet execution. 
-  *Note: CRO serves as backup to BizOps
+  *Note: Chief Revenue Officer (CRO) serves as backup to BizOps
 2. The Customer and Fleet sign the order form.
     - (AE) The AE adds the fully executed contract to the opportunity record.
     - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
-    - (Ops) BizOps adds fully executed contract to the Subscriptions folder in Fleet Drive 
+    - (BizOps) BizOps team member adds fully executed contract to the Subscriptions folder in Fleet Drive 
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
-    - Then they assign the issue to BizOps and the Head of CS.
-    - The AE schedules a 30 minute internal handoff call with CS, SA, and any other related parties to the sale. 
+    - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
     - Prepare to review:
         - Details of the deal
         - Primary contact / their role
@@ -39,14 +39,14 @@ This workflow outlines the process that sales and customer success can follow wh
         - Support tier? (Premium or Ultimate)
         - Competitive solutions in place
         - Other relevant technologies in place 
-        - Any POC notes that are relevant
+        - Any proof of concept (POC) notes that are relevant
         - Customer expectations for timeline
         - Server deployment type
 5. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
     - Create an “Existing Business” renewal opportunity in SFDC.   
     - Send the Customer Welcome Email & Deployment Checklist Template
     - Create the Customer Slack Channel
-    - Generate the customer license key (Currently: SA, CSE, Head of CS have access to do this)
+    - Generate the customer license key 
     - Share the license key with the customer (7 day link)
     - Schedule the customer onboarding kickoff call
     - Collect deployment details (if not completed during POC)
