@@ -199,7 +199,9 @@ func TestCleanupCronStats(t *testing.T) {
 		require.Equal(t, cases[i].status, s.Status)
 	}
 
-	ds.CleanupCronStats(ctx)
+	err = ds.CleanupCronStats(ctx)
+	require.NoError(t, err)
+
 	stats = []fleet.CronStats{}
 	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
@@ -272,7 +274,7 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats`)
+	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -285,7 +287,7 @@ func TestUpdateAllCronStatsForInstance(t *testing.T) {
 	require.NoError(t, err)
 
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats`)
+	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, c := range cases {
