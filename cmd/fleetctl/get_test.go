@@ -1451,3 +1451,12 @@ func TestEnrichedAppConfig(t *testing.T) {
 		require.Equal(t, "filesystem", enriched.Logging.Status.Plugin)
 	})
 }
+
+func TestGetAppleMDM(t *testing.T) {
+	runServerWithMockedDS(t)
+
+	// can only test when no MDM cert is provided, otherwise they would have to
+	// be valid Apple APNs and SCEP certs.
+	expected := `Error: No Apple Push Notification service (APNs) certificate found.`
+	assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple"}), expected)
+}
