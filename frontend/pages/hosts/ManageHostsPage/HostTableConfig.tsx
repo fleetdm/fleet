@@ -248,14 +248,18 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "gigs_disk_space_available",
     Cell: (cellProps: INumberCellProps): JSX.Element => {
-      const { id, percent_disk_space_available } = cellProps.row.original;
-
+      const {
+        id,
+        platform,
+        percent_disk_space_available,
+      } = cellProps.row.original;
       return (
         <DiskSpaceGraph
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
           id={`disk-space__${id}`}
+          platform={platform}
         />
       );
     },

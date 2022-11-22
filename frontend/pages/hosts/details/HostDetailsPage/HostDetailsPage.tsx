@@ -334,6 +334,7 @@ const HostDetailsPage = ({
       "issues",
       "memory",
       "cpu_type",
+      "platform",
       "os_version",
       "osquery_version",
       "enroll_secret_name",

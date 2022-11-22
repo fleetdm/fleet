@@ -155,7 +155,8 @@ const HostSummary = ({
             baseClass="info-flex"
             gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
             percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-            id={"disk-space-tooltip"}
+            id={`disk-space-tooltip-${titleData.id}`}
+            platform={titleData.platform}
           />
         </div>
         {typeof diskEncryption?.enabled === "boolean" &&

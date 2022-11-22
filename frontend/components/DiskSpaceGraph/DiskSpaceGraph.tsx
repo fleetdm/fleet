@@ -7,6 +7,7 @@ interface IDiskSpaceGraphProps {
   gigsDiskSpaceAvailable: number | string;
   percentDiskSpaceAvailable: number;
   id: string;
+  platform: string;
 }
 
 const DiskSpaceGraph = ({
@@ -14,28 +15,31 @@ const DiskSpaceGraph = ({
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
   id,
+  platform,
 }: IDiskSpaceGraphProps): JSX.Element => {
-  const diskSpaceIndicator = () => {
-    switch (true) {
-      case gigsDiskSpaceAvailable < 16:
+  const getDiskSpaceIndicatorColor = (): string => {
+    // return space-dependent graph colors for mac and windows hosts, green for linux
+    if (platform === "darwin" || platform === "windows") {
+      if (gigsDiskSpaceAvailable < 16) {
         return "red";
-      case gigsDiskSpaceAvailable < 32:
+      } else if (gigsDiskSpaceAvailable < 32) {
         return "yellow";
-      default:
-        return "green";
+      }
     }
+    return "green";
   };
 
-  const diskSpaceTooltip = (): string | undefined => {
-    switch (true) {
-      case gigsDiskSpaceAvailable < 16:
+  const diskSpaceTooltipText = ((): string | undefined => {
+    if (platform === "darwin" || platform === "windows") {
+      if (gigsDiskSpaceAvailable < 16) {
         return "Not enough disk space available to install most small operating systems updates.";
-      case gigsDiskSpaceAvailable < 32:
+      } else if (gigsDiskSpaceAvailable < 32) {
         return "Not enough disk space available to install most large operating systems updates.";
-      default:
-        return "Enough disk space available to install most operating systems updates.";
+      }
+      return "Enough disk space available to install most operating systems updates.";
     }
-  };
+    return undefined;
+  })();
 
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
     return <span className={`${baseClass}__data`}>No data available</span>;
@@ -46,29 +50,35 @@ const DiskSpaceGraph = ({
       <div
         className={`${baseClass}__disk-space-wrapper tooltip`}
         data-tip
-        data-for={id}
+        data-for={`tooltip-${id}`}
       >
         <div className={`${baseClass}__disk-space`}>
           <div
-            className={`${baseClass}__disk-space--${diskSpaceIndicator()}`}
+            className={`${baseClass}__disk-space--${getDiskSpaceIndicatorColor()}`}
             style={{
-              width: `${100 - percentDiskSpaceAvailable}%`,
+              width: `${percentDiskSpaceAvailable}%`,
             }}
+            title="disk space indicator"
           />
         </div>
       </div>
-      <ReactTooltip
-        className={"disk-space-tooltip"}
-        place="top"
-        type="dark"
-        effect="solid"
-        id={id}
-        backgroundColor="#3e4771"
-      >
-        <span className={`${baseClass}__tooltip-text`}>
-          {diskSpaceTooltip()}
-        </span>
-      </ReactTooltip>
+      {diskSpaceTooltipText && (
+        <ReactTooltip
+          className={"disk-space-tooltip"}
+          place="top"
+          type="dark"
+          effect="solid"
+          id={`tooltip-${id}`}
+          backgroundColor="#3e4771"
+        >
+          <span
+            className={`${baseClass}__tooltip-text`}
+            title="disk space tooltip"
+          >
+            {diskSpaceTooltipText}
+          </span>
+        </ReactTooltip>
+      )}
       {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
     </span>
   );
