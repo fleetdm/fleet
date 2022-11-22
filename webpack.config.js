@@ -23,6 +23,9 @@ let plugins = [
   new WebpackNotifierPlugin({
     excludeWarnings: true,
   }),
+  new webpack.DefinePlugin({
+    "process.env.REACT_APP_MDM_ENABLED": process.env.REACT_APP_MDM_ENABLED,
+  }),
 ];
 
 if (process.env.NODE_ENV === "production") {

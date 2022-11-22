@@ -3,6 +3,8 @@ import { AxiosResponse } from "axios";
 import { QueryClient, QueryClientProvider } from "react-query";
 import classnames from "classnames";
 
+import { Feature } from "utilities/constants";
+
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
@@ -49,6 +51,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
+
+  if (Feature.EnableMDM) {
+    alert("MDM is enabled");
+  }
 
   const fetchConfig = async () => {
     try {

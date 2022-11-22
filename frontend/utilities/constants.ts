@@ -10,6 +10,10 @@ export enum PolicyResponse {
   FAILING = "failing",
 }
 
+export const Feature: Record<string, boolean> = {
+  EnableMDM: Boolean(process.env.REACT_APP_MDM_ENABLED),
+};
+
 export const DEFAULT_GRAVATAR_LINK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
 
