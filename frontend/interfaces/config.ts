@@ -73,6 +73,14 @@ export default PropTypes.shape({
   }),
 });
 
+export interface ILicense {
+  tier: string;
+  device_count: number;
+  expiration: string;
+  note: string;
+  organization: string;
+}
+
 export interface IFleetDesktopSettings {
   transparency_url: string;
 }
@@ -165,13 +173,7 @@ export interface IConfig {
     osquery_detail: number;
     osquery_policy: number;
   };
-  license: {
-    organization: string;
-    device_count: number;
-    tier: string;
-    expiration: string;
-    note: string;
-  };
+  license: ILicense;
   fleet_desktop: IFleetDesktopSettings;
   vulnerabilities: {
     databases_path: string;

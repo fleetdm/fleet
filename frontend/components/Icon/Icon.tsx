@@ -9,7 +9,7 @@ interface IIconProps {
   color?: Colors;
   direction?: "up" | "down" | "left" | "right";
   className?: string;
-  size?: "small" | "medium";
+  size?: "small" | "medium" | "large";
 }
 
 const baseClass = "icon";
@@ -35,7 +35,7 @@ const Icon = ({ name, color, direction, className, size }: IIconProps) => {
   const IconComponent = ICON_MAP[name];
 
   return (
-    <div className={classNames}>
+    <div className={classNames} data-testid="Icon">
       <IconComponent {...props} />
     </div>
   );

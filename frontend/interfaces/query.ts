@@ -26,6 +26,14 @@ export interface IQueryFormData {
   observer_can_run?: string | number | boolean | undefined;
 }
 
+export interface IStoredQueryResponse {
+  query: IQuery;
+}
+
+export interface IFleetQueriesResponse {
+  queries: IQuery[];
+}
+
 export interface IQuery {
   created_at: string;
   updated_at: string;

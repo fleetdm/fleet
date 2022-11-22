@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -120,15 +121,16 @@ func main() {
 		}, nil
 	}
 
-	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	if *premiumLicense {
-		license.Tier = fleet.TierPremium
+		lic.Tier = fleet.TierPremium
 	}
+	ctx := license.NewContext(context.Background(), lic)
+
 	zendesk := &worker.Zendesk{
 		FleetURL:  *fleetURL,
 		Datastore: ds,
 		Log:       logger,
-		License:   license,
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (worker.ZendeskClient, error) {
 			return externalsvc.NewZendeskClient(opts)
 		},
@@ -176,7 +178,7 @@ func main() {
 		argsJSON = json.RawMessage(jsonStr)
 	}
 
-	if err := zendesk.Run(context.Background(), argsJSON); err != nil {
+	if err := zendesk.Run(ctx, argsJSON); err != nil {
 		log.Fatal(err)
 	}
 }

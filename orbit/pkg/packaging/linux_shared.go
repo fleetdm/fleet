@@ -172,7 +172,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		Version:     opt.Version,
 		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
-		Maintainer:  "Fleet Engineers <engineering@fleetdm.com>",
+		Maintainer:  "Fleet Device Management",
+		Vendor:      "Fleet Device Management",
+		License:     "https://github.com/fleetdm/fleet/blob/main/LICENSE",
 		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,

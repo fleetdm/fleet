@@ -1,0 +1,1 @@
+* Added support to simulate Windows 11 and Ubuntu 22.04 hosts (in addition to macOS) with the `osquery-perf` command, via the `--os_templates` flag.

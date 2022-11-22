@@ -1,11 +1,16 @@
 .platform-cell {
   &__wrapper {
     display: inline-flex;
+    vertical-align: middle;
   }
+
   &__icon {
-    height: 12px;
     width: auto;
     padding-right: $pad-small;
+
+    svg {
+      vertical-align: middle;
+    }
   }
   &__muted {
     color: $ui-fleet-black-50;

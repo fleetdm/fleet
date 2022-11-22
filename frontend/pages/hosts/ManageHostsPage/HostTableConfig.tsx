@@ -150,7 +150,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <LinkCell
         value={cellProps.cell.value}
-        path={PATHS.HOST_DETAILS(cellProps.row.original)}
+        path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
         title={lastSeenTime(
           cellProps.row.original.status,
           cellProps.row.original.seen_time

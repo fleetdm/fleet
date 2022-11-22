@@ -133,7 +133,7 @@ func (r *testNodeKeyRequest) hostNodeKey() string { return r.NodeKey }
 
 func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	expectedHost := fleet.Host{Hostname: "foo!"}
 	goodNodeKey := "foo bar baz bing bang boom"
@@ -183,7 +183,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	for _, tt := range authenticatedHostTests {
 		t.Run("", func(t *testing.T) {
 			r := &testNodeKeyRequest{NodeKey: tt.nodeKey}
-			_, err := endpoint(context.Background(), r)
+			_, err := endpoint(ctx, r)
 			if tt.shouldErr {
 				assert.IsType(t, osqueryError{}, err)
 			} else {
@@ -195,7 +195,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 func TestAuthenticatedUserMW(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	authenticatedUserTests := []struct {
 		user      *fleet.User
@@ -225,7 +225,7 @@ func TestAuthenticatedUserMW(t *testing.T) {
 
 	for _, tt := range authenticatedUserTests {
 		t.Run("", func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			nextCalled := false
 			endpoint := authenticatedUser(svc, func(ctx context.Context, request interface{}) (response interface{}, err error) {

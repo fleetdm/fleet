@@ -39,6 +39,7 @@ export interface IActivityDetails {
   policy_name?: string;
   query_id?: number;
   query_name?: string;
+  query_sql?: string;
   team_id?: number;
   team_name?: string;
   teams?: ITeamSummary[];

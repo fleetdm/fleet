@@ -8,11 +8,12 @@ import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
-import hostAPI from "services/entities/hosts";
 import {
   IHost,
+  IHostResponse,
   IDeviceMappingResponse,
   IMacadminsResponse,
+  IDeviceUserResponse,
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
@@ -42,22 +43,6 @@ const baseClass = "device-user";
 
 interface IDeviceUserPageProps {
   params: Params;
-}
-
-interface ILicense {
-  tier: string;
-  device_count: number;
-  expiration: string;
-  note: string;
-  organization: string;
-}
-
-interface IHostResponse {
-  host: IHost;
-  org_logo_url: string;
-  license: ILicense;
-  disk_encryption_enabled?: boolean;
-  platform?: string;
 }
 
 interface IHostDiskEncryptionProps {
@@ -121,7 +106,7 @@ const DeviceUserPage = ({
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
-  } = useQuery<IHostResponse, Error, IHostResponse>(
+  } = useQuery<IDeviceUserResponse, Error, IDeviceUserResponse>(
     ["host", deviceAuthToken],
     () => deviceUserAPI.loadHostDetails(deviceAuthToken),
     {
@@ -130,8 +115,8 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IHostResponse) => data,
-      onSuccess: (returnedHost: IHostResponse) => {
+      select: (data: IDeviceUserResponse) => data,
+      onSuccess: (returnedHost: IDeviceUserResponse) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
         setIsPremiumTier(returnedHost.license.tier === "premium");
         setHostSoftware(returnedHost.host.software ?? []);

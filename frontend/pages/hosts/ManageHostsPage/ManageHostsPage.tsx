@@ -38,9 +38,9 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import team, { ITeam } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -100,10 +100,6 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
-}
-
-interface IPolicyAPIResponse {
-  policy: IPolicy;
 }
 
 interface ITableQueryProps {
@@ -351,7 +347,7 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IPolicyAPIResponse, Error>(
+  useQuery<IStoredPolicyResponse, Error>(
     ["policy"],
     () => globalPoliciesAPI.load(policyId),
     {

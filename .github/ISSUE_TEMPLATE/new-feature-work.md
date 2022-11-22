@@ -42,6 +42,7 @@ TODO
 
 <!-- Things we tend to forget about -->
 - **Documentation** Do you want a guide written about this? What things/aspects should we make sure is covered by the documentation?
+- **Transparency** Do we need to update the transparency guide to reflect new functionality?
 - **Analytics** How are we going to measure usage and success? Make sure engineering knows these need to be built.
 - **QA** Any special QA notes?
 - **Other depts.** Should other Fleet departments such as marketing, sales, CX be informed after this is shipped?

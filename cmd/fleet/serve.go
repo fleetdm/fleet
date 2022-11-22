@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -422,7 +423,8 @@ the way that the Fleet server works.
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
-			ctx, cancelFunc := context.WithCancel(context.Background())
+			baseCtx := licensectx.NewContext(context.Background(), license)
+			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
@@ -440,7 +442,6 @@ the way that the Fleet server works.
 				liveQueryStore,
 				carveStore,
 				installerStore,
-				*license,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -454,7 +455,7 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}
@@ -466,12 +467,12 @@ the way that the Fleet server works.
 			}
 
 			startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
-			startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
-			startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
+			startSendStatsSchedule(ctx, instanceID, ds, config, logger)
+			startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 			if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
-			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger, license); err != nil {
+			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
 			if config.MDMApple.Enable {
@@ -486,7 +487,7 @@ the way that the Fleet server works.
 			if !hostsAsyncCfg.Enabled {
 				go func() {
 					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-						if err := task.FlushHostsLastSeen(context.Background(), clock.C.Now()); err != nil {
+						if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
 							level.Info(logger).Log(
 								"err", err,
 								"msg", "failed to update host seen times",
@@ -527,7 +528,7 @@ the way that the Fleet server works.
 				)
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
-				setupRequired, err := svc.SetupRequired(context.Background())
+				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
 					initFatal(err, "fetching setup requirement")
 				}
