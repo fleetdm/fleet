@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -144,7 +145,7 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	if !svc.license.IsPremium() {
+	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
 	}
@@ -260,7 +261,7 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 		return 0, err
 	}
 
-	if !svc.license.IsPremium() {
+	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
 	}
@@ -478,7 +479,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	if !svc.license.IsPremium() {
+	if !license.IsPremium(ctx) {
 		lowDiskSpace = nil
 	}
 

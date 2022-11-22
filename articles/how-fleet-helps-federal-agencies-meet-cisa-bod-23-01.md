@@ -54,7 +54,7 @@ Fleet can fit into the security ecosystem of any federal agency. Some SaaS solut
 
 The scope of just one FCEB agency can be quite broad. Complex organizational structures are a natural result. Fleet lets you assign devices to specific teams. Each team can have its own queries, schedules, and policies. So, you can tailor compliance standards to specific departments.
 
-You shouldn’t have to trade one tool for another, only to discover it can’t do the job. Fleet provides visibility into servers and workstations at scale. You can easily identify vulnerabilities and misconfigurations on every laptop in your agency. But you can’t scan routers. That’s why we recommend deploying Fleet in addition to software you already use, like Rapid7 or Tableau. Fleet’s up-to-minute data can supplement reports from these trusted platforms.
+You shouldn’t have to trade one tool for another, only to discover it can’t do the job. Fleet provides visibility into servers and workstations at scale. You can easily identify vulnerabilities and misconfigurations on every laptop in your agency. But you can’t scan routers. That’s why we recommend deploying Fleet in addition to software you already use, like Rapid7 or Tableau. Fleet’s up-to-the-minute data can supplement reports from these trusted platforms.
 
 ## Comply with BOD 23-01
 

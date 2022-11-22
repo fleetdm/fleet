@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
@@ -121,7 +122,6 @@ type Zendesk struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
-	License       *fleet.LicenseInfo
 	NewClientFunc func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
@@ -285,7 +285,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 		FleetURL:         z.FleetURL,
 		CVE:              vargs.CVE,
 		Hosts:            hosts,
-		IsPremium:        z.License.IsPremium(),
+		IsPremium:        license.IsPremium(ctx),
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,

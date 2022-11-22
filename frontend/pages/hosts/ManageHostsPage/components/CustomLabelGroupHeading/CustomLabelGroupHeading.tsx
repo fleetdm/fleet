@@ -22,7 +22,7 @@ const CustomLabelGroupHeading = (
     canAddNewLabels,
     onAddLabel,
     onChangeLabelQuery,
-    onClickLabelSeachInput,
+    onClickLabelSearchInput,
     onBlurLabelSearchInput,
   } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -30,7 +30,7 @@ const CustomLabelGroupHeading = (
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
   ) => {
-    onClickLabelSeachInput(event);
+    onClickLabelSearchInput(event);
     inputRef.current?.focus();
     event.stopPropagation();
   };

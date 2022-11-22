@@ -443,7 +443,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
 	// statistics.
@@ -519,6 +519,19 @@ type Datastore interface {
 	Unlock(ctx context.Context, name string, owner string) error
 	// DBLocks returns the current database transaction lock waits information.
 	DBLocks(ctx context.Context) ([]*DBLock, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Cron Stats
+
+	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
+	// are found, it returns an empty CronStats struct
+	GetLatestCronStats(ctx context.Context, name string) (CronStats, error)
+	// InsertCronStats inserts cron stats for the named cron schedule
+	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
+	// UpdateCronStats updates the status of the identified cron stats record
+	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus) error
+	// CleanupCronStats cleans up expired cron stats
+	CleanupCronStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats

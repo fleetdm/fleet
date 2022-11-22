@@ -10,6 +10,10 @@ import {
   NotificationContext,
 } from "context/notification";
 
+export const baseUrl = (path: string) => {
+  return `/api/latest/fleet${path}`;
+};
+
 type RenderOptionsWithProviderProps = RenderOptions & {
   contextValue: Partial<IAppContext>;
 };

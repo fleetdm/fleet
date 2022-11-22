@@ -1028,7 +1028,7 @@ spec:
     JSON_EXTRACT(result, '$.region') AS region,
     JSON_EXTRACT(result, '$.country') AS country,
     JSON_EXTRACT(result, '$.latitude') AS latitude,
-    JSON_EXTRACT(result, '$.longitude') AS longitude,
+    JSON_EXTRACT(result, '$.longitude') AS longitude
     FROM curl
     WHERE url = 'http://ipapi.co/json';
   purpose: inventory
