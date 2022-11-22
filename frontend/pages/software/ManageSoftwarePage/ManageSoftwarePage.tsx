@@ -517,7 +517,7 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(isPremiumTier, router),
+    () => generateSoftwareTableHeaders(router, isPremiumTier),
     [isPremiumTier, router]
   );
   const handleRowSelect = (row: IRowProps) => {

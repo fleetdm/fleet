@@ -180,8 +180,8 @@ const generateVulnColumnHeader = () => {
 };
 
 const generateTableHeaders = (
-  isPremiumTier?: boolean,
-  router: InjectedRouter
+  router: InjectedRouter,
+  isPremiumTier?: boolean
 ): Column[] => {
   const softwareTableHeaders = [
     {
