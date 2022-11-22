@@ -12,6 +12,7 @@ import {
 } from "utilities/helpers";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusCell from "components/TableContainer/DataTable/StatusCell";
+// TODO: Refactor StatusCell into smaller non-table-specific StatusIndicator component to be wrapped by StatusCell
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
