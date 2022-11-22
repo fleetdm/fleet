@@ -65,7 +65,7 @@ const DiskSpaceGraph = ({
       {diskSpaceTooltipText && (
         <ReactTooltip
           className={"disk-space-tooltip"}
-          place="bottom"
+          place="top"
           type="dark"
           effect="solid"
           id={`tooltip-${id}`}
