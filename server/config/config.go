@@ -814,7 +814,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
-	// MDM Apple config
+	// MDM Apple config (prototype)
 	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
 	man.addConfigString("mdm_apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
 	man.addConfigString("mdm_apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
@@ -831,6 +831,19 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_apns_key", "", "Apple APNs PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_cert", "", "Apple SCEP PEM-encoded certificate path")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
+
+	// Hide the official MDM flags as we don't want it to be discoverable for users for now
+	mdmFlags := []string{
+		"mdm.apple_apns_cert",
+		"mdm.apple_apns_key",
+		"mdm.apple_scep_cert",
+		"mdm.apple_scep_key",
+	}
+	for _, mdmFlag := range mdmFlags {
+		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
+			flag.Hidden = true
+		}
+	}
 }
 
 // LoadConfig will load the config variables into a fully initialized
