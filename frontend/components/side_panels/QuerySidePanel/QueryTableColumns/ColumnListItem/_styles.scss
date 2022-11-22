@@ -56,4 +56,10 @@
       margin-bottom: 0;
     }
   }
+
+  &__footnote-link {
+    font-size: $xx-small;
+    color: $core-white;
+    text-decoration: underline;
+  }
 }

@@ -48,6 +48,14 @@ go run agent.go --enroll_secret hgh4hk3434l2jjf --seed 0
 By using the same seed, along with other values, we usually get hosts that look
 the same to the server. This is not guaranteed, but it is a useful technique.
 
+By default, all hosts will simulate macOS hosts (specifically, macOS 10.14). To simulate hosts using other operating systems, use the `--os_templates` flag. This flag takes a comma-separated list of host template names and will start hosts by alternating in the list of OS templates when multiple templates are specified. For example:
+
+```
+go run agent.go --enroll_secret hgh4hk3434l2jjf --os_templates ubuntu_22.04,windows_11 --host_count 6
+```
+
+would start 3 Ubuntu hosts and 3 Windows hosts. See the `os_templates` flag description in `go run agent.go --help` for the list of supported template names.
+
 ### Running Locally (Development Environment)
 
 First, ensure your Fleet local development environment is up and running. Refer to [Building Fleet](../../docs/Contributing/Building-Fleet.md) for details. Once this is done:
@@ -55,6 +63,8 @@ First, ensure your Fleet local development environment is up and running. Refer 
 * navigate to the Hosts tab of your Fleet web interface (typically, this would be at https://localhost:8080/hosts/manage).
 * click on "Manage enroll secret" and copy the enroll secret.
 * start the `osquery-perf` agent (from the root of the Fleet repository, it would be `go run ./cmd/osquery-perf/agent.go --enroll_secret <paste-the-secret>`).
+
+Alternatively, you can retrieve the enroll secret from the command-line using `fleetctl get enroll_secret` (you may have to login to `fleetctl` first).
 
 The agent will start. You can connect to MySQL to view changes made to the development database by the agent (e.g., at the terminal, with `docker-compose exec mysql mysql -uroot -ptoor -Dfleet`). Remember that frequency of the reported data depends on the configuration of the Fleet instance, so you may want to start it with shorter delays for some cases and enable debug logging (e.g., `./build/fleet serve --dev --logging_debug --osquery_detail_update_interval 1m`).
 

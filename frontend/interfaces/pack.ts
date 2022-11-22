@@ -19,6 +19,14 @@ export default PropTypes.shape({
   team_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
+export interface IStoredPacksResponse {
+  packs: IPack[];
+}
+
+export interface IStoredPackResponse {
+  pack: IPack;
+}
+
 export interface IPack {
   created_at: string;
   updated_at: string;

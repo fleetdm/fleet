@@ -9,7 +9,7 @@ interface IIconProps {
   color?: Colors;
   direction?: "up" | "down" | "left" | "right";
   className?: string;
-  size?: "small" | "medium";
+  size?: "small" | "medium" | "large";
 }
 
 const baseClass = "icon";
