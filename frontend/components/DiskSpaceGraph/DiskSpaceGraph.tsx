@@ -17,7 +17,7 @@ const DiskSpaceGraph = ({
   id,
   platform,
 }: IDiskSpaceGraphProps): JSX.Element => {
-  const diskSpaceIndicator = (): string => {
+  const getDiskSpaceIndicatorColor = (): string => {
     // return space-dependent graph colors for mac and windows hosts, green for linux
     if (platform === "darwin" || platform === "windows") {
       if (gigsDiskSpaceAvailable < 16) {
@@ -50,14 +50,15 @@ const DiskSpaceGraph = ({
       <div
         className={`${baseClass}__disk-space-wrapper tooltip`}
         data-tip
-        data-for={id}
+        data-for={`tooltip-${id}`}
       >
         <div className={`${baseClass}__disk-space`}>
           <div
-            className={`${baseClass}__disk-space--${diskSpaceIndicator()}`}
+            className={`${baseClass}__disk-space--${getDiskSpaceIndicatorColor()}`}
             style={{
               width: `${percentDiskSpaceAvailable}%`,
             }}
+            title="disk space indicator"
           />
         </div>
       </div>
@@ -67,10 +68,13 @@ const DiskSpaceGraph = ({
           place="bottom"
           type="dark"
           effect="solid"
-          id={id}
+          id={`tooltip-${id}`}
           backgroundColor="#3e4771"
         >
-          <span className={`${baseClass}__tooltip-text`}>
+          <span
+            className={`${baseClass}__tooltip-text`}
+            title="disk space tooltip"
+          >
             {diskSpaceTooltipText}
           </span>
         </ReactTooltip>
