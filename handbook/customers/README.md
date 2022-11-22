@@ -9,7 +9,7 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 | Level of impact | Type of support |
 | :--- | :--- |
 | Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text: **(415) 651-2575** </br> Response time: **≤4 hours** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
 
 ## Customer success calls
 
