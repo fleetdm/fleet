@@ -271,7 +271,7 @@ func TestCachedListScheduledQueriesInPack(t *testing.T) {
 		},
 	}
 	called := 0
-	mockedDS.ListScheduledQueriesInPackFunc = func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+	mockedDS.ListScheduledQueriesInPackFunc = func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 		called++
 		return dbScheduledQueries, nil
 	}
