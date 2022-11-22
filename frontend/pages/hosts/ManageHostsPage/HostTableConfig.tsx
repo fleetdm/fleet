@@ -402,7 +402,11 @@ const allHostTableHeaders: IDataColumn[] = [
             </div>
           </div>
           <ReactTooltip
+<<<<<<< HEAD
             className="component__tooltip-wrapper__tip-text"
+=======
+            className="component-tooltip-wrapper"
+>>>>>>> 3db07c90dfa48387f9dfc802d9237bdaa91d86e8
             place="bottom"
             type="dark"
             effect="solid"
@@ -412,6 +416,16 @@ const allHostTableHeaders: IDataColumn[] = [
             {"The last time the host was online."}
           </ReactTooltip>
         </>
+<<<<<<< HEAD
+=======
+        //   <TooltipWrapper
+        //     tipContent={`
+        //       The last time the <br/>host was online.
+        //     `}
+        //   >
+        //     Last seen
+        //   </TooltipWrapper>
+>>>>>>> 3db07c90dfa48387f9dfc802d9237bdaa91d86e8
       );
 
       return (
