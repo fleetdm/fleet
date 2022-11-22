@@ -588,7 +588,7 @@ type Datastore interface {
 	UpdateHost(ctx context.Context, host *Host) error
 
 	// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
-	ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*ScheduledQuery, error)
+	ListScheduledQueriesInPack(ctx context.Context, packID uint) (ScheduledQueryList, error)
 
 	// UpdateHostRefetchRequested updates a host's refetch requested field.
 	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error

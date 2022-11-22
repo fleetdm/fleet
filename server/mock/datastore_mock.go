@@ -2290,7 +2290,7 @@ func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return s.UpdateHostFunc(ctx, host)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
 	return s.ListScheduledQueriesInPackFunc(ctx, packID)
 }

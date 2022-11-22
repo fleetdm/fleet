@@ -3,6 +3,7 @@ package fleet
 import (
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -48,6 +49,35 @@ type ScheduledQuery struct {
 	Denylist *bool `json:"denylist"`
 
 	AggregatedStats `json:"stats,omitempty"`
+}
+
+type ScheduledQueryList []*ScheduledQuery
+
+func (sql ScheduledQueryList) Clone() (interface{}, error) {
+	var cloned ScheduledQueryList
+	for _, sq := range sql {
+		newSq := *sq
+		if sq.Snapshot != nil {
+			newSq.Snapshot = ptr.Bool(*sq.Snapshot)
+		}
+		if sq.Removed != nil {
+			newSq.Removed = ptr.Bool(*sq.Removed)
+		}
+		if sq.Platform != nil {
+			newSq.Platform = ptr.String(*sq.Platform)
+		}
+		if sq.Version != nil {
+			newSq.Version = ptr.String(*sq.Version)
+		}
+		if sq.Shard != nil {
+			newSq.Shard = ptr.Uint(*sq.Shard)
+		}
+		if sq.Denylist != nil {
+			newSq.Denylist = ptr.Bool(*sq.Snapshot)
+		}
+		cloned = append(cloned, &newSq)
+	}
+	return cloned, nil
 }
 
 type AggregatedStats struct {

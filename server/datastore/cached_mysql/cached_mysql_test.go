@@ -260,7 +260,7 @@ func TestCachedListScheduledQueriesInPack(t *testing.T) {
 	mockedDS := new(mock.Store)
 	ds := New(mockedDS, WithScheduledQueriesExpiration(100*time.Millisecond))
 
-	dbScheduledQueries := []*fleet.ScheduledQuery{
+	dbScheduledQueries := fleet.ScheduledQueryList{
 		{
 			ID:   1,
 			Name: "test-schedule-1",
@@ -281,7 +281,7 @@ func TestCachedListScheduledQueriesInPack(t *testing.T) {
 	require.Equal(t, dbScheduledQueries, scheduledQueries)
 
 	// change "stored" dbScheduledQueries.
-	dbScheduledQueries = []*fleet.ScheduledQuery{
+	dbScheduledQueries = fleet.ScheduledQueryList{
 		{
 			ID:   3,
 			Name: "test-schedule-3",
@@ -290,7 +290,7 @@ func TestCachedListScheduledQueriesInPack(t *testing.T) {
 
 	scheduledQueries2, err := ds.ListScheduledQueriesInPack(context.Background(), 1)
 	require.NoError(t, err)
-	require.Equal(t, scheduledQueries, scheduledQueries2) // returns the new db entry
+	require.Equal(t, scheduledQueries2, scheduledQueries) // returns the new db entry
 	require.Equal(t, 1, called)
 
 	time.Sleep(200 * time.Millisecond)
