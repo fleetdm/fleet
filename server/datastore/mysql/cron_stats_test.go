@@ -154,7 +154,7 @@ func TestCleanupCronStats(t *testing.T) {
 		},
 		{
 			createdAt:               now.Add(-2 * time.Hour),
-			status:                  fleet.CronStatsStatusPending,
+			status:                  fleet.CronStatsStatusExpired,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     false,
 		},
