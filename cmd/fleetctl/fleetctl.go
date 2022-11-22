@@ -87,6 +87,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		vulnerabilityDataStreamCommand(),
 		packageCommand(),
 		appleMDMCommand(),
+		generateCommand(),
 		{
 			// It's become common for folks to unintentionally install fleetctl when they actually
 			// need the Fleet server. This is hopefully a more helpful error message.

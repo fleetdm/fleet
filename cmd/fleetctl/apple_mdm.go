@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
@@ -19,6 +21,12 @@ import (
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
+)
+
+const (
+	apnsKeyPath    = "fleet-mdm-apple-apns.key"
+	scepCACertPath = "fleet-mdm-apple-scep.crt"
+	scepCAKeyPath  = "fleet-mdm-apple-scep.key"
 )
 
 func appleMDMCommand() *cli.Command {
@@ -44,124 +52,137 @@ func appleMDMCommand() *cli.Command {
 	}
 }
 
+func generateCommand() *cli.Command {
+	return &cli.Command{
+		Name: "generate",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Subcommands: []*cli.Command{
+			generateMDMAppleCommand(),
+		},
+	}
+}
+
+func generateMDMAppleCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "mdm-apple",
+		Usage: "Generates certificate signing request (CSR) and key for Apple Push Notification Service (APNs) and certificate and key for Simple Certificate Enrollment Protocol (SCEP) to turn on MDM features.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "email",
+				Usage:    "The email address to send the signed APNS csr to.",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "org",
+				Usage:    "The organization requesting the signed APNS csr.",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "apns-key",
+				Usage:    "The output path for the APNs private key.",
+				Value:    apnsKeyPath,
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "scep-cert",
+				Usage:    "The output path for the SCEP CA certificate.",
+				Value:    scepCACertPath,
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "scep-key",
+				Usage:    "The output path for the SCEP CA private key.",
+				Value:    scepCAKeyPath,
+				Required: true,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			email := c.String("email")
+			org := c.String("org")
+			apnsKeyPath := c.String("apns-key")
+			scepCACertPath := c.String("scep-cert")
+			scepCAKeyPath := c.String("scep-key")
+
+			fmt.Fprintf(
+				c.App.Writer,
+				`Sending certificate signing request (CSR) for Apple Push Notification service (APNs) to %s...
+Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, and SCEP key...
+`,
+				email,
+			)
+
+			// create apns csr and send to fleetdm.com
+			apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
+			if err != nil {
+				return fmt.Errorf("generate apns csr: %w", err)
+			}
+
+			apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+
+			err = os.WriteFile(apnsKeyPath, apnsKeyPEM, 0600)
+			if err != nil {
+				return fmt.Errorf("write private key: %w", err)
+			}
+
+			client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+
+			err = apple_mdm.GetSignedAPNSCSR(client, apnsCSR)
+			if err != nil {
+				return fmt.Errorf("get signed apns csr: %w", err)
+			}
+
+			// init scep ca
+			scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
+			if err != nil {
+				return fmt.Errorf("init scep CA: %w", err)
+			}
+
+			scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
+			err = os.WriteFile(scepCACertPath, scepCACertPEM, 0600)
+			if err != nil {
+				return fmt.Errorf("write scep ca certificate: %w", err)
+			}
+
+			scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
+			err = os.WriteFile(scepCAKeyPath, scepCAKeyPEM, 0600)
+			if err != nil {
+				return fmt.Errorf("write scep ca private key: %w", err)
+			}
+
+			fmt.Fprintf(
+				c.App.Writer,
+				`Success!
+
+Generated your APNs key at %s
+
+Generated your SCEP certificate at %s
+
+Generated your SCEP key at %s
+
+Go to your email to download a CSR from Fleet. Then, visit https://identity.apple.com/pushcert to upload the CSR. You should receive an APNs certificate in return from Apple.
+
+Next, use the generated certificates to deploy Fleet with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mdm
+`,
+				apnsKeyPath,
+				scepCACertPath,
+				scepCAKeyPath,
+			)
+
+			return nil
+		},
+	}
+}
+
 func appleMDMSetupCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "setup",
 		Usage: "Setup commands for Apple MDM",
 		Subcommands: []*cli.Command{
-			appleMDMSetupSCEPCommand(),
-			appleMDMSetupAPNSCommand(),
 			appleMDMSetupDEPCommand(),
-		},
-	}
-}
-
-func appleMDMSetupSCEPCommand() *cli.Command {
-	// TODO(lucas): Define workflow when SCEP CA certificate expires.
-	var (
-		validityYears      int
-		cn                 string
-		organization       string
-		organizationalUnit string
-		country            string
-	)
-	return &cli.Command{
-		Name:  "scep",
-		Usage: "Create SCEP certificate authority",
-		Flags: []cli.Flag{
-			&cli.IntFlag{
-				Name:        "validity-years",
-				Usage:       "Validity of the SCEP CA certificate in years",
-				Required:    true,
-				Destination: &validityYears,
-			},
-			&cli.StringFlag{
-				Name:        "cn",
-				Usage:       "Common name to set in the SCEP CA certificate",
-				Required:    true,
-				Destination: &cn,
-			},
-			&cli.StringFlag{
-				Name:        "organization",
-				Usage:       "Organization to set in the SCEP CA certificate",
-				Required:    true,
-				Destination: &organization,
-			},
-			&cli.StringFlag{
-				Name:        "organizational-unit",
-				Usage:       "Organizational unit to set in the SCEP CA certificate",
-				Required:    true,
-				Destination: &organizationalUnit,
-			},
-			&cli.StringFlag{
-				Name:        "country",
-				Usage:       "Country to set in the SCEP CA certificate",
-				Required:    true,
-				Destination: &country,
-			},
-		},
-		Action: func(c *cli.Context) error {
-			certPEM, keyPEM, err := scep_ca.Create(validityYears, cn, organization, organizationalUnit, country)
-			if err != nil {
-				return fmt.Errorf("creating SCEP CA: %w", err)
-			}
-			const (
-				certPath = "fleet-mdm-apple-scep.crt"
-				keyPath  = "fleet-mdm-apple-scep.key"
-			)
-			if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
-				return fmt.Errorf("write %s: %w", certPath, err)
-			}
-			if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
-				return fmt.Errorf("write %s: %w", keyPath, err)
-			}
-			fmt.Printf("Successfully generated SCEP CA: %s, %s.\n", certPath, keyPath)
-			fmt.Printf("Set FLEET_MDM_APPLE_SCEP_CA_CERT_PEM=$(cat %s) FLEET_MDM_APPLE_SCEP_CA_KEY_PEM=$(cat %s) when running Fleet.\n", certPath, keyPath)
-			return nil
-		},
-	}
-}
-
-func appleMDMSetupAPNSCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "apns",
-		Usage: "Commands to setup APNS certificate",
-		Subcommands: []*cli.Command{
-			appleMDMSetupAPNSInitCommand(),
-			appleMDMSetupAPNSFinalizeCommand(),
-		},
-	}
-}
-
-func appleMDMSetupAPNSInitCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "init",
-		Usage: "Start APNS certificate configuration",
-		Action: func(c *cli.Context) error {
-			// TODO(lucas): Implement command.
-			fmt.Println("Not implemented yet.")
-			return nil
-		},
-	}
-}
-
-func appleMDMSetupAPNSFinalizeCommand() *cli.Command {
-	var encryptedReq string
-	return &cli.Command{
-		Name:  "finalize",
-		Usage: "Finalize APNS certificate configuration",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "encrypted-req",
-				Usage:       "File path of the encrypted .req p7m file",
-				Destination: &encryptedReq,
-				Required:    true,
-			},
-		},
-		Action: func(c *cli.Context) error {
-			// TODO(lucas): Implement command.
-			fmt.Println("Not implemented yet.")
-			return nil
 		},
 	}
 }

@@ -39,8 +39,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	config_apple "github.com/fleetdm/fleet/v4/server/mdm/apple/config"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -386,7 +386,7 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage      *scep_mysql.MySQLDepot
+				scepStorage      *apple_mdm.SCEPMySQLDepot
 				depStorage       *mysql.NanoDEPStorage
 				mdmStorage       *mysql.NanoMDMStorage
 				mdmPushService   *nanomdm_pushsvc.PushService
