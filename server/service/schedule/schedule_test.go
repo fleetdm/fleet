@@ -393,7 +393,7 @@ func TestScheduleHoldLock(t *testing.T) {
 		require.Equal(t, 4, ml.GetLockCount())
 		require.WithinRange(t, time.Now(),
 			start.Add(3*schedInterval).Add(jobDuration),
-			start.Add(3*schedInterval).Add(jobDuration).Add(1*time.Second),
+			start.Add(3*schedInterval).Add(jobDuration).Add(2*time.Second),
 		)
 	}
 }

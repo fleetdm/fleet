@@ -45,7 +45,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
@@ -507,18 +506,6 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
-			}
-
-			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				s := schedule.New(ctx, "test_sched", instanceID, 5*time.Minute, ds, ds,
-					schedule.WithLogger(logger),
-					schedule.WithJob("test_job", func(context.Context) error {
-						time.Sleep(2 * time.Minute)
-						return nil
-					}))
-				return s, nil
-			}); err != nil {
-				initFatal(err, "failed to register test_sched schedule")
 			}
 
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
