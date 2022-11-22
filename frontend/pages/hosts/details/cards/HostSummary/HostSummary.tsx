@@ -10,6 +10,9 @@ import {
   humanHostDetailUpdated,
   wrapFleetHelper,
 } from "utilities/helpers";
+import getHostStatusTooltipText from "pages/hosts/helpers";
+import StatusCell from "components/TableContainer/DataTable/StatusCell";
+// TODO: Refactor StatusCell into smaller non-table-specific StatusIndicator component to be wrapped by StatusCell
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -72,7 +75,7 @@ const HostSummary = ({
           </Button>
         </div>
         <ReactTooltip
-          place="bottom"
+          place="top"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -129,13 +132,18 @@ const HostSummary = ({
   );
 
   const renderSummary = () => {
+    const { status, id } = titleData;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
-          <span className={`${statusClassName} info-flex__data`}>
-            {titleData.status}
-          </span>
+          <StatusCell
+            value={status || ""} // temporary work around of integration test bug
+            tooltip={{
+              id,
+              tooltipText: getHostStatusTooltipText(status),
+            }}
+          />
         </div>
         {titleData.issues?.total_issues_count > 0 &&
           isPremiumTier &&

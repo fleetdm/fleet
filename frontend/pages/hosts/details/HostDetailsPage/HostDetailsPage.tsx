@@ -329,6 +329,7 @@ const HostDetailsPage = ({
 
   const titleData = normalizeEmptyValues(
     pick(host, [
+      "id",
       "status",
       "issues",
       "memory",
