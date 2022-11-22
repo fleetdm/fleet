@@ -662,6 +662,7 @@ const HostDetailsPage = ({
                   featuresConfig?.enable_software_inventory
                 }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
+                router={router}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
