@@ -30,4 +30,30 @@ describe("Dashboard", () => {
       dashboardPage.switchesPlatform("Linux");
     });
   });
+  describe("Hosts filter by dashboard host summary", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.visit("/dashboard");
+    });
+    it("filters macOS hosts", () => {
+      cy.findByText(/macos hosts/i).click();
+      cy.findByRole("status", {
+        name: /hosts filtered by macos/i,
+      }).should("exist");
+    });
+    it("filters Windows hosts", () => {
+      cy.findByText(/windows hosts/i).click();
+      cy.findByRole("status", {
+        name: /hosts filtered by windows/i,
+      }).should("exist");
+    });
+
+    it("filters linux hosts", () => {
+      cy.findByText(/macos hosts/i).click();
+      cy.findByRole("status", {
+        name: /hosts filtered by macos/i,
+      }).should("exist");
+    });
+    // filters missing hosts and low disk space hosts on premium only, premium/admin.spec.ts
+  });
 });

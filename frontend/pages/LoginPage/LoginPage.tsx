@@ -63,7 +63,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    const { HOME } = paths;
+    const { DASHBOARD } = paths;
     const getSSO = async () => {
       try {
         const { settings } = await sessionsAPI.ssoSettings();
@@ -74,10 +74,12 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       }
     };
 
-    if (currentUser) {
-      router?.push(HOME);
-    } else {
+    if (!currentUser) {
       getSSO();
+    }
+
+    if (currentUser && !currentUser.force_password_reset) {
+      router?.push(DASHBOARD);
     }
 
     if (pageStatus && pageStatus in statusMessages) {
@@ -94,7 +96,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   };
 
   const onSubmit = async (formData: ILoginData) => {
-    const { HOME, RESET_PASSWORD } = paths;
+    const { DASHBOARD, RESET_PASSWORD } = paths;
 
     try {
       const { user, available_teams, token } = await sessionsAPI.create(
@@ -112,7 +114,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       if (user.force_password_reset) {
         return router.push(RESET_PASSWORD);
       }
-      return router.push(redirectLocation || HOME);
+      return router.push(redirectLocation || DASHBOARD);
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
@@ -121,8 +123,8 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   };
 
   const ssoSignOn = async () => {
-    const { HOME } = paths;
-    let returnToAfterAuth = HOME;
+    const { DASHBOARD } = paths;
+    let returnToAfterAuth = DASHBOARD;
     if (redirectLocation != null) {
       returnToAfterAuth = redirectLocation;
     }

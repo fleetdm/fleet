@@ -17,6 +17,7 @@ const HOST_ID = {
     seen_time: "2021-03-31T00:00:00ZZ",
     refetch_requested: false,
     hostname: "myf1337d3v1c3",
+    display_name: "myf1337d3v1c3",
     uuid: "13371337-0000-0000-1337-133713371337",
     platform: "rhel",
     osquery_version: "5.1.0",

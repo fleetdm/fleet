@@ -18,7 +18,7 @@
     flex-direction: column;
   }
 
-  a img.icon {
+  a img.external-link-icon {
     width: 12px;
     height: 12px;
     margin-left: 0.25rem;
@@ -72,6 +72,12 @@
               margin-left: $pad-small;
             }
           }
+        }
+
+        // Position tooltip over parent div
+        .component__tooltip-wrapper {
+          position: absolute;
+          margin-top: 20px;
         }
       }
 
@@ -150,12 +156,12 @@
     margin: 0;
     padding-bottom: 0;
 
-    .hostname-container {
+    .display-name-container {
       display: flex;
       align-items: center;
     }
 
-    .hostname {
+    .display-name {
       font-size: $large;
       font-weight: $bold;
     }
@@ -220,10 +226,6 @@
         }
       }
     }
-  }
-
-  .tooltip {
-    color: $ui-fleet-black-50;
   }
 
   .button img {

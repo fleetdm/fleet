@@ -9,20 +9,20 @@ import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { IHost } from "interfaces/host";
+import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQueryFormData, IQuery } from "interfaces/query";
+import { IQueryFormData, IQuery, IStoredQueryResponse } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
+import CustomLink from "components/CustomLink";
 
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IQueryPageProps {
   router: InjectedRouter;
@@ -30,14 +30,6 @@ interface IQueryPageProps {
   location: {
     query: { host_ids: string };
   };
-}
-
-interface IStoredQueryResponse {
-  query: IQuery;
-}
-
-interface IHostResponse {
-  host: IHost;
 }
 
 const baseClass = "query-page";
@@ -171,14 +163,11 @@ const QueryPage = ({
           <p>
             Fleet is unable to run a live query. Refresh the page or log in
             again. If this keeps happening please{" "}
-            <a
-              href="https://github.com/fleetdm/fleet/issues/new/choose"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              file an issue
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
+            <CustomLink
+              url="https://github.com/fleetdm/fleet/issues/new/choose"
+              text="file an issue"
+              newTab
+            />
           </p>
         </div>
       </div>

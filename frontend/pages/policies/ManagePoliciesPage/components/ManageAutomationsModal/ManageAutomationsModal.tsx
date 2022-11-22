@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
-import { IAutomationsConfig } from "interfaces/config";
+import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import { IPolicy } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
@@ -29,7 +29,10 @@ interface IManageAutomationsModalProps {
   isUpdatingAutomations: boolean;
   showPreviewPayloadModal: boolean;
   onExit: () => void;
-  handleSubmit: (formData: IAutomationsConfig | ITeamAutomationsConfig) => void;
+  handleSubmit: (formData: {
+    webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
+    integrations: IIntegrations;
+  }) => void;
   togglePreviewPayloadModal: () => void;
 }
 
@@ -255,7 +258,7 @@ const ManageAutomationsModal = ({
     return () => {
       document.removeEventListener("keydown", listener);
     };
-  }, [onSubmit]);
+  });
 
   const renderWebhook = () => {
     return (
@@ -322,11 +325,7 @@ const ManageAutomationsModal = ({
   const renderPreview = () =>
     !isWebhookEnabled ? (
       <PreviewTicketModal
-        type={
-          getIntegrationType(selectedIntegration) ||
-          (zendesk.length && "zendesk") ||
-          "jira"
-        }
+        type={getIntegrationType(selectedIntegration)}
         onCancel={togglePreviewModal}
       />
     ) : (

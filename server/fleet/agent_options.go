@@ -3,9 +3,7 @@ package fleet
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 )
 
@@ -39,13 +37,13 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 // at the time of the Fleet release.
 func ValidateJSONAgentOptions(rawJSON json.RawMessage) error {
 	var opts AgentOptions
-	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
+	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
 	}
 
 	if len(opts.CommandLineStartUpFlags) > 0 {
 		var flags osqueryCommandLineFlags
-		if err := jsonStrictDecode(opts.CommandLineStartUpFlags, &flags); err != nil {
+		if err := JSONStrictDecode(bytes.NewReader(opts.CommandLineStartUpFlags), &flags); err != nil {
 			return fmt.Errorf("command-line flags: %w", err)
 		}
 	}
@@ -83,10 +81,17 @@ type osqueryAgentOptions struct {
 
 	FilePaths    map[string][]string `json:"file_paths"`
 	FileAccesses []string            `json:"file_accesses"`
+	// Documentation for the following 2 fields is "hidden" in osquery's FIM page:
+	// https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/
+	FilePathsQuery map[string][]string `json:"file_paths_query"`
+	ExcludePaths   map[string][]string `json:"exclude_paths"`
 
 	YARA struct {
 		Signatures map[string][]string `json:"signatures"`
 		FilePaths  map[string][]string `json:"file_paths"`
+		// Documentation for signature_urls is "hidden" in osquery's YARA page:
+		// https://osquery.readthedocs.io/en/stable/deployment/yara/#retrieving-yara-rules-at-runtime
+		SignatureURLs []string `json:"signature_urls"`
 	} `json:"yara"`
 
 	PrometheusTargets struct {
@@ -251,6 +256,7 @@ type osqueryOptions struct {
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
@@ -446,6 +452,7 @@ type osqueryCommandLineFlags struct {
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 
 // the following structs are for OS-specific command-line flags supported by
@@ -465,14 +472,31 @@ type OsqueryCommandLineFlagsWindows struct {
 	EnablePowershellEventsSubscriber bool   `json:"enable_powershell_events_subscriber"`
 	EnableWindowsEventsPublisher     bool   `json:"enable_windows_events_publisher"`
 	EnableWindowsEventsSubscriber    bool   `json:"enable_windows_events_subscriber"`
+	NtfsEventPublisherDebug          bool   `json:"ntfs_event_publisher_debug"`
 	WindowsEventChannels             string `json:"windows_event_channels"`
+	UsnJournalReaderDebug            bool   `json:"usn_journal_reader_debug"`
 }
 
 type OsqueryCommandLineFlagsMacOS struct {
 	DisableEndpointsecurity    bool   `json:"disable_endpointsecurity"`
 	DisableEndpointsecurityFim bool   `json:"disable_endpointsecurity_fim"`
+	EnableKeyboardEvents       bool   `json:"enable_keyboard_events"`
+	EnableMouseEvents          bool   `json:"enable_mouse_events"`
 	EsFimMutePathLiteral       string `json:"es_fim_mute_path_literal"`
 	EsFimMutePathPrefix        string `json:"es_fim_mute_path_prefix"`
+}
+
+// those osquery flags are not OS-specific, but are also not visible using
+// osqueryd --help or select * from osquery_flags, so they can't be generated
+// by the osquery-agent-options script.
+type OsqueryCommandLineFlagsHidden struct {
+	AlsoLogToStderr       bool   `json:"alsologtostderr"`
+	EventsStreamingPlugin string `json:"events_streaming_plugin"`
+	LogBufSecs            int32  `json:"logbufsecs"`
+	LogDir                string `json:"log_dir"`
+	MaxLogSize            int32  `json:"max_log_size"`
+	MinLogLevel           int32  `json:"minloglevel"`
+	StopLoggingIfFullDisk bool   `json:"stop_logging_if_full_disk"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
@@ -482,7 +506,7 @@ type OsqueryCommandLineFlagsMacOS struct {
 // validation rules.
 func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 	var opts osqueryAgentOptions
-	if err := jsonStrictDecode(rawJSON, &opts); err != nil {
+	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
 	}
 
@@ -492,20 +516,5 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 			return fmt.Errorf("options.logger_tls_endpoint must be a path starting with '/': %q", opts.Options.LoggerTlsEndpoint)
 		}
 	}
-	return nil
-}
-
-func jsonStrictDecode(rawJSON json.RawMessage, v interface{}) error {
-	dec := json.NewDecoder(bytes.NewReader(rawJSON))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		return err
-	}
-
-	var extra json.RawMessage
-	if dec.Decode(&extra) != io.EOF {
-		return errors.New("json: extra bytes after end of object")
-	}
-
 	return nil
 }

@@ -41,7 +41,7 @@ We’ve added clarification on the performance impact bubbles that appear on the
 - Improved performance of the osquery query used to collect software inventory for Linux hosts
 - Host status on the summary page has been improved
 - Improved tooltips in Fleet UI
-- Update [Kinesis](https://fleetdm.com/docs/using-fleet/osquery-logs#kinesis) logging plugin to append newline characters to raw message bytes to properly format the Newline Delimited JSON (NDJSON) for downstream consumers
+- Updated [Kinesis](https://fleetdm.com/docs/using-fleet/log-destinations#amazon-kinesis-data-streams) logging plugin to append newline characters to raw message bytes to properly format the Newline Delimited JSON (NDJSON) for downstream consumers
 - Query packs are able to be applied to specific teams using fleetctl
 - Added instructions for using plain osquery to add hosts to Fleet in the Fleet View these instructions by heading to **Hosts > Add hosts > Advanced**
 

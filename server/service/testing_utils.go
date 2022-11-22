@@ -11,11 +11,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -32,13 +32,13 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
+func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	return newTestServiceWithConfig(t, ds, config.TestConfig(), rs, lq, opts...)
 }
 
-func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
+func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, err := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
@@ -82,7 +82,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			logger = opts[0].Logger
 		}
 		if opts[0].License != nil {
-			license = opts[0].License
+			lic = opts[0].License
 		}
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
@@ -104,8 +104,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher = opts[0].MDMPusher
 	}
 
+	ctx := license.NewContext(context.Background(), lic)
 	svc, err := NewService(
-		context.Background(),
+		ctx,
 		ds,
 		task,
 		rs,
@@ -118,7 +119,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		lq,
 		ds,
 		is,
-		*license,
 		failingPolicySet,
 		&fleet.NoOpGeoIP{},
 		enrollHostLimiter,
@@ -130,21 +130,20 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if err != nil {
 		panic(err)
 	}
-	if license.IsPremium() {
-		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c, license)
+	if lic.IsPremium() {
+		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c)
 		if err != nil {
 			panic(err)
 		}
 	}
-	return svc
+	return svc, ctx
 }
 
-func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
+func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) (fleet.Service, context.Context) {
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, &TestServerOpts{
+	return newTestServiceWithConfig(t, ds, testConfig, rs, lq, &TestServerOpts{
 		Clock: c,
 	})
-	return svc
 }
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
@@ -227,6 +226,7 @@ type TestServerOpts struct {
 	MDMStorage          nanomdm_storage.AllStorage
 	DEPStorage          nanodep_storage.AllStorage
 	MDMPusher           nanomdm_push.Pusher
+	HTTPServerConfig    *http.Server
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -242,7 +242,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 && opts[0].FleetConfig != nil {
 		cfg = *opts[0].FleetConfig
 	}
-	svc := newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
@@ -253,12 +253,17 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 	limitStore, _ := memstore.New(0)
 	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
-	server := httptest.NewServer(r)
+	server := httptest.NewUnstartedServer(r)
+	server.Config = cfg.Server.DefaultHTTPServer(ctx, r)
+	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
+		server.Config = opts[0].HTTPServerConfig
+		// make sure we use the application handler we just created
+		server.Config.Handler = r
+	}
+	server.Start()
 	t.Cleanup(func() {
 		server.Close()
 	})
-	// Set the same ReadTimeout as the actual server
-	server.Config.ReadTimeout = 25 * time.Second
 	return users, server
 }
 

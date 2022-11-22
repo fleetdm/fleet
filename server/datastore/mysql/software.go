@@ -1037,7 +1037,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) InsertVulnerabilities(
+func (ds *Datastore) InsertSoftwareVulnerabilities(
 	ctx context.Context,
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
@@ -1063,32 +1063,36 @@ func (ds *Datastore) InsertVulnerabilities(
 	return count, nil
 }
 
-func (ds *Datastore) ListSoftwareVulnerabilities(
+func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	ctx context.Context,
 	hostIDs []uint,
+	source fleet.VulnerabilitySource,
 ) (map[uint][]fleet.SoftwareVulnerability, error) {
 	result := make(map[uint][]fleet.SoftwareVulnerability)
 
 	type softwareVulnerabilityWithHostId struct {
 		fleet.SoftwareVulnerability
-		HostId uint `db:"host_id"`
+		HostID uint `db:"host_id"`
 	}
 	var queryR []softwareVulnerabilityWithHostId
 
 	stmt := dialect.
-		From(goqu.T("software_cve").As("cve")).
+		From(goqu.T("software_cve").As("sc")).
 		Join(
 			goqu.T("host_software").As("hs"),
 			goqu.On(goqu.Ex{
-				"cve.software_id": goqu.I("hs.software_id"),
+				"sc.software_id": goqu.I("hs.software_id"),
 			}),
 		).
 		Select(
-			goqu.I("hs.host_id").As("host_id"),
-			goqu.I("cve.software_id"),
-			goqu.I("cve"),
+			goqu.I("hs.host_id"),
+			goqu.I("sc.software_id"),
+			goqu.I("sc.cve"),
 		).
-		Where(goqu.C("host_id").In(hostIDs))
+		Where(
+			goqu.I("hs.host_id").In(hostIDs),
+			goqu.I("sc.source").Eq(source),
+		)
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
@@ -1100,7 +1104,7 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 	}
 
 	for _, r := range queryR {
-		result[r.HostId] = append(result[r.HostId], r.SoftwareVulnerability)
+		result[r.HostID] = append(result[r.HostID], r.SoftwareVulnerability)
 	}
 
 	return result, nil

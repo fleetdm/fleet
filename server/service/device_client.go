@@ -49,17 +49,6 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 	return dc.parseResponse(verb, path, response, responseDest)
 }
 
-// ListDevicePolicies fetches all policies for the device with the provided token
-func (dc *DeviceClient) ListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
-	var responseBody listDevicePoliciesResponse
-	err := dc.request(verb, path, "", &responseBody)
-	if err != nil {
-		return nil, err
-	}
-	return responseBody.Policies, nil
-}
-
 // TransparencyURL returns an URL that the server will use to redirect to the
 // transparency URL configured by the user
 func (dc *DeviceClient) TransparencyURL(token string) string {
@@ -74,8 +63,8 @@ func (dc *DeviceClient) DeviceURL(token string) string {
 // CheckToken checks if a token is valid by making an authenticated request to
 // the server
 func (dc *DeviceClient) CheckToken(token string) error {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
-	return dc.request(verb, path, "", &FleetDesktopResponse{})
+	_, err := dc.NumberOfFailingPolicies(token)
+	return err
 }
 
 // Ping sends a ping to the server using the device/ping endpoint
@@ -90,4 +79,42 @@ func (dc *DeviceClient) Ping() error {
 	}
 
 	return err
+}
+
+func (dc *DeviceClient) getListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
+	var responseBody listDevicePoliciesResponse
+	err := dc.request(verb, path, "", &responseBody)
+	return responseBody.Policies, err
+}
+
+func (dc *DeviceClient) getMinDesktopPayload(token string) (fleetDesktopResponse, error) {
+	verb, path := "GET", "/api/latest/fleet/device/"+token+"/desktop"
+	var r fleetDesktopResponse
+	err := dc.request(verb, path, "", &r)
+	return r, err
+}
+
+func (dc *DeviceClient) NumberOfFailingPolicies(token string) (uint, error) {
+	r, err := dc.getMinDesktopPayload(token)
+	if err == nil {
+		return uintValueOrZero(r.FailingPolicies), nil
+	}
+
+	if errors.Is(err, notFoundErr{}) {
+		policies, err := dc.getListDevicePolicies(token)
+		if err != nil {
+			return 0, err
+		}
+
+		var failingPolicies uint
+		for _, policy := range policies {
+			if policy.Response != "pass" {
+				failingPolicies++
+			}
+		}
+		return failingPolicies, nil
+	}
+
+	return 0, err
 }

@@ -8,7 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/kolide/kit/version"
 )
@@ -18,7 +20,9 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
+	lic, _ := license.FromContext(ctx)
+
 	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
 		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer)
 		if err != nil {
@@ -48,6 +52,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
+		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.writer)
+		if err == sql.ErrNoRows {
+			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err)
+		} else if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount policy violation days")
+		}
 		storedErrs, err := ctxerr.Aggregate(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics error store")
@@ -55,6 +65,14 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		amountHostsNotResponding, err := countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts not responding")
+		}
+		amountHostsByOrbitVersion, err := amountHostsByOrbitVersionDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount hosts by orbit version")
+		}
+		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
 		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
@@ -67,12 +85,16 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
+		stats.NumWeeklyPolicyViolationDaysActual = amountPolicyViolationDaysActual
+		stats.NumWeeklyPolicyViolationDaysPossible = amountPolicyViolationDaysPossible
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
+		stats.HostsEnrolledByOrbitVersion = amountHostsByOrbitVersion
+		stats.HostsEnrolledByOsqueryVersion = amountHostsByOsqueryVersion
 		stats.StoredErrors = storedErrs
 		stats.NumHostsNotResponding = amountHostsNotResponding
 		stats.Organization = "unknown"
-		if license.IsPremium() {
-			stats.Organization = license.Organization
+		if lic != nil && lic.IsPremium() {
+			stats.Organization = lic.Organization
 		}
 		return nil
 	}
@@ -94,7 +116,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			stats := fleet.StatisticsPayload{
 				AnonymousIdentifier: anonIdentifier,
 				FleetVersion:        version.Version().Version,
-				LicenseTier:         license.Tier,
+				LicenseTier:         fleet.TierFree,
+			}
+			if lic != nil {
+				stats.LicenseTier = lic.Tier
 			}
 			if err := computeStats(&stats, time.Now().Add(-frequency)); err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
@@ -116,7 +141,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	stats := fleet.StatisticsPayload{
 		AnonymousIdentifier: dest.Identifier,
 		FleetVersion:        version.Version().Version,
-		LicenseTier:         license.Tier,
+		LicenseTier:         fleet.TierFree,
+	}
+	if lic != nil {
+		stats.LicenseTier = lic.Tier
 	}
 	if err := computeStats(&stats, lastUpdated); err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
@@ -128,4 +156,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {
 	_, err := ds.writer.ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return ctxerr.Wrap(ctx, err, "update statistics")
+}
+
+func (ds *Datastore) CleanupStatistics(ctx context.Context) error {
+	// reset weekly count of policy violation days
+	if err := ds.InitializePolicyViolationDays(ctx); err != nil {
+		return err
+	}
+	return nil
 }

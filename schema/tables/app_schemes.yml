@@ -1,0 +1,10 @@
+name: app_schemes
+examples: >-
+  List applications that have registered the URL scheme "mailto" to handle email
+  links.
+
+  ```
+
+  SELECT * FROM app_schemes WHERE scheme='mailto';
+
+  ```

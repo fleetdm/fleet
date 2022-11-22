@@ -61,7 +61,7 @@ const QueryResults = ({
     if (hostsOnline) {
       const hostsExport = hostsOnline.map((host) => {
         return {
-          hostname: host.hostname,
+          host: host.display_name,
           status:
             host.query_results && host.query_results.length ? "yes" : "no",
         };

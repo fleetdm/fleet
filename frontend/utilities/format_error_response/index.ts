@@ -14,7 +14,7 @@ const formatServerErrors = (errors: IError[]) => {
     if (result[name]) {
       result[name] = join([result[name], reason], ", ");
     } else {
-      result[name] = reason;
+      result.base = reason; // Ensure a base error is always returned
     }
   });
 

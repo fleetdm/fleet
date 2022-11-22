@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -127,9 +128,9 @@ type AppConfig struct {
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
-	// this field is set to true during UnmarshalJSON if any legacy settings
-	// were set in the raw JSON.
-	didUnmarshalLegacySettings bool
+	// this field is set to the list of legacy settings keys during UnmarshalJSON
+	// if any legacy settings were set in the raw JSON.
+	didUnmarshalLegacySettings []string
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
@@ -274,9 +275,9 @@ func (c *AppConfig) ApplyDefaults() {
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
 func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
 
-// DidUnmarshalLegacySettings returns true if any legacy setting was set
-// in the JSON used to unmarshal this AppConfig.
-func (c *AppConfig) DidUnmarshalLegacySettings() bool { return c.didUnmarshalLegacySettings }
+// DidUnmarshalLegacySettings returns the list of legacy settings keys that
+// were set in the JSON used to unmarshal this AppConfig.
+func (c *AppConfig) DidUnmarshalLegacySettings() []string { return c.didUnmarshalLegacySettings }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *AppConfig) UnmarshalJSON(b []byte) error {
@@ -291,6 +292,7 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 		(*cfgStructUnmarshal)(c),
 	}
 
+	c.didUnmarshalLegacySettings = nil
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	if c.strictDecoding {
 		decoder.DisallowUnknownFields()
@@ -306,9 +308,10 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// This has the drawback of legacy fields taking precedence over new fields
 	// if both are defined.
 	if compatConfig.legacyConfig.HostSettings != nil {
-		c.didUnmarshalLegacySettings = true
+		c.didUnmarshalLegacySettings = append(c.didUnmarshalLegacySettings, "host_settings")
 		c.Features = *compatConfig.legacyConfig.HostSettings
 	}
+	sort.Strings(c.didUnmarshalLegacySettings)
 
 	return nil
 }

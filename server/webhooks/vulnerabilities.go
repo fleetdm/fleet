@@ -36,9 +36,10 @@ func TriggerVulnerabilitiesWebhook(
 	targetURL := vulnConfig.DestinationURL
 	batchSize := vulnConfig.HostBatchSize
 
+	// TODO JUAN: Handle OS Vulns
 	groups := make(map[string][]uint)
 	for _, v := range args.Vulnerablities {
-		groups[v.CVE] = append(groups[v.CVE], v.SoftwareID)
+		groups[v.GetCVE()] = append(groups[v.GetCVE()], v.Affected())
 	}
 
 	for cve, sIDs := range groups {

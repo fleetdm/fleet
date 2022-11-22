@@ -1,0 +1,11 @@
+name: curl_certificate
+examples: >-
+  Identify the certificates being served to osquery clients. This can allow you
+  to detect machines that are behind a proxy or firewall attempting to decrypt
+  TLS, maliciously or not.
+
+  ```
+
+  SELECT issuer_organization, signature, sha256_fingerprint FROM curl_certificate WHERE hostname='google.com';
+
+  ```

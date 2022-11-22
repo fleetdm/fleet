@@ -60,7 +60,7 @@ func (u UserTeam) MarshalJSON() ([]byte, error) {
 		UserCount int             `json:"user_count"`
 		Users     []TeamUser      `json:"users,omitempty"`
 		HostCount int             `json:"host_count"`
-		Hosts     []Host          `json:"hosts,omitempty"`
+		Hosts     []HostResponse  `json:"hosts,omitempty"`
 		Secrets   []*EnrollSecret `json:"secrets,omitempty"`
 		Role      string          `json:"role"`
 	}{
@@ -72,7 +72,7 @@ func (u UserTeam) MarshalJSON() ([]byte, error) {
 		UserCount:   u.UserCount,
 		Users:       u.Users,
 		HostCount:   u.HostCount,
-		Hosts:       u.Hosts,
+		Hosts:       HostResponsesForHostsCheap(u.Hosts),
 		Secrets:     u.Secrets,
 		Role:        u.Role,
 	}

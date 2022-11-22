@@ -82,15 +82,15 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 		now := time.Now()
 
 		hosts := []*fleet.HostShort{
-			{ID: 1, Hostname: "h1"},
-			{ID: 2, Hostname: "h2"},
-			{ID: 3, Hostname: "h3"},
-			{ID: 4, Hostname: "h4"},
+			{ID: 1, Hostname: "h1", DisplayName: "d1"},
+			{ID: 2, Hostname: "h2", DisplayName: "d2"},
+			{ID: 3, Hostname: "h3", DisplayName: "d3"},
+			{ID: 4, Hostname: "h4", DisplayName: "d4"},
 		}
-		jsonH1 := fmt.Sprintf(`{"id":1,"hostname":"h1","url":"%s/hosts/1"}`, appCfg.ServerSettings.ServerURL)
-		jsonH2 := fmt.Sprintf(`{"id":2,"hostname":"h2","url":"%s/hosts/2"}`, appCfg.ServerSettings.ServerURL)
-		jsonH3 := fmt.Sprintf(`{"id":3,"hostname":"h3","url":"%s/hosts/3"}`, appCfg.ServerSettings.ServerURL)
-		jsonH4 := fmt.Sprintf(`{"id":4,"hostname":"h4","url":"%s/hosts/4"}`, appCfg.ServerSettings.ServerURL)
+		jsonH1 := fmt.Sprintf(`{"id":1,"hostname":"h1","display_name":"d1","url":"%s/hosts/1"}`, appCfg.ServerSettings.ServerURL)
+		jsonH2 := fmt.Sprintf(`{"id":2,"hostname":"h2","display_name":"d2","url":"%s/hosts/2"}`, appCfg.ServerSettings.ServerURL)
+		jsonH3 := fmt.Sprintf(`{"id":3,"hostname":"h3","display_name":"d3","url":"%s/hosts/3"}`, appCfg.ServerSettings.ServerURL)
+		jsonH4 := fmt.Sprintf(`{"id":4,"hostname":"h4","display_name":"d4","url":"%s/hosts/4"}`, appCfg.ServerSettings.ServerURL)
 
 		cves := []string{
 			"CVE-2012-1234",
@@ -117,35 +117,48 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 			},
 			{
 				"1 vuln in multiple software, 1 host",
-				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[0], SoftwareID: 1}, {CVE: cves[0], SoftwareID: 2}},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+					{CVE: cves[0], SoftwareID: 1},
+					{CVE: cves[0], SoftwareID: 2},
+				},
 				nil,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}", jsonCVE1, jsonH1),
 			},
 			{
 				"1 vuln, 2 hosts",
-				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+				},
 				nil,
 				hosts[:2],
 				fmt.Sprintf("%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2),
 			},
 			{
 				"1 vuln, 3 hosts",
-				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+				},
 				nil,
 				hosts[:3],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3), // 2 requests, batch of 2 max
 			},
 			{
 				"1 vuln, 4 hosts",
-				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+				},
 				nil,
 				hosts[:4],
 				fmt.Sprintf("%s[%s,%s]}}\n%s[%s,%s]}}", jsonCVE1, jsonH1, jsonH2, jsonCVE1, jsonH3, jsonH4), // 2 requests, batch of 2 max
 			},
 			{
 				"2 vulns, 1 host each",
-				[]fleet.SoftwareVulnerability{{CVE: cves[0], SoftwareID: 1}, {CVE: cves[1], SoftwareID: 2}},
+				[]fleet.SoftwareVulnerability{
+					{CVE: cves[0], SoftwareID: 1},
+					{CVE: cves[1], SoftwareID: 2},
+				},
 				nil,
 				hosts[:1],
 				fmt.Sprintf("%s[%s]}}\n%s[%s]}}", jsonCVE1, jsonH1, jsonCVE2, jsonH1),

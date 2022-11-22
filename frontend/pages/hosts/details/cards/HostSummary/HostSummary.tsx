@@ -1,6 +1,7 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
@@ -13,9 +14,14 @@ import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50
 
 const baseClass = "host-summary";
 
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
+}
 interface IHostSummaryProps {
   statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
@@ -30,6 +36,7 @@ interface IHostSummaryProps {
 const HostSummary = ({
   statusClassName,
   titleData,
+  diskEncryption,
   isPremiumTier,
   isOnlyObserver,
   toggleOSPolicyModal,
@@ -131,13 +138,9 @@ const HostSummary = ({
           </span>
         </div>
         {titleData.issues?.total_issues_count > 0 &&
-          deviceUser &&
           isPremiumTier &&
           renderIssues()}
-        {titleData.issues?.total_issues_count > 0 &&
-          !deviceUser &&
-          renderIssues()}
-        {!deviceUser && isPremiumTier && renderHostTeam()}
+        {isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
           <DiskSpaceGraph
@@ -147,6 +150,17 @@ const HostSummary = ({
             id={"disk-space-tooltip"}
           />
         </div>
+        {typeof diskEncryption?.enabled === "boolean" &&
+        diskEncryption?.tooltip ? (
+          <div className="info-flex__item info-flex__item--title">
+            <span className="info-flex__header">Disk encryption</span>
+            <TooltipWrapper tipContent={diskEncryption.tooltip}>
+              {diskEncryption.enabled ? "On" : "Off"}
+            </TooltipWrapper>
+          </div>
+        ) : (
+          <></>
+        )}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
           <span className="info-flex__data">
@@ -173,12 +187,10 @@ const HostSummary = ({
             )}
           </span>
         </div>
-        {!deviceUser && (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Osquery</span>
-            <span className="info-flex__data">{titleData.osquery_version}</span>
-          </div>
-        )}
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Osquery</span>
+          <span className="info-flex__data">{titleData.osquery_version}</span>
+        </div>
       </div>
     );
   };
@@ -187,9 +199,9 @@ const HostSummary = ({
     <>
       <div className="header title">
         <div className="title__inner">
-          <div className="hostname-container">
-            <h1 className="hostname">
-              {deviceUser ? "My device" : titleData.hostname || "---"}
+          <div className="display-name-container">
+            <h1 className="display-name">
+              {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
             <p className="last-fetched">
               {`Last fetched ${humanHostDetailUpdated(

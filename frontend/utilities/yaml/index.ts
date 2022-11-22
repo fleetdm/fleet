@@ -11,7 +11,7 @@ export const constructErrorString = (yamlError: IYAMLError) => {
 };
 
 export const agentOptionsToYaml = (agentOpts: any) => {
-  agentOpts ||= {};
+  agentOpts ||= { config: {} };
 
   // hide the "overrides" key if it is empty
   if (!agentOpts.overrides || Object.keys(agentOpts.overrides).length === 0) {
@@ -31,7 +31,8 @@ export const agentOptionsToYaml = (agentOpts: any) => {
 
   let yamlString = yaml.dump(agentOpts);
   if (addFlagsComment) {
-    yamlString += "command_line_flags: {} # requires Orbit\n";
+    yamlString +=
+      "command_line_flags: {} # requires Fleet's osquery installer\n";
   }
 
   return yamlString;

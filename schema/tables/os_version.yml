@@ -1,0 +1,20 @@
+name: os_version
+examples: >-
+  See the OS version as well as the CPU architecture in use (X86 vs ARM for
+  example)
+
+  ```
+
+  SELECT arch, version FROM os_version;
+
+  ```
+columns:
+  - name: install_date
+    platforms:
+      - windows
+  - name: pid_with_namespace
+    platforms:
+      - linux
+  - name: mount_namespace_id
+    platforms:
+      - linux

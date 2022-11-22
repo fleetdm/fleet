@@ -23,3 +23,8 @@ func getSystemTheme() (theme, error) {
 func watchSystemTheme(_ *iconManager) {
 	log.Debug().Msg("watch system theme not implemented for this platform")
 }
+
+func blockWaitForStopEvent(channelId string) error {
+	log.Debug().Msg("communication channel helpers are not implemented for this platform")
+	return nil
+}

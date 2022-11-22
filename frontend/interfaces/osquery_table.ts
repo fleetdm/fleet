@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { IOsqueryPlatform } from "./platform";
 
 export default PropTypes.shape({
   columns: PropTypes.arrayOf(
@@ -13,27 +14,37 @@ export default PropTypes.shape({
   platform: PropTypes.string,
 });
 
-interface ITableColumn {
-  description: string;
+export type ColumnType =
+  | "integer"
+  | "bigint"
+  | "double"
+  | "text"
+  | "unsigned_bigint";
+
+export interface IQueryTableColumn {
   name: string;
-  type: string;
+  description: string;
+  type: ColumnType;
   hidden: boolean;
   required: boolean;
   index: boolean;
+  platforms?: IOsqueryPlatform[];
+  requires_user_context?: boolean;
 }
 
-export interface IOsqueryTable {
-  columns: ITableColumn[];
-  description: string;
+export interface IOsQueryTable {
   name: string;
-  platform?: string;
+  description: string;
   url: string;
-  platforms: string[];
+  platforms: IOsqueryPlatform[];
   evented: boolean;
   cacheable: boolean;
+  columns: IQueryTableColumn[];
+  examples?: string;
+  notes?: string;
 }
 
-export const DEFAULT_OSQUERY_TABLE: IOsqueryTable = {
+export const DEFAULT_OSQUERY_TABLE: IOsQueryTable = {
   name: "users",
   description:
     "Local user accounts (including domain accounts that have logged on locally (Windows)).",

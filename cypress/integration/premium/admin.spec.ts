@@ -6,6 +6,7 @@ import manageQueriesPage from "../pages/manageQueriesPage";
 import manageSoftwarePage from "../pages/manageSoftwarePage";
 import teamsDropdown from "../pages/teamsDropdown";
 import userProfilePage from "../pages/userProfilePage";
+import dashboardPage from "../pages/dashboardPage";
 
 const { GOOD_PASSWORD, CONFIG_INTEGRATIONS_AUTOMATIONS } = CONSTANTS;
 
@@ -54,7 +55,6 @@ const getTeamJiraPoliciesIntegration = {
     agent_options: {
       config: {
         options: {
-          logger_plugin: "tls",
           pack_delimiter: "/",
           logger_tls_period: 10,
           distributed_plugin: "tls",
@@ -207,7 +207,6 @@ const getTeamZendeskPoliciesIntegration = {
     agent_options: {
       config: {
         options: {
-          logger_plugin: "tls",
           pack_delimiter: "/",
           logger_tls_period: 10,
           distributed_plugin: "tls",
@@ -334,8 +333,8 @@ describe("Premium tier - Global Admin user", () => {
   beforeEach(() => {
     cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
   });
-  describe("Navigation", () => {
-    beforeEach(() => cy.visit("/dashboard"));
+  describe("Navigation and dashboard", () => {
+    beforeEach(() => dashboardPage.visitsDashboardPage());
     it("displays intended global admin top navigation", () => {
       cy.getAttached(".site-nav-container").within(() => {
         cy.findByText(/hosts/i).should("exist");
@@ -356,6 +355,20 @@ describe("Premium tier - Global Admin user", () => {
       cy.getAttached(".react-tabs__tab--selected").within(() => {
         cy.findByText(/users/i).should("exist");
       });
+    });
+    // Premium dashboard feature
+    it("filters missing hosts", () => {
+      cy.findByText(/missing hosts/i).click();
+      cy.getAttached(".manage-hosts__filter-dropdowns").within(() => {
+        cy.findByText(/missing hosts/i).should("exist");
+      });
+    });
+    // Premium dashboard feature
+    it("filters low disk space hosts", () => {
+      cy.findByText(/low disk space hosts/i).click();
+      cy.findByRole("status", {
+        name: /hosts filtered by low disk space/i,
+      }).should("exist");
     });
   });
   // Global Admin dashboard tested in integration/free/admin.spec.ts

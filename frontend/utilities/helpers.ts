@@ -1,7 +1,6 @@
 import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
 import {
-  format,
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
@@ -9,7 +8,6 @@ import {
 } from "date-fns";
 import yaml from "js-yaml";
 
-import { IConfig } from "interfaces/config";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -76,6 +74,15 @@ const statusKey = [
     type: "status",
   },
   {
+    id: "missing",
+    count: 0,
+    description: "Hosts that have not been online in 30 days or more.",
+    display_text: "Missing",
+    slug: "missing",
+    statusLabelKey: "missing_count",
+    type: "status",
+  },
+  {
     id: "offline",
     count: 0,
     description: "Hosts that have not checked-in to Fleet recently.",
@@ -88,7 +95,7 @@ const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;
 };
 const isHost = (target: ISelectTargetsEntity) => {
-  return "hostname" in target;
+  return "display_name" in target;
 };
 
 const filterTarget = (targetType: string) => {
@@ -610,6 +617,31 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   }
 };
 
+const DISK_ENCRYPTION_MESSAGES = {
+  darwin: {
+    enabled:
+      "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
+    disabled:
+      "The disk might be encrypted, but FileVault is off. The<br/> disk can be accessed without entering a password.",
+  },
+  windows: {
+    enabled:
+      "The disk is encrypted. If recently turned on,<br/> encryption could take awhile.",
+    disabled: "The disk is unencrypted.",
+  },
+};
+
+export const humanHostDiskEncryptionEnabled = (
+  platform?: string,
+  isDiskEncrypted = false
+): string => {
+  if (platform !== "windows" && platform !== "darwin") {
+    return "Disk encryption is enabled.";
+  }
+  const encryptionStatus = isDiskEncrypted ? "enabled" : "disabled";
+  return DISK_ENCRYPTION_MESSAGES[platform][encryptionStatus];
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";
@@ -798,6 +830,7 @@ export default {
   humanHostEnrolled,
   humanHostMemory,
   humanHostDetailUpdated,
+  humanHostDiskEncryptionEnabled,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,

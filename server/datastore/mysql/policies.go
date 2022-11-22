@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -689,4 +690,157 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	}
 
 	return nil
+}
+
+// PolicyViolationDays is a structure used for aggregate counts of policy violation days.
+type PolicyViolationDays struct {
+	// FailingHostCount is an aggregate count of actual policy violations days. One actual policy
+	// violation day is added for each policy that a host is failing at the time of the count.
+	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
+	// TotalHostCount is an aggregate count of possible policy violations days. One possible policy
+	// violation day is added for each policy that a host is a member of at the time of the count.
+	TotalHostCount uint `json:"total_host_count" db:"total_host_count"`
+}
+
+func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return incrementViolationDaysDB(ctx, tx)
+	})
+}
+
+func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
+	const (
+		statsID        = 0
+		statsType      = "policy_violation_days"
+		updateInterval = 24 * time.Hour
+	)
+
+	var prevFailing uint
+	var prevTotal uint
+	var shouldIncrement bool
+
+	// get current count of policy violation days from `aggregated_stats``
+	selectStmt := `
+		SELECT 
+			json_value, 
+			created_at, 
+			updated_at 
+		FROM 
+			aggregated_stats 
+		WHERE 
+			id = ? AND type = ?`
+	dest := struct {
+		CreatedAt time.Time       `json:"created_at" db:"created_at"`
+		UpdatedAt time.Time       `json:"updated_at" db:"updated_at"`
+		StatsJSON json.RawMessage `json:"json_value" db:"json_value"`
+	}{}
+
+	err := sqlx.GetContext(ctx, tx, &dest, selectStmt, statsID, statsType)
+	switch {
+	case err == sql.ErrNoRows:
+		// no previous counts exists so initialize counts as zero and proceed to increment
+		prevFailing = 0
+		prevTotal = 0
+		shouldIncrement = true
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "selecting policy violation days aggregated stats")
+	default:
+		// increment previous counts if interval has elapsed
+		var prevStats PolicyViolationDays
+		if err := json.Unmarshal(dest.StatsJSON, &prevStats); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshal policy violation counts")
+		}
+		prevFailing = prevStats.FailingHostCount
+		prevTotal = prevStats.TotalHostCount
+		shouldIncrement = time.Now().After(dest.UpdatedAt.Add(updateInterval))
+	}
+
+	if !shouldIncrement {
+		return nil
+	}
+
+	// increment count of policy violation days by total number of failing records from
+	// `policy_membership`
+	var newCounts PolicyViolationDays
+	if err := sqlx.GetContext(ctx, tx, &newCounts, `
+	     SELECT	(select count(*) from policy_membership where passes=0) as failing_host_count,
+       		(select count(*) from policy_membership) as total_host_count`,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "count policy violation days")
+	}
+	newCounts.FailingHostCount = prevFailing + newCounts.FailingHostCount
+	newCounts.TotalHostCount = prevTotal + newCounts.TotalHostCount
+	statsJSON, err := json.Marshal(newCounts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal policy violation counts")
+	}
+
+	// upsert `aggregated_stats` with new count
+	upsertStmt := `
+		INSERT INTO 
+			aggregated_stats (id, type, json_value) 
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE 
+			json_value = VALUES(json_value)`
+	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, statsJSON); err != nil {
+		return ctxerr.Wrap(ctx, err, "update policy violation days aggregated stats")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) InitializePolicyViolationDays(ctx context.Context) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return initializePolicyViolationDaysDB(ctx, tx)
+	})
+}
+
+func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
+	const (
+		statsID   = 0
+		statsType = "policy_violation_days"
+	)
+
+	statsJSON, err := json.Marshal(PolicyViolationDays{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal policy violation counts")
+	}
+
+	stmt := `
+		INSERT INTO 
+			aggregated_stats (id, type, json_value) 
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE 
+			json_value = VALUES(json_value),
+			created_at = CURRENT_TIMESTAMP`
+	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, statsJSON); err != nil {
+		return ctxerr.Wrap(ctx, err, "initialize policy violation days aggregated stats")
+	}
+
+	return nil
+}
+
+func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (int, int, error) {
+	const (
+		statsID   = 0
+		statsType = "policy_violation_days"
+	)
+	var statsJSON json.RawMessage
+	if err := sqlx.GetContext(ctx, tx, &statsJSON, `
+		SELECT 
+			json_value 
+		FROM 
+			aggregated_stats 
+		WHERE 
+			id = ? AND type = ?
+	`, statsID, statsType); err != nil {
+		return 0, 0, err
+	}
+
+	var counts PolicyViolationDays
+	if err := json.Unmarshal(statsJSON, &counts); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "unmarshal policy violation counts")
+	}
+
+	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
 }

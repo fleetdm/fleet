@@ -1,0 +1,50 @@
+name: munki_info
+notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).
+description: Information from the last [Munki](https://github.com/munki/munki) run.
+platforms: darwin
+evented: false
+examples: >-
+  Output errors, warnings and problematic installations from Munki.
+
+  ```
+  
+  SELECT errors, warnings, problem_installs FROM munki_info ;
+  
+  ```
+columns:
+  - name: console_user
+    description: The username of the user currently logged into the console of the Mac.
+    required: false
+    type: text
+  - name: end_time
+    description: The date and time at which the latest Munki run ended.
+    required: false
+    type: text
+  - name: errors
+    description: If Munki encountered any error during the last run, they will be returned in this column.
+    required: false
+    type: text
+  - name: manifest_name
+    description: The internal manifest name
+    required: false
+    type: text
+  - name: problem_installs
+    description: A list of installs that did not succeed, if any.
+    required: false
+    type: text
+  - name: start_time
+    description: The date and time at which the latest Munki run started.
+    required: false
+    type: text
+  - name: success
+    description: Shows if the Munki run was a success (true), or not (false).
+    required: false
+    type: text
+  - name: version
+    description: The version of Munki used during the last run.
+    required: false
+    type: text
+  - name: warnings
+    description: If Munki encountered any error during the last run, they will be returned in this column.
+    required: false
+    type: text

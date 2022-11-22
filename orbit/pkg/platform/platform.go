@@ -9,11 +9,13 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-ps"
-	"github.com/rs/zerolog/log"
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 )
 
-var ErrProcessNotFound = errors.New("process not found")
+var (
+	ErrProcessNotFound    = errors.New("process not found")
+	ErrComChannelNotFound = errors.New("comm channel not found")
+)
 
 // readPidFromFile reads a PID from a file
 func readPidFromFile(destDir string, destFile string) (int32, error) {
@@ -118,7 +120,7 @@ func getProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	for _, process := range processes {
 		processName, err := process.Name()
 		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
+			// No need to print errors here as this method might file for system processes
 			continue
 		}
 
@@ -153,38 +155,6 @@ func KillAllProcessByName(name string) error {
 	}
 
 	return nil
-}
-
-// GetProcessByName gets a single process object by its name
-func GetProcessByName(name string) (*gopsutil_process.Process, error) {
-	if name == "" {
-		return nil, errors.New("process name should not be empty")
-	}
-
-	processes, err := gopsutil_process.Processes()
-	if err != nil {
-		return nil, err
-	}
-
-	var foundProcess *gopsutil_process.Process
-	for _, process := range processes {
-		processName, err := process.Name()
-		if err != nil {
-			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
-			continue
-		}
-
-		if strings.HasPrefix(processName, name) {
-			foundProcess = process
-			break
-		}
-	}
-
-	if foundProcess == nil {
-		return nil, ErrProcessNotFound
-	}
-
-	return foundProcess, nil
 }
 
 // KillFromPIDFile kills a process taking the PID value from a file

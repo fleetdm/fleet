@@ -13,34 +13,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gocarina/gocsv"
 )
-
-// HostResponse is the response struct that contains the full host information
-// along with the host online status and the "display text" to be used when
-// rendering in the UI.
-type HostResponse struct {
-	*fleet.Host
-	Status           fleet.HostStatus   `json:"status" csv:"status"`
-	DisplayText      string             `json:"display_text" csv:"display_text"`
-	DisplayName      string             `json:"display_name" csv:"display_name"`
-	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
-	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
-	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
-}
-
-func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
-	return &HostResponse{
-		Host:        host,
-		Status:      host.Status(time.Now()),
-		DisplayText: host.Hostname,
-		DisplayName: host.DisplayName(),
-		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
-	}, nil
-}
 
 // HostDetailResponse is the response struct that contains the full host information
 // with the HostDetail details.
@@ -71,8 +49,8 @@ type listHostsRequest struct {
 }
 
 type listHostsResponse struct {
-	Hosts    []HostResponse  `json:"hosts"`
-	Software *fleet.Software `json:"software,omitempty"`
+	Hosts    []fleet.HostResponse `json:"hosts"`
+	Software *fleet.Software      `json:"software,omitempty"`
 	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
 	// filter if one is provided with the request (and it exists in the
 	// database). It is nil otherwise and absent of the JSON response payload.
@@ -123,9 +101,9 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		return listHostsResponse{Err: err}, nil
 	}
 
-	hostResponses := make([]HostResponse, len(hosts))
+	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
-		h, err := hostResponseForHost(ctx, svc, host)
+		h, err := fleet.HostResponseForHost(ctx, svc, host)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -167,7 +145,7 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	if !svc.license.IsPremium() {
+	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
 	}
@@ -283,7 +261,7 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 		return 0, err
 	}
 
-	if !svc.license.IsPremium() {
+	if !license.IsPremium(ctx) {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
 	}
@@ -317,8 +295,8 @@ type searchHostsRequest struct {
 }
 
 type searchHostsResponse struct {
-	Hosts []*hostSearchResult `json:"hosts"`
-	Err   error               `json:"error,omitempty"`
+	Hosts []*fleet.HostResponse `json:"hosts"`
+	Err   error                 `json:"error,omitempty"`
 }
 
 func (r searchHostsResponse) error() error { return r.Err }
@@ -331,18 +309,10 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return searchHostsResponse{Err: err}, nil
 	}
 
-	results := []*hostSearchResult{}
+	results := []*fleet.HostResponse{}
 
 	for _, h := range hosts {
-		results = append(results,
-			&hostSearchResult{
-				HostResponse{
-					Host:   h,
-					Status: h.Status(time.Now()),
-				},
-				h.Hostname,
-			},
-		)
+		results = append(results, fleet.HostResponseForHostCheap(h))
 	}
 
 	return searchHostsResponse{
@@ -509,7 +479,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	if !svc.license.IsPremium() {
+	if !license.IsPremium(ctx) {
 		lowDiskSpace = nil
 	}
 
@@ -921,6 +891,50 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// MDM
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostMDMRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostMDMResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.HostMDM
+}
+
+func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getHostMDMRequest)
+	mdm, err := svc.MDMData(ctx, req.ID)
+	if err != nil {
+		return getHostMDMResponse{Err: err}, nil
+	}
+	return getHostMDMResponse{HostMDM: mdm}, nil
+}
+
+type getHostMDMSummaryResponse struct {
+	fleet.AggregatedMDMData
+	Err error `json:"error,omitempty"`
+}
+
+type getHostMDMSummaryRequest struct {
+	TeamID   *uint  `query:"team_id,optional"`
+	Platform string `query:"platform,optional"`
+}
+
+func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getHostMDMSummaryRequest)
+	resp := getHostMDMSummaryResponse{}
+	var err error
+
+	resp.AggregatedMDMData, err = svc.AggregatedMDMData(ctx, req.TeamID, req.Platform)
+	if err != nil {
+		return getHostMDMSummaryResponse{Err: err}, nil
+	}
+	return resp, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Macadmins
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1047,18 +1061,15 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MunkiIssues = issues
 
-	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
+	var mdmUpdatedAt, mdmSolutionsUpdatedAt time.Time
+	agg.MDMStatus, mdmUpdatedAt, err = svc.ds.AggregatedMDMStatus(ctx, teamID, "darwin")
 	if err != nil {
 		return nil, err
 	}
-	agg.MDMStatus = status
-
-	solutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	agg.MDMSolutions, mdmSolutionsUpdatedAt, err = svc.ds.AggregatedMDMSolutions(ctx, teamID, "darwin")
 	if err != nil {
 		return nil, err
 	}
-	agg.MDMSolutions = solutions
-
 	agg.CountsUpdatedAt = munkiUpdatedAt
 	if munkiIssUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = munkiIssUpdatedAt
@@ -1073,6 +1084,48 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	return agg, nil
 }
 
+func (svc *Service) MDMData(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host for MDMData")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	var mdm *fleet.HostMDM
+	switch hmdm, err := svc.ds.GetHostMDM(ctx, id); {
+	case err != nil && !fleet.IsNotFound(err):
+		return nil, err
+	case err == nil:
+		mdm = hmdm
+	}
+	return mdm, nil
+}
+
+func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platform string) (fleet.AggregatedMDMData, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return fleet.AggregatedMDMData{}, err
+	}
+
+	var err error
+	data := fleet.AggregatedMDMData{}
+	data.MDMStatus, _, err = svc.ds.AggregatedMDMStatus(ctx, teamID, platform)
+	if err != nil {
+		return fleet.AggregatedMDMData{}, err
+	}
+	data.MDMSolutions, _, err = svc.ds.AggregatedMDMSolutions(ctx, teamID, platform)
+	if err != nil {
+		return fleet.AggregatedMDMData{}, err
+	}
+	return data, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Hosts Report in CSV downloadable file
 ////////////////////////////////////////////////////////////////////////////////
@@ -1085,9 +1138,9 @@ type hostsReportRequest struct {
 }
 
 type hostsReportResponse struct {
-	Columns []string        `json:"-"` // used to control the generated csv, see the hijackRender method
-	Hosts   []*HostResponse `json:"-"` // they get rendered explicitly, in csv
-	Err     error           `json:"error,omitempty"`
+	Columns []string              `json:"-"` // used to control the generated csv, see the hijackRender method
+	Hosts   []*fleet.HostResponse `json:"-"` // they get rendered explicitly, in csv
+	Err     error                 `json:"error,omitempty"`
 }
 
 func (r hostsReportResponse) error() error { return r.Err }
@@ -1228,9 +1281,9 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	hostResps := make([]*HostResponse, len(hosts))
+	hostResps := make([]*fleet.HostResponse, len(hosts))
 	for i, h := range hosts {
-		hr, err := hostResponseForHost(ctx, svc, h)
+		hr, err := fleet.HostResponseForHost(ctx, svc, h)
 		if err != nil {
 			return hostsReportResponse{Err: err}, nil
 		}

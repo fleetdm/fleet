@@ -910,6 +910,18 @@ spec:
   contributors: nabilschear
 ---
 apiVersion: v1
+kind: query
+spec:
+  name: Identify the default mail, http and ftp applications
+  platforms: macOS
+  platform: darwin
+  description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
+  query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: brunerd
+---
+apiVersion: v1
 kind: policy
 spec:
   name: Firewall enabled, domain profile (Windows)
@@ -992,4 +1004,33 @@ spec:
   tags: compliance, CIS, CIS18.9.108.2.1
   platform: windows
   contributors: defensivedepth
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Identify Apple development secrets (macOS)
+  query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
+  description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
+  resolution: "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations."
+  tags: compliance, inventory, built-in
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Geolocate via ipapi.co
+  platform: darwin, linux, windows
+  description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  query: >- 
+    SELECT JSON_EXTRACT(result, '$.ip') AS ip,
+    JSON_EXTRACT(result, '$.city') AS city,
+    JSON_EXTRACT(result, '$.region') AS region,
+    JSON_EXTRACT(result, '$.country') AS country,
+    JSON_EXTRACT(result, '$.latitude') AS latitude,
+    JSON_EXTRACT(result, '$.longitude') AS longitude
+    FROM curl
+    WHERE url = 'http://ipapi.co/json';
+  purpose: inventory
+  tags: inventory
+  contributors: zwass

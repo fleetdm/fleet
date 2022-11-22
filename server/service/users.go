@@ -883,11 +883,11 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 
 	reset, err := svc.ds.FindPasswordResetByToken(ctx, token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "looking up reset by token")
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "find password reset request by token")
 	}
 	user, err := svc.ds.UserByID(ctx, reset.UserID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving user")
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "find user by id")
 	}
 
 	if user.SSOEnabled {
@@ -969,9 +969,8 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	request := &fleet.PasswordResetRequest{
-		ExpiresAt: time.Now().Add(time.Hour * 24),
-		UserID:    user.ID,
-		Token:     token,
+		UserID: user.ID,
+		Token:  token,
 	}
 	_, err = svc.ds.NewPasswordResetRequest(ctx, request)
 	if err != nil {

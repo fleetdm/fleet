@@ -23,6 +23,7 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
@@ -43,28 +44,29 @@ export default {
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const munkiIssueId = options?.munkiIssueId;
+    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
 
     const queryParams = {
       query: globalFilter,
       team_id: teamId,
-      ...reconcileMutuallyExclusiveHostParams(
+      ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId
-      ),
-      status,
+        softwareId,
+        lowDiskSpaceHosts,
+      }),
       label_id: label,
+      status,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
     const endpoint = endpoints.HOSTS_COUNT;
     const path = `${endpoint}?${queryString}`;
-
     return sendRequest("GET", path);
   },
 };

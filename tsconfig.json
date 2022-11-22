@@ -5,7 +5,8 @@
     "target": "ES2019",
     "sourceMap": true,
     "jsx": "react",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
   },
   "include": [
     "./frontend/**/*"

@@ -53,22 +53,22 @@ describe("Premium tier - Team Admin user", () => {
   describe("Dashboard", () => {
     beforeEach(() => cy.visit("/dashboard"));
     it("displays cards for team only, no activity card, and does not filter host platform", () => {
-      dashboardPage.displaysCards();
+      dashboardPage.displaysCards("team", "premium");
       dashboardPage.verifiesFilteredHostByPlatform("none");
     });
     it("displays cards for windows only and filters hosts by Windows platform", () => {
       dashboardPage.switchesPlatform("Windows");
-      dashboardPage.displaysCards("Windows");
+      dashboardPage.displaysCards("Windows", "premium");
       dashboardPage.verifiesFilteredHostByPlatform("Windows");
     });
     it("displays cards for linux only and filters hosts by Linux platform", () => {
       dashboardPage.switchesPlatform("Linux");
-      dashboardPage.displaysCards("Linux");
+      dashboardPage.displaysCards("Linux", "premium");
       dashboardPage.verifiesFilteredHostByPlatform("Linux");
     });
     it("displays cards for macOS only and filters hosts by macOS platform", () => {
       dashboardPage.switchesPlatform("macOS");
-      dashboardPage.displaysCards("macOS");
+      dashboardPage.displaysCards("macOS", "premium");
       dashboardPage.verifiesFilteredHostByPlatform("macOS");
     });
   });

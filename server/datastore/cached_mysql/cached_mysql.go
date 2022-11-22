@@ -55,7 +55,7 @@ func clone(v interface{}) (interface{}, error) {
 
 	clone := reflect.New(vv.Type())
 
-	err := copier.Copy(clone.Interface(), v)
+	err := copier.CopyWithOption(clone.Interface(), v, copier.Option{DeepCopy: true, IgnoreEmpty: true})
 	if err != nil {
 		return nil, err
 	}

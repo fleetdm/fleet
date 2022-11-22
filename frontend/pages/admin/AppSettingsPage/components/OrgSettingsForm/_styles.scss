@@ -43,6 +43,16 @@
   }
 }
 
+.info-banner {
+  margin-top: $pad-medium;
+}
+
+.org-info .app-config-form {
+  &__inputs {
+    width: 60%;
+  }
+}
+
 .app-config-form {
   width: 100%;
 
@@ -86,12 +96,15 @@
 
     h2 {
       padding-bottom: $pad-small;
-      max-width: 65%;
+      max-width: 100%;
       font-size: $medium;
       font-weight: $regular;
       color: $core-fleet-black;
       border-bottom: solid 1px $ui-fleet-blue-15;
       margin: 0 0 $pad-xxlarge;
+      @media(min-width: $break-990) {
+        max-width: 65%;
+      }
     }
 
     .smtp-options {
@@ -121,24 +134,22 @@
   &__section-description {
     font-size: $x-small;
     color: $core-fleet-black;
-    width: 60%;
-  }
-
-  &__yaml {
-    .app-config-form__section-description {
-      width: initial;
-    }
-
-    h2 {
-      max-width: initial;
+    width: 100%;
+    @media(min-width: $break-990) {
+      width: 60%;
     }
   }
+
+
 
   &__inputs {
-    width: 60%;
+    width: 100%;
     float: left;
     padding-right: $pad-small;
     box-sizing: border-box;
+    @media(min-width: $break-990) {
+      width: 60%;
+    }
 
     .input-field {
       width: 100%;
@@ -176,8 +187,13 @@
       margin: $pad-medium 0;
     }
 
-    &--webhook {
+    &--webhook,
+    &--agents {
       margin-bottom: $pad-large;
+
+      .yaml-ace__label {
+        min-height: 0;
+      }
     }
   }
 
@@ -225,7 +241,12 @@
   }
 
   &__component-label {
-    margin: 24px 0 0;
+    margin: $pad-medium 0 0;
+    font-size: $x-small;
+  }
+
+  &__component-details {
+    margin: 0 0 $pad-medium;
     font-size: $x-small;
   }
 
@@ -234,7 +255,6 @@
     margin-bottom: $pad-medium;
   }
 
-  &__usage-stats-preview-modal,
   &__host-status-webhook-preview-modal {
     .flex-end {
       margin-top: 20px;

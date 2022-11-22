@@ -6,6 +6,7 @@ import {
   IIntegrationTableData,
   IIntegration,
   IIntegrations,
+  IIntegrationType,
 } from "interfaces/integration";
 
 import Button from "components/buttons/Button";
@@ -30,7 +31,7 @@ interface IIntegrationFormProps {
   integrationEditingProjectKey?: string;
   integrationEditingGroupId?: number;
   integrationEnableSoftwareVulnerabilities?: boolean;
-  integrationEditingType?: string;
+  integrationEditingType?: IIntegrationType;
   destination?: string;
   testingConnection?: boolean;
 }

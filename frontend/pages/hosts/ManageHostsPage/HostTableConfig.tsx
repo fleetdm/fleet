@@ -139,6 +139,27 @@ const allHostTableHeaders: IDataColumn[] = [
     disableHidden: true,
   },
   {
+    title: "Host",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "display_name",
+    Cell: (cellProps: ICellProps) => (
+      <LinkCell
+        value={cellProps.cell.value}
+        path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+        title={lastSeenTime(
+          cellProps.row.original.status,
+          cellProps.row.original.seen_time
+        )}
+      />
+    ),
+    disableHidden: true,
+  },
+  {
     title: "Hostname",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
@@ -147,17 +168,18 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "hostname",
-    Cell: (cellProps: ICellProps) => (
-      <LinkCell
-        value={cellProps.cell.value}
-        path={PATHS.HOST_DETAILS(cellProps.row.original)}
-        title={lastSeenTime(
-          cellProps.row.original.status,
-          cellProps.row.original.seen_time
-        )}
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
+    title: "Computer name",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    disableHidden: true,
+    accessor: "computer_name",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Team",
@@ -183,7 +205,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Issues",
-    Header: () => <img alt="host issues" src={IssueIcon} />,
+    Header: "Issues",
     disableSortBy: true,
     accessor: "issues",
     Cell: (cellProps: ICellProps) => (
@@ -274,7 +296,7 @@ const allHostTableHeaders: IDataColumn[] = [
     },
   },
   {
-    title: "IP address",
+    title: "Private IP address",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -285,12 +307,23 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
+    title: "Public IP address",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "public_ip",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  },
+  {
     title: "Last fetched",
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The last time the host reported vitals.
+            The last time the host<br/> reported vitals.
           `}
         >
           Last fetched
@@ -317,7 +350,7 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The last time the host was online.
+            The last time the <br/>host was online.
           `}
         >
           Last seen
@@ -419,8 +452,11 @@ const allHostTableHeaders: IDataColumn[] = [
 ];
 
 const defaultHiddenColumns = [
+  "hostname",
+  "computer_name",
   "device_mapping",
   "primary_mac",
+  "public_ip",
   "cpu_type",
   "memory",
   "uptime",

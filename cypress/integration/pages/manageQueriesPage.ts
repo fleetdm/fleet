@@ -13,7 +13,7 @@ const manageQueriesPage = {
   allowsCreateNewQuery: () => {
     cy.getAttached(".button--brand"); // ensures cta button loads
     cy.findByRole("button", { name: /new query/i }).click();
-    cy.getAttached(".ace_scroller")
+    cy.getAttached(".query-page__form .ace_scroller")
       .click({ force: true })
       .type("{selectall}SELECT * FROM windows_crashes;");
     cy.findByRole("button", { name: /save/i }).click();
@@ -52,7 +52,7 @@ const manageQueriesPage = {
     cy.getAttached(".name__cell .button--text-link")
       .first()
       .click({ force: true });
-    cy.getAttached(".ace_text-input")
+    cy.getAttached(".query-page__form .ace_text-input")
       .click({ force: true })
       .clear({ force: true })
       .type("SELECT 1 FROM cypress;", {
@@ -72,7 +72,7 @@ const manageQueriesPage = {
         cy.findByText(/get authorized/i).click();
       });
     cy.findByRole("button", { name: /run query/i }).should("exist");
-    cy.getAttached(".ace_scroller")
+    cy.getAttached(".query-page__form .ace_scroller")
       .click()
       .type("{selectall}SELECT datetime, username FROM windows_crashes;");
     cy.findByRole("button", { name: /save as new/i }).should("be.enabled");

@@ -1,0 +1,39 @@
+name: puppet_logs
+notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+description: Outputs [Puppet](https://puppet.com/) logs from the last run. 
+platforms: darwin, windows, linux
+evented: false
+examples: >-
+  List Puppet logs that are of a level of anything but informational.
+
+  ```
+  
+  SELECT * FROM puppet_logs WHERE level!='info';
+  
+  ```
+columns:
+  - name: level
+    description: The level of the log item (info, error, etc).
+    required: false
+    type: text
+  - name: message
+    description: The log message content.
+    required: false
+    type: text
+  - name: source
+    description: The source of the log item.
+    required: false
+    type: text
+  - name: time
+    description: The time at which this item was logged.
+    required: false
+    type: text
+  - name: file
+    description: The file from which osquery read this log.
+    required: false
+    type: text
+  - name: line
+    description: The line from which this log item was read.
+    required: false
+    type: text
+  
