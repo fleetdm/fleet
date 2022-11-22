@@ -43,7 +43,7 @@ This workflow outlines the process that sales and customer success can follow wh
         - Customer expectations for timeline
         - Server deployment type
 5. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
-    - Create an “Existing Business” renewal opportunity in SFDC.   
+    - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
     - Send the Customer Welcome Email & Deployment Checklist Template
     - Create the Customer Slack Channel
     - Generate the customer license key 
