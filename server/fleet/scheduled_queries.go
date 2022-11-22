@@ -49,6 +49,11 @@ type ScheduledQuery struct {
 	Denylist *bool `json:"denylist"`
 
 	AggregatedStats `json:"stats,omitempty"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the ScheduledQueryList Clone implementation!
+	/////////////////////////////////////////////////////////////////
 }
 
 type ScheduledQueryList []*ScheduledQuery
@@ -73,7 +78,7 @@ func (sql ScheduledQueryList) Clone() (interface{}, error) {
 			newSq.Shard = ptr.Uint(*sq.Shard)
 		}
 		if sq.Denylist != nil {
-			newSq.Denylist = ptr.Bool(*sq.Snapshot)
+			newSq.Denylist = ptr.Bool(*sq.Denylist)
 		}
 		cloned = append(cloned, &newSq)
 	}

@@ -131,6 +131,11 @@ type AppConfig struct {
 	// this field is set to the list of legacy settings keys during UnmarshalJSON
 	// if any legacy settings were set in the raw JSON.
 	didUnmarshalLegacySettings []string
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the AppConfig Clone implementation!
+	/////////////////////////////////////////////////////////////////
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
