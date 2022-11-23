@@ -546,7 +546,6 @@ const ManageHostsPage = ({
     }
 
     setFilteredHostsPath(location.pathname + location.search);
-    console.log("location", location);
   }, [availableTeams, currentTeam, location, labels]);
 
   const isLastPage =
