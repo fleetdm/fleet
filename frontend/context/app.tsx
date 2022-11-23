@@ -87,14 +87,14 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isNoAccess?: boolean;
   sandboxExpiry?: string;
-  fileredHostsPath?: string;
+  filteredHostsPath?: string;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
-  setFilteredHostsPathAction: (filteredHostsPath: string) => void;
+  setFilteredHostsPath: (filteredHostsPath: string) => void;
 };
 
 export type IAppContext = InitialStateType;
