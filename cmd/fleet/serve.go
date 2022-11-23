@@ -397,6 +397,9 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
 				}
+				if _, err := cryptoutil.TopicFromCert(apnsCert.Leaf); err != nil {
+					initFatal(err, "validate Apple APNs certificate: failed to get topic from certificate")
+				}
 				if _, err := config.MDM.AppleSCEP(); err != nil {
 					initFatal(err, "validate Apple SCEP certificate and key")
 				}
