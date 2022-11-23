@@ -23,7 +23,7 @@ At Fleet, we keep everything in one repo. The only exception is when we're worki
 - One repo is easier to manage. It has less surface area for keeping content up to date and reduces the risk of things getting lost and forgotten.
 - Our work is more visible and accessible to the community when all project pieces are available in one repo. 
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
-- One repo means one set of automations and labels to manage. Resulting in a consistent GitHub experience that is easier to keep organized.
+- One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
 
 ## Why organize work in team-based kanban boards?
 It's helpful to have a consistent framework for how every team works, plans, and requests things from each other. Fleet's kanban boards are that framework, and they cover three goals:

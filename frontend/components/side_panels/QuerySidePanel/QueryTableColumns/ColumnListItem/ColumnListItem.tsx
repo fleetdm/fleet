@@ -4,9 +4,11 @@ import classnames from "classnames";
 import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import TooltipWrapper from "components/TooltipWrapper";
+import { buildQueryStringFromParams } from "utilities/url";
 
 interface IColumnListItemProps {
   column: IQueryTableColumn;
+  selectedTableName: string;
 }
 
 const baseClass = "column-list-item";
@@ -22,7 +24,10 @@ const FOOTNOTES = {
  * current tooltip only supports strings. we can change this when it support ReactNodes
  * in the future.
  */
-const createTooltipHtml = (column: IQueryTableColumn) => {
+const createTooltipHtml = (
+  column: IQueryTableColumn,
+  selectedTableName: string
+) => {
   const toolTipHtml = [];
 
   const descriptionHtml = `<span class="${baseClass}__column-description">${column.description}</span>`;
@@ -35,8 +40,19 @@ const createTooltipHtml = (column: IQueryTableColumn) => {
   }
 
   if (column.requires_user_context) {
+    const queryString = buildQueryStringFromParams({
+      utm_source: "fleet-ui",
+      utm_table: `table-${selectedTableName}`,
+    });
+
+    const href = `https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table?${queryString}`;
+    const classNames = classnames(
+      `${baseClass}__footnote`,
+      `${baseClass}__footnote-link`
+    );
+
     toolTipHtml.push(
-      `<span class="${baseClass}__footnote">${FOOTNOTES.requires_user_context}</span>`
+      `<a href="${href}" target="__blank" class="${classNames}">${FOOTNOTES.requires_user_context}</a>`
     );
   }
 
@@ -77,7 +93,10 @@ const createListItemClassnames = (column: IQueryTableColumn) => {
   });
 };
 
-const ColumnListItem = ({ column }: IColumnListItemProps) => {
+const ColumnListItem = ({
+  column,
+  selectedTableName,
+}: IColumnListItemProps) => {
   const columnNameClasses = createListItemClassnames(column);
 
   return (
@@ -85,7 +104,7 @@ const ColumnListItem = ({ column }: IColumnListItemProps) => {
       <div className={`${baseClass}__name-wrapper`}>
         <span className={columnNameClasses}>
           <TooltipWrapper
-            tipContent={createTooltipHtml(column)}
+            tipContent={createTooltipHtml(column, selectedTableName)}
             className={`${baseClass}__tooltip`}
           >
             {column.name}

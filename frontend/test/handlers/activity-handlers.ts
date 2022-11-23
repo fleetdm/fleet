@@ -1,6 +1,6 @@
 import { rest } from "msw";
 
-import createMockActivity from "__mocks__/activityFeedMock";
+import createMockActivity from "__mocks__/activityMock";
 import { baseUrl } from "test/test-utils";
 
 export const defaultActivityHandler = rest.get(
@@ -33,24 +33,6 @@ export const activityHandler9Activities = rest.get(
           createMockActivity({ id: 7 }),
           createMockActivity({ id: 8 }),
           createMockActivity({ id: 9 }),
-        ],
-      })
-    );
-  }
-);
-
-export const activityHandler2DaysAgo = rest.get(
-  baseUrl("/activities"),
-  (req, res, context) => {
-    const currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() - 2);
-
-    return res(
-      context.json({
-        activities: [
-          createMockActivity({
-            created_at: currentDate.toISOString(),
-          }),
         ],
       })
     );

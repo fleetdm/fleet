@@ -15,7 +15,7 @@ interface IApiOnlyUserProps {
 const baseClass = "api-only-user";
 
 const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
-  const { LOGIN, HOME, LOGOUT } = paths;
+  const { LOGIN, DASHBOARD, LOGOUT } = paths;
   const handleClick = () => router.push(LOGOUT);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
         if (!user) {
           router.push(LOGIN);
         } else if (!user?.api_only) {
-          router.push(HOME);
+          router.push(DASHBOARD);
         }
       } catch (response) {
         console.error(response);

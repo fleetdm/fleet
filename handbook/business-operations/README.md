@@ -336,7 +336,7 @@ There are some defaults that we use for these agreements:
    - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
    - Work will commence and complete by dates: Start date and end of term date
    - Fee: Get from the contractor
-   - Hours: Default to 10 hr/week = 40hr/week
+   - Hours: Default to 10 hr/week - 40 hr/week
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
 
 #### Updating a consultant's fee
