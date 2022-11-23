@@ -329,10 +329,12 @@ const HostDetailsPage = ({
 
   const titleData = normalizeEmptyValues(
     pick(host, [
+      "id",
       "status",
       "issues",
       "memory",
       "cpu_type",
+      "platform",
       "os_version",
       "osquery_version",
       "enroll_secret_name",
@@ -662,6 +664,7 @@ const HostDetailsPage = ({
                   featuresConfig?.enable_software_inventory
                 }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
+                router={router}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard

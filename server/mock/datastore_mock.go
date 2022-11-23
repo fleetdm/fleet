@@ -431,7 +431,7 @@ type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fl
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error)
+type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error)
 
 type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value bool) error
 
@@ -2300,7 +2300,7 @@ func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return s.UpdateHostFunc(ctx, host)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
 	return s.ListScheduledQueriesInPackFunc(ctx, packID)
 }
