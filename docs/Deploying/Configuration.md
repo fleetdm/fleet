@@ -2178,7 +2178,7 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 
 #### Packaging
 
-These configurations control how Fleet interacts with the 
+These configurations control how Fleet interacts with the
 packaging server (coming soon).  These features are currently only intended to be used within
 Fleet sandbox, but this is subject to change.
 
@@ -2356,7 +2356,7 @@ packaging:
 
 ##### apple_apns_cert
 
-This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`.
+This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
@@ -2366,9 +2366,24 @@ This is the path to the Apple Push Notification service (APNs) certificate. The 
     apple_apns_cert: /path/to/apns_cert.pem
   ```
 
+##### apple_apns_cert_bytes
+
+The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
 ##### apple_apns_key
 
-This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`.
+This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
@@ -2378,9 +2393,24 @@ This is the path to a PEM-encoded private key for the Apple Push Notification se
     apple_apns_key: /path/to/apns_key.pem
   ```
 
+##### apple_apns_key_bytes
+
+The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
+  ```
+
 ##### apple_scep_cert
 
-This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`.
+This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
@@ -2390,9 +2420,24 @@ This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificat
     apple_scep_cert: /path/to/scep_cert.pem
   ```
 
+##### apple_scep_cert_bytes
+
+The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
 ##### apple_scep_key
 
-This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`.
+This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
@@ -2400,6 +2445,21 @@ This is the path to a PEM-encoded private key for the Simple Certificate Enrollm
   ```
   mdm:
     apple_scep_key: /path/to/scep_key.pem
+  ```
+
+##### apple_scep_key_bytes
+
+The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
   ```
 
 ##### Example YAML
