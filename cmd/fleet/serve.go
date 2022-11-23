@@ -386,18 +386,11 @@ the way that the Fleet server works.
 				}
 			}
 
-			if config.MDM.AppleAPNsCert != "" || config.MDM.AppleAPNsKey != "" || config.MDM.AppleSCEPCert != "" || config.MDM.AppleSCEPKey != "" {
-				// if any of the 4 flags are set and not all of them, this is an error
-				checks := map[string]string{
-					"mdm_apple_apns_cert": config.MDM.AppleAPNsCert,
-					"mdm_apple_apns_key":  config.MDM.AppleAPNsKey,
-					"mdm_apple_scep_cert": config.MDM.AppleSCEPCert,
-					"mdm_apple_scep_key":  config.MDM.AppleSCEPKey,
-				}
-				for flag, value := range checks {
-					if value == "" {
-						initFatal(fmt.Errorf("missing flag --%s", flag), "validate Apple MDM")
-					}
+			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
+				if !config.MDM.IsAppleAPNsSet() {
+					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
+				} else if !config.MDM.IsAppleSCEPSet() {
+					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 				}
 
 				apnsCert, err := config.MDM.AppleAPNs()

@@ -411,25 +411,37 @@ func TestMDMConfig(t *testing.T) {
 	require.NoError(t, os.WriteFile(invalidKeyFile, unrelatedTestKey, 0o600))
 
 	cases := []struct {
-		name        string
-		in          MDMConfig
-		errContains string
+		name       string
+		in         MDMConfig
+		errMatches string
 	}{
-		{"missing cert", MDMConfig{AppleAPNsKey: keyFile, AppleSCEPKey: keyFile}, "open : no such file or directory"},
-		{"missing key", MDMConfig{AppleAPNsCert: certFile, AppleSCEPCert: certFile}, "open : no such file or directory"},
-		{"valid pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: keyFile, AppleSCEPCert: certFile, AppleSCEPKey: keyFile}, ""},
-		{"invalid pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: invalidKeyFile, AppleSCEPCert: certFile, AppleSCEPKey: invalidKeyFile}, "tls: private key does not match public key"},
-		{"invalid key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: garbageFile, AppleSCEPCert: certFile, AppleSCEPKey: garbageFile}, "tls: failed to find any PEM data"},
+		{"missing cert", MDMConfig{AppleAPNsKey: keyFile, AppleSCEPKey: keyFile}, `Apple MDM (APNs|SCEP) configuration: no certificate provided`},
+		{"missing key", MDMConfig{AppleAPNsCert: certFile, AppleSCEPCert: certFile}, "Apple MDM (APNs|SCEP) configuration: no key provided"},
+		{"missing cert with raw key", MDMConfig{AppleAPNsKeyBytes: string(testKey), AppleSCEPKeyBytes: string(testKey)}, `Apple MDM (APNs|SCEP) configuration: no certificate provided`},
+		{"missing key with raw cert", MDMConfig{AppleAPNsCertBytes: string(testCert), AppleSCEPCertBytes: string(testCert)}, "Apple MDM (APNs|SCEP) configuration: no key provided"},
+		{"cert file does not exist", MDMConfig{AppleAPNsCert: "no-such-file", AppleAPNsKey: keyFile, AppleSCEPCert: "no-such-file", AppleSCEPKey: keyFile}, `open no-such-file: no such file or directory`},
+		{"key file does not exist", MDMConfig{AppleAPNsKey: "no-such-file", AppleAPNsCert: certFile, AppleSCEPKey: "no-such-file", AppleSCEPCert: certFile}, `open no-such-file: no such file or directory`},
+		{"valid file pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: keyFile, AppleSCEPCert: certFile, AppleSCEPKey: keyFile}, ""},
+		{"valid file/raw pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKeyBytes: string(testKey), AppleSCEPCert: certFile, AppleSCEPKeyBytes: string(testKey)}, ""},
+		{"valid raw/file pairs", MDMConfig{AppleAPNsCertBytes: string(testCert), AppleAPNsKey: keyFile, AppleSCEPCertBytes: string(testCert), AppleSCEPKey: keyFile}, ""},
+		{"invalid file pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: invalidKeyFile, AppleSCEPCert: certFile, AppleSCEPKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file/raw pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKeyBytes: string(unrelatedTestKey), AppleSCEPCert: certFile, AppleSCEPKeyBytes: string(unrelatedTestKey)}, "tls: private key does not match public key"},
+		{"invalid raw/file pairs", MDMConfig{AppleAPNsCertBytes: string(testCert), AppleAPNsKey: invalidKeyFile, AppleSCEPCertBytes: string(testCert), AppleSCEPKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: garbageFile, AppleSCEPCert: certFile, AppleSCEPKey: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid raw key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKeyBytes: "zzzz", AppleSCEPCert: certFile, AppleSCEPKeyBytes: "zzzz"}, "tls: failed to find any PEM data"},
+		{"invalid raw cert", MDMConfig{AppleAPNsCertBytes: "zzzz", AppleAPNsKey: keyFile, AppleSCEPCertBytes: "zzzz", AppleSCEPKey: keyFile}, "tls: failed to find any PEM data in certificate input"},
+		{"duplicate cert", MDMConfig{AppleAPNsCert: certFile, AppleAPNsCertBytes: string(testCert), AppleAPNsKey: keyFile, AppleSCEPCert: certFile, AppleSCEPCertBytes: string(testCert), AppleSCEPKey: keyFile}, `Apple MDM (APNs|SCEP) configuration: only one of the certificate path or bytes must be provided`},
+		{"duplicate key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: keyFile, AppleAPNsKeyBytes: string(testKey), AppleSCEPCert: certFile, AppleSCEPKey: keyFile, AppleSCEPKeyBytes: string(testKey)}, `Apple MDM (APNs|SCEP) configuration: only one of the key path or bytes must be provided`},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if c.in.AppleAPNsCert != "" || c.in.AppleAPNsKey != "" {
 				got, err := c.in.AppleAPNs()
-				if c.errContains != "" {
+				if c.errMatches != "" {
 					require.Error(t, err)
 					require.Nil(t, got)
-					require.Contains(t, err.Error(), c.errContains)
+					require.Regexp(t, c.errMatches, err.Error())
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, got)
@@ -439,10 +451,10 @@ func TestMDMConfig(t *testing.T) {
 
 			if c.in.AppleSCEPCert != "" || c.in.AppleSCEPKey != "" {
 				got, err := c.in.AppleSCEP()
-				if c.errContains != "" {
+				if c.errMatches != "" {
 					require.Error(t, err)
 					require.Nil(t, got)
-					require.Contains(t, err.Error(), c.errContains)
+					require.Regexp(t, c.errMatches, err.Error())
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, got)

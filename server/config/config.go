@@ -433,10 +433,14 @@ type FleetConfig struct {
 }
 
 type MDMConfig struct {
-	AppleAPNsCert string `yaml:"apple_apns_cert"`
-	AppleAPNsKey  string `yaml:"apple_apns_key"`
-	AppleSCEPCert string `yaml:"apple_scep_cert"`
-	AppleSCEPKey  string `yaml:"apple_scep_key"`
+	AppleAPNsCert      string `yaml:"apple_apns_cert"`
+	AppleAPNsCertBytes string `yaml:"apple_apns_cert_bytes"`
+	AppleAPNsKey       string `yaml:"apple_apns_key"`
+	AppleAPNsKeyBytes  string `yaml:"apple_apns_key_bytes"`
+	AppleSCEPCert      string `yaml:"apple_scep_cert"`
+	AppleSCEPCertBytes string `yaml:"apple_scep_cert_bytes"`
+	AppleSCEPKey       string `yaml:"apple_scep_key"`
+	AppleSCEPKeyBytes  string `yaml:"apple_scep_key_bytes"`
 
 	// the following fields hold the parsed, validated TLS certificate set
 	// the first time AppleAPNs or AppleSCEP is called.
@@ -444,24 +448,98 @@ type MDMConfig struct {
 	appleSCEP *tls.Certificate
 }
 
+type x509KeyPairConfig struct {
+	certPath  string
+	certBytes []byte
+	keyPath   string
+	keyBytes  []byte
+}
+
+func (x x509KeyPairConfig) IsSet() bool {
+	// if any setting is provided, then the key pair is considered set
+	return x.certPath != "" || len(x.certBytes) != 0 || x.keyPath != "" || len(x.keyBytes) != 0
+}
+
+func (x x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
+	if x.certPath == "" && len(x.certBytes) == 0 {
+		return nil, errors.New("no certificate provided")
+	}
+	if x.certPath != "" && len(x.certBytes) != 0 {
+		return nil, errors.New("only one of the certificate path or bytes must be provided")
+	}
+	if x.keyPath == "" && len(x.keyBytes) == 0 {
+		return nil, errors.New("no key provided")
+	}
+	if x.keyPath != "" && len(x.keyBytes) != 0 {
+		return nil, errors.New("only one of the key path or bytes must be provided")
+	}
+
+	if len(x.certBytes) == 0 {
+		b, err := os.ReadFile(x.certPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading certificate file: %w", err)
+		}
+		x.certBytes = b
+	}
+	if len(x.keyBytes) == 0 {
+		b, err := os.ReadFile(x.keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading key file: %w", err)
+		}
+		x.keyBytes = b
+	}
+
+	cert, err := tls.X509KeyPair(x.certBytes, x.keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse key pair: %w", err)
+	}
+
+	if keepLeaf {
+		// X509KeyPair does not store the parsed certificate leaf
+		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("parse certificate: %w", err)
+		}
+		cert.Leaf = parsed
+	}
+	return &cert, nil
+}
+
+func (m *MDMConfig) IsAppleAPNsSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleAPNsCert,
+		[]byte(m.AppleAPNsCertBytes),
+		m.AppleAPNsKey,
+		[]byte(m.AppleAPNsKeyBytes),
+	}
+	return pair.IsSet()
+}
+
+func (m *MDMConfig) IsAppleSCEPSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleSCEPCert,
+		[]byte(m.AppleSCEPCertBytes),
+		m.AppleSCEPKey,
+		[]byte(m.AppleSCEPKeyBytes),
+	}
+	return pair.IsSet()
+}
+
 // AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleAPNs() (*tls.Certificate, error) {
 	if m.appleAPNs == nil {
-		cert, err := tls.LoadX509KeyPair(m.AppleAPNsCert, m.AppleAPNsKey)
-		if err != nil {
-			return nil, fmt.Errorf("load Apple APNs certificate: %w", err)
+		pair := x509KeyPairConfig{
+			m.AppleAPNsCert,
+			[]byte(m.AppleAPNsCertBytes),
+			m.AppleAPNsKey,
+			[]byte(m.AppleAPNsKeyBytes),
 		}
-		m.appleAPNs = &cert
-
-		// LoadX509KeyPair does not store the parsed certificate leaf, so we do
-		// that here as we need it to read its metadata for `fleetctl get
-		// mdm-apple`.
-		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		cert, err := pair.Parse(true)
 		if err != nil {
-			return nil, fmt.Errorf("parse Apple APNs certificate: %w", err)
+			return nil, fmt.Errorf("Apple MDM APNs configuration: %w", err)
 		}
-		cert.Leaf = parsed
+		m.appleAPNs = cert
 	}
 	return m.appleAPNs, nil
 }
@@ -470,11 +548,17 @@ func (m *MDMConfig) AppleAPNs() (*tls.Certificate, error) {
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleSCEP() (*tls.Certificate, error) {
 	if m.appleSCEP == nil {
-		cert, err := tls.LoadX509KeyPair(m.AppleSCEPCert, m.AppleSCEPKey)
-		if err != nil {
-			return nil, fmt.Errorf("load Apple SCEP certificate: %w", err)
+		pair := x509KeyPairConfig{
+			m.AppleSCEPCert,
+			[]byte(m.AppleSCEPCertBytes),
+			m.AppleSCEPKey,
+			[]byte(m.AppleSCEPKeyBytes),
 		}
-		m.appleSCEP = &cert
+		cert, err := pair.Parse(false)
+		if err != nil {
+			return nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
+		}
+		m.appleSCEP = cert
 	}
 	return m.appleSCEP, nil
 }
@@ -828,16 +912,24 @@ func (man Manager) addConfigs() {
 
 	// MDM config
 	man.addConfigString("mdm.apple_apns_cert", "", "Apple APNs PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_apns_cert_bytes", "", "Apple APNs PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_apns_key", "", "Apple APNs PEM-encoded private key path")
+	man.addConfigString("mdm.apple_apns_key_bytes", "", "Apple APNs PEM-encoded private key bytes")
 	man.addConfigString("mdm.apple_scep_cert", "", "Apple SCEP PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
+	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
 
 	// Hide the official MDM flags as we don't want it to be discoverable for users for now
 	mdmFlags := []string{
 		"mdm.apple_apns_cert",
+		"mdm.apple_apns_cert_bytes",
 		"mdm.apple_apns_key",
+		"mdm.apple_apns_key_bytes",
 		"mdm.apple_scep_cert",
+		"mdm.apple_scep_cert_bytes",
 		"mdm.apple_scep_key",
+		"mdm.apple_scep_key_bytes",
 	}
 	for _, mdmFlag := range mdmFlags {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
@@ -1079,10 +1171,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDM: MDMConfig{
-			AppleAPNsCert: man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsKey:  man.getConfigString("mdm.apple_apns_key"),
-			AppleSCEPCert: man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPKey:  man.getConfigString("mdm.apple_scep_key"),
+			AppleAPNsCert:      man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes: man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:       man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:  man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:      man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes: man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:       man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:  man.getConfigString("mdm.apple_scep_key_bytes"),
 		},
 	}
 
