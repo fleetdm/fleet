@@ -376,8 +376,6 @@ type MDMApplePushCert struct {
 
 // MDMAppleSCEPConfig holds SCEP protocol and server configuration.
 type MDMAppleSCEPConfig struct {
-	// CA holds all the configuration for the SCEP CA certificate.
-	CA SCEPCAConfig `yaml:"ca"`
 	// Signer holds the SCEP signer configuration.
 	Signer SCEPSignerConfig `yaml:"signer"`
 	// Challenge is the SCEP challenge for SCEP enrollment requests.
@@ -390,14 +388,6 @@ type SCEPSignerConfig struct {
 	ValidityDays int `yaml:"validity_days"`
 	// AllowRenewalDays are the allowable renewal days for certificates.
 	AllowRenewalDays int `yaml:"allow_renewal_days"`
-}
-
-// SCEPCAConfig holds the SCEP CA certificate.
-type SCEPCAConfig struct {
-	// PEMCert contains the PEM-encoded certificate.
-	PEMCert string `yaml:"pem_cert"`
-	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey string `yaml:"pem_key"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -900,8 +890,6 @@ func (man Manager) addConfigs() {
 
 	// MDM Apple config (prototype)
 	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigString("mdm_apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
-	man.addConfigString("mdm_apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
 	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
@@ -1149,10 +1137,6 @@ func (man Manager) LoadConfig() FleetConfig {
 		MDMApple: MDMAppleConfig{
 			Enable: man.getConfigBool("mdm_apple.enable"),
 			SCEP: MDMAppleSCEPConfig{
-				CA: SCEPCAConfig{
-					PEMCert: man.getConfigString("mdm_apple.scep.ca.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.scep.ca.key_pem"),
-				},
 				Signer: SCEPSignerConfig{
 					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
 					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),

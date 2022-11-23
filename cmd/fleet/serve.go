@@ -386,6 +386,13 @@ the way that the Fleet server works.
 				}
 			}
 
+			var (
+				scepStorage      *scep_mysql.MySQLDepot
+				depStorage       *mysql.NanoDEPStorage
+				mdmStorage       *mysql.NanoMDMStorage
+				mdmPushService   *nanomdm_pushsvc.PushService
+				mdmPushCertTopic string
+			)
 			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 				if !config.MDM.IsAppleAPNsSet() {
 					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
@@ -397,7 +404,8 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
 				}
-				if _, err := cryptoutil.TopicFromCert(apnsCert.Leaf); err != nil {
+				mdmPushCertTopic, err = cryptoutil.TopicFromCert(apnsCert.Leaf)
+				if err != nil {
 					initFatal(err, "validate Apple APNs certificate: failed to get topic from certificate")
 				}
 				if _, err := config.MDM.AppleSCEP(); err != nil {
@@ -415,15 +423,13 @@ the way that the Fleet server works.
 					initFatal(err, "validate authentication with Apple APNs certificate")
 				}
 				cancel()
+
+				// if those certs are provided, then MDM is enabled. Until we can
+				// replace all the MDM features with official implementation, reuse the
+				// config.MDMApple.Enable as it also enables some API endpoints.
+				config.MDMApple.Enable = true
 			}
 
-			var (
-				scepStorage      *scep_mysql.MySQLDepot
-				depStorage       *mysql.NanoDEPStorage
-				mdmStorage       *mysql.NanoMDMStorage
-				mdmPushService   *nanomdm_pushsvc.PushService
-				mdmPushCertTopic string
-			)
 			if config.MDMApple.Enable {
 				if err := config_apple.Verify(config.MDMApple); err != nil {
 					initFatal(err, "verify apple mdm config")

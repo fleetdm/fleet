@@ -14,32 +14,11 @@ import (
 
 // Verify verifies the Apple MDM configuration.
 func Verify(config configpkg.MDMAppleConfig) error {
-	if err := verifySCEPConfig(config); err != nil {
-		return fmt.Errorf("scep: %w", err)
-	}
 	if err := verifyMDMConfig(config); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	if err := verifyDEPConfig(config); err != nil {
 		return fmt.Errorf("dep: %w", err)
-	}
-	return nil
-}
-
-func verifySCEPConfig(config configpkg.MDMAppleConfig) error {
-	pemCert := []byte(config.SCEP.CA.PEMCert)
-	if len(pemCert) == 0 {
-		return errors.New("missing pem certificate")
-	}
-	if _, err := cryptoutil.DecodePEMCertificate(pemCert); err != nil {
-		return fmt.Errorf("parse pem certificate: %w", err)
-	}
-	pemKey := []byte(config.SCEP.CA.PEMKey)
-	if len(pemKey) == 0 {
-		return errors.New("missing private key")
-	}
-	if _, err := ssh.ParseRawPrivateKey(pemKey); err != nil {
-		return fmt.Errorf("parse MDM push PEM private key: %w", err)
 	}
 	return nil
 }
