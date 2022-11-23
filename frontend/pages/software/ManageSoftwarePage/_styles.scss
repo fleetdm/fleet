@@ -174,14 +174,6 @@
             tbody {
               .name__cell {
                 width: $col-md;
-
-                .component__tooltip-wrapper {
-                  margin: 10px 0; // vertical padding long software name in row
-                }
-
-                .component__tooltip-wrapper__element {
-                  white-space: initial; // wraps long software names
-                }
               }
               .version__cell {
                 width: 0;
