@@ -25,7 +25,7 @@ This workflow outlines the process that sales and customer success can follow wh
 2. The Customer and Fleet sign the order form.
     - (AE) The AE adds the fully executed contract to the opportunity record.
     - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
-    - (BizOps) BizOps team member adds fully executed contract to the Subscriptions folder in Fleet Drive 
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
@@ -36,7 +36,7 @@ This workflow outlines the process that sales and customer success can follow wh
         - Desired use cases / desired outcomes
         - Reasons for purchase
         - Previously using Fleet Free?
-        - Support tier? (Premium or Ultimate)
+        - Support tier (Premium or Ultimate)
         - Competitive solutions in place
         - Other relevant technologies in place 
         - Any proof of concept (POC) notes that are relevant
@@ -44,8 +44,8 @@ This workflow outlines the process that sales and customer success can follow wh
         - Server deployment type
 5. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
     - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
-    - Send the Customer Welcome Email & Deployment Checklist Template
-    - Create the Customer Slack Channel
+    - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
+    - Create the customer Slack channel
     - Generate the customer license key 
     - Share the license key with the customer (7 day link)
     - Schedule the customer onboarding kickoff call
