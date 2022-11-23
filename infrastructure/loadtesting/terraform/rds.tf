@@ -45,10 +45,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   # Old Jump box?
   # allowed_security_groups = ["sg-0063a978193fdf7ee"]
 
-  replica_count         = 1
-  replica_scale_enabled = true
-  replica_scale_min     = 1
-  replica_scale_max     = 1
+  replica_count         = 2
   snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
 
   monitoring_interval           = 60
