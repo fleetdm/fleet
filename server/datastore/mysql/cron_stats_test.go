@@ -79,7 +79,7 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	}
 
 	var updatedResults []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats")
+	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats ORDER BY id")
 	require.NoError(t, err)
 	require.Len(t, updatedResults, len(cases))
 	for i, r := range updatedResults {
@@ -154,7 +154,7 @@ func TestCleanupCronStats(t *testing.T) {
 		},
 		{
 			createdAt:               now.Add(-2 * time.Hour),
-			status:                  fleet.CronStatsStatusPending,
+			status:                  fleet.CronStatsStatusExpired,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     false,
 		},
@@ -199,7 +199,9 @@ func TestCleanupCronStats(t *testing.T) {
 		require.Equal(t, cases[i].status, s.Status)
 	}
 
-	ds.CleanupCronStats(ctx)
+	err = ds.CleanupCronStats(ctx)
+	require.NoError(t, err)
+
 	stats = []fleet.CronStats{}
 	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
