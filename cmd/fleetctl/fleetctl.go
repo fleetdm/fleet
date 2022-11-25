@@ -26,7 +26,10 @@ func init() {
 
 func main() {
 	app := createApp(os.Stdin, os.Stdout, exitErrHandler)
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
+		os.Exit(1)
+	}
 }
 
 // exitErrHandler implements cli.ExitErrHandlerFunc. If there is an error, prints it to stderr and exits with status 1.
