@@ -33,7 +33,7 @@ func appleMDMCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "apple-mdm",
 		Usage: "Apple MDM functionality",
-		// Apple MDM functionality will be merged but hidden until we release MVP publicly.
+		// TODO: Remove when Apple MDM is production ready.
 		Hidden: true,
 		Flags: []cli.Flag{
 			configFlag(),
@@ -55,6 +55,8 @@ func appleMDMCommand() *cli.Command {
 func generateCommand() *cli.Command {
 	return &cli.Command{
 		Name: "generate",
+		// TODO: Remove when Apple MDM is production ready.
+		Hidden: true,
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
