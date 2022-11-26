@@ -11,6 +11,6 @@ examples: >-
     
 notes: >-
 
-This table pulls from the local system's DNS cache. By default, the local DNS cache entry for a domain will be removed once the TTL for the domain has expired. For instance, osquery.io has a TTL of 60 seconds. When this domain has been resolved on a local Windows system, the DNS mapping will expire in 60 seconds from the resolution time - so `SELECT * FROM dns_cache WHERE name = 'osquery.io'` will only return results during that 60 second window.
+  This table pulls from the local system's DNS cache. By default, the local DNS cache entry for a domain will be removed once the TTL for the domain has expired. For instance, osquery.io has a TTL of 60 seconds. When this domain has been resolved on a local Windows system, the DNS mapping will expire in 60 seconds from the resolution time - so `SELECT * FROM dns_cache WHERE name = 'osquery.io'` will only return results during that 60 second window.
 
-Windows has a maximum time that it allows a cache entry to exist- by default, it is 1 day. If the domain has a TTL of greater than 1 day, Windows will still remove the DNS entry from its cache after 1 day.
+  Windows has a maximum time that it allows a cache entry to exist- by default, it is 1 day. If the domain has a TTL of greater than 1 day, Windows will still remove the DNS entry from its cache after 1 day.
