@@ -29,11 +29,14 @@ class InputFieldWithIcon extends InputField {
 
   renderHeading = () => {
     const { error, placeholder, name, label, tooltip } = this.props;
-    const labelClasses = classnames(`${baseClass}__label`);
-
+    const labelClassArr = [`${baseClass}__label`];
+    let labelText = label;
     if (error) {
-      return <div className={`${baseClass}__errors`}>{error}</div>;
+      // return <div className={`${labelClasses}--error`}>{error}</div>;
+      labelClassArr.push(`${baseClass}__label--error`);
+      labelText = error;
     }
+    const labelClasses = classnames(labelClassArr);
 
     return (
       <label
@@ -42,9 +45,9 @@ class InputFieldWithIcon extends InputField {
         data-has-tooltip={!!tooltip}
       >
         {tooltip ? (
-          <TooltipWrapper tipContent={tooltip}>{label}</TooltipWrapper>
+          <TooltipWrapper tipContent={tooltip}>{labelText}</TooltipWrapper>
         ) : (
-          <>{label || placeholder}</>
+          <>{labelText || placeholder}</>
         )}
       </label>
     );

@@ -62,20 +62,16 @@
   }
 
   &__label {
+    font-size: $small;
+    font-weight: $bold;
+    color: $core-fleet-black;
     display: block;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin-bottom: $pad-xsmall;
+    margin-bottom: $pad-small;
+    height: $form-field-label-height;
 
-    &[data-has-tooltip="true"] {
-      margin-bottom: $pad-small;
+    &--error {
+      color: $core-vibrant-red;
     }
-  }
-
-  &__errors {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-vibrant-red;
   }
 
   &__hint {
