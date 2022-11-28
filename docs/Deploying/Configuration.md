@@ -2235,7 +2235,7 @@ This is the prefix to prepend when searching for installers.
 
 ##### packaging_s3_access_key_id
 
-AWS access key ID to use for S3 authentication.
+This is the AWS access key ID for S3 authentication.
 
 If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
 [the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
