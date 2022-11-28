@@ -2184,7 +2184,7 @@ Fleet sandbox, but this is subject to change.
 
 ##### packaging_global_enroll_secret
 
-Enroll secret to use for adding hosts to the global scope. If this value is
+This is the enroll secret for adding hosts to the global scope. If this value is
 set, the server won't allow changes to the enroll secret via the config
 endpoints.
 
