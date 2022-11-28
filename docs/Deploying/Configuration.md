@@ -2280,7 +2280,7 @@ This is the AWS STS role ARN for S3 authentication.
 ##### packaging_s3_endpoint_url
 
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
-or running s3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
+or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
