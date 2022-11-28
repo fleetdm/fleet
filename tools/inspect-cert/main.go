@@ -52,7 +52,7 @@ func validate(certFile, keyFile string) {
 		AppleAPNsKey:  keyFile,
 	}
 
-	cert, err := mdmCfg.AppleAPNs()
+	cert, _, _, err := mdmCfg.AppleAPNs()
 	if err != nil {
 		log.Fatal(err)
 	}

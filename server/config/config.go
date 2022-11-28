@@ -345,8 +345,6 @@ type MDMAppleConfig struct {
 
 	// SCEP holds the SCEP protocol and server configuration.
 	SCEP MDMAppleSCEPConfig `yaml:"scep"`
-	// MDM holds the MDM core protocol and server configuration.
-	MDM MDMAppleMDMConfig `yaml:"mdm"`
 	// DEP holds the MDM DEP configuration.
 	DEP MDMAppleDEP `yaml:"dep"`
 }
@@ -358,20 +356,6 @@ type MDMAppleDEP struct {
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
 	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
-}
-
-// MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
-type MDMAppleMDMConfig struct {
-	// PushCert contains the Apple Push Notification Service (APNS) certificate
-	PushCert MDMApplePushCert `yaml:"push_cert"`
-}
-
-// MDMApplePushCert holds the Apple Push Notification Service (APNS) certificate.
-type MDMApplePushCert struct {
-	// PEMCert contains the PEM-encoded certificate.
-	PEMCert string `yaml:"pem_cert"`
-	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey string `yaml:"pem_key"`
 }
 
 // MDMAppleSCEPConfig holds SCEP protocol and server configuration.
@@ -432,10 +416,15 @@ type MDMConfig struct {
 	AppleSCEPKey       string `yaml:"apple_scep_key"`
 	AppleSCEPKeyBytes  string `yaml:"apple_scep_key_bytes"`
 
-	// the following fields hold the parsed, validated TLS certificate set
-	// the first time AppleAPNs or AppleSCEP is called.
-	appleAPNs *tls.Certificate
-	appleSCEP *tls.Certificate
+	// the following fields hold the parsed, validated TLS certificate set the
+	// first time AppleAPNs or AppleSCEP is called, as well as the PEM-encoded
+	// bytes for the certificate and private key.
+	appleAPNs        *tls.Certificate
+	appleAPNsPEMCert []byte
+	appleAPNsPEMKey  []byte
+	appleSCEP        *tls.Certificate
+	appleSCEPPEMCert []byte
+	appleSCEPPEMKey  []byte
 }
 
 type x509KeyPairConfig struct {
@@ -445,12 +434,12 @@ type x509KeyPairConfig struct {
 	keyBytes  []byte
 }
 
-func (x x509KeyPairConfig) IsSet() bool {
+func (x *x509KeyPairConfig) IsSet() bool {
 	// if any setting is provided, then the key pair is considered set
 	return x.certPath != "" || len(x.certBytes) != 0 || x.keyPath != "" || len(x.keyBytes) != 0
 }
 
-func (x x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
+func (x *x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
 	if x.certPath == "" && len(x.certBytes) == 0 {
 		return nil, errors.New("no certificate provided")
 	}
@@ -517,7 +506,7 @@ func (m *MDMConfig) IsAppleSCEPSet() bool {
 
 // AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
 // It parses and validates it if it hasn't been done yet.
-func (m *MDMConfig) AppleAPNs() (*tls.Certificate, error) {
+func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleAPNs == nil {
 		pair := x509KeyPairConfig{
 			m.AppleAPNsCert,
@@ -527,16 +516,18 @@ func (m *MDMConfig) AppleAPNs() (*tls.Certificate, error) {
 		}
 		cert, err := pair.Parse(true)
 		if err != nil {
-			return nil, fmt.Errorf("Apple MDM APNs configuration: %w", err)
+			return nil, nil, nil, fmt.Errorf("Apple MDM APNs configuration: %w", err)
 		}
 		m.appleAPNs = cert
+		m.appleAPNsPEMCert = pair.certBytes
+		m.appleAPNsPEMKey = pair.keyBytes
 	}
-	return m.appleAPNs, nil
+	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
 // It parses and validates it if it hasn't been done yet.
-func (m *MDMConfig) AppleSCEP() (*tls.Certificate, error) {
+func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleSCEP == nil {
 		pair := x509KeyPairConfig{
 			m.AppleSCEPCert,
@@ -546,11 +537,13 @@ func (m *MDMConfig) AppleSCEP() (*tls.Certificate, error) {
 		}
 		cert, err := pair.Parse(false)
 		if err != nil {
-			return nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
+			return nil, nil, nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
 		}
 		m.appleSCEP = cert
+		m.appleSCEPPEMCert = pair.certBytes
+		m.appleSCEPPEMKey = pair.keyBytes
 	}
-	return m.appleSCEP, nil
+	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
 }
 
 type TLS struct {
@@ -893,8 +886,6 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigString("mdm_apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
-	man.addConfigString("mdm_apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
 	man.addConfigString("mdm_apple.dep.token", "", "MDM DEP Auth Token")
 	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 
@@ -1142,12 +1133,6 @@ func (man Manager) LoadConfig() FleetConfig {
 					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
 				},
 				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
-			},
-			MDM: MDMAppleMDMConfig{
-				PushCert: MDMApplePushCert{
-					PEMCert: man.getConfigString("mdm_apple.mdm.push.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.mdm.push.key_pem"),
-				},
 			},
 			DEP: MDMAppleDEP{
 				Token:           man.getConfigString("mdm_apple.dep.token"),

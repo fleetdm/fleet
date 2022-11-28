@@ -436,8 +436,8 @@ func TestMDMConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if c.in.AppleAPNsCert != "" || c.in.AppleAPNsKey != "" {
-				got, err := c.in.AppleAPNs()
+			if c.in.AppleAPNsCert != "" || c.in.AppleAPNsCertBytes != "" || c.in.AppleAPNsKey != "" || c.in.AppleAPNsKeyBytes != "" {
+				got, pemCert, pemKey, err := c.in.AppleAPNs()
 				if c.errMatches != "" {
 					require.Error(t, err)
 					require.Nil(t, got)
@@ -446,11 +446,13 @@ func TestMDMConfig(t *testing.T) {
 					require.NoError(t, err)
 					require.NotNil(t, got)
 					require.NotNil(t, got.Leaf) // APNs cert is parsed and stored
+					require.NotEmpty(t, pemCert)
+					require.NotEmpty(t, pemKey)
 				}
 			}
 
-			if c.in.AppleSCEPCert != "" || c.in.AppleSCEPKey != "" {
-				got, err := c.in.AppleSCEP()
+			if c.in.AppleSCEPCert != "" || c.in.AppleSCEPCertBytes != "" || c.in.AppleSCEPKey != "" || c.in.AppleSCEPKeyBytes != "" {
+				got, pemCert, pemKey, err := c.in.AppleSCEP()
 				if c.errMatches != "" {
 					require.Error(t, err)
 					require.Nil(t, got)
@@ -459,6 +461,8 @@ func TestMDMConfig(t *testing.T) {
 					require.NoError(t, err)
 					require.NotNil(t, got)
 					require.Nil(t, got.Leaf) // SCEP cert is not kept, not needed
+					require.NotEmpty(t, pemCert)
+					require.NotEmpty(t, pemKey)
 				}
 			}
 		})
