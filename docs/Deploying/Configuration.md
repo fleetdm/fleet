@@ -2324,7 +2324,7 @@ See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/lat
 
 ##### packaging_s3_region
 
-AWS S3 Region. Leave blank to enable region discovery.
+This is the AWS S3 Region. Leave it blank to enable region discovery.
 
 Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
 
