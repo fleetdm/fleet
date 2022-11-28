@@ -2293,7 +2293,7 @@ or running S3 locally with LocalStack. Leave this blank to use the default AWS S
 
 ##### packaging_s3_disable_ssl
 
-AWS S3 Disable SSL. Useful for local testing.
+This is the AWS S3 Disable SSL. It's useful for local testing.
 
 - Default value: false
 - Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
