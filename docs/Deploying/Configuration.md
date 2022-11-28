@@ -2178,7 +2178,7 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 
 #### Packaging
 
-Configurations used to control how Fleet interacts with the (coming soon)
+These configurations control how Fleet interacts with the 
 packaging server.  These features are currently only intended to be used within
 Fleet sandbox, but this is subject to change.
 
