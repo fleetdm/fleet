@@ -2380,7 +2380,7 @@ This is the path to a PEM-encoded private key for the Apple Push Notification se
 
 ##### apple_scep_cert
 
-The path to the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
+This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
