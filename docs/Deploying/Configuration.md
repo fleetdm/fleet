@@ -2179,7 +2179,7 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 #### Packaging
 
 These configurations control how Fleet interacts with the 
-packaging server.  These features are currently only intended to be used within
+packaging server (coming soon).  These features are currently only intended to be used within
 Fleet sandbox, but this is subject to change.
 
 ##### packaging_global_enroll_secret
