@@ -395,7 +395,7 @@ the way that the Fleet server works.
 				mdmPushService   *nanomdm_pushsvc.PushService
 				mdmPushCertTopic string
 			)
-			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
+			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() || config.MDMApple.Enable {
 				if !config.MDM.IsAppleAPNsSet() {
 					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
 				} else if !config.MDM.IsAppleSCEPSet() {
