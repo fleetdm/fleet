@@ -2352,7 +2352,7 @@ packaging:
 
 #### MDM (mobile device management) - IN PROGRESS
 
-> **NOTE:** This feature is currently in development and is not ready for use.
+> This feature is currently in development and is not ready for use.
 
 ##### apple_apns_cert
 
