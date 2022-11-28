@@ -403,6 +403,8 @@ type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType
 
 type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
 
+type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
+
 type CleanupCronStatsFunc func(ctx context.Context) error
 
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
@@ -429,7 +431,7 @@ type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fl
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error)
+type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error)
 
 type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value bool) error
 
@@ -1092,6 +1094,9 @@ type DataStore struct {
 
 	UpdateCronStatsFunc        UpdateCronStatsFunc
 	UpdateCronStatsFuncInvoked bool
+
+	UpdateAllCronStatsForInstanceFunc        UpdateAllCronStatsForInstanceFunc
+	UpdateAllCronStatsForInstanceFuncInvoked bool
 
 	CleanupCronStatsFunc        CleanupCronStatsFunc
 	CleanupCronStatsFuncInvoked bool
@@ -2225,6 +2230,11 @@ func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.Cr
 	return s.UpdateCronStatsFunc(ctx, id, status)
 }
 
+func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
+	s.UpdateAllCronStatsForInstanceFuncInvoked = true
+	return s.UpdateAllCronStatsForInstanceFunc(ctx, instance, fromStatus, toStatus)
+}
+
 func (s *DataStore) CleanupCronStats(ctx context.Context) error {
 	s.CleanupCronStatsFuncInvoked = true
 	return s.CleanupCronStatsFunc(ctx)
@@ -2290,7 +2300,7 @@ func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return s.UpdateHostFunc(ctx, host)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
 	return s.ListScheduledQueriesInPackFunc(ctx, packID)
 }

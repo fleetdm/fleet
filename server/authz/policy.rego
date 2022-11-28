@@ -556,3 +556,10 @@ allow {
   subject.global_role == admin
   action == [read, write][_]
 }
+
+# Global admins can read and write (i.e. trigger) cron schedules.
+allow {
+  object.type == "cron_schedules"
+  subject.global_role == admin
+  action == [read, write][_]
+}

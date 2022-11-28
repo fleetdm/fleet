@@ -162,11 +162,18 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
+	activityData := map[string]interface{}{
+		"targets_count": campaign.Metrics.TotalHosts,
+		"query_sql":     query.Query,
+	}
+	if queryID != nil {
+		activityData["query_name"] = query.Name
+	}
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeLiveQuery,
-		&map[string]interface{}{"targets_count": campaign.Metrics.TotalHosts},
+		&activityData,
 	); err != nil {
 		return nil, err
 	}

@@ -174,12 +174,6 @@
             tbody {
               .name__cell {
                 width: $col-md;
-                a {
-                  text-decoration: none;
-                  &:hover {
-                    text-decoration: underline;
-                  }
-                }
               }
               .version__cell {
                 width: 0;
@@ -204,6 +198,7 @@
                   justify-content: space-between;
                   .hosts-cell__link {
                     display: flex;
+                    white-space: nowrap;
                   }
                 }
               }
