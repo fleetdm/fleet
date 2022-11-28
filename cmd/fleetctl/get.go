@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"gopkg.in/guregu/null.v3"
 
@@ -908,14 +909,6 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table.Render()
 }
 
-func printColoredMsg(c *cli.Context, msg string, color int) {
-	table := borderlessTabularTable(c.App.Writer)
-	table.SetHeader([]string{msg})
-	table.SetAutoFormatHeaders(false)
-	table.SetHeaderColor(tablewriter.Colors{color})
-	table.Render()
-}
-
 func getTeamsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "teams",
@@ -1095,12 +1088,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				log(c, "\n")
-				printColoredMsg(c, "ERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]", tablewriter.FgHiRedColor)
+				color.New(color.FgRed).Fprintln(writerOrStdout(c.App.Writer), "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				log(c, "\n")
-				printColoredMsg(c, "WARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]", tablewriter.FgHiYellowColor)
+				color.New(color.FgYellow).Fprintln(writerOrStdout(c.App.Writer), "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
 			}
 
 			return nil
