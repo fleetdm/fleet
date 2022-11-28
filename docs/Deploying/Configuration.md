@@ -2164,7 +2164,7 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 
 ##### basic_auth.password
 
-Password to use for HTTP Basic Auth on the `/metrics` endpoint.
+This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
 If not set then the Prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
