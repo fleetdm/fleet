@@ -2253,7 +2253,7 @@ The IAM identity used in this context must be allowed to perform the following a
 
 ##### packaging_s3_secret_access_key
 
-AWS secret access key to use for S3 authentication.
+This is the AWS secret access key for S3 authentication.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
