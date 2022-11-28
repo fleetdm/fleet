@@ -2221,7 +2221,7 @@ This is the name of the S3 bucket to store pre-built Orbit installers.
 
 ##### packaging_s3_prefix
 
-Prefix to prepend when searching for installers.
+This is the prefix to prepend when searching for installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_PREFIX`
