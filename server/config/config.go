@@ -425,6 +425,11 @@ type MDMConfig struct {
 	appleSCEP        *tls.Certificate
 	appleSCEPPEMCert []byte
 	appleSCEPPEMKey  []byte
+
+	AppleBMServerToken      string `yaml:"apple_bm_server_token"`
+	AppleBMServerTokenBytes string `yaml:"apple_bm_server_token_bytes"`
+	AppleBMKey              string `yaml:"apple_bm_key"`
+	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
 }
 
 type x509KeyPairConfig struct {
@@ -898,6 +903,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager server token path")
+	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager server token bytes")
+	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
+	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
 
 	// Hide the official MDM flags as we don't want it to be discoverable for users for now
 	mdmFlags := []string{
@@ -909,6 +918,10 @@ func (man Manager) addConfigs() {
 		"mdm.apple_scep_cert_bytes",
 		"mdm.apple_scep_key",
 		"mdm.apple_scep_key_bytes",
+		"mdm.apple_bm_server_token",
+		"mdm.apple_bm_server_token_bytes",
+		"mdm.apple_bm_key",
+		"mdm.apple_bm_key_bytes",
 	}
 	for _, mdmFlag := range mdmFlags {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
@@ -1140,14 +1153,18 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDM: MDMConfig{
-			AppleAPNsCert:      man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes: man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:       man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:  man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:      man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes: man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:       man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:  man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleAPNsCert:           man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:      man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:            man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:       man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:           man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:      man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:            man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:       man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:      man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes: man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMKey:              man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:         man.getConfigString("mdm.apple_bm_key_bytes"),
 		},
 	}
 
