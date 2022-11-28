@@ -2392,7 +2392,7 @@ This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificat
 
 ##### apple_scep_key
 
-The path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
+This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
