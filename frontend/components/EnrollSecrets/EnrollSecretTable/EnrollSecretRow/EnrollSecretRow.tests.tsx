@@ -15,18 +15,16 @@ describe("Enroll secret row", () => {
       <EnrollSecretRow secret={TEAM_SECRET} />
     );
 
-    // TODO: Figure out how to grab an input, 30 minutes of google no success
-    // const secretHidden = screen.getByTestId("osquery-secret");
-    // const ok = screen.getByRole("form", { name: /osquery/i });
-    // const eyeIcon = screen.findByTestId("eye-icon");
-    // debug();
-    // const inputEl = container.querySelector(`input[name="osquery-secret-2"]`);
-    // expect(inputEl).toHaveAttribute("type", "password");
-    // console.log("\n\n\n\n ok", ok);
-    // await user.click(await eyeIcon);
+    // Secret hidden by default
+    const secretHidden = container.querySelector("input");
+    expect(secretHidden?.type === "password").toBeTruthy();
 
-    // const secretShown = screen.getByTestId("osquery-secret");
+    // Click eye icon
+    const eyeIcon = screen.findByTestId("eye-icon");
+    await user.click(await eyeIcon);
 
-    // expect(secretShown).toHaveAttribute("type", "text");
+    // Secret shown
+    const secretShown = container.querySelector("input");
+    expect(secretShown?.type === "text").toBeTruthy();
   });
 });
