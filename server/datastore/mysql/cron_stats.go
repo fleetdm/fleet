@@ -43,7 +43,17 @@ func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.C
 	stmt := `UPDATE cron_stats SET status = ? WHERE id = ?`
 
 	if _, err := ds.writer.ExecContext(ctx, stmt, status, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert cron stats")
+		return ctxerr.Wrap(ctx, err, "update cron stats")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
+	stmt := `UPDATE cron_stats SET status = ? WHERE instance = ? AND status = ?`
+
+	if _, err := ds.writer.ExecContext(ctx, stmt, toStatus, instance, fromStatus); err != nil {
+		return ctxerr.Wrap(ctx, err, "update all cron stats for instance")
 	}
 
 	return nil

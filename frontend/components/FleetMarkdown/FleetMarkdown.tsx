@@ -29,9 +29,7 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
       remarkPlugins={[remarkGfm]}
       components={{
         a: ({ href = "", children }) => {
-          return (
-            <CustomLink text={String(children)} url={href} newTab multiline />
-          );
+          return <CustomLink text={String(children)} url={href} newTab />;
         },
 
         // Overrides code display to use FleetAce with Readonly overrides.

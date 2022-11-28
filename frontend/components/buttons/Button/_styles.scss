@@ -148,6 +148,7 @@ $base-class: "button";
     padding: 0;
     height: auto;
     line-height: normal;
+    text-align: left;
 
     &:active {
       color: $core-vibrant-blue-down;
