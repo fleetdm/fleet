@@ -44,7 +44,6 @@ class OrgDetails extends Component {
         <div className="registration-fields">
           <InputField
             {...fields.org_name}
-            placeholder="Organization name"
             label="Organization name"
             tabIndex={tabIndex}
             ref={(input) => {
@@ -53,7 +52,6 @@ class OrgDetails extends Component {
           />
           <InputField
             {...fields.org_logo_url}
-            placeholder="Organization logo URL (optional)"
             label="Organization logo URL (optional)"
             tabIndex={tabIndex}
             hint="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."

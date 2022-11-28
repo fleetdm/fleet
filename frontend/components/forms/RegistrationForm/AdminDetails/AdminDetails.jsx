@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
-import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import InputField from "components/forms/fields/InputField";
 import helpers from "./helpers";
 
@@ -47,7 +46,6 @@ class AdminDetails extends Component {
         <div className="registration-fields">
           <InputField
             {...fields.name}
-            placeholder="Full name"
             label="Full name"
             tabIndex={tabIndex}
             autofocus={currentPage}
@@ -58,15 +56,9 @@ class AdminDetails extends Component {
               maxLength: "80",
             }}
           />
-          <InputField
-            {...fields.email}
-            placeholder="Email"
-            label="Email"
-            tabIndex={tabIndex}
-          />
+          <InputField {...fields.email} label="Email" tabIndex={tabIndex} />
           <InputField
             {...fields.password}
-            placeholder="Password"
             label="Password"
             type="password"
             tabIndex={tabIndex}
@@ -76,7 +68,6 @@ class AdminDetails extends Component {
           />
           <InputField
             {...fields.password_confirmation}
-            placeholder="Confirm password"
             type="password"
             tabIndex={tabIndex}
             label="Confirm password"

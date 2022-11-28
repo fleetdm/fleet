@@ -43,7 +43,6 @@ class FleetDetails extends Component {
         <div className="registration-fields">
           <InputField
             {...fields.server_url}
-            placeholder="Fleet web address"
             label="Fleet web address"
             tabIndex={tabIndex}
             hint={[
