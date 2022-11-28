@@ -27,7 +27,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
         data-for={`host-issue__${rowId.toString()}`}
         data-tip-disable={false}
       >
-        <Icon name="alert" />
+        <Icon name="issue" />
       </span>
       <ReactTooltip
         place="top"
