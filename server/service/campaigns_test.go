@@ -216,12 +216,12 @@ func TestLiveQueryAuth(t *testing.T) {
 			}
 			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunNew, err)
-			checkActivity := func(t testing.TB, err error, expectName, exceptSQL string) {
+			checkActivity := func(t testing.TB, err error, expectName, expectSQL string) {
 				if err != nil {
 					return
 				}
 				require.Equal(t, expectName, queryName)
-				require.Equal(t, exceptSQL, querySQL)
+				require.Equal(t, expectSQL, querySQL)
 			}
 			checkActivity(t, err, "", query1ObsCanRun.Query)
 
