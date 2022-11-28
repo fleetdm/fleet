@@ -22,7 +22,7 @@ func TestGetMDMApple(t *testing.T) {
 	cfg.MDM.AppleSCEPKey = "testdata/server.key"
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
-	_, err := cfg.MDM.AppleAPNs()
+	_, _, _, err := cfg.MDM.AppleAPNs()
 	require.NoError(t, err)
 
 	ctx = test.UserContext(ctx, test.UserAdmin)
