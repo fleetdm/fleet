@@ -2150,7 +2150,7 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 
 ##### basic_auth.username
 
-Username to use for HTTP Basic Auth on the `/metrics` endpoint.
+This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
 If not set, then the Prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
