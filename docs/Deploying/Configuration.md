@@ -2266,7 +2266,7 @@ This is the AWS secret access key for S3 authentication.
 
 ##### packaging_s3_sts_assume_role_arn
 
-AWS STS role ARN to use for S3 authentication.
+This is the AWS STS role ARN for S3 authentication.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
