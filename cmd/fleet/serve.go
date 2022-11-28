@@ -427,29 +427,26 @@ the way that the Fleet server works.
 				}
 				cancel()
 
-				// if those certs are provided, then MDM is enabled. Until we can
-				// replace all the MDM features with official implementation, reuse the
-				// config.MDMApple.Enable as it also enables some API endpoints.
-				config.MDMApple.Enable = true
-
-				if err := config_apple.VerifyDEP(config.MDMApple); err != nil {
-					initFatal(err, "verify apple mdm DEP config")
+				if config.MDMApple.Enable {
+					if err := config_apple.VerifyDEP(config.MDMApple); err != nil {
+						initFatal(err, "verify apple mdm DEP config")
+					}
+					scepStorage, err = mds.NewMDMAppleSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
+					if err != nil {
+						initFatal(err, "initialize mdm apple scep storage")
+					}
+					mdmStorage, err = mds.NewMDMAppleMDMStorage(apnsCertPEM, apnsKeyPEM)
+					if err != nil {
+						initFatal(err, "initialize mdm apple MySQL storage")
+					}
+					depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
+					if err != nil {
+						initFatal(err, "initialize mdm apple dep storage")
+					}
+					nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+					pushProviderFactory := buford.NewPushProviderFactory()
+					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 				}
-				scepStorage, err = mds.NewMDMAppleSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
-				if err != nil {
-					initFatal(err, "initialize mdm apple scep storage")
-				}
-				mdmStorage, err = mds.NewMDMAppleMDMStorage(apnsCertPEM, apnsKeyPEM)
-				if err != nil {
-					initFatal(err, "initialize mdm apple MySQL storage")
-				}
-				depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
-				if err != nil {
-					initFatal(err, "initialize mdm apple dep storage")
-				}
-				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
-				pushProviderFactory := buford.NewPushProviderFactory()
-				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
 			baseCtx := licensectx.NewContext(context.Background(), license)
