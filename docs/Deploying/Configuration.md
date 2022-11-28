@@ -2311,7 +2311,7 @@ This is the AWS S3 Force S3 Path Style. Set this to `true` to force the request 
 will use virtual hosted bucket addressing when possible
 (`http://BUCKET.s3.amazonaws.com/KEY`).
 
-See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
 - Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
