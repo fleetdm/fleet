@@ -2134,7 +2134,7 @@ on the Fleet web server.
 
 ##### DSN
 
-If set then `Fleet serve` will capture errors and panics and push them to Sentry.
+If set, then `Fleet serve` will capture errors and panics and push them to Sentry.
 
 - Default value: `""`
 - Environment variable: `FLEET_SENTRY_DSN`
