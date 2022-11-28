@@ -2368,7 +2368,7 @@ This is the path to the Apple Push Notification service (APNs) certificate. The 
 
 ##### apple_apns_key
 
-The path to a PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
+This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
