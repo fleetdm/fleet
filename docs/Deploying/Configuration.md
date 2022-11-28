@@ -2356,7 +2356,7 @@ packaging:
 
 ##### apple_apns_cert
 
-The path to the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
+This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
