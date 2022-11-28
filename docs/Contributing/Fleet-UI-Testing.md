@@ -30,7 +30,7 @@ For instructions on using our testings tools, check out our [testing docs](https
       - [App widgets testing](#app-widget-testing)
     - [E2E testing](#e2e-testing)
   - [Tooling](#tooling)
-    - [ESLint and TypeScript](#eslint-and-typescript)
+    - [ESLint and TypeScript](#es-lint-and-typescript)
     - [Jest](#jest)
     - [Testing library](#testing-library)
     - [Cypress](#cypress)

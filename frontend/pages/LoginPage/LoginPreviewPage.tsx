@@ -29,7 +29,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
   const [loginVisible, setLoginVisible] = useState(true);
 
   const onSubmit = async (formData: ILoginData) => {
-    const { HOME } = paths;
+    const { DASHBOARD } = paths;
 
     try {
       const { user, available_teams, token } = await sessionsAPI.create(
@@ -42,7 +42,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
       setAvailableTeams(available_teams);
       setCurrentTeam(undefined);
 
-      return router.push(HOME);
+      return router.push(DASHBOARD);
     } catch (response) {
       console.error(response);
       return false;

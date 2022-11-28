@@ -13,7 +13,7 @@ import (
 
 func TestGlobalPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{}, nil
@@ -101,7 +101,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
 				Name:  "query1",

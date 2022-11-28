@@ -6,10 +6,59 @@ If you're using a free version of Fleet, you can access free community support b
 
 Customers on a paid tier of Fleet can get in touch directly for commercial support:
 
+
 | Level of impact | Response time - premium tier | Response time - ultimate tier |
 | :--- | :--- | :--- |
 | Low to medium impact </br> Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br>|  **1 business day** | **1 business day**  |
 | High to emergency impact </br> Expedited phone/chat/email support </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> |  **4 business hours** | **≤1 hour during business hours** </br> **≤2 hours outside business hours** 
+
+| Level of impact | Type of support |
+| :--- | :--- |
+| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
+
+## New Customer Onboarding Workflow
+
+This workflow outlines the process that sales and customer success can follow when a new deal closes. 
+
+1. (AE) A customer is sent an order form
+    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
+    - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
+    - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
+        - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
+        - BizOps will cc the AE and stay cc’d on the contract when the final copy is sent to the CEO for Fleet execution. 
+        - Note: The Chief Revenue Officer serves as the backup to BizOps
+2. The Customer and Fleet sign the order form.
+    - (AE) The AE adds the fully executed contract to the opportunity record.
+    - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+3. (AE) The AE creates a 'New Sale Issue'
+    - They complete the AE tasks listed at the top of the issue.
+    - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
+    - Prepare to review:
+        - Details of the deal
+        - Primary contact / their role
+        - Desired use cases / desired outcomes
+        - Reasons for purchase
+        - Previously using Fleet Free?
+        - Support tier (Premium or Ultimate)
+        - Competitive solutions in place
+        - Other relevant technologies in place 
+        - Any proof of concept (POC) notes that are relevant
+        - Customer expectations for timeline
+        - Server deployment type
+4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+    - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
+    - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
+    - Create the customer Slack channel
+    - Generate the customer license key 
+    - Share the license key with the customer (7 day link)
+    - Schedule the customer onboarding kickoff call
+    - Collect deployment details (if not completed during POC)
+    - Schedule the recurring customer check-in
+    - Owns running the meeting, note taking, TODO follow up, etc. 
+
 
 ## Customer success calls
 
@@ -65,6 +114,8 @@ The support process is accomplished via on-call rotation and the weekly on-call 
 The on-call engineer holds responsibility for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the Customer Success team cannot handle.
 
 Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
+
+Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
@@ -164,11 +215,11 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ### Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [pdf](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager [here](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1VJu5DFDH4aveWFRhkvBHAqsZAdayMyZE/view?usp=share_link).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1Z7WsGt9AteSMvHfjcFZcgYBH02Ki1AMs/view?usp=sharing).
 
 ### Intro video
 

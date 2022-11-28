@@ -27,7 +27,7 @@ const ViewAllHostsLink = ({
     : PATHS.MANAGE_HOSTS;
 
   return (
-    <Link className={viewAllHostsLinkClass} to={path}>
+    <Link className={viewAllHostsLinkClass} to={path} title="host-link">
       {!condensed && <span>View all hosts</span>}
       <Icon
         name="chevron"

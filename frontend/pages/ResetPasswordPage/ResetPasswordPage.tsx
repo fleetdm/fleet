@@ -43,7 +43,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       await usersAPI.performRequiredPasswordReset(new_password as string);
       const config = await configAPI.loadAll();
       setConfig(config);
-      return router.push(PATHS.HOME);
+      return router.push(PATHS.DASHBOARD);
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
