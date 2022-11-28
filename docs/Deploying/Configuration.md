@@ -2188,7 +2188,7 @@ This is the enroll secret for adding hosts to the global scope. If this value is
 set, the server won't allow changes to the enroll secret via the config
 endpoints.
 
-This value should be treated as a secret, we recommend using a
+This value should be treated as a secret. We recommend using a
 cryptographically secure pseudo random string. For example, using `openssl`:
 
 ```
