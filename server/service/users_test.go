@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ import (
 
 func TestUserAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
 		return &fleet.Invite{
@@ -300,7 +299,7 @@ func TestUserAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			err := tt.user.SetPassword(test.GoodPassword, 10, 10)
 			require.NoError(t, err)
@@ -458,8 +457,7 @@ func TestModifyUserEmail(t *testing.T) {
 		assert.Equal(t, "minion", u.Position)
 		return nil
 	}
-	svc := newTestService(t, ms, nil, nil)
-	ctx := context.Background()
+	svc, ctx := newTestService(t, ms, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
 		Email:    ptr.String("zip@zap.com"),
@@ -504,8 +502,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
-	svc := newTestService(t, ms, nil, nil)
-	ctx := context.Background()
+	svc, ctx := newTestService(t, ms, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
@@ -553,8 +550,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
-	svc := newTestService(t, ms, nil, nil)
-	ctx := context.Background()
+	svc, ctx := newTestService(t, ms, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
@@ -606,8 +602,7 @@ func TestModifyAdminUserEmailPassword(t *testing.T) {
 	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 		return nil
 	}
-	svc := newTestService(t, ms, nil, nil)
-	ctx := context.Background()
+	svc, ctx := newTestService(t, ms, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	payload := fleet.UserPayload{
 		Email:    ptr.String("zip@zap.com"),
@@ -641,7 +636,7 @@ func TestUsersWithDS(t *testing.T) {
 // Test that CreateUser creates a user that will be forced to
 // reset its password upon first login (see #2570).
 func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	// Create admin user.
 	admin := &fleet.User{
@@ -651,11 +646,11 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 	}
 	err := admin.SetPassword(test.GoodPassword, 10, 10)
 	require.NoError(t, err)
-	admin, err = ds.NewUser(context.Background(), admin)
+	admin, err = ds.NewUser(ctx, admin)
 	require.NoError(t, err)
 
 	// As the admin, create a new user.
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	user, err := svc.CreateUser(ctx, fleet.UserPayload{
 		Name:       ptr.String("Some Observer"),
 		Email:      ptr.String("some-observer@email.com"),
@@ -670,7 +665,7 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	users := createTestUsers(t, ds)
 	passwordChangeTests := []struct {
 		user        fleet.User
@@ -710,7 +705,6 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 
 	for _, tt := range passwordChangeTests {
 		t.Run("", func(t *testing.T) {
-			ctx := context.Background()
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &tt.user})
 
 			err := svc.ChangePassword(ctx, tt.oldPassword, tt.newPassword)
@@ -734,7 +728,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 
 	for _, tt := range testUsers {
@@ -745,25 +739,25 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 			var sessions []*fleet.Session
 
 			// Log user in
-			_, _, err = svc.Login(test.UserContext(test.UserAdmin), tt.Email, tt.PlaintextPassword)
+			_, _, err = svc.Login(test.UserContext(ctx, test.UserAdmin), tt.Email, tt.PlaintextPassword)
 			require.Nil(t, err, "login unsuccessful")
-			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
+			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(ctx, test.UserAdmin), user.ID)
 			require.Nil(t, err)
 			require.Len(t, sessions, 1, "user should have one session")
 
 			// Reset and verify sessions destroyed
-			retUser, err := svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
+			retUser, err := svc.RequirePasswordReset(test.UserContext(ctx, test.UserAdmin), user.ID, true)
 			require.Nil(t, err)
 			assert.True(t, retUser.AdminForcedPasswordReset)
 			checkUser, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 			assert.True(t, checkUser.AdminForcedPasswordReset)
-			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(test.UserAdmin), user.ID)
+			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(ctx, test.UserAdmin), user.ID)
 			require.Nil(t, err)
 			require.Len(t, sessions, 0, "sessions should be destroyed")
 
 			// try undo
-			retUser, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, false)
+			retUser, err = svc.RequirePasswordReset(test.UserContext(ctx, test.UserAdmin), user.ID, false)
 			require.Nil(t, err)
 			assert.False(t, retUser.AdminForcedPasswordReset)
 			checkUser, err = ds.UserByEmail(context.Background(), tt.Email)
@@ -776,7 +770,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 func TestPerformRequiredPasswordReset(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	createTestUsers(t, ds)
 
@@ -785,9 +779,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			user, err := ds.UserByEmail(context.Background(), tt.Email)
 			require.Nil(t, err)
 
-			ctx := context.Background()
-
-			_, err = svc.RequirePasswordReset(test.UserContext(test.UserAdmin), user.ID, true)
+			_, err = svc.RequirePasswordReset(test.UserContext(ctx, test.UserAdmin), user.ID, true)
 			require.Nil(t, err)
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
@@ -829,7 +821,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 func TestResetPassword(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	createTestUsers(t, ds)
 	passwordResetTests := []struct {
 		token       string
@@ -848,7 +840,7 @@ func TestResetPassword(t *testing.T) {
 		{ // bad token
 			token:       "dcbaz",
 			newPassword: test.GoodPassword,
-			wantErr:     sql.ErrNoRows,
+			wantErr:     fleet.NewAuthFailedError("invalid password reset token"),
 		},
 		{ // missing token
 			newPassword: test.GoodPassword,
@@ -874,7 +866,7 @@ func TestResetPassword(t *testing.T) {
 			_, err := ds.NewPasswordResetRequest(context.Background(), request)
 			assert.Nil(t, err)
 
-			serr := svc.ResetPassword(test.UserContext(&fleet.User{ID: 1}), tt.token, tt.newPassword)
+			serr := svc.ResetPassword(test.UserContext(ctx, &fleet.User{ID: 1}), tt.token, tt.newPassword)
 			if tt.wantErr != nil {
 				assert.Equal(t, tt.wantErr.Error(), ctxerr.Cause(serr).Error())
 			} else {
@@ -895,13 +887,12 @@ func TestAuthenticatedUser(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
 	createTestUsers(t, ds)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
 	admin1Session, err := ds.NewSession(context.Background(), admin1.ID, "admin1")
 	require.NoError(t, err)
 
-	ctx := context.Background()
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1, Session: admin1Session})
 	user, err := svc.AuthenticatedUser(ctx)
 	assert.Nil(t, err)
@@ -1268,7 +1259,7 @@ func TestIsAdminOfTheModifiedTeams(t *testing.T) {
 // that an admin cannot add itself to another team.
 func TestTeamAdminAddRoleOtherTeam(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	// adminTeam2 is a team admin of team with ID=2.
 	adminTeam2 := &fleet.User{
@@ -1291,7 +1282,7 @@ func TestTeamAdminAddRoleOtherTeam(t *testing.T) {
 		return nil
 	}
 
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: adminTeam2})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminTeam2})
 	adminTeam2.SetPassword("p4ssw0rd.", 10, 10)
 
 	// adminTeam2 tries to add itself to team with ID=3 as admin.

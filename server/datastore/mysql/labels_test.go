@@ -152,7 +152,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	require.NoError(t, err)
 	host.LabelUpdatedAt = baseTime
 
-	// A new label targeting another platform should not effect the labels for
+	// A new label targeting another platform should not affect the labels for
 	// this host
 	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
 		{
@@ -276,6 +276,9 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Hostname:        "baz.local",
 	})
 	require.Nil(t, err)
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15))
 
 	l1 := &fleet.LabelSpec{
 		ID:    1,
@@ -287,20 +290,19 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	{
-		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 0)
-		assert.Len(t, hosts, 0)
-	}
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 0)
 
 	for _, h := range []*fleet.Host{h1, h2, h3} {
 		err = db.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
-	{
-		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
-		assert.Len(t, hosts, 3)
-	}
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
+
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(35)}, 3)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(25)}, 2)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(15)}, 1)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(5)}, 0)
 }
 
 func listHostsInLabelCheckCount(
@@ -311,6 +313,7 @@ func listHostsInLabelCheckCount(
 	count, err := db.CountHostsInLabel(context.Background(), filter, labelID, opt)
 	require.NoError(t, err)
 	require.Equal(t, expectedCount, count)
+	require.Len(t, hosts, expectedCount)
 	return hosts
 }
 
@@ -367,13 +370,11 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 
 	{
 		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, 1)
-		require.Len(t, hosts, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
 	{
 		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}, 2)
-		require.Len(t, hosts, 2)
 		assert.Equal(t, "bar.local", hosts[0].Hostname)
 		assert.Equal(t, "baz.local", hosts[1].Hostname)
 	}
@@ -429,26 +430,20 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 
 	{
 		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, 1)
-		require.Len(t, hosts, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
 	{
 		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{StatusFilter: fleet.StatusMIA}, 1)
-		require.Len(t, hosts, 1)
 		assert.Equal(t, "bar.local", hosts[0].Hostname)
 	}
 
 	{
 		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID}, 1)
-		require.Len(t, hosts, 1)
 		assert.Equal(t, "foo.local", hosts[0].Hostname)
 	}
 
-	{
-		hosts := listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
-		require.Len(t, hosts, 0)
-	}
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 }
 
 func testLabelsBuiltIn(t *testing.T, db *Datastore) {
@@ -887,7 +882,6 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 	}
 
 	hosts = listHostsInLabelCheckCount(t, ds, filter, l1.ID, fleet.HostListOptions{}, 10)
-	require.Len(t, hosts, 10)
 
 	h1 := hosts[0]
 	h2 := hosts[1]

@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -131,7 +132,11 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", osqueryError{message: "can enroll host check failed: " + err.Error(), nodeInvalid: true}
 	}
 	if !canEnroll {
-		return "", osqueryError{message: fmt.Sprintf("enroll host failed: maximum number of hosts reached: %d", svc.license.DeviceCount), nodeInvalid: true}
+		deviceCount := "unknown"
+		if lic, _ := license.FromContext(ctx); lic != nil {
+			deviceCount = strconv.Itoa(lic.DeviceCount)
+		}
+		return "", osqueryError{message: fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount), nodeInvalid: true}
 	}
 
 	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
@@ -807,7 +812,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
-			level.Debug(svc.logger).Log("query", query, "message", messages[query])
+			ll := level.Debug(svc.logger)
+			// We'd like to log these as error for troubleshooting and improving of distributed queries.
+			if messages[query] == "distributed query is denylisted" {
+				ll = level.Error(svc.logger)
+			}
+			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
+
 		}
 		var err error
 		switch {

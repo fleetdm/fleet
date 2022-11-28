@@ -68,7 +68,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         );
       });
       it("views all hosts for windows only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
+        cy.getAttached(".dashboard-page__platforms").within(() => {
           cy.getAttached(".Select-control").click();
           cy.findByText(/windows/i).click();
         });
@@ -78,7 +78,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         );
       });
       it("views all hosts for linux only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
+        cy.getAttached(".dashboard-page__platforms").within(() => {
           cy.getAttached(".Select-control").click();
           cy.findByText(/linux/i).click();
         });
@@ -88,7 +88,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         );
       });
       it("views all hosts for macOS only", () => {
-        cy.getAttached(".homepage__platforms").within(() => {
+        cy.getAttached(".dashboard-page__platforms").within(() => {
           cy.getAttached(".Select-control").click();
           cy.findByText(/macos/i).click();
         });

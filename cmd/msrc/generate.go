@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,11 +36,12 @@ func main() {
 	now := time.Now()
 	httpC := http.DefaultClient
 
-	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, inPath)
+	ctx := context.Background()
+	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
 	msrcAPI := io.NewMSRCClient(httpC, inPath, io.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
-	eBulletins, err := ghAPI.Bulletins()
+	eBulletins, err := ghAPI.Bulletins(ctx)
 	panicif(err)
 
 	var bulletins []*parsed.SecurityBulletin
@@ -151,7 +153,7 @@ func serialize(b *parsed.SecurityBulletin, d time.Time, dir string) error {
 	if err != nil {
 		return err
 	}
-	fileName := io.FileName(b.ProductName, d, "json")
+	fileName := io.FileName(b.ProductName, d)
 	filePath := filepath.Join(dir, fileName)
 
 	return os.WriteFile(filePath, payload, 0o644)

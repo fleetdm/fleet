@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { ILoadAllPoliciesResponse, IPolicyFormData } from "interfaces/policy";
+import { ILoadTeamPoliciesResponse, IPolicyFormData } from "interfaces/policy";
 
 export default {
   create: (data: IPolicyFormData) => {
@@ -42,7 +42,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (team_id?: number): Promise<ILoadAllPoliciesResponse> => {
+  loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
     if (!team_id) {

@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -62,71 +61,47 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 //
 // This map should not be modified at runtime.
 var hostDetailQueries = map[string]DetailQuery{
-	"network_interface": {
-		Query: `select ia.address, id.mac, id.interface
-                        from interface_details id join interface_addresses ia
-                               on ia.interface = id.interface where length(mac) > 0
-                               order by (ibytes + obytes) desc`,
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
-			if len(rows) == 0 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					"detail_query_network_interface expected 1 or more results")
-				return nil
-			}
-
-			// Rows are ordered by traffic, so we will get the most active
-			// interface by iterating in order
-			var firstIPv4, firstIPv6 map[string]string
-			for _, row := range rows {
-				ip := net.ParseIP(row["address"])
-				if ip == nil {
-					continue
-				}
-
-				// Skip link-local and loopback interfaces
-				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
-					continue
-				}
-
-				// Skip docker interfaces as these are sometimes heavily
-				// trafficked, but rarely the interface that Fleet users want to
-				// see. https://github.com/fleetdm/fleet/issues/4754.
-				if strings.Contains(row["interface"], "docker") {
-					continue
-				}
-
-				if strings.Contains(row["address"], ":") {
-					// IPv6
-					if firstIPv6 == nil {
-						firstIPv6 = row
-					}
-				} else {
-					// IPv4
-					if firstIPv4 == nil {
-						firstIPv4 = row
-					}
-				}
-			}
-
-			var selected map[string]string
-			switch {
-			// Prefer IPv4
-			case firstIPv4 != nil:
-				selected = firstIPv4
-			// Otherwise IPv6
-			case firstIPv6 != nil:
-				selected = firstIPv6
-			// If only link-local and loopback found, still use the first
-			// interface so that we don't get an empty value.
-			default:
-				selected = rows[0]
-			}
-
-			host.PrimaryIP = selected["address"]
-			host.PrimaryMac = selected["mac"]
-			host.PublicIP = publicip.FromContext(ctx)
-			return nil
-		},
+	"network_interface_unix": {
+		Query: `
+select
+    ia.address,
+    id.mac
+from
+    interface_addresses ia
+    join interface_details id on id.interface = ia.interface
+    join routes r on r.interface = ia.interface
+where
+    r.destination = '0.0.0.0'
+    and r.netmask = 0
+    and r.type = 'gateway'
+    and instr(ia.address, '.') > 0
+order by
+    r.metric asc
+limit 1
+`,
+		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
+		IngestFunc: ingestNetworkInterface,
+	},
+	"network_interface_windows": {
+		Query: `
+select
+    ia.address,
+    id.mac
+from
+    interface_addresses ia
+    join interface_details id on id.interface = ia.interface
+    join routes r on r.interface = ia.address
+where
+    r.destination = '0.0.0.0'
+    and r.netmask = 0
+    and r.type = 'remote'
+    and instr(ia.address, '.') > 0
+order by
+    r.metric asc
+limit 1
+`,
+		Platforms:  []string{"windows"},
+		IngestFunc: ingestNetworkInterface,
 	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
@@ -408,6 +383,55 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
+func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "IngestFunc", "err",
+			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		return nil
+	}
+
+	host.PrimaryIP = rows[0]["address"]
+	host.PrimaryMac = rows[0]["mac"]
+	host.PublicIP = publicip.FromContext(ctx)
+	return nil
+}
+
+func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
+			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
+		return nil
+	}
+
+	gigsAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+	percentAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
+	if err != nil {
+		return err
+	}
+
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
+}
+
+func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
+	}
+
+	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
+
+	// These values are not provided by kubequery
+	host.OsqueryVersion = "kubequery"
+	host.Platform = "kubequery"
+	return nil
+}
+
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
 // (via DirectIngestFunc).
@@ -416,9 +440,39 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
-		DirectIngestFunc: directIngestMDM,
+		DirectIngestFunc: directIngestMDMMac,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("mdm"),
+	},
+	"mdm_windows": {
+		Query: `
+			SELECT * FROM (
+				SELECT "provider_id" AS "key", data as "value" FROM registry
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
+				LIMIT 1
+			)
+			UNION ALL
+			SELECT * FROM (
+				SELECT "discovery_service_url" AS "key", data as "value" FROM registry
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
+				LIMIT 1
+			)
+			UNION ALL
+			SELECT * FROM (
+				SELECT "autopilot" AS "key", 1=1 AS "value" FROM registry
+				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+				LIMIT 1
+			)
+			UNION ALL
+			SELECT * FROM (
+				SELECT "installation_type" AS "key", data as "value" FROM registry
+				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+				LIMIT 1
+			)
+			;
+		`,
+		DirectIngestFunc: directIngestMDMWindows,
+		Platforms:        []string{"windows"},
 	},
 	"munki_info": {
 		Query:            `select version, errors, warnings from munki_info;`,
@@ -491,7 +545,7 @@ SELECT
 		ELSE
 			""
 	END AS release_id
-FROM 
+FROM
     os_version os,
     kernel_info k`,
 		Platforms:        []string{"windows"},
@@ -522,6 +576,27 @@ FROM
 		Query:            `SELECT version FROM orbit_info`,
 		DirectIngestFunc: directIngestOrbitInfo,
 		Discovery:        discoveryTable("orbit_info"),
+	},
+	"disk_encryption_darwin": {
+		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_linux": {
+		Query:            `SELECT 1 FROM (SELECT encrypted, path FROM disk_encryption FULL OUTER JOIN mounts ON mounts.device_alias = disk_encryption.name) WHERE encrypted = 1 AND path = '/';`,
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_windows": {
+		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
+		// osquery table on windows, it is always present.
 	},
 }
 
@@ -1155,30 +1230,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
-		return nil
-	}
-	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
-			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
-		return nil
-	}
-
-	gigsAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_disk_space_available"]), 64)
-	if err != nil {
-		return err
-	}
-	percentAvailable, err := strconv.ParseFloat(EmptyToZero(rows[0]["percent_disk_space_available"]), 64)
-	if err != nil {
-		return err
-	}
-
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
-}
-
-func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) == 0 || failed {
 		// assume the extension is not there
 		return nil
@@ -1204,7 +1256,22 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
+	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "")
+}
+
+func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
+		return nil
+	}
+	data := make(map[string]string, len(rows))
+	for _, r := range rows {
+		data[r["key"]] = r["value"]
+	}
+	_, autoPilot := data["autopilot"]
+	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
+	_, enrolled := data["provider_id"]
+	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"])
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -1222,17 +1289,18 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
-func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-	if len(rows) != 1 {
-		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
+func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed")
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn",
+			fmt.Sprintf("disk_encryption expected at most a single result, got %d", len(rows)))
 	}
 
-	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
-
-	// These values are not provided by kubequery
-	host.OsqueryVersion = "kubequery"
-	host.Platform = "kubequery"
-	return nil
+	encrypted := len(rows) > 0
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {

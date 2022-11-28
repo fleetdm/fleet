@@ -8,7 +8,13 @@ import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
-import { IHost, IDeviceMappingResponse } from "interfaces/host";
+import {
+  IHost,
+  IHostResponse,
+  IDeviceMappingResponse,
+  IMacadminsResponse,
+  IDeviceUserResponse,
+} from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
 import DeviceUserError from "components/DeviceUserError";
@@ -17,7 +23,11 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  wrapFleetHelper,
+  humanHostDiskEncryptionEnabled,
+} from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -35,14 +45,9 @@ interface IDeviceUserPageProps {
   params: Params;
 }
 
-interface ILicense {
-  tier: string;
-}
-
-interface IHostResponse {
-  host: IHost;
-  org_logo_url: string;
-  license: ILicense;
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
 }
 
 const DeviceUserPage = ({
@@ -56,6 +61,10 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
+  const [
+    hostDiskEncryption,
+    setHostDiskEncryption,
+  ] = useState<IHostDiskEncryptionProps>({});
   const [host, setHost] = useState<IHost | null>();
   const [orgLogoURL, setOrgLogoURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -77,15 +86,27 @@ const DeviceUserPage = ({
     }
   );
 
+  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+    ["macadmins", deviceAuthToken],
+    () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
+    {
+      enabled: !!deviceAuthToken,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IMacadminsResponse) => data.macadmins,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
   };
-
   const {
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
-  } = useQuery<IHostResponse, Error, IHostResponse>(
+  } = useQuery<IDeviceUserResponse, Error, IDeviceUserResponse>(
     ["host", deviceAuthToken],
     () => deviceUserAPI.loadHostDetails(deviceAuthToken),
     {
@@ -94,12 +115,19 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IHostResponse) => data,
-      onSuccess: (returnedHost: IHostResponse) => {
+      select: (data: IDeviceUserResponse) => data,
+      onSuccess: (returnedHost: IDeviceUserResponse) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
         setIsPremiumTier(returnedHost.license.tier === "premium");
         setHostSoftware(returnedHost.host.software ?? []);
         setHost(returnedHost.host);
+        setHostDiskEncryption({
+          enabled: returnedHost.host.disk_encryption_enabled,
+          tooltip: humanHostDiskEncryptionEnabled(
+            returnedHost.host.platform,
+            returnedHost.host.disk_encryption_enabled
+          ),
+        });
         setOrgLogoURL(returnedHost.org_logo_url);
         if (returnedHost?.host.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
@@ -151,6 +179,7 @@ const DeviceUserPage = ({
 
   const titleData = normalizeEmptyValues(
     pick(host, [
+      "id",
       "status",
       "issues",
       "memory",
@@ -161,6 +190,7 @@ const DeviceUserPage = ({
       "detail_updated_at",
       "percent_disk_space_available",
       "gigs_disk_space_available",
+      "team_name",
     ])
   );
 
@@ -173,6 +203,7 @@ const DeviceUserPage = ({
       "hardware_serial",
       "primary_ip",
       "public_ip",
+      "geolocation",
       "batteries",
       "detail_updated_at",
     ])
@@ -237,6 +268,7 @@ const DeviceUserPage = ({
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
+              diskEncryption={hostDiskEncryption}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
@@ -263,6 +295,7 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
+                    macadmins={macadmins}
                     wrapFleetHelper={wrapFleetHelper}
                     deviceUser
                   />

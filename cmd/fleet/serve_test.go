@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -13,10 +14,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
+
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +30,7 @@ import (
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
-// AppConfig, in the past we have seen this test fail with a data race warning.
+// AppConfig, Lock, and Unlock, in the past we have seen this test fail with a data race warning.
 //
 // TODO: if we see other tests failing for similar reasons, we should build a
 // more robust pattern instead of doing this everywhere
@@ -38,6 +44,20 @@ func (s *safeStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.AppConfigFunc(ctx)
+}
+
+func (s *safeStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.LockFuncInvoked = true
+	s.mu.Unlock()
+	return s.LockFunc(ctx, name, owner, expiration)
+}
+
+func (s *safeStore) Unlock(ctx context.Context, name string, owner string) error {
+	s.mu.Lock()
+	s.UnlockFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnlockFunc(ctx, name, owner)
 }
 
 func TestMaybeSendStatistics(t *testing.T) {
@@ -58,7 +78,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier:                  "ident",
 			FleetVersion:                         "1.2.3",
@@ -97,7 +117,8 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
@@ -120,7 +141,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, cfg config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, cfg config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
 	recorded := false
@@ -134,7 +155,8 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, cleanedup)
@@ -157,7 +179,8 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, called)
 }
@@ -184,12 +207,15 @@ func TestAutomationsSchedule(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
-	}
+
+	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
@@ -227,17 +253,11 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{EnableSoftwareInventory: true},
 		}, nil
-	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
 	}
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
@@ -253,6 +273,15 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		return nil
 	}
 
+	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
 
@@ -262,7 +291,8 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -276,6 +306,188 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	}, 5*time.Minute, 30*time.Second)
 }
 
+type softwareIterator struct {
+	index     int
+	softwares []*fleet.Software
+}
+
+func (f *softwareIterator) Next() bool {
+	return f.index < len(f.softwares)
+}
+
+func (f *softwareIterator) Value() (*fleet.Software, error) {
+	s := f.softwares[f.index]
+	f.index++
+	return s, nil
+}
+
+func (f *softwareIterator) Err() error   { return nil }
+func (f *softwareIterator) Close() error { return nil }
+
+func TestScanVulnerabilities(t *testing.T) {
+	nettest.Run(t)
+
+	logger := kitlog.NewNopLogger()
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx := context.Background()
+
+	webhookCount := 0
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		webhookCount++
+
+		var payload map[string]json.RawMessage
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		require.NoError(t, err)
+
+		expected := `
+{
+  "cve": "CVE-2022-39348",
+  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-39348",
+  "epss_probability": 0.0089,
+  "cvss_score": 5.4,
+  "cisa_known_exploit": false,
+  "hosts_affected": [
+    {
+      "id": 1,
+      "hostname": "1",
+      "display_name": "1",
+      "url": "hosts/1"
+    }
+  ]
+}
+`
+		require.JSONEq(t, expected, string(payload["vulnerability"]))
+	}))
+
+	appConfig := &fleet.AppConfig{
+		Features: fleet.Features{
+			EnableSoftwareInventory: true,
+		},
+		WebhookSettings: fleet.WebhookSettings{
+			VulnerabilitiesWebhook: fleet.VulnerabilitiesWebhookSettings{
+				Enable:         true,
+				DestinationURL: svr.URL,
+			},
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
+		return nil
+	}
+	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+		iterator := &softwareIterator{
+			softwares: []*fleet.Software{
+				{
+					ID:               1,
+					Name:             "Twisted",
+					Version:          "22.2.0",
+					BundleIdentifier: "",
+					Source:           "python_packages",
+				},
+			},
+		}
+		return iterator, nil
+	}
+	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+		return []fleet.SoftwareCPE{
+			{
+				ID:         1,
+				SoftwareID: 1,
+				CPE:        "cpe:2.3:a:twistedmatrix:twisted:22.2.0:*:*:*:*:python:*:*",
+			},
+		}, nil
+	}
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return 1, nil
+	}
+	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
+		return nil
+	}
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{
+			CountsUpdatedAt: time.Now(),
+			OSVersions: []fleet.OSVersion{
+				{HostsCount: 1, Name: "Ubuntu 22.04.1 LTS", Platform: "ubuntu"},
+			},
+		}, nil
+	}
+	ds.HostIDsByOSVersionFunc = func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+		if offset == 0 {
+			return []uint{1}, nil
+		}
+		return []uint{}, nil
+	}
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+		return []fleet.Software{
+			{
+				ID:               1,
+				Name:             "Twisted",
+				Version:          "22.2.0",
+				BundleIdentifier: "",
+				Source:           "python_packages",
+			},
+		}, nil
+	}
+	ds.ListSoftwareVulnerabilitiesByHostIDsSourceFunc = func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
+		require.Equal(t, []uint{1}, hostIDs)
+		require.Equal(t, fleet.UbuntuOVALSource, source)
+		return map[uint][]fleet.SoftwareVulnerability{}, nil
+	}
+	ds.ListOperatingSystemsFunc = func(ctx context.Context) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{
+			{
+				ID:            1,
+				Name:          "Ubuntu",
+				Version:       "22.04.1 LTS",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.124-linuxkit",
+			},
+		}, nil
+	}
+	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+		published := time.Date(2022, time.October, 26, 14, 15, 0, 0, time.UTC)
+
+		return []fleet.CVEMeta{
+			{
+				CVE:              "CVE-2022-39348",
+				CVSSScore:        ptr.Float64(5.4),
+				EPSSProbability:  ptr.Float64(0.0089),
+				CISAKnownExploit: ptr.Bool(false),
+				Published:        &published,
+			},
+		}, nil
+	}
+	ds.HostsBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+		return []*fleet.HostShort{
+			{
+				ID:          1,
+				Hostname:    "1",
+				DisplayName: "1",
+			},
+		}, nil
+	}
+
+	vulnPath := t.TempDir()
+
+	config := config.VulnerabilitiesConfig{
+		DatabasesPath:         vulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
+	}
+
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := scanVulnerabilities(ctx, ds, logger, &config, appConfig, vulnPath)
+	require.NoError(t, err)
+
+	// ensure that nvd vulnerabilities are not deleted
+	require.False(t, ds.DeleteSoftwareVulnerabilitiesFuncInvoked)
+
+	// ensure that webhook was called
+	require.Equal(t, 1, webhookCount)
+}
+
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	logger := kitlog.NewNopLogger()
 	logger = level.NewFilter(logger, level.AllowDebug())
@@ -286,7 +498,7 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	appConfig := &fleet.AppConfig{
 		Features: fleet.Features{EnableSoftwareInventory: true},
 	}
-	ds := new(mock.Store)
+	ds := new(safeStore)
 
 	// creating a file with the same path should result in an error when creating the directory
 	fileVulnPath := filepath.Join(t.TempDir(), "somefile")
@@ -299,7 +511,8 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
 	require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
 }
 
@@ -307,20 +520,23 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		// features.enable_software_inventory is false
 		return &fleet.AppConfig{}, nil
 	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
-	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
 		return nil
 	}
+
+	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -332,7 +548,8 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	}
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config, &fleet.LicenseInfo{Tier: "premium"})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -370,6 +587,8 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	failingPolicies := make(chan struct{})
 	failingPoliciesClosed := false
 	unknownName := false
+
+	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		if expiration != expectedInterval {
 			return false, nil
@@ -387,11 +606,14 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		default:
 			unknownName = true
 		}
-		return true, nil
+		return mockLocker.Lock(ctx, name, owner, expiration)
 	}
-	ds.UnlockFunc = func(context.Context, string, string) error {
-		return nil
-	}
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -439,18 +661,15 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		}, nil
 	}
 
-	lockCalled := make(chan struct{}, 1)
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		select {
-		case lockCalled <- struct{}{}:
-		default:
-			// OK
-		}
-		return true, nil
-	}
-	ds.UnlockFunc = func(context.Context, string, string) error {
-		return nil
-	}
+	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	mockLocker.AddChannels(t, "locked")
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -471,7 +690,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	interval.Unlock()
 
 	select {
-	case <-lockCalled:
+	case <-mockLocker.Locked:
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout: interval change did not trigger lock call")
 	}

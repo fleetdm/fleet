@@ -4,6 +4,7 @@ import classnames from "classnames";
 
 import { ILabel } from "interfaces/label";
 import { PLATFORM_LABEL_DISPLAY_NAMES } from "utilities/constants";
+import Icon from "components/Icon";
 
 import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { PLATFORM_TYPE_ICONS } from "./constants";
@@ -23,7 +24,7 @@ declare module "react-select-5/dist/declarations/src/Select" {
     canAddNewLabels: boolean;
     onAddLabel: () => void;
     onChangeLabelQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickLabelSeachInput: React.MouseEventHandler<HTMLInputElement>;
+    onClickLabelSearchInput: React.MouseEventHandler<HTMLInputElement>;
     onBlurLabelSearchInput: React.FocusEventHandler<HTMLInputElement>;
   }
 }
@@ -49,7 +50,10 @@ const OptionLabel = (data: ILabel | IEmptyOption) => {
   return (
     <div className={"option-label"}>
       {isPlatform && (
-        <img src={PLATFORM_TYPE_ICONS[data.display_text]} alt="" />
+        <Icon
+          name={PLATFORM_TYPE_ICONS[data.display_text]}
+          className="option-icon"
+        />
       )}
       <span>{labelText}</span>
     </div>
@@ -170,7 +174,7 @@ const LabelFilterSelect = ({
       onFocus={handleFocusSelect}
       onAddLabel={onAddLabel}
       onChangeLabelQuery={handleLabelQueryChange}
-      onClickLabelSeachInput={handleClickLabelSearchInput}
+      onClickLabelSearchInput={handleClickLabelSearchInput}
       onBlurLabelSearchInput={handleBlurLabelSearchInput}
     />
   );

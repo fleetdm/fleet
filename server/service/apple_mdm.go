@@ -706,6 +706,11 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<integer>2048</integer>
 				<key>URL</key>
 				<string>{{ .SCEPURL }}</string>
+				<key>Subject</key>
+				<array>
+					<array><array><string>O</string><string>FleetDM</string></array></array>
+					<array><array><string>CN</string><string>FleetDM Identity</string></array></array>
+				</array>
 			</dict>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.fleet.mdm.apple.scep</string>
@@ -747,6 +752,8 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 	<string>{{ .Organization }} Enrollment</string>
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.fleet.mdm.apple</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization }}</string>
 	<key>PayloadScope</key>
 	<string>System</string>
 	<key>PayloadType</key>

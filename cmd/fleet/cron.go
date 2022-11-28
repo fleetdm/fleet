@@ -14,14 +14,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
@@ -44,18 +47,17 @@ func startVulnerabilitiesSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
-	license *fleet.LicenseInfo,
 ) *schedule.Schedule {
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
 	s := schedule.New(
-		ctx, "vulnerabilities", instanceID, interval, ds,
+		ctx, "vulnerabilities", instanceID, interval, ds, ds,
 		schedule.WithLogger(vulnerabilitiesLogger),
 		schedule.WithJob(
 			"cron_vulnerabilities",
 			func(ctx context.Context) error {
 				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config, license)
+				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
 			},
 		),
 		schedule.WithJob(
@@ -74,7 +76,6 @@ func cronVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
-	license *fleet.LicenseInfo,
 ) error {
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
@@ -110,7 +111,7 @@ func cronVulnerabilities(
 	}
 	if vulnPath != "" {
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
-		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath, license); err != nil {
+		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
 	}
@@ -125,7 +126,6 @@ func scanVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
-	license *fleet.LicenseInfo,
 ) error {
 	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
@@ -169,19 +169,36 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	vulns, meta := recentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
-	if len(vulns) > 0 {
+	// If no automations enabled, then there is nothing else to do...
+	if vulnAutomationEnabled == "" {
+		return nil
+	}
+
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
+	vulns = append(vulns, nvdVulns...)
+	vulns = append(vulns, ovalVulns...)
+
+	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
+	if err != nil {
+		errHandler(ctx, logger, "could not fetch CVE meta", err)
+		return nil
+	}
+
+	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
+
+	if len(recentV) > 0 {
 		switch vulnAutomationEnabled {
 		case "webhook":
 			args := webhooks.VulnArgs{
-				Vulnerablities: vulns,
-				Meta:           meta,
+				Vulnerablities: recentV,
+				Meta:           matchingMeta,
 				AppConfig:      appConfig,
 				Time:           time.Now(),
 			}
 			mapper := webhooks.NewMapper()
-			if license.IsPremium() {
+			if license.IsPremium(ctx) {
 				mapper = eewebhooks.NewMapper()
 			}
 			// send recent vulnerabilities via webhook
@@ -201,7 +218,8 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "jira", "vulnerabilities"),
-				vulns,
+				recentV,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
@@ -212,7 +230,8 @@ func scanVulnerabilities(
 				ctx,
 				ds,
 				kitlog.With(logger, "zendesk", "vulnerabilities"),
-				vulns,
+				recentV,
+				matchingMeta,
 			); err != nil {
 				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
@@ -226,48 +245,52 @@ func scanVulnerabilities(
 	return nil
 }
 
-// recentVulns filters both the vulnerabilities comming from NVD and OVAL based on 'maxAge'
-// (any vulnerability older than 'maxAge' will be excluded). Returns the filtered vulnerabilities
-// and their meta data.
-func recentVulns(
+func checkWinVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	nvdVulns []fleet.SoftwareVulnerability,
-	ovalVulns []fleet.SoftwareVulnerability,
-	maxAge time.Duration,
-) ([]fleet.SoftwareVulnerability, map[string]fleet.CVEMeta) {
-	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
-		return nil, nil
-	}
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.OSVulnerability {
+	var results []fleet.OSVulnerability
 
-	meta, err := ds.ListCVEs(ctx, maxAge)
+	// Get OS
+	os, err := ds.ListOperatingSystems(ctx)
 	if err != nil {
-		errHandler(ctx, logger, "could not fetch CVE meta", err)
-		return nil, nil
+		errHandler(ctx, logger, "fetching list of operating systems", err)
+		return nil
 	}
 
-	recent := make(map[string]fleet.CVEMeta)
-	for _, r := range meta {
-		recent[r.CVE] = r
-	}
-
-	seen := make(map[string]bool)
-	var vulns []fleet.SoftwareVulnerability
-	for _, v := range nvdVulns {
-		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
-			seen[v.Key()] = true
-			vulns = append(vulns, v)
-		}
-	}
-	for _, v := range ovalVulns {
-		if _, ok := recent[v.CVE]; ok && !seen[v.Key()] {
-			seen[v.Key()] = true
-			vulns = append(vulns, v)
+	if !config.DisableDataSync {
+		// Sync MSRC definitions
+		client := fleethttp.NewClient()
+		err = msrc.Sync(ctx, client, vulnPath, os)
+		if err != nil {
+			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
 	}
 
-	return vulns, recent
+	// Analyze all Win OS using the synched MSRC artifact.
+	if !config.DisableWinOSVulnerabilities {
+		for _, o := range os {
+			start := time.Now()
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			elapsed := time.Since(start)
+			level.Debug(logger).Log(
+				"msg", "msrc-analysis-done",
+				"os name", o.Name,
+				"os version", o.Version,
+				"elapsed", elapsed,
+				"found new", len(r))
+			results = append(results, r...)
+			if err != nil {
+				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+			}
+		}
+	}
+
+	return results
 }
 
 func checkOvalVulnerabilities(
@@ -380,7 +403,7 @@ func startAutomationsSchedule(
 	}
 	s := schedule.New(
 		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
-		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds,
+		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
@@ -512,7 +535,7 @@ func startIntegrationsSchedule(
 	}
 
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds,
+		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithAltLockID("worker"),
 		schedule.WithLogger(logger),
 		schedule.WithJob("integrations_worker", func(ctx context.Context) error {
@@ -598,7 +621,7 @@ func startCleanupsAndAggregationSchedule(
 	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
 ) {
 	schedule.New(
-		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds,
+		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds, ds,
 		// Using leader for the lock to be backwards compatilibity with old deployments.
 		schedule.WithAltLockID("leader"),
 		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
@@ -649,6 +672,17 @@ func startCleanupsAndAggregationSchedule(
 				return ds.CleanupHostOperatingSystems(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cleanup_expired_password_reset_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredPasswordResetRequests(ctx)
+			},
+		),
+		schedule.WithJob(
+			"cleanup_cron_stats", func(ctx context.Context) error {
+				return ds.CleanupCronStats(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -683,22 +717,22 @@ func startCleanupsAndAggregationSchedule(
 	).Start()
 }
 
-func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) {
+func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger) {
 	schedule.New(
-		ctx, "stats", instanceID, 1*time.Hour, ds,
+		ctx, "stats", instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
 		schedule.WithJob(
 			"try_send_statistics",
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, license)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
 			},
 		),
 	).Start()
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, license *fleet.LicenseInfo) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -707,7 +741,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config)
 	if err != nil {
 		return err
 	}
@@ -788,7 +822,7 @@ func startAppleMDMDEPProfileAssigner(
 	)
 	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
 	schedule.New(
-		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds,
+		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
 			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)

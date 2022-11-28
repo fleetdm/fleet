@@ -38,7 +38,7 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
@@ -102,10 +102,6 @@ interface IManageHostsProps {
   location: any; // no type in react-router v3
 }
 
-interface IPolicyAPIResponse {
-  policy: IPolicy;
-}
-
 interface ITableQueryProps {
   pageIndex: number;
   pageSize: number;
@@ -139,6 +135,7 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
+    setAvailableTeams,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -149,7 +146,9 @@ const ManageHostsPage = ({
       isNaN(teamIdParam) ||
       (teamIdParam &&
         availableTeams &&
-        !availableTeams.find((team) => team.id === teamIdParam))
+        !availableTeams.find(
+          (availableTeam) => availableTeam.id === teamIdParam
+        ))
     ) {
       router.replace({
         pathname: location.pathname,
@@ -333,6 +332,14 @@ const ManageHostsPage = ({
       select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
+        setAvailableTeams(responseTeams);
+        if (
+          responseTeams.filter(
+            (responseTeam) => responseTeam.id === currentTeam?.id
+          )
+        ) {
+          setCurrentTeam(undefined);
+        }
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
           setCurrentTeam(responseTeams[0]);
         }
@@ -340,7 +347,7 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IPolicyAPIResponse, Error>(
+  useQuery<IStoredPolicyResponse, Error>(
     ["policy"],
     () => globalPoliciesAPI.load(policyId),
     {
@@ -761,6 +768,9 @@ const ManageHostsPage = ({
         newQueryParams.team_id = currentTeam.id;
       }
 
+      if (status) {
+        newQueryParams.status = status;
+      }
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
@@ -955,10 +965,10 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
-  const onTransferHostSubmit = async (team: ITeam) => {
+  const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
-    const teamId = typeof team.id === "number" ? team.id : null;
+    const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -978,7 +988,7 @@ const ManageHostsPage = ({
       const successMessage =
         teamId === null
           ? `Hosts successfully removed from teams.`
-          : `Hosts successfully transferred to  ${team.name}.`;
+          : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
@@ -1172,14 +1182,15 @@ const ManageHostsPage = ({
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
-    const label = name && version ? `${name} ${version}` : "";
-    const TooltipDescription =
-      name && version ? (
-        <span className={`tooltip__tooltip-text`}>
-          {`Hosts with ${name}`},<br />
-          {`${version} installed`}
-        </span>
-      ) : undefined;
+    const label = `${name || "Unknown software"} ${version || ""}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts with {name || "Unknown software"},
+        <br />
+        {version || "version unknown"} installed
+      </span>
+    );
 
     return (
       <FilterPill
@@ -1378,6 +1389,7 @@ const ManageHostsPage = ({
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
+        openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
     );
   };
@@ -1545,6 +1557,13 @@ const ManageHostsPage = ({
     ) {
       const renderFilterPill = () => {
         switch (true) {
+          // backend allows for pill combos label x low disk space
+          case showSelectedLabel && !!lowDiskSpaceHosts:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
+              </>
+            );
           case showSelectedLabel:
             return renderLabelFilterPill();
           case !!policyId:

@@ -648,8 +648,11 @@ func main() {
 			&g,
 			r.ExtensionSocketPath(),
 			table.WithExtension(orbitInfoExtension{
-				orbitClient: orbitClient,
-				trw:         trw,
+				orbitClient:     orbitClient,
+				orbitChannel:    c.String("orbit-channel"),
+				osquerydChannel: c.String("osqueryd-channel"),
+				desktopChannel:  c.String("desktop-channel"),
+				trw:             trw,
 			}),
 		)
 
@@ -662,6 +665,8 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		g.Add(signalHandler(ctx))
+
+		go sigusrListener(c.String("root-dir"))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")

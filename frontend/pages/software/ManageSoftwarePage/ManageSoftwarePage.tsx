@@ -5,6 +5,8 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Row } from "react-table";
+import PATHS from "router/paths";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce";
@@ -20,18 +22,17 @@ import {
   IZendeskIntegration,
   IIntegrations,
 } from "interfaces/integration";
+import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
-import softwareAPI, {
-  ISoftwareResponse,
-  ISoftwareCountResponse,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
+import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -45,11 +46,11 @@ import TeamsDropdownHeader, {
 } from "components/PageHeader/TeamsDropdownHeader";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
+import CustomLink from "components/CustomLink";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -88,6 +89,13 @@ interface ISoftwareAutomations {
 interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
+}
+
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -484,14 +492,11 @@ const ManageSoftwarePage = ({
     return (
       <div>
         Seeing unexpected software or vulnerabilities?{" "}
-        <a
-          href={GITHUB_NEW_ISSUE_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          File an issue on GitHub
-          <img src={ExternalLinkIcon} alt="Open external link" />
-        </a>
+        <CustomLink
+          url={GITHUB_NEW_ISSUE_LINK}
+          text="File an issue on GitHub"
+          newTab
+        />
       </div>
     );
   };
@@ -512,9 +517,18 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(isPremiumTier),
-    [isPremiumTier]
+    () => generateSoftwareTableHeaders(router, isPremiumTier),
+    [isPremiumTier, router]
   );
+  const handleRowSelect = (row: IRowProps) => {
+    const queryParams = { software_id: row.original.id };
+
+    const path = queryParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+      : PATHS.MANAGE_HOSTS;
+
+    router.push(path);
+  };
 
   return !availableTeams ||
     !globalConfig ||
@@ -560,7 +574,8 @@ const ManageSoftwarePage = ({
               renderFooter={renderTableFooter}
               disableActionButton
               hideActionButton
-              highlightOnHover
+              disableMultiRowSelect
+              onSelectSingleRow={handleRowSelect}
             />
           )}
         </div>

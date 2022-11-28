@@ -68,8 +68,14 @@ export const reconcileMutuallyExclusiveHostParams = ({
   osVersion,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
+    // backend api now allows label x low disk space
+    // all other params are still mutually exclusive
+    if (lowDiskSpaceHosts) {
+      return { low_disk_space: lowDiskSpaceHosts };
+    }
     return {};
   }
+
   switch (true) {
     case !!policyId:
       return { policy_id: policyId, policy_response: policyResponse };

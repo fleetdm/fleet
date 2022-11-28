@@ -8,8 +8,51 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 | Level of impact | Type of support |
 | :--- | :--- |
-| Low to medium impact | Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat/email support during business hours </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> Response time: **≤4 hours** |
+| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
+
+## New Customer Onboarding Workflow
+
+This workflow outlines the process that sales and customer success can follow when a new deal closes. 
+
+1. (AE) A customer is sent an order form
+    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
+    - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
+    - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
+        - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
+        - BizOps will cc the AE and stay cc’d on the contract when the final copy is sent to the CEO for Fleet execution. 
+        - Note: The Chief Revenue Officer serves as the backup to BizOps
+2. The Customer and Fleet sign the order form.
+    - (AE) The AE adds the fully executed contract to the opportunity record.
+    - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+3. (AE) The AE creates a 'New Sale Issue'
+    - They complete the AE tasks listed at the top of the issue.
+    - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
+    - Prepare to review:
+        - Details of the deal
+        - Primary contact / their role
+        - Desired use cases / desired outcomes
+        - Reasons for purchase
+        - Previously using Fleet Free?
+        - Support tier (Premium or Ultimate)
+        - Competitive solutions in place
+        - Other relevant technologies in place 
+        - Any proof of concept (POC) notes that are relevant
+        - Customer expectations for timeline
+        - Server deployment type
+4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+    - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
+    - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
+    - Create the customer Slack channel
+    - Generate the customer license key 
+    - Share the license key with the customer (7 day link)
+    - Schedule the customer onboarding kickoff call
+    - Collect deployment details (if not completed during POC)
+    - Schedule the recurring customer check-in
+    - Owns running the meeting, note taking, TODO follow up, etc. 
+
 
 ## Customer success calls
 
@@ -65,6 +108,8 @@ The support process is accomplished via on-call rotation and the weekly on-call 
 The on-call engineer holds responsibility for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the Customer Success team cannot handle.
 
 Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
+
+Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
@@ -164,11 +209,11 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ### Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager [here](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1Z7WsGt9AteSMvHfjcFZcgYBH02Ki1AMs/view?usp=sharing).
 
 ### Intro video
 
@@ -207,7 +252,7 @@ To track the stage of the sales cycle that a lead is at, we use the following st
 | Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
 | SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
-At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
+At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one.
 
 - Research each prospect.
 - Praise what’s great about their company.
@@ -217,6 +262,8 @@ At times, our sales team will reach out to prospective customers before they com
 - Keep an enthusiastic and warm tone.
 - Be personable.
 - Ask for the meeting with a proposed time.
+
+Here is another [LinkedIn post](https://www.linkedin.com/posts/davidtropic_i-got-the-best-cold-email-ive-ever-gotten-activity-6991066918363267072-yeXN) with an example of a great personalized cold outreach.
 
 Importantly, when we interact with CISOs or, for that matter, any member of a prospective customer organization, we adhere to the principles in this [LinkedIn post](https://www.linkedin.com/pulse/selling-ciso-james-turner). Specifically:
 
@@ -305,7 +352,8 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell 
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
+| Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
 
 ## Slack channels
