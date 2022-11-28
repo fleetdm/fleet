@@ -5,6 +5,7 @@ import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
+import InputField from "components/forms/fields/InputField";
 import helpers from "./helpers";
 
 const formFields = ["name", "password", "password_confirmation", "email"];
@@ -44,9 +45,10 @@ class AdminDetails extends Component {
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
         <div className="registration-fields">
-          <InputFieldWithIcon
+          <InputField
             {...fields.name}
             placeholder="Full name"
+            label="Full name"
             tabIndex={tabIndex}
             autofocus={currentPage}
             ref={(input) => {
@@ -56,25 +58,28 @@ class AdminDetails extends Component {
               maxLength: "80",
             }}
           />
-          <InputFieldWithIcon
+          <InputField
             {...fields.email}
             placeholder="Email"
+            label="Email"
             tabIndex={tabIndex}
           />
-          <InputFieldWithIcon
+          <InputField
             {...fields.password}
             placeholder="Password"
+            label="Password"
             type="password"
             tabIndex={tabIndex}
             hint={[
               "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
             ]}
           />
-          <InputFieldWithIcon
+          <InputField
             {...fields.password_confirmation}
             placeholder="Confirm password"
             type="password"
             tabIndex={tabIndex}
+            label="Confirm password"
           />
         </div>
         <Button
