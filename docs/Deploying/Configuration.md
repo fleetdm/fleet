@@ -2471,7 +2471,7 @@ This is the path to the Apple Business Manager encrypted server token (a `.p7m` 
 - Config file format:
   ```
   mdm:
-    apple_bm_server_token: /path/to/server_token
+    apple_bm_server_token: /path/to/server_token.p7m
   ```
 
 ##### apple_bm_server_token_bytes
@@ -2524,7 +2524,7 @@ mdm:
   apple_apns_key: /path/to/apns_key
   apple_scep_cert: /path/to/scep_cert
   apple_scep_key: /path/to/scep_key
-  apple_bm_server_token: /path/to/server_token
+  apple_bm_server_token: /path/to/server_token.p7m
   apple_bm_key: /path/to/private_key
 ```
 
