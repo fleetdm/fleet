@@ -34,6 +34,7 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
+import Icon from "components/Icon/Icon";
 
 import {
   normalizeEmptyValues,
