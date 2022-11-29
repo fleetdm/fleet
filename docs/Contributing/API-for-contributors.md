@@ -518,7 +518,7 @@ Delete pack by name.
 
 ---
 
-## Mobile Device Management (MDM) - IN PROGRESS
+## Mobile device management (MDM) - IN PROGRESS
 
 > **NOTE:** This feature is currently in development and is not ready for use.
 
