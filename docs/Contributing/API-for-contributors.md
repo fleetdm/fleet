@@ -1,7 +1,7 @@
 # API for contributors
 
 - [Packs](#packs)
-- [Mobile Device Management (MDM) - IN PROGRESS](#mobile-device-management-mdm-in-progress)
+- [Mobile device management (MDM) - IN PROGRESS](#mobile-device-management-mdm-in-progress)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
