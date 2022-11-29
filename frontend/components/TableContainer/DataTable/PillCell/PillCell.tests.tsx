@@ -4,7 +4,7 @@ import { renderWithSetup } from "test/testingUtils";
 
 import PillCell from "./PillCell";
 
-const PERFORMANCE_IMPACT = { indicator: "minimal", id: 3 };
+const PERFORMANCE_IMPACT = { indicator: "Minimal", id: 3 };
 
 describe("Pill cell", () => {
   it("renders pill text and tooltip on hover", async () => {

@@ -1,6 +1,6 @@
 import React from "react";
 import classnames from "classnames";
-import { v4 as uuidv4 } from "uuid";
+import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
 
@@ -85,12 +85,13 @@ const PillCell = ({
         return null;
     }
   };
+  const tooltipId = uniqueId();
 
   return (
     <>
       <span
         data-tip
-        data-for={`${customIdPrefix || "pill"}__${id?.toString() || uuidv4()}`}
+        data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
         data-tip-disable={disable()}
       >
         <span className={pillClassName}>{indicator}</span>
@@ -100,7 +101,7 @@ const PillCell = ({
         // offset={getTooltipOffset(pillText)}
         effect="solid"
         backgroundColor="#3e4771"
-        id={`${customIdPrefix || "pill"}__${id?.toString() || uuidv4()}`}
+        id={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
         data-html
       >
         <span
