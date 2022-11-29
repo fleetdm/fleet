@@ -2464,7 +2464,7 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
 
 ##### apple_bm_server_token
 
-This is the path to the Apple Business Manager server token. This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the path to the Apple Business Manager encrypted server token (a `.p7m` file). This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
@@ -2476,7 +2476,7 @@ This is the path to the Apple Business Manager server token. This is typically g
 
 ##### apple_bm_server_token_bytes
 
-The content of the Apple Business Manager server token. This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+The content of the Apple Business Manager encrypted server token. This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2484,7 +2484,9 @@ The content of the Apple Business Manager server token. This is typically genera
   ```
   mdm:
     apple_bm_server_token_bytes: |
-      { ...token content... }
+      Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
+      Content-Transfer-Encoding: base64
+      ... rest of content ...
   ```
 
 ##### apple_bm_key
