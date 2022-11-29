@@ -17,6 +17,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/client"
+	nanodep_client "github.com/micromdm/nanodep/client"
 )
 
 func main() {
@@ -49,7 +50,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	depStorage, err := mds.NewMDMAppleDEPStorage(tok)
+
+	var jsonTok nanodep_client.OAuth1Tokens
+	if err := json.Unmarshal(tok, &jsonTok); err != nil {
+		log.Fatal(err)
+	}
+
+	depStorage, err := mds.NewMDMAppleDEPStorage(jsonTok)
 	if err != nil {
 		log.Fatal(err)
 	}
