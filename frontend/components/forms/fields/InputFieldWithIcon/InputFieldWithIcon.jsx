@@ -32,7 +32,6 @@ class InputFieldWithIcon extends InputField {
     const labelClassArr = [`${baseClass}__label`];
     let labelText = label;
     if (error) {
-      // return <div className={`${labelClasses}--error`}>{error}</div>;
       labelClassArr.push(`${baseClass}__label--error`);
       labelText = error;
     }
