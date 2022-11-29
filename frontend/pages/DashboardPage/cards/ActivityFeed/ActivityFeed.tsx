@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 
@@ -6,8 +6,9 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
-import { IActivity } from "interfaces/activity";
+import { IActivity, IActivityDetails } from "interfaces/activity";
 
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -16,7 +17,6 @@ import FleetIcon from "components/icons/FleetIcon";
 import ActivityItem from "./ActivityItem";
 
 const baseClass = "activity-feed";
-
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
 }
@@ -28,6 +28,8 @@ const ActivityFeed = ({
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showMore, setShowMore] = useState(true);
+  const [showShowQueryModal, setShowShowQueryModal] = useState(false);
+  const queryShown = useRef("");
 
   const {
     data: activities,
@@ -74,6 +76,11 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
+  const handleDetailsClick = (details: IActivityDetails) => {
+    queryShown.current = details.query_sql ?? "";
+    setShowShowQueryModal(true);
+  };
+
   const renderError = () => {
     return <DataError card />;
   };
@@ -89,12 +96,6 @@ const ActivityFeed = ({
         </p>
       </div>
     );
-  };
-
-  const renderActivityBlock = (activity: IActivity) => {
-    const { id } = activity;
-
-    return <ActivityItem activity={activity} key={id} />;
   };
 
   // Renders opaque information as activity feed is loading
@@ -113,7 +114,13 @@ const ActivityFeed = ({
             </div>
           )}
           <div style={opacity}>
-            {activities?.map((activity) => renderActivityBlock(activity))}
+            {activities?.map((activity) => (
+              <ActivityItem
+                activity={activity}
+                onDetailsClick={handleDetailsClick}
+                key={activity.id}
+              />
+            ))}
           </div>
         </>
       )}
@@ -142,6 +149,12 @@ const ActivityFeed = ({
             </Button>
           </div>
         )}
+      {showShowQueryModal && (
+        <ShowQueryModal
+          query={queryShown.current}
+          onCancel={() => setShowShowQueryModal(false)}
+        />
+      )}
     </div>
   );
 };

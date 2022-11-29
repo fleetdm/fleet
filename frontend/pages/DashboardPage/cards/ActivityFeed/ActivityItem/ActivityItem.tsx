@@ -2,7 +2,7 @@ import React from "react";
 import { find, lowerCase, noop } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
-import { ActivityType, IActivity } from "interfaces/activity";
+import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
@@ -14,7 +14,10 @@ const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
 const TAGGED_TEMPLATES = {
-  liveQueryActivityTemplate: (activity: IActivity) => {
+  liveQueryActivityTemplate: (
+    activity: IActivity,
+    onDetailsClick?: (details: IActivityDetails) => void
+  ) => {
     const count = activity.details?.targets_count;
     const queryName = activity.details?.query_name;
     const querySql = activity.details?.query_sql;
@@ -37,15 +40,12 @@ const TAGGED_TEMPLATES = {
         <span>
           ran {savedQueryName} a live query {hostCount}.
         </span>
-
-        {/* TODO: the API does not yet send back querySql yet so will implement
-        the onClick handler when we get it. We dont show this for now. */}
-        {false && (
+        {querySql && (
           <>
             <Button
               className={`${baseClass}__show-query-link`}
               variant="text-link"
-              onClick={noop}
+              onClick={() => onDetailsClick?.({ query_sql: querySql })}
             >
               Show query{" "}
               <Icon className={`${baseClass}__show-query-icon`} name="eye" />
@@ -107,10 +107,16 @@ const TAGGED_TEMPLATES = {
   },
 };
 
-const getDetail = (activity: IActivity) => {
+const getDetail = (
+  activity: IActivity,
+  onDetailsClick?: (details: IActivityDetails) => void
+) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
-      return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
+      return TAGGED_TEMPLATES.liveQueryActivityTemplate(
+        activity,
+        onDetailsClick
+      );
     }
     case ActivityType.AppliedSpecPack: {
       return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
@@ -138,9 +144,18 @@ const getDetail = (activity: IActivity) => {
 
 interface IActivityItemProps {
   activity: IActivity;
+
+  /** A handler for handling clicking on the details of an activity. Not all
+   * activites have more details so this is optional. An example of additonal
+   * details is showing the query for a live query action.
+   */
+  onDetailsClick?: (details: IActivityDetails) => void;
 }
 
-const ActivityItem = ({ activity }: IActivityItemProps) => {
+const ActivityItem = ({
+  activity,
+  onDetailsClick = noop,
+}: IActivityItemProps) => {
   const { actor_email } = activity;
   const { gravatarURL } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
@@ -156,7 +171,8 @@ const ActivityItem = ({ activity }: IActivityItemProps) => {
       <div className={`${baseClass}__details`}>
         <p>
           <span className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b> {getDetail(activity)}
+            <b>{activity.actor_full_name}</b>{" "}
+            {getDetail(activity, onDetailsClick)}
           </span>
           <br />
           <span className={`${baseClass}__details-bottomline`}>
