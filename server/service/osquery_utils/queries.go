@@ -1327,7 +1327,7 @@ func directIngestDiskEncryptionKey(ctx context.Context, logger log.Logger, host 
 	}
 
 	if key == "" {
-		return ctxerr.Errorf(ctx, "missing <RecoveryKey> value in plist: %d", host.ID)
+		return ctxerr.Errorf(ctx, "missing <RecoveryKey> value in plist for host: %d", host.ID)
 	}
 
 	return ds.SetOrUpdateHostDisksEncryptionKey(ctx, host.ID, key)
