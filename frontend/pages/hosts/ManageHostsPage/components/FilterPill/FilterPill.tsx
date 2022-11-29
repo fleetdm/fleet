@@ -3,8 +3,7 @@ import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
-
-import CloseIcon from "../../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
+import Icon from "components/Icon";
 
 interface IFilterPillProps {
   label: string;
@@ -27,7 +26,7 @@ const FilterPill = ({
   const labelClasses = classnames(`${baseClass}__label`, {
     tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
   });
-
+  console.log("icon", icon);
   return (
     <div
       className={baseClasses}
@@ -40,7 +39,7 @@ const FilterPill = ({
           data-for={`filter-pill-tooltip-${label}`}
         >
           <div className={labelClasses}>
-            {icon && <img src={icon} alt="" />}
+            {icon && <Icon name="policy" />}
             {label}
             <Button
               className={`${baseClass}__clear-filter`}
@@ -48,7 +47,7 @@ const FilterPill = ({
               variant={"small-text-icon"}
               title={label}
             >
-              <img src={CloseIcon} alt="Remove filter" />
+              <Icon name="ex" color="core-fleet-blue" />
             </Button>
           </div>
         </span>

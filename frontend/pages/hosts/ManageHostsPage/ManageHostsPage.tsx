@@ -91,7 +91,6 @@ import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import FilterPill from "./components/FilterPill";
@@ -1179,7 +1178,7 @@ const ManageHostsPage = ({
         onChange={handleChangePoliciesFilter}
       />
       <FilterPill
-        icon={PolicyIcon}
+        icon="policy"
         label={policy?.name ?? "..."}
         onClear={handleClearPoliciesFilter}
         className={`${baseClass}__policies-filter-pill`}

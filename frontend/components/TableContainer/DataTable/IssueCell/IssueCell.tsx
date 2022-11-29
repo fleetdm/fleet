@@ -2,9 +2,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 
-import Icon from "components/Icon";
-
-import IssueIcon from "../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 interface IIssueCellProps<T> {
   issues: {

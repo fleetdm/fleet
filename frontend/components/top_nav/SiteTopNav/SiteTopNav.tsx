@@ -8,6 +8,7 @@ import { AppContext } from "context/app";
 
 import LinkWithContext from "components/LinkWithContext";
 import UserMenu from "components/top_nav/UserMenu";
+import Icon from "components/Icon";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
@@ -38,7 +39,7 @@ const SiteTopNav = ({
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
-    const { name, iconName, withContext } = navItem;
+    const { name, icon, withContext } = navItem;
     const orgLogoURL = config.org_info.org_logo_url;
     const active = navItem.location.regex.test(pathname);
 

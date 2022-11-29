@@ -1,6 +1,7 @@
 import PATHS from "router/paths";
 import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
+import { IconNames } from "components/icons";
 
 export interface INavItem {
   name: string;
@@ -35,9 +36,7 @@ export default (
 
   const logo = [
     {
-      icon: "logo",
-      name: "Home",
-      iconName: "logo",
+      name: "Dashboard",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/dashboard`),
         pathname: PATHS.DASHBOARD,

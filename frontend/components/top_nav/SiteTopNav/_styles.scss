@@ -35,15 +35,6 @@
     }
   }
 
-  &__icon {
-    position: relative;
-    font-size: $large;
-    margin-right: $pad-small;
-    width: 16px;
-    height: 16px;
-    vertical-align: sub;
-  }
-
   &__name {
     display: inline-flex;
     flex-direction: column;
@@ -70,6 +61,7 @@
     color: $core-white;
     padding: 15px 24px;
     text-decoration: none;
+    gap: $pad-small;
   }
 
   &__logo {

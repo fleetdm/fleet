@@ -10,7 +10,7 @@ import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
-import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "host-summary";
 
@@ -95,7 +95,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <img alt="host issue" src={IssueIcon} />
+          <Icon name="issue" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"
