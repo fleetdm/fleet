@@ -19,7 +19,6 @@ const PillCell = ({
   customIdPrefix,
   hostDetails,
 }: IPillCellProps): JSX.Element => {
-  console.log("value", value);
   const { indicator, id } = value;
   const pillClassName = classnames(
     "data-table__pill",
