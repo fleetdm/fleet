@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,7 +16,7 @@ func (c *Client) TriggerCronSchedule(name string) error {
 
 	response, err := c.AuthenticatedDo(verb, path, query.Encode(), nil)
 	if err != nil {
-		return errors.New(fmt.Sprintf("%s %s: %s", verb, path, err))
+		return fmt.Errorf("%s %s: %s", verb, path, err)
 	}
 	defer response.Body.Close()
 
@@ -42,7 +41,7 @@ func (c *Client) TriggerCronSchedule(name string) error {
 func extractServerErrMsg(verb string, path string, res *http.Response) (string, error) {
 	var decoded serverError
 	if err := json.NewDecoder(res.Body).Decode(&decoded); err != nil {
-		return "", errors.New(fmt.Sprintf("%s %s: decode server error: %s", verb, path, err))
+		return "", fmt.Errorf("%s %s: decode server error: %s", verb, path, err)
 	}
 	if len(decoded.Errors) > 0 {
 		return decoded.Errors[0].Reason, nil
