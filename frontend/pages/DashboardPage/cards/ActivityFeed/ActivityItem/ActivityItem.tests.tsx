@@ -82,6 +82,7 @@ describe("Activity Feed", () => {
       screen.getByText("ran the query as a live query .")
     ).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
   });
 
   it("renders an applied_spec_pack type activity", () => {
