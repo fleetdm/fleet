@@ -8,7 +8,7 @@ import activitiesAPI, {
 
 import { IActivity, IActivityDetails } from "interfaces/activity";
 
-import ShowQueryModal from "pages/schedule/ManageSchedulePage/components/ShowQueryModal/ShowQueryModal";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
