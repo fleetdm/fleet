@@ -111,11 +111,10 @@ func ValidateClientAuthTLSConnection(ctx context.Context, cert *tls.Certificate,
 func getHostPort(u *url.URL) string {
 	host, port := u.Hostname(), u.Port()
 	if port == "" {
-		if u.Scheme == "https" {
-			port = "443"
-		} else {
-			port = "80"
-		}
+		// the dialer accepts a port number or a service name, so using the scheme
+		// as port results in the default port for that service (e.g. 443 for
+		// https).
+		return net.JoinHostPort(host, u.Scheme)
 	}
 	return net.JoinHostPort(host, port)
 }
