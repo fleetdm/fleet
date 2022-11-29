@@ -41,7 +41,7 @@ Users with the Admin role receive all permissions.
 | Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*                                   |          |            | ✅    |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                              |          | ✅         | ✅    |
 | Retrieve contents from file carving                                                |          |            | ✅    |
-| View Apple Mobile Device Management (MDM) certificate information                  |          |            | ✅    |
+| View Apple mobile device management (MDM) certificate information                  |          |            | ✅    |
 
 
 
