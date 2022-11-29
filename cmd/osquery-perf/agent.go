@@ -214,6 +214,7 @@ type agent struct {
 	UUID           string
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
+	DiskEncryption bool
 }
 
 type entityCount struct {
@@ -984,8 +985,8 @@ func (a *agent) diskSpace() []map[string]string {
 
 func (a *agent) diskEncryption() []map[string]string {
 	// 50% of results have encryption enabled
-	enabled := rand.Intn(2) == 1
-	if enabled {
+	a.DiskEncryption = rand.Intn(2) == 1
+	if a.DiskEncryption {
 		return []map[string]string{{"1": "1"}}
 	}
 	return []map[string]string{}
@@ -1067,7 +1068,9 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.diskSpace()
 		}
 		return true, results, &ss
-	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_"):
+	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
+		name == hostDetailQueryPrefix+"disk_encryption_linux" ||
+		name == hostDetailQueryPrefix+"disk_encryption_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()

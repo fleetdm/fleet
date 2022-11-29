@@ -130,6 +130,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
+		{"SetOrUpdateHostDisksEncryptionKey", testHostsSetOrUpdateHostDisksEncryptionKey},
 		{"TestHostOrder", testHostOrder},
 	}
 	for _, c := range cases {
@@ -5555,4 +5556,71 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	h, err = ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
 	require.True(t, *h.DiskEncryptionEnabled)
+}
+
+func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		OsqueryHostID:   "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "2",
+		UUID:            "2",
+		OsqueryHostID:   "2",
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryptionKey(context.Background(), host.ID, "AAA")
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDisksEncryptionKey(context.Background(), host2.ID, "BBB")
+	require.NoError(t, err)
+
+	checkEncryptionKey := func(hostID uint, expected string) {
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			var actual sql.NullString
+
+			row := tx.QueryRowxContext(
+				context.Background(),
+				"SELECT encryption_key FROM host_disks WHERE host_id = ?",
+				hostID,
+			)
+
+			err := row.Scan(&actual)
+			require.NoError(t, err)
+			require.Equal(t, expected, actual.String)
+			return nil
+		})
+	}
+
+	h, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	checkEncryptionKey(h.ID, "AAA")
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	checkEncryptionKey(h.ID, "BBB")
+
+	err = ds.SetOrUpdateHostDisksEncryptionKey(context.Background(), host2.ID, "CCC")
+	require.NoError(t, err)
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	checkEncryptionKey(h.ID, "CCC")
 }

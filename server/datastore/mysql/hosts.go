@@ -2183,6 +2183,15 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, 
 	)
 }
 
+func (ds *Datastore) SetOrUpdateHostDisksEncryptionKey(ctx context.Context, hostID uint, key string) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET encryption_key = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (encryption_key, host_id) VALUES (?, ?)`,
+		key, hostID,
+	)
+}
+
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string, mdmName string) (mdmID uint, err error) {
 	if mdmName == "" {
 		mdmName = fleet.MDMNameFromServerURL(serverURL)

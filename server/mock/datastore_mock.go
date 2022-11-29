@@ -453,6 +453,8 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
+type SetOrUpdateHostDisksEncryptionKeyFunc func(ctx context.Context, hostID uint, key string) error
+
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
 
 type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
@@ -1167,6 +1169,9 @@ type DataStore struct {
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
+
+	SetOrUpdateHostDisksEncryptionKeyFunc        SetOrUpdateHostDisksEncryptionKeyFunc
+	SetOrUpdateHostDisksEncryptionKeyFuncInvoked bool
 
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
@@ -2348,6 +2353,11 @@ func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID u
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
 	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
 	return s.SetOrUpdateHostOrbitInfoFunc(ctx, hostID, version)
+}
+
+func (s *DataStore) SetOrUpdateHostDisksEncryptionKey(ctx context.Context, hostID uint, key string) error {
+	s.SetOrUpdateHostDisksEncryptionKeyFuncInvoked = true
+	return s.SetOrUpdateHostDisksEncryptionKeyFunc(ctx, hostID, key)
 }
 
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {

@@ -831,3 +831,86 @@ func TestDirectDiskEncryption(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }
+
+func TestDirectIngestDiskEncryptionKey(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	ds := new(mock.Store)
+	host := fleet.Host{
+		ID: 1,
+	}
+	result := []map[string]string{
+		{"line": `<?xml version="1.0" encoding="UTF-8"?>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": `<plist version="1.0">`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": `<dict>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <key>EnabledDate</key>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <string>2022-11-24 01:14:07 -0300</string>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <key>EnabledUser</key>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <string>ID_AA_Carmack</string> path:/var/db/ConfigurationProfiles/fdesetup.plist]`},
+		{"line": ` <key>HardwareUUID</key> path:/var/db/ConfigurationProfiles/fdesetup.plist]`},
+		{"line": ` <string>4AACC825-ABC-DEF-BA0E-845398DC80CC</string>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <key>RecoveryKey</key>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <string>BW3Z-OVDR-EWEO-E8HY-V52N-KLWY</string>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <key>SerialNumber</key>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": ` <string>ZQRN44KTQT</string>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": `</dict>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+		{"line": `</plist>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+	}
+
+	ds.SetOrUpdateHostDisksEncryptionKeyFunc = func(ctx context.Context, id uint, recoveryKey string) error {
+		assert.Equal(t, "BW3Z-OVDR-EWEO-E8HY-V52N-KLWY", recoveryKey)
+		return nil
+	}
+
+	err := directIngestDiskEncryptionKey(ctx, logger, &host, ds, result, false)
+	require.NoError(t, err)
+}
+
+func TestDirectIngestDiskEncryptionKeyErrs(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	ds := new(mock.Store)
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	cases := []struct {
+		name   string
+		result []map[string]string
+		failed bool
+		errors bool
+	}{
+		{"failed query", []map[string]string{}, true, false},
+		{"no result", []map[string]string{}, false, false},
+		{
+			"invalid xml",
+			[]map[string]string{
+				{"line": "<key>RecoveryKey</key>"},
+				{"line": "<string/>"},
+			},
+			false,
+			true,
+		},
+		{
+			"empty recovery key",
+			[]map[string]string{
+				{"line": "<key>RecoveryKey</key>"},
+				{"line": "<string></string>"},
+			},
+			false,
+			true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := directIngestDiskEncryptionKey(ctx, logger, &host, ds, tt.result, false)
+			if tt.errors {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

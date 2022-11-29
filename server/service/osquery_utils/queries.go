@@ -2,6 +2,7 @@ package osquery_utils
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"os"
 	"regexp"
@@ -597,6 +598,12 @@ FROM
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
 		// osquery table on windows, it is always present.
+	},
+	"disk_encryption_key_darwin": {
+		Query:            `SELECT * FROM file_lines WHERE path='/var/db/ConfigurationProfiles/fdesetup.plist'`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKey,
+		Discovery:        discoveryTable("file_lines"),
 	},
 }
 
@@ -1301,6 +1308,29 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 
 	encrypted := len(rows) > 0
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+}
+
+func directIngestDiskEncryptionKey(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) == 0 || failed {
+		// assume the extension is not there
+		return nil
+	}
+
+	var key string
+	for i, row := range rows {
+		if strings.Contains(row["line"], "RecoveryKey") {
+			keyReader := strings.NewReader(rows[i+1]["line"])
+			if err := xml.NewDecoder(keyReader).Decode(&key); err != nil {
+				return ctxerr.Wrap(ctx, err, "parsing recovery key")
+			}
+		}
+	}
+
+	if key == "" {
+		return ctxerr.Errorf(ctx, "missing <RecoveryKey> value in plist: %d", host.ID)
+	}
+
+	return ds.SetOrUpdateHostDisksEncryptionKey(ctx, host.ID, key)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {

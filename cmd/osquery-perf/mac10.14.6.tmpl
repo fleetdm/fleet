@@ -152,6 +152,32 @@
   }
 ]
 {{- end }}
+
+{{ define "fleet_detail_query_disk_encryption_key_darwin" -}}
+{{- if .DiskEncryption }}
+[
+  {"line": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": "<plist version=\"1.0\">", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": "<dict>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <key>EnabledDate</key>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <string>2022-11-24 01:14:07 -0300</string>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <key>EnabledUser</key>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <string>Guybrush Threepwood</string> path:/var/db/ConfigurationProfiles/fdesetup.plist]"},
+  {"line": " <key>HardwareUUID</key> path:/var/db/ConfigurationProfiles/fdesetup.plist]"},
+  {"line": " <string>{{ .UUID }}</string>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <key>RecoveryKey</key>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <string>{{ .CachedString "disk_encryption_key" }}</string>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <key>SerialNumber</key>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": " <string>D02R835DG8WK</string>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": "</dict>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
+  {"line": "</plist>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"}
+]
+{{- else }}
+[]
+{{- end }}
+{{- end }}
+
 {{ define "fleet_detail_query_uptime" -}}
 [
   {
