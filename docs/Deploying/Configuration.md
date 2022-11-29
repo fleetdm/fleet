@@ -2476,7 +2476,7 @@ This is the path to the Apple Business Manager encrypted server token (a `.p7m` 
 
 ##### apple_bm_server_token_bytes
 
-The content of the Apple Business Manager encrypted server token. This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the content of the Apple Business Manager encrypted server token. This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2487,6 +2487,33 @@ The content of the Apple Business Manager encrypted server token. This is typica
       Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
       Content-Transfer-Encoding: base64
       ... rest of content ...
+  ```
+
+##### apple_bm_cert
+
+This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_cert: /path/to/bm_cert.pem
+  ```
+
+##### apple_bm_cert_bytes
+
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
   ```
 
 ##### apple_bm_key
@@ -2525,6 +2552,7 @@ mdm:
   apple_scep_cert: /path/to/scep_cert
   apple_scep_key: /path/to/scep_key
   apple_bm_server_token: /path/to/server_token.p7m
+  apple_bm_cert: /path/to/bm_cert
   apple_bm_key: /path/to/private_key
 ```
 
