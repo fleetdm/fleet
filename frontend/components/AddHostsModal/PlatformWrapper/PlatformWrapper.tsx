@@ -1,3 +1,5 @@
+// TODO: Check spacing
+
 import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { useQuery } from "react-query";
@@ -17,11 +19,9 @@ import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
+import Icon from "components/Icon/Icon";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
-
-import CopyIcon from "../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IPlatformSubNav {
   name: string;
@@ -202,7 +202,7 @@ const PlatformWrapper = ({
                 onClick={onDownloadCertificate}
               >
                 Download
-                <img src={DownloadIcon} alt="download" />
+                <Icon name="download" />
               </a>
             </p>
           ) : (
@@ -298,7 +298,7 @@ const PlatformWrapper = ({
               className={`${baseClass}__installer-copy-icon`}
               onClick={onCopyInstaller}
             >
-              <img src={CopyIcon} alt="copy" />
+              <Icon name="clipboard" />
             </Button>
           </span>
         </span>
@@ -349,7 +349,7 @@ const PlatformWrapper = ({
                       onClick={onDownloadEnrollSecret}
                     >
                       Download
-                      <img src={DownloadIcon} alt="download icon" />
+                      <Icon name="download" />
                     </a>
                   </p>
                 </div>
@@ -370,7 +370,7 @@ const PlatformWrapper = ({
                     ) : (
                       <a href="#downloadFlagfile" onClick={onDownloadFlagfile}>
                         Download
-                        <img src={DownloadIcon} alt="download icon" />
+                        <Icon name="download" />
                       </a>
                     )}
                   </p>

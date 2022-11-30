@@ -1,10 +1,11 @@
 import React from "react";
+import { COLORS, Colors } from "styles/var/colors";
 
 interface IPlusProps {
-  color?: string;
+  color?: Colors;
 }
 
-const Plus = ({ color = "#6a67fe" }: IPlusProps) => {
+const Plus = ({ color = "core-fleet-blue" }: IPlusProps) => {
   return (
     <svg
       width="16"

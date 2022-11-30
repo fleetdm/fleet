@@ -11,7 +11,7 @@ import Button from "components/buttons/Button";
 
 import { ITeam } from "interfaces/team";
 
-import CopyIcon from "../../../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
+import Icon from "components/Icon/Icon";
 
 interface IRenderOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;
@@ -63,7 +63,7 @@ const RenderOSPolicyModal = ({
               className={`${baseClass}__os-policy-copy-icon`}
               onClick={onCopyOsPolicy}
             >
-              <img src={CopyIcon} alt="copy" />
+              <Icon name="clipboard" />
             </Button>
           </span>
         </span>

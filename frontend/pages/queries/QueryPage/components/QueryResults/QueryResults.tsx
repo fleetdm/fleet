@@ -14,12 +14,10 @@ import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import Icon from "components/Icon/Icon";
 
 import ShowQueryModal from "./ShowQueryModal";
 import resultsTableHeaders from "./QueryResultsTableConfig";
-
-import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
-import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -124,7 +122,7 @@ const QueryResults = ({
       </p>
     );
   };
-
+  // TODO: Check spacing
   const renderTableButtons = (tableType: "results" | "errors") => {
     return (
       <div className={`${baseClass}__results-cta`}>
@@ -134,7 +132,7 @@ const QueryResults = ({
           variant="text-link"
         >
           <>
-            Show query <img alt="Show query" src={EyeIcon} />
+            Show query <Icon name="eye" />
           </>
         </Button>
         <Button
@@ -147,8 +145,7 @@ const QueryResults = ({
           variant="text-link"
         >
           <>
-            {`Export ${tableType}`}{" "}
-            <img alt={`Export ${tableType}`} src={DownloadIcon} />
+            Export {tableType} <Icon name="download" />
           </>
         </Button>
       </div>

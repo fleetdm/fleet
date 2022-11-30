@@ -9,7 +9,7 @@ import React, { useRef } from "react";
 import { components, GroupHeadingProps } from "react-select-5";
 
 import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
-import PlusIcon from "../../../../../../assets/images/icon-plus-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "custom-label-group-heading";
 
@@ -54,7 +54,7 @@ const CustomLabelGroupHeading = (
             >
               <>
                 <span>Add label</span>
-                <img src={PlusIcon} alt="Add label icon" />
+                <Icon name="plus" />
               </>
             </Button>
           )}

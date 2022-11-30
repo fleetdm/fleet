@@ -3,6 +3,7 @@
   font-size: $x-small;
   align-items: center;
   padding-top: $pad-medium;
+  gap: $pad-small;
 
   b,
   svg,
@@ -11,16 +12,7 @@
     align-items: center;
   }
 
-  span {
-    padding-left: 12px;
-  }
-
   .platform {
-    padding-left: 0px;
-
-    .icon {
-      padding-left: 12px;
-      padding-right: $pad-xsmall;
-    }
+    gap: $pad-small;
   }
 }

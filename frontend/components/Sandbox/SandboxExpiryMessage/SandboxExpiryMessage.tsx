@@ -1,6 +1,6 @@
 import React from "react";
 
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-black-12x12@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "sandbox-expiry-message";
 
@@ -8,6 +8,7 @@ interface ISandboxExpiryMessageProps {
   expiry: string;
 }
 
+// TODO: Check spacing
 const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
   return (
     <a
@@ -19,7 +20,7 @@ const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
       <p>Your Fleet Sandbox expires in {expiry}.</p>
       <span>
         Learn how to deploy Fleet
-        <img alt="Open external link" src={ExternalLinkIcon} />
+        <Icon name="external-link" />
       </span>
     </a>
   );

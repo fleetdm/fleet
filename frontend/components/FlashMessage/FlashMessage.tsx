@@ -5,10 +5,7 @@ import { INotification } from "interfaces/notification";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
-
-import CloseIcon from "../../../assets/images/icon-close-white-16x16@2x.png";
-import CloseIconBlack from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import ErrorIcon from "../../../assets/images/icon-error-white-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "flash-message";
 
@@ -68,13 +65,14 @@ const FlashMessage = ({
     return null;
   }
 
+  // TODO: Check spacing between icon and flash message
   return (
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
         {alertType === "success" ? (
           <FleetIcon name="success-check" />
         ) : (
-          <img alt="error icon" src={ErrorIcon} />
+          <Icon name="error" color="core-fleet-white" />
         )}
         <span>{message}</span>
         {onUndoActionClick && undoAction && (
@@ -93,9 +91,13 @@ const FlashMessage = ({
             className={`${baseClass}__remove ${baseClass}__remove--${alertType} button--unstyled`}
             onClick={onRemoveFlash}
           >
-            <img
-              src={alertType === "warning-filled" ? CloseIconBlack : CloseIcon}
-              alt="close icon"
+            <Icon
+              name="ex"
+              color={
+                alertType === "warning-filled"
+                  ? "core-fleet-black"
+                  : "core-fleet-white"
+              }
             />
           </button>
         </div>

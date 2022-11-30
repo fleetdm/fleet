@@ -6,12 +6,6 @@ import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
 import Icon from "components/Icon/Icon";
 
-import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
-import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
-import CheckIcon from "../../../../../assets/images/icon-action-check-16x15@2x.png";
-import DisableIcon from "../../../../../assets/images/icon-action-disable-14x14@2x.png";
-import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
-
 const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;

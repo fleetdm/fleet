@@ -1,16 +1,17 @@
 import React from "react";
 
-import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
+import Icon from "components/Icon/Icon";
 
 const baseClass = "device-user-error";
 
+// TODO: Check spacing between icon and message
 const DeviceUserError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
         <div className="info">
           <span className="info__header">
-            <img src={ErrorIcon} alt="error icon" id="error-icon" />
+            <Icon name="error" />
             This URL is invalid or expired.
           </span>
           <span className="info__data">

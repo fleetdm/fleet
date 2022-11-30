@@ -14,11 +14,10 @@ import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import Icon from "components/Icon/Icon";
 
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
-
-import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -141,7 +140,7 @@ const QueryResults = ({
               variant="text-link"
             >
               <>
-                Export results <img alt="" src={DownloadIcon} />
+                Export results <Icon name="download" />
               </>
             </Button>
           </div>
@@ -171,7 +170,7 @@ const QueryResults = ({
               variant="text-link"
             >
               <>
-                Export errors <img alt="" src={DownloadIcon} />
+                Export errors <Icon name="download" />
               </>
             </Button>
           </div>
