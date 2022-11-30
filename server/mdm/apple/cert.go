@@ -19,8 +19,8 @@ const defaultFleetDMAPIURL = "https://fleetdm.com"
 
 const getSignedAPNSCSRPath = "/api/v1/get_signed_apns_csr"
 
-// EmailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
-var EmailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
+// emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
+var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
 
 // GenerateAPNSCSRKey generates a APNS csr to be sent to fleetdm.com and returns a csr and key.
 func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.PrivateKey, error) {
@@ -32,7 +32,7 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	subj := pkix.Name{
 		Organization: []string{org},
 		ExtraNames: []pkix.AttributeTypeAndValue{{
-			Type:  EmailAddressOID,
+			Type:  emailAddressOID,
 			Value: email,
 		}},
 	}
