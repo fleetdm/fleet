@@ -15,11 +15,14 @@ The following environment variables must be configured:
 `VENDOR_CERT_PEM` - Fleet's MDM Vendor certificate in PEM format.
 `VENDOR_KEY_PEM` - Fleet's MDM Vendor private key in PEM format.
 `VENDOR_KEY_PASSPHRASE` - Passphrase for the MDM Vendor private key.
+`CSR_BASE64` - Base64 encoded CSR submitted from the Fleet server or `fleetctl` on behalf of the user. (Note: this is
+accepted as an environment variable to mitigate against command injection attacks from untrusted user input.)
 
-Run the binary to generate a zip file containing the Push certificate request and associated private key. The required arguments are `out` (path to output zip file), and `email` (the customer's email):
+The program outputs the email from the signing request, and the signed request as JSON. For example:
 
-``` sh
-./mdm-gen-cert --out out.zip --email user@example.com
+```json
+{"email":"fleetuser@example.com","request":"PD94bWw..."}
 ```
 
-After generation, the user should upload the certificate request to [identity.apple.com](https://identity.apple.com) and then configure Fleet with the private key and the certificate downloaded from Apple.
+The email should be validated against the email denylist, and then the request contents should be
+sent to that email address as an attachment (eg. `apple-apns-request.txt`).
