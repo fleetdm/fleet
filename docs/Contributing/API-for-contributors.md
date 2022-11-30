@@ -1953,7 +1953,7 @@ currently pending.
 
 | Name            | Type   | In    | Description                                        |
 | --------------- | ------ | ----- | ---------------------------------------------------|
-| name            | string | path  | The name of the cron schedule to trigger.          |
+| name            | string | query | The name of the cron schedule to trigger.          |
 
 #### Example
 
