@@ -260,13 +260,14 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_encryption_darwin",
 		"disk_encryption_linux",
 		"disk_encryption_windows",
+		"disk_encryption_key_darwin",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 22)
+	require.Len(t, queriesWithoutWinOSVuln, 23)
 
 	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "scheduled_query_stats")
