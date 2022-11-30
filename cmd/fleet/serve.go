@@ -438,6 +438,10 @@ the way that the Fleet server works.
 
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
+				if !license.IsPremium() {
+					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
+				}
+
 				tok, err := config.MDM.AppleBM()
 				if err != nil {
 					initFatal(err, "validate Apple BM token, certificate and key")
