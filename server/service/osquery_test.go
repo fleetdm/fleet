@@ -497,12 +497,13 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles": {},
-		hostDetailQueryPrefix + "mdm":                    {},
-		hostDetailQueryPrefix + "munki_info":             {},
-		hostDetailQueryPrefix + "windows_update_history": {},
-		hostDetailQueryPrefix + "kubequery_info":         {},
-		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "google_chrome_profiles":     {},
+		hostDetailQueryPrefix + "mdm":                        {},
+		hostDetailQueryPrefix + "munki_info":                 {},
+		hostDetailQueryPrefix + "windows_update_history":     {},
+		hostDetailQueryPrefix + "kubequery_info":             {},
+		hostDetailQueryPrefix + "orbit_info":                 {},
+		hostDetailQueryPrefix + "disk_encryption_key_darwin": {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
