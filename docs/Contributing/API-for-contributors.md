@@ -3,6 +3,7 @@
 - [Packs](#packs)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
+- [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
