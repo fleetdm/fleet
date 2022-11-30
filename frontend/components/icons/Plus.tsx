@@ -18,7 +18,7 @@ const Plus = ({ color = "core-fleet-blue" }: IPlusProps) => {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M9.01 2.722a1.01 1.01 0 0 0-2.02 0v3.924H3.064a1.01 1.01 0 1 0 0 2.021H6.99v3.925a1.01 1.01 0 0 0 2.022 0V8.667h3.924a1.01 1.01 0 0 0 0-2.02H9.01V2.721Z"
-        fill={color}
+        fill={COLORS[color]}
       />
     </svg>
   );

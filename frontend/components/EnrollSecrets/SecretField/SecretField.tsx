@@ -36,7 +36,7 @@ const SecretField = ({ secret }: ISecretFieldProps): JSX.Element | null => {
     return false;
   };
 
-  // TODO: Check spacing
+  // TODO: Fix alignment
   const renderLabel = () => {
     return (
       <span className={`${baseClass}`}>
