@@ -9,7 +9,8 @@ import (
 	"fmt"
 )
 
-const rsaKeySize = 2049
+// Note Apple rejects CSRs if the key size is not 2048.
+const rsaKeySize = 2048
 
 // NewPrivateKey creates an RSA private key
 func NewPrivateKey() (*rsa.PrivateKey, error) {
