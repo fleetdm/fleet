@@ -55,5 +55,8 @@ func formatTriggerErrMsg(name string, msg string) string {
 	if name == "" {
 		formatted = strings.Replace(strings.ToLower(msg), "invalid name", "name must be specified", 1)
 	}
-	return strings.ToUpper(formatted[:1]) + formatted[1:]
+	if len(formatted) >= 1 {
+		formatted = strings.ToUpper(formatted[:1]) + formatted[1:]
+	}
+	return formatted
 }
