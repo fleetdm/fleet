@@ -6,11 +6,12 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
+import Icon from "components/Icon/Icon";
+
 import {
   generateTableHeaders,
   generateDataSet,
 } from "./PackQueriesTable/PackQueriesTableConfig";
-import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
 const baseClass = "pack-queries-table";
 
@@ -90,12 +91,12 @@ const PackQueriesTable = ({
           }
           showMarkAllPages={false}
           actionButtonText={"Add query"}
-          actionButtonIcon={AddQueryIcon}
+          actionButtonIcon={"plus"}
           actionButtonVariant={"text-icon"}
           onActionButtonClick={onAddPackQuery}
           onPrimarySelectActionClick={onRemovePackQueries}
           primarySelectActionButtonVariant="text-icon"
-          primarySelectActionButtonIcon="close"
+          primarySelectActionButtonIcon="ex"
           primarySelectActionButtonText={"Remove"}
           searchable
           disablePagination
@@ -111,7 +112,7 @@ const PackQueriesTable = ({
           >
             <>
               Add query
-              <img src={AddQueryIcon} alt={`Add query icon`} />
+              <Icon name="plus" />
             </>
           </Button>
         </div>

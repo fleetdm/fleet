@@ -1,10 +1,12 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 
-interface IPolicies {
+interface IDisable {
   color?: Colors;
 }
-const Policy = ({ color = "core-fleet-black" }: IPolicies) => {
+
+// TODO: Put in correct SVG
+const Disable = ({ color = "core-fleet-blue" }: IDisable) => {
   return (
     <svg
       width="14"
@@ -31,4 +33,4 @@ const Policy = ({ color = "core-fleet-black" }: IPolicies) => {
   );
 };
 
-export default Policy;
+export default Disable;

@@ -84,7 +84,7 @@ $base-class: "button";
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-small;
   }
 
   &--brand {

@@ -3,6 +3,8 @@ import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
 import DownCaret from "./DownCaret";
+import Columns from "./Columns";
+import Disable from "./Disable";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
@@ -38,6 +40,7 @@ import Success from "./Success";
 import Clipboard from "./Clipboard";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
+import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
@@ -48,6 +51,7 @@ import NavQueries from "./NavQueries";
 import NavSchedule from "./NavSchedule";
 import NavSoftware from "./NavSoftware";
 import Policy from "./Policy";
+import Query from "./Query";
 import Issue from "./Issue";
 
 // a mapping of the usable names of icons to the icon source.
@@ -57,6 +61,9 @@ export const ICON_MAP = {
   chevron: Chevron,
   check: Check,
   "down-caret": DownCaret,
+  columns: Columns,
+  disable: Disable,
+  download: Download,
   ex: Ex,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
@@ -76,6 +83,7 @@ export const ICON_MAP = {
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
+  transfer: Transfer,
   trash: TrashCan,
   success: Success,
   error: Error,
@@ -85,6 +93,7 @@ export const ICON_MAP = {
   "nav-schedule": NavSchedule,
   "nav-software": NavSoftware,
   policy: Policy,
+  query: Query,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
@@ -98,7 +107,6 @@ export const ICON_MAP = {
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
   profile: Profile,
-  download: Download,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

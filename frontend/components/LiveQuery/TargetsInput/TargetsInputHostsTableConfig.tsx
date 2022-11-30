@@ -7,7 +7,7 @@ import { IDataColumn } from "interfaces/datatable_config";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import StatusIndicator from "components/StatusIndicator";
-import RemoveIcon from "../../../../assets/images/icon-action-remove-20x20@2x.png";
+import Icon from "components/Icon/Icon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -21,7 +21,7 @@ export const generateTableHeaders = (
           Header: "",
           Cell: (cellProps: { row: Row }): JSX.Element => (
             <div onClick={() => handleRowRemove(cellProps.row)}>
-              <img alt="Remove" src={RemoveIcon} />
+              <Icon name="ex" />
             </div>
           ),
           disableHidden: true,

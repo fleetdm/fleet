@@ -49,7 +49,7 @@ const PoliciesTable = ({
         isAllPagesSelected={false}
         isClientSidePagination
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonIcon="trash"
         primarySelectActionButtonText={"Delete"}
         emptyComponent={NoPolicyQueries}
         onQueryChange={noop}

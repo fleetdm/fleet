@@ -62,6 +62,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
+import Icon from "components/Icon/Icon";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -87,11 +88,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "../components/TransferHostModal";
 import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
-import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
-import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import FilterPill from "./components/FilterPill";
 
@@ -1116,10 +1112,10 @@ const ManageHostsPage = ({
           {label_type !== "builtin" && !isOnlyObserver && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
-                <img src={PencilIcon} alt="Edit label" />
+                <Icon name="pencil" />
               </Button>
               <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-                <img src={TrashIcon} alt="Delete label" />
+                <Icon name="trash" />
               </Button>
             </>
           )}
@@ -1543,7 +1539,7 @@ const ManageHostsPage = ({
             variant="text-link"
           >
             <>
-              Export hosts <img alt="" src={DownloadIcon} />
+              Export hosts <Icon name="download" />
             </>
           </Button>
         )}
@@ -1727,7 +1723,7 @@ const ManageHostsPage = ({
         onActionButtonClick: onTransferToTeamClick,
         buttonText: "Transfer",
         variant: "text-icon",
-        icon: "transfer",
+        iconName: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
       },
     ];
@@ -1767,12 +1763,12 @@ const ManageHostsPage = ({
         defaultSearchQuery={searchQuery}
         pageSize={50}
         actionButtonText={"Edit columns"}
-        actionButtonIcon={EditColumnsIcon}
+        actionButtonIcon={"columns"}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         primarySelectActionButtonText={"Delete"}
-        primarySelectActionButtonIcon={"delete"}
+        primarySelectActionButtonIcon={"trash"}
         primarySelectActionButtonVariant={"text-icon"}
         secondarySelectActions={secondarySelectActions}
         resultsTitle={"hosts"}
@@ -1828,7 +1824,7 @@ const ManageHostsPage = ({
                 setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
               }
             >
-              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
+              <Icon name="ex" color="core-fleet-black" />
             </Button>
           </div>
         </div>

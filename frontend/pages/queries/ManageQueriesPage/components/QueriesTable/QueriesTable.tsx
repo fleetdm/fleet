@@ -101,7 +101,7 @@ const QueriesTable = ({
         searchable={searchable}
         onPrimarySelectActionClick={onDeleteQueryClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonIcon="trash"
         primarySelectActionButtonText={"Delete"}
         emptyComponent={() =>
           EmptyTable({

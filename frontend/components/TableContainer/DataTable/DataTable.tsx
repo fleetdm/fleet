@@ -25,6 +25,7 @@ import { AppContext } from "context/app";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
+import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
 import ActionButton, { IActionButtonProps } from "./ActionButton";
@@ -47,7 +48,7 @@ interface IDataTableProps {
   resultsTitle: string;
   defaultPageSize: number;
   primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
+  primarySelectActionButtonIcon?: IconNames;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   onPrimarySelectActionClick: any; // figure out type
   secondarySelectActions?: IActionButtonProps[];
@@ -369,7 +370,7 @@ const DataTable = ({
       targetIds,
       variant,
       hideButton,
-      icon,
+      iconName,
       iconPosition,
     } = actionButtonProps;
     return (
@@ -382,7 +383,7 @@ const DataTable = ({
           targetIds={targetIds}
           variant={variant}
           hideButton={hideButton}
-          icon={icon}
+          iconName={iconName}
           iconPosition={iconPosition}
         />
       </div>
@@ -403,7 +404,7 @@ const DataTable = ({
       onActionButtonClick: onPrimarySelectActionClick,
       targetIds,
       variant: primarySelectActionButtonVariant,
-      icon: primarySelectActionButtonIcon,
+      iconName: primarySelectActionButtonIcon,
     };
 
     return !buttonText ? null : renderActionButton(actionProps);

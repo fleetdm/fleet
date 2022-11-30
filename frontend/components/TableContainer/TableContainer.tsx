@@ -9,6 +9,8 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
+import { IconNames } from "components/icons";
+import Icon from "components/Icon/Icon";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
@@ -36,7 +38,7 @@ interface ITableContainerProps {
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
   actionButtonText?: string;
-  actionButtonIcon?: string;
+  actionButtonIcon?: IconNames;
   actionButtonVariant?: ButtonVariant;
   hideActionButton?: boolean;
   inputPlaceHolder?: string;
@@ -59,7 +61,7 @@ interface ITableContainerProps {
   // with a back button. This fix instead disables the next button in that case.
   disableCount?: boolean;
   primarySelectActionButtonVariant?: ButtonVariant;
-  primarySelectActionButtonIcon?: string;
+  primarySelectActionButtonIcon?: IconNames;
   primarySelectActionButtonText?: string | ((targetIds: number[]) => string);
   secondarySelectActions?: IActionButtonProps[]; // TODO create table actions interface
   filteredCount?: number;
@@ -326,12 +328,7 @@ const TableContainer = ({
               >
                 <>
                   {actionButtonText}
-                  {actionButtonIcon && (
-                    <img
-                      src={actionButtonIcon}
-                      alt={`${actionButtonText} icon`}
-                    />
-                  )}
+                  {actionButtonIcon && <Icon name={actionButtonIcon} />}
                 </>
               </Button>
             )}

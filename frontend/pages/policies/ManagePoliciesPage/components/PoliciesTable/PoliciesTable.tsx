@@ -124,7 +124,7 @@ const PoliciesTable = ({
           isAllPagesSelected={false}
           onPrimarySelectActionClick={onDeletePolicyClick}
           primarySelectActionButtonVariant="text-icon"
-          primarySelectActionButtonIcon="delete"
+          primarySelectActionButtonIcon="trash"
           primarySelectActionButtonText={"Delete"}
           emptyComponent={() =>
             EmptyTable({

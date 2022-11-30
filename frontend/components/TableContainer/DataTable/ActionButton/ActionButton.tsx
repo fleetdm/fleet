@@ -2,7 +2,10 @@ import React, { useCallback } from "react";
 import { kebabCase } from "lodash";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
-import Button from "../../../buttons/Button";
+import Button from "components/buttons/Button";
+import { IconNames } from "components/icons";
+import Icon from "components/Icon/Icon";
+
 import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-delete-vibrant-blue-12x14@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-action-check-16x15@2x.png";
@@ -17,7 +20,7 @@ export interface IActionButtonProps {
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
-  icon?: string;
+  iconName?: IconNames;
   iconPosition?: string;
 }
 
@@ -40,30 +43,11 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     targetIds = [],
     variant = "brand",
     hideButton,
-    icon,
+    iconName,
     iconPosition,
   } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick);
 
-  const iconLink = ((iconProp) => {
-    // check if using pre-defined short-hand otherwise otherwise return the prop
-    switch (iconProp) {
-      case "close":
-        return CloseIcon;
-      case "remove":
-        return CloseIcon;
-      case "delete":
-        return DeleteIcon;
-      case "check":
-        return CheckIcon;
-      case "disable":
-        return DisableIcon;
-      case "transfer":
-        return TransferIcon;
-      default:
-        return null;
-    }
-  })(icon);
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases
   const isHidden = (
@@ -79,13 +63,9 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
-          {iconPosition === "left" && iconLink && (
-            <img alt={`${name} icon`} src={iconLink} />
-          )}
+          {iconPosition === "left" && iconName && <Icon name={iconName} />}
           {buttonText}
-          {iconPosition !== "left" && iconLink && (
-            <img alt={`${name} icon`} src={iconLink} />
-          )}
+          {iconPosition !== "left" && iconName && <Icon name={iconName} />}
         </>
       </Button>
     </div>

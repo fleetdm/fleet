@@ -90,14 +90,14 @@ const PacksTable = ({
       onActionButtonClick: onEnablePackClick,
       buttonText: "Enable",
       variant: "text-icon",
-      icon: "check",
+      iconName: "check",
     },
     {
       name: "disable",
       onActionButtonClick: onDisablePackClick,
       buttonText: "Disable",
       variant: "text-icon",
-      icon: "disable",
+      iconName: "disable",
     },
   ];
   return (
@@ -117,7 +117,7 @@ const PacksTable = ({
         disablePagination
         onPrimarySelectActionClick={onDeletePackClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonIcon="trash"
         primarySelectActionButtonText={"Delete"}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>

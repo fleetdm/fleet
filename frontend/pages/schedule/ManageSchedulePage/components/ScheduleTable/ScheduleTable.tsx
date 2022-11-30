@@ -200,7 +200,7 @@ const ScheduleTable = ({
         searchable={false}
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="remove"
+        primarySelectActionButtonIcon="ex"
         primarySelectActionButtonText={"Remove"}
         emptyComponent={() =>
           EmptyTable({

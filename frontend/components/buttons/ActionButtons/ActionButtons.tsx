@@ -4,13 +4,14 @@ import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
+import { IconNames } from "components/icons";
 import MoreIcon from "../../../../assets/images/icon-more-menu-3x13@2x.png";
 
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;
   buttonVariant?: ButtonVariant;
-  icon?: string;
+  icon?: IconNames;
   hideAction?: boolean;
   onClick: () => void;
 }
