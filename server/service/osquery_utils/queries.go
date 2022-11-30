@@ -2,7 +2,6 @@ package osquery_utils
 
 import (
 	"context"
-	"encoding/xml"
 	"fmt"
 	"os"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/groob/plist"
 	"github.com/spf13/cast"
 )
 
@@ -1316,21 +1316,23 @@ func directIngestDiskEncryptionKey(ctx context.Context, logger log.Logger, host 
 		return nil
 	}
 
-	var key string
-	for i, row := range rows {
-		if strings.Contains(row["line"], "RecoveryKey") {
-			keyReader := strings.NewReader(rows[i+1]["line"])
-			if err := xml.NewDecoder(keyReader).Decode(&key); err != nil {
-				return ctxerr.Wrap(ctx, err, "parsing recovery key")
-			}
-		}
+	var builder strings.Builder
+	for _, row := range rows {
+		builder.WriteString(row["line"])
 	}
 
-	if key == "" {
+	var fdsetup struct {
+		RecoveryKey string `plist:"RecoveryKey"`
+	}
+	if err := plist.NewXMLDecoder(strings.NewReader(builder.String())).Decode(&fdsetup); err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing recovery key")
+	}
+
+	if fdsetup.RecoveryKey == "" {
 		return ctxerr.Errorf(ctx, "missing <RecoveryKey> value in plist for host: %d", host.ID)
 	}
 
-	return ds.SetOrUpdateHostDisksEncryptionKey(ctx, host.ID, key)
+	return ds.SetOrUpdateHostDisksEncryptionKey(ctx, host.ID, fdsetup.RecoveryKey)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
