@@ -165,7 +165,8 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
 #### Compensation changes
-Fleet evaluates compensation during annual workiversaries. Supervisors and managers will document compensation changes and effective date in employee 1:1 docs and email confirmation to Charlie. Charlie will make sure that a copy of the compensation change is added to the [¶¶People Operations folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=share_link) for record keeping.
+Fleet evaluates compensation during annual workiversaries. Supervisors and managers will document compensation changes and effective date in employee 1:1 docs and email confirmation to Charlie. Charlie will make sure that a copy of the compensation change is added to the [¶¶People Operations folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=share_link) for record keeping. (For the forseeable (pre series B) future, comp changes will originate during zach/mike 1:1s in our agenda doc.)
+Additional steps: Charlie will update the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 
 
 ### Payroll
