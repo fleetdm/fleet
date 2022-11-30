@@ -6,27 +6,27 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-type getTriggerRequest struct {
+type triggerRequest struct {
 	Name string `query:"name"`
 }
 
-type getTriggerResponse struct {
+type triggerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getTriggerResponse) error() error { return r.Err }
+func (r triggerResponse) error() error { return r.Err }
 
 func triggerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	_, err := svc.AuthenticatedUser(ctx)
 	if err != nil {
-		return getTriggerResponse{Err: err}, nil
+		return triggerResponse{Err: err}, nil
 	}
-	req := request.(*getTriggerRequest)
+	req := request.(*triggerRequest)
 
 	err = svc.TriggerCronSchedule(ctx, req.Name)
 	if err != nil {
-		return getTriggerResponse{Err: err}, nil
+		return triggerResponse{Err: err}, nil
 	}
 
-	return getTriggerResponse{}, nil
+	return triggerResponse{}, nil
 }
