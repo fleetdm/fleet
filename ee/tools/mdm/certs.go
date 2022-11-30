@@ -46,8 +46,8 @@ var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
 
 func main() {
 	// Load vendor keys and certs
-	vendorCert := os.Getenv(vendorCertEnvName)
-	if vendorCert == "" {
+	vendorCertPEM := os.Getenv(vendorCertEnvName)
+	if vendorCertPEM == "" {
 		log.Fatalf("vendor cert must be set in %s", vendorCertEnvName)
 	}
 	vendorKeyPEM := os.Getenv(vendorKeyEnvName)
@@ -58,12 +58,18 @@ func main() {
 	if vendorKeyPassphrase == "" {
 		log.Fatalf("vendor key passphrase must be set in %s", vendorPassEnvName)
 	}
+	vendorCert, err := decodeVendorCert([]byte(vendorCertPEM))
+	if err != nil {
+		log.Fatalf("failed to parse vendor cert: %s", err.Error())
+	}
 	vendorKey, err := loadKey([]byte(vendorKeyPEM), []byte(vendorKeyPassphrase))
 	if err != nil {
 		log.Fatalf("failed to load vendor private key: %s", err.Error())
 	}
 
 	// Decode CSR input
+	// We accept the CSR via environment variable to mitigate against command injection attacks in
+	// the fleetdm.com website code that will call this with untrusted user input.
 	csrBase64 := os.Getenv(csrEnvName)
 	if csrBase64 == "" {
 		log.Fatalf("CSR must be set in %s", csrEnvName)
@@ -72,7 +78,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("base64 decode csr: %s", err.Error())
 	}
-	certReq, err := decodePEM(csr)
+	certReq, err := decodeCSR(csr)
 	if err != nil {
 		log.Fatalf("decode pem: %s", err.Error())
 	}
@@ -84,7 +90,7 @@ func main() {
 	}
 
 	// Tie it all together
-	req, err := createPushCertificateRequest(vendorKey, []byte(vendorCert), certReq)
+	req, err := createPushCertificateRequest(vendorKey, vendorCert, certReq)
 	if err != nil {
 		log.Fatalf("create request: %s", err.Error())
 	}
@@ -127,7 +133,7 @@ func getEmail(req *x509.CertificateRequest) (string, error) {
 // createPushCertificateRequest creates a request structure required by identity.apple.com.
 // It requires a "MDM CSR" certificate (the vendor certificate), a push CSR (the customer specific CSR),
 // and the vendor private key.
-func createPushCertificateRequest(vendorKey *rsa.PrivateKey, vendorCert []byte, csr *x509.CertificateRequest) (*mdmcertutil.PushCertificateRequest, error) {
+func createPushCertificateRequest(vendorKey *rsa.PrivateKey, vendorCert *x509.Certificate, csr *x509.CertificateRequest) (*mdmcertutil.PushCertificateRequest, error) {
 	// csr signature
 	signature, err := signPushCSR(csr.Raw, vendorKey)
 	if err != nil {
@@ -135,7 +141,7 @@ func createPushCertificateRequest(vendorKey *rsa.PrivateKey, vendorCert []byte, 
 	}
 
 	// vendor cert
-	mdmPEM := pemCert(vendorCert)
+	mdmPEM := pemCert(vendorCert.Raw)
 
 	// wwdr cert
 	wwdrCertBytes, err := loadCertfromHTTP(wwdrIntermediaryURL)
@@ -231,7 +237,18 @@ func loadCertfromHTTP(url string) ([]byte, error) {
 	return crt.Raw, nil
 }
 
-func decodePEM(pemData []byte) (*x509.CertificateRequest, error) {
+func decodeVendorCert(pemData []byte) (*x509.Certificate, error) {
+	pemBlock, _ := pem.Decode(pemData)
+	if pemBlock == nil {
+		return nil, errors.New("cannot find the next PEM formatted block")
+	}
+	if pemBlock.Type != certificatePEMBlockType || len(pemBlock.Headers) != 0 {
+		return nil, errors.New("unmatched type or headers")
+	}
+	return x509.ParseCertificate(pemBlock.Bytes)
+}
+
+func decodeCSR(pemData []byte) (*x509.CertificateRequest, error) {
 	pemBlock, _ := pem.Decode(pemData)
 	if pemBlock == nil {
 		return nil, errors.New("cannot find the next PEM formatted block")
