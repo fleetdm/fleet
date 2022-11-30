@@ -54,7 +54,7 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
-type GetSignedAPNSCSRRequest struct {
+type getSignedAPNSCSRRequest struct {
 	// CSR is the pem encoded certificate request.
 	CSR []byte `json:"csr"`
 }
@@ -62,7 +62,7 @@ type GetSignedAPNSCSRRequest struct {
 func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	csrPEM := EncodeCertRequestPEM(csr)
 
-	payload := GetSignedAPNSCSRRequest{
+	payload := getSignedAPNSCSRRequest{
 		CSR: csrPEM,
 	}
 
