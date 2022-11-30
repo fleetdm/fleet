@@ -1,141 +1,243 @@
 package main
 
 import (
-	"archive/zip"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
-	"flag"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/micromdm/micromdm/pkg/crypto/mdmcertutil"
+	"golang.org/x/exp/slices"
 )
 
 const (
 	vendorCertEnvName = "VENDOR_CERT_PEM"
 	vendorKeyEnvName  = "VENDOR_KEY_PEM"
 	vendorPassEnvName = "VENDOR_KEY_PASSPHRASE"
+	csrEnvName        = "CSR_BASE64"
 
-	keySize                   = 2048
 	rsaPrivateKeyPEMBlockType = "RSA PRIVATE KEY"
+	certificatePEMBlockType   = "CERTIFICATE"
+	csrPEMBlockType           = "CERTIFICATE REQUEST"
+
+	wwdrIntermediaryURL = "https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer"
+	appleRootCAURL      = "https://www.apple.com/appleca/AppleIncRootCertificate.cer"
 )
 
+// emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
+var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
+
+// TEST CSR
+// LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ2R6Q0NBVjRDQVFBd01URU9NQXdHQTFVRUNoTUZSbXhsWlhReEh6QWRCZ2txaGtpRzl3MEJDUUVNRUhwaApZMmhBWm14bFpYUmtiUzVqYjIwd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUUdJCkdCQWlHdzM1WGxLNHd5TUVCMGloZmwxY3lLUXBhR0d2cUh0UUJIcGpRUk9tS055RmF5WkRNcnJERG9DWEg4V0gKblJUYVdad1BUZDhtUkIyMnhvRkh4em83Ym5McDJ3UG1Ld3U3d3pEeWpsSk9tcWxZTW9QbnFnays5TXRjLzRMNgpNdVB5Q0NaWDZNdWhNdEhLZWc4TDMrWGtHYnpZRGE1alYzV0VUYWhzenh2UEFFWVF5end3UGdBTFJwdDRzcGJWCmdiZG44bThuUDRFMGk2R0tkemZiQUloaWppMEpNTnhSakNQejlRNWEyME5XYkkvMkk2dWF2bW1ZWCtkUHk4T3IKbUh0RVJ2M2pid2kwMHRWdTlaT3ZBalZrZU5ZSkFSUk9nTnArdnpHUXVoQW9lbDFGL1N4eHg5bjRzbnNoREV0TQpBa2pxL3d5YzlNYUxWSk5jMnZLZkFnTUJBQUdnQURBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFJQUFVeC9jOE1KCkNvczBUb3FrV0lLOGYxbktvbTNXemxtVW9SRHRSWHRwUHQwelJHNkRrcFRhcnhvb0JOd0ZKTGpqdFh1WFFsUEcKb3p1VlplY2w2TE03V1Y3aXVpQzJUb2t3TUx6bDVhUWJpZkRoelpCb3FGRTFGbDRXQ0pOaUdJeXgwN2lBZlFGaApYZ3gwMWtmN0w4WWpEVjVTTzhnd0dOeUV2S1kwRGNFanBkamtrTEpvc09GOXJPeURiSkppYk1hYWVlWDV0eUpoCnpYVHVialN6K1pRd0dqNCtVYi96Zmxub2g1eWRxVkptUXNqZkk1UDZIWHJvWWdnYVpTWXVRNFUxT2JPRDJscVAKZVRhTVQxSlZNMUZaMkhteG9NRTdCUWpsUWdwWElOSjBLdEVRRDRySnZEa3ZYRXVpTzcvUGVvdzZjWUFwMmN0UQpKak9ET3A0TmxkbEVkOTA9Ci0tLS0tRU5EIENFUlRJRklDQVRFIFJFUVVFU1QtLS0tLQo=
+
+// See
+// https://developer.apple.com/documentation/devicemanagement/implementing_device_management/setting_up_push_notifications_for_your_mdm_customers
+// for the expected CSR format.
+
 func main() {
+	// Load vendor keys and certs
 	vendorCert := os.Getenv(vendorCertEnvName)
 	if vendorCert == "" {
 		log.Fatalf("vendor cert must be set in %s", vendorCertEnvName)
 	}
-	vendorKey := os.Getenv(vendorKeyEnvName)
-	if vendorKey == "" {
+	vendorKeyPEM := os.Getenv(vendorKeyEnvName)
+	if vendorKeyPEM == "" {
 		log.Fatalf("vendor key must be set in %s", vendorKeyEnvName)
 	}
 	vendorKeyPassphrase := os.Getenv(vendorPassEnvName)
 	if vendorKeyPassphrase == "" {
 		log.Fatalf("vendor key passphrase must be set in %s", vendorPassEnvName)
 	}
-
-	email := flag.String("email", "", "Customer email for generated certificate")
-	country := flag.String("country", "US", "Country for generated certificate")
-	outfile := flag.String("out", "", "Path to output file")
-
-	flag.Parse()
-
-	if *email == "" {
-		log.Fatalf("--email must be provided")
-	}
-	if *outfile == "" {
-		log.Fatalf("--out must be provided")
-	}
-
-	archive, err := os.Create(*outfile)
+	vendorKey, err := loadKey([]byte(vendorKeyPEM), []byte(vendorKeyPassphrase))
 	if err != nil {
-		log.Fatalf("open file for output: %v", err)
-	}
-	defer archive.Close()
-	zipWriter := zip.NewWriter(archive)
-
-	// Private key
-	key, err := rsa.GenerateKey(rand.Reader, keySize)
-	if err != nil {
-		log.Fatalf("generate rsa key: %v", err)
-	}
-	w, err := zipWriter.Create("key.pem")
-	if err != nil {
-		log.Fatalf("create key.pem: %v", err)
-	}
-	privPem := &pem.Block{
-		Type:  rsaPrivateKeyPEMBlockType,
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	}
-	if err := pem.Encode(w, privPem); err != nil {
-		log.Fatalf("write key.pem: %v", err)
+		log.Fatalf("failed to load vendor private key: %s", err.Error())
 	}
 
-	// Generate Push CSR
-	cname := fmt.Sprintf("Fleet MDM (%s)", *email)
-	derBytes, err := mdmcertutil.NewCSR(key, *email, *country, cname)
-	if err != nil {
-		log.Fatalf("generate csr: %v", err)
+	// Decode CSR input
+	csrBase64 := os.Getenv(csrEnvName)
+	if csrBase64 == "" {
+		log.Fatalf("CSR must be set in %s", csrEnvName)
 	}
-	pushCSR := mdmcertutil.PemCSR(derBytes)
-
-	// Sign Push CSR (with Fleet's vendor certificate)
-	req, err := signCSR(vendorCert, vendorKey, vendorKeyPassphrase, pushCSR)
+	csr, err := base64.StdEncoding.DecodeString(string(csrBase64))
 	if err != nil {
-		log.Fatalf("sign csr: %v", err)
+		log.Fatalf("base64 decode csr: %s", err.Error())
+	}
+	certReq, err := decodePEM(csr)
+	if err != nil {
+		log.Fatalf("decode pem: %s", err.Error())
+	}
+
+	// Get email from CSR
+	email, err := getEmail(certReq)
+	if err != nil {
+		log.Fatalf("get email: %s", err.Error())
+	}
+
+	// Tie it all together
+	req, err := createPushCertificateRequest(vendorKey, []byte(vendorCert), certReq)
+	if err != nil {
+		log.Fatalf("create request: %s", err.Error())
 	}
 	encodedReq, err := req.Encode()
 	if err != nil {
 		log.Fatalf("encode csr: %v", err)
 	}
-	w, err = zipWriter.Create("push.csr")
-	if err != nil {
-		log.Fatalf("create push.csr: %v", err)
-	}
-	if _, err := w.Write(encodedReq); err != nil {
-		log.Fatalf("write push.csr: %v", err)
-	}
 
-	zipWriter.Close()
+	// Write output as JSON
+	out := struct {
+		Email   string `json:"email"`
+		Request string `json:"request"`
+	}{
+		Email:   email,
+		Request: string(encodedReq),
+	}
+	outJSON, err := json.Marshal(out)
+	if err != nil {
+		log.Fatalf("encode request JSON: %s", err.Error())
+	}
+	fmt.Println(string(outJSON))
 }
 
-func signCSR(vendorCert, vendorKey, vendorKeyPass string, pushCSR []byte) (*mdmcertutil.PushCertificateRequest, error) {
-	workdir, err := os.MkdirTemp("", "")
+func getEmail(req *x509.CertificateRequest) (string, error) {
+	for _, name := range req.Subject.Names {
+		if slices.Equal(name.Type, emailAddressOID) {
+			str, ok := name.Value.(string)
+			if !ok {
+				return "", errors.New("email subject is not string value")
+			}
+			return str, nil
+		}
+	}
+	return "", errors.New("missing email subject")
+}
+
+// Below functions copied with modifications from MicroMDM (MIT license):
+// https://github.com/micromdm/micromdm/blob/e0943fdcd7ea2c6f79edf3e3496e1218e968ba2a/pkg/crypto/mdmcertutil/certutil.go
+
+// createPushCertificateRequest creates a request structure required by identity.apple.com.
+// It requires a "MDM CSR" certificate (the vendor certificate), a push CSR (the customer specific CSR),
+// and the vendor private key.
+func createPushCertificateRequest(vendorKey *rsa.PrivateKey, vendorCert []byte, csr *x509.CertificateRequest) (*mdmcertutil.PushCertificateRequest, error) {
+	// csr signature
+	signature, err := signPushCSR(csr.Raw, vendorKey)
 	if err != nil {
-		return nil, fmt.Errorf("create workdir: %w", err)
-	}
-	defer os.RemoveAll(workdir)
-
-	// Set up files as expected by mdmcertutil.CreatePushCertificateRequest
-	pKeyPath := filepath.Join(workdir, "vendor.key")
-	if err := ioutil.WriteFile(pKeyPath, []byte(vendorKey), 0600); err != nil {
-		return nil, fmt.Errorf("write priv.key: %w", err)
+		return nil, fmt.Errorf("sign push CSR with private key: %w", err)
 	}
 
-	// Convert vendor cert PEM to DER
-	block, _ := pem.Decode([]byte(vendorCert))
-	cert, err := x509.ParseCertificate(block.Bytes)
+	// vendor cert
+	mdmPEM := pemCert(vendorCert)
+
+	// wwdr cert
+	wwdrCertBytes, err := loadCertfromHTTP(wwdrIntermediaryURL)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("load WWDR certificate from %s: %w", wwdrIntermediaryURL, err)
 	}
-	mdmCertPath := filepath.Join(workdir, "vendor.cert")
-	if err := ioutil.WriteFile(mdmCertPath, []byte(cert.Raw), 0600); err != nil {
-		return nil, fmt.Errorf("write mdm.cert: %w", err)
-	}
+	wwdrPEM := pemCert(wwdrCertBytes)
 
-	pushCSRPath := filepath.Join(workdir, "push.csr")
-	if err := ioutil.WriteFile(pushCSRPath, []byte(pushCSR), 0600); err != nil {
-		return nil, fmt.Errorf("write push.csr: %w", err)
-	}
-
-	req, err := mdmcertutil.CreatePushCertificateRequest(mdmCertPath, pushCSRPath, pKeyPath, []byte(vendorKeyPass))
+	// apple root certificate
+	rootCertBytes, err := loadCertfromHTTP(appleRootCAURL)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf("load root certificate from %s: %w", appleRootCAURL, err)
 	}
-	return req, nil
+	rootPEM := pemCert(rootCertBytes)
+
+	csrB64 := base64.StdEncoding.EncodeToString(csr.Raw)
+	sig64 := base64.StdEncoding.EncodeToString(signature)
+	pushReq := &mdmcertutil.PushCertificateRequest{
+		PushCertRequestCSR:       csrB64,
+		PushCertCertificateChain: makeCertChain(mdmPEM, wwdrPEM, rootPEM),
+		PushCertSignature:        sig64,
+	}
+	return pushReq, nil
+}
+
+func makeCertChain(mdmPEM, wwdrPEM, rootPEM []byte) string {
+	return string(mdmPEM) + string(wwdrPEM) + string(rootPEM)
+}
+
+func pemCert(derBytes []byte) []byte {
+	pemBlock := &pem.Block{
+		Type:    certificatePEMBlockType,
+		Headers: nil,
+		Bytes:   derBytes,
+	}
+	out := pem.EncodeToMemory(pemBlock)
+	return out
+}
+
+func loadKey(keyPem, password []byte) (*rsa.PrivateKey, error) {
+	pemBlock, _ := pem.Decode(keyPem)
+	if pemBlock == nil {
+		return nil, errors.New("PEM decode failed")
+	}
+	if pemBlock.Type != rsaPrivateKeyPEMBlockType {
+		return nil, errors.New("unmatched type or headers")
+	}
+
+	b, err := x509.DecryptPEMBlock(pemBlock, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return x509.ParsePKCS1PrivateKey(b)
+}
+
+func signPushCSR(csrData []byte, key *rsa.PrivateKey) ([]byte, error) {
+	h := sha256.New()
+	h.Write(csrData)
+	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, h.Sum(nil))
+	if err != nil {
+		return nil, fmt.Errorf("sign push CSR: %w", err)
+	}
+	return signature, nil
+}
+
+func loadCertfromHTTP(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create GET request for %s: %w", url, err)
+	}
+	req.Header.Set("Accept", "*/*") // required by Apple at some point.
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GET request to %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("got %s when trying to http.Get %s", resp.Status, url)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read get certificate request response body: %w", err)
+	}
+
+	crt, err := x509.ParseCertificate(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse wwdr intermediate certificate: %w", err)
+	}
+	return crt.Raw, nil
+}
+
+func decodePEM(pemData []byte) (*x509.CertificateRequest, error) {
+	pemBlock, _ := pem.Decode(pemData)
+	if pemBlock == nil {
+		return nil, errors.New("cannot find the next PEM formatted block")
+	}
+	if pemBlock.Type != csrPEMBlockType || len(pemBlock.Headers) != 0 {
+		return nil, errors.New("unmatched type or headers")
+	}
+	return x509.ParseCertificateRequest(pemBlock.Bytes)
 }
