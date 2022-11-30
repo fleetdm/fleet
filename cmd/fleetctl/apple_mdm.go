@@ -70,8 +70,9 @@ func generateCommand() *cli.Command {
 
 func generateMDMAppleCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "mdm-apple",
-		Usage: "Generates certificate signing request (CSR) and key for Apple Push Notification Service (APNs) and certificate and key for Simple Certificate Enrollment Protocol (SCEP) to turn on MDM features.",
+		Name:    "mdm-apple",
+		Aliases: []string{"mdm_apple"},
+		Usage:   "Generates certificate signing request (CSR) and key for Apple Push Notification Service (APNs) and certificate and key for Simple Certificate Enrollment Protocol (SCEP) to turn on MDM features.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "email",
