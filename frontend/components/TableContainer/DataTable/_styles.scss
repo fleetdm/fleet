@@ -20,7 +20,9 @@
       border-collapse: collapse;
       color: $core-fleet-black;
       font-size: $x-small;
+    }
 
+    tbody {
       .component__tooltip-wrapper {
         margin: 10px 0; // vertical padding multiline text with tooltip
       }
