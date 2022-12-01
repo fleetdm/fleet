@@ -311,10 +311,12 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 }
 
 type mockJiraClient struct {
-	opts externalsvc.JiraOptions
+	opts   externalsvc.JiraOptions
+	issues []jira.Issue
 }
 
 func (c *mockJiraClient) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+	c.issues = append(c.issues, *issue)
 	return &jira.Issue{}, nil
 }
 
@@ -377,6 +379,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 	}
 
 	var projectKeys []string
+	var clients []*mockJiraClient
 	jiraJob := &Jira{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
@@ -384,7 +387,9 @@ func TestJiraRunClientUpdate(t *testing.T) {
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			// keep track of project keys received in calls to NewClientFunc
 			projectKeys = append(projectKeys, opts.ProjectKey)
-			return &mockJiraClient{opts: *opts}, nil
+			client := &mockJiraClient{opts: *opts}
+			clients = append(clients, client)
+			return client, nil
 		},
 	}
 
@@ -398,7 +403,7 @@ func TestJiraRunClientUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// run it globally again - it will reuse the cached client
-	err = jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	err = jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [], "policy_critical": true}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a second time
@@ -413,4 +418,15 @@ func TestJiraRunClientUpdate(t *testing.T) {
 	require.Equal(t, []string{"0", "1", "2"}, projectKeys)
 	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
+	require.Len(t, clients, 3)
+
+	require.Len(t, clients[0].issues, 2)
+	require.NotContains(t, clients[0].issues[0].Fields.Description, "Critical")
+	require.Contains(t, clients[0].issues[1].Fields.Description, "Critical")
+
+	require.Len(t, clients[1].issues, 1)
+	require.NotContains(t, clients[1].issues[0].Fields.Description, "Critical")
+
+	require.Len(t, clients[2].issues, 1)
+	require.NotContains(t, clients[2].issues[0].Fields.Description, "Critical")
 }
