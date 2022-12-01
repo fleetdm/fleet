@@ -149,7 +149,7 @@ Thank you for trying Fleet!"
 ### Customer support workflow for Slack + Zendesk
 
 #### This section outlines both the automated workflows and manual triggers associated with Fleet's Slack integration to Zendesk. The purpose of this integration is to:
-- Provide Fleet with better SLA tracking on requests (especially those submitted outside of business hours)
+- Provide Fleet with better service level agreement (SLA) tracking on requests (especially those submitted outside of business hours)
 - Better track threads for issues that require advanced troubleshooting
 - Consolidate support requests into a single-source, searchable system for faster issue resolution in the future 
 
@@ -157,14 +157,14 @@ Thank you for trying Fleet!"
 #### There are three different situations when a customer support request could result in a ticket being created in Zendesk. They are as follows: 
 1. When a request has been submitted outside of business hours via Slack automation
 2. When a Fleet staff member has flagged an issue that requires advanced troubleshooting and determines that they want to move it into Zendesk for management 
-3. When any Fleet user submits a support request via email to support@fleetdm.com
+3. When any Fleet user submits a support request via email
 
 
 #### Workflow when a request is submitted outside of business hours:
 1. A new message is posted in any Slack channel
 2. (Zapier filter) The automation will continue if the message is:
     - Not from a Fleet team member
-    - Was posted outside of Fleet’s business hours
+    - Posted outside of Fleet’s business hours
     - In a specific customer channel (manually designated by Customer Success)   
 3. (Zendesk) Search for an existing Zendesk ticket by the Slack thread ID or create one if it does not exist.
 4. (Slack) If a new Zendesk ticket was created, reply to the Slack message in a thread.
@@ -172,7 +172,7 @@ Thank you for trying Fleet!"
 5. (Zendesk) If an existing Zendesk ticket was found by the search, add the Slack message to the existing ticket as a new comment.
 
 #### Things to note: 
-- New customer channels that the automation will run in must be whitelisted manually. Submit requests for additions during automation office hours.
+- New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
 - New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
 - This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
 
