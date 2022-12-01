@@ -486,13 +486,13 @@ func TestTriggerSingleInstance(t *testing.T) {
 	schedInterval := 1 * time.Second
 	jobRuntime := 200 * time.Millisecond
 
-	locker := SetupMockLocker(name, instanceID, time.Now().Add(-schedInterval))
+	locker := SetupMockLocker(name, instanceID, time.Now().Add(-2*schedInterval))
 	statsStore := SetUpMockStatsStore(name, fleet.CronStats{
 		ID:        1,
 		StatsType: fleet.CronStatsTypeScheduled,
 		Name:      name,
 		Instance:  instanceID,
-		CreatedAt: time.Now().Add(-schedInterval).Add(-jobRuntime),
+		CreatedAt: time.Now().Add(-2 * schedInterval).Add(-jobRuntime),
 		UpdatedAt: time.Now().Add(-schedInterval),
 		Status:    fleet.CronStatsStatusCompleted,
 	})
