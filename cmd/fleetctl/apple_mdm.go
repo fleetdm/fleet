@@ -153,6 +153,7 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				return fmt.Errorf("write scep ca private key: %w", err)
 			}
 
+			// TODO: update text once https://github.com/fleetdm/fleet/issues/8595 is complete. Consider linking to specific configuration section.
 			fmt.Fprintf(
 				c.App.Writer,
 				`Success!
