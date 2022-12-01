@@ -32,7 +32,8 @@ func TestMSRCClient(t *testing.T) {
 			})
 
 			t.Run("provided month and year is in the future", func(t *testing.T) {
-				_, err := sut.GetFeed((now.AddDate(0, 1, 0)).Month(), now.Year())
+				future := now.AddDate(1, 1, 0)
+				_, err := sut.GetFeed(future.Month(), future.Year())
 				require.Error(t, err)
 			})
 		})
