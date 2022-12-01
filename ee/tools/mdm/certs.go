@@ -102,7 +102,7 @@ func processRequest(vendorCertPEM, vendorKeyPEM, vendorKeyPassphrase, csrBase64 
 	}
 	certReq, err := decodeCSR(csr)
 	if err != nil {
-		return nil, fmt.Errorf("decode pem: %w", err)
+		return nil, fmt.Errorf("decode csr: %w", err)
 	}
 
 	// Get email and org from CSR
