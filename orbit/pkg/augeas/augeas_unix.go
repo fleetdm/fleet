@@ -41,11 +41,11 @@ func CopyLenses(installPath string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		src.Close()
+		err = src.Close()
 		if err != nil {
 			return "", err
 		}
-		dest.Close()
+		err = dest.Close()
 		if err != nil {
 			return "", err
 		}
