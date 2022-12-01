@@ -1,0 +1,5 @@
+name: icloud_private_relay
+description: Whether (iCloud Private Relay)[https://support.apple.com/en-us/HT212614] is turned on.
+columns: 
+  - name: status
+    description: whether iCloud Private Relay is on or off. 1 is on. 0 is off.
