@@ -80,10 +80,10 @@ func main() {
 		log.Fatalf("decode pem: %s", err.Error())
 	}
 
-	// Get email from CSR
-	email, err := getEmail(certReq)
+	// Get email and org from CSR
+	email, org, err := getEmailOrg(certReq)
 	if err != nil {
-		log.Fatalf("get email: %s", err.Error())
+		log.Fatalf("get subjects: %s", err.Error())
 	}
 
 	// Tie it all together
@@ -99,9 +99,11 @@ func main() {
 	// Write output as JSON
 	out := struct {
 		Email   string `json:"email"`
+		Org     string `json:"org"`
 		Request string `json:"request"`
 	}{
 		Email:   email,
+		Org:     org,
 		Request: string(encodedReq),
 	}
 	outJSON, err := json.Marshal(out)
@@ -111,17 +113,27 @@ func main() {
 	fmt.Println(string(outJSON))
 }
 
-func getEmail(req *x509.CertificateRequest) (string, error) {
-	for _, name := range req.Subject.Names {
-		if slices.Equal(name.Type, emailAddressOID) {
-			str, ok := name.Value.(string)
-			if !ok {
-				return "", errors.New("email subject is not string value")
-			}
-			return str, nil
-		}
+func getEmailOrg(req *x509.CertificateRequest) (email, org string, err error) {
+	if len(req.Subject.Organization) != 1 {
+		fmt.Println(req.Subject.Organization)
+		return "", "", errors.New("request must have exactly one organization subject")
 	}
-	return "", errors.New("missing email subject")
+	org = req.Subject.Organization[0]
+
+	if len(req.Subject.Names) != 1 {
+		return "", "", errors.New("request must have exactly one subject name")
+	}
+	name := req.Subject.Names[0]
+	if !slices.Equal(name.Type, emailAddressOID) {
+		return "", "", fmt.Errorf("request name type (%s) does not match email type", name.Type)
+	}
+	str, ok := name.Value.(string)
+	if !ok {
+		return "", "", fmt.Errorf("email subject (%V) is not string value", name.Value)
+	}
+	email = str
+
+	return email, org, nil
 }
 
 // Below functions copied with modifications from MicroMDM (MIT license):
