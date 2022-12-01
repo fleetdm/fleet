@@ -28,7 +28,7 @@ For instructions on using our testings tools, check out our [testing docs](https
       - [Reusable hook testing](#reusable-hooks-testing)
     - [Integration testing](#integration-testing)
       - [App widgets testing](#app-widget-testing)
-    - [E2E testing](#e2e-testing)
+    - [E2E testing](#e-2-e-testing)
   - [Tooling](#tooling)
     - [ESLint and TypeScript](#es-lint-and-typescript)
     - [Jest](#jest)
