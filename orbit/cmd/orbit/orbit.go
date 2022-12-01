@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -599,6 +600,16 @@ func main() {
 			}()
 		}
 
+		// Augeas doesn't work on Windows so there's no need to copy files and add the arg
+		if runtime.GOOS != "windows" {
+			log.Info().Msg("copying augeas lenses nyaa")
+			augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
+			if err != nil {
+				log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
+			} else {
+				options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
+			}
+		}
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
 		options = append(options, osquery.WithFlags([]string{"--force"}))
