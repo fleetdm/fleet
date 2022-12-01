@@ -131,12 +131,73 @@ type AppConfig struct {
 	// this field is set to the list of legacy settings keys during UnmarshalJSON
 	// if any legacy settings were set in the raw JSON.
 	didUnmarshalLegacySettings []string
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the AppConfig Clone implementation!
+	/////////////////////////////////////////////////////////////////
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
 // deprecated by other AppConfig settings.
 type legacyConfig struct {
 	HostSettings *Features `json:"host_settings"`
+}
+
+func (c *AppConfig) Clone() (interface{}, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	var clone AppConfig
+	clone = *c
+
+	// OrgInfo: nothing needs cloning
+	// FleetDesktopSettings: nothing needs cloning
+
+	if c.ServerSettings.DebugHostIDs != nil {
+		clone.ServerSettings.DebugHostIDs = make([]uint, len(c.ServerSettings.DebugHostIDs))
+		copy(clone.ServerSettings.DebugHostIDs, c.ServerSettings.DebugHostIDs)
+	}
+
+	// SMTPSettings: nothing needs cloning
+	// HostExpirySettings: nothing needs cloning
+
+	if c.Features.AdditionalQueries != nil {
+		aq := make(json.RawMessage, len(*c.Features.AdditionalQueries))
+		copy(aq, *c.Features.AdditionalQueries)
+		c.Features.AdditionalQueries = &aq
+	}
+	if c.AgentOptions != nil {
+		ao := make(json.RawMessage, len(*c.AgentOptions))
+		copy(ao, *c.AgentOptions)
+		clone.AgentOptions = &ao
+	}
+
+	// SSOSettings: nothing needs cloning
+	// FleetDesktop: nothing needs cloning
+	// VulnerabilitySettings: nothing needs cloning
+
+	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
+		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
+		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	}
+	if c.Integrations.Jira != nil {
+		clone.Integrations.Jira = make([]*JiraIntegration, len(c.Integrations.Jira))
+		for i, j := range c.Integrations.Jira {
+			jira := *j
+			clone.Integrations.Jira[i] = &jira
+		}
+	}
+	if c.Integrations.Zendesk != nil {
+		clone.Integrations.Zendesk = make([]*ZendeskIntegration, len(c.Integrations.Zendesk))
+		for i, z := range c.Integrations.Zendesk {
+			zd := *z
+			clone.Integrations.Zendesk[i] = &zd
+		}
+	}
+
+	return &clone, nil
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet

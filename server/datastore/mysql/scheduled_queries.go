@@ -52,7 +52,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 }
 
 // ListScheduledQueriesInPack lists all the scheduled queries of a pack.
-func (ds *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) ([]*fleet.ScheduledQuery, error) {
+func (ds *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) (fleet.ScheduledQueryList, error) {
 	query := `
 		SELECT
 			sq.id,

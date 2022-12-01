@@ -172,6 +172,16 @@
             overflow-x: scroll;
           }
           &__table {
+            thead {
+              tr {
+                th:last-child {
+                  .component__tooltip-wrapper__tip-text {
+                    left: -8px;
+                  }
+                }
+              }
+            }
+
             tbody {
               .issues__cell {
                 display: flex;
@@ -184,6 +194,7 @@
                   }
                 }
               }
+
               .device_mapping__cell {
                 .text-cell {
                   display: inline;
