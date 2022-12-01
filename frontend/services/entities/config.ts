@@ -48,6 +48,10 @@ export default {
     const instanceId = window.location.host.split(".")[0];
     const url = "https://sandbox.fleetdm.com/expires";
 
+    if (instanceId === "localhost:8080") {
+      return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+
     try {
       const { data } = await axios.get<{ timestamp: string }>(url, {
         url,
