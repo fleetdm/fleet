@@ -34,8 +34,12 @@ const (
 	appleRootCAURL      = "https://www.apple.com/appleca/AppleIncRootCertificate.cer"
 )
 
-// emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
-var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
+var (
+	// emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
+	emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
+	// organizationOID defined by https://oidref.com/2.5.4.10
+	organizationOID = []int{2, 5, 4, 10}
+)
 
 // See
 // https://developer.apple.com/documentation/devicemanagement/implementing_device_management/setting_up_push_notifications_for_your_mdm_customers
@@ -114,24 +118,30 @@ func main() {
 }
 
 func getEmailOrg(req *x509.CertificateRequest) (email, org string, err error) {
-	if len(req.Subject.Organization) != 1 {
-		fmt.Println(req.Subject.Organization)
-		return "", "", errors.New("request must have exactly one organization subject")
+	if len(req.Subject.Names) != 2 {
+		return "", "", errors.New("request must have exactly 2 subjects (organization and email)")
 	}
-	org = req.Subject.Organization[0]
 
-	if len(req.Subject.Names) != 1 {
-		return "", "", errors.New("request must have exactly one subject name")
+	for _, name := range req.Subject.Names {
+		switch {
+		case slices.Equal(name.Type, emailAddressOID):
+			str, ok := name.Value.(string)
+			if !ok {
+				return "", "", fmt.Errorf("email subject (%T) is not string value", name.Value)
+			}
+			email = str
+
+		case slices.Equal(name.Type, organizationOID):
+			str, ok := name.Value.(string)
+			if !ok {
+				return "", "", fmt.Errorf("organization subject (%T) is not string value", name.Value)
+			}
+			org = str
+
+		default:
+			return "", "", fmt.Errorf("unexpected subject: %v", name.Type)
+		}
 	}
-	name := req.Subject.Names[0]
-	if !slices.Equal(name.Type, emailAddressOID) {
-		return "", "", fmt.Errorf("request name type (%s) does not match email type", name.Type)
-	}
-	str, ok := name.Value.(string)
-	if !ok {
-		return "", "", fmt.Errorf("email subject (%V) is not string value", name.Value)
-	}
-	email = str
 
 	return email, org, nil
 }
