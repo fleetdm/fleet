@@ -251,6 +251,7 @@ type Datastore interface {
 	GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
+	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)

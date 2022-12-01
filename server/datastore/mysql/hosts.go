@@ -2240,6 +2240,25 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	return &hmdm, nil
 }
 
+func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+	var key fleet.HostDiskEncryptionKey
+	err := sqlx.GetContext(ctx, ds.reader, &key, `
+      SELECT
+        host_id, disk_encryption_key, created_at, updated_at
+      FROM
+        host_disk_encryption_keys
+      WHERE host_id = ?`, hostID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			msg := fmt.Sprintf("for host %d", hostID)
+			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return &key, nil
+}
+
 func (ds *Datastore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
 	var solution fleet.MDMSolution
 	err := sqlx.GetContext(ctx, ds.reader, &solution, `

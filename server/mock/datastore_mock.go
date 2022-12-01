@@ -199,6 +199,8 @@ type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.Hos
 
 type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
+type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -788,6 +790,9 @@ type DataStore struct {
 
 	GetHostMDMFunc        GetHostMDMFunc
 	GetHostMDMFuncInvoked bool
+
+	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
+	GetHostDiskEncryptionKeyFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -1718,6 +1723,11 @@ func (s *DataStore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fle
 func (s *DataStore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	s.GetHostMDMFuncInvoked = true
 	return s.GetHostMDMFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+	s.GetHostDiskEncryptionKeyFuncInvoked = true
+	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {

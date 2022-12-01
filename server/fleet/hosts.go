@@ -560,3 +560,14 @@ type EnrollHostLimiter interface {
 	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
 	SyncEnrolledHostIDs(ctx context.Context) error
 }
+
+type HostDiskEncryptionKey struct {
+	HostID    string `json:"-" db:"host_id"`
+	Key       string `json:"key" db:"disk_encryption_key"`
+	CreatedAt string `json:"-" db:"created_at"`
+	UpdatedAt string `json:"updated_at" db:"updated_at"`
+}
+
+func (d HostDiskEncryptionKey) AuthzType() string {
+	return "host_disk_encryption_key"
+}

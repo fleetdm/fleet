@@ -5858,6 +5858,47 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
 }
 
+func (s *integrationTestSuite) TestHostDeviceEncryptionKey() {
+	t := s.T()
+	hosts := s.createHosts(t)
+
+	// non-existent host
+	var resp getHostEncryptionKeyResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/989/encryption_key", nil, http.StatusNotFound, &resp)
+
+	// non-existent key
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", hosts[0].ID), nil, http.StatusNotFound, &resp)
+
+	// create key
+	s.ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), hosts[0].ID, "AAA-BBB-CCC")
+
+	// unauthenticated requests fail
+	s.token = ""
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", hosts[0].ID), nil, http.StatusUnauthorized, &resp)
+	s.token = s.getTestAdminToken()
+
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", hosts[0].ID), nil, http.StatusOK, &resp)
+	require.Equal(t, "AAA-BBB-CCC", resp.EncryptionKey.Key)
+	require.Equal(t, hosts[0].ID, resp.HostID)
+	require.NotEmpty(t, resp.EncryptionKey.UpdatedAt)
+
+	// an activity log entry should be created
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	assert.GreaterOrEqual(t, len(activities.Activities), 1)
+	var expectedActivity *fleet.Activity
+	for _, activity := range activities.Activities {
+		if activity.Type == fleet.ActivityTypeReadHostDiskEncryptionKey {
+			expectedActivity = activity
+		}
+	}
+	require.NotNil(t, expectedActivity)
+	expectedDetails := fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s"}`, hosts[0].ID, hosts[0].DisplayName())
+	assert.JSONEq(t, expectedDetails, string(*expectedActivity.Details))
+}
+
 func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRaw("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
 	// unauthenticated works too

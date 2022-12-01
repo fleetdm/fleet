@@ -320,6 +320,7 @@ type Service interface {
 	AggregatedMDMData(ctx context.Context, id *uint, platform string) (AggregatedMDMData, error)
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
+	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.

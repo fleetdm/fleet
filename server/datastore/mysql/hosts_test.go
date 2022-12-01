@@ -130,7 +130,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
-		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDiskEncryptionKeys},
+		{"HostDiskEncryptionKeys", testHostsDiskEncryptionKeys},
 		{"TestHostOrder", testHostOrder},
 	}
 	for _, c := range cases {
@@ -5558,7 +5558,7 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	require.True(t, *h.DiskEncryptionEnabled)
 }
 
-func testHostsSetOrUpdateHostDiskEncryptionKeys(t *testing.T, ds *Datastore) {
+func testHostsDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -5593,20 +5593,9 @@ func testHostsSetOrUpdateHostDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	checkEncryptionKey := func(hostID uint, expected string) {
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			var actual string
-
-			row := tx.QueryRowxContext(
-				context.Background(),
-				"SELECT disk_encryption_key FROM host_disk_encryption_keys WHERE host_id = ?",
-				hostID,
-			)
-
-			err := row.Scan(&actual)
-			require.NoError(t, err)
-			require.Equal(t, expected, actual)
-			return nil
-		})
+		actual, err := ds.GetHostDiskEncryptionKey(context.Background(), hostID)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual.Key)
 	}
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -5623,4 +5612,10 @@ func testHostsSetOrUpdateHostDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	h, err = ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
 	checkEncryptionKey(h.ID, "CCC")
+
+	k, err := ds.GetHostDiskEncryptionKey(context.Background(), 999)
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, k)
 }

@@ -508,3 +508,135 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
+
+func TestHostEncryptionKey(t *testing.T) {
+	cases := []struct {
+		name            string
+		host            *fleet.Host
+		allowedUsers    []*fleet.User
+		disallowedUsers []*fleet.User
+	}{
+		{
+			name: "global host",
+			host: &fleet.Host{
+				ID:       1,
+				Platform: "darwin",
+				NodeKey:  "test_key",
+				Hostname: "test_hostname",
+				UUID:     "test_uuid",
+				TeamID:   nil,
+			},
+			allowedUsers: []*fleet.User{
+				test.UserAdmin,
+				test.UserMaintainer,
+				test.UserObserver,
+			},
+			disallowedUsers: []*fleet.User{
+				test.UserTeamAdminTeam1,
+				test.UserTeamMaintainerTeam1,
+				test.UserTeamObserverTeam1,
+				test.UserNoRoles,
+			},
+		},
+		{
+			name: "team host",
+			host: &fleet.Host{
+				ID:       2,
+				Platform: "darwin",
+				NodeKey:  "test_key_2",
+				Hostname: "test_hostname_2",
+				UUID:     "test_uuid_2",
+				TeamID:   ptr.Uint(1),
+			},
+			allowedUsers: []*fleet.User{
+				test.UserAdmin,
+				test.UserMaintainer,
+				test.UserObserver,
+			},
+			disallowedUsers: []*fleet.User{
+				test.UserTeamAdminTeam1,
+				test.UserTeamMaintainerTeam1,
+				test.UserTeamObserverTeam1,
+				test.UserNoRoles,
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil)
+
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				require.Equal(t, tt.host.ID, id)
+				return tt.host, nil
+			}
+
+			ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Key: "key"}, nil
+			}
+
+			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+				expectedDetails := map[string]interface{}{
+					"host_id":           tt.host.ID,
+					"host_display_name": tt.host.DisplayName(),
+				}
+				require.EqualValues(t, expectedDetails, *details)
+				return nil
+			}
+
+			t.Run("allowed users", func(t *testing.T) {
+				for _, u := range tt.allowedUsers {
+					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
+					require.NoError(t, err)
+				}
+			})
+
+			t.Run("disallowed users", func(t *testing.T) {
+				for _, u := range tt.disallowedUsers {
+					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
+					require.Error(t, err)
+					require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+				}
+			})
+
+			t.Run("no user in context", func(t *testing.T) {
+				_, err := svc.HostEncryptionKey(ctx, tt.host.ID)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			})
+		})
+	}
+
+	t.Run("test error cases", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		hostErr := errors.New("host error")
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, hostErr
+		}
+		_, err := svc.HostEncryptionKey(ctx, 1)
+		require.ErrorIs(t, hostErr, err)
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{}, nil
+		}
+
+		keyErr := errors.New("key error")
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return nil, keyErr
+		}
+		_, err = svc.HostEncryptionKey(ctx, 1)
+		require.ErrorIs(t, keyErr, err)
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{Key: "key"}, nil
+		}
+
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+			return errors.New("activity error")
+		}
+		_, err = svc.HostEncryptionKey(ctx, 1)
+		require.Error(t, err)
+	})
+}

@@ -45,6 +45,8 @@ const (
 	ActivityTypeEditedAgentOptions = "edited_agent_options"
 	// ActivityTypeAppliedSpecTeam is the activity type for a team spec applied
 	ActivityTypeAppliedSpecTeam = "applied_spec_team"
+	// ActivityTypeReadHostDiskEncryptionKey is the activity type for when a host disk encryption key is viewed
+	ActivityTypeReadHostDiskEncryptionKey = "read_host_disk_encryption_key"
 )
 
 type Activity struct {

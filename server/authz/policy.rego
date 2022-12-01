@@ -230,6 +230,14 @@ allow {
 	action == write
 }
 
+# Global users can get the encryption key for any host
+# TODO: define cross-team rules, see https://github.com/fleetdm/fleet/issues/8708#issuecomment-1333829676
+allow {
+  object.type == "host_disk_encryption_key"
+  subject.global_role == [admin, maintainer, observer][_]
+  action == read
+}
+
 ##
 # Labels
 ##
