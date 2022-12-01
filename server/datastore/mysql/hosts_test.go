@@ -130,7 +130,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
-		{"SetOrUpdateHostDisksEncryptionKey", testHostsSetOrUpdateHostDisksEncryptionKey},
+		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDiskEncryptionKeys},
 		{"TestHostOrder", testHostOrder},
 	}
 	for _, c := range cases {
@@ -5558,7 +5558,7 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	require.True(t, *h.DiskEncryptionEnabled)
 }
 
-func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
+func testHostsSetOrUpdateHostDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -5586,25 +5586,25 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksEncryptionKey(context.Background(), host.ID, "AAA")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "AAA")
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksEncryptionKey(context.Background(), host2.ID, "BBB")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2.ID, "BBB")
 	require.NoError(t, err)
 
 	checkEncryptionKey := func(hostID uint, expected string) {
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			var actual sql.NullString
+			var actual string
 
 			row := tx.QueryRowxContext(
 				context.Background(),
-				"SELECT encryption_key FROM host_disks WHERE host_id = ?",
+				"SELECT disk_encryption_key FROM host_disk_encryption_keys WHERE host_id = ?",
 				hostID,
 			)
 
 			err := row.Scan(&actual)
 			require.NoError(t, err)
-			require.Equal(t, expected, actual.String)
+			require.Equal(t, expected, actual)
 			return nil
 		})
 	}
@@ -5617,7 +5617,7 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkEncryptionKey(h.ID, "BBB")
 
-	err = ds.SetOrUpdateHostDisksEncryptionKey(context.Background(), host2.ID, "CCC")
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2.ID, "CCC")
 	require.NoError(t, err)
 
 	h, err = ds.Host(context.Background(), host2.ID)

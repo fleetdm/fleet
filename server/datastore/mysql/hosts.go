@@ -2183,11 +2183,11 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, 
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostDisksEncryptionKey(ctx context.Context, hostID uint, key string) error {
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, key string) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET encryption_key = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (encryption_key, host_id) VALUES (?, ?)`,
+		`UPDATE host_disk_encryption_keys SET disk_encryption_key = ? WHERE host_id = ?`,
+		`INSERT INTO host_disk_encryption_keys (disk_encryption_key, host_id) VALUES (?, ?)`,
 		key, hostID,
 	)
 }

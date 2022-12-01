@@ -624,8 +624,8 @@ type Datastore interface {
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
-	// SetOrUpdateHostDisksEncryptionKey sets the disk encryption key for a host
-	SetOrUpdateHostDisksEncryptionKey(ctx context.Context, hostID uint, key string) error
+	// SetOrUpdateHostDiskEncryptionKey sets the disk encryption key for a host
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, key string) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
 

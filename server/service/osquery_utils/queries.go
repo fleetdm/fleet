@@ -1332,7 +1332,7 @@ func directIngestDiskEncryptionKey(ctx context.Context, logger log.Logger, host 
 		return ctxerr.Errorf(ctx, "missing <RecoveryKey> value in plist for host: %d", host.ID)
 	}
 
-	return ds.SetOrUpdateHostDisksEncryptionKey(ctx, host.ID, fdsetup.RecoveryKey)
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, fdsetup.RecoveryKey)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {

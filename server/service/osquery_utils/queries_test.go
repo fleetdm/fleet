@@ -859,7 +859,7 @@ func TestDirectIngestDiskEncryptionKey(t *testing.T) {
 		{"line": `</plist>`, "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
 	}
 
-	ds.SetOrUpdateHostDisksEncryptionKeyFunc = func(ctx context.Context, id uint, recoveryKey string) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint, recoveryKey string) error {
 		assert.Equal(t, "BW3Z-OVDR-EWEO-E8HY-V52N-KLWY", recoveryKey)
 		return nil
 	}
