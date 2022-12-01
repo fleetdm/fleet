@@ -45,8 +45,13 @@ var (
 // https://developer.apple.com/documentation/devicemanagement/implementing_device_management/setting_up_push_notifications_for_your_mdm_customers
 // for the expected CSR format.
 
+type signResult struct {
+	Email   string `json:"email"`
+	Org     string `json:"org"`
+	Request string `json:"request"`
+}
+
 func main() {
-	// Load vendor keys and certs
 	vendorCertPEM := os.Getenv(vendorCertEnvName)
 	if vendorCertPEM == "" {
 		log.Fatalf("vendor cert must be set in %s", vendorCertEnvName)
@@ -59,62 +64,64 @@ func main() {
 	if vendorKeyPassphrase == "" {
 		log.Fatalf("vendor key passphrase must be set in %s", vendorPassEnvName)
 	}
-	vendorCert, err := decodeVendorCert([]byte(vendorCertPEM))
-	if err != nil {
-		log.Fatalf("failed to parse vendor cert: %s", err.Error())
-	}
-	vendorKey, err := loadKey([]byte(vendorKeyPEM), []byte(vendorKeyPassphrase))
-	if err != nil {
-		log.Fatalf("failed to load vendor private key: %s", err.Error())
-	}
-
-	// Decode CSR input
 	// We accept the CSR via environment variable to mitigate against command injection attacks in
 	// the fleetdm.com website code that will call this with untrusted user input.
 	csrBase64 := os.Getenv(csrEnvName)
 	if csrBase64 == "" {
 		log.Fatalf("CSR must be set in %s", csrEnvName)
 	}
-	csr, err := base64.StdEncoding.DecodeString(string(csrBase64))
-	if err != nil {
-		log.Fatalf("base64 decode csr: %s", err.Error())
-	}
-	certReq, err := decodeCSR(csr)
-	if err != nil {
-		log.Fatalf("decode pem: %s", err.Error())
-	}
 
-	// Get email and org from CSR
-	email, org, err := getEmailOrg(certReq)
+	out, err := processRequest(vendorCertPEM, vendorKeyPEM, vendorKeyPassphrase, csrBase64)
 	if err != nil {
-		log.Fatalf("get subjects: %s", err.Error())
-	}
-
-	// Tie it all together
-	req, err := createPushCertificateRequest(vendorKey, vendorCert, certReq)
-	if err != nil {
-		log.Fatalf("create request: %s", err.Error())
-	}
-	encodedReq, err := req.Encode()
-	if err != nil {
-		log.Fatalf("encode csr: %v", err)
+		log.Fatalf("process request: %s", err.Error())
 	}
 
 	// Write output as JSON
-	out := struct {
-		Email   string `json:"email"`
-		Org     string `json:"org"`
-		Request string `json:"request"`
-	}{
-		Email:   email,
-		Org:     org,
-		Request: string(encodedReq),
-	}
 	outJSON, err := json.Marshal(out)
 	if err != nil {
 		log.Fatalf("encode request JSON: %s", err.Error())
 	}
 	fmt.Println(string(outJSON))
+}
+
+func processRequest(vendorCertPEM, vendorKeyPEM, vendorKeyPassphrase, csrBase64 string) (*signResult, error) {
+	// Load vendor keys and certs
+	vendorCert, err := decodeVendorCert([]byte(vendorCertPEM))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse vendor cert: %w", err)
+	}
+	vendorKey, err := loadKey([]byte(vendorKeyPEM), []byte(vendorKeyPassphrase))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load vendor private key: %w", err)
+	}
+
+	// Decode CSR input
+	csr, err := base64.StdEncoding.DecodeString(string(csrBase64))
+	if err != nil {
+		return nil, fmt.Errorf("base64 decode csr: %w", err)
+	}
+	certReq, err := decodeCSR(csr)
+	if err != nil {
+		return nil, fmt.Errorf("decode pem: %w", err)
+	}
+
+	// Get email and org from CSR
+	email, org, err := getEmailOrg(certReq)
+	if err != nil {
+		return nil, fmt.Errorf("get subjects: %w", err)
+	}
+
+	// Tie it all together
+	req, err := createPushCertificateRequest(vendorKey, vendorCert, certReq)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	encodedReq, err := req.Encode()
+	if err != nil {
+		return nil, fmt.Errorf("encode csr: %w", err)
+	}
+
+	return &signResult{Email: email, Org: org, Request: string(encodedReq)}, nil
 }
 
 func getEmailOrg(req *x509.CertificateRequest) (email, org string, err error) {
