@@ -126,6 +126,102 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 	return true, nil
 }
 
+// ExtensionRunner is a specialized runner to periodically check and update flags from Fleet
+// It is designed with Execute and Interrupt functions to be compatible with oklog/run
+//
+// It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
+type ExtensionRunner struct {
+	configFetcher OrbitConfigFetcher
+	opt           ExtensionUpdateOptions
+	cancel        chan struct{}
+}
+
+// ExtensionUpdateOptions is options provided for the flag update runner
+type ExtensionUpdateOptions struct {
+	// CheckInterval is the interval to check for updates
+	CheckInterval time.Duration
+	// RootDir is the root directory for orbit state
+	RootDir string
+}
+
+func NewExtensionUpdateRunner(configFetcher OrbitConfigFetcher, opt ExtensionUpdateOptions) *ExtensionRunner {
+	return &ExtensionRunner{
+		configFetcher: configFetcher,
+		opt:           opt,
+		cancel:        make(chan struct{}),
+	}
+}
+
+func (r *ExtensionRunner) Execute() error {
+	log.Debug().Msg("starting extension runner")
+
+	ticker := time.NewTicker(r.opt.CheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.cancel:
+			return nil
+		case <-ticker.C:
+			log.Info().Msg("calling extensions update")
+			didExtensionsUpdate, err := r.DoExtensionUpdate()
+			if err != nil {
+				log.Info().Msg("ext update failed")
+			}
+			if didExtensionsUpdate {
+				log.Info().Msg("ext updated")
+				return nil
+			}
+		}
+		ticker.Reset(r.opt.CheckInterval)
+	}
+}
+
+func (r *ExtensionRunner) Interrupt(err error) {
+	close(r.cancel)
+	log.Debug().Err(err).Msg(("interrupt extension runner"))
+}
+
+func (r *ExtensionRunner) DoExtensionUpdate() (bool, error) {
+
+	config, err := r.configFetcher.GetConfig()
+	if err != nil {
+		return false, fmt.Errorf("error getting extensions config from fleet: %w", err)
+	}
+
+	if len(config.Extensions) == 0 {
+		return false, nil
+	}
+
+	log.Info().Msg(string(config.Extensions))
+
+	type ExtensionInfo struct {
+		LocalPath string `json:"local_path"`
+		Platform  string `json:"platform"`
+		TufTarget string `json:"tuf_target"`
+	}
+
+	var data map[string]ExtensionInfo
+	err = json.Unmarshal(config.Extensions, &data)
+	if err != nil {
+		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
+	}
+
+	extensionAutoLoadFile := filepath.Join(r.opt.RootDir, "extensions.load")
+	var sb strings.Builder
+	for k, v := range data {
+		log.Info().Msg(k)
+		log.Info().Msg(v.LocalPath)
+		// todo: check goos platform and check the platform field
+		sb.WriteString(v.LocalPath + "\n")
+	}
+	if err := os.WriteFile(extensionAutoLoadFile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
+		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
+	}
+
+	return true, nil
+}
+
 // getFlagsFromJSON converts a json document of the form
 // `{"number": 5, "string": "str", "boolean": true}` to a map[string]string.
 //
@@ -168,6 +264,12 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 			sb.WriteString(k + "\n")
 		}
 	}
+	// include our extensions autoload file in the flags if it exists
+	extensionAutoloadFile := filepath.Join(rootDir, "extensions.load")
+	if _, err := os.Stat(extensionAutoloadFile); err == nil {
+		sb.WriteString("--extensions_autoload=" + extensionAutoloadFile)
+	}
+
 	if err := os.WriteFile(flagfile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("writing flagfile %s failed: %w", flagfile, err)
 	}

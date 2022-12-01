@@ -275,6 +275,7 @@ func main() {
 				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
 
+			//targets := []string{"orbit", "osqueryd", "extensions"}
 			targets := []string{"orbit", "osqueryd"}
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
@@ -512,6 +513,17 @@ func main() {
 			log.Info().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
+
+		const orbitExtensionUpdateInterval = 60 * time.Second
+		extRunner := update.NewExtensionUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+			CheckInterval: orbitExtensionUpdateInterval,
+			RootDir:       c.String("root-dir"),
+		})
+
+		if _, err := extRunner.DoExtensionUpdate(); err != nil {
+			log.Info().Err(err).Msg("initial ext update failed")
+		}
+		g.Add(extRunner.Execute, extRunner.Interrupt)
 
 		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 

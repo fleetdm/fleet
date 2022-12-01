@@ -14,6 +14,8 @@ type AgentOptions struct {
 	Overrides AgentOptionsOverrides `json:"overrides,omitempty"`
 	// CommandLineStartUpFlags are the osquery CLI_FLAGS
 	CommandLineStartUpFlags json.RawMessage `json:"command_line_flags,omitempty"`
+	// Extensions are the orbit managed extensions
+	Extensions json.RawMessage `json:"extensions,omitempty"`
 }
 
 type AgentOptionsOverrides struct {
@@ -497,6 +499,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	MaxLogSize            int32  `json:"max_log_size"`
 	MinLogLevel           int32  `json:"minloglevel"`
 	StopLoggingIfFullDisk bool   `json:"stop_logging_if_full_disk"`
+	AllowUnsafe           bool   `json:"allow_unsafe"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
