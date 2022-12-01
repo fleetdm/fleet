@@ -110,7 +110,7 @@ limit 1
 		Query: "SELECT * FROM os_version LIMIT 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err", //nolint:errcheck
+				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
 				return nil
 			}
@@ -201,7 +201,7 @@ SELECT
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err", //nolint:errcheck
+				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)))
 				return nil
 			}
@@ -218,7 +218,7 @@ SELECT
 				// empty value
 			}
 			if version == "" {
-				level.Debug(logger).Log( //nolint:errcheck
+				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
 					"host", host.Hostname,
 				)
@@ -297,7 +297,7 @@ SELECT
 		Query: "select * from osquery_info limit 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err", //nolint:errcheck
+				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
 				return nil
 			}
@@ -311,7 +311,7 @@ SELECT
 		Query: "select * from system_info limit 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err", //nolint:errcheck
+				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
 				return nil
 			}
@@ -346,7 +346,7 @@ SELECT
 		Query: "select * from uptime limit 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err", //nolint:errcheck
+				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
 				return nil
 			}
@@ -385,7 +385,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "IngestFunc", "err", //nolint:errcheck
+		logger.Log("component", "service", "method", "IngestFunc", "err",
 			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
@@ -398,11 +398,11 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
 		return nil
 	}
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "directIngestDiskSpace", "err", //nolint:errcheck
+		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
 			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
 		return nil
 	}
@@ -864,7 +864,7 @@ var usersQuery = DetailQuery{
 // directIngestOrbitInfo ingests data from the orbit_info extension table.
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestOrbitInfo", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestOrbitInfo", "err", "failed")
 		return nil
 	}
 	if len(rows) != 1 {
@@ -881,7 +881,7 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 // directIngestOSWindows ingests selected operating system data from a host on a Windows platform
 func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestOSWindows", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestOSWindows", "err", "failed")
 		return nil
 	}
 	if len(rows) != 1 {
@@ -907,7 +907,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		// empty value
 	}
 	if version == "" {
-		level.Debug(logger).Log( //nolint:errcheck
+		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
 			"host", host.Hostname,
 		)
@@ -924,7 +924,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 // (e.g., darwin or linux operating systems)
 func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestOSUnixLike", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestOSUnixLike", "err", "failed")
 		return nil
 	}
 	if len(rows) != 1 {
@@ -987,7 +987,7 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestBattery", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestBattery", "err", "failed")
 		return nil
 	}
 
@@ -1019,7 +1019,7 @@ func directIngestWindowsUpdateHistory(
 	failed bool,
 ) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed")
 		return nil
 	}
 
@@ -1033,7 +1033,7 @@ func directIngestWindowsUpdateHistory(
 	for _, row := range rows {
 		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
 		if err != nil {
-			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err) //nolint:errcheck
+			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
 			continue
 		}
 
@@ -1052,7 +1052,7 @@ func directIngestWindowsUpdateHistory(
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
 		return nil
 	}
 
@@ -1060,7 +1060,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 	for _, row := range rows {
 		providedName := row["name"]
 		if providedName == "" {
-			level.Debug(logger).Log( //nolint:errcheck
+			level.Debug(logger).Log(
 				"msg", "host reported scheduled query with empty name",
 				"host", host.Hostname,
 			)
@@ -1068,7 +1068,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		}
 		delimiter := row["delimiter"]
 		if delimiter == "" {
-			level.Debug(logger).Log( //nolint:errcheck
+			level.Debug(logger).Log(
 				"msg", "host reported scheduled query with empty delimiter",
 				"host", host.Hostname,
 			)
@@ -1081,7 +1081,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		trimmedName := strings.TrimPrefix(providedName, "pack"+delimiter)
 		parts := strings.SplitN(trimmedName, delimiter, 2)
 		if len(parts) != 2 {
-			level.Debug(logger).Log( //nolint:errcheck
+			level.Debug(logger).Log(
 				"msg", "could not split pack and query names",
 				"host", host.Hostname,
 				"name", providedName,
@@ -1127,7 +1127,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestSoftware", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestSoftware", "err", "failed")
 		return nil
 	}
 
@@ -1140,7 +1140,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		vendor := row["vendor"]
 
 		if name == "" {
-			level.Debug(logger).Log( //nolint:errcheck
+			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
 				"host", host.Hostname,
 				"version", version,
@@ -1149,7 +1149,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 		if source == "" {
-			level.Debug(logger).Log( //nolint:errcheck
+			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
 				"host", host.Hostname,
 				"version", version,
@@ -1161,7 +1161,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		var lastOpenedAt time.Time
 		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
 			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
-				level.Debug(logger).Log( //nolint:errcheck
+				level.Debug(logger).Log(
 					"msg", "host reported software with invalid last opened timestamp",
 					"host", host.Hostname,
 					"version", version,
@@ -1236,7 +1236,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		return nil
 	}
 	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "ingestMDM", "warn", //nolint:errcheck
+		logger.Log("component", "service", "method", "ingestMDM", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
 	enrolledVal := rows[0]["enrolled"]
@@ -1261,7 +1261,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
 		return nil
 	}
 	data := make(map[string]string, len(rows))
@@ -1280,7 +1280,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 		return nil
 	}
 	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn", //nolint:errcheck
+		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
 			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
 	}
 
@@ -1291,11 +1291,11 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 
 func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
-		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed") //nolint:errcheck
+		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed")
 		return nil
 	}
 	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn", //nolint:errcheck
+		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn",
 			fmt.Sprintf("disk_encryption expected at most a single result, got %d", len(rows)))
 	}
 

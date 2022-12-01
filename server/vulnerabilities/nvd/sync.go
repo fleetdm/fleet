@@ -198,7 +198,7 @@ func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 		for cve := range dict {
 			vuln, ok := dict[cve].(*feednvd.Vuln)
 			if !ok {
-				level.Error(logger).Log("msg", "unexpected type for Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve])) //nolint:errcheck
+				level.Error(logger).Log("msg", "unexpected type for Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve]))
 				continue
 			}
 			schema := vuln.Schema()
@@ -212,7 +212,7 @@ func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 			}
 
 			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err != nil {
-				level.Error(logger).Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err) //nolint:errcheck
+				level.Error(logger).Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
 			} else {
 				meta.Published = &published
 			}

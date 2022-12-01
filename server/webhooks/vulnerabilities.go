@@ -26,7 +26,7 @@ func TriggerVulnerabilitiesWebhook(
 		return nil
 	}
 
-	level.Debug(logger).Log("enabled", "true", "recentVulns", len(args.Vulnerablities)) //nolint:errcheck
+	level.Debug(logger).Log("enabled", "true", "recentVulns", len(args.Vulnerablities))
 
 	serverURL, err := url.Parse(args.AppConfig.ServerSettings.ServerURL)
 	if err != nil {

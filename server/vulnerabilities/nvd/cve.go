@@ -149,7 +149,7 @@ func TranslateCPEToCVE(
 	for _, vuln := range vulns {
 		newCount, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
 		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err) //nolint:errcheck
+			level.Error(logger).Log("cpe processing", "error", "err", err)
 			continue
 		}
 
@@ -194,13 +194,13 @@ func checkCVEs(
 			defer wg.Done()
 
 			logKey := fmt.Sprintf("cpe-processing-%d", goRoutineKey)
-			level.Debug(logger).Log(logKey, "start") //nolint:errcheck
+			level.Debug(logger).Log(logKey, "start")
 
 			for {
 				select {
 				case softwareCPE, more := <-softwareCPECh:
 					if !more {
-						level.Debug(logger).Log(logKey, "done") //nolint:errcheck
+						level.Debug(logger).Log(logKey, "done")
 						return
 					}
 
@@ -221,20 +221,20 @@ func checkCVEs(
 
 					}
 				case <-ctx.Done():
-					level.Debug(logger).Log(logKey, "quitting") //nolint:errcheck
+					level.Debug(logger).Log(logKey, "quitting")
 					return
 				}
 			}
 		}()
 	}
 
-	level.Debug(logger).Log("pushing cpes", "start") //nolint:errcheck
+	level.Debug(logger).Log("pushing cpes", "start")
 
 	for _, cpe := range softwareCPEs {
 		softwareCPECh <- cpe
 	}
 	close(softwareCPECh)
-	level.Debug(logger).Log("pushing cpes", "done") //nolint:errcheck
+	level.Debug(logger).Log("pushing cpes", "done")
 	wg.Wait()
 
 	return foundVulns, nil

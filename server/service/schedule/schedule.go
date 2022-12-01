@@ -160,7 +160,7 @@ func New(
 func (s *Schedule) Start() {
 	prevStats, err := s.getLatestStats()
 	if err != nil {
-		level.Error(s.logger).Log("err", "start schedule", "details", err) //nolint:errcheck
+		level.Error(s.logger).Log("err", "start schedule", "details", err)
 		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
@@ -181,7 +181,7 @@ func (s *Schedule) Start() {
 		}()
 
 		for {
-			level.Debug(s.logger).Log("waiting", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt))) //nolint:errcheck
+			level.Debug(s.logger).Log("waiting", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
 
 			select {
 			case <-s.ctx.Done():
@@ -190,11 +190,11 @@ func (s *Schedule) Start() {
 				return
 
 			case <-s.trigger:
-				level.Debug(s.logger).Log("waiting", "done, trigger received") //nolint:errcheck
+				level.Debug(s.logger).Log("waiting", "done, trigger received")
 
 				ok, cancelHold := s.holdLock()
 				if !ok {
-					level.Debug(s.logger).Log("msg", "unable to acquire lock") //nolint:errcheck
+					level.Debug(s.logger).Log("msg", "unable to acquire lock")
 					continue
 				}
 				s.runWithStats(fleet.CronStatsTypeTriggered)
@@ -202,13 +202,13 @@ func (s *Schedule) Start() {
 				cancelHold()
 
 			case <-schedTicker.C:
-				level.Debug(s.logger).Log("waiting", "done, tick received") //nolint:errcheck
+				level.Debug(s.logger).Log("waiting", "done, tick received")
 
 				schedInterval := s.getSchedInterval()
 
 				stats, err := s.getLatestStats()
 				if err != nil {
-					level.Error(s.logger).Log("err", "get cron stats", "details", err) //nolint:errcheck
+					level.Error(s.logger).Log("err", "get cron stats", "details", err)
 					sentry.CaptureException(err)
 					ctxerr.Handle(s.ctx, err)
 					// skip ahead to the next interval
@@ -248,7 +248,7 @@ func (s *Schedule) Start() {
 
 				ok, cancelHold := s.holdLock()
 				if !ok {
-					level.Debug(s.logger).Log("msg", "unable to acquire lock") //nolint:errcheck
+					level.Debug(s.logger).Log("msg", "unable to acquire lock")
 					schedTicker.Reset(schedInterval)
 					continue
 				}
@@ -267,8 +267,8 @@ func (s *Schedule) Start() {
 				// tick that would have overlapped with the 1.5hrs running time)
 				schedInterval = s.getSchedInterval()
 				if time.Since(newStart) > schedInterval {
-					level.Info(s.logger).Log("msg", fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval)) //nolint:errcheck
-					newStart = newStart.Add(time.Since(newStart).Truncate(schedInterval))                                                                   // advances start time by the number of full interval elasped
+					level.Info(s.logger).Log("msg", fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval))
+					newStart = newStart.Add(time.Since(newStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 				}
 				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
@@ -295,14 +295,14 @@ func (s *Schedule) Start() {
 					prevInterval := s.getSchedInterval()
 					newInterval, err := s.configReloadIntervalFn(s.ctx)
 					if err != nil {
-						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err) //nolint:errcheck
+						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
 						sentry.CaptureException(err)
 						continue
 					}
 
 					newInterval = truncateSecondsWithFloor(newInterval)
 					if newInterval <= 0 {
-						level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval") //nolint:errcheck
+						level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
 						continue
 					}
 					if prevInterval == newInterval {
@@ -319,8 +319,8 @@ func (s *Schedule) Start() {
 					clearScheduleChannels(s.trigger, schedTicker.C)
 					schedTicker.Reset(newWait)
 
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", newInterval))     //nolint:errcheck
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("time until next schedule tick %v", newWait)) //nolint:errcheck
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", newInterval))
+					level.Debug(s.logger).Log("msg", fmt.Sprintf("time until next schedule tick %v", newWait))
 				}
 			}
 		}()
@@ -328,8 +328,8 @@ func (s *Schedule) Start() {
 
 	go func() {
 		g.Wait()
-		level.Debug(s.logger).Log("msg", "close schedule") //nolint:errcheck
-		close(s.done)                                      // communicates that the scheduler has finished running its goroutines
+		level.Debug(s.logger).Log("msg", "close schedule")
+		close(s.done) // communicates that the scheduler has finished running its goroutines
 		schedTicker.Stop()
 	}()
 }
@@ -355,7 +355,7 @@ func (s *Schedule) Trigger() (*fleet.CronStats, error) {
 	case s.trigger <- struct{}{}:
 		// ok
 	default:
-		level.Debug(s.logger).Log("msg", "trigger channel not available") //nolint:errcheck
+		level.Debug(s.logger).Log("msg", "trigger channel not available")
 	}
 	return nil, nil
 }
@@ -371,28 +371,28 @@ func (s *Schedule) Name() string {
 func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
 	if err != nil {
-		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err) //nolint:errcheck
+		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
 		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
-	level.Info(s.logger).Log("status", "pending") //nolint:errcheck
+	level.Info(s.logger).Log("status", "pending")
 
 	s.runAllJobs()
 
 	if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
-		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err) //nolint:errcheck
+		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
 		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
-	level.Info(s.logger).Log("status", "completed") //nolint:errcheck
+	level.Info(s.logger).Log("status", "completed")
 }
 
 // runAllJobs runs all jobs in the schedule.
 func (s *Schedule) runAllJobs() {
 	for _, job := range s.jobs {
-		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID) //nolint:errcheck
+		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
-			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID) //nolint:errcheck
+			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			sentry.CaptureException(err)
 			ctxerr.Handle(s.ctx, err)
 		}
@@ -467,12 +467,12 @@ func (s *Schedule) getRemainingInterval(start time.Time) time.Duration {
 func (s *Schedule) acquireLock() bool {
 	ok, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
-		level.Error(s.logger).Log("msg", "lock failed", "err", err) //nolint:errcheck
+		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		sentry.CaptureException(err)
 		return false
 	}
 	if !ok {
-		level.Debug(s.logger).Log("msg", "not the lock leader, skipping") //nolint:errcheck
+		level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
 		return false
 	}
 	return true
@@ -481,7 +481,7 @@ func (s *Schedule) acquireLock() bool {
 func (s *Schedule) releaseLock() {
 	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "unlock failed", "err", err) //nolint:errcheck
+		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
 		sentry.CaptureException(err)
 	}
 }

@@ -54,9 +54,9 @@ func TriggerFailingPoliciesAutomation(
 
 	globalAutomation := getActiveAutomation(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations)
 	if globalAutomation != "" {
-		level.Debug(logger).Log("global_failing_policy", "enabled", "automation", globalAutomation) //nolint:errcheck
+		level.Debug(logger).Log("global_failing_policy", "enabled", "automation", globalAutomation)
 	} else {
-		level.Debug(logger).Log("global_failing_policy", "disabled") //nolint:errcheck
+		level.Debug(logger).Log("global_failing_policy", "disabled")
 	}
 
 	if globalAutomation != "" {
@@ -93,9 +93,9 @@ func TriggerFailingPoliciesAutomation(
 		policy, err := ds.Policy(ctx, policyID)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			level.Debug(logger).Log("msg", "skipping failing policy, deleted", "policyID", policyID) //nolint:errcheck
+			level.Debug(logger).Log("msg", "skipping failing policy, deleted", "policyID", policyID)
 			if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err) //nolint:errcheck
+				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
 			}
 			continue
 		case err != nil:
@@ -108,13 +108,13 @@ func TriggerFailingPoliciesAutomation(
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
 				// shouldn't happen, unless the team was deleted after the policy was retrieved above
-				level.Debug(logger).Log("msg", "team does not exist", "teamID", *policy.TeamID) //nolint:errcheck
+				level.Debug(logger).Log("msg", "team does not exist", "teamID", *policy.TeamID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policy.ID, "err", err) //nolint:errcheck
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policy.ID, "err", err)
 				}
 				continue
 			case err != nil:
-				level.Error(logger).Log("msg", "failed to get team", "teamID", *policy.TeamID, "err", err) //nolint:errcheck
+				level.Error(logger).Log("msg", "failed to get team", "teamID", *policy.TeamID, "err", err)
 				continue
 			}
 
@@ -123,30 +123,30 @@ func TriggerFailingPoliciesAutomation(
 			}
 
 			if !teamCfg.PolicyIDs[policy.ID] {
-				level.Debug(logger).Log("msg", "skipping failing policy, not found in team policy IDs", "policyID", policyID) //nolint:errcheck
+				level.Debug(logger).Log("msg", "skipping failing policy, not found in team policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err) //nolint:errcheck
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
 
 			if err := sendFunc(policy, teamCfg); err != nil {
-				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err) //nolint:errcheck
+				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
 			continue
 		}
 
 		// handle global policy
 		if !globalCfg.PolicyIDs[policy.ID] {
-			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID) //nolint:errcheck
+			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
 			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err) //nolint:errcheck
+				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
 			}
 			continue
 		}
 
 		if err := sendFunc(policy, globalCfg); err != nil {
-			level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err) //nolint:errcheck
+			level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
 		}
 	}
 

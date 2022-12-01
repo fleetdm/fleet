@@ -192,7 +192,7 @@ func (h *Handler) handleErrors(ctx context.Context) {
 func (h *Handler) storeError(ctx context.Context, err error) {
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "hashErr failed") //nolint:errcheck
+		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}
@@ -220,7 +220,7 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	}
 
 	if _, err := conn.Do(""); err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "redis SET failed") //nolint:errcheck
+		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}

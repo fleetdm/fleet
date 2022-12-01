@@ -25,7 +25,7 @@ func TriggerHostStatusWebhook(
 		return nil
 	}
 
-	level.Debug(logger).Log("enabled", "true") //nolint:errcheck
+	level.Debug(logger).Log("enabled", "true")
 
 	total, unseen, err := ds.TotalAndUnseenHostsSince(ctx, appConfig.WebhookSettings.HostStatusWebhook.DaysCount)
 	if err != nil {

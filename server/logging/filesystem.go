@@ -57,7 +57,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 		for {
 			<-sig // block on signal
 			if err := osquerydLogger.Rotate(); err != nil {
-				appLogger.Log("err", err) //nolint:errcheck
+				appLogger.Log("err", err)
 			}
 		}
 	}()

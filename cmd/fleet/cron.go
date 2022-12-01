@@ -36,7 +36,7 @@ import (
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
-	level.Error(logger).Log("msg", msg, "err", err) //nolint:errcheck
+	level.Error(logger).Log("msg", msg, "err", err)
 	sentry.CaptureException(err)
 	ctxerr.Handle(ctx, err)
 }
@@ -78,11 +78,11 @@ func cronVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 ) error {
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities") //nolint:errcheck
+		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
 		return nil
 	}
 
-	level.Info(logger).Log("periodicity", config.Periodicity) //nolint:errcheck
+	level.Info(logger).Log("periodicity", config.Periodicity)
 
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -90,7 +90,7 @@ func cronVulnerabilities(
 	}
 
 	if !appConfig.Features.EnableSoftwareInventory {
-		level.Info(logger).Log("msg", "software inventory not configured") //nolint:errcheck
+		level.Info(logger).Log("msg", "software inventory not configured")
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func cronVulnerabilities(
 	switch {
 	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = config.DatabasesPath
-		level.Info(logger).Log( //nolint:errcheck
+		level.Info(logger).Log(
 			"msg", "fleet config takes precedence over app config when both are configured",
 			"databases_path", vulnPath,
 		)
@@ -107,10 +107,10 @@ func cronVulnerabilities(
 	case appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
 	default:
-		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty") //nolint:errcheck
+		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
 	}
 	if vulnPath != "" {
-		level.Info(logger).Log("msg", "scanning vulnerabilities") //nolint:errcheck
+		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
@@ -127,7 +127,7 @@ func scanVulnerabilities(
 	appConfig *fleet.AppConfig,
 	vulnPath string,
 ) error {
-	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath) //nolint:errcheck
+	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("create vulnerabilities databases directory: %w", err)
@@ -165,7 +165,7 @@ func scanVulnerabilities(
 		}
 	}
 
-	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled) //nolint:errcheck
+	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
@@ -277,7 +277,7 @@ func checkWinVulnerabilities(
 			start := time.Now()
 			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
 			elapsed := time.Since(start)
-			level.Debug(logger).Log( //nolint:errcheck
+			level.Debug(logger).Log(
 				"msg", "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
@@ -321,7 +321,7 @@ func checkOvalVulnerabilities(
 		errHandler(ctx, logger, "updating oval definitions", err)
 	}
 	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-sync-downloaded", d) //nolint:errcheck
+		level.Debug(logger).Log("oval-sync-downloaded", d)
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
@@ -329,7 +329,7 @@ func checkOvalVulnerabilities(
 		start := time.Now()
 		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
 		elapsed := time.Since(start)
-		level.Debug(logger).Log( //nolint:errcheck
+		level.Debug(logger).Log(
 			"msg", "oval-analysis-done",
 			"platform", version.Name,
 			"elapsed", elapsed,
@@ -774,11 +774,11 @@ func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
 }
 
 func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
-	level.Info(l.logger).Log(keyvals...) //nolint:errcheck
+	level.Info(l.logger).Log(keyvals...)
 }
 
 func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
-	level.Debug(l.logger).Log(keyvals...) //nolint:errcheck
+	level.Debug(l.logger).Log(keyvals...)
 }
 
 func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
@@ -832,7 +832,7 @@ func newAppleMDMDEPProfileAssigner(
 				return err
 			}
 			if profileUUID == "" {
-				logger.Log("msg", "DEP profile not set, nothing to do") //nolint:errcheck
+				logger.Log("msg", "DEP profile not set, nothing to do")
 				return nil
 			}
 			cursor, cursorModTime, err := depStorage.RetrieveCursor(ctx, apple_mdm.DEPName)
@@ -842,7 +842,7 @@ func newAppleMDMDEPProfileAssigner(
 			// If the DEP Profile was changed since last sync then we clear
 			// the cursor and perform a full sync of all devices and profile assigning.
 			if cursor != "" && profileModTime.After(cursorModTime) {
-				logger.Log("msg", "clearing device syncer cursor") //nolint:errcheck
+				logger.Log("msg", "clearing device syncer cursor")
 				if err := depStorage.StoreCursor(ctx, apple_mdm.DEPName, ""); err != nil {
 					return err
 				}
@@ -856,6 +856,6 @@ func newAppleMDMDEPProfileAssigner(
 
 func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, instanceID string) {
 	if err := ds.UpdateAllCronStatsForInstance(ctx, instanceID, fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled); err != nil {
-		logger.Log("err", "cancel pending cron stats for instance", "details", err) //nolint:errcheck
+		logger.Log("err", "cancel pending cron stats for instance", "details", err)
 	}
 }

@@ -547,9 +547,9 @@ func rawCommandEnqueue(
 		logs = append(logs, "errs", len(idErrs))
 	}
 	if err != nil || len(idErrs) > 0 {
-		level.Info(logger).Log(logs...) //nolint:errcheck
+		level.Info(logger).Log(logs...)
 	} else {
-		level.Debug(logger).Log(logs...) //nolint:errcheck
+		level.Debug(logger).Log(logs...)
 	}
 	// loop through our command errors, if any, and add to output
 	for id, err := range idErrs {
@@ -565,7 +565,7 @@ func rawCommandEnqueue(
 	if !noPush {
 		pushResp, pushErr = pusher.Push(ctx, deviceIDs)
 		if err != nil {
-			level.Info(logger).Log("msg", "push", "err", err) //nolint:errcheck
+			level.Info(logger).Log("msg", "push", "err", err)
 			output.PushError = err.Error()
 		}
 	} else {
@@ -599,9 +599,9 @@ func rawCommandEnqueue(
 		logs = append(logs, "errs", pushErrCt)
 	}
 	if pushErr != nil || pushErrCt > 0 {
-		level.Info(logger).Log(logs...) //nolint:errcheck
+		level.Info(logger).Log(logs...)
 	} else {
-		level.Debug(logger).Log(logs...) //nolint:errcheck
+		level.Debug(logger).Log(logs...)
 	}
 	// generate response codes depending on if everything succeeded, failed, or parially succedded
 	header := http.StatusInternalServerError

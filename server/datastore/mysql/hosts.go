@@ -934,7 +934,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
 			hostID, _ := result.LastInsertId()
-			level.Info(ds.logger).Log("hostID", hostID) //nolint:errcheck
+			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
 				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
@@ -985,11 +985,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
-				level.Info(ds.logger).Log("hostIDError", err.Error()) //nolint:errcheck
+				level.Info(ds.logger).Log("hostIDError", err.Error())
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			hostID, _ = result.LastInsertId()
-			level.Info(ds.logger).Log("hostID", hostID) //nolint:errcheck
+			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
 				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
@@ -1615,7 +1615,7 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID)) //nolint:errcheck
+		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
 	}
 
 	query := `
@@ -1638,7 +1638,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID)) //nolint:errcheck
+		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
 	}
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,
@@ -2992,7 +2992,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	// nothing to do so return early
 	if len(statsByTeamID) < 1 {
 		// log to help troubleshooting in case this happens
-		level.Debug(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.") //nolint:errcheck
+		level.Debug(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
 		return nil
 	}
 
@@ -3155,7 +3155,7 @@ WHERE
 	}
 	if len(ids) > 0 {
 		// We log to help troubleshooting in case this happens.
-		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids)) //nolint:errcheck
+		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
 	}
 	return len(ids), nil
 }

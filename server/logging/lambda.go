@@ -96,7 +96,7 @@ func (f *lambdaLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 		// that are too big for Lambda. This behavior is consistent
 		// with other logging plugins.
 		if len(log) > lambdaMaxSizeOfPayload {
-			level.Info(f.logger).Log( //nolint:errcheck
+			level.Info(f.logger).Log(
 				"msg", "dropping log over 6MB Lambda limit",
 				"size", len(log),
 				"log", string(log[:100])+"...",

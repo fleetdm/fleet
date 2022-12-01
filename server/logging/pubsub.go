@@ -34,7 +34,7 @@ func NewPubSubLogWriter(projectId string, topicName string, addAttributes bool, 
 
 	topic := client.Topic(topicName)
 
-	level.Info(logger).Log( //nolint:errcheck
+	level.Info(logger).Log(
 		"msg", "GCP PubSub writer configured",
 		"project", projectId,
 		"topic", topicName,
@@ -82,7 +82,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 		}
 
 		if len(data)+estimateAttributeSize(attributes) > pubsub.MaxPublishRequestBytes {
-			level.Info(w.logger).Log( //nolint:errcheck
+			level.Info(w.logger).Log(
 				"msg", "dropping log over 10MB PubSub limit",
 				"size", len(data),
 				"log", string(log[:100])+"...",

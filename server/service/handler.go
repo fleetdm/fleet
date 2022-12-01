@@ -46,9 +46,9 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
-		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter) //nolint:errcheck
+		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
 	} else {
-		logger.Log("err", err) //nolint:errcheck
+		logger.Log("err", err)
 	}
 }
 
@@ -573,7 +573,7 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 		}
 		requireSetup, err := svc.SetupRequired(context.Background())
 		if err != nil {
-			logger.Log("msg", "fetching setup info from db", "err", err) //nolint:errcheck
+			logger.Log("msg", "fetching setup info from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -601,7 +601,7 @@ func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Han
 
 		setupRequired, err := svc.SetupRequired(context.Background())
 		if err != nil {
-			logger.Log("msg", "fetching setupinfo from db", "err", err) //nolint:errcheck
+			logger.Log("msg", "fetching setupinfo from db", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

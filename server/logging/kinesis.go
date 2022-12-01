@@ -117,7 +117,7 @@ func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 		// the beginning bytes of the log should help the Fleet admin
 		// diagnose the query generating huge results.
 		if len(log)+len(partitionKey) > kinesisMaxSizeOfRecord {
-			level.Info(k.logger).Log( //nolint:errcheck
+			level.Info(k.logger).Log(
 				"msg", "dropping log over 1MB Kinesis limit",
 				"size", len(log),
 				"log", string(log[:100])+"...",

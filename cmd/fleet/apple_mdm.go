@@ -94,11 +94,11 @@ func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
 }
 
 func (l *NanoMDMLogger) Info(keyvals ...interface{}) {
-	level.Info(l.logger).Log(keyvals...) //nolint:errcheck
+	level.Info(l.logger).Log(keyvals...)
 }
 
 func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
-	level.Debug(l.logger).Log(keyvals...) //nolint:errcheck
+	level.Debug(l.logger).Log(keyvals...)
 }
 
 func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {

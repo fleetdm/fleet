@@ -53,7 +53,7 @@ func CheckHealth(logger log.Logger, checkers map[string]Checker) bool {
 	healthy := true
 	for name, hc := range checkers {
 		if err := hc.HealthCheck(); err != nil {
-			log.With(logger, "component", "healthz").Log("err", err, "health-checker", name) //nolint:errcheck
+			log.With(logger, "component", "healthz").Log("err", err, "health-checker", name)
 			healthy = false
 			continue
 		}

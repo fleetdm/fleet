@@ -317,7 +317,7 @@ func TranslateSoftwareToCPE(
 	cpeTranslationsPath := filepath.Join(vulnPath, cpeTranslationsFilename)
 	cpeTranslations, err := loadCPETranslations(cpeTranslationsPath)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to load cpe translations", "err", err) //nolint:errcheck
+		level.Error(logger).Log("msg", "failed to load cpe translations", "err", err)
 	}
 
 	reCache := newRegexpCache()
@@ -329,7 +329,7 @@ func TranslateSoftwareToCPE(
 		}
 		cpe, err := CPEFromSoftware(db, software, cpeTranslations, reCache)
 		if err != nil {
-			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err) //nolint:errcheck
+			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err)
 			continue
 		}
 		if cpe == "" {

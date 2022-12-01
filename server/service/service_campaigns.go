@@ -40,15 +40,15 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// read results is the same user that initiated the query. This means the observer check already
 	// happened with the actual value for this query.
 	if err := svc.authz.Authorize(ctx, &fleet.TargetedQuery{Query: &fleet.Query{ObserverCanRun: true}}, fleet.ActionRun); err != nil {
-		level.Info(svc.logger).Log("err", "stream results authorization failed") //nolint:errcheck
-		conn.WriteJSONError(authz.ForbiddenErrorMessage)                         //nolint:errcheck
+		level.Info(svc.logger).Log("err", "stream results authorization failed")
+		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		level.Info(svc.logger).Log("err", "stream results viewer missing") //nolint:errcheck
-		conn.WriteJSONError(authz.ForbiddenErrorMessage)                   //nolint:errcheck
+		level.Info(svc.logger).Log("err", "stream results viewer missing")
+		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
 
@@ -61,7 +61,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Ensure the same user is opening to read results as initiated the query
 	if campaign.UserID != vc.User.ID {
-		level.Info(svc.logger).Log( //nolint:errcheck
+		level.Info(svc.logger).Log(
 			"err", "campaign user ID does not match",
 			"expected", campaign.UserID,
 			"got", vc.User.ID,
@@ -188,7 +188,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 			// Update status
 			if err := updateStatus(); err != nil {
-				svc.logger.Log("msg", "error updating status", "err", err) //nolint:errcheck
+				svc.logger.Log("msg", "error updating status", "err", err)
 				return
 			}
 		}

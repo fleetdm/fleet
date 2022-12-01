@@ -97,7 +97,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		var err error
 		stmt, err = sqlx.PreparexContext(ctx, ds.reader, query)
 		if err != nil {
-			level.Error(ds.logger).Log( //nolint:errcheck
+			level.Error(ds.logger).Log(
 				"msg", "failed to prepare statement",
 				"query", query,
 				"err", err,
@@ -261,7 +261,7 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
 				if err := tx.Rollback(); err != nil {
-					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback") //nolint:errcheck
+					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
 				}
 				panic(p)
 			}
@@ -310,7 +310,7 @@ func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback") //nolint:errcheck
+				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
 			}
 			panic(p)
 		}
@@ -455,7 +455,7 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 			break
 		}
 		interval := time.Duration(attempt) * time.Second
-		opts.logger.Log("mysql", fmt.Sprintf( //nolint:errcheck
+		opts.logger.Log("mysql", fmt.Sprintf(
 			"could not connect to db: %v, sleeping %v", dbError, interval))
 		time.Sleep(interval)
 	}
@@ -844,7 +844,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user") //nolint:errcheck
+		level.Info(ds.logger).Log("err", "team filter missing user")
 		return "FALSE"
 	}
 
@@ -908,7 +908,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user") //nolint:errcheck
+		level.Info(ds.logger).Log("err", "team filter missing user")
 		return "FALSE"
 	}
 

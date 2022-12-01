@@ -321,7 +321,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := fleet.ValidateJSONAgentOptions(*appConfig.AgentOptions); err != nil {
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors") //nolint:errcheck
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
 			}
 			if !applyOpts.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")

@@ -121,18 +121,18 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			log := kitlog.With(w.log, "job_id", job.ID)
 
 			if _, ok := seen[job.ID]; ok {
-				level.Debug(log).Log("msg", "some jobs failed, retrying on next cron execution") //nolint:errcheck
+				level.Debug(log).Log("msg", "some jobs failed, retrying on next cron execution")
 				return nil
 			}
 			seen[job.ID] = struct{}{}
 
-			level.Debug(log).Log("msg", "processing job") //nolint:errcheck
+			level.Debug(log).Log("msg", "processing job")
 
 			if err := w.processJob(ctx, job); err != nil {
-				level.Error(log).Log("msg", "process job", "err", err) //nolint:errcheck
+				level.Error(log).Log("msg", "process job", "err", err)
 				job.Error = err.Error()
 				if job.Retries < maxRetries {
-					level.Debug(log).Log("msg", "will retry job") //nolint:errcheck
+					level.Debug(log).Log("msg", "will retry job")
 					job.Retries += 1
 				} else {
 					job.State = fleet.JobStateFailure
@@ -146,7 +146,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			// of queue. GetQueuedJobs fetches jobs by updated_at, so it will not return the same job until the queue
 			// has been processed once.
 			if _, err := w.ds.UpdateJob(ctx, job.ID, job); err != nil {
-				level.Error(log).Log("update job", "err", err) //nolint:errcheck
+				level.Error(log).Log("update job", "err", err)
 			}
 		}
 	}

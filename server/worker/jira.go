@@ -293,12 +293,12 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 	if err != nil {
 		return err
 	}
-	level.Debug(j.Log).Log( //nolint:errcheck
+	level.Debug(j.Log).Log(
 		"msg", "created jira issue for cve",
 		"cve", vargs.CVE,
 		"issue_id", createdIssue.ID,
 		"issue_key", createdIssue.Key,
-	) //nolint:errcheck
+	)
 	return nil
 }
 
@@ -326,7 +326,7 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 	if args.FailingPolicy.TeamID != nil {
 		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
 	}
-	level.Debug(j.Log).Log(attrs...) //nolint:errcheck
+	level.Debug(j.Log).Log(attrs...)
 	return nil
 }
 
@@ -369,7 +369,7 @@ func QueueJiraVulnJobs(
 	recentVulns []fleet.SoftwareVulnerability,
 	cveMeta map[string]fleet.CVEMeta,
 ) error {
-	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns)) //nolint:errcheck
+	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
@@ -379,7 +379,7 @@ func QueueJiraVulnJobs(
 		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
-	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves)) //nolint:errcheck
+	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	uniqCVEs := make(map[string]bool)
 	for _, v := range recentVulns {
@@ -397,7 +397,7 @@ func QueueJiraVulnJobs(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
-		level.Debug(logger).Log("job_id", job.ID) //nolint:errcheck
+		level.Debug(logger).Log("job_id", job.ID)
 	}
 	return nil
 }
@@ -417,11 +417,11 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 	}
 	if len(hosts) == 0 {
 		attrs = append(attrs, "msg", "skipping, no host")
-		level.Debug(logger).Log(attrs...) //nolint:errcheck
+		level.Debug(logger).Log(attrs...)
 		return nil
 	}
 
-	level.Info(logger).Log(attrs...) //nolint:errcheck
+	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{
 		PolicyID:   policy.ID,
@@ -433,6 +433,6 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
-	level.Debug(logger).Log("job_id", job.ID) //nolint:errcheck
+	level.Debug(logger).Log("job_id", job.ID)
 	return nil
 }

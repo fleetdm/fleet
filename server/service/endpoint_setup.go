@@ -72,7 +72,7 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 		var token *string
 		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
 		if err != nil {
-			level.Debug(logger).Log("endpoint", "setup", "op", "login", "err", err) //nolint:errcheck
+			level.Debug(logger).Log("endpoint", "setup", "op", "login", "err", err)
 		} else {
 			token = &session.Key
 		}
