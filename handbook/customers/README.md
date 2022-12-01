@@ -8,8 +8,51 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 | Level of impact | Type of support |
 | :--- | :--- |
-| Low to medium impact | Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat/email support during business hours </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> Response time: **≤4 hours** |
+| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
+
+## New Customer Onboarding Workflow
+
+This workflow outlines the process that sales and customer success can follow when a new deal closes. 
+
+1. (AE) A customer is sent an order form
+    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
+    - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
+    - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
+        - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
+        - BizOps will cc the AE and stay cc’d on the contract when the final copy is sent to the CEO for Fleet execution. 
+        - Note: The Chief Revenue Officer serves as the backup to BizOps
+2. The Customer and Fleet sign the order form.
+    - (AE) The AE adds the fully executed contract to the opportunity record.
+    - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+3. (AE) The AE creates a 'New Sale Issue'
+    - They complete the AE tasks listed at the top of the issue.
+    - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
+    - Prepare to review:
+        - Details of the deal
+        - Primary contact / their role
+        - Desired use cases / desired outcomes
+        - Reasons for purchase
+        - Previously using Fleet Free?
+        - Support tier (Premium or Ultimate)
+        - Competitive solutions in place
+        - Other relevant technologies in place 
+        - Any proof of concept (POC) notes that are relevant
+        - Customer expectations for timeline
+        - Server deployment type
+4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+    - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
+    - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
+    - Create the customer Slack channel
+    - Generate the customer license key 
+    - Share the license key with the customer (7 day link)
+    - Schedule the customer onboarding kickoff call
+    - Collect deployment details (if not completed during POC)
+    - Schedule the recurring customer check-in
+    - Owns running the meeting, note taking, TODO follow up, etc. 
+
 
 ## Customer success calls
 
@@ -66,6 +109,8 @@ The on-call engineer holds responsibility for responses to technical Slack comme
 
 Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
 
+Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
+
 The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
 
 1. What went well?
@@ -100,6 +145,39 @@ Thanks for bearing with us, please don’t hesitate to reach out if you have any
 I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
 
 Thank you for trying Fleet!"
+
+### Customer support workflow for Slack + Zendesk
+
+#### This section outlines both the automated workflows and manual triggers associated with Fleet's Slack integration to Zendesk. The purpose of this integration is to:
+- Provide Fleet with better service level agreement (SLA) tracking on requests (especially those submitted outside of business hours)
+- Better track threads for issues that require advanced troubleshooting
+- Consolidate support requests into a single-source, searchable system for faster issue resolution in the future 
+
+
+#### There are three different situations when a customer support request could result in a ticket being created in Zendesk. They are as follows: 
+1. When a request has been submitted outside of business hours via Slack automation
+2. When a Fleet staff member has flagged an issue that requires advanced troubleshooting and determines that they want to move it into Zendesk for management 
+3. When any Fleet user submits a support request via email
+
+
+#### Workflow when a request is submitted outside of business hours:
+1. A new message is posted in any Slack channel
+2. (Zapier filter) The automation will continue if the message is:
+    - Not from a Fleet team member
+    - Posted outside of Fleet’s business hours
+    - In a specific customer channel (manually designated by Customer Success)   
+3. (Zendesk) Search for an existing Zendesk ticket by the Slack thread ID or create one if it does not exist.
+4. (Slack) If a new Zendesk ticket was created, reply to the Slack message in a thread.
+    - Hi @username, it's currently outside Fleet's support hours. (6am - 4pm PT). We've created a support ticket based on your message, and a Fleet team member will respond as soon as possible. If you have more questions or comments, feel free to reply in this thread, and we'll add them to the ticket.
+5. (Zendesk) If an existing Zendesk ticket was found by the search, add the Slack message to the existing ticket as a new comment.
+
+#### Things to note: 
+- New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
+- New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
+- This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
+
+#### Workflow when a request is submitted outside of business hours:
+![Screen Shot 2022-12-01 at 11 39 54 AM](https://user-images.githubusercontent.com/114112018/205109512-d35f4907-1169-41f5-acab-e23e3506e050.png)
 
 ## Customer requests
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
@@ -158,6 +236,137 @@ Sometimes there is a change in the champion within the customer's organization.
 | Close date | The date the last party to the contract signed the agreement. |
 | Invoice date | The date that Fleet sent the invoice to the customer. |
 
+## Sales
+
+The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#values) in every aspect of our work. Specifically, we continuously work to overperform and achieve strong results. We prioritize efficiency in our processes and operations. We succeed because of transparent, cross-functional collaboration. We are committed to hiring for and celebrating diversity, and we strive to create an environment of inclusiveness and belonging for all. We embrace a spirit of iteration, understanding that we can always improve.
+
+### Outreach one-pager
+
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager [here](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
+
+### Intro deck
+
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1Z7WsGt9AteSMvHfjcFZcgYBH02Ki1AMs/view?usp=sharing).
+
+### Intro video
+
+Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
+
+### SOC 2
+
+You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
+
+You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+
+### Our lead handling and outreach approach
+
+Fleet's main source for prospects to learn about the company and its offerings is our website, fleetdm.com. There are many places across the website for prospects to ask for more information, request merchandise, try the product and even purchase licenses directly. If the user experience in any of these locations asks for an email address or other contact information, Fleet may use that contact information for follow-up, including sales and marketing purposes. That contact information is for Fleet's sole use, and we do not give or sell that information to any third parties.
+
+In the case of a prospect or customer request, we strive to adhere to the following response times:
+- Web chat: 1 hour response during working hours, 8 hours otherwise
+- Talk to an expert: prospects can schedule chats via our calendar tool
+- All other enquiries: 1-2 days
+
+Fleet employees can find other expectations for action and response times in this [internal document](https://docs.google.com/presentation/d/104-TRXlY55g303q2xazY1bpcDx4dHqS5O5VdJ05OwzE/edit?usp=sharing)
+
+### Salesforce lead status flow
+
+To track the stage of the sales cycle that a lead is at, we use the following standardized lead statuses to indicate which stage of the sales process a lead is at.
+|Lead status                 | Description                                         |
+|:-----------------------------|:----------------------------------------------------|
+| New | Default status for all new leads when initially entered into Salesforce. We have an email or LinkedIn profile URL for the lead, but no established intent. The lead is just a relevant person to reach out to.|
+| New enriched | Fleet enriched the lead with additional contact info.|
+| New MQL | Lead has been established as a marketing qualified lead, meeting company size criteria.|
+| Working to engage | Fleet (often Sales development representative-SDR) is working to engage the lead. |
+| Engaged | Fleet has successfully made contact with the lead |
+| Meeting scheduled | Fleet has scheduled a meeting with the lead. |
+| Working to convert | Not enough info on Lead's Budget, Authority, Need and Timing (BANT) to be converted into an opportunity. |
+| Closed nurture | Lead does not meet BANT criteria to be converted to an opportunity, but we should maintain contact with the lead as it may be fruitful in the future. |
+| Closed do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
+| SAO Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
+
+At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [LinkedIn post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one.
+
+- Research each prospect.
+- Praise what’s great about their company.
+- Avoid just stating facts about our product.
+- State why we would love to work with them.
+- Ask questions about their company and current device management experience.
+- Keep an enthusiastic and warm tone.
+- Be personable.
+- Ask for the meeting with a proposed time.
+
+Here is another [LinkedIn post](https://www.linkedin.com/posts/davidtropic_i-got-the-best-cold-email-ive-ever-gotten-activity-6991066918363267072-yeXN) with an example of a great personalized cold outreach.
+
+Importantly, when we interact with CISOs or, for that matter, any member of a prospective customer organization, we adhere to the principles in this [LinkedIn post](https://www.linkedin.com/pulse/selling-ciso-james-turner). Specifically:
+
+- Be curteous
+- Be honest
+- Show respect
+- Build trust
+- Grow relationships
+- Help people
+
+### Sales team writing principles
+
+When writing for the Sales team, we want to abide by the following principles in our communications.
+
+#### Maintain naming conventions
+
+Maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Bad data              | Bad Data
+
+#### Be explicit
+
+Being explicit helps people to understand what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Do Not Contact (DNC)  | DNC
+
+
+
+### Salesforce contributor experience checkups
+
+In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
+
+1. Make sure the default tabs for a standard user include a detailed view of contacts, opportunities, accounts, and leads. No other tabs should exist.
+
+2. Click the accounts tab and check for the following: 
+
+* The default filter is Customers when you click on the accounts tab. Click on an account to continue.
+* Click on a customer and make sure billing address, parent account, LinkedIn company URL, CISO employees (#), employees, and industry appear first at the top of the account.
+* "Looking for meeting notes" reminder should appear on the right of the screen.  
+* Useful links section should include links to Purchase Orders (POs), signed subscription agreements, invoices sent, meeting notes, and signed NDA. Clicking these links should search the appropriate repository for the requested information pertaining to the customer.
+* Additional information section should include fields for account (customer) name first, account rating, LinkedIn sales navigator URL, LinkedIn company URL, and my LinkedIn overlaps. Make sure the LinkedIn links work.
+* Accounting section should include the following fields: invoice sent (latest), the payment received on (latest), subscription end date (latest), press approval field, license key, total opportunities (#), deals won (#), close date (first deal), cumulative revenue, payment terms, billing address, and shipping address. 
+* Opportunities, meeting notes, and activity feed should appear on the right.  
+
+3. Click on the opportunities tab and check for the following:
+
+* Default filter should be all opportunities. Open an opportunity to continue.
+* Section at the top of the page should include fields for account name, amount, close date, next step, and opportunity owner.
+* Opportunity information section should include fields for account name, opportunity name (should have the year on it), amount, next step, next step's due date, close date, and stage.
+* The accounting section here should include: up to # of hosts, type, payment terms, billing process, term, reseller, effective date, subscription end date, invoice sent, and the date payment was received.
+* Stage history, activity feed, and LinkedIn sales navigator should appear at the right.  
+
+4. Click on the contacts tab and check for the following:
+
+* Default filter should be all contacts. Open a contact to continue.
+* Top section should have fields for the contact's name, job title, department, account name, LinkedIn, and Orbit feed. 
+* The second section should have fields for LinkedIn URL, account name, name, title, is champion, and reports to
+* Additional information should have fields for email, personal email, Twitter, GitHub, mobile, website, orbit feed, and description.
+* Related contacts section should exist at the bottom, activity feed, meeting notes reminder, and manager information should appear on the right. 
+
+5. Click on the leads tab and check for the following:
+
+* Default filter should be all leads. Open a lead to continue.
+* There should be fields for name, lead source, lead status, and rating.
+
+
 ## Rituals
 
 The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -174,6 +383,10 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Product office hours | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
 | Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
 | Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
+| Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
+[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell |
+| Dripify review | Daily | Review responses to Dripify sequencing, respond to standard messages, escalate urgent messages in `#help-CEO`. | Brad Macdowall
 
 
 ## Slack channels
@@ -181,10 +394,13 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-customer-engineering`           | Kathy Satterlee                                                     |
+| `#g-customers`           | Zay Hanlon                                                     |
 | `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
+| `#g-sales`                     | Alex Mitchell |
+| `#_from-prospective-customers` | Alex Mitchell |
 
 
+<meta name="maintainedBy" value="alexmitchelliii">
+<meta name="title" value="🐋 Customers">
 
-<meta name="maintainedBy" value="ksatter">
-<meta name="title" value="🎈 Customers">
+

@@ -7,9 +7,9 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-import generateTableHeaders from "./QueriesTableConfig";
+import CustomLink from "components/CustomLink";
 
-import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
+import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
 const noQueriesClass = "no-queries";
@@ -49,15 +49,15 @@ const QueriesTable = ({
         <div className={`${noQueriesClass}__inner`}>
           <div className={`${noQueriesClass}__inner-text`}>
             {searchString ? (
-              <>
+              <div className={`${noQueriesClass}__no-results`}>
                 <h2>No queries match the current search criteria.</h2>
                 <p>
                   Expecting to see queries? Try again in a few seconds as the
                   system catches up.
                 </p>
-              </>
+              </div>
             ) : (
-              <>
+              <div className={`${noQueriesClass}__none-created`}>
                 <h2>You don&apos;t have any queries.</h2>
                 <p>
                   A query is a specific question you can ask about your devices.
@@ -66,18 +66,11 @@ const QueriesTable = ({
                   <>
                     <p>
                       Create a new query, or{" "}
-                      <a
-                        href="https://fleetdm.com/docs/using-fleet/standard-query-library"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        import Fleet’s standard query library
-                        <img
-                          src={ExternalLinkIcon}
-                          alt="Open external link"
-                          id="new-tab-icon"
-                        />
-                      </a>
+                      <CustomLink
+                        url="https://fleetdm.com/docs/using-fleet/standard-query-library"
+                        text="import Fleet’s standard query library"
+                        newTab
+                      />
                     </p>
                     <Button
                       variant="brand"
@@ -88,7 +81,7 @@ const QueriesTable = ({
                     </Button>
                   </>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -423,8 +423,12 @@ the way that the Fleet server works.
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
-			ctx, cancelFunc := context.WithCancel(context.Background())
+			cronSchedules := fleet.NewCronSchedules()
+
+			baseCtx := licensectx.NewContext(context.Background(), license)
+			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc() // TODO(sarah); Handle release of locks in graceful shutdown
+
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -441,7 +445,6 @@ the way that the Fleet server works.
 				liveQueryStore,
 				carveStore,
 				installerStore,
-				*license,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -449,13 +452,14 @@ the way that the Fleet server works.
 				mdmStorage,
 				mdmPushService,
 				mdmPushCertTopic,
+				cronSchedules,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, license)
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}
@@ -466,18 +470,45 @@ the way that the Fleet server works.
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
 
-			startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
-			startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
-			startVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, license)
-			if _, err := startAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet); err != nil {
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS)
+			}); err != nil {
+				initFatal(err, "failed to register cleanups_then_aggregations schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+			}); err != nil {
+				initFatal(err, "failed to register stats schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
+			}); err != nil {
+				initFatal(err, "failed to register vulnerabilities schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
-			if _, err := startIntegrationsSchedule(ctx, instanceID, ds, logger); err != nil {
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newIntegrationsSchedule(ctx, instanceID, ds, logger)
+			}); err != nil {
 				initFatal(err, "failed to register integrations schedule")
 			}
+
 			if config.MDMApple.Enable {
-				startAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+				}
 			}
+
+			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
@@ -487,7 +518,7 @@ the way that the Fleet server works.
 			if !hostsAsyncCfg.Enabled {
 				go func() {
 					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-						if err := task.FlushHostsLastSeen(context.Background(), clock.C.Now()); err != nil {
+						if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
 							level.Info(logger).Log(
 								"err", err,
 								"msg", "failed to update host seen times",
@@ -528,7 +559,7 @@ the way that the Fleet server works.
 				)
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
-				setupRequired, err := svc.SetupRequired(context.Background())
+				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
 					initFatal(err, "fetching setup requirement")
 				}
@@ -646,8 +677,6 @@ the way that the Fleet server works.
 				}
 			}
 
-			defaultWritetimeout := 40 * time.Second
-			writeTimeout := defaultWritetimeout
 			// The "GET /api/latest/fleet/queries/run" API requires
 			// WriteTimeout to be higher than the live query rest period
 			// (otherwise the response is not sent back to the client).
@@ -655,9 +684,6 @@ the way that the Fleet server works.
 			// We add 10s to the live query rest period to allow the writing
 			// of the response.
 			liveQueryRestPeriod += 10 * time.Second
-			if liveQueryRestPeriod > writeTimeout {
-				writeTimeout = liveQueryRestPeriod
-			}
 
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
@@ -667,17 +693,9 @@ the way that the Fleet server works.
 				handler = launcher.Handler(rootMux)
 			}
 
-			srv := &http.Server{
-				Addr:              config.Server.Address,
-				Handler:           handler,
-				ReadTimeout:       25 * time.Second,
-				WriteTimeout:      writeTimeout,
-				ReadHeaderTimeout: 5 * time.Second,
-				IdleTimeout:       5 * time.Minute,
-				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
-				BaseContext: func(l net.Listener) context.Context {
-					return ctx
-				},
+			srv := config.Server.DefaultHTTPServer(ctx, handler)
+			if liveQueryRestPeriod > srv.WriteTimeout {
+				srv.WriteTimeout = liveQueryRestPeriod
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 			errs := make(chan error, 2)
@@ -702,6 +720,7 @@ the way that the Fleet server works.
 				defer cancel()
 				errs <- func() error {
 					cancelFunc()
+					cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
 				}()

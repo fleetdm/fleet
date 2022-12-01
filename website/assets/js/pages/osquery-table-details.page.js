@@ -35,20 +35,28 @@ parasails.registerPage('osquery-table-details', {
 
   },
   mounted: async function() {
+
+    // Check the URL to see if a platformFilter was provided.
+    if(window.location.search) {
+      // https://caniuse.com/mdn-api_urlsearchparams_get
+      let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
+      let platformToFilterBy = possibleSearchParamsToFilterBy.get('platformFilter');
+      // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
+      if(platformToFilterBy && this.userFriendlyPlatformNames[platformToFilterBy]){
+        this.selectedPlatform = platformToFilterBy;
+      }
+    }
+
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
-      if(a.name < b.name){
-        return -1;
-      }
+      return a.title > b.title ? 1 : -1;
     });
     let keywordsForThisTable = [];
     if(this.tableToDisplay.keywordsForSyntaxHighlighting){
       keywordsForThisTable = this.tableToDisplay.keywordsForSyntaxHighlighting;
     }
     keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
-      if(a.length > b.length){
-        return -1;
-      }
+      return a.length < b.length ? 1 : -1;
     });
     (()=>{
       $('pre code').each((i, block) => {

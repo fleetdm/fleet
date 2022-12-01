@@ -4,7 +4,7 @@
 
 This Information Security Policy is intended to protect Fleet Device Management Inc's employees, contractors, partners, customers, and the company from illegal or damaging actions by individuals, either knowingly or unknowingly.
 
-Internet/Intranet/Extranet-related systems are the property of Fleet Device Management Inc. This includes but not limited to
+Internet/Intranet/Extranet-related systems are the property of Fleet Device Management Inc. This includes, but is not limited to
 
 - computer equipment.
 - software.

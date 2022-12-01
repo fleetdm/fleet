@@ -1,5 +1,6 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
+import { ITeamSummary } from "./team";
 
 export enum ActivityType {
   CreatedPack = "created_pack",
@@ -38,8 +39,10 @@ export interface IActivityDetails {
   policy_name?: string;
   query_id?: number;
   query_name?: string;
+  query_sql?: string;
   team_id?: number;
   team_name?: string;
+  teams?: ITeamSummary[];
   targets_count?: number;
   specs?: IQuery[] | IPolicy[];
   global?: boolean;

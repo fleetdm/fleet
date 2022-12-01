@@ -1,0 +1,60 @@
+name: interface_details
+columns:
+  - name: link_speed
+    platforms:
+      - linux
+      - darwin
+  - name: pci_slot
+    platforms:
+      - linux
+  - name: friendly_name
+    platforms:
+      - windows
+  - name: description
+    platforms:
+      - windows
+  - name: manufacturer
+    platforms:
+      - windows
+  - name: connection_id
+    platforms:
+      - windows
+  - name: connection_status
+    platforms:
+      - windows
+  - name: enabled
+    platforms:
+      - windows
+  - name: physical_adapter
+    platforms:
+      - windows
+  - name: speed
+    platforms:
+      - windows
+  - name: service
+    platforms:
+      - windows
+  - name: dhcp_enabled
+    platforms:
+      - windows
+  - name: dhcp_lease_expires
+    platforms:
+      - windows
+  - name: dhcp_lease_obtained
+    platforms:
+      - windows
+  - name: dhcp_server
+    platforms:
+      - windows
+  - name: dns_domain
+    platforms:
+      - windows
+  - name: dns_domain_suffix_search_order
+    platforms:
+      - windows
+  - name: dns_host_name
+    platforms:
+      - windows
+  - name: dns_server_search_order
+    platforms:
+      - windows

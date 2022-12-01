@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -771,14 +772,14 @@ func assertAuthorized(t *testing.T, user *fleet.User, object, action interface{}
 	t.Helper()
 
 	b, _ := json.MarshalIndent(map[string]interface{}{"subject": user, "object": object, "action": action}, "", "  ")
-	assert.NoError(t, auth.Authorize(test.UserContext(user), object, action), "should be authorized\n%s", string(b))
+	assert.NoError(t, auth.Authorize(test.UserContext(context.Background(), user), object, action), "should be authorized\n%s", string(b))
 }
 
 func assertUnauthorized(t *testing.T, user *fleet.User, object, action interface{}) {
 	t.Helper()
 
 	b, _ := json.MarshalIndent(map[string]interface{}{"subject": user, "object": object, "action": action}, "", "  ")
-	assert.Error(t, auth.Authorize(test.UserContext(user), object, action), "should be unauthorized\n%s", string(b))
+	assert.Error(t, auth.Authorize(test.UserContext(context.Background(), user), object, action), "should be unauthorized\n%s", string(b))
 }
 
 func runTestCases(t *testing.T, testCases []authTestCase) {

@@ -72,6 +72,20 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
       ...
     ]
   },
+  "hostsEnrolledByOrbitVersion": [
+    {
+      "version": "1.1.0",
+      "numHosts": 999
+    },
+    ...
+  ],
+  "hostsEnrolledByOsqueryVersion": [
+    {
+      "version": "4.9.0",
+      "numHosts": 999
+    },
+    ...
+  ],
   "storedErrors": [
     {
       "count": 3,

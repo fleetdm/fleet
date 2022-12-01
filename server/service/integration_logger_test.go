@@ -255,7 +255,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
 
 	// submit same payload without specifying gzip encoding fails
-	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusInternalServerError, nil)
+	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
 }
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {

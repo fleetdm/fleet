@@ -14,6 +14,11 @@ We are dedicated to
 > - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
 > - 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS.
 
+### About the handbook
+
+The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+
+While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
 
 ## Culture
 
@@ -41,7 +46,7 @@ Empathy leads to better understanding, better communication, and better decision
 
 - Think and make customer-first choices.
 - Consider your counterpart.
-  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, and the people who use software and APIs you build, the people following the processes you design.
+  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, and the people following the processes you design.
   - Ask questions in a way you would want to be asked.
   - Assume others have positive intent.
   - Be kind.
@@ -247,10 +252,9 @@ The following Slack channels are maintained by Fleet's founders and executive co
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-founders`               | Mike McNeil
 | `#help-mission-control`     | Charlie Chance
-| `#help-okrs`                | Mike McNeil
-| `#help-manage`              | Mike McNeil
+| `#help-okrs`                | Charlie Chance
+| `#help-manage`              | Charlie Chance
 | `#news-fundraising`         | Mike McNeil
 | `#help-open-core-ventures`  | Mike McNeil
 | `#general`                  | N/A _(announce something company-wide)_

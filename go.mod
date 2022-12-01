@@ -46,7 +46,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/igm/sockjs-go/v3 v3.0.0
-	github.com/jinzhu/copier v0.3.2
+	github.com/jinzhu/copier v0.3.5
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
 	github.com/kolide/kit v0.0.0-20191023141830-6312ecc11c23
@@ -96,7 +96,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.10.0
 	golang.org/x/crypto v0.1.0
 	golang.org/x/exp v0.0.0-20221126150942-6ab00d035af9
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/sys v0.1.0
 	google.golang.org/grpc v1.49.0
 	gopkg.in/guregu/null.v3 v3.5.0
@@ -169,7 +169,7 @@ require (
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/distribution v2.8.0+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/go-licenser v0.3.1 // indirect

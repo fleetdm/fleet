@@ -64,7 +64,7 @@ const Info = ({
 
   return (
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-      <div className={`${baseClass}__section`}>
+      <div className={`${baseClass}__section org-info`}>
         <h2>Organization info</h2>
         <div className={`${baseClass}__inputs`}>
           <InputField

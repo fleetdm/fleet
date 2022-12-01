@@ -1,17 +1,18 @@
 import React from "react";
 import { Column } from "react-table";
+import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
-import { Link } from "react-router";
 
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import { formatFloatAsPercentage } from "utilities/helpers";
 
+import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -178,7 +179,10 @@ const generateVulnColumnHeader = () => {
   };
 };
 
-const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
+const generateTableHeaders = (
+  router: InjectedRouter,
+  isPremiumTier?: boolean
+): Column[] => {
   const softwareTableHeaders = [
     {
       title: "Name",
@@ -187,10 +191,18 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+
+        const onClickSoftware = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+        };
+
         return (
-          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+          <Button onClick={onClickSoftware} variant="text-link">
             {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Link>
+          </Button>
         );
       },
       sortType: "caseInsensitive",
@@ -230,13 +242,10 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
             <TextCell value={cellProps.cell.value} />
           </span>
           <span className="hosts-cell__link">
-            <Link
-              to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
+            <ViewAllHostsLink
+              queryParams={{ software_id: cellProps.row.original.id }}
               className="software-link"
-            >
-              <span className="link-text">View all hosts</span>
-              <img alt="link to hosts filtered by software ID" src={Chevron} />
-            </Link>
+            />
           </span>
         </span>
       ),

@@ -1,0 +1,4 @@
+name: chrome_extension_content_scripts
+columns:
+  - name: uid
+    requires_user_context: true

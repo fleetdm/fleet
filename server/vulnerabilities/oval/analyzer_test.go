@@ -37,8 +37,7 @@ func extract(src, dst string, t require.TestingT) {
 	defer dstF.Close()
 
 	r := bzip2.NewReader(srcF)
-	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
-	_, err = io.Copy(dstF, r) //nolint:gosec
+	_, err = io.Copy(dstF, r) //nolint:gosec // ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
 	require.NoError(t, err)
 }
 
@@ -143,11 +142,12 @@ func withTestFixutre(
 }
 
 func assertVulns(
+	t require.TestingT,
 	ds *mysql.Datastore,
 	vulnPath string,
 	h *fleet.Host,
 	p Platform,
-	t require.TestingT,
+	source fleet.VulnerabilitySource,
 ) {
 	ctx := context.Background()
 
@@ -180,7 +180,7 @@ func assertVulns(
 	}
 	require.NotEmpty(t, expected)
 
-	storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, []uint{h.ID})
+	storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{h.ID}, source)
 	require.NoError(t, err)
 
 	uniq := make(map[string]bool)
@@ -325,7 +325,7 @@ func TestOvalAnalyzer(t *testing.T) {
 				_, err := Analyze(ctx, ds, s.version, vulnPath, true)
 				require.NoError(t, err)
 				p := NewPlatform(s.version.Platform, s.version.Name)
-				assertVulns(ds, vulnPath, h, p, t)
+				assertVulns(t, ds, vulnPath, h, p, fleet.RHELOVALSource)
 			}, t)
 		}
 	})
@@ -358,85 +358,9 @@ func TestOvalAnalyzer(t *testing.T) {
 				require.NoError(t, err)
 
 				p := NewPlatform(v.Platform, v.Name)
-				assertVulns(ds, vulnPath, h, p, t)
+				assertVulns(t, ds, vulnPath, h, p, fleet.UbuntuOVALSource)
 			}, t)
 		}
-	})
-
-	t.Run("#vulnsDelta", func(t *testing.T) {
-		t.Run("no existing vulnerabilities", func(t *testing.T) {
-			var found []fleet.SoftwareVulnerability
-			var existing []fleet.SoftwareVulnerability
-
-			toInsert, toDelete := vulnsDelta(found, existing)
-			require.Empty(t, toInsert)
-			require.Empty(t, toDelete)
-		})
-
-		t.Run("existing match found", func(t *testing.T) {
-			found := []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "cve_1"},
-				{SoftwareID: 1, CVE: "cve_2"},
-				{SoftwareID: 2, CVE: "cve_3"},
-				{SoftwareID: 2, CVE: "cve_4"},
-			}
-
-			existing := []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "cve_1"},
-				{SoftwareID: 1, CVE: "cve_2"},
-				{SoftwareID: 2, CVE: "cve_3"},
-				{SoftwareID: 2, CVE: "cve_4"},
-			}
-
-			toInsert, toDelete := vulnsDelta(found, existing)
-			require.Empty(t, toInsert)
-			require.Empty(t, toDelete)
-		})
-
-		t.Run("existing differ from found", func(t *testing.T) {
-			found := []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "cve_1"},
-				{SoftwareID: 1, CVE: "cve_2"},
-				{SoftwareID: 3, CVE: "cve_5"},
-				{SoftwareID: 3, CVE: "cve_6"},
-			}
-
-			existing := []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "cve_1"},
-				{SoftwareID: 1, CVE: "cve_2"},
-				{SoftwareID: 2, CVE: "cve_3"},
-				{SoftwareID: 2, CVE: "cve_4"},
-			}
-
-			expectedToInsert := []fleet.SoftwareVulnerability{
-				{SoftwareID: 3, CVE: "cve_5"},
-				{SoftwareID: 3, CVE: "cve_6"},
-			}
-
-			expectedToDelete := []fleet.SoftwareVulnerability{
-				{SoftwareID: 2, CVE: "cve_3"},
-				{SoftwareID: 2, CVE: "cve_4"},
-			}
-
-			toInsert, toDelete := vulnsDelta(found, existing)
-			require.Equal(t, expectedToInsert, toInsert)
-			require.ElementsMatch(t, expectedToDelete, toDelete)
-		})
-
-		t.Run("nothing found but vulns exist", func(t *testing.T) {
-			var found []fleet.SoftwareVulnerability
-
-			existing := []fleet.SoftwareVulnerability{
-				{SoftwareID: 1, CVE: "cve_1"},
-				{SoftwareID: 1, CVE: "cve_2"},
-				{SoftwareID: 2, CVE: "cve_3"},
-				{SoftwareID: 2, CVE: "cve_4"},
-			}
-
-			toInsert, toDelete := vulnsDelta(found, existing)
-			require.Empty(t, toInsert)
-			require.ElementsMatch(t, existing, toDelete)
-		})
 	})
 
 	t.Run("#load", func(t *testing.T) {
@@ -444,59 +368,6 @@ func TestOvalAnalyzer(t *testing.T) {
 			platform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
 			_, err := loadDef(platform, "")
 			require.Error(t, err, "invalid vulnerabity path")
-		})
-	})
-
-	t.Run("#latestOvalDefFor", func(t *testing.T) {
-		t.Run("definition matching platform for date exists", func(t *testing.T) {
-			path := t.TempDir()
-
-			today := time.Now()
-			platform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
-			def := filepath.Join(path, platform.ToFilename(today, "json"))
-
-			f1, err := os.Create(def)
-			require.NoError(t, err)
-			f1.Close()
-
-			result, err := latestOvalDefFor(platform, path, today)
-			require.NoError(t, err)
-			require.Equal(t, def, result)
-		})
-
-		t.Run("definition matching platform exists but not for date", func(t *testing.T) {
-			path := t.TempDir()
-
-			today := time.Now()
-			yesterday := today.Add(-24 * time.Hour)
-
-			platform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
-			def := filepath.Join(path, platform.ToFilename(yesterday, "json"))
-
-			f1, err := os.Create(def)
-			require.NoError(t, err)
-			f1.Close()
-
-			result, err := latestOvalDefFor(platform, path, today)
-			require.NoError(t, err)
-			require.Equal(t, def, result)
-		})
-
-		t.Run("definition does not exists for platform", func(t *testing.T) {
-			path := t.TempDir()
-
-			today := time.Now()
-
-			platform1 := NewPlatform("ubuntu", "Ubuntu 20.4.0")
-			def1 := filepath.Join(path, platform1.ToFilename(today, "json"))
-			f1, err := os.Create(def1)
-			require.NoError(t, err)
-			f1.Close()
-
-			platform2 := NewPlatform("ubuntu", "Ubuntu 18.4.0")
-
-			_, err = latestOvalDefFor(platform2, path, today)
-			require.Error(t, err, "file not found for platform")
 		})
 	})
 }

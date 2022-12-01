@@ -73,6 +73,14 @@ export default PropTypes.shape({
   }),
 });
 
+export interface ILicense {
+  tier: string;
+  device_count: number;
+  expiration: string;
+  note: string;
+  organization: string;
+}
+
 export interface IFleetDesktopSettings {
   transparency_url: string;
 }
@@ -111,6 +119,11 @@ export interface IConfigFormData {
   hostStatusWebhookDaysCount?: number;
   enableUsageStatistics: boolean;
   transparency_url: string;
+}
+
+export interface IConfigFeatures {
+  enable_host_users: boolean;
+  enable_software_inventory: boolean;
 }
 
 export interface IConfig {
@@ -154,22 +167,13 @@ export interface IConfig {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
-  features: {
-    enable_host_users: boolean;
-    enable_software_inventory: boolean;
-  };
+  features: IConfigFeatures;
   agent_options: string;
   update_interval: {
     osquery_detail: number;
     osquery_policy: number;
   };
-  license: {
-    organization: string;
-    device_count: number;
-    tier: string;
-    expiration: string;
-    note: string;
-  };
+  license: ILicense;
   fleet_desktop: IFleetDesktopSettings;
   vulnerabilities: {
     databases_path: string;
@@ -220,3 +224,5 @@ export type IAutomationsConfig = Pick<
   IConfig,
   "webhook_settings" | "integrations"
 >;
+
+export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;

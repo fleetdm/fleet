@@ -69,72 +69,6 @@ export const hostStatusPreview = {
     days_unseen: 3,
   },
 };
-export const usageStatsPreview = {
-  anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
-  fleetVersion: "x.x.x",
-  licenseTier: "free",
-  organization: "Fleet",
-  numHostsEnrolled: 999,
-  numUsers: 999,
-  numTeams: 999,
-  numPolicies: 999,
-  numLabels: 999,
-  softwareInventoryEnabled: true,
-  vulnDetectionEnabled: true,
-  systemUsersEnabled: true,
-  hostStatusWebhookEnabled: true,
-  numWeeklyActiveUsers: 999,
-  numWeeklyPolicyViolationDaysActual: 999,
-  numWeeklyPolicyViolationDaysPossible: 999,
-  hostsEnrolledByOperatingSystem: {
-    darwin: [
-      {
-        version: "macOS 12.3.1",
-        numEnrolled: 999,
-      },
-    ],
-    windows: [
-      {
-        version: "Microsoft Windows 10, version 21H2 (W)",
-        numEnrolled: 999,
-      },
-    ],
-    ubuntu: [
-      {
-        version: "Ubuntu 22.04 'Jammy Jellyfish' (LTS)",
-        numEnrolled: 999,
-      },
-    ],
-    rhel: [
-      {
-        version: "Red Hat Enterprise Linux 8.4.0",
-        numEnrolled: 999,
-      },
-    ],
-    debian: [
-      {
-        version: "Debian GNU/Linux 9.0.0",
-        numEnrolled: 999,
-      },
-    ],
-    amzn: [
-      {
-        version: "Amazon Linux 2.0.0",
-        numEnrolled: 999,
-      },
-    ],
-  },
-  storedErrors: [
-    {
-      count: 3,
-      loc: [
-        "github.com/fleetdm/fleet/v4/server/example.example:12",
-        "github.com/fleetdm/fleet/v4/server/example.example:130",
-      ],
-    },
-  ],
-  numHostsNotResponding: 9,
-};
 
 export default {
   authMethodOptions,
@@ -142,5 +76,4 @@ export default {
   percentageOfHosts,
   numberOfDays,
   hostStatusPreview,
-  usageStatsPreview,
 };

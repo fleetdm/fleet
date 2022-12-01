@@ -115,15 +115,15 @@
   }
   [purpose='evented-table-icon'] {
     margin-left: 4px;
-    padding: 4px 8px;
+    padding: 3px 6px 4px;
     background-color: @core-vibrant-blue-15;
     border-radius: 4px;
     display: inline-block;
-    line-height: 14px;
+    line-height: 12px;
     vertical-align: middle;
     img {
-      height: 14px;
-      width: 14px;
+      height: 12px;
+      width: 12px;
       display: inline-block;
     }
   }
@@ -191,16 +191,16 @@
       right: 0;
       top: 76px;
     }
-    a:not(.btn) {
+    a:not(.btn):not([purpose='evented-table-label']) {
       color: @core-vibrant-blue;
       padding-right: 7px;
     }
-    a:not(.markdown-link):after {
+    a:not(.markdown-link):not([purpose='evented-table-label']):after {
       background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
       background-size: 7px 7px;
       display: inline-block;
       position: relative;
-      top: -7px;
+      top: -4px;
       left: 4px;
       width: 7px;
       height: 7px;
@@ -292,57 +292,53 @@
       position: relative;
       display: inline-block;
       top: 0px;
-      right: -16px;
-      line-height: 14px;
-      padding: 4px 8px 4px 18px;
+      right: -12px;
+      line-height: 8px;
+      padding: 4px 6px;
       background-color: @core-vibrant-blue-15;
-      border-radius: 6px;
-      width: 120px;
+      border-radius: 4px;
+      width: 100px;
       span {
         vertical-align: middle;
-        font-weight: 700;
-        font-size: 10px;
+        font-weight: 600;
+        font-size: 9px;
         line-height: 14px;
+        color: @core-fleet-black-75;
       }
       span::before {
-        background-image: url('/images/icon-evented-14x14@2x.png');
-        background-size: 14px 14px;
+        background-image: url('/images/icon-evented-12x12@2x.png');
+        background-size: 12px 12px;
         display: inline-block;
         position: relative;
-        top: 1px;
-        left: -8px;
-        width: 14px;
-        height: 14px;
+        top: 2px;
+        margin-right: 4px;
+        width: 12px;
+        height: 12px;
         content: '';
       }
     }
 
   }
   [purpose='edit-button'] {
+    display: block;
     color: @core-vibrant-blue;
-    font-size: 12px;
+    font-size: 14px;
     cursor: pointer;
     border: 1px solid @core-vibrant-blue;
     border-radius: 4px;
     width: fit-content;
     padding: 8px 12px;
     text-decoration: none;
-    a {
-      color: @core-vibrant-blue;
-      size: 14px;
-      line-height: 20px;
-      font-weight: 700;
-    }
+    line-height: 20px;
+    font-weight: 700;
     i {
       height: 16px;
       margin-left: 5px;
     }
     &:hover {
       background: @core-vibrant-blue;
-      a {
-        text-decoration: none;
-        color: @accent-white;;
-      }
+      color: @accent-white;
+      text-decoration: none;
     }
   }
   [purpose='slack-cta'] {

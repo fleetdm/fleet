@@ -1,0 +1,9 @@
+name: package_receipts
+examples: >-
+  List the location of receipt files related to installed packages.
+  
+  ```
+  
+  SELECT * FROM package_receipts;
+  
+  ```

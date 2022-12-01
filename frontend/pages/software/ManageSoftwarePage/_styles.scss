@@ -49,7 +49,7 @@
     }
 
     p {
-      color: $core-dark-blue-grey;
+      color: $ui-fleet-black-75;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -134,26 +134,7 @@
           .data-table__table {
             tr {
               .software-link {
-                color: $core-vibrant-blue;
                 visibility: hidden;
-                font-weight: bold;
-                text-decoration: none;
-                vertical-align: middle;
-                padding-left: 15px;
-
-                a {
-                  text-decoration: none;
-                }
-
-                img {
-                  height: 16px;
-                  width: 16px;
-                  vertical-align: middle;
-                }
-
-                .link-text {
-                  padding-right: $pad-xxsmall;
-                }
               }
 
               &:hover {
@@ -193,12 +174,6 @@
             tbody {
               .name__cell {
                 width: $col-md;
-                a {
-                  text-decoration: none;
-                  &:hover {
-                    text-decoration: underline;
-                  }
-                }
               }
               .version__cell {
                 width: 0;
@@ -223,6 +198,7 @@
                   justify-content: space-between;
                   .hosts-cell__link {
                     display: flex;
+                    white-space: nowrap;
                   }
                 }
               }

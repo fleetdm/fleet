@@ -31,7 +31,7 @@ server/fleet/emails.go:90:23: undefined: Asset
 make: *** [fleet] Error 2
 ```
 
-If you get an `undefined: Asset` error, it is likely because you did not run `make generate` before `make build`. See [Building Fleet](./Building-Fleet.md) for additional documentation on compiling the `fleet` binary.
+If you get an `undefined: Asset` error, it is likely because you did not run `make generate` before `make build`. See [Building Fleet](https://fleetdm.com/docs/contributing/building-fleet) for additional documentation on compiling the `fleet` binary.
 
 ## Adding hosts for testing
 
@@ -71,4 +71,23 @@ Invalid interpolation format for "fleet01" option in service "services": "fleetd
 Failed to run docker-compose
 ```
 
-You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
+You're probably running an old version of Docker. Download the installer for your platform from the [Docker Documentation](https://docs.docker.com/compose/install/).
+
+## What API endpoints do osquery and Orbit need access to?
+
+Based on the configuration, osquery running on hosts will need access to these API endpoints:
+
+* `/api/v1/osquery/enroll`
+* `/api/v1/osquery/config`
+* `/api/v1/osquery/distributed/read`
+* `/api/v1/osquery/distributed/write`
+* `/api/v1/osquery/carve/begin`
+* `/api/v1/osquery/carve/block`
+* `/api/v1/osquery/log`
+
+If you also have Orbit running on hosts, it will need access to these API endpoints:
+
+* `/api/fleet/orbit/enroll`
+* `/api/fleet/orbit/config`
+* `/api/fleet/orbit/device_token`
+* `/api/fleet/orbit/ping`

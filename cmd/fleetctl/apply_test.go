@@ -189,6 +189,8 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
+	// agent options not provided, so left unchanged
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
@@ -209,6 +211,19 @@ spec:
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    agent_options:
+    name: team1
+`)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	// agent options provided but empty, clears the value
+	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 }
 
 func writeTmpYml(t *testing.T, contents string) string {
@@ -226,6 +241,10 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "admin1@example.com" {
 			return userRoleSpecList[0], nil
@@ -233,8 +252,13 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
+	defaultAgentOpts := json.RawMessage(`{"config":{"foo":"bar"}}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"}}, nil
+		return &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Fleet"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			AgentOptions:   &defaultAgentOpts,
+		}, nil
 	}
 
 	var savedAppConfig *fleet.AppConfig
@@ -256,6 +280,8 @@ spec:
 	require.NotNil(t, savedAppConfig)
 	assert.False(t, savedAppConfig.Features.EnableHostUsers)
 	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
+	// agent options were not modified, since they were not provided
+	assert.Equal(t, string(defaultAgentOpts), string(*savedAppConfig.AgentOptions))
 
 	name = writeTmpYml(t, `---
 apiVersion: v1
@@ -264,12 +290,116 @@ spec:
   features:
     enable_host_users: true
     enable_software_inventory: true
+  agent_options:
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.True(t, savedAppConfig.Features.EnableHostUsers)
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
+	// agent options were cleared, provided but empty
+	assert.Nil(t, savedAppConfig.AgentOptions)
+}
+
+func TestApplyAppConfigDryRunIssue(t *testing.T) {
+	// reproduces the bug fixed by https://github.com/fleetdm/fleet/pull/8194
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
+	var currentAppConfig = &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return currentAppConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		currentAppConfig = config
+		return nil
+	}
+
+	// first, set the default app config's agent options as set after fleetctl setup
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+
+	// then, dry-run a valid app config's agent options, which made the original
+	// app config's agent options invalid JSON (when it shouldn't have modified
+	// it at all - the issue was in the cached_mysql datastore, it did not clone
+	// the app config properly).
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    overrides:
+      platforms:
+        darwin:
+          auto_table_construction:
+            tcc_system_entries:
+              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
+              path: "/Library/Application Support/com.apple.TCC/TCC.db"
+              columns:
+                - "service"
+                - "client"
+                - "allowed"
+                - "prompt_count"
+                - "last_modified"
+`)
+
+	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
+
+	// the saved app config was left unchanged, still equal to the original agent
+	// options
+	got := runAppForTest(t, []string{"get", "config"})
+	assert.Contains(t, got, `agent_options:
+    config:
+      decorators:
+        load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}`)
 }
 
 func TestApplyAppConfigUnknownFields(t *testing.T) {
@@ -755,7 +885,32 @@ spec:
     name: team1
     blah: nope
 `,
-			wantOutput: `[+] applied 1 teams`, // TODO(mna): currently, only agent options is validated, other unknown keys are ignored
+			wantErr: `400 Bad Request: unsupported key provided: "blah"`,
+		},
+		{
+			desc: "invalid known key's value type for team cannot be forced",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 123
+`,
+			flags:   []string{"--force"},
+			wantErr: `400 Bad Request: invalid value type at 'specs.name': expected string but got number`,
+		},
+		{
+			desc: "unknown key for team can be forced",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    blah: true
+`,
+			flags:      []string{"--force"},
+			wantOutput: `[+] applied 1 teams`,
 		},
 		{
 			desc: "invalid agent options for new team",
@@ -1167,6 +1322,23 @@ spec:
     interval: 1h
 `,
 			wantErr: `422 Validation Failed: host_percentage must be > 0 to enable the host status webhook`,
+		},
+		{
+			desc: "config with FIM values for agent options (#8699)",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      file_paths:
+        ssh:
+          - /home/%/.ssh/authorized_keys
+      exclude_paths:
+        ssh:
+          - /home/ubuntu/.ssh/authorized_keys
+`,
+			wantOutput: `[+] applied fleet config`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
