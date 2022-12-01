@@ -14,6 +14,7 @@ func TestUp_20220818101352(t *testing.T) {
 	('zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project', 'x86_64'), 
 	('zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project II', 'x86_64'), 
 	('word', '1.2.1', 'rpm_packages', '', 'Fake MS', 'x86_64'),
+	('word', '1.2.2', 'rpm_packages', '', 'Fake MS', 'x86_64'),
 	('excel', '1.2.1', 'rpm_packages', '', '', 'x86_64')
 	`)
 	require.NoError(t, err)
@@ -25,7 +26,7 @@ func TestUp_20220818101352(t *testing.T) {
 	var vendors []string
 	err = db.Select(&vendors, `SELECT vendor FROM software`)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"Fedora Project", "Fedora Project II", "Fake MS", ""}, vendors)
+	require.ElementsMatch(t, []string{"Fedora Project", "Fedora Project II", "Fake MS", "Fake MS", ""}, vendors)
 
 	// Check we can store a longer vendors
 	randVendor := `

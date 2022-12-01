@@ -62,7 +62,7 @@ export interface ILoadAllGlobalScheduledQueriesResponse {
   global_schedule: IScheduledQuery[];
 }
 
-export interface ILoadAllTeamScheduledQueriesResponse {
+export interface IStoredScheduledQueriesResponse {
   scheduled: IScheduledQuery[];
 }
 

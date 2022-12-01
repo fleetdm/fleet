@@ -4,10 +4,12 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { formatSoftwareType, ISoftware } from "interfaces/software";
-import softwareAPI, {
+import {
+  formatSoftwareType,
+  ISoftware,
   IGetSoftwareByIdResponse,
-} from "services/entities/software";
+} from "interfaces/software";
+import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
 import Spinner from "components/Spinner";

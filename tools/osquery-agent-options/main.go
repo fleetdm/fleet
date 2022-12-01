@@ -28,6 +28,7 @@ type osqueryOptions struct { {{ range $name, $type := .Options }}
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 
 // NOTE: generate automatically with ` + "`go run ./tools/osquery-agent-options/main.go`" + `
@@ -38,6 +39,7 @@ type osqueryCommandLineFlags struct { {{ range $name, $type := .Flags }}
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 `))
 )
@@ -56,6 +58,7 @@ func main() {
 		fleet.OsqueryCommandLineFlagsLinux
 		fleet.OsqueryCommandLineFlagsWindows
 		fleet.OsqueryCommandLineFlagsMacOS
+		fleet.OsqueryCommandLineFlagsHidden
 	}
 	b, err := json.Marshal(allOSSpecific)
 	if err != nil {
