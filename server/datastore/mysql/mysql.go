@@ -97,7 +97,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		var err error
 		stmt, err = sqlx.PreparexContext(ctx, ds.reader, query)
 		if err != nil {
-			level.Error(ds.logger).Log(
+			level.Error(ds.logger).Log( //nolint:errcheck
 				"msg", "failed to prepare statement",
 				"query", query,
 				"err", err,
@@ -261,7 +261,7 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
 				if err := tx.Rollback(); err != nil {
-					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback") //nolint:errcheck
 				}
 				panic(p)
 			}
@@ -310,7 +310,7 @@ func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback") //nolint:errcheck
 			}
 			panic(p)
 		}
@@ -341,7 +341,9 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 	for _, setOpt := range opts {
 		if setOpt != nil {
-			setOpt(options)
+			if err := setOpt(options); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -453,7 +455,7 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 			break
 		}
 		interval := time.Duration(attempt) * time.Second
-		opts.logger.Log("mysql", fmt.Sprintf(
+		opts.logger.Log("mysql", fmt.Sprintf( //nolint:errcheck
 			"could not connect to db: %v, sleeping %v", dbError, interval))
 		time.Sleep(interval)
 	}
@@ -508,8 +510,14 @@ func (ds *Datastore) loadMigrations(
 	reader dbReader,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
-	tables.MigrationClient.GetDBVersion(writer)
-	data.MigrationClient.GetDBVersion(writer)
+	_, err = tables.MigrationClient.GetDBVersion(writer)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = data.MigrationClient.GetDBVersion(writer)
+	if err != nil {
+		return nil, nil, err
+	}
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
 	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
 		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
@@ -836,7 +844,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		level.Info(ds.logger).Log("err", "team filter missing user") //nolint:errcheck
 		return "FALSE"
 	}
 
@@ -900,7 +908,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		level.Info(ds.logger).Log("err", "team filter missing user") //nolint:errcheck
 		return "FALSE"
 	}
 

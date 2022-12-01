@@ -21,7 +21,7 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 
 func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
-		logger.Log("err", err)
+		logger.Log("err", err) //nolint:errcheck
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -46,7 +46,7 @@ func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf co
 // is done.
 func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	collectorErrHandler := func(name string, err error) {
-		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
+		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err) //nolint:errcheck
 		sentry.CaptureException(err)
 		ctxerr.Handle(ctx, err)
 	}
@@ -59,7 +59,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	}
 	for task, cfg := range t.taskConfigs {
 		if !cfg.Enabled {
-			level.Debug(logger).Log("task", "async disabled, not starting collector", "name", task)
+			level.Debug(logger).Log("task", "async disabled, not starting collector", "name", task) //nolint:errcheck
 			continue
 		}
 
@@ -75,7 +75,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 			errHandler:   collectorErrHandler,
 		}
 		go coll.Start(ctx)
-		level.Debug(logger).Log("task", "async enabled, starting collectors", "name", task, "interval", cfg.CollectInterval, "jitter", cfg.CollectMaxJitterPercent)
+		level.Debug(logger).Log("task", "async enabled, starting collectors", "name", task, "interval", cfg.CollectInterval, "jitter", cfg.CollectMaxJitterPercent) //nolint:errcheck
 
 		if cfg.CollectLogStatsInterval > 0 {
 			go func() {
@@ -84,7 +84,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 					select {
 					case <-tick:
 						stats := coll.ReadStats()
-						level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", coll.name)
+						level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", coll.name) //nolint:errcheck
 					case <-ctx.Done():
 						return
 					}

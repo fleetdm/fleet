@@ -23,7 +23,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 	switch config.Osquery.StatusLogPlugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log("msg", "osquery_status_log_plugin not explicitly specified. Assuming 'filesystem'")
+		level.Info(logger).Log("msg", "osquery_status_log_plugin not explicitly specified. Assuming 'filesystem'") //nolint:errcheck
 		fallthrough
 	case "filesystem":
 		status, err = NewFilesystemLogWriter(
@@ -107,7 +107,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 	switch config.Osquery.ResultLogPlugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log("msg", "osquery_result_log_plugin not explicitly specified. Assuming 'filesystem'")
+		level.Info(logger).Log("msg", "osquery_result_log_plugin not explicitly specified. Assuming 'filesystem'") //nolint:errcheck
 		fallthrough
 	case "filesystem":
 		result, err = NewFilesystemLogWriter(

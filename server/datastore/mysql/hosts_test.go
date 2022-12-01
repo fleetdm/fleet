@@ -1727,7 +1727,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 
 	// Add additional
 	additional := json.RawMessage(`{"additional": "result"}`)
-	ds.SaveHostAdditional(context.Background(), h.ID, &additional)
+	require.NoError(t, ds.SaveHostAdditional(context.Background(), h.ID, &additional))
 
 	// Additional should not be loaded for HostLite
 	h, err = ds.HostLite(context.Background(), h.ID)
@@ -1757,7 +1757,7 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 
 	// Update additional
 	additional = json.RawMessage(`{"other": "additional"}`)
-	ds.SaveHostAdditional(context.Background(), h.ID, &additional)
+	require.NoError(t, ds.SaveHostAdditional(context.Background(), h.ID, &additional))
 	require.NoError(t, err)
 
 	h, err = ds.HostLite(context.Background(), h.ID)
@@ -3664,12 +3664,16 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// add device mapping for host
-	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+	_, err = ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src1")
-	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+	require.NoError(t, err)
+	_, err = ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "b@b.c", "src1")
-	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+	require.NoError(t, err)
+
+	_, err = ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src2")
+	require.NoError(t, err)
 
 	// non-existent host should have empty device mapping
 	dms, err := ds.ListHostDeviceMapping(ctx, h.ID+1)
@@ -3704,8 +3708,9 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// add device mapping for second host
-	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+	_, err = ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h2.ID, "a@b.c", "src2")
+	require.NoError(t, err)
 
 	// create third host with no device mapping
 	_, err = ds.NewHost(ctx, &fleet.Host{

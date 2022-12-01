@@ -13,6 +13,7 @@ linters:
     - typecheck
     - unconvert
     - unused
+    - errcheck
 
 linters-settings:
   depguard:

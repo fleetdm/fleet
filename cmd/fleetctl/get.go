@@ -493,7 +493,7 @@ func getLabelsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, label := range labels {
-						printLabel(c, label)
+						printLabel(c, label) //nolint:errcheck
 					}
 					return nil
 				}
@@ -527,7 +527,7 @@ func getLabelsCommand() *cli.Command {
 				return err
 			}
 
-			printLabel(c, label)
+			printLabel(c, label) //nolint:errcheck
 			return nil
 		},
 	}

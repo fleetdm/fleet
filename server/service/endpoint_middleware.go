@@ -22,10 +22,10 @@ import (
 func logJSON(logger log.Logger, v interface{}, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
-		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
+		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err)) //nolint:errcheck
 		return
 	}
-	level.Debug(logger).Log(key, string(jsonV))
+	level.Debug(logger).Log(key, string(jsonV)) //nolint:errcheck
 }
 
 // instrumentHostLogger adds host IP information and extras to the context logger.

@@ -295,7 +295,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 	if err != nil {
 		return err
 	}
-	level.Debug(z.Log).Log(
+	level.Debug(z.Log).Log( //nolint:errcheck
 		"msg", "created zendesk ticket for cve",
 		"cve", vargs.CVE,
 		"ticket_id", createdTicket.ID,
@@ -326,7 +326,7 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 	if args.FailingPolicy.TeamID != nil {
 		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
 	}
-	level.Debug(z.Log).Log(attrs...)
+	level.Debug(z.Log).Log(attrs...) //nolint:errcheck
 	return nil
 }
 
@@ -364,7 +364,7 @@ func QueueZendeskVulnJobs(
 	recentVulns []fleet.SoftwareVulnerability,
 	cveMeta map[string]fleet.CVEMeta,
 ) error {
-	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns)) //nolint:errcheck
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
@@ -374,7 +374,7 @@ func QueueZendeskVulnJobs(
 		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
-	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
+	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves)) //nolint:errcheck
 
 	uniqCVEs := make(map[string]bool)
 	for _, v := range recentVulns {
@@ -392,7 +392,7 @@ func QueueZendeskVulnJobs(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
-		level.Debug(logger).Log("job_id", job.ID)
+		level.Debug(logger).Log("job_id", job.ID) //nolint:errcheck
 	}
 	return nil
 }
@@ -412,11 +412,11 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	}
 	if len(hosts) == 0 {
 		attrs = append(attrs, "msg", "skipping, no host")
-		level.Debug(logger).Log(attrs...)
+		level.Debug(logger).Log(attrs...) //nolint:errcheck
 		return nil
 	}
 
-	level.Info(logger).Log(attrs...)
+	level.Info(logger).Log(attrs...) //nolint:errcheck
 
 	args := &failingPolicyArgs{
 		PolicyID:   policy.ID,
@@ -428,6 +428,6 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
-	level.Debug(logger).Log("job_id", job.ID)
+	level.Debug(logger).Log("job_id", job.ID) //nolint:errcheck
 	return nil
 }

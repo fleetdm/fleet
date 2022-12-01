@@ -1093,8 +1093,8 @@ func (man Manager) getInterfaceVal(key string) interface{} {
 // addConfigString adds a string config to the config options
 func (man Manager) addConfigString(key, defVal, usage string) {
 	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1131,8 +1131,8 @@ func (man Manager) getConfigTLSProfile() string {
 // addConfigInt adds a int config to the config options
 func (man Manager) addConfigInt(key string, defVal int, usage string) {
 	man.command.PersistentFlags().Int(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1152,8 +1152,8 @@ func (man Manager) getConfigInt(key string) int {
 // addConfigBool adds a bool config to the config options
 func (man Manager) addConfigBool(key string, defVal bool, usage string) {
 	man.command.PersistentFlags().Bool(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1173,8 +1173,8 @@ func (man Manager) getConfigBool(key string) bool {
 // addConfigDuration adds a duration config to the config options
 func (man Manager) addConfigDuration(key string, defVal time.Duration, usage string) {
 	man.command.PersistentFlags().Duration(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)

@@ -192,7 +192,7 @@ func (h *Handler) handleErrors(ctx context.Context) {
 func (h *Handler) storeError(ctx context.Context, err error) {
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
+		level.Error(h.logger).Log("err", err, "msg", "hashErr failed") //nolint:errcheck
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}
@@ -207,20 +207,20 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	jsonKey := fmt.Sprintf("error:{%s}:json", errorHash)
 	countKey := fmt.Sprintf("error:{%s}:count", errorHash)
 
-	conn.Send("SET", jsonKey, errorJson)
-	conn.Send("INCR", countKey)
+	conn.Send("SET", jsonKey, errorJson) //nolint:errcheck
+	conn.Send("INCR", countKey)          //nolint:errcheck
 
 	if h.ttl > 0 {
 		secs := int(h.ttl.Seconds())
 		if secs <= 0 {
 			secs = 1 // EXPIRE fails if ttl is <= 0
 		}
-		conn.Send("EXPIRE", jsonKey, secs)
-		conn.Send("EXPIRE", countKey, secs)
+		conn.Send("EXPIRE", jsonKey, secs)  //nolint:errcheck
+		conn.Send("EXPIRE", countKey, secs) //nolint:errcheck
 	}
 
 	if _, err := conn.Do(""); err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
+		level.Error(h.logger).Log("err", err, "msg", "redis SET failed") //nolint:errcheck
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}
@@ -285,5 +285,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Write(bytes)
+	w.Write(bytes) //nolint:errcheck
 }

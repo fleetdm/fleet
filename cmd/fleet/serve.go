@@ -306,7 +306,9 @@ the way that the Fleet server works.
 						os.Exit(1)
 					}
 				} else {
-					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
+						level.Debug(logger).Log("err", err, "msg", "failed to apply enroll secrets") //nolint:errcheck
+					}
 				}
 			}
 
@@ -336,7 +338,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initialize Redis")
 			}
-			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
+			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode()) //nolint:errcheck
 
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
@@ -368,7 +370,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initializing sentry")
 				}
-				level.Info(logger).Log("msg", "sentry initialized", "dsn", config.Sentry.Dsn)
+				level.Info(logger).Log("msg", "sentry initialized", "dsn", config.Sentry.Dsn) //nolint:errcheck
 
 				defer sentry.Recover()
 				defer sentry.Flush(2 * time.Second)
@@ -379,7 +381,7 @@ the way that the Fleet server works.
 			if config.GeoIP.DatabasePath != "" {
 				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
 				if err != nil {
-					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path", config.GeoIP.DatabasePath, "error", err)
+					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path", config.GeoIP.DatabasePath, "error", err) //nolint:errcheck
 				} else {
 					geoIP = maxmind
 				}
@@ -508,7 +510,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
+			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", "))) //nolint:errcheck
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
 			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
@@ -519,7 +521,7 @@ the way that the Fleet server works.
 				go func() {
 					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
 						if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
-							level.Info(logger).Log(
+							level.Info(logger).Log( //nolint:errcheck
 								"err", err,
 								"msg", "failed to update host seen times",
 							)
@@ -622,7 +624,7 @@ the way that the Fleet server works.
 				)
 				rootMux.Handle("/metrics", metricsHandler)
 			} else {
-				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)") //nolint:errcheck
 			}
 
 			rootMux.Handle("/api/", apiHandler)
@@ -645,7 +647,7 @@ the way that the Fleet server works.
 						rw.WriteHeader(http.StatusNotFound)
 						return
 					}
-					rw.Write(testPage)
+					rw.Write(testPage) //nolint:errcheck
 					rw.WriteHeader(http.StatusOK)
 				})
 			}
@@ -671,7 +673,7 @@ the way that the Fleet server works.
 			if v := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"); v != "" {
 				duration, err := time.ParseDuration(v)
 				if err != nil {
-					level.Error(logger).Log("live_query_rest_period_err", err)
+					level.Error(logger).Log("live_query_rest_period_err", err) //nolint:errcheck
 				} else {
 					liveQueryRestPeriod = duration
 				}
@@ -701,10 +703,10 @@ the way that the Fleet server works.
 			errs := make(chan error, 2)
 			go func() {
 				if !config.Server.TLS {
-					logger.Log("transport", "http", "address", config.Server.Address, "msg", "listening")
+					logger.Log("transport", "http", "address", config.Server.Address, "msg", "listening") //nolint:errcheck
 					errs <- srv.ListenAndServe()
 				} else {
-					logger.Log("transport", "https", "address", config.Server.Address, "msg", "listening")
+					logger.Log("transport", "https", "address", config.Server.Address, "msg", "listening") //nolint:errcheck
 					srv.TLSConfig = getTLSConfig(config.Server.TLSProfile)
 					errs <- srv.ListenAndServeTLS(
 						config.Server.Cert,
@@ -726,7 +728,8 @@ the way that the Fleet server works.
 				}()
 			}()
 
-			logger.Log("terminated", <-errs)
+			// block on errs signal
+			logger.Log("terminated", <-errs) //nolint:errcheck
 		},
 	}
 
@@ -848,7 +851,7 @@ func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driv
 		logLevel = level.Error
 	}
 	query = strings.TrimSpace(spaceRegex.ReplaceAllString(query, " "))
-	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
+	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err) //nolint:errcheck
 }
 
 func argsToString(args []driver.NamedValue) string {

@@ -40,33 +40,33 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// read results is the same user that initiated the query. This means the observer check already
 	// happened with the actual value for this query.
 	if err := svc.authz.Authorize(ctx, &fleet.TargetedQuery{Query: &fleet.Query{ObserverCanRun: true}}, fleet.ActionRun); err != nil {
-		level.Info(svc.logger).Log("err", "stream results authorization failed")
-		conn.WriteJSONError(authz.ForbiddenErrorMessage)
+		level.Info(svc.logger).Log("err", "stream results authorization failed") //nolint:errcheck
+		conn.WriteJSONError(authz.ForbiddenErrorMessage)                         //nolint:errcheck
 		return
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		level.Info(svc.logger).Log("err", "stream results viewer missing")
-		conn.WriteJSONError(authz.ForbiddenErrorMessage)
+		level.Info(svc.logger).Log("err", "stream results viewer missing") //nolint:errcheck
+		conn.WriteJSONError(authz.ForbiddenErrorMessage)                   //nolint:errcheck
 		return
 	}
 
 	// Find the campaign and ensure it is active
 	campaign, err := svc.ds.DistributedQueryCampaign(ctx, campaignID)
 	if err != nil {
-		conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID))
+		conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID)) //nolint:errcheck
 		return
 	}
 
 	// Ensure the same user is opening to read results as initiated the query
 	if campaign.UserID != vc.User.ID {
-		level.Info(svc.logger).Log(
+		level.Info(svc.logger).Log( //nolint:errcheck
 			"err", "campaign user ID does not match",
 			"expected", campaign.UserID,
 			"got", vc.User.ID,
 		)
-		conn.WriteJSONError(authz.ForbiddenErrorMessage)
+		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
 
@@ -74,7 +74,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// (probably from the redis pubsub implementation)
 	readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 	if err != nil {
-		conn.WriteJSONError("error getting campaign reader: " + err.Error())
+		conn.WriteJSONError("error getting campaign reader: " + err.Error()) //nolint:errcheck
 		return
 	}
 	defer cancelFunc()
@@ -82,7 +82,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer svc.CompleteCampaign(ctx, campaign)
+	defer svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
@@ -108,7 +108,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	targets, err := svc.ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	if err != nil {
-		conn.WriteJSONError("error retrieving campaign targets: " + err.Error())
+		conn.WriteJSONError("error retrieving campaign targets: " + err.Error()) //nolint:errcheck
 		return
 	}
 
@@ -188,7 +188,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 			// Update status
 			if err := updateStatus(); err != nil {
-				svc.logger.Log("msg", "error updating status", "err", err)
+				svc.logger.Log("msg", "error updating status", "err", err) //nolint:errcheck
 				return
 			}
 		}

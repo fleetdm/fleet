@@ -33,7 +33,7 @@ func SendFailingPoliciesBatchedPOSTs(
 		return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
 	}
 	if len(hosts) == 0 {
-		level.Debug(logger).Log("msg", "no hosts", "policyID", policy.ID)
+		level.Debug(logger).Log("msg", "no hosts", "policyID", policy.ID) //nolint:errcheck
 		return nil
 	}
 	sort.Slice(hosts, func(i, j int) bool {
@@ -60,7 +60,7 @@ func SendFailingPoliciesBatchedPOSTs(
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}
-		level.Debug(logger).Log("payload", payload, "url", webhookURL.String(), "batch", len(batch))
+		level.Debug(logger).Log("payload", payload, "url", webhookURL.String(), "batch", len(batch)) //nolint:errcheck
 		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), &payload); err != nil {
 			return ctxerr.Wrapf(ctx, err, "posting to %q", webhookURL)
 		}

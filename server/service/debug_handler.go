@@ -51,17 +51,17 @@ func jsonHandler(
 	return func(rw http.ResponseWriter, r *http.Request) {
 		jsonData, err := jsonGenerator(r.Context())
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			level.Error(logger).Log("err", err) //nolint:errcheck
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		b, err := json.MarshalIndent(jsonData, "", "  ")
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			level.Error(logger).Log("err", err) //nolint:errcheck
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		rw.Write(b)
+		rw.Write(b) //nolint:errcheck
 	}
 }
 

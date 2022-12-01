@@ -47,7 +47,7 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 		Filename:   path,
 		MaxSize:    500, // megabytes
 		MaxBackups: 3,
-		MaxAge:     28, //days
+		MaxAge:     28, // days
 		Compress:   enableCompression,
 	}
 	appLogger = log.With(appLogger, "component", "osqueryd-logger")
@@ -55,9 +55,9 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 	signal.Notify(sig, syscall.SIGHUP)
 	go func() {
 		for {
-			<-sig //block on signal
+			<-sig // block on signal
 			if err := osquerydLogger.Rotate(); err != nil {
-				appLogger.Log("err", err)
+				appLogger.Log("err", err) //nolint:errcheck
 			}
 		}
 	}()
@@ -107,7 +107,7 @@ func (l *rawLogWriter) Write(b []byte) (int, error) {
 		return 0, errors.New("filesystemLogWriter: can't write to closed file")
 	}
 	if _, statErr := os.Stat(l.file.Name()); errors.Is(statErr, os.ErrNotExist) {
-		f, err := secure.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		f, err := secure.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
 		if err != nil {
 			return 0, fmt.Errorf("create file for filesystemLogWriter %s: %w", l.file.Name(), err)
 		}
@@ -148,5 +148,5 @@ func (l *rawLogWriter) Close() error {
 }
 
 func openFile(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
 }

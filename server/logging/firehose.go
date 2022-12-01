@@ -108,7 +108,7 @@ func (f *firehoseLogWriter) Write(ctx context.Context, logs []json.RawMessage) e
 		// the beginning bytes of the log should help the Fleet admin
 		// diagnose the query generating huge results.
 		if len(log) > firehoseMaxSizeOfRecord {
-			level.Info(f.logger).Log(
+			level.Info(f.logger).Log( //nolint:errcheck
 				"msg", "dropping log over 1MB Firehose limit",
 				"size", len(log),
 				"log", string(log[:100])+"...",

@@ -26,7 +26,7 @@ func init() {
 
 func main() {
 	app := createApp(os.Stdin, os.Stdout, exitErrHandler)
-	app.Run(os.Args)
+	app.Run(os.Args) //nolint:errcheck
 }
 
 // exitErrHandler implements cli.ExitErrHandlerFunc. If there is an error, prints it to stderr and exits with status 1.

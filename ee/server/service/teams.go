@@ -152,7 +152,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		if err := fleet.ValidateJSONAgentOptions(teamOptions); err != nil {
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors") //nolint:errcheck
 			}
 			if !applyOptions.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -442,7 +442,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			if err := fleet.ValidateJSONAgentOptions(spec.AgentOptions); err != nil {
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
-					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors") //nolint:errcheck
 				}
 				if !applyOpts.Force {
 					return ctxerr.Wrap(ctx, err, "validate agent options")

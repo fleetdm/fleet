@@ -199,13 +199,13 @@ func (svc *Service) serialUpdateHost(host *fleet.Host) {
 	defer func() {
 		atomic.AddInt64(&counter, -1)
 	}()
-	level.Debug(svc.logger).Log("background", newVal)
+	level.Debug(svc.logger).Log("background", newVal) //nolint:errcheck
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelFunc()
 	err := svc.ds.SerialUpdateHost(ctx, host)
 	if err != nil {
-		level.Error(svc.logger).Log("background-err", err)
+		level.Error(svc.logger).Log("background-err", err) //nolint:errcheck
 	}
 }
 
@@ -218,13 +218,13 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	case "instance":
 		r, ok := details["osquery_info"]
 		if !ok {
-			level.Info(logger).Log(
+			level.Info(logger).Log( //nolint:errcheck
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
 				"identifier", "instance",
 			)
 		} else if r["instance_id"] == "" {
-			level.Info(logger).Log(
+			level.Info(logger).Log( //nolint:errcheck
 				"msg", "could not get host identifier",
 				"reason", "missing instance_id in osquery_info",
 				"identifier", "instance",
@@ -236,13 +236,13 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	case "uuid":
 		r, ok := details["osquery_info"]
 		if !ok {
-			level.Info(logger).Log(
+			level.Info(logger).Log( //nolint:errcheck
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
 				"identifier", "uuid",
 			)
 		} else if r["uuid"] == "" {
-			level.Info(logger).Log(
+			level.Info(logger).Log( //nolint:errcheck
 				"msg", "could not get host identifier",
 				"reason", "missing instance_id in osquery_info",
 				"identifier", "uuid",
@@ -254,13 +254,13 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 	case "hostname":
 		r, ok := details["system_info"]
 		if !ok {
-			level.Info(logger).Log(
+			level.Info(logger).Log( //nolint:errcheck
 				"msg", "could not get host identifier",
 				"reason", "missing system_info",
 				"identifier", "hostname",
 			)
 		} else if r["hostname"] == "" {
-			level.Info(logger).Log(
+			level.Info(logger).Log( //nolint:errcheck
 				"msg", "could not get host identifier",
 				"reason", "missing instance_id in system_info",
 				"identifier", "hostname",
@@ -280,7 +280,7 @@ func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
 	hlogger := log.With(svc.logger, "host-id", id)
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
+		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug")) //nolint:errcheck
 		return false
 	}
 
@@ -542,7 +542,7 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		// If the live query store fails to fetch queries we still want the hosts
 		// to receive all the other queries (details, policies, labels, etc.),
 		// thus we just log the error.
-		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err)
+		level.Error(svc.logger).Log("op", "QueriesForHost", "err", err) //nolint:errcheck
 	} else {
 		for name, query := range liveQueries {
 			queries[hostDistributedQueryPrefix+name] = query
@@ -637,7 +637,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 
 	if svc.jitterH[interval] == nil {
 		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount)
+		level.Debug(svc.logger).Log("jitter", "created", "bucketCount", svc.jitterH[interval].bucketCount) //nolint:errcheck
 	}
 
 	jitter := svc.jitterH[interval].jitterForHost(hostID)
@@ -815,9 +815,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ll := level.Debug(svc.logger)
 			// We'd like to log these as error for troubleshooting and improving of distributed queries.
 			if messages[query] == "distributed query is denylisted" {
-				ll = level.Error(svc.logger)
+				ll = level.Error(svc.logger) //nolint:errcheck
 			}
-			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
+			ll.Log("query", query, "message", messages[query], "hostID", host.ID) //nolint:errcheck
 
 		}
 		var err error
