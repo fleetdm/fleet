@@ -600,16 +600,15 @@ func main() {
 			}()
 		}
 
-		// Augeas doesn't work on Windows so there's no need to copy files and add the arg
-		if runtime.GOOS != "windows" {
-			log.Info().Msg("copying augeas lenses nyaa")
-			augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
-			if err != nil {
-				log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
-			} else {
-				options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
-			}
+		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
+		// `"", nil`. Therefore there's no platform-specific stuff required here
+		augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
+		} else if augeasPath != "" {
+			options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
 		}
+
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
 		options = append(options, osquery.WithFlags([]string{"--force"}))
