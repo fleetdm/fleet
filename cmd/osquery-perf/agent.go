@@ -210,11 +210,11 @@ type agent struct {
 
 	// The following are exported to be used by the templates.
 
-	EnrollSecret   string
-	UUID           string
-	ConfigInterval time.Duration
-	QueryInterval  time.Duration
-	DiskEncryption bool
+	EnrollSecret          string
+	UUID                  string
+	ConfigInterval        time.Duration
+	QueryInterval         time.Duration
+	DiskEncryptionEnabled bool
 }
 
 type entityCount struct {
@@ -985,8 +985,8 @@ func (a *agent) diskSpace() []map[string]string {
 
 func (a *agent) diskEncryption() []map[string]string {
 	// 50% of results have encryption enabled
-	a.DiskEncryption = rand.Intn(2) == 1
-	if a.DiskEncryption {
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
 		return []map[string]string{{"1": "1"}}
 	}
 	return []map[string]string{}

@@ -154,7 +154,7 @@
 {{- end }}
 
 {{ define "fleet_detail_query_disk_encryption_key_darwin" -}}
-{{- if .DiskEncryption }}
+{{- if .DiskEncryptionEnabled }}
 [
   {"line": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
   {"line": "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">", "path": "/var/db/ConfigurationProfiles/fdesetup.plist"},
