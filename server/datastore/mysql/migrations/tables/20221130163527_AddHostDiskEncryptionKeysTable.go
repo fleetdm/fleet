@@ -14,7 +14,7 @@ func Up_20221130163527(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE host_disk_encryption_keys (
     host_id              INT(10) UNSIGNED NOT NULL,
-		disk_encryption_key  TEXT NOT NULL,
+    disk_encryption_key  TEXT NOT NULL,
     created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at           TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
