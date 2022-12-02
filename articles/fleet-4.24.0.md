@@ -1,6 +1,6 @@
 # Fleet 4.24.0 | More visibility into live queries and improved Fleet UI navigation
 
-![Fleet 4.24.0](../website/assets/images/articles/fleet-4.24.0-cover-3200x1800.jpg)
+![Fleet 4.24.0](../website/assets/images/articles/fleet-4.24.0-cover-1600x900@2x.jpg)
 
 Fleet 4.24.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.24.0) or continue reading to get the highlights.
 
@@ -53,4 +53,4 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2022-12-02">
 <meta name="articleTitle" value="Fleet 4.24.0 | More visibility into live queries and improved Fleet UI navigation">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.24.0-cover-3200x1800.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.24.0-cover-1600x900@2x.jpg">
