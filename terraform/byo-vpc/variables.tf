@@ -1,3 +1,8 @@
+variable "vpc_id" {
+  type     = string
+  nullable = false
+}
+
 variable "rds_config" {
   type = object({
     name                            = string

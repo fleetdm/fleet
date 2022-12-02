@@ -18,3 +18,8 @@ module "vpc" {
   single_nat_gateway                    = var.vpc.single_nat_gateway
   enable_nat_gateway                    = var.vpc.enable_nat_gateway
 }
+
+module "byo-vpc" {
+  source = "./byo-vpc"
+  vpc_id = module.vpc.vpc_id
+}

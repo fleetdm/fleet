@@ -166,7 +166,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
 }
 
 resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key:exp:2022-07-01
-  count             = var.fleet_config.awslogs.name == null ? 0 : 1
+  count             = var.fleet_config.awslogs.name == null ? 1 : 0
   name              = "fleetdm"
   retention_in_days = var.fleet_config.awslogs.retention
 }
