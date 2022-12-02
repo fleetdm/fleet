@@ -76,7 +76,7 @@ func updateAppConfigJSON(tx *sql.Tx, fn func(config *fleet.AppConfig) error) err
 	}
 
 	const updateStmt = `UPDATE app_config_json SET json_value = ? WHERE id = 1`
-	if _, err := tx.Exec(updateStmt, b); err != nil {
+	if _, err := tx.Exec(updateStmt, string(b)); err != nil {
 		return errors.Wrap(err, "update app_config_json")
 	}
 

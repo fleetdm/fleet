@@ -2593,7 +2593,7 @@ ON DUPLICATE KEY UPDATE
     json_value = VALUES(json_value),
     updated_at = CURRENT_TIMESTAMP
 `,
-		id, platformKey("mdm_status", platform), statusJson,
+		id, platformKey("mdm_status", platform), string(statusJson),
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_status id %d", id)
@@ -2650,7 +2650,7 @@ ON DUPLICATE KEY UPDATE
     json_value = VALUES(json_value),
     updated_at = CURRENT_TIMESTAMP
 `,
-		id, platformKey("mdm_solutions", platform), resultsJSON,
+		id, platformKey("mdm_solutions", platform), string(resultsJSON),
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_solutions id %d", id)

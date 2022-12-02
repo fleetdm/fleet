@@ -163,7 +163,7 @@ func Up_20210818151828(tx *sql.Tx) error {
 	//nolint
 	_, err = tx.Exec(
 		`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-		configBytes,
+		string(configBytes),
 	)
 	return nil
 }
