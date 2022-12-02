@@ -17,6 +17,10 @@ var teamSearchColumns = []string{"name"}
 
 func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		teamConfigBytes, err := json.Marshal(team.Config)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "serializing team config")
+		}
 		query := `
     INSERT INTO teams (
       name,
@@ -29,7 +33,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 			query,
 			team.Name,
 			team.Description,
-			team.Config,
+			string(teamConfigBytes),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert team")
@@ -216,7 +220,12 @@ SET
 WHERE
     id = ?
 `
-		_, err := tx.ExecContext(ctx, query, team.Name, team.Description, team.Config, team.ID)
+		teamConfigBytes, err := json.Marshal(team.Config)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "serializing team config")
+		}
+
+		_, err = tx.ExecContext(ctx, query, team.Name, team.Description, string(teamConfigBytes), team.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving team")
 		}
@@ -401,7 +410,12 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 
 			tm.Config.Integrations.Jira = keepJira
 			tm.Config.Integrations.Zendesk = keepZendesk
-			if _, err := ds.writer.ExecContext(ctx, updateTeam, tm.Config, tm.ID); err != nil {
+			tmConfigBytes, err := json.Marshal(tm.Config)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "serializing team config")
+			}
+
+			if _, err := ds.writer.ExecContext(ctx, updateTeam, string(tmConfigBytes), tm.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update team config")
 			}
 		}

@@ -2492,7 +2492,7 @@ ON DUPLICATE KEY UPDATE
     json_value = VALUES(json_value),
     updated_at = CURRENT_TIMESTAMP
 `,
-		id, "munki_versions", versionsJson,
+		id, "munki_versions", string(versionsJson),
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_versions id %d", id)
@@ -2541,7 +2541,7 @@ VALUES (?, ?, ?)
 ON DUPLICATE KEY UPDATE
     json_value = VALUES(json_value),
     updated_at = CURRENT_TIMESTAMP
-`, id, "munki_issues", issuesJSON)
+`, id, "munki_issues", string(issuesJSON))
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_issues id %d", id)
 	}
@@ -3003,7 +3003,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshal os version stats")
 		}
-		args = append(args, id, "os_versions", jsonValue)
+		args = append(args, id, "os_versions", string(jsonValue))
 	}
 
 	insertStmt := "INSERT INTO aggregated_stats (id, type, json_value) VALUES "

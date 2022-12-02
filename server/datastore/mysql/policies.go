@@ -782,7 +782,7 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE 
 			json_value = VALUES(json_value)`
-	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, statsJSON); err != nil {
+	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, string(statsJSON)); err != nil {
 		return ctxerr.Wrap(ctx, err, "update policy violation days aggregated stats")
 	}
 
@@ -813,7 +813,7 @@ func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) er
 		ON DUPLICATE KEY UPDATE 
 			json_value = VALUES(json_value),
 			created_at = CURRENT_TIMESTAMP`
-	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, statsJSON); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, string(statsJSON)); err != nil {
 		return ctxerr.Wrap(ctx, err, "initialize policy violation days aggregated stats")
 	}
 

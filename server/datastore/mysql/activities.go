@@ -21,7 +21,7 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		user.ID,
 		user.Name,
 		activityType,
-		detailsBytes,
+		string(detailsBytes),
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "new activity")

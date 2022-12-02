@@ -143,7 +143,7 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate str
 
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
-		id, aggregate, statsJson,
+		id, aggregate, string(statsJson),
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for %s id %d", aggregate, id)

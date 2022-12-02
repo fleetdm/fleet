@@ -57,7 +57,7 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
 			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-			configBytes,
+			string(configBytes),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert app_config_json")

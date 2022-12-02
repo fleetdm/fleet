@@ -983,6 +983,7 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"allowNativePasswords": []string{"true"},
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
+		"interpolateParams":    []string{"true"},
 	}
 	if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
