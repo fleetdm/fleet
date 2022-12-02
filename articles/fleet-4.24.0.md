@@ -31,7 +31,7 @@ The same applies to Policies. If you view all hosts assigned to a particular pol
 We also added this functionality to the Dashboard page. You can still filter hosts with the Platform dropdown. After selecting Windows, Linux, or macOS, you can choose to view all hosts with that operating system. Clicking back from these lists will return you to the Dashboard page with the Platform filter applied.
 
 ## More new features, improvements, and bug fixes
-- Added an `icloud_private_relay` table to Fleet’s osquery installers (fleetd).
+- Added an `icloud_private_relay` table to fleetd.
 - Added tooltips and updated dropdown choices on Hosts and Host details pages to clarify the meanings of "Status: Online" and "Status: Offline."
 - Added “Void Linux” to the list of recognized distributions.
 - Added clickable rows to software tables to view all hosts filtered by software.
