@@ -58,6 +58,11 @@ $shadow-transition-width: 10px;
       tr:hover {
         background-color: $ui-fleet-black-25-opaque; // opaque needed for horizontal scroll shadow
       }
+
+      .single-row:hover {
+        cursor: pointer;
+        background-color: $ui-vibrant-blue-10; // opaque needed for horizontal scroll shadow
+      }
     }
 
     tr {
@@ -65,10 +70,6 @@ $shadow-transition-width: 10px;
 
       &:last-child {
         border-bottom: 0;
-      }
-
-      &.single-row {
-        cursor: pointer;
       }
 
       // override styles of checkbox data cells
