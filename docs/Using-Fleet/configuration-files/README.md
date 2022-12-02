@@ -825,13 +825,13 @@ Existing options will be overwritten by the application of this file.
 
 ##### `command_line_flags` option
 
-**Note:** This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
+> This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
 
-The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit, will write these to the flagfile on the host and pass it to osquery. 
+The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit will write these to the flagfile on the host and pass it to osquery. 
 
 To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
 
-Just like the other `agent_options` as above, remove the dashed lines (`--`) for Fleet to successfully update them.
+Just like the other `agent_options` above, remove the dashed lines (`--`) for Fleet to successfully update them.
 
 Here is an example of using the `command_line_flags` key:
 
@@ -852,13 +852,13 @@ You can verfiy that these flags have taken effect on the hosts by running a quer
 
 If you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
-For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated)
+For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated).
 
 If you prefer to deploy a new package with the updated enroll secret:
 
-1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`
+1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`.
 
-**Note**: The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
+> The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
 
 2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
 
