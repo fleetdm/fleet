@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { uniqueId } from "lodash";
 
 import { stringToClipboard } from "utilities/copy_text";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -6,11 +7,7 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import ClipboardIcon from "../../../../../assets/images/icon-copy-clipboard-fleet-blue-20x20@2x.png";
-import EyeIcon from "../../../../../assets/images/icon-eye-16x16@2x.png";
-import EditIcon from "../../../../../assets/images/icon-pencil-14x14@2x.png";
-import DeleteIcon from "../../../../../assets/images/icon-trash-14x14@2x.png";
+import Icon from "components/Icon";
 
 const baseClass = "enroll-secrets";
 
@@ -78,29 +75,29 @@ const EnrollSecretRow = ({
           )}
           <Button
             variant="unstyled"
-            className={`${baseClass}__secret-copy-icon`}
+            className={`${baseClass}__copy-secret-icon`}
             onClick={onCopySecret}
           >
-            <img src={ClipboardIcon} alt="copy to clipboard" />
+            <Icon name="clipboard" />
           </Button>
-          <a
-            href="#showSecret"
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__show-secret-icon`}
             onClick={onToggleSecret}
-            className={`${baseClass}__show-secret`}
           >
-            <img src={EyeIcon} alt="show/hide" />
-          </a>
+            <Icon name="eye" />
+          </Button>
         </span>
       </span>
     );
   };
 
   return (
-    <div className={`${baseClass}__secret`} key={secret.secret}>
+    <div className={`${baseClass}__secret`} key={uniqueId()}>
       <InputField
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}
-        name="osqueryd-secret"
+        name={`osqueryd-secret-${uniqueId()}`}
         label={renderLabel()}
         type={showSecret ? "text" : "password"}
         value={secret.secret}
@@ -109,21 +106,17 @@ const EnrollSecretRow = ({
         <>
           <Button
             onClick={onEditSecretClick}
-            className={`${baseClass}__edit-secret-btn`}
+            className={`${baseClass}__edit-secret-icon`}
             variant="text-icon"
           >
-            <>
-              <img src={EditIcon} alt="Edit secret icon" />
-            </>
+            <Icon name="pencil" />
           </Button>
           <Button
             onClick={onDeleteSecretClick}
-            className={`${baseClass}__delete-secret-btn`}
+            className={`${baseClass}__delete-secret-icon`}
             variant="text-icon"
           >
-            <>
-              <img src={DeleteIcon} alt="Delete secret icon" />
-            </>
+            <Icon name="trash" />
           </Button>
         </>
       )}

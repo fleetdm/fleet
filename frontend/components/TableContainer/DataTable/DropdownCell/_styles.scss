@@ -10,13 +10,20 @@
     border: 0;
     height: auto;
 
-    &.is-focused, &:hover {
+    &.is-focused,
+    &:hover {
       border: 0;
+    }
+
+    &.is-focused:not(.is-open) {
+      .Select-control {
+        background-color: initial;
+      }
     }
 
     .Select-control {
       display: flex;
-      background-color: $core-white;
+      background-color: initial;
       height: auto;
       justify-content: space-between;
       border: 0;
@@ -30,16 +37,12 @@
         color: $core-vibrant-blue;
       }
 
-      .Select-arrow {
-        margin-top: 3px;
-      }
-
       .Select-placeholder {
         color: $core-fleet-black;
         font-size: 14px;
         line-height: normal;
         padding-left: 0;
-        margin-top: 2px;
+        margin-top: 1px;
       }
 
       .Select-input {
@@ -72,13 +75,6 @@
     &.is-open {
       .Select-control .Select-placeholder {
         color: $core-vibrant-blue;
-        top: 0;
-      }
-
-      .Select-control {
-        .Select-arrow {
-          top: 0;
-        }
       }
     }
   }

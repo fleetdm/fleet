@@ -14,7 +14,7 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
 import { IOsqueryPlatform } from "interfaces/platform";
-import { IQuery } from "interfaces/query";
+import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
 import checkPlatformCompatibility from "utilities/sql_tools";
@@ -32,9 +32,6 @@ interface IManageQueriesPageProps {
   router: InjectedRouter; // v3
 }
 
-interface IFleetQueriesResponse {
-  queries: IQuery[];
-}
 interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];

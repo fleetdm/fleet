@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -28,12 +29,22 @@ func main() {
 		jiraProjectKey      = flag.String("jira-project-key", "", "The Jira project key")
 		fleetURL            = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
 		cve                 = flag.String("cve", "", "The CVE to create a Jira issue for")
+		epssProbability     = flag.Float64("epss-probability", 0, "The EPSS Probability score of the CVE")
+		cvssScore           = flag.Float64("cvss-score", 0, "The CVSS score of the CVE")
+		cisaKnownExploit    = flag.Bool("cisa-known-exploit", false, "Whether CISA reported it as a known exploit")
 		hostsCount          = flag.Int("hosts-count", 1, "The number of hosts to match the CVE or failing policy")
 		failingPolicyID     = flag.Int("failing-policy-id", 0, "The failing policy ID")
 		failingPolicyTeamID = flag.Int("failing-policy-team-id", 0, "The Team ID of the failing policy")
+		premiumLicense      = flag.Bool("premium", false, "Whether to simulate a premium user or not")
 	)
 
 	flag.Parse()
+
+	// keep set of flags that were provided, to handle those that can be absent
+	setFlags := make(map[string]bool)
+	flag.CommandLine.Visit(func(f *flag.Flag) {
+		setFlags[f.Name] = true
+	})
 
 	if *jiraURL == "" {
 		fmt.Fprintf(os.Stderr, "-jira-url is required")
@@ -72,7 +83,7 @@ func main() {
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
 		hosts := make([]*fleet.HostShort, *hostsCount)
 		for i := 0; i < *hostsCount; i++ {
-			hosts[i] = &fleet.HostShort{ID: uint(i + 1), Hostname: fmt.Sprintf("host-test-%d", i+1)}
+			hosts[i] = &fleet.HostShort{ID: uint(i + 1), Hostname: fmt.Sprintf("host-test-%d", i+1), DisplayName: fmt.Sprintf("host-test-%d", i+1)}
 		}
 		return hosts, nil
 	}
@@ -110,6 +121,12 @@ func main() {
 		}, nil
 	}
 
+	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	if *premiumLicense {
+		lic.Tier = fleet.TierPremium
+	}
+	ctx := license.NewContext(context.Background(), lic)
+
 	jira := &worker.Jira{
 		FleetURL:  *fleetURL,
 		Datastore: ds,
@@ -121,7 +138,31 @@ func main() {
 
 	var argsJSON json.RawMessage
 	if *cve != "" {
-		argsJSON = json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))
+		vulnArgs := struct {
+			CVE              string   `json:"cve,omitempty"`
+			EPSSProbability  *float64 `json:"epss_probability,omitempty"`
+			CVSSScore        *float64 `json:"cvss_score,omitempty"`
+			CISAKnownExploit *bool    `json:"cisa_known_exploit,omitempty"`
+		}{
+			CVE: *cve,
+		}
+		if setFlags["epss-probability"] {
+			vulnArgs.EPSSProbability = epssProbability
+		}
+		if setFlags["cvss-score"] {
+			vulnArgs.CVSSScore = cvssScore
+		}
+		if setFlags["cisa-known-exploit"] {
+			vulnArgs.CISAKnownExploit = cisaKnownExploit
+		}
+
+		b, err := json.Marshal(vulnArgs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal vulnerability args: %v", err)
+			os.Exit(1)
+		}
+		argsJSON = json.RawMessage(fmt.Sprintf(`{"vulnerability":%s}`, string(b)))
+
 	} else if *failingPolicyID > 0 {
 		jsonStr := fmt.Sprintf(`{"failing_policy":{"policy_id": %d, "policy_name": "test-policy-%[1]d", `, *failingPolicyID)
 		if *failingPolicyTeamID > 0 {
@@ -137,7 +178,7 @@ func main() {
 		argsJSON = json.RawMessage(jsonStr)
 	}
 
-	if err := jira.Run(context.Background(), argsJSON); err != nil {
+	if err := jira.Run(ctx, argsJSON); err != nil {
 		log.Fatal(err)
 	}
 }

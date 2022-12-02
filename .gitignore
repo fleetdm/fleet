@@ -23,6 +23,7 @@ server/bindata/generated.go
 *.log
 coverage.txt
 storybook-static
+frontend/coverage
 
 # typescript generated test files
 tmp/
@@ -55,6 +56,7 @@ package-lock.json
 .terraform
 .terraform.tfstate*
 terraform.tfstate*
+*.lock.hcl
 
 # generated orbit installers and artifacts
 fleet-osquery*

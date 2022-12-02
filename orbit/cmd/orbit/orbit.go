@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -599,6 +600,15 @@ func main() {
 			}()
 		}
 
+		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
+		// `"", nil`. Therefore there's no platform-specific stuff required here
+		augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
+		} else if augeasPath != "" {
+			options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
+		}
+
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
 		options = append(options, osquery.WithFlags([]string{"--force"}))
@@ -648,8 +658,11 @@ func main() {
 			&g,
 			r.ExtensionSocketPath(),
 			table.WithExtension(orbitInfoExtension{
-				orbitClient: orbitClient,
-				trw:         trw,
+				orbitClient:     orbitClient,
+				orbitChannel:    c.String("orbit-channel"),
+				osquerydChannel: c.String("osqueryd-channel"),
+				desktopChannel:  c.String("desktop-channel"),
+				trw:             trw,
 			}),
 		)
 
@@ -662,6 +675,8 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		g.Add(signalHandler(ctx))
+
+		go sigusrListener(c.String("root-dir"))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")

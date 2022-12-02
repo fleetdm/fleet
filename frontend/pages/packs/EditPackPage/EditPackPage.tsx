@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useContext } from "react";
-import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { IPack } from "interfaces/pack";
-import { IQuery } from "interfaces/query";
+import { IPack, IStoredPackResponse } from "interfaces/pack";
+import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import {
   IPackQueryFormData,
   IScheduledQuery,
+  IStoredScheduledQueriesResponse,
 } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { AppContext } from "context/app";
@@ -21,27 +21,15 @@ import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
+import BackLink from "components/BackLink";
 import EditPackForm from "components/forms/packs/EditPackForm";
 import MainContent from "components/MainContent";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
-import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IEditPacksPageProps {
   router: InjectedRouter; // v3
   params: Params;
-}
-
-interface IStoredFleetQueriesResponse {
-  queries: IQuery[];
-}
-
-interface IStoredPackResponse {
-  pack: IPack;
-}
-
-interface IStoredPackQueriesResponse {
-  scheduled: IScheduledQuery[];
 }
 
 interface IFormData {
@@ -62,11 +50,11 @@ const EditPacksPage = ({
   const packId: number = parseInt(paramsPackId, 10);
 
   const { data: fleetQueries } = useQuery<
-    IStoredFleetQueriesResponse,
+    IFleetQueriesResponse,
     Error,
     IQuery[]
   >(["fleet queries"], () => queriesAPI.loadAll(), {
-    select: (data: IStoredFleetQueriesResponse) => data.queries,
+    select: (data: IFleetQueriesResponse) => data.queries,
   });
 
   const { data: storedPack } = useQuery<IStoredPackResponse, Error, IPack>(
@@ -81,11 +69,11 @@ const EditPacksPage = ({
     data: storedPackQueries,
     isLoading: isStoredPackQueriesLoading,
     refetch: refetchStoredPackQueries,
-  } = useQuery<IStoredPackQueriesResponse, Error, IScheduledQuery[]>(
+  } = useQuery<IStoredScheduledQueriesResponse, Error, IScheduledQuery[]>(
     ["stored pack queries"],
     () => scheduledQueriesAPI.loadAll(packId),
     {
-      select: (data: IStoredPackQueriesResponse) => data.scheduled,
+      select: (data: IStoredScheduledQueriesResponse) => data.scheduled,
     }
   );
 
@@ -234,10 +222,9 @@ const EditPacksPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        <Link to={PATHS.MANAGE_PACKS} className={`${baseClass}__back-link`}>
-          <img src={BackChevron} alt="back chevron" id="back-chevron" />
-          <span>Back to packs</span>
-        </Link>
+        <div className={`${baseClass}__header-links`}>
+          <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />
+        </div>
         {storedPack && storedPackQueries && (
           <EditPackForm
             className={`${baseClass}__pack-form`}

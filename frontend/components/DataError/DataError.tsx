@@ -1,35 +1,42 @@
 import React from "react";
 
-import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
-import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 
 const baseClass = "data-error";
 
 interface IDataErrorProps {
+  children?: JSX.Element | string;
   card?: boolean;
 }
 
-const DataError = ({ card }: IDataErrorProps): JSX.Element => {
+const DataError = ({ children, card }: IDataErrorProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__${card ? "card" : "inner"}`}>
         <div className="info">
           <span className="info__header">
-            <img src={ErrorIcon} alt="error icon" id="error-icon" />
+            <Icon name="alert" />
             Something&apos;s gone wrong.
           </span>
-          <span className="info__data">Refresh the page or log in again.</span>
-          <span className="info__data">
-            If this keeps happening, please&nbsp;
-            <a
-              href="https://github.com/fleetdm/fleet/issues/new/choose"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              file an issue
-              <img src={ExternalLinkIcon} alt="Open external link" />
-            </a>
-          </span>
+
+          <>
+            {children || (
+              <>
+                <span className="info__data">
+                  Refresh the page or log in again.
+                </span>
+                <span className="info__data">
+                  If this keeps happening, please&nbsp;
+                  <CustomLink
+                    url="https://github.com/fleetdm/fleet/issues/new/choose"
+                    text="file an issue"
+                    newTab
+                  />
+                </span>
+              </>
+            )}
+          </>
         </div>
       </div>
     </div>

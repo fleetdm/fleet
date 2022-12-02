@@ -1,6 +1,7 @@
 import React from "react";
 
 import { ITeamSummary } from "interfaces/team";
+import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
@@ -16,6 +17,7 @@ interface IAddHostsModal {
   isLoading: boolean;
   isSandboxMode?: boolean;
   onCancel: () => void;
+  openEnrollSecretModal?: () => void;
 }
 
 const AddHostsModal = ({
@@ -24,13 +26,34 @@ const AddHostsModal = ({
   isLoading,
   isSandboxMode,
   onCancel,
+  openEnrollSecretModal,
 }: IAddHostsModal): JSX.Element => {
+  const onManageEnrollSecretsClick = () => {
+    onCancel();
+    openEnrollSecretModal && openEnrollSecretModal();
+  };
+
   const renderModalContent = () => {
     if (isLoading) {
       return <Spinner />;
     }
     if (!enrollSecret) {
-      return <DataError />;
+      return (
+        <DataError>
+          <span className="info__data">
+            You have no enroll secrets.{" "}
+            {openEnrollSecretModal ? (
+              <Button onClick={onManageEnrollSecretsClick} variant="text-link">
+                Manage enroll secrets
+              </Button>
+            ) : (
+              "Manage enroll secrets"
+            )}{" "}
+            to enroll hosts to{" "}
+            <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+          </span>
+        </DataError>
+      );
     }
 
     // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,

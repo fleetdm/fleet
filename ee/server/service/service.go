@@ -13,12 +13,11 @@ import (
 type Service struct {
 	fleet.Service
 
-	ds      fleet.Datastore
-	logger  kitlog.Logger
-	config  config.FleetConfig
-	clock   clock.Clock
-	authz   *authz.Authorizer
-	license *fleet.LicenseInfo
+	ds     fleet.Datastore
+	logger kitlog.Logger
+	config config.FleetConfig
+	clock  clock.Clock
+	authz  *authz.Authorizer
 }
 
 func NewService(
@@ -28,7 +27,6 @@ func NewService(
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
-	license *fleet.LicenseInfo,
 ) (*Service, error) {
 
 	authorizer, err := authz.NewAuthorizer()
@@ -43,7 +41,6 @@ func NewService(
 		config:  config,
 		clock:   c,
 		authz:   authorizer,
-		license: license,
 	}
 
 	// Override methods that can't be easily overriden via

@@ -1,6 +1,7 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
@@ -9,13 +10,21 @@ import {
   humanHostDetailUpdated,
   wrapFleetHelper,
 } from "utilities/helpers";
+import getHostStatusTooltipText from "pages/hosts/helpers";
+import StatusCell from "components/TableContainer/DataTable/StatusCell";
+// TODO: Refactor StatusCell into smaller non-table-specific StatusIndicator component to be wrapped by StatusCell
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
 
+interface IHostDiskEncryptionProps {
+  enabled?: boolean;
+  tooltip?: string;
+}
 interface IHostSummaryProps {
   statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
@@ -30,6 +39,7 @@ interface IHostSummaryProps {
 const HostSummary = ({
   statusClassName,
   titleData,
+  diskEncryption,
   isPremiumTier,
   isOnlyObserver,
   toggleOSPolicyModal,
@@ -65,7 +75,7 @@ const HostSummary = ({
           </Button>
         </div>
         <ReactTooltip
-          place="bottom"
+          place="top"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -122,31 +132,44 @@ const HostSummary = ({
   );
 
   const renderSummary = () => {
+    const { status, id } = titleData;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
-          <span className={`${statusClassName} info-flex__data`}>
-            {titleData.status}
-          </span>
+          <StatusCell
+            value={status || ""} // temporary work around of integration test bug
+            tooltip={{
+              id,
+              tooltipText: getHostStatusTooltipText(status),
+            }}
+          />
         </div>
         {titleData.issues?.total_issues_count > 0 &&
-          deviceUser &&
           isPremiumTier &&
           renderIssues()}
-        {titleData.issues?.total_issues_count > 0 &&
-          !deviceUser &&
-          renderIssues()}
-        {!deviceUser && isPremiumTier && renderHostTeam()}
+        {isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
           <DiskSpaceGraph
             baseClass="info-flex"
             gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
             percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-            id={"disk-space-tooltip"}
+            id={`disk-space-tooltip-${titleData.id}`}
+            platform={titleData.platform}
           />
         </div>
+        {typeof diskEncryption?.enabled === "boolean" &&
+        diskEncryption?.tooltip ? (
+          <div className="info-flex__item info-flex__item--title">
+            <span className="info-flex__header">Disk encryption</span>
+            <TooltipWrapper tipContent={diskEncryption.tooltip}>
+              {diskEncryption.enabled ? "On" : "Off"}
+            </TooltipWrapper>
+          </div>
+        ) : (
+          <></>
+        )}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
           <span className="info-flex__data">
@@ -173,12 +196,10 @@ const HostSummary = ({
             )}
           </span>
         </div>
-        {!deviceUser && (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Osquery</span>
-            <span className="info-flex__data">{titleData.osquery_version}</span>
-          </div>
-        )}
+        <div className="info-flex__item info-flex__item--title">
+          <span className="info-flex__header">Osquery</span>
+          <span className="info-flex__data">{titleData.osquery_version}</span>
+        </div>
       </div>
     );
   };

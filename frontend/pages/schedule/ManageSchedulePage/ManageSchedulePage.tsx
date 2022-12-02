@@ -9,12 +9,12 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query";
+import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import {
   IScheduledQuery,
   IEditScheduledQuery,
   ILoadAllGlobalScheduledQueriesResponse,
-  ILoadAllTeamScheduledQueriesResponse,
+  IStoredScheduledQueriesResponse,
 } from "interfaces/scheduled_query";
 import fleetQueriesAPI from "services/entities/queries";
 import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
@@ -29,16 +29,13 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+
 import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
-import ShowQueryModal from "./components/ShowQueryModal";
 
 const baseClass = "manage-schedule-page";
-
-interface IFleetQueriesResponse {
-  queries: IQuery[];
-}
 
 const renderTable = (
   router: InjectedRouter,
@@ -217,7 +214,7 @@ const ManageSchedulePage = ({
     error: teamScheduledQueriesError,
     isLoading: isLoadingTeamScheduledQueries,
     refetch: refetchTeamScheduledQueries,
-  } = useQuery<ILoadAllTeamScheduledQueriesResponse, Error, IScheduledQuery[]>(
+  } = useQuery<IStoredScheduledQueriesResponse, Error, IScheduledQuery[]>(
     ["teamScheduledQueries", selectedTeamId],
     () => teamScheduledQueriesAPI.loadAll(selectedTeamId),
     {

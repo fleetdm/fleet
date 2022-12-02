@@ -1,7 +1,6 @@
 .component__tooltip-wrapper {
   display: inline-flex;
   position: relative;
-  cursor: help;
 
   &:hover {
     .component__tooltip-wrapper__tip-text {
@@ -44,7 +43,7 @@
   &__tip-text {
     width: max-content;
     max-width: 341px;
-    padding: 12px;
+    padding: 6px;
     color: $core-white;
     background-color: $core-fleet-blue;
     font-weight: $regular;

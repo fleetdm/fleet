@@ -6,24 +6,7 @@ import { IAceEditor } from "react-ace/lib/types";
 import { noop } from "lodash";
 
 import FleetAce from "components/FleetAce";
-
-import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
-
-interface ICustomLinkProps {
-  text: React.ReactNode;
-  href: string;
-  newTab?: boolean;
-}
-
-const CustomLink = ({ text, href, newTab = false }: ICustomLinkProps) => {
-  const target = newTab ? "__blank" : "";
-  return (
-    <a href={href} target={target} rel="noopener noreferrer">
-      {text}
-      <img src={ExternalLinkIcon} alt="Open external link" />
-    </a>
-  );
-};
+import CustomLink from "components/CustomLink";
 
 interface IFleetMarkdownProps {
   markdown: string;
@@ -46,7 +29,7 @@ const FleetMarkdown = ({ markdown, className }: IFleetMarkdownProps) => {
       remarkPlugins={[remarkGfm]}
       components={{
         a: ({ href = "", children }) => {
-          return <CustomLink text={children} href={href} newTab />;
+          return <CustomLink text={String(children)} url={href} newTab />;
         },
 
         // Overrides code display to use FleetAce with Readonly overrides.

@@ -65,11 +65,12 @@ go.mod @fleetdm/go
 # Handbook
 /handbook/company @mikermcneil
 /handbook/business-operations @hollidayn
+/handbook/business-operations/ceo-handbook.md @charlottechance
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
 /handbook/product @zhumo
 /handbook/customers @alexmitchelliii
-/handbook/marketing @timmy-k
+/handbook/marketing @mikermcneil
 /handbook/README.md @eashaw
 
 #

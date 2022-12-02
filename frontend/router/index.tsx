@@ -17,13 +17,13 @@ import App from "components/App";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
-import GatedLayout from "layouts/GatedLayout";
+import DashboardPage from "pages/DashboardPage";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
+import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
-import Homepage from "pages/Homepage";
 import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
@@ -98,10 +98,14 @@ const routes = (
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to={"dashboard"} />
-          <Route path="dashboard" component={Homepage} />
+          <IndexRedirect to={"/dashboard"} />
+          <Route path="dashboard" component={DashboardPage}>
+            <Route path="linux" component={DashboardPage} />
+            <Route path="mac" component={DashboardPage} />
+            <Route path="windows" component={DashboardPage} />
+          </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect to={"/dashboard"} />
+            <IndexRedirect to={"organization"} />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={AdminAppSettingsPage} />
@@ -139,7 +143,15 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-            <Route path=":host_id" component={HostDetailsPage} />
+
+            <IndexRedirect to={":host_id"} />
+            <Route component={HostDetailsPage}>
+              <Route path=":host_id" component={HostDetailsPage}>
+                <Route path="software" component={HostDetailsPage} />
+                <Route path="schedule" component={HostDetailsPage} />
+                <Route path="policies" component={HostDetailsPage} />
+              </Route>
+            </Route>
           </Route>
           <Route path="software">
             <IndexRedirect to={"manage"} />

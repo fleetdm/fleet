@@ -81,7 +81,7 @@
         </div>
 
         <div purpose="content" id="body-content" class="content" parasails-has-no-page-script>
-          <div :purpose="[isHandbookLandingPage ? 'handbook-landing-page' : '' ]" >
+          <div :purpose="[isHandbookLandingPage ? 'handbook-landing-page' : thisPage.title ]" >
           <%- partial(
             path.relative(
               path.dirname(__filename),

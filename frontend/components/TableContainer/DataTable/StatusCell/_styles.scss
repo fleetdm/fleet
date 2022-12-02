@@ -26,6 +26,16 @@
     background-color: $ui-offline;
   }
 
+  &--online,
+  &--offline {
+    .status-tooltip {
+      display: block;
+      white-space: normal;
+      max-width: 308px;
+      text-transform: none;
+    }
+  }
+
   // policy status
   &--yes:before {
     padding-right: 10px;

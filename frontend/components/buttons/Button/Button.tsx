@@ -25,7 +25,7 @@ export type ButtonVariant =
 
 export interface IButtonProps {
   autofocus?: boolean;
-  children: React.ReactChild;
+  children: React.ReactNode;
   className?: string;
   disabled?: boolean;
   size?: string;
