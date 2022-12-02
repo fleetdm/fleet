@@ -10,27 +10,6 @@ $shadow-transition-width: 10px;
     overflow: auto;
     margin: 50px auto;
 
-    // Shadow
-    background-image: 
-      /* Shadows */ linear-gradient(
-        to right,
-        white,
-        $ui-off-white-opaque
-      ),
-      linear-gradient(to left, white, $ui-off-white-opaque),
-      /* Shadow covers */
-        linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
-      linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
-
-    background-position: left center, right center, left center, right center;
-    background-repeat: no-repeat;
-    background-color: white;
-    background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%, 50% 100%;
-
-    /* Opera doesn't support this in the shorthand */
-    background-attachment: local, local, scroll, scroll;
-    // End shadow
-
     &__wrapper {
       position: relative;
       border: 1px solid $ui-fleet-blue-15;
@@ -38,6 +17,28 @@ $shadow-transition-width: 10px;
       margin-top: $pad-small;
       flex-grow: 1;
       width: 100%;
+
+      // Shadow
+      background-image: 
+      /* Shadows */ linear-gradient(
+          to right,
+          white,
+          $ui-off-white-opaque
+        ),
+        linear-gradient(to left, white, $ui-off-white-opaque),
+        /* Shadow covers */
+          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
+        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
+
+      background-position: left center, right center, left center, right center;
+      background-repeat: no-repeat;
+      background-color: white;
+      background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
+        50% 100%;
+
+      /* Opera doesn't support this in the shorthand */
+      background-attachment: local, local, scroll, scroll;
+      // End shadow
     }
 
     &__table {
@@ -86,8 +87,7 @@ $shadow-transition-width: 10px;
     }
 
     thead {
-      overflow: auto;
-      margin: 50px auto;
+      background-color: $ui-off-white;
       color: $core-fleet-black;
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
@@ -228,35 +228,9 @@ $shadow-transition-width: 10px;
     }
   }
 
-  // // Shadow
-  // thead,
-  // tr:hover {
-  //   background-image:
-  //     /* Shadows */ linear-gradient(
-  //       to right,
-  //       $ui-off-white,
-  //       $ui-off-white-opaque
-  //     ),
-  //     linear-gradient(to left, $ui-off-white, $ui-off-white-opaque),
-  //     /* Shadow covers */
-  //       linear-gradient(
-  //         to right,
-  //         $ui-shadow,
-  //         $ui-off-white $shadow-transition-width
-  //       ),
-  //     linear-gradient(
-  //       to left,
-  //       $ui-shadow,
-  //       $ui-off-white $shadow-transition-width
-  //     );
-
-  //   background-position: left center, right center, left center, right center;
-  //   background-repeat: no-repeat;
-  //   background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%, 50% 100%;
-
-  //   /* Opera doesn't support this in the shorthand */
-  //   background-attachment: local, local, scroll, scroll;
-  // }
+  tr:hover {
+    background-color: $ui-off-white;
+  }
 
   .loading-overlay {
     display: flex;
