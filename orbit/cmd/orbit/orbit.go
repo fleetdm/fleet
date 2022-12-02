@@ -275,18 +275,20 @@ func main() {
 				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
 
-			//targets := []string{"orbit", "osqueryd", "extensions"}
-			targets := []string{"orbit", "osqueryd"}
+			targets := []string{"orbit", "osqueryd", "extensions"}
+			//targets := []string{"orbit", "osqueryd"}
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
 			if c.Bool("dev-mode") {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
+			log.Info().Msg("******** creating a new updater ********")
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
 			})
+			log.Info().Msg("done ********")
 			if err != nil {
 				return err
 			}
@@ -294,6 +296,7 @@ func main() {
 			// Perform early check for updates before starting any sub-system.
 			// This is to prevent bugs in other sub-systems to mess up with
 			// the download of available updates.
+			log.Info().Msg("doing an early upgrade ********")
 			didUpdate, err := updateRunner.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("early update check failed")

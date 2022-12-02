@@ -26,11 +26,11 @@ var (
 			TargetFile:           "osqueryd.app.tar.gz",
 			ExtractedExecSubPath: []string{"osquery.app", "Contents", "MacOS", "osqueryd"},
 		},
-		//"extensions": TargetInfo{
-		//	Platform:   "macos",
-		//	Channel:    "stable",
-		//	TargetFile: "",
-		//},
+		"extensions": TargetInfo{
+			Platform:   "macos",
+			Channel:    "stable",
+			TargetFile: "",
+		},
 	}
 
 	LinuxTargets = Targets{
@@ -44,11 +44,11 @@ var (
 			Channel:    "stable",
 			TargetFile: "osqueryd",
 		},
-		//"extensions": TargetInfo{
-		//	Platform:   "linux",
-		//	Channel:    "stable",
-		//	TargetFile: "",
-		//},
+		"extensions": TargetInfo{
+			Platform:   "linux",
+			Channel:    "stable",
+			TargetFile: "",
+		},
 	}
 
 	WindowsTargets = Targets{

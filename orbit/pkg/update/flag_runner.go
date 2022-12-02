@@ -219,7 +219,7 @@ func (r *ExtensionRunner) DoExtensionUpdate() (bool, error) {
 		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
 	}
 
-	return true, nil
+	return false, nil
 }
 
 // getFlagsFromJSON converts a json document of the form
