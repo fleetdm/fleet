@@ -16,6 +16,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const policyCols = `
+	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
+	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
+`
+
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
 		q, err := ds.Query(ctx, *args.QueryID)
@@ -59,7 +64,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, q, &policy,
-		fmt.Sprintf(`SELECT p.*,
+		fmt.Sprintf(`SELECT `+policyCols+`,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
        		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
@@ -292,7 +297,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 		ctx,
 		q,
 		&policies,
-		fmt.Sprintf(`SELECT p.*,
+		fmt.Sprintf(`SELECT `+policyCols+`,
       COALESCE(u.name, '<deleted>') AS author_name,
       COALESCE(u.email, '') AS author_email,
       %s
@@ -307,7 +312,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 }
 
 func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
-	sql := `SELECT p.*,
+	sql := `SELECT ` + policyCols + `,
       COALESCE(u.name, '<deleted>') AS author_name,
       COALESCE(u.email, '') AS author_email,
       (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
