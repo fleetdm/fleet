@@ -1678,6 +1678,7 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 
@@ -2776,6 +2777,43 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
       }
     ]
   }
+}
+```
+
+### Get host's disk encryption key 
+
+Requires the [macadmins osquery
+extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery
+installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Currently supported only on macOS +15.x.
+
+Retrieves the disk encryption key for a host.
+
+`GET /api/v1/fleet/hosts/:id/encryption_key`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                        |
+| ---- | ------- | ---- | ------------------------------------------------------------------ |
+| id   | integer | path | **Required** The id of the host to get the disk encryption key for |
+
+
+#### Example
+
+`GET /api/v1/fleet/hosts/8/encryption_key`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "encryption_key": {
+    "key": "d5nSrZ925Cp6",
+    "updated_at": "2022-12-01T05:31:43Z"
+  },
+  "host_id": 8
 }
 ```
 
