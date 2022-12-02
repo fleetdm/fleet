@@ -5381,6 +5381,8 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 
 // testHostOrder tests listing a host sorted by different keys.
 func testHostOrder(t *testing.T, ds *Datastore) {
+	t.Skip("flaky: https://github.com/fleetdm/fleet/issues/8768")
+
 	ctx := context.Background()
 	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: "1", Hostname: "0001", NodeKey: "1"})
 	require.NoError(t, err)
