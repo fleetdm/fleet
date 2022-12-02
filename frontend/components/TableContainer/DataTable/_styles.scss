@@ -23,9 +23,9 @@ $shadow-transition-width: 10px;
       /* Shadows */ linear-gradient(
           to right,
           white,
-          $ui-off-white-opaque
+          $transparent
         ),
-        linear-gradient(to left, white, $ui-off-white-opaque),
+        linear-gradient(to left, white, $transparent),
         /* Shadow covers */
           linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
         linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
@@ -57,6 +57,10 @@ $shadow-transition-width: 10px;
       .component__tooltip-wrapper__element {
         white-space: initial; // wraps long text with tooltip
       }
+
+      tr:hover {
+        background-color: $ui-fleet-black-25-opaque; // opaque needed for horizontal scroll shadow
+      }
     }
 
     tr {
@@ -68,10 +72,6 @@ $shadow-transition-width: 10px;
 
       &.single-row {
         cursor: pointer;
-
-        &:hover {
-          background-color: rgba($core-vibrant-blue, 0.1);
-        }
       }
 
       // override styles of checkbox data cells
@@ -87,7 +87,7 @@ $shadow-transition-width: 10px;
     }
 
     thead {
-      background-color: $ui-off-white;
+      background-color: $ui-fleet-black-25-opaque; // opaque needed for horizontal scroll shadow
       color: $core-fleet-black;
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
@@ -226,10 +226,6 @@ $shadow-transition-width: 10px;
         background-color: initial;
       }
     }
-  }
-
-  tr:hover {
-    background-color: $ui-off-white;
   }
 
   .loading-overlay {
