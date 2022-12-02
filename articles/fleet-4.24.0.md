@@ -17,7 +17,7 @@ Fleet 4.24.0 gives you greater visibility into who ran live queries. These insig
 
 You’ll see these notifications in the activity feed on the Dashboard page. Each notification will include the user’s name, as well as an option to show the query. If the query has been saved, you’ll also see the query’s name. If the query hasn’t been saved, no query name will be included.
 
-Selecting Show query opens the Query modal, which displays the query’s SQL.
+Selecting *Show query* opens the Query modal, which displays the query’s SQL.
 
 ## Enjoy easier navigation on Host details and Dashboard pages
 **Available in Fleet Free and Fleet Premium**
@@ -51,6 +51,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2022-12-01">
+<meta name="publishedOn" value="2022-12-02">
 <meta name="articleTitle" value="Fleet 4.24.0 | More visibility into live queries and improved Fleet UI navigation">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.24.0-cover-3200x1800.jpg">
