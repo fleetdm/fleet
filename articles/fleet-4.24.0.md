@@ -31,18 +31,18 @@ The same applies to Policies. If you view all hosts assigned to a particular pol
 We also added this functionality to the Dashboard page. You can still filter hosts with the Platform dropdown. After selecting Windows, Linux, or macOS, you can choose to view all hosts with that operating system. Clicking back from these lists will return you to the Dashboard page with the Platform filter applied.
 
 ## More new features, improvements, and bug fixes
-- Improved performance of the Fleet server by decreasing CPU usage by 20% and memory usage by 3% on average.
+- Added an `icloud_private_relay` table to Fleet’s osquery installers (fleetd).
 - Added tooltips and updated dropdown choices on Hosts and Host details pages to clarify the meanings of "Status: Online" and "Status: Offline."
 - Added “Void Linux” to the list of recognized distributions.
 - Added clickable rows to software tables to view all hosts filtered by software.
 - Added support for more OS-specific osquery command-line flags in the agent options.
 - Added links to evented tables and columns that require user context in the query side panel.
-- Improved CPU and memory usage of Fleet.
+- Improved performance of the Fleet server by decreasing CPU usage by 20% and memory usage by 3% on average.
 - Updated osquery on our fleetd stable channel to 5.6.0. [View the osquery release notes](https://github.com/osquery/osquery/releases).
 - Removed the Preview payload button from the usage statistics page, as well as its associated logic and unique styles. [See the example usage statistics payload](https://fleetdm.com/docs/using-fleet/usage-statistics#what-is-included-in-usage-statistics-in-fleet) in our documentation.
 - Removed tooltips and conditional coloring in the disk space graph for Linux hosts.
 - Reduced false negatives for the query used to determine encryption status on Linux systems.
-- Fixed long software name from aligning centered.
+- Fixed long software names from aligning centered.
 - Fixed a discrepancy in the height of input labels when there’s a validation error.
 
 ## Ready to upgrade?
