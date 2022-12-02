@@ -7,9 +7,6 @@ $shadow-transition-width: 10px;
   width: 100%;
 
   .data-table {
-    overflow: auto;
-    margin: 50px auto;
-
     &__wrapper {
       position: relative;
       border: 1px solid $ui-fleet-blue-15;
