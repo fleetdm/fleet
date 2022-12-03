@@ -213,6 +213,11 @@ module.exports.routes = {
   },
 
 
+  'GET /connect-vanta': { action: 'view-connect-vanta' },
+  'GET /vanta-callback': { action: 'view-vanta-callback' },
+
+
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -348,5 +353,6 @@ module.exports.routes = {
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
-  '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' }
+  '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
 };

@@ -1,0 +1,26 @@
+<div id="connect-vanta" v-cloak>
+  <div class="container">
+  <h1>TODO</h1>
+  <div class="card card-body">
+  <ajax-form :handle-submitting="handleSubmittingAuthorizationForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedAuthorizationForm()">
+    <div class="form-group mb-3">
+      <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Sign up with email">
+      <div class="invalid-feedback mt-2">This doesn’t appear to be a valid email address</div>
+    </div>
+    <div class="form-group mb-3">
+      <input id="fleetInstanceUrl" type="text" class="form-control d-flex w-100" :class="[formErrors.fleetInstanceUrl ? 'is-invalid' : '']" v-model.trim="formData.fleetInstanceUrl" placeholder="Fleet Instance URL">
+      <div class="invalid-feedback mt-2">This doesn’t appear to be a valid email address</div>
+    </div>
+    <div class="form-group mb-3">
+      <input id="fleetApiKey" type="text" class="form-control d-flex w-100" :class="[formErrors.fleetApiKey ? 'is-invalid' : '']" v-model.trim="formData.fleetApiKey" placeholder="Fleet API key">
+      <div class="invalid-feedback mt-2"></div>
+    </div>
+    <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+    <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Sign up</ajax-button>
+  </ajax-form>
+
+</div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
