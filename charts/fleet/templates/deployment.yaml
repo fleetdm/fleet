@@ -330,7 +330,11 @@ spec:
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
+            {{- if .Values.fleet.tls.uniqueTLSSecret }}
+            secretName: "{{ .Values.fleet.tls.secretName }}"
+            {{- else }}
             secretName: "{{ .Values.fleet.secretName }}"
+            {{- end }}
         {{- end }}
         {{- if .Values.mysql.tls.enabled }}
         - name: mysql-tls

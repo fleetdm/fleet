@@ -55,12 +55,16 @@ ingress:
 # All of the settings relating to configuring the Fleet server
 fleet:
   listenPort: 8080
-  # Name of the Secret resource storing TLS and S3 bucket secrets
+  # Name of the Secret resource storing S3 bucket and optionally TLS secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
   tls:
     enabled: true
+    # Set to true if you need a separate secret for just TLS data.
+    # Useful with cert-manager and similar deployments.
+    uniqueTLSSecret: false
+    secretName: fleet-tls
     compatibility: modern
     certSecretKey: server.cert
     keySecretKey: server.key
