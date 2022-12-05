@@ -1,3 +1,120 @@
+## Fleet 4.24.0 (Dec 1, 2022)
+
+* Improve live query activity item in the activity feed on the Dashboard page. Each item will include the user’s name, as well as an option to show the query. If the query has been saved, the item will include the query’s name.
+
+* Improve navigation on Host details page and Dashboard page by adding the ability to navigate back to a tab (ex. Policies) and filter (ex. macOS) respectively.
+
+* Improved performance of the Fleet server by decreasing CPU usage by 20% and memory usage by 3% on average.
+
+* Added tooltips and updated dropdown choices on Hosts and Host details pages to clarify the meanings of "Status: Online" and "Status: Offline."
+
+* Added “Void Linux” to the list of recognized distributions.
+
+* Added clickable rows to software tables to view all hosts filtered by software.
+
+* Added support for more OS-specific osquery command-line flags in the agent options.
+
+* Added links to evented tables and columns that require user context in the query side panel.
+
+* Improved CPU and memory usage of Fleet.
+
+* Removed the Preview payload button from the usage statistics page, as well as its associated logic and unique styles. [See the example usage statistics payload](https://fleetdm.com/docs/using-fleet/usage-statistics#what-is-included-in-usage-statistics-in-fleet) in the Using Fleet documentation.
+
+* Removed tooltips and conditional coloring in the disk space graph for Linux hosts.
+
+* Reduced false negatives for the query used to determine encryption status on Linux systems.
+
+* Fixed long software name from aligning centered.
+
+* Fixed a discrepancy in the height of input labels when there’s a validation error.
+
+## Fleet 4.23.0 (Nov 14, 2022)
+
+* Added preview screenshots for Jira and Zendesk vulnerability tickets for Premium users.
+
+* Improve host detail query to populate primary ip and mac address on host.
+
+* Add option to show public IP address in Hosts table.
+
+* Improve ingress resource by replacing the template with a most recent version, that enables:
+  - Not having any annotation hardcoded, all annotations are optional.
+  - Custom path, as of now it was hardcoded to `/*`, but depending on the ingress controller, it can require an extra annotation to work with regular expressions.
+  - Specify ingressClassName, as it was hardcoded to `gce`, and this is a setting that might be different on each cluster.
+
+* Added ingestion of host orbit version from `orbit_info` osquery extension table.
+
+* Added number of hosts enrolled by orbit version to usage statistics payload.
+
+* Added number of hosts enrolled by osquery version to usage statistics payload.
+
+* Added arch and linuxmint to list of linux distros so that their data is displayed and host count includes them.
+
+* When submitting invalid agent options, inform user how to override agent options using fleetctl force flag.
+
+* Exclude Windows Servers from mdm lists and aggregated data.
+
+* Activity feed includes editing team config file using fleetctl.
+
+* Update Go to 1.19.3.
+
+* Host details page includes information about the host's disk encryption.
+
+* Information surfaced to device user includes all summary/about information surfaced in host details page.
+
+* Support low_disk_space filter for endpoint /labels/{id}/hosts.
+
+* Select targets pages implements cleaner icons.
+
+* Added validation of unknown keys for the Apply Teams Spec request payload (`POST /spec/teams` endpoint).
+
+* Orbit MSI installer now includes the necessary manifest file to use windows_event_log as a logger_plugin.
+
+* UI allows for filtering low disk space hosts by platform.
+
+* Add passed policies column on the inherited policies table for teams.
+
+* Use the MSRC security bulletins to scan for Windows vulnerabilities. Detected vulnerabilities are inserted in a new table, 'operating_system_vulnerabilities'.
+
+* Added vulnerability scores to Jira and Zendesk integrations for Fleet Premium users.
+
+* Improve database usage to prevent some deadlocks.
+
+* Added ingestion of disk encryption status for hosts, and added that flag in the response of the `GET /hosts/{id}` API endpoint.
+
+* Trying to add a host with 0 enroll secrets directs user to manage enroll secrets.
+
+* Detect Windows MDM solutions and add mdm endpoints.
+
+* Styling updates on login and forgot password pages.
+
+* Add UI polish and style fixes for query pages.
+
+* Update styling of tooltips and modals.
+
+* Update colors, issues icon.
+
+* Cleanup dashboard styling.
+
+* Add tooling for writing integration tests on the frontend.
+
+* Fixed host details page so munki card only shows for mac hosts.
+
+* Fixed a bug where duplicate vulnerability webhook requests, jira, and zendesk tickets were being
+  made when scanning for vulnerabilities. This affected ubuntu and redhat hosts that support OVAL
+  vulnerability detection.
+
+* Fixed bug where password reset token expiration was not enforced.
+
+* Fixed a bug in `fleetctl apply` for teams, where a missing `agent_options` key in the YAML spec
+  file would clear the existing agent options for the team (now it leaves it unchanged). If the key
+  is present but empty, then it clears the agent options.
+
+* Fixed bug with our CPE matching process. UTM.app was matching to the wrong CPE.
+
+* Fixed an issue where fleet would send invalid usage stats if no hosts were enrolled.
+
+* Fixed an Orbit MSI installer bug that caused Orbit files not to be removed during uninstallation.
+
 ## Fleet 4.22.1 (Oct 27, 2022)
 
 * Fixed the error response of the `/device/:token/desktop` endpoint causing problems on free Fleet Desktop instances on versions `1.3.x`.

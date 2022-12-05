@@ -22,6 +22,16 @@
       font-size: $x-small;
     }
 
+    tbody {
+      .component__tooltip-wrapper {
+        margin: 10px 0; // vertical padding multiline text with tooltip
+      }
+
+      .component__tooltip-wrapper__element {
+        white-space: initial; // wraps long text with tooltip
+      }
+    }
+
     tr {
       border-bottom: 1px solid $ui-fleet-blue-15;
 
@@ -184,8 +194,11 @@
           font-style: italic;
         }
       }
-      .highlight-on-hover:hover {
+      tr:hover {
         background-color: $ui-off-white;
+      }
+      .disable-highlight:hover {
+        background-color: initial;
       }
     }
   }

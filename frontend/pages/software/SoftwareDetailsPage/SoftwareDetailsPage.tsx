@@ -1,20 +1,21 @@
 import React, { useContext } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { formatSoftwareType, ISoftware } from "interfaces/software";
-import softwareAPI, {
+import {
+  formatSoftwareType,
+  ISoftware,
   IGetSoftwareByIdResponse,
-} from "services/entities/software";
+} from "interfaces/software";
+import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
 import Spinner from "components/Spinner";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
-import RightChevron from "../../../../assets/images/icon-chevron-right-9x6@2x.png";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 import Vulnerabilities from "./components/Vulnerabilities";
 
@@ -79,13 +80,10 @@ const SoftwareDetailsPage = ({
               <h1 className="name">{renderName(software)}</h1>
             </div>
           </div>
-          <Link
-            to={`${PATHS.MANAGE_HOSTS}?software_id=${software_id}`}
+          <ViewAllHostsLink
+            queryParams={{ software_id }}
             className={`${baseClass}__hosts-link`}
-          >
-            <span>View all hosts</span>
-            <img src={RightChevron} alt="right chevron" id="right-chevron" />
-          </Link>
+          />
         </div>
         <div className="section info">
           <div className="info__inner">

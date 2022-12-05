@@ -38,10 +38,10 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const [showSetupError, setShowSetupError] = useState(false);
 
   useEffect(() => {
-    const { HOME } = paths;
+    const { DASHBOARD } = paths;
 
     if (currentUser) {
-      return router.push(HOME);
+      return router.push(DASHBOARD);
     }
   }, [currentUser]);
 

@@ -880,7 +880,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: No 1Password emergency kit stored on desktop or in downloads (macOS)
-  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename like '%%Emergency Kit%%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%'));
+  query: SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;
   description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits." 
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
@@ -908,6 +908,18 @@ spec:
   purpose: Informational
   tags: compliance, hunting
   contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Identify the default mail, http and ftp applications
+  platforms: macOS
+  platform: darwin
+  description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
+  query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: brunerd
 ---
 apiVersion: v1
 kind: policy
@@ -1003,3 +1015,22 @@ spec:
   tags: compliance, inventory, built-in
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Geolocate via ipapi.co
+  platform: darwin, linux, windows
+  description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  query: >- 
+    SELECT JSON_EXTRACT(result, '$.ip') AS ip,
+    JSON_EXTRACT(result, '$.city') AS city,
+    JSON_EXTRACT(result, '$.region') AS region,
+    JSON_EXTRACT(result, '$.country') AS country,
+    JSON_EXTRACT(result, '$.latitude') AS latitude,
+    JSON_EXTRACT(result, '$.longitude') AS longitude
+    FROM curl
+    WHERE url = 'http://ipapi.co/json';
+  purpose: inventory
+  tags: inventory
+  contributors: zwass

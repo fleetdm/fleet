@@ -91,9 +91,9 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
  
-5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+5. Invoices should be sent to Nathan Holliday for approval.
  
-6. Eric Shaw (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
+6. Nathan Holliday (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
@@ -260,7 +260,7 @@ Once approved in the sheet, or submitted through [Typeform](https://admin.typefo
 
 When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
 
-Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
 
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
@@ -270,11 +270,13 @@ At this time, double-check that information within Salesforce and Typeform is ac
 #### In this section
 
 - [Publishing Fleet content](#publishing-fleet-content)
-- [Writing about Fleet](#writing-about-fleet)
-- [Writing about osquery](#writing-about-osquery)
-- [Open source vs. open core](#open-source-vs-open-core)
-- [Fleet style guide](#fleet-style-guide)
-- [Writing documentation](#writing-documentation)
+- [Content style guide](#content-style-guide)
+- [For editors](#for-editors)
+- [Commonly used terms](#commonly-used-terms)
+- [Brand resources](#brand-resources)
+- [Email blasts](#email-blasts)
+- [Using Figma](#using-figma)
+- [Fleet website](#fleet-website)
 
 ### Publishing Fleet content 
 
@@ -315,211 +317,9 @@ Detail the minimum time needed for new or updated content to be live (published)
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 | Decks | **Instant**. Sales typically creates decks. The Brand team shouldn't be a blocker. | **Feedback** | three business days |
 
-### Writing about Fleet
+### Content style guide
 
-When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management." For Fleet the product, we say either “Fleet” or “Fleet for osquery.” Employees are “Fleeties.”
-
-### Writing about osquery
-
-Osquery should always be written in lowercase unless used to start a sentence or heading. For example:
-
-- Open source software, built on osquery.
-- Osquery and Fleet provide structured, convenient access to information about your devices.
-
-### Open source vs. open core
-
-For simplicity, Fleet is always described as "open source" in all writing and verbal communication. In specific situations, such as discussing the distinction between various kinds of open source, it can be appropriate to mention "open core" to clarify your meaning. When in doubt, go with "open source."
-
-### Fleet style guide
-
-#### Our voice
-
-- **Clear.** Focus on what matters most. Details can clear things up, but too many are confusing. Use simple words and sentences, especially in technical conversations.
-- **Thoughtful.** Try your best to understand the topic and your audience. Choose words carefully. Outdated terms may offend modern readers. 
-- **Friendly.** Make people feel welcome. Let them know they’re talking to another human who cares. Relate to their struggles and offer solutions.
-- **Inspiring.** Empower users with practical advice. Show them what success looks like. Manage risk, not fear. Help people feel confident about handling security threats.
-
-#### Our approach
-Every piece of content we write should embody our values. To make sure we succeed, we apply a design thinking approach to our writing by following these steps:
-
-- **Empathize.** Who is the reader? Why will they read it? What do they hope to get from it?
-- **Define.** What is the subject? What action do you want from the reader?
-- **Ideate and collaborate.** Create an outline of what you plan to write. Interview team members or friends of Fleet to help you.
-- **Prototype.** Write a draft and see how it goes. Your first pass won’t be perfect. And that’s okay. If it isn’t working, try it again.
-- **Test.** Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... You get the idea.
-
-#### What would Mr. Rogers say?
-We should be clear, simple, friendly, and inspiring, like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers), who deeply understood these communication skills.
-
-Here are some steps you can take to communicate like Mister Rogers:
-
-- State the idea you want to express as clearly as possible.
-- Rephrase the idea in a positive manner.
-- Rephrase the idea, directing your reader to authorities they trust.
-- Rephrase the idea to eliminate anything that may not apply to your reader.
-- Add a motivational idea that gives your reader a reason to follow your advice.
-- Rephrase the new statement, repeating the first step.
-- Rephrase the idea a ﬁnal time, relating it to an important moment in your reader’s life.
-
-Consider this example tweet.
-
-*Distributed workforces aren’t going anywhere anytime soon. It’s past time to start engaging meaningfully with your workforce and getting them to work with your security team instead of around them.*
- 
-What would Mister Rogers say? The tweet could look something like this...
-
-*Distributed workforces are here to stay. So, it’s a great time to help employees work with your security experts (and not around them). Because stronger teams get to celebrate more victories.*
-
-By Mister Rogersing our writing, we can encourage our readers to succeed by emphasizing optimism. You might not be able to apply all of these steps every time. That’s fine. Think of these as guidelines to help you simplify complex topics.
-
-### Writing documentation
-
-You don’t have to be a “writer” to write documentation. Nobody knows Fleet better than the people who are building our product. That puts developers in the perfect position to show users what Fleet can do.
-
-This guide will help you write docs that help users achieve their goals with Fleet.
-
-#### Remember the reader
-
-People come from different backgrounds. New users may not know terms that are common knowledge for seasoned developers. Since Fleet has users all over the world, English may not be their first language. Your writing must be easy for any user to understand.
-
-- **Think of every user.** Define technical terms in the doc or include a link.
-- **Strive for simplicity.** Avoid complex sentences and long paragraphs.
-- **Be approachable.** Write like you’re meeting a new member of your team.
-
-#### Answer the question
-
-It’s what we’re all about at Fleet. People read docs in order to accomplish their goals. Those goals can vary from learning about Fleet for the first time to looking for troubleshooting tips. Make sure your doc meets the specific need of the user at that moment.
-
-- **Understand the question.** Be clear about the topic you’re discussing.
-- **Narrow your focus.** Avoid explanations that distract from the main topic.
-- **No more, no less.** Use just enough information to give an accurate answer.
-
-#### Follow a framework
-
-Starting with a blank page can be scary. That’s why it helps to have a framework for your writing. Follow these four steps to write your docs: introduction, explanation, reference, and troubleshooting.
-
-**Introduction**
-
-Give an overview of the topic. You don’t need to mention everything at the beginning. Briefly establish the question you’re addressing. People want to get to the answer A.S.A.P.
-
-**Explanation**
-
-You’ve let users know why they’re reading your doc. It’s time to make sure they understand the topic. This will be most of your documentation. Don’t shy away from details.
-
-**Reference**
-
-Support your explanation with relevant references. This shows users how to put your explanation into practice. Such material will keep users coming back.
-
-**Troubleshooting**
-
-Nothing is perfect. Your readers understand this. Users will appreciate it if you identify common problems — and provide solutions — before they encounter these issues later.
-
-#### Document every change
-
-Any change to Fleet’s code should be documented, from adding patches to building features. This allows users and Fleeties to stay up to date with improvements to our product.
-
-You don’t need to wait until a change has been made to write a new doc. Starting with documentation can help you discover ways to make Fleet even better.
-
-Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before commiting a line of code.
-
-#### Headings and subheadings
-
-Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
-
-Keep headings brief, organized, and in a logical order:
-
-- H1: Page title
-- H2: Main headings
-- H3: Subheadings
-- H4: Sub-subheadings
-
-Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
-
-#### Sentence case
-
-Fleet uses sentence case capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels. In sentence case, we write titles as if they were sentences. For example:
-
-*Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS*
-
-As we use sentence case, only the first word of a heading and subheading is capitalized. However, if a word would normally be capitalized in the sentence (e.g., a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds)) it should remain capitalized in the heading.
-
-> Note the capitalization of “macOS” in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, to which we adhere.
-
-You might’ve noticed that there isn’t a period at the end of the example heading. Fleet headings and subheadings do not use end punctuation unless the heading is a question. If the heading is a question, end the heading with a question mark.
-
-#### Bullet points
-
-Bullet points are a clean and simple way to list information. But sticking to consistent rules for punctuation and capitalization can be tough. Here’s how we do it at Fleet.
-
-##### How to introduce bullet points
-
-**Do** use a colon if you introduce a list with a complete sentence.
-
-**Do not** use a colon if you start a list right after a heading.
-
-##### How to use end punctuation with bullet points
-
-End punctuation refers to punctuation marks that are used to end sentences, such as periods, question marks, and exclamation points.
-
-**Do** use end punctuation if your bullet points are complete sentences:
-
-- Project confidence and be informative.
-- Educate users about security threats positively.
-- We never use fear as a marketing tactic.
-
-**Do not** use end punctuation if your bullet points are sentence fragments, single words, or short phrases:
-
-- Policies
-- Enterprise support
-- Self-hosted agent auto-updates
-
-**Do not** mix complete sentences with sentence fragments, single words, or short phrases. Consistency makes lists easier to read.
-
-**Do not** use commas or semicolons to end bullet points.
-
-##### How to capitalize bullet points
-
-**Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
-
-#### Commas
-
-When listing three or more things, use commas to separate the words. This is called a serial comma.
-
-**Do:** Fleet is for IT professionals, client platform engineers, and security practitioners.
-
-**Don’t:** Fleet is for IT professionals, client platform engineers and security practitioners.
-
-Aside from the serial comma, use commas, as usual, to break up your sentences. If you’re unsure whether you need a comma, saying the sentence aloud can give you a clue. If you pause or take a breath, that’s when you probably need a comma.
-
-#### Dashes and hyphens
-
-Use a hyphen to link words that function as an adjective to modify a noun or to indicate a range:
-
-- We release Fleet on a three-week cadence.
-- Osquery is an open-source agent.
-- Monday-Friday
-
-A hyphen is unnecessary when not modifying a noun:
-
-- The Fleet product is released every three weeks.
-- Osquery is open source.
-
-#### SQL Statements
-
-When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here’s an example:
-
-```sql
-   SELECT days, hours, total_seconds FROM uptime;
-```
-
-#### Grammarly
-
-All of our writers and editors have access to Grammarly, which comes with a handy set of tools, including:
-
-- **Style guide**, which helps us write consistently in the style of Fleet.
-- **Brand tones** to keep the tone of our messaging consistent with just the right amount of confidence, optimism, and joy.
-- **Snippets** to turn commonly used phrases, sentences, and paragraphs (such as calls to action, thank you messages, etc.) into consistent, reusable snippets to save time.
-
-Our favorite Grammarly feature is the tone detector. It's excellent for keeping messaging on-brand and helps alleviate the doubt that often comes along for the ride during a writing assignment. Take a look at [their video](https://youtu.be/3Ct5Tgg9Imc) that sums it up better than this.
+Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more. [Read the content style guide](./content-style-guide).
 
 ### For editors
 

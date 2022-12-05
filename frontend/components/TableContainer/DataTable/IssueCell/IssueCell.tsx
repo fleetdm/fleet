@@ -28,7 +28,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
         <img alt="host issue" src={IssueIcon} />
       </span>
       <ReactTooltip
-        place="bottom"
+        place="top"
         effect="solid"
         backgroundColor="#3e4771"
         id={`host-issue__${rowId.toString()}`}

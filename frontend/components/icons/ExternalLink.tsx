@@ -1,12 +1,13 @@
 import React from "react";
 
 interface IExternalLinkProps {
-  size: "small" | "medium";
+  size: "small" | "medium" | "large";
 }
 
 const SIZE_MAP = {
   small: "12",
   medium: "16",
+  large: "24",
 };
 
 const ExternalLink = ({ size = "small" }: IExternalLinkProps) => {

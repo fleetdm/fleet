@@ -23,7 +23,7 @@ At Fleet, we keep everything in one repo. The only exception is when we're worki
 - One repo is easier to manage. It has less surface area for keeping content up to date and reduces the risk of things getting lost and forgotten.
 - Our work is more visible and accessible to the community when all project pieces are available in one repo. 
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
-- One repo means one set of automations and labels to manage. Resulting in a consistent GitHub experience that is easier to keep organized.
+- One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
 
 ## Why organize work in team-based kanban boards?
 It's helpful to have a consistent framework for how every team works, plans, and requests things from each other. Fleet's kanban boards are that framework, and they cover three goals:
@@ -71,6 +71,21 @@ We use the concept of [directly responsible individuals](https://fleetdm.com/han
 Groups are organized around goals. Connecting people with the same goals helps them produce better results by fostering freer communication. While groups sometimes align with the organization chart, some groups consist of people who do not report to the same manager. For example, [product groups](https://fleetdm.com/handbook/product) like `#g-agent` include engineers, not just the product manager.
 
 Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
+
+## Why does Fleet value Openness?
+A lot of thought went into making Openness one of our values.
+
+It might be easier to keep company information confidential. You don’t have to think so hard about what should or shouldn’t be public. Declassifying information later carries risk. Anything you release affects how people see your company.
+
+But we prefer to focus on the benefits.
+
+Sharing information helps other organizations, which means helping more end users.
+
+Everything we release is free marketing. Publicizing information is marketing itself. We’re an open-source company after all.
+
+Sure, people might point out our mistakes. But that just helps us grow. And that’s what open source is all about: creating and improving tools together as a community.
+
+For more thoughts on Fleet's values, visit the [Values section of the Company page in our handbook](https://fleetdm.com/handbook/company#openness).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

@@ -108,6 +108,7 @@
 
         .manage-hosts__filter-dropdowns {
           display: flex;
+          margin-left: $pad-small;
         }
       }
     }
@@ -171,6 +172,16 @@
             overflow-x: scroll;
           }
           &__table {
+            thead {
+              tr {
+                th:last-child {
+                  .component__tooltip-wrapper__tip-text {
+                    left: -8px;
+                  }
+                }
+              }
+            }
+
             tbody {
               .issues__cell {
                 display: flex;
@@ -183,6 +194,7 @@
                   }
                 }
               }
+
               .device_mapping__cell {
                 .text-cell {
                   display: inline;
@@ -241,6 +253,7 @@
     display: flex;
     align-items: center;
     margin-bottom: $pad-medium;
+    gap: $pad-small; // between multiple filter pills
   }
 
   &__policies-filter-pill {

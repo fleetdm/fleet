@@ -108,6 +108,12 @@ func WithComputerName(s string) NewHostOption {
 	}
 }
 
+func WithPlatform(s string) NewHostOption {
+	return func(h *fleet.Host) {
+		h.Platform = s
+	}
+}
+
 func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now time.Time, options ...NewHostOption) *fleet.Host {
 	osqueryHostID, _ := server.GenerateRandomText(10)
 	h := &fleet.Host{

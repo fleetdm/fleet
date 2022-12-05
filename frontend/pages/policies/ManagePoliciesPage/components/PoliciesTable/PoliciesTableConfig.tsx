@@ -12,22 +12,8 @@ import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
-import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
-import FailIcon from "../../../../../../assets/images/icon-action-fail-16x16@2x.png";
-
-// TODO functions for paths math e.g., path={PATHS.MANAGE_HOSTS + getParams(cellProps.row.original)}
-
-const TAGGED_TEMPLATES = {
-  hostsByPolicyRoute: (
-    policyId: number,
-    policyResponse: PolicyResponse,
-    teamId: number | undefined | null
-  ) => {
-    return `?policy_id=${policyId}&policy_response=${policyResponse}${
-      teamId ? `&team_id=${teamId}` : ""
-    }`;
-  },
-};
+import { buildQueryStringFromParams } from "utilities/url";
+import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -67,6 +53,18 @@ interface IDataColumn {
   sortType?: string;
 }
 
+const createHostsByPolicyPath = (
+  policyId: number,
+  policyResponse: PolicyResponse,
+  teamId?: number | null
+) => {
+  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+    policy_id: policyId,
+    policy_response: policyResponse,
+    team_id: teamId,
+  })}`;
+};
+
 const getPolicyRefreshTime = (ms: number): string => {
   const seconds = ms / 1000;
   if (seconds < 60) {
@@ -99,178 +97,145 @@ const generateTableHeaders = (options: {
 }): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 
-  switch (tableType) {
-    case "inheritedPolicies":
-      return [
-        {
-          title: "Name",
-          Header: "Name",
-          disableSortBy: true,
-          accessor: "name",
-          Cell: (cellProps: ICellProps): JSX.Element => (
+  const tableHeaders: IDataColumn[] = [
+    {
+      title: "Name",
+      Header: "Name",
+      disableSortBy: true,
+      accessor: "name",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <LinkCell
+          classes="w250-sm"
+          value={cellProps.cell.value}
+          path={PATHS.EDIT_POLICY(cellProps.row.original)}
+        />
+      ),
+    },
+    {
+      title: "Yes",
+      Header: () => <PassingColumnHeader isPassing />,
+      disableSortBy: true,
+      accessor: "passing_host_count",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        if (cellProps.row.original.has_run) {
+          return (
             <LinkCell
-              value={cellProps.cell.value}
-              path={PATHS.EDIT_POLICY(cellProps.row.original)}
-              classes="" // Override default
+              value={`${cellProps.cell.value} host${
+                cellProps.cell.value.toString() === "1" ? "" : "s"
+              }`}
+              path={createHostsByPolicyPath(
+                cellProps.row.original.id,
+                PolicyResponse.PASSING,
+                selectedTeamId
+              )}
             />
-          ),
-        },
-      ];
-    default: {
-      const tableHeaders: IDataColumn[] = [
-        {
-          title: "Name",
-          Header: "Name",
-          disableSortBy: true,
-          accessor: "name",
-          Cell: (cellProps: ICellProps): JSX.Element => (
+          );
+        }
+        return (
+          <>
+            <span
+              className="text-cell text-muted has-not-run tooltip"
+              data-tip
+              data-for={`passing_${cellProps.row.original.id.toString()}`}
+            >
+              ---
+            </span>
+            <ReactTooltip
+              place="bottom"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`passing_${cellProps.row.original.id.toString()}`}
+              data-html
+            >
+              {getTooltip(cellProps.row.original.osquery_policy_ms)}
+            </ReactTooltip>
+          </>
+        );
+      },
+    },
+    {
+      title: "No",
+      Header: () => <PassingColumnHeader isPassing={false} />,
+      disableSortBy: true,
+      accessor: "failing_host_count",
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        if (cellProps.row.original.has_run) {
+          return (
             <LinkCell
-              classes="w250-sm"
-              value={cellProps.cell.value}
-              path={PATHS.EDIT_POLICY(cellProps.row.original)}
+              value={`${cellProps.cell.value} host${
+                cellProps.cell.value.toString() === "1" ? "" : "s"
+              }`}
+              path={createHostsByPolicyPath(
+                cellProps.row.original.id,
+                PolicyResponse.FAILING,
+                selectedTeamId
+              )}
             />
-          ),
-        },
-        {
-          title: "Yes",
-          Header: () => (
-            <>
-              <img alt="host passing" src={PassIcon} />
-              <span className="status-header-text">Yes</span>
-            </>
-          ),
-          disableSortBy: true,
-          accessor: "passing_host_count",
-          Cell: (cellProps: ICellProps): JSX.Element => {
-            if (cellProps.row.original.has_run) {
-              return (
-                <LinkCell
-                  value={`${cellProps.cell.value} host${
-                    cellProps.cell.value.toString() === "1" ? "" : "s"
-                  }`}
-                  path={
-                    PATHS.MANAGE_HOSTS +
-                    TAGGED_TEMPLATES.hostsByPolicyRoute(
-                      cellProps.row.original.id,
-                      PolicyResponse.PASSING,
-                      selectedTeamId
-                    )
-                  }
-                />
-              );
-            }
-            return (
-              <>
-                <span
-                  className="text-cell text-muted has-not-run tooltip"
-                  data-tip
-                  data-for={`passing_${cellProps.row.original.id.toString()}`}
-                >
-                  ---
-                </span>
-                <ReactTooltip
-                  place="bottom"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id={`passing_${cellProps.row.original.id.toString()}`}
-                  data-html
-                >
-                  {getTooltip(cellProps.row.original.osquery_policy_ms)}
-                </ReactTooltip>
-              </>
-            );
-          },
-        },
-        {
-          title: "No",
-          Header: () => (
-            <>
-              <img alt="host passing" src={FailIcon} />
-              <span className="status-header-text">No</span>
-            </>
-          ),
-          disableSortBy: true,
-          accessor: "failing_host_count",
-          Cell: (cellProps: ICellProps): JSX.Element => {
-            if (cellProps.row.original.has_run) {
-              return (
-                <LinkCell
-                  value={`${cellProps.cell.value} host${
-                    cellProps.cell.value.toString() === "1" ? "" : "s"
-                  }`}
-                  path={
-                    PATHS.MANAGE_HOSTS +
-                    TAGGED_TEMPLATES.hostsByPolicyRoute(
-                      cellProps.row.original.id,
-                      PolicyResponse.FAILING,
-                      selectedTeamId
-                    )
-                  }
-                />
-              );
-            }
-            return (
-              <>
-                <span
-                  className="text-cell text-muted has-not-run tooltip"
-                  data-tip
-                  data-for={`failing_${cellProps.row.original.id.toString()}`}
-                >
-                  ---
-                </span>
-                <ReactTooltip
-                  place="bottom"
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id={`failing_${cellProps.row.original.id.toString()}`}
-                  data-html
-                >
-                  {getTooltip(cellProps.row.original.osquery_policy_ms)}
-                </ReactTooltip>
-              </>
-            );
-          },
-        },
-        {
-          title: "Automations",
-          Header: "Automations",
-          disableSortBy: true,
-          accessor: "webhook",
-          Cell: (cellProps: ICellProps): JSX.Element => (
-            <StatusCell value={cellProps.cell.value} />
-          ),
-        },
-      ];
+          );
+        }
+        return (
+          <>
+            <span
+              className="text-cell text-muted has-not-run tooltip"
+              data-tip
+              data-for={`failing_${cellProps.row.original.id.toString()}`}
+            >
+              ---
+            </span>
+            <ReactTooltip
+              place="bottom"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`failing_${cellProps.row.original.id.toString()}`}
+              data-html
+            >
+              {getTooltip(cellProps.row.original.osquery_policy_ms)}
+            </ReactTooltip>
+          </>
+        );
+      },
+    },
+  ];
 
-      if (!canAddOrDeletePolicy) {
-        return tableHeaders;
-      }
+  if (tableType !== "inheritedPolicies") {
+    tableHeaders.push({
+      title: "Automations",
+      Header: "Automations",
+      disableSortBy: true,
+      accessor: "webhook",
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <StatusCell value={cellProps.cell.value} />
+      ),
+    });
 
-      tableHeaders.unshift({
-        id: "selection",
-        Header: (cellProps: IHeaderProps): JSX.Element => {
-          const props = cellProps.getToggleAllRowsSelectedProps();
-          const checkboxProps = {
-            value: props.checked,
-            indeterminate: props.indeterminate,
-            onChange: () => cellProps.toggleAllRowsSelected(),
-          };
-          return <Checkbox {...checkboxProps} />;
-        },
-        Cell: (cellProps: ICellProps): JSX.Element => {
-          const props = cellProps.row.getToggleRowSelectedProps();
-          const checkboxProps = {
-            value: props.checked,
-            onChange: () => cellProps.row.toggleRowSelected(),
-          };
-          return <Checkbox {...checkboxProps} />;
-        },
-        disableHidden: true,
-      });
-
+    if (!canAddOrDeletePolicy) {
       return tableHeaders;
     }
+
+    tableHeaders.unshift({
+      id: "selection",
+      Header: (cellProps: IHeaderProps) => {
+        const props = cellProps.getToggleAllRowsSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          indeterminate: props.indeterminate,
+          onChange: () => cellProps.toggleAllRowsSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const props = cellProps.row.getToggleRowSelectedProps();
+        const checkboxProps = {
+          value: props.checked,
+          onChange: () => cellProps.row.toggleRowSelected(),
+        };
+        return <Checkbox {...checkboxProps} />;
+      },
+      disableHidden: true,
+    });
   }
+
+  return tableHeaders;
 };
 
 const generateDataSet = (

@@ -180,7 +180,7 @@ const Sso = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.idp_image_url}
-            tooltip="An optional link to an image such as a logo for the identity provider."
+            tooltip="An optional link to an image such <br/>as a logo for the identity provider."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
@@ -192,7 +192,7 @@ const Sso = ({
             value={metadata}
             parseTarget
             onBlur={validateForm}
-            tooltip="Metadata provided by the identity provider. Either metadata or a metadata url must be provided."
+            tooltip="Metadata provided by the identity provider. Either<br/> metadata or a metadata url must be provided."
           />
         </div>
         <div className={`${baseClass}__inputs`}>

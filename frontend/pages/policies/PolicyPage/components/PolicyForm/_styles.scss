@@ -41,6 +41,7 @@
 
     .edit-link {
       cursor: pointer;
+      padding-left: 12px;
     }
 
     .name-description-resolve {
@@ -60,8 +61,8 @@
       .policy-name-wrapper {
         .edit-icon {
           position: relative;
-          left: 3px;
           top: 13px;
+          margin-left: 0;
         }
         .policy-form__policy-name,
         .input-sizer::after {
@@ -77,7 +78,6 @@
         padding-top: $pad-small;
         .edit-icon {
           position: relative;
-          left: 3px;
           top: 0;
         }
       }
@@ -86,6 +86,7 @@
         height: 14px;
         opacity: 1;
         transition: opacity 0.2s;
+        margin-left: 0;
         &.hide {
           opacity: 0;
         }

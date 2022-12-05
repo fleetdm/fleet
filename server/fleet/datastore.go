@@ -254,8 +254,8 @@ type Datastore interface {
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
-	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
-	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
+	AggregatedMDMStatus(ctx context.Context, teamID *uint, platform string) (AggregatedMDMStatus, time.Time, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint, platform string) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
@@ -386,10 +386,11 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
+
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
-	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
+	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
@@ -442,7 +443,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 	// CleanupStatistics executes cleanup tasks to be performed upon successful transmission of
 	// statistics.
@@ -520,6 +521,22 @@ type Datastore interface {
 	DBLocks(ctx context.Context) ([]*DBLock, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Cron Stats
+
+	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
+	// are found, it returns an empty CronStats struct.
+	GetLatestCronStats(ctx context.Context, name string) (CronStats, error)
+	// InsertCronStats inserts cron stats for the named cron schedule.
+	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
+	// UpdateCronStats updates the status of the identified cron stats record.
+	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus) error
+	// UpdateAllCronStatsForInstance updates all records for the identified instance with the
+	// specified statuses
+	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error
+	// CleanupCronStats cleans up expired cron stats.
+	CleanupCronStats(ctx context.Context) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Aggregated Stats
 
 	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
@@ -574,7 +591,7 @@ type Datastore interface {
 	UpdateHost(ctx context.Context, host *Host) error
 
 	// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
-	ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*ScheduledQuery, error)
+	ListScheduledQueriesInPack(ctx context.Context, packID uint) (ScheduledQueryList, error)
 
 	// UpdateHostRefetchRequested updates a host's refetch requested field.
 	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error
@@ -605,8 +622,9 @@ type Datastore interface {
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
-	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
+	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
+	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 

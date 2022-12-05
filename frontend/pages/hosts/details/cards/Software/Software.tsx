@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+import PATHS from "router/paths";
 
 import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
+import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -28,6 +32,13 @@ interface ISoftwareTableProps {
   deviceUser?: boolean;
   deviceType?: string;
   softwareInventoryEnabled?: boolean;
+  router?: InjectedRouter;
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const SoftwareTable = ({
@@ -36,6 +47,7 @@ const SoftwareTable = ({
   deviceUser,
   deviceType,
   softwareInventoryEnabled,
+  router,
 }: ISoftwareTableProps): JSX.Element => {
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
@@ -58,12 +70,27 @@ const SoftwareTable = ({
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
     software,
   ]);
-  const tableHeaders = useMemo(() => generateSoftwareTableHeaders(deviceUser), [
-    deviceUser,
-  ]);
+  const tableHeaders = useMemo(
+    () => generateSoftwareTableHeaders(deviceUser, router),
+    [deviceUser, router]
+  );
 
   const onVulnFilterChange = (value: boolean) => {
     setFilterVuln(value);
+  };
+
+  const handleRowSelect = (row: IRowProps) => {
+    if (deviceUser || !router) {
+      return;
+    }
+
+    const queryParams = { software_id: row.original.id };
+
+    const path = queryParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+      : PATHS.MANAGE_HOSTS;
+
+    router.push(path);
   };
 
   const renderVulnFilterDropdown = () => {
@@ -125,7 +152,8 @@ const SoftwareTable = ({
                 isClientSidePagination
                 pageSize={20}
                 isClientSideFilter
-                highlightOnHover
+                disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
+                onSelectSingleRow={handleRowSelect}
               />
             </div>
           )}

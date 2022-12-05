@@ -17,6 +17,10 @@ export default PropTypes.shape({
   updated_at: PropTypes.string.isRequired,
 });
 
+export interface IStoredPolicyResponse {
+  policy: IPolicy;
+}
+
 export interface IPolicy {
   id: number;
   name: string;
@@ -50,6 +54,10 @@ export interface ILoadAllPoliciesResponse {
   policies: IPolicyStats[];
 }
 
+export interface ILoadTeamPoliciesResponse {
+  policies: IPolicyStats[];
+  inherited_policies: IPolicyStats[];
+}
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
