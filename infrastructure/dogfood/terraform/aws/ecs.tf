@@ -167,11 +167,11 @@ resource "aws_ecs_task_definition" "backend" {
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
           },
           {
-            name      = "FLEET_MDM_APPLE_SCEP_CA_CERT_PEM"
+            name      = "FLEET_MDM_APPLE_SCEP_CERT_BYTES"
             valueFrom = "${aws_secretsmanager_secret.scep.arn}:crt::"
           },
           {
-            name      = "FLEET_MDM_APPLE_SCEP_CA_KEY_PEM"
+            name      = "FLEET_MDM_APPLE_SCEP_KEY_BYTES"
             valueFrom = "${aws_secretsmanager_secret.scep.arn}:key::"
           },
           {
@@ -179,11 +179,11 @@ resource "aws_ecs_task_definition" "backend" {
             valueFrom = "${aws_secretsmanager_secret.scep.arn}:challenge::"
           },
           {
-            name      = "FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM"
+            name      = "FLEET_MDM_APPLE_APNS_CERT_BYTES"
             valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM::"
           },
           {
-            name      = "FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM"
+            name      = "FLEET_MDM_APPLE_APNS_KEY_BYTES"
             valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM::"
           },
           {
