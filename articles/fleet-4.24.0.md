@@ -13,6 +13,8 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Know who ran what query as a live query
 **Available in Fleet Free and Fleet Premium**
 
+![Know who ran what query as a live query](../website/assets/images/articles/fleet-4.24.0-add-query-name-and-sql-to-activity-800x450@2x.gif)
+
 Fleet 4.24.0 gives you greater visibility into who ran live queries. These insights will help you create a richer audit trail and test the performance impact of specific queries.
 
 You’ll see these notifications in the activity feed on the Dashboard page. Each notification will include the user’s name, as well as an option to show the query. If the query has been saved, you’ll also see the query’s name. If the query hasn’t been saved, no query name will be included.
@@ -21,6 +23,8 @@ Selecting *Show query* opens the Query modal, which displays the query’s SQL.
 
 ## Enjoy easier navigation on Host details and Dashboard pages
 **Available in Fleet Free and Fleet Premium**
+
+![Enjoy easier navigation on Host details and Dashboard pages](../website/assets/images/articles/fleet-4.24.0-back-button-navigation-800x500@2x.gif)
 
 Previous versions of Fleet made it easy to find rich data about individual endpoints. But returning from these searches wasn’t so convenient. Clicking back in your browser would take you too far back, requiring you to reselect tabs or reapply filters. We fixed that in Fleet 4.24.0.
 
