@@ -203,7 +203,7 @@ module.exports = {
 
     Open pull requests
     ---------------------------
-    Number of open pull requests in the fleetdm/fleet Github Repo: ${daysSincePullRequestsWereOpened.length}
+    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
     Average open time: ${averageDaysPullRequestsAreOpenFor} days.`);
   }
 
