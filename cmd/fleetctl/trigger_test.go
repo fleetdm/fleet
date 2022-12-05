@@ -49,26 +49,26 @@ func TestTrigger(t *testing.T) {
 		},
 	}
 
-	startTestSchedFn := func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
-		return func() (fleet.CronSchedule, error) {
-			s := schedule.New(ctx, name, instanceID, interval,
-				schedule.SetupMockLocker(name, instanceID, time.Now().Add(-1*time.Hour)),
-				schedule.SetUpMockStatsStore(name),
-				schedule.WithJob("test_job",
-					func(context.Context) error {
-						time.Sleep(10 * time.Second)
-						return nil
-					}))
-			return s, nil
-		}
-	}
-
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
 	_, _ = runServerWithMockedDS(t, &service.TestServerOpts{
-		Logger:             kitlog.NewNopLogger(),
-		StartCronSchedules: []service.TestNewScheduleFunc{startTestSchedFn},
+		Logger: kitlog.NewNopLogger(),
+		StartCronSchedules: []service.TestNewScheduleFunc{
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					s := schedule.New(ctx, name, instanceID, interval,
+						schedule.SetupMockLocker(name, instanceID, time.Now().Add(-1*time.Hour)),
+						schedule.SetUpMockStatsStore(name),
+						schedule.WithJob("test_job",
+							func(context.Context) error {
+								time.Sleep(100 * time.Millisecond)
+								return nil
+							}))
+					return s, nil
+				}
+			},
+		},
 	})
 
 	for _, c := range testCases {
