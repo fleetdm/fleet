@@ -2,7 +2,7 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
-import { IPack } from "interfaces/pack";
+import { IPack, IStoredPacksResponse } from "interfaces/pack";
 import { IError } from "interfaces/errors";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -21,10 +21,6 @@ const baseClass = "manage-packs-page";
 
 interface IManagePacksPageProps {
   router: InjectedRouter; // v3
-}
-
-interface IPacksResponse {
-  packs: IPack[];
 }
 
 const renderTable = (
@@ -69,14 +65,14 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     error: packsError,
     isFetching: isLoadingPacks,
     refetch: refetchPacks,
-  } = useQuery<IPacksResponse, IError, IPack[]>(
+  } = useQuery<IStoredPacksResponse, IError, IPack[]>(
     "packs",
     () => packsAPI.loadAll(),
     {
       // refetchOnMount: false,
       // refetchOnReconnect: false,
       refetchOnWindowFocus: false,
-      select: (data: IPacksResponse) => data.packs,
+      select: (data: IStoredPacksResponse) => data.packs,
     }
   );
 

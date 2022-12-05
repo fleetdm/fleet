@@ -91,9 +91,9 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
  
-5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+5. Invoices should be sent to Nathan Holliday for approval.
  
-6. Eric Shaw (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
+6. Nathan Holliday (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
@@ -260,7 +260,7 @@ Once approved in the sheet, or submitted through [Typeform](https://admin.typefo
 
 When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
 
-Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
 
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 

@@ -256,6 +256,7 @@ type osqueryOptions struct {
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
@@ -451,6 +452,7 @@ type osqueryCommandLineFlags struct {
 	OsqueryCommandLineFlagsLinux
 	OsqueryCommandLineFlagsWindows
 	OsqueryCommandLineFlagsMacOS
+	OsqueryCommandLineFlagsHidden
 }
 
 // the following structs are for OS-specific command-line flags supported by
@@ -470,14 +472,31 @@ type OsqueryCommandLineFlagsWindows struct {
 	EnablePowershellEventsSubscriber bool   `json:"enable_powershell_events_subscriber"`
 	EnableWindowsEventsPublisher     bool   `json:"enable_windows_events_publisher"`
 	EnableWindowsEventsSubscriber    bool   `json:"enable_windows_events_subscriber"`
+	NtfsEventPublisherDebug          bool   `json:"ntfs_event_publisher_debug"`
 	WindowsEventChannels             string `json:"windows_event_channels"`
+	UsnJournalReaderDebug            bool   `json:"usn_journal_reader_debug"`
 }
 
 type OsqueryCommandLineFlagsMacOS struct {
 	DisableEndpointsecurity    bool   `json:"disable_endpointsecurity"`
 	DisableEndpointsecurityFim bool   `json:"disable_endpointsecurity_fim"`
+	EnableKeyboardEvents       bool   `json:"enable_keyboard_events"`
+	EnableMouseEvents          bool   `json:"enable_mouse_events"`
 	EsFimMutePathLiteral       string `json:"es_fim_mute_path_literal"`
 	EsFimMutePathPrefix        string `json:"es_fim_mute_path_prefix"`
+}
+
+// those osquery flags are not OS-specific, but are also not visible using
+// osqueryd --help or select * from osquery_flags, so they can't be generated
+// by the osquery-agent-options script.
+type OsqueryCommandLineFlagsHidden struct {
+	AlsoLogToStderr       bool   `json:"alsologtostderr"`
+	EventsStreamingPlugin string `json:"events_streaming_plugin"`
+	LogBufSecs            int32  `json:"logbufsecs"`
+	LogDir                string `json:"log_dir"`
+	MaxLogSize            int32  `json:"max_log_size"`
+	MinLogLevel           int32  `json:"minloglevel"`
+	StopLoggingIfFullDisk bool   `json:"stop_logging_if_full_disk"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,

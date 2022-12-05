@@ -21,6 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
+
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +30,7 @@ import (
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
-// AppConfig, in the past we have seen this test fail with a data race warning.
+// AppConfig, Lock, and Unlock, in the past we have seen this test fail with a data race warning.
 //
 // TODO: if we see other tests failing for similar reasons, we should build a
 // more robust pattern instead of doing this everywhere
@@ -42,6 +44,20 @@ func (s *safeStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.AppConfigFunc(ctx)
+}
+
+func (s *safeStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+	s.mu.Lock()
+	s.LockFuncInvoked = true
+	s.mu.Unlock()
+	return s.LockFunc(ctx, name, owner, expiration)
+}
+
+func (s *safeStore) Unlock(ctx context.Context, name string, owner string) error {
+	s.mu.Lock()
+	s.UnlockFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnlockFunc(ctx, name, owner)
 }
 
 func TestMaybeSendStatistics(t *testing.T) {
@@ -191,12 +207,15 @@ func TestAutomationsSchedule(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
-	}
+
+	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
@@ -220,7 +239,9 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
+	require.NoError(t, err)
+	s.Start()
 
 	<-calledOnce
 	time.Sleep(1 * time.Second)
@@ -234,17 +255,11 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{EnableSoftwareInventory: true},
 		}, nil
-	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
 	}
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
@@ -260,6 +275,15 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		return nil
 	}
 
+	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
 
@@ -270,7 +294,9 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	require.NoError(t, err)
+	s.Start()
 
 	require.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
@@ -476,7 +502,7 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	appConfig := &fleet.AppConfig{
 		Features: fleet.Features{EnableSoftwareInventory: true},
 	}
-	ds := new(mock.Store)
+	ds := new(safeStore)
 
 	// creating a file with the same path should result in an error when creating the directory
 	fileVulnPath := filepath.Join(t.TempDir(), "somefile")
@@ -498,20 +524,23 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	ds := new(mock.Store)
+	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		// features.enable_software_inventory is false
 		return &fleet.AppConfig{}, nil
 	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
-	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
 		return nil
 	}
+
+	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -524,7 +553,9 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	startVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	require.NoError(t, err)
+	s.Start()
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -562,6 +593,8 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	failingPolicies := make(chan struct{})
 	failingPoliciesClosed := false
 	unknownName := false
+
+	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		if expiration != expectedInterval {
 			return false, nil
@@ -579,16 +612,21 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		default:
 			unknownName = true
 		}
-		return true, nil
+		return mockLocker.Lock(ctx, name, owner, expiration)
 	}
-	ds.UnlockFunc = func(context.Context, string, string) error {
-		return nil
-	}
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
+	require.NoError(t, err)
+	s.Start()
 
 	select {
 	case <-failingPolicies:
@@ -631,23 +669,22 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		}, nil
 	}
 
-	lockCalled := make(chan struct{}, 1)
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		select {
-		case lockCalled <- struct{}{}:
-		default:
-			// OK
-		}
-		return true, nil
-	}
-	ds.UnlockFunc = func(context.Context, string, string) error {
-		return nil
-	}
+	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	mockLocker.AddChannels(t, "locked")
+	ds.LockFunc = mockLocker.Lock
+	ds.UnlockFunc = mockLocker.Unlock
+
+	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
+	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
+	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	startAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	require.NoError(t, err)
+	s.Start()
 
 	// wait for config to be called once by startAutomationsSchedule and again by configReloadFunc
 	for c := 0; c < 2; c++ {
@@ -663,7 +700,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	interval.Unlock()
 
 	select {
-	case <-lockCalled:
+	case <-mockLocker.Locked:
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout: interval change did not trigger lock call")
 	}

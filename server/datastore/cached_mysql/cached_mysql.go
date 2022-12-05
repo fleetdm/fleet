@@ -208,10 +208,10 @@ func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet
 	return packs, nil
 }
 
-func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 	key := fmt.Sprintf(scheduledQueriesKey, packID)
 	if x, found := ds.c.Get(key); found {
-		scheduledQueries, ok := x.([]*fleet.ScheduledQuery)
+		scheduledQueries, ok := x.(fleet.ScheduledQueryList)
 		if ok {
 			return scheduledQueries, nil
 		}

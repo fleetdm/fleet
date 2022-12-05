@@ -320,30 +320,25 @@
 
   }
   [purpose='edit-button'] {
+    display: block;
     color: @core-vibrant-blue;
-    font-size: 12px;
+    font-size: 14px;
     cursor: pointer;
     border: 1px solid @core-vibrant-blue;
     border-radius: 4px;
     width: fit-content;
     padding: 8px 12px;
     text-decoration: none;
-    a {
-      color: @core-vibrant-blue;
-      size: 14px;
-      line-height: 20px;
-      font-weight: 700;
-    }
+    line-height: 20px;
+    font-weight: 700;
     i {
       height: 16px;
       margin-left: 5px;
     }
     &:hover {
       background: @core-vibrant-blue;
-      a {
-        text-decoration: none;
-        color: @accent-white;;
-      }
+      color: @accent-white;
+      text-decoration: none;
     }
   }
   [purpose='slack-cta'] {

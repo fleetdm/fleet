@@ -8,8 +8,51 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 | Level of impact | Type of support |
 | :--- | :--- |
-| Low to medium impact | Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat/email support during business hours </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> Response time: **≤4 hours** |
+| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
+
+## New Customer Onboarding Workflow
+
+This workflow outlines the process that sales and customer success can follow when a new deal closes. 
+
+1. (AE) A customer is sent an order form
+    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
+    - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
+    - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
+        - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
+        - BizOps will cc the AE and stay cc’d on the contract when the final copy is sent to the CEO for Fleet execution. 
+        - Note: The Chief Revenue Officer serves as the backup to BizOps
+2. The Customer and Fleet sign the order form.
+    - (AE) The AE adds the fully executed contract to the opportunity record.
+    - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+3. (AE) The AE creates a 'New Sale Issue'
+    - They complete the AE tasks listed at the top of the issue.
+    - Then they assign the issue to BizOps and the Head of Customer Success (CS).
+    - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
+    - Prepare to review:
+        - Details of the deal
+        - Primary contact / their role
+        - Desired use cases / desired outcomes
+        - Reasons for purchase
+        - Previously using Fleet Free?
+        - Support tier (Premium or Ultimate)
+        - Competitive solutions in place
+        - Other relevant technologies in place 
+        - Any proof of concept (POC) notes that are relevant
+        - Customer expectations for timeline
+        - Server deployment type
+4. (CS) The Head of CS kicks off the CS responsibilities in the 'New Sale Issue'
+    - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
+    - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
+    - Create the customer Slack channel
+    - Generate the customer license key 
+    - Share the license key with the customer (7 day link)
+    - Schedule the customer onboarding kickoff call
+    - Collect deployment details (if not completed during POC)
+    - Schedule the recurring customer check-in
+    - Owns running the meeting, note taking, TODO follow up, etc. 
+
 
 ## Customer success calls
 
@@ -103,6 +146,39 @@ I wanted to personally apologize for our mistake and let you know we're looking 
 
 Thank you for trying Fleet!"
 
+### Customer support workflow for Slack + Zendesk
+
+#### This section outlines both the automated workflows and manual triggers associated with Fleet's Slack integration to Zendesk. The purpose of this integration is to:
+- Provide Fleet with better service level agreement (SLA) tracking on requests (especially those submitted outside of business hours)
+- Better track threads for issues that require advanced troubleshooting
+- Consolidate support requests into a single-source, searchable system for faster issue resolution in the future 
+
+
+#### There are three different situations when a customer support request could result in a ticket being created in Zendesk. They are as follows: 
+1. When a request has been submitted outside of business hours via Slack automation
+2. When a Fleet staff member has flagged an issue that requires advanced troubleshooting and determines that they want to move it into Zendesk for management 
+3. When any Fleet user submits a support request via email
+
+
+#### Workflow when a request is submitted outside of business hours:
+1. A new message is posted in any Slack channel
+2. (Zapier filter) The automation will continue if the message is:
+    - Not from a Fleet team member
+    - Posted outside of Fleet’s business hours
+    - In a specific customer channel (manually designated by Customer Success)   
+3. (Zendesk) Search for an existing Zendesk ticket by the Slack thread ID or create one if it does not exist.
+4. (Slack) If a new Zendesk ticket was created, reply to the Slack message in a thread.
+    - Hi @username, it's currently outside Fleet's support hours. (6am - 4pm PT). We've created a support ticket based on your message, and a Fleet team member will respond as soon as possible. If you have more questions or comments, feel free to reply in this thread, and we'll add them to the ticket.
+5. (Zendesk) If an existing Zendesk ticket was found by the search, add the Slack message to the existing ticket as a new comment.
+
+#### Things to note: 
+- New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
+- New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
+- This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
+
+#### Workflow when a request is submitted outside of business hours:
+![Screen Shot 2022-12-01 at 11 39 54 AM](https://user-images.githubusercontent.com/114112018/205109512-d35f4907-1169-41f5-acab-e23e3506e050.png)
+
 ## Customer requests
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
 
@@ -166,11 +242,11 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ### Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [pdf](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager [here](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1VJu5DFDH4aveWFRhkvBHAqsZAdayMyZE/view?usp=share_link).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1Z7WsGt9AteSMvHfjcFZcgYBH02Ki1AMs/view?usp=sharing).
 
 ### Intro video
 

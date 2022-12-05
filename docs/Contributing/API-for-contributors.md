@@ -1306,7 +1306,7 @@ These API routes are used by the Fleet UI.
 
 ### Check live query status
 
-This checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
+This checks the status of Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/live_query`
 
@@ -1933,6 +1933,37 @@ o
   }
 ]
 ```
+
+---
+
+## Trigger cron schedule
+
+This API is used by the `fleetctl` CLI tool to make requests to trigger an ad hoc run of all jobs in
+a specified cron schedule.
+
+### Trigger
+
+This makes a request to trigger the specified cron schedule. Upon receiving the request, the Fleet
+server first checks the current status of the schedule, and it returns an error if a run is
+currently pending.
+
+`POST /api/latest/fleet/trigger`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                        |
+| --------------- | ------ | ----- | ---------------------------------------------------|
+| name            | string | query | The name of the cron schedule to trigger.          |
+
+#### Example
+
+`POST /api/latest/fleet/trigger?name=automations`
+
+##### Default response
+
+`Status: 200`
+
+---
 
 ### Device-authenticated routes
 

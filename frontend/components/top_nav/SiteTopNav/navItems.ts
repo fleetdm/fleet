@@ -32,7 +32,7 @@ export default (
       iconName: "logo",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/dashboard`),
-        pathname: PATHS.HOME,
+        pathname: PATHS.DASHBOARD,
       },
     },
   ];

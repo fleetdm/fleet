@@ -75,7 +75,7 @@ Try to stay within three or four heading levels. Detailed documents may use more
 #### Sentence case
 Fleet uses sentence case capitalization for all headings across the Fleet product, fleetdm.com, our documentation, and our marketing material. In sentence case, we write titles as if they were sentences:
 
-- Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
+> Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
 As we use sentence case, only the first word of a heading and subheading is capitalized. However, if a word would normally be capitalized in the sentence (e.g., a proper noun) it should remain capitalized in the heading.
 

@@ -30,6 +30,9 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       <RegistrySearch Key="SOFTWARE\FleetDM\Orbit" Root="HKLM" Type="raw" Id="APPLICATIONFOLDER_REGSEARCH" Name="Path" />
     </Property>
 
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+    <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
+
     <MediaTemplate EmbedCab="yes" />
 
     <MajorUpgrade AllowDowngrades="yes" />

@@ -6,6 +6,7 @@ import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
+import { ILicense } from "./config";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -87,6 +88,8 @@ export interface IMunkiData {
 export interface IMDMData {
   enrollment_status: string;
   server_url: string;
+  id: number;
+  name: string;
 }
 
 export interface IMunkiIssue {
@@ -130,6 +133,17 @@ interface IGeoLocation {
 interface IBattery {
   cycle_count: number;
   health: string;
+}
+
+export interface IHostResponse {
+  host: IHost;
+}
+export interface IDeviceUserResponse {
+  host: IHost;
+  license: ILicense;
+  org_logo_url: string;
+  disk_encryption_enabled?: boolean;
+  platform?: string;
 }
 
 export interface IHost {

@@ -6,7 +6,6 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import FleetMarkdown from "components/FleetMarkdown";
-import Icon from "components/Icon";
 
 import QueryTableColumns from "./QueryTableColumns";
 import QueryTablePlatforms from "./QueryTablePlatforms";
@@ -15,6 +14,7 @@ import QueryTablePlatforms from "./QueryTablePlatforms";
 import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png";
 import QueryTableExample from "./QueryTableExample";
 import QueryTableNotes from "./QueryTableNotes";
+import EventedTableTag from "./EventedTableTag";
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsQueryTable;
@@ -78,12 +78,7 @@ const QuerySidePanel = ({
         </h2>
         {renderTableSelect()}
       </div>
-      {evented && (
-        <div className={`${baseClass}__evented-table-tag`}>
-          <Icon name="calendar-check" className={`${baseClass}__event-icon`} />
-          <span>EVENTED TABLE</span>
-        </div>
-      )}
+      {evented && <EventedTableTag selectedTableName={name} />}
       <div className={`${baseClass}__description`}>
         <FleetMarkdown markdown={description} />
       </div>
