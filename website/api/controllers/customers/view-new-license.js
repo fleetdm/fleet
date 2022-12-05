@@ -27,7 +27,10 @@ module.exports = {
     if (!this.req.me) {
       throw {redirect: '/customers/register'};
     }
-
+    // If the user is a super admin, we'll redirect them to the generate-license page.
+    if(this.req.me.isSuperAdmin) {
+      throw {redirect: '/admin/generate-license'};
+    }
     // If the user has a license key, we'll redirect them to the customer dashboard.
     let userHasExistingSubscription = await Subscription.findOne({user: this.req.me.id});
     if (userHasExistingSubscription) {
