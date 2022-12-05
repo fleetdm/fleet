@@ -465,7 +465,7 @@ Once you have the above follow these steps:
 **Things to keep in mind when generating newsletter emails:**
 
 - The emails will be generated using the Markdown file locally, any changes present in the local Markdown file will be reflected in the generated email.
-- HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to the digital experience team for help.
+- HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to [Eric Shaw](https://github.com/eashaw) for help.
 - The filename of the generated email will have periods changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `fleet-4-19-0.ejs`
 
 ### Using Figma
