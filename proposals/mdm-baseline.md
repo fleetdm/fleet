@@ -21,20 +21,6 @@ host in the `hosts` table.
   in the application logic exist and the right indexes are created for fast
   access.
 
-Notes:
-    - lot of non-optional fields, probably have API changes.
-    - so far osquery_host_id
-    - add unique index to `hosts.uuid` (including when a host is enrolling via MDM)
-    - find out if DEP APIs return the UUID
-        - we might have to do the same for `hosts.hardware_serial`
-    - add columns for MDM status (pending, ...)
-    - update DEP syncer to insert hosts, and update its status
-    - update host mdm status during enrollment
-    - see what data we can populate in the `hosts` table when during MDM
-      enrollment (both from DEP apis and during the enrollment check-in)
-        - note: ProductName is the same as `hosts.hardware_model`
-    - enrollment profiles for multiple users, see macOS extensions in spec
-
 Currently, the code thinks of these two tables as two disjoint sets of elements
 that represent the same entity: a host.
 
@@ -50,19 +36,29 @@ Motivation:
 
 `hosts` should always be the source of truth, we could consider
 `nano_enrollments` the same way we treat  the "auxiliary" `hosts_*` tables (eg:
-`host_disks`): as tables holding metadata for a host. Consequentially we should
-update MDM tables as necessary to have a `host_id` attribute (we don't use
-foreign keys for the `host_*` tables).
+`host_disks`): as tables holding metadata for a host. 
 
 When we get information through MDM channels (be it via an enrollment, or via
-the DEP API notifying a new device purchased,) we always get a device UUID or a
-serial number, and we should:
+the DEP API notifying a new device purchased,) we always get a device serial
+number.
 
-1. Ensure there's a host in the `hosts` table with that UUID or serial number (insert one if there isn't.)
+1. Ensure there's a host in the `hosts` table with that serial number (insert
+   one if there isn't.) Try to pre-populate as much info as possible from the
+   MDM payload (eg: `ProductName` is `hosts.hardware_model`)
 1. Create a new entry in the related `nano_*` table pointing to the host.
 
-If a host doesn't have a corresponding entry in the `nano_*` table, we can assume it's not MDM enrolled.
+This implies that we must add an uniqueness constraint for the serial number in both tables.
 
+We should also add a new column or table to track the MDM enrolling status
+("pending", "enrolled") without having to `JOIN` both tables.
+
+#### TODO:
+
+1. Investigate what are the non-optional fields in the `hosts` table, and if
+   having default empty values for some of them requires a breaking change.
+1. Investigate the consequences of using a serial number to uniquely identify
+   hosts, eg: what happens if two users on the same machine use different
+   enrollment profiles? See "macOS extensions" in MDM spec for details.
 
 ### Problem: Issue an MDM command and monitor it’s status in fleet
 
@@ -84,22 +80,50 @@ If a host doesn't have a corresponding entry in the `nano_*` table, we can assum
 
 ### Problem: ingesting/storing data from MDM
 
-- examples: recovery key, list of profiles, security info.
-- keep this data in sync (even if it's not initiated by users), probably a cron job
-- all of this involves issuing a command, monitoring its output and "ingesting"
-  the output.
-- for profiles:
-    - make sure they're in sync in order to:
-        - issue the command only to host that need it
-        - validate that the host has the latest profile
-- probably a new table? `host_profiles`, `profiles_last_sync_at`, `sync_status`
-    - think if we need to store the profile raw contents.
+Some features require information that can only be accessed through MDM, for example:
+
+1. The recovery key for a host.
+1. The list of currently installed profiles.
+1. Security information.
+
+We need to stablish a pattern to ingest and keep this data in sync, similarly
+to how we do for data coming from `osquery`.
+
+#### Proposed solution
+
+Implement a cron job that:
+
+1. Issues the necessary commands.
+1. Monitors their output.
+1. Ingests the data.
+
+Driving example: we need a list of the currently installed profiles in a host
+to check if its current status matches the desired status. To do this we need to:
+
+1. Issue a `ProfileList` command to all devices.
+1. Monitor its output until we get a response.
+1. In a table (real names TBD) `host_profiles` set `profiles`, `last_sync_at` and `sync_status`.
 
 
-### Problem: Storing installers, profile files and installers
+#### TODO
 
-We currently store everything in MySQL.
+1. Timeout for command responses.
+1. Crash response, retries.?
 
-- Use a blob storage, start with S3
-- Investigate into using signed URLs instead of buffering the content through fleet
-    - Note: signed URLs is probably an Amazon
+### Problem: Storing scripts, profile files and installers
+
+We currently store everything in MySQL, we should move all of this to a blob
+storage.
+
+We could start with S3, which is a standard API not tied to S3 to store the
+installers. We already have S3 logic to store installers and carves.
+
+#### TODO:
+
+- Investigate using pre-signed URLs instead of buffering the file contents
+  through Fleet (`n` installers * `m` devices.) We were worried about those in
+  the past because while they are part of the S3 common API, they might not be
+  supported by non-Amazon vendors.
+    - A quick search yields that MinIO, Google and Azure support pre-signed
+      URLs, but we need to confirm that we can use the same API to request the
+      URLs.
