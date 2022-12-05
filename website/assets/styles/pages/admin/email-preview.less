@@ -1,0 +1,76 @@
+#email-preview {
+  padding-top: 80px;
+  padding-bottom: 80px;
+  overflow-x: scroll;
+
+  h2 {
+    font-size: 24px;
+    margin-bottom: 0px;
+  }
+  h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 0px;
+  }
+
+  [purpose='form-factors'] {
+    margin-top: 40px;
+    margin-bottom: 40px;
+  }
+
+  [purpose='preview-title'] {
+    max-width: 1200px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  [purpose='preview-selector'] {
+    cursor: pointer;
+    border: solid 1px @core-vibrant-blue-15;
+    min-width: 160px;
+    background-color: #FAFAFA;
+    height: 40px;
+    border-radius: 4px;
+    padding: 9px 16px 9px;
+    img {
+      margin-left: auto;
+    }
+  }
+  [purpose='preview-selector-dropwdown'] {
+    cursor: pointer;
+  }
+
+  .pretend-inbox-wrapper-for-sample-email {
+    margin-left: auto;
+    margin-right: auto;
+    .preview-iframe {
+      margin-top: 40px;
+      border: 1px solid #666;
+      width: 100%;
+      height: 900px;
+      max-width: 100%;
+    }
+    &.simulate-320px-width {
+      width: 320px;
+    }
+    &.simulate-480px-width {
+      width: 480px;
+    }
+    &.simulate-768px-width {
+      width: 768px;
+    }
+    &.simulate-1024px-width {
+      width: 1024px;
+    }
+  }
+  @media (max-width: 768px) {
+    padding-top: 40px;
+    h2 {
+      font-size: 20px;
+    }
+    h3 {
+      font-size: 18px;
+    }
+  }
+
+}

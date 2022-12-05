@@ -208,6 +208,21 @@ module.exports.routes = {
     },
   },
 
+  'GET /admin/email-preview': {
+    action: 'admin/view-email-templates',
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
+  'GET /admin/email-preview/*': {
+    action: 'admin/view-email-template-preview',
+    skipAssets: true,
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
   'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
   },
