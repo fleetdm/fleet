@@ -1,18 +1,18 @@
 module.exports = {
 
 
-  friendlyName: 'Get Bug and PR report',
+  friendlyName: 'Get bug and PR report',
 
 
   description: 'Get information about open bugs and closed pull requests in the fleetdm/fleet GitHub repo.',
 
 
-  exits: {
+  inputs: {
 
   },
 
 
-  fn: async function () {
+  fn: async function ({}) {
 
     sails.log('Getting average open time for issues with the "bug" label and open pull requests in the fleetdm/fleet Github repo...');
 
