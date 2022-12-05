@@ -1,0 +1,79 @@
+#generate-license {
+  padding-top: 80px;
+
+  h1 {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  [purpose='form'] {
+    max-width: 480px;
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type='number'] {
+      -moz-appearance: textfield;
+    }
+    label {
+      font-weight: 400;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      height: 40px;
+      border-radius: 6px;
+    }
+    .card {
+      border-radius: 6px;
+    }
+    .card-body {
+      padding: 2em;
+    }
+  }
+  [purpose='cloud-error'] {
+    max-width: fit-content;
+  }
+  [purpose='submit-button'] {
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 4px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    display: flex;
+    span {
+      display: inline;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 16px;
+      line-height: 20px;
+      text-align: center;
+      font-weight: 400;
+    }
+
+  }
+
+  [purpose='result'] {
+    border: 1px solid @bg-lt-gray;
+    padding: 4px 6px;
+    border-radius: 4px;
+    position: relative;
+    code {
+      font: @code-font;
+      color: @core-fleet-black;
+    }
+  }
+  [purpose='copy-button'] {
+    cursor: pointer;
+    color: @core-vibrant-blue;
+  }
+  [purpose='copied-notification'] {
+    display: none;
+    font-weight: 400;
+    position: absolute;
+    top: -30px;
+    right: 0px;
+    font-size: 16px;
+    line-height: 20px;
+    white-space: nowrap;
+    color: @core-vibrant-blue;
+  }
+}

@@ -9,7 +9,15 @@
   a {
     color: @core-vibrant-blue;
   }
-
+  [purpose='customer-login-container'] {
+    max-width: 800px;
+  }
+  [purpose='login-container'] {
+    max-width: 600px;
+    [purpose='customer-portal-form'] {
+      max-width: 480px;
+    }
+  }
   [purpose='customer-portal-form'] {
     label {
       font-weight: 700;
