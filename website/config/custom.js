@@ -143,7 +143,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
-    
+
     // Folders of configuration files
     'mdm_profiles': 'guillaumeross',
     'vpn': 'rfairburn',
