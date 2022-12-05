@@ -59,6 +59,7 @@ type getSignedAPNSCSRRequest struct {
 	CSR []byte `json:"csr"`
 }
 
+// GetSignedAPNSCSR makes a request to the fleetdm.com API to get a signed apns csr that is sent to the email provided in the certificate subject.
 func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	csrPEM := EncodeCertRequestPEM(csr)
 
