@@ -67,8 +67,8 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 		require.Equal(t, c.Name, res.Name)
 		require.Equal(t, c.Instance, res.Instance)
 		require.Equal(t, c.Status, res.Status)
-		require.Equal(t, now, res.CreatedAt)
-		require.Equal(t, now, res.UpdatedAt)
+		require.WithinRange(t, res.CreatedAt, now, now.Add(1*time.Second))
+		require.WithinRange(t, res.UpdatedAt, now, now.Add(1*time.Second))
 		results = append(results, res)
 	}
 
@@ -79,7 +79,7 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	}
 
 	var updatedResults []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats")
+	err := sqlx.SelectContext(ctx, ds.reader, &updatedResults, "SELECT * FROM cron_stats ORDER BY id")
 	require.NoError(t, err)
 	require.Len(t, updatedResults, len(cases))
 	for i, r := range updatedResults {
@@ -90,9 +90,9 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 		require.Equal(t, fleet.CronStatsStatusCompleted, r.Status)
 		require.Equal(t, results[i].CreatedAt, r.CreatedAt)
 		if cases[i].Status != fleet.CronStatsStatusCompleted {
-			require.Equal(t, start.Add(2*time.Second), r.UpdatedAt)
+			require.WithinRange(t, r.UpdatedAt, start.Add(2*time.Second), time.Now())
 		} else {
-			require.Equal(t, start, r.UpdatedAt)
+			require.Equal(t, results[i].UpdatedAt, r.UpdatedAt)
 		}
 	}
 
@@ -106,11 +106,8 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, cases[1].Instance, res.Instance)
 	require.Equal(t, fleet.CronStatsStatusCompleted, res.Status)
 	require.Equal(t, results[1].CreatedAt, res.CreatedAt)
-	if cases[2].Status != fleet.CronStatsStatusCompleted {
-		require.Equal(t, start.Add(2*time.Second), res.UpdatedAt)
-	} else {
-		require.Equal(t, start, res.UpdatedAt)
-	}
+	require.WithinRange(t, res.UpdatedAt, start.Add(2*time.Second), time.Now()) // second case was updated from pending to completed
+
 	res, err = ds.GetLatestCronStats(ctx, "sched2")
 	require.NoError(t, err)
 	// sixth case was the last inserted for sched2
@@ -119,11 +116,8 @@ func TestGetInsertUpdateCronStats(t *testing.T) {
 	require.Equal(t, cases[5].Instance, res.Instance)
 	require.Equal(t, fleet.CronStatsStatusCompleted, res.Status)
 	require.Equal(t, results[5].CreatedAt, res.CreatedAt)
-	if cases[5].Status != fleet.CronStatsStatusCompleted {
-		require.Equal(t, start.Add(2*time.Second), res.UpdatedAt)
-	} else {
-		require.Equal(t, start, res.UpdatedAt)
-	}
+	require.Equal(t, results[5].CreatedAt, res.CreatedAt)
+	require.Equal(t, results[5].UpdatedAt, res.UpdatedAt) // sixth case wasn't updated
 }
 
 func TestCleanupCronStats(t *testing.T) {
@@ -160,7 +154,7 @@ func TestCleanupCronStats(t *testing.T) {
 		},
 		{
 			createdAt:               now.Add(-2 * time.Hour),
-			status:                  fleet.CronStatsStatusPending,
+			status:                  fleet.CronStatsStatusExpired,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     false,
 		},
@@ -197,7 +191,7 @@ func TestCleanupCronStats(t *testing.T) {
 	}
 
 	var stats []fleet.CronStats
-	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats`)
+	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases))
 	for i, s := range stats {
@@ -205,9 +199,11 @@ func TestCleanupCronStats(t *testing.T) {
 		require.Equal(t, cases[i].status, s.Status)
 	}
 
-	ds.CleanupCronStats(ctx)
+	err = ds.CleanupCronStats(ctx)
+	require.NoError(t, err)
+
 	stats = []fleet.CronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats`)
+	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
 	require.NoError(t, err)
 	require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
 	for i, c := range cases {
@@ -219,6 +215,89 @@ func TestCleanupCronStats(t *testing.T) {
 			require.Equal(t, fleet.CronStatsStatusExpired, stats[i].Status)
 		} else {
 			require.Equal(t, c.status, stats[i].Status)
+		}
+	}
+}
+
+func TestUpdateAllCronStatsForInstance(t *testing.T) {
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	cases := []struct {
+		instance     string
+		schedName    string
+		status       fleet.CronStatsStatus
+		shouldUpdate bool
+	}{
+		{
+			instance:     "inst1",
+			schedName:    "sched1",
+			status:       fleet.CronStatsStatusCompleted,
+			shouldUpdate: false,
+		},
+		{
+			instance:     "inst1",
+			schedName:    "sched1",
+			status:       fleet.CronStatsStatusPending,
+			shouldUpdate: true,
+		},
+		{
+			instance:     "inst1",
+			schedName:    "sched2",
+			status:       fleet.CronStatsStatusExpired,
+			shouldUpdate: false,
+		},
+		{
+			instance:     "inst1",
+			schedName:    "sched2",
+			status:       fleet.CronStatsStatusPending,
+			shouldUpdate: true,
+		},
+		{
+			instance:     "inst2",
+			schedName:    "sched1",
+			status:       fleet.CronStatsStatusPending,
+			shouldUpdate: false,
+		},
+		{
+			instance:     "inst2",
+			schedName:    "sched2",
+			status:       fleet.CronStatsStatusPending,
+			shouldUpdate: false,
+		},
+	}
+
+	for _, c := range cases {
+		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status) VALUES (?, ?, ?, ?)`
+		_, err := ds.writer.ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, c.schedName, c.instance, c.status)
+		require.NoError(t, err)
+	}
+
+	var stats []fleet.CronStats
+	err := sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	require.NoError(t, err)
+	require.Len(t, stats, len(cases))
+	for i, s := range stats {
+		require.Equal(t, cases[i].schedName, s.Name)
+		require.Equal(t, cases[i].instance, s.Instance)
+		require.Equal(t, cases[i].status, s.Status)
+	}
+
+	err = ds.UpdateAllCronStatsForInstance(ctx, "inst1", fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled)
+	require.NoError(t, err)
+
+	stats = []fleet.CronStats{}
+	err = sqlx.SelectContext(ctx, ds.reader, &stats, `SELECT * FROM cron_stats ORDER BY id`)
+	require.NoError(t, err)
+	require.Len(t, stats, len(cases))
+	for i, c := range cases {
+		s := stats[i]
+		require.Equal(t, c.instance, s.Instance)
+		require.Equal(t, c.schedName, s.Name)
+		if c.shouldUpdate {
+			require.Equal(t, fleet.CronStatsStatusCanceled, s.Status)
+		} else {
+			require.Equal(t, c.status, s.Status)
 		}
 	}
 }

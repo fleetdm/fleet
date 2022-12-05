@@ -8,7 +8,9 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"gopkg.in/guregu/null.v3"
 
@@ -37,6 +39,23 @@ func defaultTable(writer io.Writer) *tablewriter.Table {
 	w := writerOrStdout(writer)
 	table := tablewriter.NewWriter(w)
 	table.SetRowLine(true)
+	return table
+}
+
+func borderlessTabularTable(writer io.Writer) *tablewriter.Table {
+	w := writerOrStdout(writer)
+	table := tablewriter.NewWriter(w)
+	table.SetRowLine(false)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderLine(false)
+	table.SetBorder(false)
+	table.SetTablePadding("\t")
+	table.SetNoWhiteSpace(true)
+
 	return table
 }
 
@@ -273,6 +292,7 @@ func getCommand() *cli.Command {
 			getUserRolesCommand(),
 			getTeamsCommand(),
 			getSoftwareCommand(),
+			getMDMAppleCommand(),
 		},
 	}
 }
@@ -883,6 +903,12 @@ func printTable(c *cli.Context, columns []string, data [][]string) {
 	table.Render()
 }
 
+func printKeyValueTable(c *cli.Context, rows [][]string) {
+	table := borderlessTabularTable(c.App.Writer)
+	table.AppendBulk(rows)
+	table.Render()
+}
+
 func getTeamsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "teams",
@@ -1017,6 +1043,56 @@ func getSoftwareCommand() *cli.Command {
 			}
 			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
 			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMAppleCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm_apple",
+		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
+		Aliases: []string{"mdm-apple"},
+		Usage:   "Show Apple Push Notification Service (APNs) information",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			const expirationWarning = 30 * 24 * time.Hour // 30 days
+
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			mdm, err := client.GetAppleMDM()
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					log(c, "Error: No Apple Push Notification service (APNs) certificate found. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.\n")
+					return nil
+				}
+				return err
+			}
+
+			printKeyValueTable(c, [][]string{
+				{"Common name (CN):", mdm.CommonName},
+				{"Serial number:", mdm.SerialNumber},
+				{"Issuer:", mdm.Issuer},
+				{"Renew date:", mdm.RenewDate.Format("January 2, 2006")},
+			})
+
+			warnDate := time.Now().Add(expirationWarning)
+			if mdm.RenewDate.Before(time.Now()) {
+				// certificate is expired, print an error
+				color.New(color.FgRed).Fprintln(writerOrStdout(c.App.Writer), "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+			} else if mdm.RenewDate.Before(warnDate) {
+				// certificate will soon expire, print a warning
+				color.New(color.FgYellow).Fprintln(writerOrStdout(c.App.Writer), "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+			}
 
 			return nil
 		},

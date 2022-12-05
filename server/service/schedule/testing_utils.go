@@ -10,6 +10,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+type NopLocker struct{}
+
+func (NopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (NopLocker) Unlock(context.Context, string, string) error {
+	return nil
+}
+
+type NopStatsStore struct{}
+
+func (NopStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+	return fleet.CronStats{}, nil
+}
+
+func (NopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+	return 0, nil
+}
+
+func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+	return nil
+}
+
 func SetupMockLocker(name string, owner string, expiresAt time.Time) *MockLock {
 	return &MockLock{name: name, owner: owner, expiresAt: expiresAt}
 }

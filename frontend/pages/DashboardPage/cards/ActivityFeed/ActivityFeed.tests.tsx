@@ -4,10 +4,7 @@ import { noop } from "lodash";
 
 import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
-import {
-  activityHandler2DaysAgo,
-  activityHandler9Activities,
-} from "test/handlers/activity-handlers";
+import { activityHandler9Activities } from "test/handlers/activity-handlers";
 
 import ActivityFeed from "./ActivityFeed";
 
@@ -84,23 +81,4 @@ describe("Activity Feed", () => {
 
     expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
   });
-
-  it("renders avatar, actor name, timestamp", async () => {
-    mockServer.use(activityHandler2DaysAgo);
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    render(<ActivityFeed setShowActivityFeedTitle={noop} />);
-
-    // waiting for the activity data to render
-    await screen.findByText("Rachel");
-
-    expect(screen.getByRole("img")).toHaveAttribute("alt", "User avatar");
-    expect(screen.getByText("Rachel")).toBeInTheDocument();
-    expect(screen.getByText("2 days ago")).toBeInTheDocument();
-  });
-  // TODO: Create unit size component for individual activities and
-  // test each activity type with different details at the unit level
 });

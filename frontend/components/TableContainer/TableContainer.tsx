@@ -21,6 +21,11 @@ export interface ITableQueryData {
   sortHeader: string;
   sortDirection: string;
 }
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
+}
 
 interface ITableContainerProps {
   columns: any; // TODO: Figure out type
@@ -73,7 +78,7 @@ interface ITableContainerProps {
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
-  onSelectSingleRow?: (value: Row) => void;
+  onSelectSingleRow?: (value: Row | IRowProps) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
