@@ -515,6 +515,13 @@ allow {
 # Apple MDM
 ##
 
+# Global admins can read and write MDM apple information.
+allow {
+  object.type == "mdm_apple"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
 # Global admins can read and write Apple MDM enrollments.
 allow {
   object.type == "mdm_apple_enrollment_profile"
@@ -553,6 +560,13 @@ allow {
 # Global admins can read and write Apple DEP devices.
 allow {
   object.type == "mdm_apple_dep_device"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins can read and write (i.e. trigger) cron schedules.
+allow {
+  object.type == "cron_schedules"
   subject.global_role == admin
   action == [read, write][_]
 }

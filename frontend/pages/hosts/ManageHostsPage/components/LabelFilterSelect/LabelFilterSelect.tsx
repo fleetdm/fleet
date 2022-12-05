@@ -24,7 +24,7 @@ declare module "react-select-5/dist/declarations/src/Select" {
     canAddNewLabels: boolean;
     onAddLabel: () => void;
     onChangeLabelQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickLabelSeachInput: React.MouseEventHandler<HTMLInputElement>;
+    onClickLabelSearchInput: React.MouseEventHandler<HTMLInputElement>;
     onBlurLabelSearchInput: React.FocusEventHandler<HTMLInputElement>;
   }
 }
@@ -174,7 +174,7 @@ const LabelFilterSelect = ({
       onFocus={handleFocusSelect}
       onAddLabel={onAddLabel}
       onChangeLabelQuery={handleLabelQueryChange}
-      onClickLabelSeachInput={handleClickLabelSearchInput}
+      onClickLabelSearchInput={handleClickLabelSearchInput}
       onBlurLabelSearchInput={handleBlurLabelSearchInput}
     />
   );

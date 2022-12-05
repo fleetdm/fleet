@@ -303,7 +303,7 @@ type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs flee
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
+type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
@@ -339,7 +339,7 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType st
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
@@ -397,6 +397,16 @@ type UnlockFunc func(ctx context.Context, name string, owner string) error
 
 type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
 
+type GetLatestCronStatsFunc func(ctx context.Context, name string) (fleet.CronStats, error)
+
+type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
+
+type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+
+type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
+
+type CleanupCronStatsFunc func(ctx context.Context) error
+
 type UpdateScheduledQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
@@ -421,7 +431,7 @@ type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fl
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error)
+type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error)
 
 type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value bool) error
 
@@ -437,9 +447,11 @@ type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *j
 
 type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
-type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error
+type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+
+type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -933,8 +945,8 @@ type DataStore struct {
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
 
-	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
-	ListSoftwareVulnerabilitiesFuncInvoked bool
+	ListSoftwareVulnerabilitiesByHostIDsSourceFunc        ListSoftwareVulnerabilitiesByHostIDsSourceFunc
+	ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -1074,6 +1086,21 @@ type DataStore struct {
 	DBLocksFunc        DBLocksFunc
 	DBLocksFuncInvoked bool
 
+	GetLatestCronStatsFunc        GetLatestCronStatsFunc
+	GetLatestCronStatsFuncInvoked bool
+
+	InsertCronStatsFunc        InsertCronStatsFunc
+	InsertCronStatsFuncInvoked bool
+
+	UpdateCronStatsFunc        UpdateCronStatsFunc
+	UpdateCronStatsFuncInvoked bool
+
+	UpdateAllCronStatsForInstanceFunc        UpdateAllCronStatsForInstanceFunc
+	UpdateAllCronStatsForInstanceFuncInvoked bool
+
+	CleanupCronStatsFunc        CleanupCronStatsFunc
+	CleanupCronStatsFuncInvoked bool
+
 	UpdateScheduledQueryAggregatedStatsFunc        UpdateScheduledQueryAggregatedStatsFunc
 	UpdateScheduledQueryAggregatedStatsFuncInvoked bool
 
@@ -1139,6 +1166,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
+
+	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
+	SetOrUpdateHostDisksEncryptionFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -1950,9 +1980,9 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uin
 	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
 }
 
-func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error) {
-	s.ListSoftwareVulnerabilitiesFuncInvoked = true
-	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
+func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
+	s.ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked = true
+	return s.ListSoftwareVulnerabilitiesByHostIDsSourceFunc(ctx, hostIDs, source)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -2040,9 +2070,9 @@ func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(ctx, frequency, config, license)
+	return s.ShouldSendStatisticsFunc(ctx, frequency, config)
 }
 
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
@@ -2185,6 +2215,31 @@ func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	return s.DBLocksFunc(ctx)
 }
 
+func (s *DataStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+	s.GetLatestCronStatsFuncInvoked = true
+	return s.GetLatestCronStatsFunc(ctx, name)
+}
+
+func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+	s.InsertCronStatsFuncInvoked = true
+	return s.InsertCronStatsFunc(ctx, statsType, name, instance, status)
+}
+
+func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+	s.UpdateCronStatsFuncInvoked = true
+	return s.UpdateCronStatsFunc(ctx, id, status)
+}
+
+func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
+	s.UpdateAllCronStatsForInstanceFuncInvoked = true
+	return s.UpdateAllCronStatsForInstanceFunc(ctx, instance, fromStatus, toStatus)
+}
+
+func (s *DataStore) CleanupCronStats(ctx context.Context) error {
+	s.CleanupCronStatsFuncInvoked = true
+	return s.CleanupCronStatsFunc(ctx)
+}
+
 func (s *DataStore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
 	s.UpdateScheduledQueryAggregatedStatsFuncInvoked = true
 	return s.UpdateScheduledQueryAggregatedStatsFunc(ctx)
@@ -2245,7 +2300,7 @@ func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return s.UpdateHostFunc(ctx, host)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
 	return s.ListScheduledQueriesInPackFunc(ctx, packID)
 }
@@ -2285,14 +2340,19 @@ func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, versi
 	return s.SetOrUpdateMunkiInfoFunc(ctx, hostID, version, errors, warnings)
 }
 
-func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error {
 	s.SetOrUpdateMDMDataFuncInvoked = true
-	return s.SetOrUpdateMDMDataFunc(ctx, hostID, enrolled, serverURL, installedFromDep, name)
+	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
+}
+
+func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
+	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
+	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {

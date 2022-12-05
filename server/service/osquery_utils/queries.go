@@ -446,14 +446,30 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 	"mdm_windows": {
 		Query: `
-		SELECT provid.providerID, url.discoveryServiceURL, autopilot.autopilot FROM (
-			SELECT data providerID FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
-		) provid, (
-			SELECT data discoveryServiceURL FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
-		) url, ( SELECT EXISTS (
-				SELECT 1 FROM registry WHERE KEY LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
-			) autopilot
-		) autopilot;
+			SELECT * FROM (
+				SELECT "provider_id" AS "key", data as "value" FROM registry
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
+				LIMIT 1
+			)
+			UNION ALL
+			SELECT * FROM (
+				SELECT "discovery_service_url" AS "key", data as "value" FROM registry
+				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
+				LIMIT 1
+			)
+			UNION ALL
+			SELECT * FROM (
+				SELECT "autopilot" AS "key", 1=1 AS "value" FROM registry
+				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache'
+				LIMIT 1
+			)
+			UNION ALL
+			SELECT * FROM (
+				SELECT "installation_type" AS "key", data as "value" FROM registry
+				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+				LIMIT 1
+			)
+			;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -529,7 +545,7 @@ SELECT
 		ELSE
 			""
 	END AS release_id
-FROM 
+FROM
     os_version os,
     kernel_info k`,
 		Platforms:        []string{"windows"},
@@ -560,6 +576,27 @@ FROM
 		Query:            `SELECT version FROM orbit_info`,
 		DirectIngestFunc: directIngestOrbitInfo,
 		Discovery:        discoveryTable("orbit_info"),
+	},
+	"disk_encryption_darwin": {
+		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_linux": {
+		Query:            `SELECT 1 FROM (SELECT encrypted, path FROM disk_encryption FULL OUTER JOIN mounts ON mounts.device_alias = disk_encryption.name) WHERE encrypted = 1 AND path = '/';`,
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "disk_encryption" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin and linux, it is always present.
+	},
+	"disk_encryption_windows": {
+		Query:            `SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestDiskEncryption,
+		// the "bitlocker_info" table doesn't need a Discovery query as it is an official
+		// osquery table on windows, it is always present.
 	},
 }
 
@@ -1219,7 +1256,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep, "")
+	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "")
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -1227,19 +1264,14 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
 		return nil
 	}
-	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "ingestMDMWindows", "warn",
-			fmt.Sprintf("mdm_windows expected single result got %d", len(rows)))
+	data := make(map[string]string, len(rows))
+	for _, r := range rows {
+		data[r["key"]] = r["value"]
 	}
-	if len(rows) == 0 {
-		return ds.SetOrUpdateMDMData(ctx, host.ID, false, "", false, "")
-	}
-	autoPilot, err := strconv.ParseBool(rows[0]["autopilot"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing autopilot")
-	}
-
-	return ds.SetOrUpdateMDMData(ctx, host.ID, true, rows[0]["discoveryServiceURL"], autoPilot, rows[0]["providerID"])
+	_, autoPilot := data["autopilot"]
+	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
+	_, enrolled := data["provider_id"]
+	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"])
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -1255,6 +1287,20 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
 	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
+}
+
+func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed")
+		return nil
+	}
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn",
+			fmt.Sprintf("disk_encryption expected at most a single result, got %d", len(rows)))
+	}
+
+	encrypted := len(rows) > 0
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
 func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {

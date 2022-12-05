@@ -16,12 +16,12 @@ import (
 )
 
 func setup(t *testing.T) (context.Context, *mock.Store, *mock.InstallerStore, fleet.Service) {
-	ctx := test.UserContext(test.UserAdmin)
 	ds := new(mock.Store)
 	is := new(mock.InstallerStore)
 	cfg := config.TestConfig()
 	cfg.Server.SandboxEnabled = true
-	svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: is, FleetConfig: &cfg})
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: is, FleetConfig: &cfg})
+	ctx = test.UserContext(ctx, test.UserAdmin)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{Secret: "xyz"}, nil
 
@@ -41,7 +41,7 @@ func TestGetInstaller(t *testing.T) {
 		ctx, ds, _, _ := setup(t)
 		cfg := config.TestConfig()
 		cfg.Server.SandboxEnabled = true
-		svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: nil, FleetConfig: &cfg})
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: nil, FleetConfig: &cfg})
 		_, _, err := svc.GetInstaller(ctx, fleet.Installer{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "installer storage has not been configured")
@@ -111,7 +111,7 @@ func TestCheckInstallerExistence(t *testing.T) {
 		ctx, ds, _, _ := setup(t)
 		cfg := config.TestConfig()
 		cfg.Server.SandboxEnabled = true
-		svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: nil, FleetConfig: &cfg})
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: nil, FleetConfig: &cfg})
 		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "installer storage has not been configured")

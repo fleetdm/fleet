@@ -1,9 +1,6 @@
-.back-link {
-  display: flex;
+.back-link .children-wrapper {
+  display: inline-flex;
   align-items: center;
-
-  &__back-icon {
-    padding-right: $pad-small;
-    display: inline;
-  }
+  padding: $pad-small $pad-xxsmall; // larger clickable area
+  gap: $pad-xsmall;
 }

@@ -47,7 +47,7 @@
     }
 
     p {
-      color: $core-dark-blue-grey;
+      color: $ui-fleet-black-75;
       margin: 0;
       font-size: $x-small;
       font-style: italic;
@@ -186,7 +186,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: $pad-xxxlarge;
+      padding-top: $pad-xxxlarge;
 
       h1 {
         font-size: $large;
@@ -219,10 +219,7 @@
         }
       }
 
-      &__inner {
-        display: flex;
-        flex-direction: row;
-
+      &__inner-text {
         h1 {
           font-size: $small;
           font-weight: $bold;
@@ -234,7 +231,11 @@
           font-weight: $regular;
           font-size: $x-small;
           margin: 0;
-          margin-bottom: $pad-large;
+          margin-bottom: $pad-small;
+
+          &:last-of-type {
+            margin-bottom: $pad-large;
+          }
         }
 
         .no-filter-results {
@@ -242,6 +243,12 @@
           flex-direction: column;
           width: 350px;
         }
+      }
+
+      &__none-created {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
     }
   }

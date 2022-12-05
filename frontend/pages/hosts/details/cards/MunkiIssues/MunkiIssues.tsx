@@ -49,7 +49,6 @@ const MunkiIssuesTable = ({
             showMarkAllPages={false}
             isAllPagesSelected={false}
             isClientSidePagination
-            highlightOnHover
           />
         </div>
       ) : (

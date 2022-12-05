@@ -82,9 +82,24 @@ const OrgSettingsForm = ({
               "Could not connect to SMTP server. Please try again."
             );
           } else if (response?.data.errors) {
+            const agentOptionsInvalid =
+              response.data.errors[0].reason.includes(
+                "unsupported key provided"
+              ) ||
+              response.data.errors[0].reason.includes("invalid value type");
+
             renderFlash(
               "error",
-              `Could not update settings. ${response.data.errors[0].reason}`
+              <>
+                Could not update settings. {response.data.errors[0].reason}
+                {agentOptionsInvalid && (
+                  <>
+                    <br />
+                    If you’re not using the latest osquery, use the fleetctl
+                    apply --force command to override validation.
+                  </>
+                )}
+              </>
             );
           }
         })

@@ -50,7 +50,7 @@ func (d dummyMDMPusher) Push(context.Context, []string) (map[string]*nanomdm_pus
 	return nil, nil
 }
 
-func setupAppleMDMService(t *testing.T) fleet.Service {
+func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +63,7 @@ func setupAppleMDMService(t *testing.T) fleet.Service {
 			return
 		}
 	}))
-	svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
 		FleetConfig: &cfg,
 		MDMStorage:  dummyMDMStorage{},
 		DEPStorage:  dummyDEPStorage{testAuthAddr: ts.URL},
@@ -120,11 +120,11 @@ func setupAppleMDMService(t *testing.T) fleet.Service {
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
-	return svc
+	return svc, ctx
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc := setupAppleMDMService(t)
+	svc, ctx := setupAppleMDMService(t)
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
@@ -138,7 +138,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	}
 
 	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
-		ctx := test.UserContext(user)
+		ctx := test.UserContext(ctx, user)
 		_, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{})
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleEnrollmentProfiles(ctx)
@@ -174,7 +174,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		testAuthdMethods(t, user, true)
 	}
 	// Token authenticated endpoints can be accessed by anyone.
-	ctx := test.UserContext(test.UserNoRoles)
+	ctx = test.UserContext(ctx, test.UserNoRoles)
 	_, err := svc.GetMDMAppleInstallerByToken(ctx, "foo")
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo")

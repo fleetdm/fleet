@@ -21,6 +21,11 @@ export interface ITableQueryData {
   sortHeader: string;
   sortDirection: string;
 }
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
+}
 
 interface ITableContainerProps {
   columns: any; // TODO: Figure out type
@@ -64,7 +69,7 @@ interface ITableContainerProps {
   isClientSideFilter?: boolean;
   isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
   // in lieu of displaying the empty component when client-side filtering yields zero results
-  highlightOnHover?: boolean;
+  disableHighlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
   onQueryChange?:
@@ -73,7 +78,7 @@ interface ITableContainerProps {
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
-  onSelectSingleRow?: (value: Row) => void;
+  onSelectSingleRow?: (value: Row | IRowProps) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
@@ -123,7 +128,7 @@ const TableContainer = ({
   isClientSidePagination,
   isClientSideFilter,
   isMultiColumnFilter,
-  highlightOnHover,
+  disableHighlightOnHover,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
@@ -421,7 +426,7 @@ const TableContainer = ({
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
                 isClientSideFilter={isClientSideFilter}
-                highlightOnHover={highlightOnHover}
+                disableHighlightOnHover={disableHighlightOnHover}
                 searchQuery={searchQuery}
                 searchQueryColumn={searchQueryColumn}
                 selectedDropdownFilter={selectedDropdownFilter}

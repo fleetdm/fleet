@@ -2,7 +2,11 @@ import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { ISoftware } from "interfaces/software";
+import {
+  ISoftwareResponse,
+  ISoftwareCountResponse,
+  IGetSoftwareByIdResponse,
+} from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
 interface IGetSoftwareProps {
@@ -13,19 +17,6 @@ interface IGetSoftwareProps {
   query?: string;
   vulnerable?: boolean;
   teamId?: number;
-}
-
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
-
-export interface IGetSoftwareByIdResponse {
-  software: ISoftware;
 }
 
 type ISoftwareParams = Partial<IGetSoftwareProps>;
