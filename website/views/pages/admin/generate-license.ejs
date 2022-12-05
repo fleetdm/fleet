@@ -24,9 +24,9 @@
 
 
               <div class="form-group col-12 px-0">
-                <label for="validTo">When should this license expire?</label>
-                <input class="form-control" id="validTo" :class="[formErrors.validTo ? 'is-invalid' : '' ]"  type="date" placeholder="Please select an expiration date"  v-model.trim="formData.validTo">
-                <div class="invalid-feedback" v-if="formErrors.validTo">Please enter a date that this license will be valid to.</div>
+                <label for="expiresAt">When should this license expire?</label>
+                <input class="form-control" id="expiresAt" :class="[formErrors.expiresAt ? 'is-invalid' : '' ]"  type="date" placeholder="Please select an expiration date"  v-model.trim="formData.expiresAt">
+                <div class="invalid-feedback" v-if="formErrors.expiresAt">Please enter a date that this license will be valid to.</div>
               </div>
 
             </div>

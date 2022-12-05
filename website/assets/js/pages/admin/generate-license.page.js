@@ -12,7 +12,7 @@ parasails.registerPage('generate-license', {
     formRules: {
       numberOfHosts: {required: true},
       organization: {required: true},
-      validTo: {required: true},
+      expiresAt: {required: true},
     },
     // Syncing / loading state
     syncing: false,
@@ -29,7 +29,7 @@ parasails.registerPage('generate-license', {
     // Get a formatted date string for year from today's date.
     let oneYearFromNowDateString = moment(Date.now() + (365*24*60*60*1000)).format('YYYY-MM-DD');
     // Set the starting value for the validTo input
-    this.formData.validTo = oneYearFromNowDateString;
+    this.formData.expiresAt = oneYearFromNowDateString;
   },
   mounted: async function() {
     //…
@@ -40,13 +40,12 @@ parasails.registerPage('generate-license', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function() {
-      this.syncing = true;
-      let validToDate = new Date(this.formData.validTo);
+      let validToDate = new Date(this.formData.expiresAt);
       let validToTimestamp = validToDate.getTime();
       this.generatedLicenseKey = await Cloud.generateLicenseKey.with({
         numberOfHosts: this.formData.numberOfHosts,
         organization: this.formData.organization,
-        validTo: validToTimestamp
+        expiresAt: validToTimestamp
       });
     },
 
