@@ -1,4 +1,4 @@
-# Fleet 4.24.0 | More visibility into live queries and improved Fleet UI navigation
+# Fleet 4.24.0 | Live query notifications and navigation improvements
 
 ![Fleet 4.24.0](../website/assets/images/articles/fleet-4.24.0-cover-1600x900@2x.jpg)
 
@@ -17,9 +17,9 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 Fleet 4.24.0 gives you greater visibility into who ran live queries. These insights will help you create a richer audit trail and test the performance impact of specific queries.
 
-You’ll see these notifications in the activity feed on the Dashboard page. Each notification will include the user’s name, as well as an option to show the query. If the query has been saved, you’ll also see the query’s name. If the query hasn’t been saved, no query name will be included.
+You’ll see these notifications in the activity feed on the Dashboard page. Each notification includes the user’s name, how long ago the query was run, and how many hosts were queried. If the query has been saved, you’ll see the query’s name. If the query hasn’t been saved, no query name will be displayed.
 
-Selecting *Show query* opens the Query modal, which displays the query’s SQL.
+You’ll also have the option to show the query. Selecting *Show query* opens the Query modal, which displays the query’s SQL.
 
 ## Enjoy easier navigation on Host details and Dashboard pages
 **Available in Fleet Free and Fleet Premium**
@@ -55,6 +55,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2022-12-02">
-<meta name="articleTitle" value="Fleet 4.24.0 | More visibility into live queries and improved Fleet UI navigation">
+<meta name="publishedOn" value="2022-12-06">
+<meta name="articleTitle" value="Fleet 4.24.0 | Live query notifications and navigation improvements">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.24.0-cover-1600x900@2x.jpg">
