@@ -78,29 +78,29 @@ When we do prospect calls, add the customer's name in both the google doc title 
 
 ## Customer support service level agreements (SLA's)
 
-#### Fleet Free
+### Fleet Free
 | Impact Level | Definition | Preferred Contact | Response Time |
 |:---|:---|:---|:---|
 | All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
 
 Note: If you're using Fleet Free, you can also access community support by opening an issue in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
 
-#### Fleet Premium
+### Fleet Premium
 | Impact Level | Definition | Preferred Contact | Response Time |
 |:-----|:----|:----|:-----|
-| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | ≤4 hours |
-| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | ≤4 business hours |
+| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
+| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
 Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
 
 
-#### Fleet Ultimate
+### Fleet Ultimate
 | Impact Level | Definition | Preferred Contact | Response Time |
-|:----|:----|:----|:----|
-| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Call or text the emergency support phone number in your Fleet contract. Email via the emergency support email address provided in your contract. | ≤1 hour or ≤2 hours outside of business hours |
-| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | ≤2 hours or ≤4 hours outside of business hours |
+|:---- |:---- |:---- |:---- |
+| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Call or text the emergency support phone number in your Fleet contract. </br></br>Email via the emergency support email address provided in your contract. | **≤1 hour or ≤2 hours** outside of business hours |
+| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤2 hours or ≤4 hours** outside of business hours |
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | ≤1 business day | 
 
