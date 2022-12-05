@@ -5868,6 +5868,11 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
+func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
+	var resp getAppleMDMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &resp)
+}
+
 // this test can be deleted once the "v1" version is removed.
 func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	t := s.T()

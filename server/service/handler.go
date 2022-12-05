@@ -419,6 +419,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		ue.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/dep/devices", listMDMAppleDEPDevicesEndpoint, listMDMAppleDEPDevicesRequest{})
 	}
+	ue.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
