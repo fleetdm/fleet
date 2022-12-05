@@ -21,6 +21,20 @@ host in the `hosts` table.
   in the application logic exist and the right indexes are created for fast
   access.
 
+Notes:
+    - lot of non-optional fields, probably have API changes.
+    - so far osquery_host_id
+    - add unique index to `hosts.uuid` (including when a host is enrolling via MDM)
+    - find out if DEP APIs return the UUID
+        - we might have to do the same for `hosts.hardware_serial`
+    - add columns for MDM status (pending, ...)
+    - update DEP syncer to insert hosts, and update its status
+    - update host mdm status during enrollment
+    - see what data we can populate in the `hosts` table when during MDM
+      enrollment (both from DEP apis and during the enrollment check-in)
+        - note: ProductName is the same as `hosts.hardware_model`
+    - enrollment profiles for multiple users, see macOS extensions in spec
+
 Currently, the code thinks of these two tables as two disjoint sets of elements
 that represent the same entity: a host.
 
@@ -52,17 +66,40 @@ If a host doesn't have a corresponding entry in the `nano_*` table, we can assum
 
 ### Problem: Issue an MDM command and monitor it’s status in fleet
 
-https://github.com/fleetdm/fleet/issues/8815
+- assumption: when a command is issued, it only targets one device.
+- have an endpoint to retrieve all the commands that were issued to a host and
+  their status, results, etc.
+- have and endpoint that retrieves a single command, and its status/results,
+  etc.
+- let the server handle communication, handle NotNow commands, duplicated commands, etc.
+- the server will transform the XML responses from MDM to JSON and return that to clients.
+    - double check if it's OK to blindly return the info.
+- what permissions should we add  to execute commands.
+    - define granularity: per command basis?
+- investigate command status, check what are the product requirements and see
+  if we can meet them accordingly see: https://github.com/fleetdm/fleet/issues/8815
+    - Invesitage if this is a limitation with MDM and certain commands or something we can fix.
+    - Look at this as we implement the commands.
 
-### Problem: Parsing and serializing XML data
 
-All MDM-related APIs are handled using XML, but:
+### Problem: ingesting/storing data from MDM
 
-1. The UI will need some of that information, and we can't just respond with XML.
-1. We can't output raw XML to the terminal like we currently do.
+- examples: recovery key, list of profiles, security info.
+- keep this data in sync (even if it's not initiated by users), probably a cron job
+- all of this involves issuing a command, monitoring its output and "ingesting"
+  the output.
+- for profiles:
+    - make sure they're in sync in order to:
+        - issue the command only to host that need it
+        - validate that the host has the latest profile
+- probably a new table? `host_profiles`, `profiles_last_sync_at`, `sync_status`
+    - think if we need to store the profile raw contents.
 
-We need an structured way to parse and store this kind of information.
 
 ### Problem: Storing installers, profile files and installers
 
 We currently store everything in MySQL.
+
+- Use a blob storage, start with S3
+- Investigate into using signed URLs instead of buffering the content through fleet
+    - Note: signed URLs is probably an Amazon
