@@ -10,29 +10,17 @@ $core-dark-blue-grey: #506e92;
 // UI
 $ui-fleet-black-75: #515774;
 $ui-fleet-black-50: #8b8fa2;
-$ui-fleet-black-25: #c5c7d1; // rgba(197, 199, 209)
-$ui-fleet-black-25-opaque: rgba(
-  (255- (0.3 * (255-197))),
-  (255- (0.3 * (255-199))),
-  (255- (0.3 * (255-209))),
-  0.3
-); // Y=255 - P*(255-X) where X is a RGB number, P=opacity (0...1)
+$ui-fleet-black-25: #c5c7d1;
 $ui-fleet-blue-15: #e2e4ea;
 $ui-dark-blue-gray: #afbec1;
 $ui-blue-gray: #dbe3e5;
 $ui-gray: #e3e3e3;
 $ui-light-grey: #fafafa;
-$ui-off-white: #f9fafc;
+$ui-off-white: #f9fafc; // rgba(249, 250, 252, 1)
 $ui-shadow: #e9e9e9;
 $ui-vibrant-blue-50: rgba(106, 103, 254, 0.5);
 $ui-vibrant-blue-25: #d9d9fe;
-$ui-vibrant-blue-10: #f1f0ff; // rgba(241, 250, 255, 1)
-$ui-vibrant-blue-10-opaque: rgba(
-  (255- (0.3 * (255-241))),
-  (255- (0.3 * (255-250))),
-  (255- (0.3 * (255-255))),
-  0.3
-); // Y=255 - P*(255-X) where X is a RGB number, P=opacity (0...1)
+$ui-vibrant-blue-10: #f1f0ff; // rgba(241, 240, 255, 1)
 
 // Notifications & status & specific messages
 $ui-offline: #8b8fa2;
@@ -64,3 +52,20 @@ $core-fleet-blue-over: #303860;
 $core-fleet-blue-down: $core-fleet-black;
 
 $transparent: rgba(255, 255, 255, 0);
+
+// Opaque colors for row shadows
+// l = lowest color  a = (255-l)/255
+$ui-vibrant-blue-10-alpha: (255-240)/255;
+$ui-vibrant-blue-10-opaque: rgba(
+  (241-240) / $ui-vibrant-blue-10-alpha,
+  (240-240) / $ui-vibrant-blue-10-alpha,
+  (255-240) / $ui-vibrant-blue-10-alpha,
+  $ui-vibrant-blue-10-alpha
+);
+$ui-off-white-alpha: (255-249)/255; // rgba(249, 250, 252)
+$ui-off-white-opaque: rgba(
+  (249-249) / $ui-off-white-alpha,
+  (250-249) / $ui-off-white-alpha,
+  (252-249) / $ui-off-white-alpha,
+  $ui-off-white-alpha
+);

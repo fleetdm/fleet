@@ -56,12 +56,12 @@ $shadow-transition-width: 10px;
       }
 
       tr:hover {
-        background-color: $ui-fleet-black-25-opaque; // opaque needed for horizontal scroll shadow
+        background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
       }
 
       .single-row:hover {
         cursor: pointer;
-        background-color: $ui-vibrant-blue-10; // opaque needed for horizontal scroll shadow
+        background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
       }
     }
 
@@ -85,7 +85,7 @@ $shadow-transition-width: 10px;
     }
 
     thead {
-      background-color: $ui-fleet-black-25-opaque; // opaque needed for horizontal scroll shadow
+      background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
       color: $core-fleet-black;
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
