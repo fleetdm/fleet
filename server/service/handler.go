@@ -217,7 +217,7 @@ func addMetrics(r *mux.Router) {
 		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
-	r.Walk(walkFn)
+	r.Walk(walkFn) //nolint:errcheck
 }
 
 // desktopRateLimitMaxBurst is the max burst used for device request rate limiting.

@@ -16,7 +16,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		defer os.Remove(file)
 
 		rw := NewReadWriter(file)
-		rw.LoadOrGenerate()
+		require.NoError(t, rw.LoadOrGenerate())
 		token, err := rw.Read()
 		require.NoError(t, err)
 		require.NotEmpty(t, token)
@@ -79,7 +79,7 @@ func TestLoadOrGenerate(t *testing.T) {
 		require.NoError(t, err)
 		_, err = file.WriteString("test")
 		require.NoError(t, err)
-		file.Chmod(0x600)
+		require.NoError(t, file.Chmod(0x600))
 		defer os.Remove(file.Name())
 
 		rw := NewReadWriter(file.Name())

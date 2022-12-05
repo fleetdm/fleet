@@ -173,7 +173,8 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 					b, err := ioutil.ReadAll(r.Body)
 					assert.NoError(t, err)
 					requests = append(requests, string(b))
-					w.Write(nil)
+					_, err = w.Write(nil)
+					assert.NoError(t, err)
 				}))
 				defer srv.Close()
 

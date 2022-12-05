@@ -152,7 +152,9 @@ func main() {
 			if strings.HasPrefix(executable, "/var/lib/orbit") {
 				rootDir = "/var/lib/orbit"
 			}
-			c.Set("root-dir", rootDir)
+			if err := c.Set("root-dir", rootDir); err != nil {
+				return fmt.Errorf("failed to set root-dir: %w", err)
+			}
 		}
 
 		return nil

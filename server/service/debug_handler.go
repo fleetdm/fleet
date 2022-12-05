@@ -61,7 +61,7 @@ func jsonHandler(
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		rw.Write(b)
+		rw.Write(b) //nolint:errcheck
 	}
 }
 

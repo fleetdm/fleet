@@ -1321,16 +1321,16 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
-	res.Body.Close()
+	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp) //nolint:errcheck
+	res.Body.Close()                                          //nolint:errcheck
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
-	res.Body.Close()
+	json.NewDecoder(res.Body).Decode(&getDeviceHostResp) //nolint:errcheck
+	res.Body.Close()                                     //nolint:errcheck
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
@@ -1340,8 +1340,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getDesktopResp)
-	res.Body.Close()
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 }
@@ -1379,8 +1379,8 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	// confirm device endpoint returns initial default url
 	deviceResp := &transparencyURLResponse{}
 	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
-	json.NewDecoder(rawResp.Body).Decode(deviceResp)
-	rawResp.Body.Close()
+	json.NewDecoder(rawResp.Body).Decode(deviceResp) //nolint:errcheck
+	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
@@ -1393,8 +1393,8 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	// device endpoint returns custom url
 	deviceResp = &transparencyURLResponse{}
 	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
-	json.NewDecoder(rawResp.Body).Decode(deviceResp)
-	rawResp.Body.Close()
+	json.NewDecoder(rawResp.Body).Decode(deviceResp) //nolint:errcheck
+	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, "customURL", rawResp.Header.Get("Location"))
 
@@ -1407,8 +1407,8 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	// device endpoint returns default url
 	deviceResp = &transparencyURLResponse{}
 	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
-	json.NewDecoder(rawResp.Body).Decode(deviceResp)
-	rawResp.Body.Close()
+	json.NewDecoder(rawResp.Body).Decode(deviceResp) //nolint:errcheck
+	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }

@@ -345,17 +345,17 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedOS([]uint{})
 
 	// nothing to clean up
-	ds.CleanupHostOperatingSystems(ctx)
+	require.NoError(t, ds.CleanupHostOperatingSystems(ctx))
 	assertDeletedHostOS([]uint{})
 	assertDeletedOS([]uint{})
 
 	// delete some hosts
 	var deletedHostIDs []uint
-	ds.DeleteHost(ctx, testHosts[0].ID)
-	ds.DeleteHost(ctx, testHosts[1].ID)
+	require.NoError(t, ds.DeleteHost(ctx, testHosts[0].ID))
+	require.NoError(t, ds.DeleteHost(ctx, testHosts[1].ID))
 	deletedHostIDs = append(deletedHostIDs, testHosts[0].ID, testHosts[1].ID)
 
-	ds.CleanupHostOperatingSystems(ctx)
+	require.NoError(t, ds.CleanupHostOperatingSystems(ctx))
 
 	// clean up removes host_operating_system record for deleted hosts
 	assertDeletedHostOS(deletedHostIDs)
@@ -364,10 +364,10 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedOS([]uint{})
 
 	// delete remaining host for seedOSList[0]
-	ds.DeleteHost(ctx, testHosts[5].ID)
+	require.NoError(t, ds.DeleteHost(ctx, testHosts[5].ID))
 	deletedHostIDs = append(deletedHostIDs, testHosts[5].ID)
 
-	ds.CleanupHostOperatingSystems(ctx)
+	require.NoError(t, ds.CleanupHostOperatingSystems(ctx))
 
 	// clean up removes host_operating_system record for deleted hosts
 	assertDeletedHostOS(deletedHostIDs)
