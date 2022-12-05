@@ -8,6 +8,7 @@ module.exports = {
 
 
   inputs: {
+    repo: { type: 'string', example: 'fleet', required: true, isIn: ['fleet', 'confidential']},
     prNumber: { type: 'number', example: 382, required: true },
     githubUserToCheck: { type: 'string', example: 'mikermcneil', description: 'If excluded, then this returns `true` if all of the PRs changed paths are preapproved for SOMEONE.' },
     isGithubUserMaintainerOrDoesntMatter: { type: 'boolean', required: true, description: 'Whether (a) the user is a maintainer, or (b) it even matters for this check whether the user is a maintainer.' },// FUTURE: « this could be replaced with an extra GitHub API call herein, but doesn't seem worth it
@@ -25,16 +26,21 @@ module.exports = {
   },
 
 
-  fn: async function ({prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter}) {
+  fn: async function ({repo, prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter}) {
 
     require('assert')(sails.config.custom.githubRepoDRIByPath);
+    require('assert')(sails.config.custom.confidentialGithubRepoDRIByPath);
     require('assert')(sails.config.custom.githubAccessToken);
 
     let DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+
+    if (repo === 'confidential') {
+      DRI_BY_PATH = sails.config.custom.confidentialGithubRepoDRIByPath;
+    }
+
     let owner = 'fleetdm';
-    let repo = 'fleet';
     let baseHeaders = {
-      'User-Agent': 'sails run freeze-open-pull-requests',
+      'User-Agent': 'Fleet auto-approve',
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
