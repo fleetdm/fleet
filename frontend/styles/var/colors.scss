@@ -53,9 +53,9 @@ $core-fleet-blue-down: $core-fleet-black;
 
 $transparent: rgba(255, 255, 255, 0);
 
-// Opaque colors for row shadows
+// Opaque colors for table shadows
 // l = lowest color  a = (255-l)/255
-$ui-vibrant-blue-10-alpha: (255-240)/255;
+$ui-vibrant-blue-10-alpha: (255-240)/255; // rgba(241, 240, 255)
 $ui-vibrant-blue-10-opaque: rgba(
   (241-240) / $ui-vibrant-blue-10-alpha,
   (240-240) / $ui-vibrant-blue-10-alpha,
