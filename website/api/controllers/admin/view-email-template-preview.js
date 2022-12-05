@@ -6,7 +6,9 @@ module.exports = {
 
   description: 'Display "email template preview" page.',
 
+
   urlWildcardSuffix: 'template',
+
 
   inputs: {
 
