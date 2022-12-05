@@ -12,8 +12,8 @@ import (
 // Note Apple rejects CSRs if the key size is not 2048.
 const rsaKeySize = 2048
 
-// NewPrivateKey creates an RSA private key
-func NewPrivateKey() (*rsa.PrivateKey, error) {
+// newPrivateKey creates an RSA private key
+func newPrivateKey() (*rsa.PrivateKey, error) {
 	return rsa.GenerateKey(rand.Reader, rsaKeySize)
 }
 
