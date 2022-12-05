@@ -208,12 +208,7 @@ const allHostTableHeaders: IDataColumn[] = [
           Status
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isSortedDesc={headerProps.column.isSortedDesc}
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "status",
