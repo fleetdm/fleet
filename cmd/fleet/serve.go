@@ -23,6 +23,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -389,40 +390,65 @@ the way that the Fleet server works.
 
 			var (
 				scepStorage      *scep_mysql.MySQLDepot
+				appleSCEPCertPEM []byte
+				appleSCEPKeyPEM  []byte
 				depStorage       *mysql.NanoDEPStorage
 				mdmStorage       *mysql.NanoMDMStorage
 				mdmPushService   *nanomdm_pushsvc.PushService
 				mdmPushCertTopic string
 			)
-			if config.MDMApple.Enable {
-				if err := config_apple.Verify(config.MDMApple); err != nil {
-					initFatal(err, "verify apple mdm config")
+			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() || config.MDMApple.Enable {
+				if !config.MDM.IsAppleAPNsSet() {
+					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
+				} else if !config.MDM.IsAppleSCEPSet() {
+					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 				}
-				scepStorage, err = mds.NewMDMAppleSCEPDepot(
-					[]byte(config.MDMApple.SCEP.CA.PEMCert),
-					[]byte(config.MDMApple.SCEP.CA.PEMKey),
+
+				apnsCert, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
+				if err != nil {
+					initFatal(err, "validate Apple APNs certificate and key")
+				}
+				mdmPushCertTopic, err = cryptoutil.TopicFromCert(apnsCert.Leaf)
+				if err != nil {
+					initFatal(err, "validate Apple APNs certificate: failed to get topic from certificate")
+				}
+				_, appleSCEPCertPEM, appleSCEPKeyPEM, err = config.MDM.AppleSCEP()
+				if err != nil {
+					initFatal(err, "validate Apple SCEP certificate and key")
+				}
+
+				const (
+					apnsConnectionTimeout = 10 * time.Second
+					apnsConnectionURL     = "https://api.sandbox.push.apple.com"
 				)
-				if err != nil {
-					initFatal(err, "initialize mdm apple scep storage")
+
+				// check that the Apple APNs certificate is valid to connect to the API
+				ctx, cancel := context.WithTimeout(context.Background(), apnsConnectionTimeout)
+				if err := certificate.ValidateClientAuthTLSConnection(ctx, apnsCert, apnsConnectionURL); err != nil {
+					initFatal(err, "validate authentication with Apple APNs certificate")
 				}
-				mdmStorage, err = mds.NewMDMAppleMDMStorage(
-					[]byte(config.MDMApple.MDM.PushCert.PEMCert),
-					[]byte(config.MDMApple.MDM.PushCert.PEMKey),
-				)
-				if err != nil {
-					initFatal(err, "initialize mdm apple MySQL storage")
+				cancel()
+
+				if config.MDMApple.Enable {
+					if err := config_apple.VerifyDEP(config.MDMApple); err != nil {
+						initFatal(err, "verify apple mdm DEP config")
+					}
+					scepStorage, err = mds.NewMDMAppleSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
+					if err != nil {
+						initFatal(err, "initialize mdm apple scep storage")
+					}
+					mdmStorage, err = mds.NewMDMAppleMDMStorage(apnsCertPEM, apnsKeyPEM)
+					if err != nil {
+						initFatal(err, "initialize mdm apple MySQL storage")
+					}
+					depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
+					if err != nil {
+						initFatal(err, "initialize mdm apple dep storage")
+					}
+					nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+					pushProviderFactory := buford.NewPushProviderFactory()
+					mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 				}
-				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert([]byte(config.MDMApple.MDM.PushCert.PEMCert))
-				if err != nil {
-					initFatal(err, "extract topic from mdm push certificate")
-				}
-				depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
-				if err != nil {
-					initFatal(err, "initialize mdm apple dep storage")
-				}
-				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
-				pushProviderFactory := buford.NewPushProviderFactory()
-				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
 
 			cronSchedules := fleet.NewCronSchedules()
@@ -608,6 +634,8 @@ the way that the Fleet server works.
 				if err := registerAppleMDMProtocolServices(
 					rootMux,
 					config.MDMApple.SCEP,
+					appleSCEPCertPEM,
+					appleSCEPKeyPEM,
 					mdmStorage,
 					scepStorage,
 					logger,

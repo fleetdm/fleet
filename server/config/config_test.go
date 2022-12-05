@@ -39,7 +39,13 @@ func TestConfigRoundtrip(t *testing.T) {
 	v := reflect.ValueOf(original)
 	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
 		conf_v := v.Elem().Field(conf_index)
+		conf_t := conf_v.Type()
 		for key_index := 0; key_index < conf_v.NumField(); key_index++ {
+			// ignore unexported fields
+			if !conf_t.Field(key_index).IsExported() {
+				continue
+			}
+
 			key_v := conf_v.Field(key_index)
 			switch key_v.Interface().(type) {
 			case string:
@@ -393,6 +399,76 @@ func TestToTLSConfig(t *testing.T) {
 	}
 }
 
+func TestMDMConfig(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile, garbageFile, invalidKeyFile := filepath.Join(dir, "cert"),
+		filepath.Join(dir, "key"),
+		filepath.Join(dir, "garbage"),
+		filepath.Join(dir, "invalid_key")
+	require.NoError(t, os.WriteFile(certFile, testCert, 0o600))
+	require.NoError(t, os.WriteFile(keyFile, testKey, 0o600))
+	require.NoError(t, os.WriteFile(garbageFile, []byte("zzzz"), 0o600))
+	require.NoError(t, os.WriteFile(invalidKeyFile, unrelatedTestKey, 0o600))
+
+	cases := []struct {
+		name       string
+		in         MDMConfig
+		errMatches string
+	}{
+		{"missing cert", MDMConfig{AppleAPNsKey: keyFile, AppleSCEPKey: keyFile}, `Apple MDM (APNs|SCEP) configuration: no certificate provided`},
+		{"missing key", MDMConfig{AppleAPNsCert: certFile, AppleSCEPCert: certFile}, "Apple MDM (APNs|SCEP) configuration: no key provided"},
+		{"missing cert with raw key", MDMConfig{AppleAPNsKeyBytes: string(testKey), AppleSCEPKeyBytes: string(testKey)}, `Apple MDM (APNs|SCEP) configuration: no certificate provided`},
+		{"missing key with raw cert", MDMConfig{AppleAPNsCertBytes: string(testCert), AppleSCEPCertBytes: string(testCert)}, "Apple MDM (APNs|SCEP) configuration: no key provided"},
+		{"cert file does not exist", MDMConfig{AppleAPNsCert: "no-such-file", AppleAPNsKey: keyFile, AppleSCEPCert: "no-such-file", AppleSCEPKey: keyFile}, `open no-such-file: no such file or directory`},
+		{"key file does not exist", MDMConfig{AppleAPNsKey: "no-such-file", AppleAPNsCert: certFile, AppleSCEPKey: "no-such-file", AppleSCEPCert: certFile}, `open no-such-file: no such file or directory`},
+		{"valid file pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: keyFile, AppleSCEPCert: certFile, AppleSCEPKey: keyFile}, ""},
+		{"valid file/raw pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKeyBytes: string(testKey), AppleSCEPCert: certFile, AppleSCEPKeyBytes: string(testKey)}, ""},
+		{"valid raw/file pairs", MDMConfig{AppleAPNsCertBytes: string(testCert), AppleAPNsKey: keyFile, AppleSCEPCertBytes: string(testCert), AppleSCEPKey: keyFile}, ""},
+		{"invalid file pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: invalidKeyFile, AppleSCEPCert: certFile, AppleSCEPKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file/raw pairs", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKeyBytes: string(unrelatedTestKey), AppleSCEPCert: certFile, AppleSCEPKeyBytes: string(unrelatedTestKey)}, "tls: private key does not match public key"},
+		{"invalid raw/file pairs", MDMConfig{AppleAPNsCertBytes: string(testCert), AppleAPNsKey: invalidKeyFile, AppleSCEPCertBytes: string(testCert), AppleSCEPKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: garbageFile, AppleSCEPCert: certFile, AppleSCEPKey: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid raw key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKeyBytes: "zzzz", AppleSCEPCert: certFile, AppleSCEPKeyBytes: "zzzz"}, "tls: failed to find any PEM data"},
+		{"invalid raw cert", MDMConfig{AppleAPNsCertBytes: "zzzz", AppleAPNsKey: keyFile, AppleSCEPCertBytes: "zzzz", AppleSCEPKey: keyFile}, "tls: failed to find any PEM data in certificate input"},
+		{"duplicate cert", MDMConfig{AppleAPNsCert: certFile, AppleAPNsCertBytes: string(testCert), AppleAPNsKey: keyFile, AppleSCEPCert: certFile, AppleSCEPCertBytes: string(testCert), AppleSCEPKey: keyFile}, `Apple MDM (APNs|SCEP) configuration: only one of the certificate path or bytes must be provided`},
+		{"duplicate key", MDMConfig{AppleAPNsCert: certFile, AppleAPNsKey: keyFile, AppleAPNsKeyBytes: string(testKey), AppleSCEPCert: certFile, AppleSCEPKey: keyFile, AppleSCEPKeyBytes: string(testKey)}, `Apple MDM (APNs|SCEP) configuration: only one of the key path or bytes must be provided`},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.in.AppleAPNsCert != "" || c.in.AppleAPNsCertBytes != "" || c.in.AppleAPNsKey != "" || c.in.AppleAPNsKeyBytes != "" {
+				got, pemCert, pemKey, err := c.in.AppleAPNs()
+				if c.errMatches != "" {
+					require.Error(t, err)
+					require.Nil(t, got)
+					require.Regexp(t, c.errMatches, err.Error())
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, got)
+					require.NotNil(t, got.Leaf) // APNs cert is parsed and stored
+					require.NotEmpty(t, pemCert)
+					require.NotEmpty(t, pemKey)
+				}
+			}
+
+			if c.in.AppleSCEPCert != "" || c.in.AppleSCEPCertBytes != "" || c.in.AppleSCEPKey != "" || c.in.AppleSCEPKeyBytes != "" {
+				got, pemCert, pemKey, err := c.in.AppleSCEP()
+				if c.errMatches != "" {
+					require.Error(t, err)
+					require.Nil(t, got)
+					require.Regexp(t, c.errMatches, err.Error())
+				} else {
+					require.NoError(t, err)
+					require.NotNil(t, got)
+					require.Nil(t, got.Leaf) // SCEP cert is not kept, not needed
+					require.NotEmpty(t, pemCert)
+					require.NotEmpty(t, pemKey)
+				}
+			}
+		})
+	}
+}
+
 var (
 	testCA = []byte(`-----BEGIN CERTIFICATE-----
 MIIFSzCCAzOgAwIBAgIUf4lOcb9bkN2+u6FjWL0fSFCjGGgwDQYJKoZIhvcNAQEL
@@ -477,6 +553,35 @@ YXmhAoGAA3QUiCCl11c1C4VsF68Fa2i7qwnty3fvFidZpW3ds0tzZdIvkpRLp5+u
 XAJ5+zStdEGdnu0iXALQlY7ektawXguT/zYKg3nfS9RMGW6CxZotn4bqfQwDuttf
 b1xn1jGQd/o0xFf9ojpDNy6vNojidQGHh6E3h0GYvxbnQmVNq5U=
 -----END RSA TESTING KEY-----`))
+
+	unrelatedTestKey = []byte(testingKey(`-----BEGIN TESTING KEY-----
+MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDbIFkAXN3M1A2/
+xRWwWJcuT+cXeD3+1W0EEHEYT+Ad8zNGB3yTsn7iw8MELalrXbUnKJkkiah8XbSh
+bw9ngHLHXTIbhvl2ceg7dwWNrK+286k5e/vVH/wwWfImBl8gK6ksoDic5U1fTzGQ
+1wkhfqIScD9j0hR7wwUxwJejKxzBq83gl3x5p9JgiVNcIo5h4EowshkVNo+xPuL9
+ZBZGUp6w2XBAdOfOzQbqIMbDy/puKz3n5kckAOtcgH+T/AFn/asMCAde+Ym1mPl/
+/wR7rPJHJvjrq6TSzga85pZJqszlleFQ74MLm7tXtVMlXHLR86Po9NXG1Z3G7Cna
+Io4o2F+bAgMBAAECggEABh5jHdV6BAwvzhkMv/3ZStvEUi1zXbhL8P8ciVdBpNRz
+rBLtcZpcXKymt2km/+5/7nX9wL1vTPm434EgZv15NwPtMEOWl64ak/6A0zHtPiiT
+ox1JLOxVuGvqjRFEert9X9ehfRASFwU5FxhKEvtcPzOPMZReKg6KCJeeJFpB1U6P
+l40F37bneQqHfOj+8h1m+7zL07w0Vfl2XMdvM1TKf1KACxBfgIhqKL1TO0LrI/fC
+iJsL6948sBe//e/Ee11CA8+VcqbrJIlE+wouasFQWhKjJQoGcrdh/3PtgfRfTRWP
+3HpOlPSLeizXdwOJOKmZv/XeOGlOpl2xBAC6rO9hAQKBgQDzz5Wxe4e0dBYzra7G
+V046O9Q34k2Gfi4BlV5NqCnFjcBwvxjOGE/rfjsgQO5bdZWGUqzNIubYvOisNiv9
+k1RqQXFibpHmKcWZz6zNHfOpZC6/ACKA72cR2TyOaj8YLk69do5zc4jz7vH6pU5C
+q6jBIX5nrm62wycdBImpx2JhwQKBgQDmFNaB3dd8xvVtigNUVhAXEkZMj4N3IOiL
+esvfLEoqiaNMgZTRH2sas1BATxXNAs+PzYTxn2+bq4/63AcSx9Pd4QbwuhN0D0Pp
+24ZU5FYWVPtpztWXnTNgfP6rj7MngJmLFjqVJynwt1ZIA2mkymjDyOo7+bEtAXvV
+evvW/4egWwKBgQDvcnPltxh0FX6oim8XxC7D6nZl3A+fgtTUIUpYoktEBg91q3hF
+EIONGJAhASQXFsge/5tObHSjcARi/WD+zW8eW99reIQ5s9SpVtizKjNfrVBrrUo1
+rulfEibzB02oBfK3CHSm1lUunQFx1F+kAsrdwnNOiHWbcNY9HXPGFld9AQKBgQC0
+qFoCILGpzQM63mpc1zLNGtFOHkXIzXMqyeG4u6sEmYw6b2jthzDvBysVQ8PHdNSL
+goFHw7u7zMtB23BGY9dM2fs8G69Yqv/VaUSh9aRO5q1+WCTIZmvH8H17MlsmwkhN
+uMeJA/Zfh2VdKCjUdwYp7OFW9GkVAJw+dNG38G6LDwKBgQCC1zsyTKl0Y5DElJc5
+e+Z1cALnWREYhEPv4JrR5U0VvqeIdExDD6Ida61yvd7oc59pn0kpfKjozPJr6FsU
+2AUs1ibpKVgbzDfDZiX1xWgt1OJ9x9yMi9ZvQAU5oYckiV88VjS5c2PFc0m7g6ik
+2GYiMrU/kZ2OfcPxYtZJpZG+kw==
+-----END TESTING KEY-----`))
 )
 
 // prevent static analysis tools from raising issues due to detection of private key

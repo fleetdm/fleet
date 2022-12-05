@@ -5407,7 +5407,7 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	chk(hosts, "0001", "0003", "0004")
 
-	_, err = ds.writer.Exec(`UPDATE hosts SET created_at = created_at + id`)
+	_, err = ds.writer.Exec(`UPDATE hosts SET created_at = DATE_ADD(created_at, INTERVAL id DAY)`)
 	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{

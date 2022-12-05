@@ -45,28 +45,14 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        # Doesn't work on Windows because Linux Docker containers are not supported.
-        os: [ubuntu-latest, macos-latest]
+        # Only run on Linux because:
+        #   - Linux Docker containers are not supported in Windows.
+        #   - Unattended installation of Docker on macOS fails. (see
+        #   https://github.com/docker/for-mac/issues/6450)
+        os: [ubuntu-latest]
         go-version: ['1.19.3']
     runs-on: ${{ matrix.os }}
     steps:
-
-    # Docker needs to be installed manually on macOS.
-    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
-    - name: Install Docker
-      timeout-minutes: 20
-      if: contains(matrix.os, 'macos')
-      run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
 
     - name: Install Go
       uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
