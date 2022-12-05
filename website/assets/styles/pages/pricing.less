@@ -8,10 +8,7 @@
   .btn {
     color: #fff;
   }
-  .faq-question {
-    font-weight: @bold;
-  }
-  .faq-list {
+  [purpose='faq-list'] {
     padding-left: 20px;
 
     li {
@@ -19,6 +16,9 @@
       padding-left: 8px;
     }
 
+  }
+  [purpose='pricing-table-category']:not(:first-of-type) {
+    margin-top: 48px;
   }
 
   @media (max-width: 767px) {
