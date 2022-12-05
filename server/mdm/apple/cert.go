@@ -24,7 +24,7 @@ var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
 
 // GenerateAPNSCSRKey generates a APNS csr to be sent to fleetdm.com and returns a csr and key.
 func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.PrivateKey, error) {
-	key, err := NewPrivateKey()
+	key, err := newPrivateKey()
 	if err != nil {
 		return nil, nil, fmt.Errorf("generate private key: %w", err)
 	}
@@ -101,7 +101,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and returns the certificate and its private key.
 func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
-	key, err := NewPrivateKey()
+	key, err := newPrivateKey()
 	if err != nil {
 		return nil, nil, err
 	}
