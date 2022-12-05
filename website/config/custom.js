@@ -128,6 +128,26 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
     'schema/': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
   },
+  confidentialGithubRepoDRIByPath: {
+    'readme.md': ['mikermcneil', 'zwass'],
+    // GitHub issue templates
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass'],
+    '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
+    '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
+    '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
+    '.github/ISSUE_TEMPLATE/4-release.md': 'noahtalerman',
+    '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/6-speaking-event.md': 'mike-j-thomas',
+    '.github/ISSUE_TEMPLATE/9-renewal-process.md': ['hollidayn', 'alexmitchelliii'],
+    '.github/ISSUE_TEMPLATE/hiring.md': 'charlottechance',
+    '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
+    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
+    '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
+
+    // Folders of configuration files
+    'mdm_profiles': 'guillaumeross',
+    'vpn': 'rfairburn',
+  },
 
 
   /***************************************************************************

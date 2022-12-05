@@ -286,11 +286,11 @@ func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 
 	debian := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 	debian.Platform = "debian"
-	ds.UpdateHost(ctx, debian)
+	require.NoError(t, ds.UpdateHost(ctx, debian))
 
 	ubuntu := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now())
 	ubuntu.Platform = "ubuntu"
-	ds.UpdateHost(ctx, ubuntu)
+	require.NoError(t, ds.UpdateHost(ctx, ubuntu))
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
@@ -1292,7 +1292,8 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 			ID:          2,
 			Hostname:    "host2",
 			DisplayName: "host2",
-		}})
+		},
+	})
 
 	hosts, err = ds.HostsBySoftwareIDs(ctx, []uint{barRpm.ID})
 	require.NoError(t, err)
@@ -1594,7 +1595,7 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 
 		host := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 		host.Platform = "debian"
-		ds.UpdateHost(ctx, host)
+		require.NoError(t, ds.UpdateHost(ctx, host))
 
 		software := []fleet.Software{
 			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
@@ -1633,11 +1634,11 @@ func testSoftwareByID(t *testing.T, ds *Datastore) {
 
 		hostA := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
 		hostA.Platform = "ubuntu"
-		ds.UpdateHost(ctx, hostA)
+		require.NoError(t, ds.UpdateHost(ctx, hostA))
 
 		hostB := test.NewHost(t, ds, "hostB", "", "hostBkey", "hostBuuid", time.Now())
 		hostB.Platform = "ubuntu"
-		ds.UpdateHost(ctx, hostB)
+		require.NoError(t, ds.UpdateHost(ctx, hostB))
 
 		software := []fleet.Software{
 			{Name: "foo_123", Version: "0.0.1", Source: "chrome_extensions"},

@@ -345,8 +345,6 @@ type MDMAppleConfig struct {
 
 	// SCEP holds the SCEP protocol and server configuration.
 	SCEP MDMAppleSCEPConfig `yaml:"scep"`
-	// MDM holds the MDM core protocol and server configuration.
-	MDM MDMAppleMDMConfig `yaml:"mdm"`
 	// DEP holds the MDM DEP configuration.
 	DEP MDMAppleDEP `yaml:"dep"`
 }
@@ -360,24 +358,8 @@ type MDMAppleDEP struct {
 	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
 }
 
-// MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
-type MDMAppleMDMConfig struct {
-	// PushCert contains the Apple Push Notification Service (APNS) certificate
-	PushCert MDMApplePushCert `yaml:"push_cert"`
-}
-
-// MDMApplePushCert holds the Apple Push Notification Service (APNS) certificate.
-type MDMApplePushCert struct {
-	// PEMCert contains the PEM-encoded certificate.
-	PEMCert string `yaml:"pem_cert"`
-	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey string `yaml:"pem_key"`
-}
-
 // MDMAppleSCEPConfig holds SCEP protocol and server configuration.
 type MDMAppleSCEPConfig struct {
-	// CA holds all the configuration for the SCEP CA certificate.
-	CA SCEPCAConfig `yaml:"ca"`
 	// Signer holds the SCEP signer configuration.
 	Signer SCEPSignerConfig `yaml:"signer"`
 	// Challenge is the SCEP challenge for SCEP enrollment requests.
@@ -390,14 +372,6 @@ type SCEPSignerConfig struct {
 	ValidityDays int `yaml:"validity_days"`
 	// AllowRenewalDays are the allowable renewal days for certificates.
 	AllowRenewalDays int `yaml:"allow_renewal_days"`
-}
-
-// SCEPCAConfig holds the SCEP CA certificate.
-type SCEPCAConfig struct {
-	// PEMCert contains the PEM-encoded certificate.
-	PEMCert string `yaml:"pem_cert"`
-	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey string `yaml:"pem_key"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -428,7 +402,148 @@ type FleetConfig struct {
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
+	MDM              MDMConfig
 	MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
+}
+
+type MDMConfig struct {
+	AppleAPNsCert      string `yaml:"apple_apns_cert"`
+	AppleAPNsCertBytes string `yaml:"apple_apns_cert_bytes"`
+	AppleAPNsKey       string `yaml:"apple_apns_key"`
+	AppleAPNsKeyBytes  string `yaml:"apple_apns_key_bytes"`
+	AppleSCEPCert      string `yaml:"apple_scep_cert"`
+	AppleSCEPCertBytes string `yaml:"apple_scep_cert_bytes"`
+	AppleSCEPKey       string `yaml:"apple_scep_key"`
+	AppleSCEPKeyBytes  string `yaml:"apple_scep_key_bytes"`
+
+	// the following fields hold the parsed, validated TLS certificate set the
+	// first time AppleAPNs or AppleSCEP is called, as well as the PEM-encoded
+	// bytes for the certificate and private key.
+	appleAPNs        *tls.Certificate
+	appleAPNsPEMCert []byte
+	appleAPNsPEMKey  []byte
+	appleSCEP        *tls.Certificate
+	appleSCEPPEMCert []byte
+	appleSCEPPEMKey  []byte
+}
+
+type x509KeyPairConfig struct {
+	certPath  string
+	certBytes []byte
+	keyPath   string
+	keyBytes  []byte
+}
+
+func (x *x509KeyPairConfig) IsSet() bool {
+	// if any setting is provided, then the key pair is considered set
+	return x.certPath != "" || len(x.certBytes) != 0 || x.keyPath != "" || len(x.keyBytes) != 0
+}
+
+func (x *x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
+	if x.certPath == "" && len(x.certBytes) == 0 {
+		return nil, errors.New("no certificate provided")
+	}
+	if x.certPath != "" && len(x.certBytes) != 0 {
+		return nil, errors.New("only one of the certificate path or bytes must be provided")
+	}
+	if x.keyPath == "" && len(x.keyBytes) == 0 {
+		return nil, errors.New("no key provided")
+	}
+	if x.keyPath != "" && len(x.keyBytes) != 0 {
+		return nil, errors.New("only one of the key path or bytes must be provided")
+	}
+
+	if len(x.certBytes) == 0 {
+		b, err := os.ReadFile(x.certPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading certificate file: %w", err)
+		}
+		x.certBytes = b
+	}
+	if len(x.keyBytes) == 0 {
+		b, err := os.ReadFile(x.keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading key file: %w", err)
+		}
+		x.keyBytes = b
+	}
+
+	cert, err := tls.X509KeyPair(x.certBytes, x.keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse key pair: %w", err)
+	}
+
+	if keepLeaf {
+		// X509KeyPair does not store the parsed certificate leaf
+		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("parse certificate: %w", err)
+		}
+		cert.Leaf = parsed
+	}
+	return &cert, nil
+}
+
+func (m *MDMConfig) IsAppleAPNsSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleAPNsCert,
+		[]byte(m.AppleAPNsCertBytes),
+		m.AppleAPNsKey,
+		[]byte(m.AppleAPNsKeyBytes),
+	}
+	return pair.IsSet()
+}
+
+func (m *MDMConfig) IsAppleSCEPSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleSCEPCert,
+		[]byte(m.AppleSCEPCertBytes),
+		m.AppleSCEPKey,
+		[]byte(m.AppleSCEPKeyBytes),
+	}
+	return pair.IsSet()
+}
+
+// AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
+	if m.appleAPNs == nil {
+		pair := x509KeyPairConfig{
+			m.AppleAPNsCert,
+			[]byte(m.AppleAPNsCertBytes),
+			m.AppleAPNsKey,
+			[]byte(m.AppleAPNsKeyBytes),
+		}
+		cert, err := pair.Parse(true)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Apple MDM APNs configuration: %w", err)
+		}
+		m.appleAPNs = cert
+		m.appleAPNsPEMCert = pair.certBytes
+		m.appleAPNsPEMKey = pair.keyBytes
+	}
+	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
+}
+
+// AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
+	if m.appleSCEP == nil {
+		pair := x509KeyPairConfig{
+			m.AppleSCEPCert,
+			[]byte(m.AppleSCEPCertBytes),
+			m.AppleSCEPKey,
+			[]byte(m.AppleSCEPKeyBytes),
+		}
+		cert, err := pair.Parse(false)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
+		}
+		m.appleSCEP = cert
+		m.appleSCEPPEMCert = pair.certBytes
+		m.appleSCEPPEMKey = pair.keyBytes
+	}
+	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
 }
 
 type TLS struct {
@@ -766,17 +881,40 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
-	// MDM Apple config
+	// MDM Apple config (prototype)
 	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigString("mdm_apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
-	man.addConfigString("mdm_apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
 	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigString("mdm_apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
-	man.addConfigString("mdm_apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
 	man.addConfigString("mdm_apple.dep.token", "", "MDM DEP Auth Token")
 	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+
+	// MDM config
+	man.addConfigString("mdm.apple_apns_cert", "", "Apple APNs PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_apns_cert_bytes", "", "Apple APNs PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_apns_key", "", "Apple APNs PEM-encoded private key path")
+	man.addConfigString("mdm.apple_apns_key_bytes", "", "Apple APNs PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_scep_cert", "", "Apple SCEP PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
+	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
+
+	// Hide the official MDM flags as we don't want it to be discoverable for users for now
+	mdmFlags := []string{
+		"mdm.apple_apns_cert",
+		"mdm.apple_apns_cert_bytes",
+		"mdm.apple_apns_key",
+		"mdm.apple_apns_key_bytes",
+		"mdm.apple_scep_cert",
+		"mdm.apple_scep_cert_bytes",
+		"mdm.apple_scep_key",
+		"mdm.apple_scep_key_bytes",
+	}
+	for _, mdmFlag := range mdmFlags {
+		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
+			flag.Hidden = true
+		}
+	}
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -990,26 +1128,26 @@ func (man Manager) LoadConfig() FleetConfig {
 		MDMApple: MDMAppleConfig{
 			Enable: man.getConfigBool("mdm_apple.enable"),
 			SCEP: MDMAppleSCEPConfig{
-				CA: SCEPCAConfig{
-					PEMCert: man.getConfigString("mdm_apple.scep.ca.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.scep.ca.key_pem"),
-				},
 				Signer: SCEPSignerConfig{
 					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
 					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
 				},
 				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
 			},
-			MDM: MDMAppleMDMConfig{
-				PushCert: MDMApplePushCert{
-					PEMCert: man.getConfigString("mdm_apple.mdm.push.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.mdm.push.key_pem"),
-				},
-			},
 			DEP: MDMAppleDEP{
 				Token:           man.getConfigString("mdm_apple.dep.token"),
 				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
 			},
+		},
+		MDM: MDMConfig{
+			AppleAPNsCert:      man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes: man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:       man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:  man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:      man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes: man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:       man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:  man.getConfigString("mdm.apple_scep_key_bytes"),
 		},
 	}
 
@@ -1093,8 +1231,8 @@ func (man Manager) getInterfaceVal(key string) interface{} {
 // addConfigString adds a string config to the config options
 func (man Manager) addConfigString(key, defVal, usage string) {
 	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1131,8 +1269,8 @@ func (man Manager) getConfigTLSProfile() string {
 // addConfigInt adds a int config to the config options
 func (man Manager) addConfigInt(key string, defVal int, usage string) {
 	man.command.PersistentFlags().Int(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1152,8 +1290,8 @@ func (man Manager) getConfigInt(key string) int {
 // addConfigBool adds a bool config to the config options
 func (man Manager) addConfigBool(key string, defVal bool, usage string) {
 	man.command.PersistentFlags().Bool(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1173,8 +1311,8 @@ func (man Manager) getConfigBool(key string) bool {
 // addConfigDuration adds a duration config to the config options
 func (man Manager) addConfigDuration(key string, defVal time.Duration, usage string) {
 	man.command.PersistentFlags().Duration(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)

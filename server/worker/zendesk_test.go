@@ -77,7 +77,8 @@ func TestZendeskRun(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{}`))
+		_, err = w.Write([]byte(`{}`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 

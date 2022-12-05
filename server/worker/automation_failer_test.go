@@ -31,7 +31,7 @@ func TestJiraFailer(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`
+		_, err := w.Write([]byte(`
 {
   "id": "10000",
   "key": "ED-24",
@@ -44,6 +44,7 @@ func TestJiraFailer(t *testing.T) {
     }
   }
 }`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -101,7 +102,8 @@ func TestZendeskFailer(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"ticket": {"id": 987}}`))
+		_, err := w.Write([]byte(`{"ticket": {"id": 987}}`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 

@@ -102,14 +102,14 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		} else {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		}
-		enc.Encode(ve)
+		enc.Encode(ve) //nolint:errcheck
 	case permissionErrorInterface:
 		pe := jsonError{
 			Message: "Permission Denied",
 			Errors:  e.PermissionError(),
 		}
 		w.WriteHeader(http.StatusForbidden)
-		enc.Encode(pe)
+		enc.Encode(pe) //nolint:errcheck
 		return
 	case mailError:
 		me := jsonError{
@@ -117,7 +117,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Errors:  e.MailError(),
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		enc.Encode(me)
+		enc.Encode(me) //nolint:errcheck
 	case osqueryError:
 		// osquery expects to receive the node_invalid key when a TLS
 		// request provides an invalid node_key for authentication. It
@@ -137,35 +137,35 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		enc.Encode(errMap)
+		enc.Encode(errMap) //nolint:errcheck
 	case notFoundErrorInterface:
 		je := jsonError{
 			Message: "Resource Not Found",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusNotFound)
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	case existsErrorInterface:
 		je := jsonError{
 			Message: "Resource Already Exists",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusConflict)
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	case conflictErrorInterface:
 		je := jsonError{
 			Message: "Conflict",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusConflict)
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	case badRequestErrorInterface:
 		je := jsonError{
 			Message: "Bad request",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	case *mysql.MySQLError:
 		je := jsonError{
 			Message: "Validation Failed",
@@ -176,14 +176,14 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			statusCode = http.StatusConflict
 		}
 		w.WriteHeader(statusCode)
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	case *fleet.Error:
 		je := jsonError{
 			Message: e.Error(),
 			Code:    e.Code,
 		}
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	default:
 		// when there's a tcp read timeout, the error is *net.OpError but the cause is an internal
 		// poll.DeadlineExceeded which we cannot match against, so we match against the original error
@@ -194,7 +194,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 				Message: opErr.Error(),
 				Errors:  baseError(opErr.Error()),
 			}
-			enc.Encode(je)
+			enc.Encode(je) //nolint:errcheck
 			return
 		}
 		if fleet.IsForeignKey(err) {
@@ -203,7 +203,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 				Errors:  baseError(err.Error()),
 			}
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			enc.Encode(ve)
+			enc.Encode(ve) //nolint:errcheck
 			return
 		}
 
@@ -237,7 +237,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: msg,
 			Errors:  baseError(reason),
 		}
-		enc.Encode(je)
+		enc.Encode(je) //nolint:errcheck
 	}
 }
 

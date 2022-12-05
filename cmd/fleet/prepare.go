@@ -22,7 +22,7 @@ Subcommands for initializing Fleet infrastructure
 To setup Fleet infrastructure, use one of the available commands.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			cmd.Help() //nolint:errcheck
 		},
 	}
 
