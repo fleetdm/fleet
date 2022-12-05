@@ -112,6 +112,7 @@ const HostDetailsPage = ({
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
+    filteredHostsPath,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -329,10 +330,12 @@ const HostDetailsPage = ({
 
   const titleData = normalizeEmptyValues(
     pick(host, [
+      "id",
       "status",
       "issues",
       "memory",
       "cpu_type",
+      "platform",
       "os_version",
       "osquery_version",
       "enroll_secret_name",
@@ -604,7 +607,7 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to all hosts" />
+          <BackLink text="Back to all hosts" path={filteredHostsPath} />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
@@ -662,6 +665,7 @@ const HostDetailsPage = ({
                   featuresConfig?.enable_software_inventory
                 }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
+                router={router}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard

@@ -57,6 +57,8 @@ type Service struct {
 	mdmStorage       nanomdm_storage.AllStorage
 	mdmPushService   nanomdm_push.Pusher
 	mdmPushCertTopic string
+
+	cronSchedulesService fleet.CronSchedulesService
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -89,6 +91,7 @@ func NewService(
 	mdmStorage nanomdm_storage.AllStorage,
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,
+	cronSchedulesService fleet.CronSchedulesService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -96,28 +99,29 @@ func NewService(
 	}
 
 	svc := &Service{
-		ds:                ds,
-		task:              task,
-		carveStore:        carveStore,
-		installerStore:    installerStore,
-		resultStore:       resultStore,
-		liveQueryStore:    lq,
-		logger:            logger,
-		config:            config,
-		clock:             c,
-		osqueryLogWriter:  osqueryLogger,
-		mailService:       mailService,
-		ssoSessionStore:   sso,
-		failingPolicySet:  failingPolicySet,
-		authz:             authorizer,
-		jitterH:           make(map[time.Duration]*jitterHashTable),
-		jitterMu:          new(sync.Mutex),
-		geoIP:             geoIP,
-		enrollHostLimiter: enrollHostLimiter,
-		depStorage:        depStorage,
-		mdmStorage:        mdmStorage,
-		mdmPushService:    mdmPushService,
-		mdmPushCertTopic:  mdmPushCertTopic,
+		ds:                   ds,
+		task:                 task,
+		carveStore:           carveStore,
+		installerStore:       installerStore,
+		resultStore:          resultStore,
+		liveQueryStore:       lq,
+		logger:               logger,
+		config:               config,
+		clock:                c,
+		osqueryLogWriter:     osqueryLogger,
+		mailService:          mailService,
+		ssoSessionStore:      sso,
+		failingPolicySet:     failingPolicySet,
+		authz:                authorizer,
+		jitterH:              make(map[time.Duration]*jitterHashTable),
+		jitterMu:             new(sync.Mutex),
+		geoIP:                geoIP,
+		enrollHostLimiter:    enrollHostLimiter,
+		depStorage:           depStorage,
+		mdmStorage:           mdmStorage,
+		mdmPushService:       mdmPushService,
+		mdmPushCertTopic:     mdmPushCertTopic,
+		cronSchedulesService: cronSchedulesService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

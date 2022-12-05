@@ -1,12 +1,13 @@
 import React from "react";
-import { Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
 
 import { formatDistanceToNow } from "date-fns";
 
 import { ISoftware } from "interfaces/software";
-
 import PATHS from "router/paths";
+
+import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -133,7 +134,8 @@ export const generateSoftwareTableData = (
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = (
-  deviceUser = false
+  deviceUser = false,
+  router?: InjectedRouter
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -156,10 +158,18 @@ export const generateSoftwareTableHeaders = (
             <span>{name}</span>
           );
         }
+
+        const onClickSoftware = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+        };
+
         return (
-          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+          <Button onClick={onClickSoftware} variant="text-link">
             {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Link>
+          </Button>
         );
       },
       sortType: "caseInsensitive",

@@ -72,5 +72,20 @@ Groups are organized around goals. Connecting people with the same goals helps t
 
 Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
+## Why does Fleet value Openness?
+A lot of thought went into making Openness one of our values.
+
+It might be easier to keep company information confidential. You don’t have to think so hard about what should or shouldn’t be public. Declassifying information later carries risk. Anything you release affects how people see your company.
+
+But we prefer to focus on the benefits.
+
+Sharing information helps other organizations, which means helping more end users.
+
+Everything we release is free marketing. Publicizing information is marketing itself. We’re an open-source company after all.
+
+Sure, people might point out our mistakes. But that just helps us grow. And that’s what open source is all about: creating and improving tools together as a community.
+
+For more thoughts on Fleet's values, visit the [Values section of the Company page in our handbook](https://fleetdm.com/handbook/company#openness).
+
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

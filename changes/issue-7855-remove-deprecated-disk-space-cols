@@ -1,1 +1,0 @@
-* Removed `gigs_disk_space_available` and `percent_disk_space_available` columns from the `hosts` table, as this information is now in the `host_disks` table.

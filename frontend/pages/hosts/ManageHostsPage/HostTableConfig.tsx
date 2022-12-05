@@ -27,7 +27,7 @@ import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
-import IssueIcon from "../../../../assets/images/icon-issue-fleet-black-16x16@2x.png";
+import getHostStatusTooltipText from "../helpers";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -196,12 +196,30 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "Status",
-    Header: "Status",
+    Header: (headerProps: IHeaderProps): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+             Online hosts will respond to a live query. Offline<br/>
+             hosts won’t respond to a live query because<br/>
+             they may be shut down, asleep, or not<br/>
+             connected to the internet.`}
+        >
+          Status
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps: ICellProps) => (
-      <StatusCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      const value = cellProps.cell.value;
+      const tooltip = {
+        id: cellProps.row.original.id,
+        tooltipText: getHostStatusTooltipText(value),
+      };
+      return <StatusCell value={value} tooltip={tooltip} />;
+    },
   },
   {
     title: "Issues",
@@ -225,14 +243,18 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "gigs_disk_space_available",
     Cell: (cellProps: INumberCellProps): JSX.Element => {
-      const { id, percent_disk_space_available } = cellProps.row.original;
-
+      const {
+        id,
+        platform,
+        percent_disk_space_available,
+      } = cellProps.row.original;
       return (
         <DiskSpaceGraph
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
           id={`disk-space__${id}`}
+          platform={platform}
         />
       );
     },
