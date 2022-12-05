@@ -41,6 +41,8 @@ After creating a component, create a new file, `component.stories.tsx`, within i
 fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize
 the component within Storybook to determine if it looks and behaves as expected.
 
+With directories containing unit or integration tests in `ComponentName.tests.tsx`, run `yarn test -- ComponentName.tests.tsx`. To [test all Javascript components](https://fleetdm.com/docs/contributing/testing-and-local-development#javascript-unit-tests) run `yarn test`.
+
 ## Directory structure
 
 Component directories in the Fleet front-end application encapsulate the entire
@@ -51,11 +53,13 @@ typical directory structure for a component is as follows:
 └── ComponentName
   ├── _styles.scss
   ├── ComponentName.tsx
+  |-- ComponentName.tests.tsx
   ├── index.ts
 ```
 
 - `_styles.scss`: The component css styles
 - `ComponentName.tsx`: The React component
+- `ComponentName.tests.jsx`: The React component unit/integration tests
 - `index.ts`: Exports the React component
   - This file is helpful as it allows other components to import the component
     by it's directory name. Without this file the component name would have to
