@@ -6,6 +6,7 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 ### Deploying your code to the loadtesting environment
 
 1. Push your branch to https://github.com/fleetdm/fleet and wait for the build to complete (https://github.com/fleetdm/fleet/actions).
+1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
 1. Initialize your terraform environment with `terraform init`.
 1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
 1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes).

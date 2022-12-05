@@ -137,6 +137,7 @@ const ManageHostsPage = ({
     isSandboxMode,
     setAvailableTeams,
     setCurrentTeam,
+    setFilteredHostsPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -543,6 +544,8 @@ const ManageHostsPage = ({
       retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
+
+    setFilteredHostsPath(location.pathname + location.search);
   }, [availableTeams, currentTeam, location, labels]);
 
   const isLastPage =

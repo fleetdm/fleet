@@ -29,10 +29,11 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+
 import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
-import ShowQueryModal from "./components/ShowQueryModal";
 
 const baseClass = "manage-schedule-page";
 

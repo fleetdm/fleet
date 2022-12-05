@@ -112,6 +112,7 @@ const HostDetailsPage = ({
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
+    filteredHostsPath,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -606,7 +607,7 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to all hosts" />
+          <BackLink text="Back to all hosts" path={filteredHostsPath} />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}

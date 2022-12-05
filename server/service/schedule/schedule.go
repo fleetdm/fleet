@@ -31,10 +31,12 @@ type Schedule struct {
 	instanceID string
 	logger     log.Logger
 
-	schedIntervalMu sync.Mutex // protects schedInterval.
-	schedInterval   time.Duration
+	mu                sync.Mutex // protects schedInterval and intervalStartedAt
+	schedInterval     time.Duration
+	intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
 
-	done chan struct{}
+	trigger chan struct{}
+	done    chan struct{}
 
 	configReloadInterval   time.Duration
 	configReloadIntervalFn ReloadInterval
@@ -139,6 +141,7 @@ func New(
 		name:                 name,
 		instanceID:           instanceID,
 		logger:               log.NewNopLogger(),
+		trigger:              make(chan struct{}),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
 		schedInterval:        truncateSecondsWithFloor(interval),
@@ -155,30 +158,13 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
-	var intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
-	var m sync.Mutex                // protects intervalStartedAt
-
-	getIntervalStartedAt := func() (start time.Time) {
-		m.Lock()
-		defer m.Unlock()
-
-		return intervalStartedAt
-	}
-
-	setIntervalStartedAt := func(start time.Time) {
-		m.Lock()
-		defer m.Unlock()
-
-		intervalStartedAt = start.Truncate(time.Second)
-	}
-
-	stats, err := s.getStats()
+	prevStats, err := s.getLatestStats()
 	if err != nil {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
 		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
-	setIntervalStartedAt(stats.CreatedAt)
+	s.setIntervalStartedAt(prevStats.CreatedAt)
 
 	initialWait := 10 * time.Second
 	if schedInterval := s.getSchedInterval(); schedInterval < initialWait {
@@ -195,19 +181,32 @@ func (s *Schedule) Start() {
 		}()
 
 		for {
-			level.Debug(s.logger).Log("waiting", "wait for next tick")
+			level.Debug(s.logger).Log("waiting", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
 
 			select {
 			case <-s.ctx.Done():
+				close(s.trigger)
 				schedTicker.Stop()
 				return
 
+			case <-s.trigger:
+				level.Debug(s.logger).Log("waiting", "done, trigger received")
+
+				ok, cancelHold := s.holdLock()
+				if !ok {
+					level.Debug(s.logger).Log("msg", "unable to acquire lock")
+					continue
+				}
+				s.runWithStats(fleet.CronStatsTypeTriggered)
+				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
+				cancelHold()
+
 			case <-schedTicker.C:
-				level.Debug(s.logger).Log("waiting", "done")
+				level.Debug(s.logger).Log("waiting", "done, tick received")
 
 				schedInterval := s.getSchedInterval()
 
-				stats, err := s.getStats()
+				stats, err := s.getLatestStats()
 				if err != nil {
 					level.Error(s.logger).Log("err", "get cron stats", "details", err)
 					sentry.CaptureException(err)
@@ -223,18 +222,17 @@ func (s *Schedule) Start() {
 					continue
 				}
 
-				prevStart := getIntervalStartedAt()
+				prevStart := s.getIntervalStartedAt()
 				if stats.CreatedAt.After(prevStart) {
 					// if there's a diff between the datastore and our local value, we use the
 					// more recent timestamp and update our local value accordingly
-					setIntervalStartedAt(stats.CreatedAt)
-					prevStart = getIntervalStartedAt()
+					s.setIntervalStartedAt(stats.CreatedAt)
+					prevStart = s.getIntervalStartedAt()
 				}
-				remainingInterval := getRemainingInterval(prevStart, schedInterval)
 
 				if time.Since(prevStart) < schedInterval {
 					// wait for the remaining interval plus a small buffer
-					schedTicker.Reset(remainingInterval + 100*time.Millisecond)
+					schedTicker.Reset(s.getRemainingInterval(prevStart) + 100*time.Millisecond)
 					continue
 				}
 
@@ -243,44 +241,22 @@ func (s *Schedule) Start() {
 				if prevRuntime > schedInterval {
 					// if the previous run took longer than the schedule interval, we wait until the start of the next full interval
 					newStart := prevStart.Add(time.Since(prevStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
-					setIntervalStartedAt(newStart)
-					schedTicker.Reset(getRemainingInterval(newStart, schedInterval))
+					s.setIntervalStartedAt(newStart)
+					schedTicker.Reset(s.getRemainingInterval(newStart))
 					continue
 				}
 
 				ok, cancelHold := s.holdLock()
 				if !ok {
-					// failed to get a lock so skip ahead to the next interval
+					level.Debug(s.logger).Log("msg", "unable to acquire lock")
 					schedTicker.Reset(schedInterval)
 					continue
 				}
 
 				newStart := time.Now()
-				setIntervalStartedAt(newStart)
-				level.Info(s.logger).Log("status", "pending")
+				s.setIntervalStartedAt(newStart)
 
-				statsID, err := s.insertStats(fleet.CronStatsTypeScheduled, fleet.CronStatsStatusPending)
-				if err != nil {
-					level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
-					sentry.CaptureException(err)
-					ctxerr.Handle(s.ctx, err)
-				}
-
-				for _, job := range s.jobs {
-					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
-					if err := runJob(s.ctx, job.Fn); err != nil {
-						level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
-						sentry.CaptureException(err)
-						ctxerr.Handle(s.ctx, err)
-					}
-				}
-				level.Info(s.logger).Log("status", "completed")
-
-				if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
-					level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
-					sentry.CaptureException(err)
-					ctxerr.Handle(s.ctx, err)
-				}
+				s.runWithStats(fleet.CronStatsTypeScheduled)
 
 				// we need to re-synchronize this schedule instance so that the next scheduled run
 				// starts at the beginning of the next full interval
@@ -293,10 +269,10 @@ func (s *Schedule) Start() {
 				if time.Since(newStart) > schedInterval {
 					level.Info(s.logger).Log("msg", fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval))
 					newStart = newStart.Add(time.Since(newStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
+					s.setIntervalStartedAt(newStart)
 				}
-				remainingInterval = getRemainingInterval(newStart, schedInterval)
-				clearTickerChannel(schedTicker) // in case another tick arrived during this run
-				schedTicker.Reset(remainingInterval)
+				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
+				schedTicker.Reset(s.getRemainingInterval(newStart))
 				cancelHold()
 			}
 		}
@@ -334,13 +310,13 @@ func (s *Schedule) Start() {
 					}
 					s.setSchedInterval(newInterval)
 
-					intervalStartedAt := getIntervalStartedAt()
+					intervalStartedAt := s.getIntervalStartedAt()
 					newWait := 10 * time.Millisecond
 					if time.Since(intervalStartedAt) < newInterval {
-						newWait = newInterval - time.Since(intervalStartedAt)
+						newWait = s.getRemainingInterval(intervalStartedAt)
 					}
 
-					clearTickerChannel(schedTicker)
+					clearScheduleChannels(s.trigger, schedTicker.C)
 					schedTicker.Reset(newWait)
 
 					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", newInterval))
@@ -358,7 +334,72 @@ func (s *Schedule) Start() {
 	}()
 }
 
-// runJob executes the job function with panic recovery
+// Trigger attempts to signal the schedule to start an ad-hoc run of all jobs after first checking
+// whether another run is pending. If another run is already pending, it returns available status
+// information for the pending run.
+//
+// Note that no distinction is made in the return value between the
+// case where the signal is published to the trigger channel and the case where the trigger channel
+// is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
+// cases are deemed to be equivalent.
+func (s *Schedule) Trigger() (*fleet.CronStats, error) {
+	stats, err := s.getLatestStats()
+	if err != nil {
+		return nil, err
+	}
+	if stats.Status == fleet.CronStatsStatusPending {
+		return &stats, nil
+	}
+
+	select {
+	case s.trigger <- struct{}{}:
+		// ok
+	default:
+		level.Debug(s.logger).Log("msg", "trigger channel not available")
+	}
+	return nil, nil
+}
+
+// Name returns the name of the schedule.
+func (s *Schedule) Name() string {
+	return s.name
+}
+
+// runWithStats runs all jobs in the schedule. Prior to starting the run, it creates a
+// record in the database for the provided stats type with "pending" status. After completing the
+// run, the stats record is updated to "completed" status.
+func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
+	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
+	if err != nil {
+		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
+		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
+	}
+	level.Info(s.logger).Log("status", "pending")
+
+	s.runAllJobs()
+
+	if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
+		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
+		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
+	}
+	level.Info(s.logger).Log("status", "completed")
+}
+
+// runAllJobs runs all jobs in the schedule.
+func (s *Schedule) runAllJobs() {
+	for _, job := range s.jobs {
+		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
+		if err := runJob(s.ctx, job.Fn); err != nil {
+			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
+			sentry.CaptureException(err)
+			ctxerr.Handle(s.ctx, err)
+		}
+	}
+}
+
+// runJob executes the job function with panic recovery.
 func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -380,8 +421,8 @@ func (s *Schedule) Done() <-chan struct{} {
 
 // getScheduleInterval returns the schedule interval
 func (s *Schedule) getSchedInterval() time.Duration {
-	s.schedIntervalMu.Lock()
-	defer s.schedIntervalMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	return s.schedInterval
 }
@@ -389,24 +430,52 @@ func (s *Schedule) getSchedInterval() time.Duration {
 // setScheduleInterval sets the schedule interval after truncating the duration to seconds and
 // applying a one second floor (e.g., 600ms becomes 1s, 1300ms becomes 2s, 1000ms becomes 2s)
 func (s *Schedule) setSchedInterval(interval time.Duration) {
-	s.schedIntervalMu.Lock()
-	defer s.schedIntervalMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.schedInterval = truncateSecondsWithFloor(interval)
 }
 
+// getIntervalStartedAt returns the start time of the current schedule interval.
+func (s *Schedule) getIntervalStartedAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.intervalStartedAt
+}
+
+// setIntervalStartedAt sets the start time of the current schedule interval. The start time is
+// rounded down to the nearest second.
+func (s *Schedule) setIntervalStartedAt(start time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.intervalStartedAt = start.Truncate(time.Second)
+}
+
+// getRemainingInterval returns the interval minus the remainder of dividing the time since state by
+// the interval
+func (s *Schedule) getRemainingInterval(start time.Time) time.Duration {
+	interval := s.getSchedInterval()
+	if interval == 0 {
+		return 0
+	}
+
+	return interval - (time.Since(start) % interval)
+}
+
 func (s *Schedule) acquireLock() bool {
-	locked, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
+	ok, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		sentry.CaptureException(err)
 		return false
 	}
-	if locked {
-		return true
+	if !ok {
+		level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
+		return false
 	}
-	level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
-	return false
+	return true
 }
 
 func (s *Schedule) releaseLock() {
@@ -448,7 +517,7 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	return true, cancelFn
 }
 
-func (s *Schedule) getStats() (fleet.CronStats, error) {
+func (s *Schedule) getLatestStats() (fleet.CronStats, error) {
 	return s.statsStore.GetLatestCronStats(s.ctx, s.name)
 }
 
@@ -468,22 +537,19 @@ func (s *Schedule) getLockName() string {
 	return name
 }
 
-// getRemainingInterval returns the interval minus the remainder of dividing the time since state by
-// the interval
-func getRemainingInterval(start time.Time, interval time.Duration) time.Duration {
-	if interval == 0 {
-		return 0
-	}
-	return interval - (time.Since(start) % interval)
-}
-
-// clearTickerChannel performs a non-blocking select on the ticker channel
-func clearTickerChannel(ticker *time.Ticker) {
-	select {
-	case <-ticker.C:
-		// pull from ticker channel
-	default:
-		// ok
+// clearScheduleChannels performs a non-blocking select on the ticker and trigger channel in order
+// to drain each channel. It is intended for use in cases where a signal may have been published to
+// a channel during a pending run, in which case the expected behavior is for the signal to be dropped.
+func clearScheduleChannels(trigger chan struct{}, ticker <-chan time.Time) {
+	for {
+		select {
+		case <-trigger:
+			// pull trigger signal from channel
+		case <-ticker:
+			// pull ticker signal from channel
+		default:
+			return
+		}
 	}
 }
 
