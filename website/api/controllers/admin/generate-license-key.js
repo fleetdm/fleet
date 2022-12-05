@@ -18,7 +18,7 @@ module.exports = {
       required: true,
     },
 
-    validTo: {
+    expiresAt: {
       type: 'number',
       required: true,
       description: 'A JS timestamp representing when this license will expire.'
@@ -34,12 +34,12 @@ module.exports = {
   },
 
 
-  fn: async function ({numberOfHosts, organization, validTo}) {
+  fn: async function ({numberOfHosts, organization, expiresAt}) {
 
     let licenseKey = await sails.helpers.createLicenseKey.with({
       numberOfHosts: numberOfHosts,
       organization: organization,
-      validTo: validTo
+      expiresAt: expiresAt
     });
 
     return licenseKey;
