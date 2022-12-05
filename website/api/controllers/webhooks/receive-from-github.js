@@ -242,13 +242,13 @@ module.exports = {
 
         // Check whether auto-approval is warranted.
         let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
-          repo: repository,
+          repo: repo,
           prNumber: prNumber,
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
         let isHandbookPR = false;
-        if(repository === 'fleet'){
+        if(repo === 'fleet'){
           isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
         }
 
