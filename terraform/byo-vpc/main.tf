@@ -2,9 +2,21 @@ module "byo-db" {
   source = "./byo-db"
   fleet_config = {
     database = {
+      address             = module.rds.cluster_endpoint
+      database            = "fleet"
+      user                = "fleet"
       password_secret_arn = module.secrets-manager-1.secret_arns["database-password"]
     }
+    redis = {
+      address = module.redis.endpoint
+    }
   }
+}
+
+resource "random_password" "rds" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
 module "rds" {
@@ -30,6 +42,33 @@ module "rds" {
   db_cluster_parameter_group_name = var.rds_config.db_cluster_parameter_group_name == null ? aws_rds_cluster_parameter_group.main[0].id : var.rds_config.db_cluster_parameter_group_name
 
   enabled_cloudwatch_logs_exports = var.rds_config.enabled_cloudwatch_logs_exports
+  master_username                 = var.rds_config.master_username
+  master_password                 = random_password.rds.result
+}
+
+data "aws_subnet" "redis" {
+  for_each = toset(var.redis_config.subnets)
+  id       = each.value
+}
+
+module "redis" {
+  source  = "cloudposse/elasticache-redis/aws"
+  version = "0.48.0"
+
+  availability_zones = var.redis_config.availability_zones
+  vpc_id             = var.vpc_id
+  description        = "lsjdfldjlfjds"
+  #allowed_security_group_ids = concat(var.redis_config.allowed_security_group_ids, module.byo-db.ecs.security_group)
+  subnets                    = var.redis_config.subnets
+  cluster_size               = var.redis_config.cluster_size
+  instance_type              = var.redis_config.instance_type
+  apply_immediately          = var.redis_config.apply_immediately
+  automatic_failover_enabled = var.redis_config.automatic_failover_enabled
+  engine_version             = var.redis_config.engine_version
+  family                     = var.redis_config.family
+  at_rest_encryption_enabled = var.redis_config.at_rest_encryption_enabled
+  transit_encryption_enabled = var.redis_config.transit_encryption_enabled
+  parameter                  = var.redis_config.parameter
 }
 
 module "secrets-manager-1" {

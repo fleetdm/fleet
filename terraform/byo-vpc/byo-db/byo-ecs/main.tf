@@ -107,7 +107,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_REDIS_USE_TLS"
-            value = var.fleet_config.redis.use_tls
+            value = tostring(var.fleet_config.redis.use_tls)
           },
           {
             name  = "FLEET_OSQUERY_STATUS_LOG_PLUGIN"

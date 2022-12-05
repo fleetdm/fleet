@@ -46,42 +46,57 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   type = object({
-    mem                         = number
-    cpu                         = number
-    image                       = string
-    extra_environment_variables = map(string)
-    extra_secrets               = map(string)
-    security_groups             = list(string)
-    iam_role_arn                = string
+    mem                         = optional(number, 512)
+    cpu                         = optional(number, 256)
+    image                       = optional(string, "fleetdm/fleet:v4.22.1")
+    extra_environment_variables = optional(map(string), {})
+    extra_secrets               = optional(map(string), {})
+    security_groups             = optional(list(string))
+    iam_role_arn                = optional(string)
     database = object({
       password_secret_arn = string
       user                = string
       database            = string
       address             = string
-      rr_address          = string
+      rr_address          = optional(string)
     })
     redis = object({
       address = string
-      use_tls = bool
+      use_tls = optional(bool, true)
     })
-    awslogs = object({
-      name      = string
-      region    = string
-      prefix    = string
-      retention = number
+    awslogs = optional(object({
+      name      = optional(string)
+      region    = optional(string)
+      prefix    = optional(string, "fleet")
+      retention = optional(number, 5)
+      }), {
+      name      = null
+      region    = null
+      prefix    = "fleet"
+      retention = 5
     })
-    loadbalancer = object({
+    loadbalancer = optional(object({
       arn = string
+      }), {
+      arn = null
     })
-    networking = object({
-      subnets         = list(string)
-      security_groups = list(string)
+    networking = optional(object({
+      subnets         = optional(list(string))
+      security_groups = optional(list(string))
+      }), {
+      subnets         = null
+      security_groups = null
     })
-    autoscaling = object({
-      max_capacity                 = number
-      min_capacity                 = number
-      memory_tracking_target_value = number
-      cpu_tracking_target_value    = number
+    autoscaling = optional(object({
+      max_capacity                 = optional(number, 5)
+      min_capacity                 = optional(number, 1)
+      memory_tracking_target_value = optional(number, 80)
+      cpu_tracking_target_value    = optional(number, 80)
+      }), {
+      max_capacity                 = 5
+      min_capacity                 = 1
+      memory_tracking_target_value = 80
+      cpu_tracking_target_value    = 80
     })
   })
   default = {

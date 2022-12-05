@@ -22,4 +22,8 @@ module "vpc" {
 module "byo-vpc" {
   source = "./byo-vpc"
   vpc_id = module.vpc.vpc_id
+  redis_config = {
+    subnets            = module.vpc.elasticache_subnets
+    availability_zones = var.vpc.azs
+  }
 }

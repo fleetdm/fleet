@@ -16,6 +16,7 @@ variable "rds_config" {
     db_parameter_group_name         = string
     db_cluster_parameter_group_name = string
     enabled_cloudwatch_logs_exports = list(string)
+    master_username                 = optional(string, "fleet")
   })
   default = {
     name                            = "fleet"
@@ -29,7 +30,42 @@ variable "rds_config" {
     db_parameter_group_name         = null
     db_cluster_parameter_group_name = null
     enabled_cloudwatch_logs_exports = ["postgresql"]
+    master_username                 = "fleet"
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
+}
+
+variable "redis_config" {
+  type = object({
+    allowed_security_group_ids = optional(list(string), [])
+    subnets                    = list(string)
+    availability_zones         = list(string)
+    cluster_size               = optional(number, 3)
+    instance_type              = optional(string, "cache.m5.large")
+    apply_immediately          = optional(bool, true)
+    automatic_failover_enabled = optional(bool, false)
+    engine_version             = optional(string, "6.x")
+    family                     = optional(string, "redis")
+    at_rest_encryption_enabled = optional(bool, true)
+    transit_encryption_enabled = optional(bool, true)
+    parameter = optional(list(object({
+      name  = string
+      value = string
+    })), [])
+  })
+  default = {
+    allowed_security_group_ids = []
+    subnets                    = null
+    availability_zones         = null
+    cluster_size               = 3
+    instance_type              = "cache.m5.large"
+    apply_immediately          = true
+    automatic_failover_enabled = false
+    engine_version             = "6.x"
+    family                     = "redis"
+    at_rest_encryption_enabled = true
+    transit_encryption_enabled = true
+    parameter                  = []
+  }
 }
