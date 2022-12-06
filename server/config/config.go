@@ -600,6 +600,9 @@ func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
 		if err := json.Unmarshal(token, &jsonTok); err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
 		}
+		if jsonTok.AccessTokenExpiry.Before(time.Now()) {
+			return nil, errors.New("Apple BM configuration: token is expired")
+		}
 		m.appleBMToken = &jsonTok
 	}
 	return m.appleBMToken, nil
