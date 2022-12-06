@@ -1,16 +1,5 @@
 # Customers
 
-## Contacting Fleet
-
-If you're using a free version of Fleet, you can access free community support by opening an issue in the [Fleet GitHub repository](https://github.com/fleetdm/fleet/).
-
-Customers on a paid tier of Fleet can get in touch directly for commercial support:
-
-| Level of impact | Type of support |
-| :--- | :--- |
-| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
-
 ## New Customer Onboarding Workflow
 
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
@@ -87,27 +76,52 @@ When we do prospect calls, add the customer's name in both the google doc title 
   - an alternative date and time. Suggest two to three options from which the customer can choose.
     - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
 
-> **Customer etiquette**. When communicating with the customer, remember to approach the situation with empathy. Anything could have happened.
+## Customer support service level agreements (SLA's)
 
-### Next steps after a customer conversation 
+### Fleet Free
+| Impact Level | Definition | Preferred Contact | Response Time |
+|:---|:---|:---|:---|
+| All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
 
-After a customer conversation, it can sometimes feel like there are 1,001 things to do, but it can be hard to know where to start.  Here are some tips: 
+Note: If you're using Fleet Free, you can also access community support by opening an issue in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
 
-## Support process
+### Fleet Premium
+| Impact Level | Definition | Preferred Contact | Response Time |
+|:-----|:----|:----|:-----|
+| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
+| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
+| Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
+| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
+
+Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
+
+
+### Fleet Ultimate
+| Impact Level | Definition | Preferred Contact | Response Time |
+|:---- |:---- |:---- |:---- |
+| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Call or text the emergency support phone number in your Fleet contract. </br></br>Email via the emergency support email address provided in your contract. | **≤1 hour or ≤2 hours** outside of business hours |
+| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤2 hours or ≤4 hours** outside of business hours |
+| Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
+| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | ≤1 business day | 
+
+Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
+
+#### Flow of communication in the event of an emergency (P0) request
+![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
+
+### Customer support process
 
 This section outlines Fleet's customer and community support process.
-- Basic help desk resolution and service delivery -> the CS team handles these with occasional support from L2.
-- In-depth technical support -> the CS team with L2 oncall technician.
-- Expert product and service support -> the CS team liaises with L2 and L3 on-call technicians.
+- The customer support engineering (CSE) team handles basic help desk resolution and service delivery issues (P3 and P4) with assistance from L2 on-call and the solutions architecture team as needed.
+- The CSE team handles in depth technical issues (P1 and P2) in conjunction with L2 on-call.
+- The CSE team handles expert technical product and services support in coordination with the L2 and L3 on-call technicians.
 
 
-If possible, the resulting solution should be more straightforward in each case in the documentation and/or the FAQs.
+Whenever possible, the resulting solution should be documented as an update to an existing FAQ guide or new documentation article.
 
 The support process is accomplished via on-call rotation and the weekly on-call retro meeting.
 
 The on-call engineer holds responsibility for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the Customer Success team cannot handle.
-
-Slack messages have a 24-hour SLA, and the Slack channel should have a notice at the top explaining so.
 
 Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
@@ -121,7 +135,31 @@ The weekly on-call retro at Fleet provides time to discuss highlights and answer
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
-### Customer support responses
+### What to include in a support request
+1. Required details that will help speed up time to resolution:
+    - Fleet server version
+    - Agent version 
+        - Osquery or fleetd?
+    - Operating system
+    - Web browser
+    - Expected behavior
+    - Actual behavior
+2. Details that are nice to have but not required. These may be requested by Fleet support as needed:
+    - Amount of total hosts
+    - Amount of online hosts
+    - Amount of scheduled queries
+    - Amount and size (CPU/Mem) of the Fleet instances
+    - Fleet instances CPU and Memory usage while the issue has been happening
+    - MySQL flavor/version in use
+    - MySQL server capacity (CPU/Mem)
+    - MySQL CPU and Memory usage while the issue has been happening
+    - Are MySQL read replicas configured? If so, how many?
+    - Redis version and server capacity (CPU/Mem)
+    - Is Redis running in cluster mode?
+    - Redis CPU and Memory usage while the issue has been happening
+    - The output of fleetctl debug archive
+
+### Fleet responses to customer support issues
 
 When a customer encounters an unexpected error on fleetdm.com, it is important that we contact them quickly to resolve the issue. 
 
@@ -145,6 +183,9 @@ Thanks for bearing with us, please don’t hesitate to reach out if you have any
 I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
 
 Thank you for trying Fleet!"
+
+
+## Documenting customer requests in GitHub
 
 ### Customer support workflow for Slack + Zendesk
 
@@ -180,6 +221,7 @@ Thank you for trying Fleet!"
 ![Screen Shot 2022-12-01 at 11 39 54 AM](https://user-images.githubusercontent.com/114112018/205109512-d35f4907-1169-41f5-acab-e23e3506e050.png)
 
 ## Customer requests
+
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
 
 When creating a new issue, make sure the following:
@@ -389,7 +431,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#g-customers`           | Zay Hanlon                                                     |
+| `#help-customers`           | Zay Hanlon                                                     |
 | `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
 | `#g-sales`                     | Alex Mitchell |
 | `#_from-prospective-customers` | Alex Mitchell |
