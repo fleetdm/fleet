@@ -404,7 +404,7 @@ If you are not using the latest version of osquery, you can create a config YAML
 
 ## How can I renew my Apple Business Manager server token?
 
-> This feature is currently in development and is not ready for use.
+> This feature is currently in development and is not ready for production use.
 
 If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
 
