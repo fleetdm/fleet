@@ -1,3 +1,9 @@
+// Command getaccount takes an Apple Business Manager server token in decrypted
+// JSON format and calls the Apple BM API to retrieve and print the account
+// information.
+//
+// Was implemented to test out https://github.com/fleetdm/fleet/issues/7515#issuecomment-1330889768,
+// and can still be useful for debugging purposes.
 package main
 
 import (
