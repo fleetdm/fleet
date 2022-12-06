@@ -62,7 +62,8 @@ For example, in `ActivityItem.tests.tsx`, we want to ensure the activity feed sh
 
 ### Related links
 
-For more information about 
+Check out the [frontend test directory](../test/README.md) for information about our unit and integration testing layers.
 
+Follow [this guide](../../docs/Contributing/Testing-and-local-development.md) to run tests locally.
 
 
