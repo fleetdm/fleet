@@ -109,7 +109,38 @@ Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, 
 #### Flow of communication in the event of an emergency (P0) request
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
 
-### Customer support process
+## Customer support workflow for Slack + Zendesk
+
+#### This section outlines both the automated workflows and manual triggers associated with Fleet's Slack integration to Zendesk. The purpose of this integration is to:
+- Provide Fleet with better service level agreement (SLA) tracking on requests (especially those submitted outside of business hours)
+- Better track threads for issues that require advanced troubleshooting
+- Consolidate support requests into a single-source, searchable system for faster issue resolution in the future 
+
+#### There are three different situations when a customer support request could result in a ticket being created in Zendesk. They are as follows: 
+1. When a request has been submitted outside of business hours via Slack automation
+2. When a Fleet staff member has flagged an issue that requires advanced troubleshooting and determines that they want to move it into Zendesk for management 
+3. When any Fleet user submits a support request via email
+
+#### Workflow when a request is submitted outside of business hours:
+1. A new message is posted in any Slack channel
+2. (Zapier filter) The automation will continue if the message is:
+    - Not from a Fleet team member
+    - Posted outside of Fleet’s business hours
+    - In a specific customer channel (manually designated by Customer Success)   
+3. (Zendesk) Search for an existing Zendesk ticket by the Slack thread ID or create one if it does not exist.
+4. (Slack) If a new Zendesk ticket was created, reply to the Slack message in a thread.
+    - Hi @username, it's currently outside Fleet's support hours. (6am - 4pm PT). We've created a support ticket based on your message, and a Fleet team member will respond as soon as possible. If you have more questions or comments, feel free to reply in this thread, and we'll add them to the ticket.
+5. (Zendesk) If an existing Zendesk ticket was found by the search, add the Slack message to the existing ticket as a new comment.
+
+#### Things to note: 
+- New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
+- New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
+- This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
+
+#### Workflow when a request is submitted outside of business hours:
+![Screen Shot 2022-12-01 at 11 39 54 AM](https://user-images.githubusercontent.com/114112018/205109512-d35f4907-1169-41f5-acab-e23e3506e050.png)
+
+## Customer support process
 
 This section outlines Fleet's customer and community support process.
 - The customer support engineering (CSE) team handles basic help desk resolution and service delivery issues (P3 and P4) with assistance from L2 on-call and the solutions architecture team as needed.
@@ -184,43 +215,7 @@ I wanted to personally apologize for our mistake and let you know we're looking 
 
 Thank you for trying Fleet!"
 
-
-## Documenting customer requests in GitHub
-
-### Customer support workflow for Slack + Zendesk
-
-#### This section outlines both the automated workflows and manual triggers associated with Fleet's Slack integration to Zendesk. The purpose of this integration is to:
-- Provide Fleet with better service level agreement (SLA) tracking on requests (especially those submitted outside of business hours)
-- Better track threads for issues that require advanced troubleshooting
-- Consolidate support requests into a single-source, searchable system for faster issue resolution in the future 
-
-
-#### There are three different situations when a customer support request could result in a ticket being created in Zendesk. They are as follows: 
-1. When a request has been submitted outside of business hours via Slack automation
-2. When a Fleet staff member has flagged an issue that requires advanced troubleshooting and determines that they want to move it into Zendesk for management 
-3. When any Fleet user submits a support request via email
-
-
-#### Workflow when a request is submitted outside of business hours:
-1. A new message is posted in any Slack channel
-2. (Zapier filter) The automation will continue if the message is:
-    - Not from a Fleet team member
-    - Posted outside of Fleet’s business hours
-    - In a specific customer channel (manually designated by Customer Success)   
-3. (Zendesk) Search for an existing Zendesk ticket by the Slack thread ID or create one if it does not exist.
-4. (Slack) If a new Zendesk ticket was created, reply to the Slack message in a thread.
-    - Hi @username, it's currently outside Fleet's support hours. (6am - 4pm PT). We've created a support ticket based on your message, and a Fleet team member will respond as soon as possible. If you have more questions or comments, feel free to reply in this thread, and we'll add them to the ticket.
-5. (Zendesk) If an existing Zendesk ticket was found by the search, add the Slack message to the existing ticket as a new comment.
-
-#### Things to note: 
-- New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
-- New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
-- This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
-
-#### Workflow when a request is submitted outside of business hours:
-![Screen Shot 2022-12-01 at 11 39 54 AM](https://user-images.githubusercontent.com/114112018/205109512-d35f4907-1169-41f5-acab-e23e3506e050.png)
-
-## Customer requests
+### Documenting customer requests in GitHub
 
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
 
@@ -231,7 +226,7 @@ When creating a new issue, make sure the following:
 - Is there a key date or timeframe that the customer hopes to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss it before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
-## Assistance from engineering
+### Assistance from engineering
 
 Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 
