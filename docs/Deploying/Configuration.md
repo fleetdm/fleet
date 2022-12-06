@@ -2464,7 +2464,7 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
 
 ##### apple_bm_server_token
 
-This is the path to the Apple Business Manager encrypted server token (a `.p7m` file). This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
@@ -2476,7 +2476,7 @@ This is the path to the Apple Business Manager encrypted server token (a `.p7m` 
 
 ##### apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token. This is typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
