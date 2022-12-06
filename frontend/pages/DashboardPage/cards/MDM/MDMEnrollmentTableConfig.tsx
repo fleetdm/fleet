@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IDataTableMdmFormat } from "interfaces/macadmins";
+import { IMdmEnrollmentCardData } from "interfaces/macadmins";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -13,7 +13,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IDataTableMdmFormat;
+    original: IMdmEnrollmentCardData;
   };
 }
 

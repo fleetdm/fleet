@@ -1,4 +1,4 @@
-export interface IDataTableMdmFormat {
+export interface IMdmEnrollmentCardData {
   status: "Enrolled (manual)" | "Enrolled (automatic)" | "Unenrolled";
   hosts: number;
 }
@@ -35,4 +35,16 @@ export interface IMacadminAggregate {
     mobile_device_management_enrollment_status: IMdmAggregateStatus;
     mobile_device_management_solution: IMdmSolution[] | null;
   };
+}
+
+interface IMdmEnrollementStatus {
+  enrolled_manual_hosts_count: number;
+  enrolled_automated_hosts_count: number;
+  unenrolled_hosts_count: number;
+  hosts_count: number;
+}
+
+export interface IMdmSummaryResponse {
+  mobile_device_management_enrollment_status: IMdmEnrollementStatus;
+  mobile_device_management_solution: IMdmSolution[] | null;
 }

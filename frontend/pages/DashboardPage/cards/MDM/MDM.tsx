@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { IDataTableMdmFormat, IMdmSolution } from "interfaces/macadmins";
+import { IMdmEnrollmentCardData, IMdmSolution } from "interfaces/macadmins";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
@@ -14,9 +14,9 @@ import {
 import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
 
 interface IMdmCardProps {
-  errorMacAdmins: Error | null;
-  isMacAdminsFetching: boolean;
-  formattedMdmData: IDataTableMdmFormat[];
+  error: Error | null;
+  isFetching: boolean;
+  mdmEnrollmentData: IMdmEnrollmentCardData[];
   mdmSolutions: IMdmSolution[] | null;
 }
 
@@ -55,9 +55,9 @@ const EmptyMdmSolutions = (): JSX.Element => (
 );
 
 const Mdm = ({
-  isMacAdminsFetching,
-  errorMacAdmins,
-  formattedMdmData,
+  isFetching,
+  error,
+  mdmEnrollmentData,
   mdmSolutions,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -71,11 +71,11 @@ const Mdm = ({
   const solutionsDataSet = generateSolutionsDataSet(mdmSolutions);
 
   // Renders opaque information as host information is loading
-  const opacity = isMacAdminsFetching ? { opacity: 0 } : { opacity: 1 };
+  const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
 
   return (
     <div className={baseClass}>
-      {isMacAdminsFetching && (
+      {isFetching && (
         <div className="spinner">
           <Spinner />
         </div>
@@ -88,13 +88,13 @@ const Mdm = ({
               <Tab>Enrollment</Tab>
             </TabList>
             <TabPanel>
-              {errorMacAdmins ? (
+              {error ? (
                 <TableDataError card />
               ) : (
                 <TableContainer
                   columns={solutionsTableHeaders}
                   data={solutionsDataSet}
-                  isLoading={isMacAdminsFetching}
+                  isLoading={isFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
@@ -110,13 +110,13 @@ const Mdm = ({
               )}
             </TabPanel>
             <TabPanel>
-              {errorMacAdmins ? (
+              {error ? (
                 <TableDataError card />
               ) : (
                 <TableContainer
                   columns={enrollmentTableHeaders}
-                  data={formattedMdmData}
-                  isLoading={isMacAdminsFetching}
+                  data={mdmEnrollmentData}
+                  isLoading={isFetching}
                   defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
                   defaultSortDirection={ENROLLMENT_DEFAULT_SORT_DIRECTION}
                   hideActionButton

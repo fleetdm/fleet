@@ -12,11 +12,12 @@ import {
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
 import {
-  IDataTableMdmFormat,
+  IMdmEnrollmentCardData,
   IMdmSolution,
   IMacadminAggregate,
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
+  IMdmSummaryResponse,
 } from "interfaces/macadmins";
 import { ISelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse } from "interfaces/software";
@@ -26,6 +27,7 @@ import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
 import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
 import {
   PLATFORM_DROPDOWN_OPTIONS,
@@ -108,8 +110,8 @@ const DashboardPage = ({
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
-  const [formattedMdmData, setFormattedMdmData] = useState<
-    IDataTableMdmFormat[]
+  const [mdmEnrollmentData, setMdmEnrollmentData] = useState<
+    IMdmEnrollmentCardData[]
   >([]);
   const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
 
@@ -270,6 +272,41 @@ const DashboardPage = ({
     }
   );
 
+  const { isFetching: isMdmFetching, error: errorMdm } = useQuery<
+    IMdmSummaryResponse,
+    Error
+  >(
+    [`mdm-${selectedPlatform}`, currentTeam?.id],
+    () => hosts.getMdmSummary(selectedPlatform, currentTeam?.id),
+    {
+      enabled: selectedPlatform !== "linux",
+      onSuccess: (data) => {
+        const {
+          enrolled_manual_hosts_count,
+          enrolled_automated_hosts_count,
+          unenrolled_hosts_count,
+        } = data.mobile_device_management_enrollment_status;
+
+        setMdmTitleDetail(<p>TODO LAST UPDATED</p>);
+        setMdmEnrollmentData([
+          {
+            status: "Enrolled (manual)",
+            hosts: enrolled_manual_hosts_count,
+          },
+          {
+            status: "Enrolled (automatic)",
+            hosts: enrolled_automated_hosts_count,
+          },
+          { status: "Unenrolled", hosts: unenrolled_hosts_count },
+        ]);
+        setMdmSolutions(data.mobile_device_management_solution);
+      },
+      onError: (err) => {
+        console.error("err", err);
+      },
+    }
+  );
+
   const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
     IMacadminAggregate,
     Error
@@ -281,40 +318,11 @@ const DashboardPage = ({
       enabled: selectedPlatform === "darwin",
       onSuccess: (data) => {
         const {
-          counts_updated_at: macadmins_counts_updated_at,
-          mobile_device_management_enrollment_status,
-          mobile_device_management_solution,
-        } = data.macadmins;
-        const {
-          enrolled_manual_hosts_count,
-          enrolled_automated_hosts_count,
-          unenrolled_hosts_count,
-        } = mobile_device_management_enrollment_status;
-
-        const {
           counts_updated_at: munki_counts_updated_at,
           munki_versions,
           munki_issues,
         } = data.macadmins;
 
-        setMdmTitleDetail(
-          <LastUpdatedText
-            lastUpdatedAt={macadmins_counts_updated_at}
-            whatToRetrieve={"MDM enrollment"}
-          />
-        );
-        setFormattedMdmData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
-        setMdmSolutions(mobile_device_management_solution);
         setMunkiVersionsData(munki_versions);
         setMunkiIssuesData(munki_issues);
         setShowMunkiCard(!!munki_versions);
@@ -522,20 +530,13 @@ const DashboardPage = ({
     titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
-      <p>
-        MDM is used to manage configuration on macOS devices.{" "}
-        <CustomLink
-          url="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
-          text="Learn about MDM"
-          newTab
-        />
-      </p>
+      <p>MDM is used to manage configuration on your workstations.</p>
     ),
     children: (
       <Mdm
-        isMacAdminsFetching={isMacAdminsFetching}
-        errorMacAdmins={errorMacAdmins}
-        formattedMdmData={formattedMdmData}
+        isFetching={isMdmFetching}
+        error={errorMdm}
+        mdmEnrollmentData={mdmEnrollmentData}
         mdmSolutions={mdmSolutions}
       />
     ),
