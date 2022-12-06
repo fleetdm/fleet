@@ -399,7 +399,7 @@ func TestToTLSConfig(t *testing.T) {
 	}
 }
 
-func TestMDMConfig(t *testing.T) {
+func TestAppleAPNSSCEPConfig(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile, garbageFile, invalidKeyFile := filepath.Join(dir, "cert"),
 		filepath.Join(dir, "key"),
@@ -465,6 +465,50 @@ func TestMDMConfig(t *testing.T) {
 					require.NotEmpty(t, pemKey)
 				}
 			}
+		})
+	}
+}
+
+func TestAppleBMConfig(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile, garbageFile, invalidKeyFile := filepath.Join(dir, "cert"),
+		filepath.Join(dir, "key"),
+		filepath.Join(dir, "garbage"),
+		filepath.Join(dir, "invalid_key")
+	require.NoError(t, os.WriteFile(certFile, testCert, 0o600))
+	require.NoError(t, os.WriteFile(keyFile, testKey, 0o600))
+	require.NoError(t, os.WriteFile(garbageFile, []byte("zzzz"), 0o600))
+	require.NoError(t, os.WriteFile(invalidKeyFile, unrelatedTestKey, 0o600))
+
+	cases := []struct {
+		name       string
+		in         MDMConfig
+		errMatches string
+	}{
+		{"missing cert", MDMConfig{AppleBMKey: keyFile, AppleBMServerToken: garbageFile}, `Apple BM configuration: no certificate provided`},
+		{"missing key", MDMConfig{AppleBMCert: certFile, AppleBMServerToken: garbageFile}, "Apple BM configuration: no key provided"},
+		{"missing cert with raw key", MDMConfig{AppleBMKeyBytes: string(testKey), AppleBMServerToken: garbageFile}, `Apple BM configuration: no certificate provided`},
+		{"missing key with raw cert", MDMConfig{AppleBMCertBytes: string(testCert), AppleBMServerToken: garbageFile}, "Apple BM configuration: no key provided"},
+		{"cert file does not exist", MDMConfig{AppleBMCert: "no-such-file", AppleBMKey: keyFile, AppleBMServerToken: garbageFile}, `open no-such-file: no such file or directory`},
+		{"key file does not exist", MDMConfig{AppleBMKey: "no-such-file", AppleBMCert: certFile, AppleBMServerToken: garbageFile}, `open no-such-file: no such file or directory`},
+		{"invalid file pairs", MDMConfig{AppleBMCert: certFile, AppleBMKey: invalidKeyFile, AppleBMServerToken: garbageFile}, "tls: private key does not match public key"},
+		{"invalid file/raw pairs", MDMConfig{AppleBMCert: certFile, AppleBMKeyBytes: string(unrelatedTestKey), AppleBMServerToken: garbageFile}, "tls: private key does not match public key"},
+		{"invalid raw/file pairs", MDMConfig{AppleBMCertBytes: string(testCert), AppleBMKey: invalidKeyFile, AppleBMServerToken: garbageFile}, "tls: private key does not match public key"},
+		{"invalid file key", MDMConfig{AppleBMCert: certFile, AppleBMKey: garbageFile, AppleBMServerToken: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid raw key", MDMConfig{AppleBMCert: certFile, AppleBMKeyBytes: "zzzz", AppleBMServerToken: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid raw cert", MDMConfig{AppleBMCertBytes: "zzzz", AppleBMKey: keyFile, AppleBMServerToken: garbageFile}, "tls: failed to find any PEM data in certificate input"},
+		{"duplicate cert", MDMConfig{AppleBMCert: certFile, AppleBMCertBytes: string(testCert), AppleBMKey: keyFile, AppleBMServerToken: garbageFile}, `Apple BM configuration: only one of the certificate path or bytes must be provided`},
+		{"duplicate key", MDMConfig{AppleBMCert: certFile, AppleBMKey: keyFile, AppleBMKeyBytes: string(testKey), AppleBMServerToken: garbageFile}, `Apple BM configuration: only one of the key path or bytes must be provided`},
+		{"token file does not exist", MDMConfig{AppleBMCert: certFile, AppleBMKey: keyFile, AppleBMServerToken: "no-such-file"}, `Apple BM configuration: reading token file: open no-such-file: no such file or directory`},
+		{"invalid token file", MDMConfig{AppleBMCert: certFile, AppleBMKey: keyFile, AppleBMServerToken: garbageFile}, `Apple BM configuration: decrypt token: malformed MIME header: missing colon: "zzzz"`},
+		{"invalid raw token file", MDMConfig{AppleBMCert: certFile, AppleBMKey: keyFile, AppleBMServerTokenBytes: "zzzz"}, `Apple BM configuration: decrypt token: malformed MIME header: missing colon: "zzzz"`},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := c.in.AppleBM()
+			require.Error(t, err)
+			require.Regexp(t, c.errMatches, err.Error())
 		})
 	}
 }
