@@ -22,7 +22,7 @@ const PillCell = ({
   const { indicator, id } = value;
   const pillClassName = classnames(
     "data-table__pill",
-    `data-table__pill--${generateClassTag(indicator)}`,
+    `data-table__pill--${generateClassTag(indicator || "")}`,
     "tooltip"
   );
 
@@ -104,7 +104,9 @@ const PillCell = ({
         data-html
       >
         <span
-          className={`tooltip ${generateClassTag(indicator)}__tooltip-text`}
+          className={`tooltip ${generateClassTag(
+            indicator || ""
+          )}__tooltip-text`}
         >
           {tooltipText()}
         </span>
