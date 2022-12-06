@@ -1,41 +1,45 @@
-# Fleet tests
+# Fleet UI tests
 
-The test directory contains request handlers, TODO, and entity stubs for use in test files throughout the application. The test files for components and app functions are located in the same directory as the files they test.
+The test directory contains the jest configuration, test setup, request handlers, mock server definition,  testing utilities, and entity stubs (deprecated and will be replaced by mocks in `frontend/__mocks__`) for use in test files throughout the application. The test files for components and app functions are located in the same directory as the files they test.
 
+<!-- 
 TODO
 
-The default export from the test directory includes mock server with default handlers, custom handlers, testing stubs, and testing utilities like custom renderers.
+The default export from the test directory includes mock server with default handlers, custom handlers, testing stubs, and testing utilities like custom renderers. -->
 
 ## Table of contents
+- [Jest configuration](#jest-configuration)
 - [Test setup](#test-setup)
-- [Server handlers](#server-handlers)
-- [Testing stubs](#testing-stubs)
+- [Request handlers and their setup](#request-handlers-and-their-setup)
 - [Testing utilities](#testing-utilities)
+- [Entity stubs (deprecated)](#entity-stubs-deprecated)
 - [Related links](#related-links)
 
+## Jest configuration
+
+This is where the jest configuration is located. Refer to [Jest's official documentation](https://jestjs.io/docs/configuration).
 ## Test setup
 
-As outlined in `test-setup.ts`, the mock server will automatically serve all default handlers at the beginning of each test suite. Between tests,  handlers reset to the default handlers. At the end of each test suite, the mock server will close.
+This file configures the testing environment for every test file.
 
-The mock server `mock-server.ts` will serve the default handlers outlined in `default-handlers.ts` which are imported from the `handlers` directory.
+## Request handlers and their setup
 
+Default handlers and custom handlers are both defined within the `handlers` directory and return [mocked data](../__mocks__/README.md). The handlers directory will naturally grow with more default and custom handlers required for more tests. We use [mock service worker](https://mswjs.io/docs/api/rest) to define all request handlers.
 
-## Server handlers
-
-Default handlers and global custom handlers are stored within the `handlers` directory. The default handler and custom handlers located within `handlers` return [mocked data](../__mocks__/README.md) that is used in a broader scope one or more tests suites. The handlers directory will naturally grow with more default and custom handlers required for more unit and integration tests.
-
-Contrastingly, narrow scope handlers returning [custom mocks](../__mocks__/README.md#custom-mocks) can be more readable and maintainable written [inline](../__mocks__/README.md#global-handlers-vs-inline-handlers).
-
-## Testing stubs `Deprecated`
-
-Testing stubs are still being used in a handful of old tests. We are no longer following this pattern of adding data to testing stubs. Rather, we are building default handlers for returned mocks and using custom handlers to return modifications to these mocks.
+Default handlers and custom handlers differ in their setup. Default handlers are setup in [mock-server.ts](./mock-server.ts). The mock server will serve the default handlers outlined in [default-handlers.ts](./default-handlers.ts). Custom handlers must be setup inline within a component's test suite (`frontend/**/ComponentName.tests.tsx`). For example, we would setup the custom handler `activityHandler9Activities` inline using `mockServer.use(activityHandler9Activities);`.
 
 ## Testing utilities
 
-TODO:
+We use various utility functions to write our tests.
+
+## Testing stubs `Deprecated`
+
+Testing stubs are still being used in a handful of old tests. We are no longer following this pattern of adding data to testing stubs. Rather, we are building stubs as mocks located in the `frontend/__mocks__` directory.
 
 ## Related links
 
 Check out how we [mock data](../__mocks__/README.md) used for unit and integration tests.
 
-Follow [our guide](../../docs/Contributing/Testing-and-local-development.md) to run frontend tests locally.
+Follow [this guide](../../docs/Contributing/Testing-and-local-development.md) to run tests locally.
+
+Visit the frontend [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
