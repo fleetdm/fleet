@@ -61,8 +61,12 @@ We should also add a new column or table to track the MDM enrolling status
 1. Investigate what are the non-optional fields in the `hosts` table, and if
    having default empty values for some of them requires a breaking change.
 1. Investigate the consequences of using a serial number to uniquely identify
-   hosts, eg: what happens if two users on the same machine use different
-   enrollment profiles? See "macOS extensions" in MDM spec for details.
+   hosts
+    1. what happens if two users on the same machine use different enrollment
+       profiles? See "macOS extensions" in MDM spec for details.
+    1. what happens if a machine has multiple OSes installed? (dual/multi
+       boot)
+    1. what happens with VMs?
 
 ### Problem: Issue an MDM command and monitor it’s status in fleet
 
@@ -139,6 +143,10 @@ storage.
 
 We could start with S3, which is a standard API not tied to S3 to store the
 installers. We already have S3 logic to store installers and carves.
+
+Motivation:
+
+- Look in the "xDM roadmap" document for "software"
 
 #### TODO:
 
