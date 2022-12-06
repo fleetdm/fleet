@@ -1,12 +1,14 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup } from "test/testingUtils";
+import { createCustomRenderer } from "test/test-utils";
 
 import IssueCell from "./IssueCell";
 
 describe("Issue cell", () => {
   it("renders icon, total issues, and failing policies tooltip", async () => {
-    const { user } = renderWithSetup(
+    const render = createCustomRenderer({});
+
+    const { user } = render(
       <IssueCell
         issues={{
           total_issues_count: 4,
