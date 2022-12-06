@@ -11,7 +11,7 @@ const TEAM_SECRET = {
 };
 describe("Enroll secret row", () => {
   it("Hides secret by default and shows secret on click of eye icon", async () => {
-    const { user, debug, container } = renderWithSetup(
+    const { user, container } = renderWithSetup(
       <EnrollSecretRow secret={TEAM_SECRET} />
     );
 
@@ -20,8 +20,8 @@ describe("Enroll secret row", () => {
     expect(secretHidden?.type === "password").toBeTruthy();
 
     // Click eye icon
-    const eyeIcon = screen.findByTestId("eye-icon");
-    await user.click(await eyeIcon);
+    const eyeIcon = screen.getByTestId("eye-icon");
+    await user.click(eyeIcon);
 
     // Secret shown
     const secretShown = container.querySelector("input");
