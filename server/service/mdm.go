@@ -64,3 +64,11 @@ func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	return getAppleBMResponse{AppleBM: appleBM}, nil
 }
+
+func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
