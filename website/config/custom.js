@@ -126,7 +126,7 @@ module.exports.custom = {
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
-    'schema/': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
+    'schema': ['guillaumeross','zhumo','eashaw','zwass'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
     'readme.md': ['mikermcneil', 'zwass'],
