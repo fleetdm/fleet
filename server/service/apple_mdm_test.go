@@ -56,10 +56,12 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/server/devices"):
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
 			return
 		case strings.Contains(r.URL.Path, "/session"):
-			w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			require.NoError(t, err)
 			return
 		}
 	}))

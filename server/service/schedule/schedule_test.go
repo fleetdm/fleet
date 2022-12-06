@@ -349,7 +349,7 @@ func TestScheduleHoldLock(t *testing.T) {
 	jobDuration := 2100 * time.Millisecond
 
 	ml := SetupMockLocker(name, instance, time.Now().Add(-schedInterval))
-	ml.AddChannels(t, "unlocked")
+	require.NoError(t, ml.AddChannels(t, "unlocked"))
 
 	ms := SetUpMockStatsStore(name, fleet.CronStats{
 		ID:        1,
@@ -407,7 +407,8 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, name, "a", fleet.CronStatsStatusCompleted)
+	_, err := ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, name, "a", fleet.CronStatsStatusCompleted)
+	require.NoError(t, err)
 
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
@@ -485,13 +486,13 @@ func TestTriggerSingleInstance(t *testing.T) {
 	schedInterval := 1 * time.Second
 	jobRuntime := 200 * time.Millisecond
 
-	locker := SetupMockLocker(name, instanceID, time.Now().Add(-schedInterval))
+	locker := SetupMockLocker(name, instanceID, time.Now().Add(-2*schedInterval))
 	statsStore := SetUpMockStatsStore(name, fleet.CronStats{
 		ID:        1,
 		StatsType: fleet.CronStatsTypeScheduled,
 		Name:      name,
 		Instance:  instanceID,
-		CreatedAt: time.Now().Add(-schedInterval).Add(-jobRuntime),
+		CreatedAt: time.Now().Add(-2 * schedInterval).Add(-jobRuntime),
 		UpdatedAt: time.Now().Add(-schedInterval),
 		Status:    fleet.CronStatsStatusCompleted,
 	})
@@ -509,22 +510,33 @@ func TestTriggerSingleInstance(t *testing.T) {
 
 	ticker := time.NewTicker(schedInterval) // 1s interval
 	time.Sleep(100 * time.Millisecond)
-	s.Trigger() // triggered run starts at 0.1s and runs until 0.3s
-	s.Trigger() // ignored
-	s.Trigger() // ignored
-	s.Trigger() // ignored
-	s.Trigger() // ignored
+	_, err := s.Trigger() // triggered run starts at 0.1s and runs until 0.3s
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored
+	require.NoError(t, err)
 
-	<-ticker.C  // scheduled run starts at 1s and runs until 1.2s
-	s.Trigger() // ignored
+	<-ticker.C           // scheduled run starts at 1s and runs until 1.2s
+	_, err = s.Trigger() // ignored
+	require.NoError(t, err)
+
 	time.Sleep(100 * time.Millisecond)
-	s.Trigger() // ignored
+	_, err = s.Trigger() // ignored
+	require.NoError(t, err)
+
 	time.Sleep(200 * time.Millisecond)
-	s.Trigger() // triggered run starts at 1.3s and runs until 1.5s
+	_, err = s.Trigger() // triggered run starts at 1.3s and runs until 1.5s
+	require.NoError(t, err)
 
 	<-ticker.C // sheduled run starts at 2s and runs until at 2.2s
 	time.Sleep(900 * time.Millisecond)
-	s.Trigger() // triggered run starts at 2.9s and runs until at 3.1s
+	_, err = s.Trigger() // triggered run starts at 2.9s and runs until at 3.1s
+	require.NoError(t, err)
 
 	<-ticker.C // scheduled run at 3s gets skipped because triggered run is pending
 
@@ -603,7 +615,8 @@ func TestTriggerMultipleInstances(t *testing.T) {
 
 		go func() {
 			time.Sleep(c.triggerDelay)
-			scheduleInstances[1].Trigger()
+			_, err := scheduleInstances[1].Trigger()
+			require.NoError(t, err)
 		}()
 
 		<-timer.C

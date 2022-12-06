@@ -43,6 +43,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 					TeamID:      nil,
 					Resolution:  ptr.String("policy1 resolution"),
 					Platform:    "darwin",
+					Critical:    true,
 				},
 			}, nil
 		}
@@ -121,7 +122,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "created_at": "0001-01-01T00:00:00Z",
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
-        "failing_host_count": 0
+        "failing_host_count": 0,
+		"critical": true
     },
     "hosts": [
         {
@@ -304,7 +306,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "created_at": "0001-01-01T00:00:00Z",
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
-        "failing_host_count": 0
+        "failing_host_count": 0,
+		"critical": false
     },
     "hosts": [
         {

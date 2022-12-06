@@ -74,7 +74,9 @@ This ticket was created automatically by your Fleet Zendesk integration.
 	)),
 
 	FailingPolicyDescription: template.Must(template.New("").Parse(
-		`Hosts:
+		`{{ if .PolicyCritical }}This policy is marked as **Critical** in Fleet.
+
+{{ end }}Hosts:
 {{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
 {{ range slice .Hosts 0 $end }}
 * [{{ .DisplayName }}]({{ $.FleetURL }}/hosts/{{ .ID }})
@@ -102,13 +104,7 @@ type zendeskVulnTplArgs struct {
 	CISAKnownExploit *bool
 }
 
-type zendeskFailingPoliciesTplArgs struct {
-	FleetURL   string
-	PolicyID   uint
-	PolicyName string
-	TeamID     *uint
-	Hosts      []fleet.PolicySetHost
-}
+type zendeskFailingPoliciesTplArgs jiraFailingPoliciesTplArgs
 
 // ZendeskClient defines the method required for the client that makes API calls
 // to Zendesk.
@@ -305,11 +301,12 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 
 func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	tplArgs := &zendeskFailingPoliciesTplArgs{
-		FleetURL:   z.FleetURL,
-		PolicyName: args.FailingPolicy.PolicyName,
-		PolicyID:   args.FailingPolicy.PolicyID,
-		TeamID:     args.FailingPolicy.TeamID,
-		Hosts:      args.FailingPolicy.Hosts,
+		FleetURL:       z.FleetURL,
+		PolicyName:     args.FailingPolicy.PolicyName,
+		PolicyID:       args.FailingPolicy.PolicyID,
+		PolicyCritical: args.FailingPolicy.PolicyCritical,
+		TeamID:         args.FailingPolicy.TeamID,
+		Hosts:          args.FailingPolicy.Hosts,
 	}
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.FailingPolicySummary, zendeskTemplates.FailingPolicyDescription, tplArgs)

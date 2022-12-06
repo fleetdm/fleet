@@ -130,10 +130,10 @@ func testLocksDBLocks(t *testing.T, ds *Datastore) {
 	// cause a deadlock (see https://stackoverflow.com/a/31552794/1094941)
 	tx1, err := ds.writer.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	require.NoError(t, err)
-	defer tx1.Rollback()
+	defer tx1.Rollback() //nolint:errcheck
 	tx2, err := ds.writer.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	require.NoError(t, err)
-	defer tx2.Rollback()
+	defer tx2.Rollback() //nolint:errcheck
 
 	wait := make(chan struct{})
 	go func() {

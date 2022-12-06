@@ -2414,10 +2414,10 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	require.Len(t, listResp.DeviceMapping, 0)
 
 	// create some mappings
-	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
 		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
 		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	})
+	}))
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 2)
@@ -2498,7 +2498,7 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 		mappings = append(mappings, &fleet.HostDeviceMapping{HostID: hosts[0].ID, Email: testEmail, Source: "google_chrome_profiles"})
 	}
 
-	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings)
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings))
 
 	var listHosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
@@ -5957,7 +5957,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/rest/api/2/project/qux":
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
-				w.Write([]byte(jiraProjectResponsePayload))
+				_, err := w.Write([]byte(jiraProjectResponsePayload))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -5966,7 +5967,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/rest/api/2/project/qux2":
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
-				w.Write([]byte(jiraProjectResponsePayload))
+				_, err := w.Write([]byte(jiraProjectResponsePayload))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -5975,7 +5977,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/api/v2/groups/122.json":
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
-				w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
+				_, err := w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -5984,7 +5987,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/api/v2/groups/123.json":
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
-				w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
+				_, err := w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:

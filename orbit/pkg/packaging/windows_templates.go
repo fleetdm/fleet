@@ -95,6 +95,14 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       </Directory>
     </Directory>
 
+    <CustomAction Id="StopOrbit_cmd" Property="WixQuietExecCmdLine" Value='"[WindowsFolder]System32\taskkill.exe" /F /IM osqueryd.exe /IM fleet-desktop.exe /IM orbit.exe' />
+    <CustomAction Id="StopOrbit" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="immediate" Return="check"/>
+
+    <InstallExecuteSequence>
+      <Custom Action='StopOrbit_cmd' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+      <Custom Action='StopOrbit' After='StopOrbit_cmd'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+    </InstallExecuteSequence>
+
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />
       <ComponentRef Id="C_ORBITROOT_REMOVAL" />

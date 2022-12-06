@@ -24,9 +24,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var eh = ctxerr.MockHandler{}
-var ctxb = context.Background()
-var ctx = ctxerr.NewContext(ctxb, eh)
+var (
+	eh   = ctxerr.MockHandler{}
+	ctxb = context.Background()
+	ctx  = ctxerr.NewContext(ctxb, eh)
+)
 
 func alwaysErrors() error { return pkgErrors.New("always errors") }
 
@@ -221,7 +223,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 	<-chGo
 
 	for i := 0; i < 3; i++ {
-		alwaysNewError(eh)
+		alwaysNewError(eh) //nolint:errcheck
 	}
 
 	<-chDone
@@ -283,15 +285,15 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	// those two errors are different because from a different strack trace
 	// (different line)
-	alwaysNewError(eh)
-	alwaysNewError(eh)
+	alwaysNewError(eh) //nolint:errcheck
+	alwaysNewError(eh) //nolint:errcheck
 
 	// while those two are the same, only one gets store
 	for i := 0; i < 2; i++ {
-		alwaysNewError(eh)
+		alwaysNewError(eh) //nolint:errcheck
 	}
 
-	alwaysNewErrorTwo(eh)
+	alwaysNewErrorTwo(eh) //nolint:errcheck
 
 	<-chDone
 

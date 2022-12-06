@@ -307,7 +307,9 @@ the way that the Fleet server works.
 						os.Exit(1)
 					}
 				} else {
-					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
+						level.Debug(logger).Log("err", err, "msg", "failed to apply enroll secrets")
+					}
 				}
 			}
 
@@ -503,7 +505,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}
@@ -673,7 +675,7 @@ the way that the Fleet server works.
 						rw.WriteHeader(http.StatusNotFound)
 						return
 					}
-					rw.Write(testPage)
+					rw.Write(testPage) //nolint:errcheck
 					rw.WriteHeader(http.StatusOK)
 				})
 			}
@@ -754,6 +756,7 @@ the way that the Fleet server works.
 				}()
 			}()
 
+			// block on errs signal
 			logger.Log("terminated", <-errs)
 		},
 	}

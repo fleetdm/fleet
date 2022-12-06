@@ -2128,7 +2128,8 @@ Returns the information of the specified host.
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
-        "response": "pass"
+        "response": "pass",
+        "critical": false
       },
       {
         "id": 2,
@@ -2137,7 +2138,8 @@ Returns the information of the specified host.
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "platform": "darwin",
-        "response": "fail"
+        "response": "fail",
+        "critical": false
       },
       {
         "id": 3,
@@ -2146,7 +2148,8 @@ Returns the information of the specified host.
         "description": "",
         "resolution": "",
         "platform": "",
-        "response": ""
+        "response": "",
+        "critical": false
       }
     ],
     "issues": {
@@ -2319,8 +2322,9 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
             "platform": "darwin,linux",
             "created_at": "2022-09-02T18:52:19Z",
             "updated_at": "2022-09-02T18:52:19Z",
-            "response": "fail"
-        },
+            "response": "fail",
+            "critical": false
+        }
     ],
     "batteries": [
       {
@@ -3370,6 +3374,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "critical": false,
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
@@ -3386,6 +3391,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "name": "Windows machines with encrypted hard disks",
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": true,
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -3426,6 +3432,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "critical": false,
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
@@ -3461,6 +3468,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3476,7 +3484,8 @@ Either `query` or `query_id` must be provided.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
-  "platform": "darwin"
+  "platform": "darwin",
+  "critical": true
 }
 ```
 
@@ -3491,6 +3500,7 @@ Either `query` or `query_id` must be provided.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3530,6 +3540,7 @@ Where `query_id` references an existing `query`.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3590,6 +3601,7 @@ Where `query_id` references an existing `query`.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -3602,6 +3614,7 @@ Where `query_id` references an existing `query`.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
   "resolution": "Resolution steps",
   "platform": "darwin"
 }
@@ -3618,6 +3631,7 @@ Where `query_id` references an existing `query`.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3654,7 +3668,7 @@ Team policies work the same as policies, but at the team level.
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id            | integer | url  | Required. Defines what team id to operate on                                                                            |
+| id                 | integer | url  | Required. Defines what team id to operate on                                                                            |
 
 #### Example
 
@@ -3672,6 +3686,7 @@ Team policies work the same as policies, but at the team level.
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "critical": true,
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
@@ -3688,6 +3703,7 @@ Team policies work the same as policies, but at the team level.
       "name": "Windows machines with encrypted hard disks",
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": false,
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -3706,6 +3722,7 @@ Team policies work the same as policies, but at the team level.
       "name": "Arbitrary Test Policy (all platforms) (all teams)",
       "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
+      "critical": true,
       "author_id": 77,
       "author_name": "Test Admin",
       "author_email": "test@admin.com",
@@ -3747,6 +3764,7 @@ Team policies work the same as policies, but at the team level.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3778,6 +3796,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3792,6 +3811,7 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
   "resolution": "Resolution steps",
   "platform": "darwin"
 }
@@ -3808,6 +3828,7 @@ Either `query` or `query_id` must be provided.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3870,6 +3891,7 @@ Either `query` or `query_id` must be provided.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -3882,6 +3904,7 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
   "resolution": "Resolution steps",
   "platform": "darwin"
 }
@@ -3898,6 +3921,7 @@ Either `query` or `query_id` must be provided.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
