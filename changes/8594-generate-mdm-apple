@@ -1,0 +1,1 @@
+- Add fleetctl command to generate APNs CSR and SCEP CA certificate and key pair
