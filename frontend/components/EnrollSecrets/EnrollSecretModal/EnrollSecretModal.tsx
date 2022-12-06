@@ -5,9 +5,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import EnrollSecretTable from "../EnrollSecretTable";
-
 import Icon from "components/Icon/Icon";
+import EnrollSecretTable from "../EnrollSecretTable";
 
 interface IEnrollSecretModal {
   selectedTeam: number;

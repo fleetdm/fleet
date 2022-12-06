@@ -8,8 +8,8 @@ import { ILabel } from "interfaces/label";
 import React, { useRef } from "react";
 import { components, GroupHeadingProps } from "react-select-5";
 
-import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
 import Icon from "components/Icon/Icon";
+import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
 
 const baseClass = "custom-label-group-heading";
 
