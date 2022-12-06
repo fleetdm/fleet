@@ -7,7 +7,7 @@ import (
 )
 
 type triggerRequest struct {
-	Name string `query:"name"`
+	Name string `query:"name,optional"`
 }
 
 type triggerResponse struct {

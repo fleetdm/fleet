@@ -66,6 +66,11 @@ type existsErrorInterface interface {
 	IsExists() bool
 }
 
+type conflictErrorInterface interface {
+	error
+	IsConflict() bool
+}
+
 func encodeErrorAndTrySentry(sentryEnabled bool) func(ctx context.Context, err error, w http.ResponseWriter) {
 	if !sentryEnabled {
 		return encodeError
@@ -143,6 +148,13 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	case existsErrorInterface:
 		je := jsonError{
 			Message: "Resource Already Exists",
+			Errors:  baseError(e.Error()),
+		}
+		w.WriteHeader(http.StatusConflict)
+		enc.Encode(je) //nolint:errcheck
+	case conflictErrorInterface:
+		je := jsonError{
+			Message: "Conflict",
 			Errors:  baseError(e.Error()),
 		}
 		w.WriteHeader(http.StatusConflict)

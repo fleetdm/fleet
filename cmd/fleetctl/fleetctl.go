@@ -96,6 +96,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 				return errors.New("This is not the binary you're looking for. Please use the fleet server binary for prepare commands.")
 			},
 		},
+		triggerCommand(),
 	}
 	return app
 }
