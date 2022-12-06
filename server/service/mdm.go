@@ -48,3 +48,19 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 
 	return appleMDM, nil
 }
+
+type getAppleBMResponse struct {
+	*fleet.AppleBM
+	Err error `json:"error,omitempty"`
+}
+
+func (r getAppleBMResponse) error() error { return r.Err }
+
+func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	appleBM, err := svc.GetAppleBM(ctx)
+	if err != nil {
+		return getAppleBMResponse{Err: err}, nil
+	}
+
+	return getAppleBMResponse{AppleBM: appleBM}, nil
+}
