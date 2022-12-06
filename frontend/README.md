@@ -122,6 +122,11 @@ includes variables for the app color hex codes, fonts (families, weights and siz
 The templates directory contains the HTML file that renders the React application via including the `bundle.js`
 and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
 
+### [test](./test)
+
+The test directory includes test helpers, API request mocks, and stubbed data entities for use in test files.
+More on test helpers, stubs, and request mocks [here](./test/README.md).
+
 ### [utilities](./utilities)
 
 The utilities directory contains re-usable functions and constants for use throughout the
