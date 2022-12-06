@@ -1,7 +1,11 @@
-# MDM baseline
+# MDM core
 
 This document is a high-level spec/guide of the technical challenges that don't
 directly map to a product feature request.
+
+Some of this might already be captured in other issues, but we wanted to put
+everything together and have multiple people thinking about the solutions as a
+whole.
 
 We will create issues to tackle actionable bits, but the idea is to also use
 this to guide the implementation of feature requests.
@@ -50,7 +54,7 @@ number.
 This implies that we must add an uniqueness constraint for the serial number in both tables.
 
 We should also add a new column or table to track the MDM enrolling status
-("pending", "enrolled") without having to `JOIN` both tables.
+("pending," "enrolled") without having to `JOIN` both tables.
 
 #### TODO:
 
@@ -62,23 +66,36 @@ We should also add a new column or table to track the MDM enrolling status
 
 ### Problem: Issue an MDM command and monitor it’s status in fleet
 
-- assumption: when a command is issued, it only targets one device.
-- have an endpoint to retrieve all the commands that were issued to a host and
-  their status, results, etc.
-- have and endpoint that retrieves a single command, and its status/results,
-  etc.
-- let the server handle communication, handle NotNow commands, duplicated commands, etc.
-- the server will transform the XML responses from MDM to JSON and return that to clients.
-    - double check if it's OK to blindly return the info.
-- what permissions should we add  to execute commands.
-    - define granularity: per command basis?
-- investigate command status, check what are the product requirements and see
-  if we can meet them accordingly see: https://github.com/fleetdm/fleet/issues/8815
-    - Invesitage if this is a limitation with MDM and certain commands or something we can fix.
-    - Look at this as we implement the commands.
+As described in
+[#Commands](./tools/mdm/apple/glossary-and-protocols.md#commands), sending and
+getting results from an MDM command is a multi stage process. 
 
+We should:
 
-### Problem: ingesting/storing data from MDM
+1. Ensure all potential errors in each step are handled and _recorded_, so we
+   can report back to the user if there was an error.
+1. Ensure we have endpoints with desirable interfaces to run and get
+   information.
+
+#### Proposed solution
+
+1. Research and understand all the failure points when executing a command.
+1. Research and understand why issues like
+   [these](https://github.com/fleetdm/fleet/issues/8815) happen and figure out
+   if there's anything we can do.
+1. Ensure we're handling all errors as described in the MDM spec, including
+   `NotNow` commands.
+1. All MDM responses are XML, the server will be in charge of transforming those to JSON.
+    1. Discuss: this results in a heavier load in the server, should we
+       consider just delivering XML to the client to "distribute" this effort?
+1. Have an endpoint to retrieve all the commands that were issued to a host and
+   their status + results. 
+1. Have an endpoint that retrieves a single command and its status/results.
+    1. As a consequence of this, the UI (and possibly the CLI) will have to
+       "pull" for updates, we could consider upgrading this connection to a
+       WebSocket, leveraging the work already done for live queries.
+
+### Problem: Ingesting/storing data from MDM
 
 Some features require information that can only be accessed through MDM, for example:
 
@@ -88,6 +105,11 @@ Some features require information that can only be accessed through MDM, for exa
 
 We need to stablish a pattern to ingest and keep this data in sync, similarly
 to how we do for data coming from `osquery`.
+
+Motivation:
+
+- https://github.com/fleetdm/fleet/issues/8519
+- https://github.com/fleetdm/fleet/issues/8360
 
 #### Proposed solution
 
@@ -122,8 +144,10 @@ installers. We already have S3 logic to store installers and carves.
 
 - Investigate using pre-signed URLs instead of buffering the file contents
   through Fleet (`n` installers * `m` devices.) We were worried about those in
-  the past because while they are part of the S3 common API, they might not be
+  the past because while they're part of the S3 common API, they might not be
   supported by non-Amazon vendors.
     - A quick search yields that MinIO, Google and Azure support pre-signed
       URLs, but we need to confirm that we can use the same API to request the
       URLs.
+    - Maybe make this a configuration variable? so people can opt-in for
+      pre-signed URLs.
