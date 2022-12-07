@@ -138,7 +138,7 @@
       tier: Premium
       comingSoon: true
     - name: Remotely enforce macOS settings
-      tier: Premium
+      tier: Free
       comingSoon: true
     - name: Low-level macOS MDM commands (e.g. remote restart)
       tier: Premium
