@@ -11,9 +11,13 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { IHost } from "interfaces/host";
+import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IPolicyFormData, IPolicy } from "interfaces/policy";
+import {
+  IPolicyFormData,
+  IPolicy,
+  IStoredPolicyResponse,
+} from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 
@@ -29,14 +33,6 @@ interface IPolicyPageProps {
   router: InjectedRouter;
   params: Params;
   location: { query: { host_ids: string; team_id: string } };
-}
-
-interface IStoredPolicyResponse {
-  policy: IPolicy;
-}
-
-interface IHostResponse {
-  host: IHost;
 }
 
 const baseClass = "policy-page";

@@ -60,8 +60,6 @@
     width: 100%;
 
     &__label {
-      font-weight: $bold;
-      margin-bottom: $pad-xsmall;
       width: 100%;
     }
 
@@ -102,7 +100,7 @@
       color: $core-fleet-black;
       border-bottom: solid 1px $ui-fleet-blue-15;
       margin: 0 0 $pad-xxlarge;
-      @media(min-width: $break-990) {
+      @media (min-width: $break-990) {
         max-width: 65%;
       }
     }
@@ -135,19 +133,17 @@
     font-size: $x-small;
     color: $core-fleet-black;
     width: 100%;
-    @media(min-width: $break-990) {
+    @media (min-width: $break-990) {
       width: 60%;
     }
   }
-
-
 
   &__inputs {
     width: 100%;
     float: left;
     padding-right: $pad-small;
     box-sizing: border-box;
-    @media(min-width: $break-990) {
+    @media (min-width: $break-990) {
       width: 60%;
     }
 
@@ -255,7 +251,6 @@
     margin-bottom: $pad-medium;
   }
 
-  &__usage-stats-preview-modal,
   &__host-status-webhook-preview-modal {
     .flex-end {
       margin-top: 20px;

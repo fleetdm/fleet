@@ -194,7 +194,7 @@ func testRecordHostLastSeenSync(t *testing.T, ds *mock.Store, pool fleet.RedisPo
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", hostSeenRecordedHostIDsKey, hostSeenProcessingHostIDsKey)
+	defer conn.Do("DEL", hostSeenRecordedHostIDsKey, hostSeenProcessingHostIDsKey) //nolint:errcheck
 
 	n, err := redigo.Int(conn.Do("EXISTS", hostSeenRecordedHostIDsKey))
 	require.NoError(t, err)
@@ -234,7 +234,7 @@ func testRecordHostLastSeenAsync(t *testing.T, ds *mock.Store, pool fleet.RedisP
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", hostSeenRecordedHostIDsKey, hostSeenProcessingHostIDsKey)
+	defer conn.Do("DEL", hostSeenRecordedHostIDsKey, hostSeenProcessingHostIDsKey) //nolint:errcheck
 
 	n, err := redigo.Int(conn.Do("SCARD", hostSeenRecordedHostIDsKey))
 	require.NoError(t, err)

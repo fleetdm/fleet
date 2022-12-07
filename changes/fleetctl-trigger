@@ -1,0 +1,1 @@
+- Added `fleetctl trigger` command to trigger an ad hoc run of all jobs in a specified cron schedule.

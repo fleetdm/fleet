@@ -62,7 +62,8 @@
         "resolution": "Some resolution",
         "team_id": 1,
         "updated_at": "0001-01-01T00:00:00Z",
-        "created_at": "0001-01-01T00:00:00Z"
+        "created_at": "0001-01-01T00:00:00Z",
+        "critical": false
       },
       {
         "id": 2,
@@ -76,7 +77,8 @@
         "response": "fails",
         "team_id": null,
         "updated_at": "0001-01-01T00:00:00Z",
-        "created_at": "0001-01-01T00:00:00Z"
+        "created_at": "0001-01-01T00:00:00Z",
+        "critical": false
       }
     ],
     "status": "offline",

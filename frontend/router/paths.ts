@@ -5,7 +5,10 @@ import URL_PREFIX from "./url_prefix";
 
 export default {
   ROOT: `${URL_PREFIX}/`,
-  HOME: `${URL_PREFIX}/dashboard`,
+  DASHBOARD: `${URL_PREFIX}/dashboard`,
+  DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
+  DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
+  DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
@@ -45,8 +48,17 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS: (host: IHost): string => {
-    return `${URL_PREFIX}/hosts/${host.id}`;
+  HOST_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}`;
+  },
+  HOST_SOFTWARE: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/software`;
+  },
+  HOST_SCHEDULE: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/schedule`;
+  },
+  HOST_POLICIES: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/policies`;
   },
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;

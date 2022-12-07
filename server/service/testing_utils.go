@@ -105,6 +105,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 
 	ctx := license.NewContext(context.Background(), lic)
+
+	cronSchedulesService := fleet.NewCronSchedules()
+
+	if len(opts) > 0 && opts[0].StartCronSchedules != nil {
+		for _, fn := range opts[0].StartCronSchedules {
+			err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
+			require.NoError(t, err)
+		}
+	}
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -126,6 +136,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmStorage,
 		mdmPusher,
 		"",
+		cronSchedulesService,
 	)
 	if err != nil {
 		panic(err)
@@ -210,6 +221,8 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
+type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
+
 type TestServerOpts struct {
 	Logger              kitlog.Logger
 	License             *fleet.LicenseInfo
@@ -227,6 +240,7 @@ type TestServerOpts struct {
 	DEPStorage          nanodep_storage.AllStorage
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
+	StartCronSchedules  []TestNewScheduleFunc
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

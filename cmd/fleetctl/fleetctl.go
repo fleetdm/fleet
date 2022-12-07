@@ -26,7 +26,7 @@ func init() {
 
 func main() {
 	app := createApp(os.Stdin, os.Stdout, exitErrHandler)
-	app.Run(os.Args)
+	app.Run(os.Args) //nolint:errcheck
 }
 
 // exitErrHandler implements cli.ExitErrHandlerFunc. If there is an error, prints it to stderr and exits with status 1.
@@ -96,6 +96,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 				return errors.New("This is not the binary you're looking for. Please use the fleet server binary for prepare commands.")
 			},
 		},
+		triggerCommand(),
 	}
 	return app
 }

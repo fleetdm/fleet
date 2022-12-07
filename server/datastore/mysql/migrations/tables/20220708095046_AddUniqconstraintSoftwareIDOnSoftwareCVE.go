@@ -102,7 +102,7 @@ func Up_20220708095046(tx *sql.Tx) error {
 		if !locked || err != nil {
 			logger.Warn.Println("Could not acquire lock, might not be able to remove duplicates in a reliable way...")
 		} else {
-			defer releaseLock(tx, identifier)
+			defer releaseLock(tx, identifier) //nolint:errcheck
 		}
 	}
 

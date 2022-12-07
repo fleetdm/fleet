@@ -170,7 +170,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	go func() {
 		wg.Wait()
-		psc.Unsubscribe(pubSubName)
+		psc.Unsubscribe(pubSubName) //nolint:errcheck
 		conn.Close()
 	}()
 

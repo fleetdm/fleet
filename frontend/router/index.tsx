@@ -98,10 +98,14 @@ const routes = (
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to={"dashboard"} />
-          <Route path="dashboard" component={DashboardPage} />
+          <IndexRedirect to={"/dashboard"} />
+          <Route path="dashboard" component={DashboardPage}>
+            <Route path="linux" component={DashboardPage} />
+            <Route path="mac" component={DashboardPage} />
+            <Route path="windows" component={DashboardPage} />
+          </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
-            <IndexRedirect to={"/dashboard"} />
+            <IndexRedirect to={"organization"} />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={AdminAppSettingsPage} />
@@ -139,7 +143,15 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-            <Route path=":host_id" component={HostDetailsPage} />
+
+            <IndexRedirect to={":host_id"} />
+            <Route component={HostDetailsPage}>
+              <Route path=":host_id" component={HostDetailsPage}>
+                <Route path="software" component={HostDetailsPage} />
+                <Route path="schedule" component={HostDetailsPage} />
+                <Route path="policies" component={HostDetailsPage} />
+              </Route>
+            </Route>
           </Route>
           <Route path="software">
             <IndexRedirect to={"manage"} />
