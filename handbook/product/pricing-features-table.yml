@@ -127,6 +127,7 @@
       tier: Premium
       comingSoon: false
 - categoryName: Device management (pricing TBD)
+  features:
     - name: Report on FileVault status
       tier: Free
       comingSoon: false
