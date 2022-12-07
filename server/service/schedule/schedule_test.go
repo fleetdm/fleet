@@ -479,7 +479,6 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 
 func TestTriggerSingleInstance(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
 
 	name := "test_trigger_single_instance"
 	instanceID := "test_instance"
@@ -512,38 +511,57 @@ func TestTriggerSingleInstance(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	_, err := s.Trigger() // triggered run starts at 0.1s and runs until 0.3s
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored
+	_, err = s.Trigger() // ignored because another run is pending
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored
+	_, err = s.Trigger() // ignored because another run is pending
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored
+	_, err = s.Trigger() // ignored because another run is pending
 	require.NoError(t, err)
-	_, err = s.Trigger() // ignored
+	_, err = s.Trigger() // ignored because another run is pending
 	require.NoError(t, err)
 
-	<-ticker.C           // scheduled run starts at 1s and runs until 1.2s
-	_, err = s.Trigger() // ignored
+	<-ticker.C                                               // 1s elapsed
+	require.Equal(t, uint32(1), atomic.LoadUint32(&jobsRun)) // only 1 job completed so far
+	// scheduled run starts at 1s and runs until 1.2s
+
+	_, err = s.Trigger() // ignored because another run is pending
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
-	_, err = s.Trigger() // ignored
+	_, err = s.Trigger() // ignored because another run is pending
 	require.NoError(t, err)
 
 	time.Sleep(200 * time.Millisecond)
 	_, err = s.Trigger() // triggered run starts at 1.3s and runs until 1.5s
 	require.NoError(t, err)
 
-	<-ticker.C // sheduled run starts at 2s and runs until at 2.2s
+	<-ticker.C                                               // 2s elapsed
+	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsRun)) // only three jobs completed so far (2 triggered, 1 scheduled)
+	// scheduled run starts at 2s and runs until at 2.2s
+
 	time.Sleep(900 * time.Millisecond)
 	_, err = s.Trigger() // triggered run starts at 2.9s and runs until at 3.1s
 	require.NoError(t, err)
 
-	<-ticker.C // scheduled run at 3s gets skipped because triggered run is pending
+	<-ticker.C                                               // 3s elapsed
+	require.Equal(t, uint32(4), atomic.LoadUint32(&jobsRun)) // only four jobs completed so far (2 triggered, 2 scheduled)
+	// scheduled run at 3s gets skipped because triggered run is pending
 
-	<-ticker.C // scheduled run starts at 4s and runs until at 4.2s
-	time.Sleep(800 * time.Millisecond)
+	<-ticker.C                                               // 4s elapsed
+	require.Equal(t, uint32(5), atomic.LoadUint32(&jobsRun)) // only five jobs completed so far (3 triggered, 2 scheduled)
+	// scheduled run starts at 4s and runs until at 4.2s
+
+	time.Sleep(500 * time.Millisecond)
+	cancelFn()
 	ticker.Stop()
 
+	// six total jobs:
+	//   triggered at 0.1s
+	//   scheduled at 1s
+	//   triggered at 1.3s
+	//   scheduled at 2s
+	//   triggered at 2.9s
+	//   scheduled at 4s
 	require.Equal(t, uint32(6), atomic.LoadUint32(&jobsRun))
 }
 
