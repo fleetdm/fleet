@@ -134,7 +134,7 @@
     - name: User initiated enrollment of macOS computers
       tier: Free
       comingSoon: true
-    - name: Remote, zero-touch acquisition of macOS workstations
+    - name: Remote, zero-touch acquisition of macOS computers
       tier: Premium
       comingSoon: true
     - name: Remotely enforce macOS settings
@@ -149,7 +149,7 @@
     - name: Keep macOS up to date through reminders
       tier: Premium
       comingSoon: true
-    - name: Encrypt macOS hard disks with Filevault
+    - name: Encrypt macOS hard disks with FileVault
       tier: Premium
       comingSoon: true
     - name: Manage queued MDM commands on macOS
