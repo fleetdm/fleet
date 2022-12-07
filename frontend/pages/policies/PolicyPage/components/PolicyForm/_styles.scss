@@ -51,6 +51,8 @@
       .policy-description-wrapper,
       .policy-resolution-wrapper {
         display: flex;
+        align-items: center;
+
         &:not(.policy-form--editing) {
           textarea:hover {
             cursor: pointer;
@@ -59,11 +61,6 @@
         }
       }
       .policy-name-wrapper {
-        .edit-icon {
-          position: relative;
-          top: 13px;
-          margin-left: 0;
-        }
         .policy-form__policy-name,
         .input-sizer::after {
           font-size: $large;
@@ -71,7 +68,7 @@
         .component__auto-size-input-field {
           letter-spacing: -0.5px;
           line-height: 2.3rem;
-          padding-top: 2px;
+          padding-top: 2px 0;
         }
       }
       .policy-description-wrapper {
@@ -79,16 +76,6 @@
         .edit-icon {
           position: relative;
           top: 0;
-        }
-      }
-      .edit-icon {
-        width: 14px;
-        height: 14px;
-        opacity: 1;
-        transition: opacity 0.2s;
-        margin-left: 0;
-        &.hide {
-          opacity: 0;
         }
       }
       .policy-form__policy-resolve,

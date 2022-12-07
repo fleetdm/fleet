@@ -94,16 +94,9 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-
-            img {
-              width: 16px;
-              height: 16px;
-              vertical-align: sub;
-            }
-
-            .total-issues-count {
-              margin-left: $pad-small;
-            }
+            display: flex;
+            align-items: center;
+            gap: $pad-xsmall;
           }
         }
 
@@ -376,11 +369,7 @@
   }
 
   .tooltip__tooltip-icon {
-    img {
-      vertical-align: middle;
-      height: 16px;
-      width: auto;
-    }
+    height: 16px;
   }
 
   .buttons {

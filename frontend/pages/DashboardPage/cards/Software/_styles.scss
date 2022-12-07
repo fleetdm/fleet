@@ -3,12 +3,6 @@
   position: relative;
 
   .software-link {
-    img {
-      transform: rotate(-90deg);
-      height: 16px;
-      width: auto;
-      vertical-align: middle;
-    }
     &:focus-visible {
       outline: 1px solid $core-vibrant-blue;
     }

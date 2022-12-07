@@ -49,6 +49,7 @@
       margin: $pad-medium 24px 0 0;
       .query-name-wrapper {
         display: flex;
+        align-items: center;
 
         &:not(.query-form--editing) {
           textarea:hover {
@@ -68,7 +69,7 @@
         .component__auto-size-input-field {
           letter-spacing: -0.5px;
           line-height: 2.3rem;
-          padding-top: 2px;
+          padding: 2px 0;
         }
       }
       .query-description-wrapper {
@@ -84,15 +85,6 @@
           position: relative;
           top: 0;
           margin-left: 0;
-        }
-      }
-      .edit-icon {
-        width: 14px;
-        height: 14px;
-        opacity: 1;
-        transition: opacity 0.2s;
-        &.hide {
-          opacity: 0;
         }
       }
     }

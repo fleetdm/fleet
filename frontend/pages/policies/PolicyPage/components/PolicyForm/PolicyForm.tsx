@@ -26,10 +26,11 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon";
+
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
 
@@ -320,11 +321,7 @@ const PolicyForm = ({
               isFocused={isEditingName}
             />
             <a className="edit-link" onClick={() => setIsEditingName(true)}>
-              <img
-                className={`edit-icon ${isEditingName && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
-              />
+              {!isEditingName && <Icon name="pencil" />}
             </a>
           </div>
         </>
@@ -361,11 +358,7 @@ const PolicyForm = ({
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
-              <img
-                className={`edit-icon ${isEditingDescription && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
-              />
+              {!isEditingDescription && <Icon name="pencil" />}
             </a>
           </div>
         </>
@@ -399,11 +392,7 @@ const PolicyForm = ({
               className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img
-                className={`edit-icon ${isEditingResolution && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
-              />
+              {!isEditingResolution && <Icon name="pencil" />}
             </a>
           </div>
         </>
@@ -460,7 +449,7 @@ const PolicyForm = ({
       </div>
       <RevealButton
         isShowing={showQueryEditor}
-        className={baseClass}
+        baseClass={baseClass}
         hideText="Hide SQL"
         showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}

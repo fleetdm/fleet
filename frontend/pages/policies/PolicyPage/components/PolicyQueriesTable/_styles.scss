@@ -42,6 +42,9 @@
       }
     }
     .query_results__cell {
+      display: flex;
+      align-items: center;
+
       .status-header-text {
         margin-left: 10px;
       }

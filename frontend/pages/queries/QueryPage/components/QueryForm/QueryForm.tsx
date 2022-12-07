@@ -25,9 +25,10 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import Icon from "components/Icon";
+
 import NewQueryModal from "../NewQueryModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "query-form";
 
@@ -341,11 +342,7 @@ const QueryForm = ({
               isFocused={isEditingName}
             />
             <a className="edit-link" onClick={() => setIsEditingName(true)}>
-              <img
-                className={`edit-icon ${isEditingName && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
-              />
+              {!isEditingName && <Icon name="pencil" />}
             </a>
           </div>
         </>
@@ -376,11 +373,7 @@ const QueryForm = ({
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
             >
-              <img
-                className={`edit-icon ${isEditingDescription && "hide"}`}
-                alt="Edit name"
-                src={PencilIcon}
-              />
+              {!isEditingDescription && <Icon name="pencil" />}
             </a>
           </div>
         </>
@@ -404,7 +397,7 @@ const QueryForm = ({
       </div>
       <RevealButton
         isShowing={showQueryEditor}
-        className={baseClass}
+        baseClass={baseClass}
         hideText="Hide SQL"
         showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
