@@ -40,7 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -389,7 +389,7 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage      *scep_mysql.MySQLDepot
+				scepStorage      *apple_mdm.SCEPMySQLDepot
 				appleSCEPCertPEM []byte
 				appleSCEPKeyPEM  []byte
 				appleAPNsCertPEM []byte
