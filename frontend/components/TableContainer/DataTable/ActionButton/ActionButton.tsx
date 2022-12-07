@@ -4,7 +4,7 @@ import { kebabCase } from "lodash";
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "action-button";
 export interface IActionButtonProps {

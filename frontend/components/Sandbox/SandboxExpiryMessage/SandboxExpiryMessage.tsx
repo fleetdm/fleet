@@ -1,6 +1,6 @@
 import React from "react";
 
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "sandbox-expiry-message";
 

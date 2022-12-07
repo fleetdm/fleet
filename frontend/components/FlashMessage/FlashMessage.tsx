@@ -5,7 +5,7 @@ import { INotification } from "interfaces/notification";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "flash-message";
 

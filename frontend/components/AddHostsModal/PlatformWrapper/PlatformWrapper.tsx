@@ -19,7 +19,7 @@ import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 

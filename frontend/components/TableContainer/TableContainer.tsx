@@ -10,7 +10,7 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 import { IconNames } from "components/icons";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";

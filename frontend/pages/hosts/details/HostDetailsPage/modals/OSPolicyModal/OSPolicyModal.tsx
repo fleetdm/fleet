@@ -11,7 +11,7 @@ import Button from "components/buttons/Button";
 
 import { ITeam } from "interfaces/team";
 
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 interface IRenderOSPolicyModal {
   onCreateNewPolicy: (team: ITeam) => void;

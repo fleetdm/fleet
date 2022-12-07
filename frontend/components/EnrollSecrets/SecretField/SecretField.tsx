@@ -5,7 +5,7 @@ import { stringToClipboard } from "utilities/copy_text";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "secret-field";
 

@@ -14,7 +14,7 @@ import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";

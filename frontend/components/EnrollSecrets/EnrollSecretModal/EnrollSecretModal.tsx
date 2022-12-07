@@ -5,7 +5,7 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 import EnrollSecretTable from "../EnrollSecretTable";
 
 interface IEnrollSecretModal {

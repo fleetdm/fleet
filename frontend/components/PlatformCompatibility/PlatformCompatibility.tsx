@@ -4,7 +4,7 @@ import { IOsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
   compatiblePlatforms: IOsqueryPlatform[] | null;
@@ -83,12 +83,9 @@ const PlatformCompatibility = ({
           >
             <Icon
               name={isCompatible ? "check" : "ex"}
-<<<<<<< HEAD
               className={
                 isCompatible ? "compatible-platform" : "incompatible-platform"
               }
-=======
->>>>>>> 3372be4fb (Delete more unused png files, refactor more to use svg)
               color={isCompatible ? "status-success" : "status-error"}
             />
             {platform}

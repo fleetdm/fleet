@@ -14,7 +14,7 @@ import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 import ShowQueryModal from "./ShowQueryModal";
 import resultsTableHeaders from "./QueryResultsTableConfig";

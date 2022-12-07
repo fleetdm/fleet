@@ -52,7 +52,6 @@ import NavSchedule from "./NavSchedule";
 import NavSoftware from "./NavSoftware";
 import Policy from "./Policy";
 import Query from "./Query";
-import Issue from "./Issue";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -79,7 +78,6 @@ export const ICON_MAP = {
   "missing-hosts": MissingHosts,
   issue: Issue,
   plus: Plus,
-  issue: Issue,
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
