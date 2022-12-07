@@ -6,7 +6,7 @@ module.exports = {
 
   description: 'Generates and delivers a signed certificate signing request to a user.',
 
-  extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and sends the result to the requesting user\'s email address'
+  extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and sends the result to the requesting user\'s email address',
 
 
   inputs: {
