@@ -126,7 +126,7 @@
     - name: Manage osquery extensions remotely
       tier: Premium
       comingSoon: false
-- categoryName: Device management _(pricing TBD)_
+- categoryName: Device management (pricing TBD)
     - name: Report on FileVault status
       tier: Free
       comingSoon: false
