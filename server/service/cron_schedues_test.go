@@ -101,7 +101,7 @@ func TestCronSchedulesService(t *testing.T) {
 		Status:    fleet.CronStatsStatusCompleted,
 	})
 	jobsDone := uint32(0)
-	startCh := make(chan struct{})
+	startCh := make(chan struct{}, 1)
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{StartCronSchedules: []TestNewScheduleFunc{
 		func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
