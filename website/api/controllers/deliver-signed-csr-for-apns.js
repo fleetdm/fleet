@@ -90,15 +90,15 @@ module.exports = {
 
     // Throw an error if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
-      throw new Error('The result from the mdm-gen-cert command did not contain a email')
+      throw new Error('The result from the mdm-gen-cert command did not contain a email');
     }
     // Throw an error if the result from the mdm-gen-cert command is missing an org value.
     if(!generateCertificateResult.org) {
-      throw new Error('The result from the mdm-gen-cert command did not contain an organization name')
+      throw new Error('The result from the mdm-gen-cert command did not contain an organization name');
     }
     // Throw an error if the result from the mdm-gen-cert command is missing an result value.
     if(!generateCertificateResult.result) {
-      throw new Error('The result from the mdm-gen-cert command did not contain a certificate')
+      throw new Error('The result from the mdm-gen-cert command did not contain a certificate');
     }
 
     // Get the domain from the provided email
@@ -107,7 +107,7 @@ module.exports = {
     // If the email domain is in the list of banned email domains list, we'll return the invalidEmailDomain response to the user.
     if(_.includes(bannedEmailDomainsForCSRSigning, emailDomain.toLowerCase())){
       return 'invalidEmailDomain';
-    };
+    }
 
     // Create a new CertificateSigningRequest record in the database.
     await CertificateSigningRequest.createOne({

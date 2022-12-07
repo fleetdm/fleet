@@ -46,6 +46,7 @@
     "Quote": true,
     "Subscription": true,
     "NewsletterSubscription": true,
+    "CertificateSigningRequest": true,
 
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
