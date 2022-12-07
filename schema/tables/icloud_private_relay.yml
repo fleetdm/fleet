@@ -1,0 +1,7 @@
+name: icloud_private_relay
+description: Whether (iCloud Private Relay)[https://support.apple.com/en-us/HT212614] is enabled.
+columns: 
+  - name: status
+    description: whether iCloud Private Relay is on or off. 1 is on. 0 is off.
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet. 

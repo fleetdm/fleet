@@ -1,5 +1,4 @@
-// Package scep_mysql implements a MySQL SCEP certificate depot.
-package scep_mysql
+package apple_mdm
 
 import (
 	"crypto/rsa"
@@ -16,18 +15,8 @@ import (
 	"github.com/micromdm/scep/v2/depot"
 )
 
-// ErrNotFound is returned when a requested resource is not found.
-//
-// TODO(lucas): Define this at the Depot interface level.
-var ErrNotFound = errors.New("resource not found")
-
-// Schema holds the MySQL schema for SCEP depot storage.
-//
-//go:embed schema.sql
-var Schema string
-
-// MySQLDepot is a MySQL-backed SCEP certificate depot.
-type MySQLDepot struct {
+// SCEPMySQLDepot is a MySQL-backed SCEP certificate depot.
+type SCEPMySQLDepot struct {
 	db *sql.DB
 
 	// caCrt holds the CA's certificate.
@@ -36,10 +25,10 @@ type MySQLDepot struct {
 	caKey *rsa.PrivateKey
 }
 
-var _ depot.Depot = (*MySQLDepot)(nil)
+var _ depot.Depot = (*SCEPMySQLDepot)(nil)
 
-// NewMySQLDepot creates and returns a MySQLDepot.
-func NewMySQLDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*MySQLDepot, error) {
+// NewSCEPMySQLDepot creates and returns a *SCEPMySQLDepot.
+func NewSCEPMySQLDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*SCEPMySQLDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -51,7 +40,7 @@ func NewMySQLDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*MySQLDepot, 
 	if err != nil {
 		return nil, err
 	}
-	return &MySQLDepot{
+	return &SCEPMySQLDepot{
 		db:    db,
 		caCrt: caCrt,
 		caKey: caKey,
@@ -67,12 +56,12 @@ func decodeRSAKeyFromPEM(key []byte) (*rsa.PrivateKey, error) {
 }
 
 // CA returns the CA's certificate and private key.
-func (d *MySQLDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+func (d *SCEPMySQLDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	return []*x509.Certificate{d.caCrt}, d.caKey, nil
 }
 
 // Serial allocates and returns a new (increasing) serial number.
-func (d *MySQLDepot) Serial() (*big.Int, error) {
+func (d *SCEPMySQLDepot) Serial() (*big.Int, error) {
 	result, err := d.db.Exec(`INSERT INTO scep_serials () VALUES ();`)
 	if err != nil {
 		return nil, err
@@ -89,7 +78,7 @@ func (d *MySQLDepot) Serial() (*big.Int, error) {
 // TODO(lucas): Implement and use allowTime and revokeOldCertificate.
 // - allowTime are the maximum days before expiration to allow clients to do certificate renewal.
 // - revokeOldCertificate specifies whether to revoke the old certificate once renewed.
-func (d *MySQLDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
+func (d *SCEPMySQLDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
 	var ct int
 	row := d.db.QueryRow(`SELECT COUNT(*) FROM scep_certificates WHERE name = ?`, cn)
 	if err := row.Scan(&ct); err != nil {
@@ -102,17 +91,14 @@ func (d *MySQLDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, rev
 //
 // If the provided certificate has empty crt.Subject.CommonName,
 // then the hex sha256 of the crt.Raw is used as name.
-func (d *MySQLDepot) Put(name string, crt *x509.Certificate) error {
+func (d *SCEPMySQLDepot) Put(name string, crt *x509.Certificate) error {
 	if crt.Subject.CommonName == "" {
 		name = fmt.Sprintf("%x", sha256.Sum256(crt.Raw))
 	}
 	if !crt.SerialNumber.IsInt64() {
 		return errors.New("cannot represent serial number as int64")
 	}
-	block := &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: crt.Raw,
-	}
+	certPEM := EncodeCertPEM(crt)
 	_, err := d.db.Exec(`
 INSERT INTO scep_certificates
     (serial, name, not_valid_before, not_valid_after, certificate_pem)
@@ -122,7 +108,7 @@ VALUES
 		name,
 		crt.NotBefore,
 		crt.NotAfter,
-		pem.EncodeToMemory(block),
+		certPEM,
 	)
 	return err
 }

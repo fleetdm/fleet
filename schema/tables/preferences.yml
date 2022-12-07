@@ -8,6 +8,8 @@ examples: >-
   SELECT * FROM preferences WHERE subkey='dailyEvents/2/enrolledUserCount';
 
   ```
+notes: >-
+  - The `value` column will be empty for keys that contain binary data.
 columns:
   - name: username
     requires_user_context: true
