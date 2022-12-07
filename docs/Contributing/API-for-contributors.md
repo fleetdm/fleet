@@ -525,6 +525,7 @@ Delete pack by name.
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Web UI.
 
 - [Get Apple MDM](#get-apple-mdm)
+- [Get Apple BM](#get-apple-bm)
 
 ### Get Apple MDM
 
@@ -548,6 +549,34 @@ None.
   "serial_number": "1234567890987654321",
   "issuer": "Apple Application Integration 2 Certification Authority",
   "renew_date": "2023-09-30T00:00:00Z"
+}
+```
+
+### Get Apple BM
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "apple_id": "example@fleetdm.com",
+  "org_name": "Fleet Device Management",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "default_team": ""
 }
 ```
 
