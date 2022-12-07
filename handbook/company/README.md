@@ -41,13 +41,6 @@ Fleet's values are a set of five ideals adopted by everyone on the team.  They d
 
 When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people with whom they work. Having a shared mindset keeps us quick and determined.
 
-Take a look at our reading list to learn more about what formed Fleet’s values:
-- *[The Five Dysfunctions of a Team](https://www.audible.com/pd/The-Five-Dysfunctions-of-a-Team-Audiobook/B002V08E64?qid=1669759641&sr=1-1&ref=a_search_c3_lProduct_1_1&pf_rd_p=83218cca-c308-412f-bfcf-90198b687a2f&pf_rd_r=F4N1FPH76FB5VTSX90SV)*
-- *[The Goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFG88SM)*
-- *[The Phoenix Project](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32)*
-- *[No Forms. No Spam. No Cold Calls.](https://www.audible.com/pd/No-Forms-No-Spam-No-Cold-Calls-Audiobook/B08KTS5F49)*
-- *[The Charisma Myth](https://www.audible.com/pd/The-Charisma-Myth-Audiobook/B008EM9PAM)*
-
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
@@ -147,9 +140,9 @@ We work to get results. How we work determines the results we deliver. Between o
 <!-- TODO: write short preamble, like the others --> 
 
 - Make money
-   - Remember, our objective as a company is to make money.
-   - Rest assured, there will always be a free version of Fleet.
-   - Never sacrifice the user experience for the bottom line.
+   - There will always be a free, enterprise-friendly version of Fleet.  (Read Fleet's [commitment to open source stewardship](https://fleetdm.com/pricing).)
+   - But remember, [the goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFG88SM) of the company is to make money.
+   - This is how we measure success.
 - Be curious.
   - Ask great questions & take the time to listen truly.
   - Listen intently to feedback and genuinely try to understand (especially constructive criticism).  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
