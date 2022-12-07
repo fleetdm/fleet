@@ -20,10 +20,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	}
 
 	// if there is no apple bm config, fail with a 404
-	// TODO: for now, BM is only truly configured if the feature flag is enabled too,
-	// otherwise fleet serve does not create the depStorage. This should change once
-	// the feature is production-ready / the prototype code has been fully replaced.
-	if !svc.config.MDM.IsAppleBMSet() || !svc.config.MDMApple.Enable {
+	if !svc.config.MDM.IsAppleBMSet() {
 		return nil, notFoundError{}
 	}
 
