@@ -94,12 +94,6 @@
         &:not(:last-of-type) {
           margin-right: $pad-small;
         }
-        img {
-          max-width: 12px;
-        }
-        .plus-icon {
-          padding-right: 3px;
-        }
         .selector-name {
           margin-left: 8px;
           font-size: $x-small;

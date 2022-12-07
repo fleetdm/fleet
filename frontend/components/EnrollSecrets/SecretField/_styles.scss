@@ -27,7 +27,6 @@
   }
 
   &__secret-copy-icon {
-    color: $core-vibrant-blue;
     margin-left: $pad-small;
     margin-right: $pad-small;
   }
@@ -43,18 +42,6 @@
     span {
       font-weight: $regular;
     }
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-  }
-
-  &__secret-download-icon {
-    display: block;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
 
     a {
       display: flex;
