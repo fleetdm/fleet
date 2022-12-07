@@ -101,6 +101,7 @@ func TestCronSchedulesService(t *testing.T) {
 		Status:    fleet.CronStatsStatusCompleted,
 	})
 	jobsDone := uint32(0)
+	startCh := make(chan struct{})
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{StartCronSchedules: []TestNewScheduleFunc{
 		func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -113,13 +114,16 @@ func TestCronSchedulesService(t *testing.T) {
 						return nil
 					}),
 				)
+				startCh <- struct{}{}
 				return s, nil
 			}
 		},
 	}})
+	<-startCh
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
+	time.Sleep(10 * time.Millisecond)
 	require.NoError(t, svc.TriggerCronSchedule(ctx, "test_sched")) // first trigger sent ok and will run successfully
 
 	time.Sleep(10 * time.Millisecond)
@@ -130,6 +134,6 @@ func TestCronSchedulesService(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched_2")) // error because unrecognized name
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(700 * time.Millisecond)
 	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsDone)) // 2 regularly scheduled (at 1s and 2s) plus 1 triggered
 }
