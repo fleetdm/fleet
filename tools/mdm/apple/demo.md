@@ -96,7 +96,7 @@ Upload fleet-mdm-apple-dep.crt to your Apple Business MDM server. (Don't forget 
 cp fleet-mdm-apple-dep.crt ~/Downloads/
 ```
 3. In https://business.apple.com:
-   1. select your MDM server in "Your MDM Servers".
+   1. Under "Preferences" (which can be accessed via the upper-right dropdown menu), select your MDM server in "Your MDM Servers".
    2. Click "Edit" and upload the generated `fleet-mdm-apple-dep.crt`.
    3. Then download DEP token to a file named `./dep_encrypted_token.p7m`:
     ```sh

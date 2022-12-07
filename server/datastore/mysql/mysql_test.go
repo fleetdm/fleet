@@ -642,7 +642,7 @@ func TestWithRetryTxWithRollback(t *testing.T) {
 func TestWithRetryTxWillRollbackWhenPanic(t *testing.T) {
 	mock, ds := mockDatastore(t)
 	defer ds.Close()
-	defer func() { recover() }()
+	defer func() { recover() }() //nolint:errcheck
 
 	mock.ExpectBegin()
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
@@ -674,7 +674,7 @@ func TestWithTxWithRollback(t *testing.T) {
 func TestWithTxWillRollbackWhenPanic(t *testing.T) {
 	mock, ds := mockDatastore(t)
 	defer ds.Close()
-	defer func() { recover() }()
+	defer func() { recover() }() //nolint:errcheck
 
 	mock.ExpectBegin()
 	mock.ExpectExec("SELECT 1").WillReturnError(errors.New("let's rollback!"))
@@ -977,7 +977,6 @@ func TestDebugs(t *testing.T) {
 }
 
 func TestANSIQuotesEnabled(t *testing.T) {
-
 	// Ensure sql_mode=ANSI_QUOTES is enabled for tests
 	ds := CreateMySQLDS(t)
 

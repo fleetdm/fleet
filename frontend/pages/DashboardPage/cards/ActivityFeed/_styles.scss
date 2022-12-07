@@ -48,7 +48,7 @@
       margin-right: $pad-large;
     }
 
-    &:hover,
+    &:hover:not(.button--disabled),
     &:focus {
       background-color: $ui-vibrant-blue-10;
     }

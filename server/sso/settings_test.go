@@ -43,7 +43,6 @@ rICQDchR6/cxoQCkoyf+/YTpY492MafV</ds:X509Certificate>
 `
 
 func TestParseMetadata(t *testing.T) {
-
 	settings, err := ParseMetadata(metadata)
 	require.Nil(t, err)
 
@@ -59,7 +58,8 @@ func TestParseMetadata(t *testing.T) {
 
 func TestGetMetadata(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(metadata))
+		_, err := w.Write([]byte(metadata))
+		require.NoError(t, err)
 	}))
 	settings, err := GetMetadata(ts.URL)
 	require.Nil(t, err)

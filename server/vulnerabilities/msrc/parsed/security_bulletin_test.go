@@ -30,7 +30,7 @@ func TestSecurityBulletin(t *testing.T) {
 			a.Products["780"] = "Windows 10 C"
 			a.Products["980"] = "Windows 10 D"
 
-			a.Merge(b)
+			require.NoError(t, a.Merge(b))
 
 			require.Equal(t, a.Products["123"], NewProductFromFullName("Windows 10 A"))
 			require.Equal(t, a.Products["456"], NewProductFromFullName("Windows 10 B"))
@@ -63,7 +63,7 @@ func TestSecurityBulletin(t *testing.T) {
 			b.Vulnerabities["cve-3"] = cve3
 			b.Vulnerabities["cve-4"] = cve4
 
-			a.Merge(b)
+			require.NoError(t, a.Merge(b))
 
 			require.Equal(t, *a.Vulnerabities["cve-1"].PublishedEpoch, int64(123))
 			require.Equal(t, *a.Vulnerabities["cve-2"].PublishedEpoch, int64(456))
@@ -96,7 +96,7 @@ func TestSecurityBulletin(t *testing.T) {
 			b := NewSecurityBulletin("Windows 10")
 			b.VendorFixes[2] = vf2
 
-			a.Merge(b)
+			require.NoError(t, a.Merge(b))
 
 			require.Equal(t, *a.VendorFixes[1].Supersedes, uint(1))
 			require.Equal(t, *a.VendorFixes[2].Supersedes, uint(2))

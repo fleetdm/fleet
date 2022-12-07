@@ -528,6 +528,8 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
+	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
@@ -570,4 +572,10 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// CronSchedulesService
+
+	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
+	TriggerCronSchedule(ctx context.Context, name string) error
 }

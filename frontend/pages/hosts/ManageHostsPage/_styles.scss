@@ -172,18 +172,25 @@
             overflow-x: scroll;
           }
           &__table {
+            thead {
+              tr {
+                th:last-child {
+                  .component__tooltip-wrapper__tip-text {
+                    left: -8px;
+                  }
+                }
+              }
+            }
+
             tbody {
               .issues__cell {
                 display: flex;
                 align-items: center;
                 .host-issue {
-                  img {
-                    width: 16px;
-                    height: 16px;
-                    vertical-align: sub;
-                  }
+                  height: 16px;
                 }
               }
+
               .device_mapping__cell {
                 .text-cell {
                   display: inline;

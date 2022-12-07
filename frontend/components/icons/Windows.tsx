@@ -1,29 +1,33 @@
 import React from "react";
+import { COLORS, Colors } from "styles/var/colors";
 
-const Windows = () => {
+interface IWindowsProps {
+  size: "small" | "medium" | "large";
+  color?: Colors;
+}
+
+const SIZE_MAP = {
+  small: "12",
+  medium: "16",
+  large: "24",
+};
+
+const Windows = ({
+  size = "medium",
+  color = "ui-fleet-black-75",
+}: IWindowsProps) => {
   return (
     <svg
-      width="16"
-      height="17"
-      viewBox="0 0 16 17"
+      width={SIZE_MAP[size]}
+      height={SIZE_MAP[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 16 16"
+      data-testid="windows-icon"
     >
       <path
-        d="M1.09229 13.6417L6.28392 14.6796V8.81934H1.09229V13.6417Z"
-        fill="#515774"
-      />
-      <path
-        d="M1.09229 8.16465H6.28392V2.3363L1.09229 3.37423V8.16465Z"
-        fill="#515774"
-      />
-      <path
-        d="M7.1095 8.16467H15.4923V0.5L7.1095 2.17665V8.16467Z"
-        fill="#515774"
-      />
-      <path
-        d="M7.1095 14.8393L15.4923 16.5V8.81934H7.1095V14.8393Z"
-        fill="#515774"
+        d="m1.092 13.142 5.192 1.038V8.32H1.092v4.822ZM1.092 7.665h5.192V1.836L1.092 2.874v4.79ZM7.11 7.665h8.382V0L7.11 1.677v5.988ZM7.11 14.34 15.491 16V8.32H7.11v6.02Z"
+        fill={COLORS[color]}
       />
     </svg>
   );

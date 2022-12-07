@@ -135,12 +135,13 @@
         "index": false
       }
     ],
-    "examples": "See the domain, if any, that the Mac is bound to.\n```\nSELECT domain FROM ad_config;\n```",
+    "examples": "See the [Active Directory](https://en.wikipedia.org/wiki/Active_Directory) domain, if any, that the Mac is bound to.\n```\nSELECT domain FROM ad_config;\n```",
+    "notes": "\n- Active Directory is a directory service used to manage users and computers. A domain is the high level grouping of these objects, which a workstation must join in order to provide the user with features such as Single Sign-On to internal applications using Kerberos. \n- If a host is not bound to an Active Directory domain, then the table returns no results.",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ad_config.yml"
   },
   {
     "name": "alf",
-    "description": "macOS application layer firewall (ALF) service details.",
+    "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
     "platforms": [
       "darwin"
@@ -206,6 +207,7 @@
       }
     ],
     "examples": "See the state of the Application Layer Firewall on a Mac. A result of 0 means it is disabled, 1 means it is enabled, and 2 means it is enabled and blocking all inbound connections. See our standard query library for an example policy query using this.\n```\nSELECT global_state FROM alf;\n```",
+    "notes": "- This table provides information about the built-in firewall in macOS, also known as [Application Layer Firewall (ALF)](https://support.apple.com/guide/mac-help/block-connections-to-your-mac-with-a-firewall-mh34041/mac)",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/alf.yml"
   },
   {
@@ -1120,7 +1122,7 @@
   },
   {
     "name": "augeas",
-    "description": "Configuration files parsed by augeas.",
+    "description": "Configuration files parsed by [augeas](https://augeas.net/).",
     "url": "https://fleetdm.com/tables/augeas",
     "platforms": [
       "darwin",
@@ -5374,8 +5376,9 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/dns_cache.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fdns_cache.yml&value=name%3A%20dns_cache%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "An integral part of incident response is understanding all systems that may have been compromised. To help with this, a query like the following will return positive for a system that has resolved a domain that contains `baddomain`. It's important to note that a system will only cache the DNS mapping for a limited time - see Notes below for further information. \n```\n   \n SELECT name, type FROM dns_cache WHERE name LIKE '%baddomain%';\n\n```",
+    "notes": "\nThis table pulls from the local system's DNS cache. By default, the local DNS cache entry for a domain will be removed once the TTL for the domain has expired. For instance, osquery.io has a TTL of 60 seconds. When this domain has been resolved on a local Windows system, the DNS mapping will expire in 60 seconds from the resolution time - so `SELECT * FROM dns_cache WHERE name = 'osquery.io'` will only return results during that 60 second window.\nWindows has a maximum time that it allows a cache entry to exist- by default, it is 1 day. If the domain has a TTL of greater than 1 day, Windows will still remove the DNS entry from its cache after 1 day.",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dns_cache.yml"
   },
   {
     "name": "dns_resolvers",
@@ -7947,8 +7950,8 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/etc_services.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fetc_services.yml&value=name%3A%20etc_services%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "Identify the TCP and UDP ports associated to standard services.\n```\nSELECT * FROM etc_services WHERE name='ftp';\n```",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/etc_services.yml"
   },
   {
     "name": "event_taps",
@@ -13658,8 +13661,9 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/ntdomains.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fntdomains.yml&value=name%3A%20ntdomains%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "If the system is joined to a domain, this query will return the domain name as well as all known domain controllers and their IP addresses.\n```\n   \n SELECT domain_name, domain_controller_name, domain_controller_address, status FROM ntdomains WHERE domain_name != \"\";\n\n```",
+    "notes": "",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ntdomains.yml"
   },
   {
     "name": "ntfs_acl_permissions",
@@ -14899,38 +14903,38 @@
     "columns": [
       {
         "name": "uid",
-        "description": "User ID for the policy if available",
-        "type": "bigint",
+        "description": "User ID for the policy. Returns `-1` if the policy applies to all users.",
+        "type": "BIGINT",
         "hidden": false,
         "required": false,
         "index": false
       },
       {
         "name": "policy_identifier",
-        "description": "Policy Identifier",
-        "type": "text",
+        "description": "Policy identifier, such as `ProfilePayload:1d33ef8c-da1c-4534-8458-95a4d43d849e:minLength`.",
+        "type": "TEXT",
         "hidden": false,
         "required": false,
         "index": false
       },
       {
         "name": "policy_content",
-        "description": "Policy content",
-        "type": "text",
+        "description": "Policy content, such as `policyAttributePassword matches '.{10,}'`.",
+        "type": "TEXT",
         "hidden": false,
         "required": false,
         "index": false
       },
       {
         "name": "policy_description",
-        "description": "Policy description",
-        "type": "text",
+        "description": "Policy description, such as `Contain at least 10 characters.`",
+        "type": "TEXT",
         "hidden": false,
         "required": false,
         "index": false
       }
     ],
-    "examples": "This policy query will return a 1 if the password policy requires passwords that are 10 characters or longer.\n```\nSELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);\n```",
+    "examples": "This policy query will return a 1 if the password policy requires passwords that are 10 characters or longer.\n```\nSELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);\n``` ",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/password_policy.yml"
   },
   {
@@ -15709,8 +15713,9 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/power_sensors.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fpower_sensors.yml&value=name%3A%20power_sensors%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "See the total power usage of an Intel Mac.\n```\nSELECT * FROM power_sensors WHERE key='PSTR';\n```",
+    "notes": "Returns useful results on Intel Macs only.",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/power_sensors.yml"
   },
   {
     "name": "powershell_events",
@@ -19194,8 +19199,9 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/shimcache.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fshimcache.yml&value=name%3A%20shimcache%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "As a byproduct of its functionality, the Application Compatibility Cache (also known as the shimcache) logs some details around process execution. These logs can be useful, especially during incident response. The following query looks for a potential IoC (indicator of compromise) - evidence of process execution of a Windows binary named certutil. (Certutil is a legitimate Windows application, but is also known to be a lolbin - living off the land binary. See more details here: https://lolbas-project.github.io/lolbas/Binaries/Certutil/ ) This query joins the local system's uptime to its results because shimcache logs are kept in memory until the system is rebooted, at which point they are written to disk - so we would also want to know the last time this system was rebooted.\n```\n\n SELECT entry AS execution_order, path, DATETIME(modified_time, 'unixepoch') AS file_last_modified,  uptime.days || ' days, ' || uptime.hours || ' hours' AS host_uptime FROM shimcache CROSS JOIN uptime WHERE path LIKE '%certutil%';\n\n```",
+    "notes": "\nSome key caveats to know about this data source:\n* Process execution logs are only written during a reboot, otherwise they are stored in memory. This means you may not be seeing the data you would expect if the system hasn't been rebooted recently.\n* The entry column shows the order of execution - Starting from 1, which is the most-recent process execution, and then on from there.\n* The modified_time column displays the last modified time for the file.\nSource: https://bromiley.medium.com/windows-wednesday-shim-cache-1997ba8b13e7",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/shimcache.yml"
   },
   {
     "name": "signature",
@@ -21168,8 +21174,8 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/userassist.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fuserassist.yml&value=name%3A%20userassist%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "The User Assist featureset allows Windows to keep track of most recently used applications. Because of that, it is a useful datasource to pull from during investigations and incident response. The following example queries the userassist table and converts the last_execution_time into a human readable format (using UTC) and then sorts the results by this column, descending. It also joins the users table to change the user SID into a human readable username.  The output from this query displays most recently used applications, sorted by most recent timestamp as well as the username of who ran it.\n```\n   \n  SELECT userassist.path, datetime(userassist.last_execution_time, 'unixepoch') AS timestamp_of_last_exec, userassist.count as execution_count, users.username FROM userassist join users ON users.uuid = userassist.sid  ORDER BY timestamp_of_last_exec DESC;\n\n```",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/userassist.yml"
   },
   {
     "name": "users",
@@ -21835,6 +21841,7 @@
       }
     ],
     "examples": "See the current speed of the WiFi connection, in megabits per second.\n```\nSELECT transmit_rate FROM wifi_status;\n```",
+    "notes": "- `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. ",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_status.yml"
   },
   {
@@ -21929,6 +21936,7 @@
       }
     ],
     "examples": "Count the amount of wireless networks visible to the computer.\n```\nSELECT COUNT ( DISTINCT network_name ) AS \"Number of wireless networks visible\"  FROM wifi_survey;\n```",
+    "notes": "- `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. ",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/wifi_survey.yml"
   },
   {
@@ -23312,8 +23320,8 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/yara/yara.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fyara.yml&value=name%3A%20yara%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "examples": "Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).\n```\nSELECT * FROM yara WHERE path like '/root/%%' AND sigrule IN (\n  'rule eicar {\n  strings:\n  $s1 = \"X5O!P%@AP[4\\\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\" fullword ascii\n  condition:\n  all of them\n}'\n ) AND matches='eicar';\n\n```",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara.yml"
   },
   {
     "name": "yara_events",
@@ -23574,30 +23582,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"
   },
   {
-    "name": "file_lines",
-    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Allows reading an arbitrary file.",
-    "platforms": "darwin, windows, linux",
-    "evented": false,
-    "examples": "Output the content of `/etc/hosts` line by line. \n```\nSELECT * FROM file_lines WHERE path='/etc/hosts';\n```",
-    "columns": [
-      {
-        "name": "path",
-        "description": "Path of the file to read.",
-        "required": true,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "Output of the file, line by line.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/file_lines",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/file_lines.yml"
-  },
-  {
     "name": "filevault_users",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
@@ -23620,6 +23604,30 @@
     ],
     "url": "https://fleetdm.com/tables/filevault_users",
     "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/filevault_users.yml"
+  },
+  {
+    "name": "file_lines",
+    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Allows reading an arbitrary file.",
+    "platforms": "darwin, windows, linux",
+    "evented": false,
+    "examples": "Output the content of `/etc/hosts` line by line. \n```\nSELECT * FROM file_lines WHERE path='/etc/hosts';\n```",
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path of the file to read.",
+        "required": true,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "Output of the file, line by line.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/file_lines",
+    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/file_lines.yml"
   },
   {
     "name": "google_chrome_profiles",
@@ -23808,6 +23816,42 @@
     "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/mdm.yml"
   },
   {
+    "name": "munki_installs",
+    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
+    "platforms": "darwin",
+    "evented": false,
+    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
+    "columns": [
+      {
+        "name": "end_time",
+        "description": "The end time of the last Munki run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed",
+        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "installed_version",
+        "description": "The version number of installed items.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "name",
+        "description": "The name of items managed by Munki.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/munki_installs",
+    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/munki_installs.yml"
+  },
+  {
     "name": "munki_info",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
@@ -23874,42 +23918,6 @@
     "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/munki_info.yml"
   },
   {
-    "name": "munki_installs",
-    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
-    "platforms": "darwin",
-    "evented": false,
-    "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
-    "columns": [
-      {
-        "name": "end_time",
-        "description": "The end time of the last Munki run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed",
-        "description": "Shows if Munki installed an item (true) or if it is simply available but not installed (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "installed_version",
-        "description": "The version number of installed items.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "name",
-        "description": "The name of items managed by Munki.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_installs",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/munki_installs.yml"
-  },
-  {
     "name": "puppet_facts",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Facts about [Puppet](https://puppet.com/). Puppet facts are *key:value* pairs.",
@@ -23938,120 +23946,6 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_facts",
     "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_facts.yml"
-  },
-  {
-    "name": "puppet_info",
-    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": "darwin, windows, linux",
-    "evented": false,
-    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
-    "columns": [
-      {
-        "name": "cached_catalog_status",
-        "description": "The status of Puppet catalogs cached on the system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "catalog_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "code_id",
-        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "configuration_version",
-        "description": "The version of the Puppet configuration.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "corrective_change",
-        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "environment",
-        "description": "The environment name.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "host",
-        "description": "The host on which Puppet is used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "kind",
-        "description": "Kind of Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "master_used",
-        "description": "The Puppet server used.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop",
-        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "noop_prending",
-        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "puppet_version",
-        "description": "The version of Puppet used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "report_format",
-        "description": "The format the Puppet report was exported as.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "status",
-        "description": "The status of Puppet on this system.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time of the last Puppet run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_completed",
-        "description": "Indicates if the transaction completed or not.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "transaction_uuid",
-        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_info",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_info.yml"
   },
   {
     "name": "puppet_logs",
@@ -24190,6 +24084,120 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_state",
     "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_state.yml"
+  },
+  {
+    "name": "puppet_info",
+    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
+    "platforms": "darwin, windows, linux",
+    "evented": false,
+    "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
+    "columns": [
+      {
+        "name": "cached_catalog_status",
+        "description": "The status of Puppet catalogs cached on the system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "catalog_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the catalog downloaded by Puppet.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "code_id",
+        "description": "The `code_id` links the catalog with the compile-time version of file resources using the `puppet:///` URI.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "configuration_version",
+        "description": "The version of the Puppet configuration.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "corrective_change",
+        "description": "A corrective change is triggered when Puppet detects a discrepency between the current state and the expected state of a value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "environment",
+        "description": "The environment name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "host",
+        "description": "The host on which Puppet is used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "kind",
+        "description": "Kind of Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "master_used",
+        "description": "The Puppet server used.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop",
+        "description": "Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "noop_prending",
+        "description": "Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "puppet_version",
+        "description": "The version of Puppet used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "report_format",
+        "description": "The format the Puppet report was exported as.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "status",
+        "description": "The status of Puppet on this system.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time of the last Puppet run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_completed",
+        "description": "Indicates if the transaction completed or not.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "transaction_uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the transaction.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_info",
+    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_info.yml"
   },
   {
     "name": "unified_log",

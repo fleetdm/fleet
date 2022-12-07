@@ -219,7 +219,7 @@ func TestPublishHasListeners(t *testing.T) {
 		require.False(t, ok)
 
 		// one listener on a different node
-		redis.BindConn(pool, sconn, "b")
+		require.NoError(t, redis.BindConn(pool, sconn, "b"))
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"{a}"))
 		waitForSub(t, psc, defaultTimeout)

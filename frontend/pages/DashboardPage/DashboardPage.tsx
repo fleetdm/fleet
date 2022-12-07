@@ -19,11 +19,12 @@ import {
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 import { ISelectedPlatform } from "interfaces/platform";
+import { ISoftwareResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
-import softwareAPI, { ISoftwareResponse } from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import {
@@ -487,6 +488,7 @@ const DashboardPage = ({
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
+        router={router}
       />
     ),
   });

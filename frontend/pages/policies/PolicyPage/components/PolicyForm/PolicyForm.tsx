@@ -422,7 +422,7 @@ const PolicyForm = ({
       </div>
       <RevealButton
         isShowing={showQueryEditor}
-        baseClass={baseClass}
+        className={baseClass}
         hideText="Hide SQL"
         showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}

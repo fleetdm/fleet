@@ -524,13 +524,16 @@ type Datastore interface {
 	// Cron Stats
 
 	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
-	// are found, it returns an empty CronStats struct
+	// are found, it returns an empty CronStats struct.
 	GetLatestCronStats(ctx context.Context, name string) (CronStats, error)
-	// InsertCronStats inserts cron stats for the named cron schedule
+	// InsertCronStats inserts cron stats for the named cron schedule.
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
-	// UpdateCronStats updates the status of the identified cron stats record
+	// UpdateCronStats updates the status of the identified cron stats record.
 	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus) error
-	// CleanupCronStats cleans up expired cron stats
+	// UpdateAllCronStatsForInstance updates all records for the identified instance with the
+	// specified statuses
+	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error
+	// CleanupCronStats cleans up expired cron stats.
 	CleanupCronStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -588,7 +591,7 @@ type Datastore interface {
 	UpdateHost(ctx context.Context, host *Host) error
 
 	// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
-	ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*ScheduledQuery, error)
+	ListScheduledQueriesInPack(ctx context.Context, packID uint) (ScheduledQueryList, error)
 
 	// UpdateHostRefetchRequested updates a host's refetch requested field.
 	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error
