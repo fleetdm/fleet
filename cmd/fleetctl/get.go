@@ -1063,7 +1063,7 @@ func getMDMAppleCommand() *cli.Command {
 					log(c, "Error: No Apple Push Notification service (APNs) certificate found. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.\n")
 					return nil
 				}
-				return err
+				return fmt.Errorf("could not get Apple MDM information: %w", err)
 			}
 
 			printKeyValueTable(c, [][]string{
