@@ -17,6 +17,7 @@ import EmptySoftware from "./EmptySoftware";
 import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
+import More from "./More";
 import Plus from "./Plus";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
@@ -77,6 +78,7 @@ export const ICON_MAP = {
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   issue: Issue,
+  more: More,
   plus: Plus,
   clipboard: Clipboard,
   eye: Eye,

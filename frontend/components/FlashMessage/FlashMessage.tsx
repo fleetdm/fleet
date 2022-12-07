@@ -70,7 +70,7 @@ const FlashMessage = ({
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
         {alertType === "success" ? (
-          <FleetIcon name="success-check" />
+          <Icon name="success" color="core-fleet-white" />
         ) : (
           <Icon name="error" color="core-fleet-white" />
         )}

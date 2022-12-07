@@ -57,9 +57,13 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
-          {iconPosition === "left" && iconName && <Icon name={iconName} />}
+          {iconPosition === "left" && iconName && (
+            <Icon name={iconName} color="core-fleet-blue" /> // Override all icon colors to core fleet blue
+          )}
           {buttonText}
-          {iconPosition !== "left" && iconName && <Icon name={iconName} />}
+          {iconPosition !== "left" && iconName && (
+            <Icon name={iconName} color="core-fleet-blue" /> // Override all icon colors to core fleet blue
+          )}
         </>
       </Button>
     </div>

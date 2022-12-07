@@ -26,7 +26,7 @@ const FilterPill = ({
   const labelClasses = classnames(`${baseClass}__label`, {
     tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
   });
-  console.log("icon", icon);
+
   return (
     <div
       className={baseClasses}

@@ -4,7 +4,6 @@ import Icon from "components/Icon";
 
 const baseClass = "device-user-error";
 
-// TODO: Check spacing between icon and message
 const DeviceUserError = (): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
