@@ -28,15 +28,14 @@ module.exports = {
 
   },
 
-  fn: async function({orgName, csr}) {
+  fn: async function({csr}) {
     let path = require('path');
 
-    let binaryFileExists = await sails.helpers.fs.exists(path.resolve(sails.config.appPath, '.tools/mdm-gen-cert'));
+    let signingToolExists = await sails.helpers.fs.exists(path.resolve(sails.config.appPath, '.tools/mdm-gen-cert'));
 
-    if(!binaryFileExists) {
+    if(!signingToolExists) {
       throw new Error('Could not generate signed CSR: The mdm-gen-cert binary is missing.');
     }
-
 
     // Throw an error if we're missing any config variables.
     if(!sails.config.custom.mdmVendorCertPem) {
@@ -87,33 +86,34 @@ module.exports = {
     // Parse the JSON result from the mdm-gen-cert command
     let generateCertificateResult = JSON.parse(generateCertificateCommand.stdout);
 
-
-    // Throw an error if the result from the mdm-gen-cert command is missing an email.
+    // Throw an error if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
       throw new Error('The result from the mdm-gen-cert command did not contain a email')
     }
-    // Throw an error if the result from the mdm-gen-cert command is missing an email or request.
+    // Throw an error if the result from the mdm-gen-cert command is missing an org value.
     if(!generateCertificateResult.org) {
       throw new Error('The result from the mdm-gen-cert command did not contain an organization name')
     }
-    // Throw an error if the result from the mdm-gen-cert command is missing an email or request.
+    // Throw an error if the result from the mdm-gen-cert command is missing an result value.
     if(!generateCertificateResult.result) {
       throw new Error('The result from the mdm-gen-cert command did not contain a certificate')
     }
 
-
-    // Get the domain of the provided email
+    // Get the domain from the provided email
     let emailDomain = generateCertificateResult.email.split('@')[1];
 
-    // If the email domain is in the list of disallowed email domains list, we'll return the invalidEmailDomain exit.
+    // If the email domain is in the list of banned email domains list, we'll return the invalidEmailDomain response to the user.
     if(_.includes(bannedEmailDomainsForCSRSigning, emailDomain.toLowerCase())){
       return 'invalidEmailDomain';
     };
 
+    // Create a new CertificateSigningRequest record in the database.
+    await CertificateSigningRequest.createOne({emailAddress: generateCertificateResult.email, organization: generateCertificateResult.org});
+
     // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
     await sails.helpers.sendTemplateEmail.with({
       to: generateCertificateResult.email,
-      subject: 'Your certificate signing request from Fleet',// TODO
+      subject: 'Your certificate signing request from Fleet',
       from: sails.config.custom.fromEmailAddress,
       fromName: sails.config.custom.fromName,
       template: 'email-signed-csr-for-apns',
@@ -124,11 +124,9 @@ module.exports = {
         type: 'text/plain',
       }],
     }).catch((err)=>{
-      throw new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), and error occured. Full error: ${err}`);
+      throw new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
     });
 
-    // Create a new CertificateSigningRequest record in the database.
-    await CertificateSigningRequest.createOne({emailAddress: generateCertificateResult.email, organization: generateCertificateResult.org});
 
     // Send a message to the #mdm-csr-signups channel
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForMDMSignups, {
