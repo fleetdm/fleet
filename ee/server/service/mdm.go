@@ -33,7 +33,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
-	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage, tok)
+	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, bmToken *client.OAuth1Tokens) (*fleet.AppleBM, error) {
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage) (*fleet.AppleBM, error) {
 	httpClient := fleethttp.NewClient()
 	depTransport := client.NewTransport(httpClient.Transport, httpClient, depStorage, nil)
 	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
