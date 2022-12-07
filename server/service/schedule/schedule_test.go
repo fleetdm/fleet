@@ -541,7 +541,7 @@ func TestTriggerSingleInstance(t *testing.T) {
 	<-ticker.C // scheduled run at 3s gets skipped because triggered run is pending
 
 	<-ticker.C // scheduled run starts at 4s and runs until at 4.2s
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(800 * time.Millisecond)
 	ticker.Stop()
 
 	require.Equal(t, uint32(6), atomic.LoadUint32(&jobsRun))
