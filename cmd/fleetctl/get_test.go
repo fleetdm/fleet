@@ -1460,3 +1460,21 @@ func TestGetAppleMDM(t *testing.T) {
 	expected := `Error: No Apple Push Notification service (APNs) certificate found.`
 	assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple"}), expected)
 }
+
+func TestGetAppleBM(t *testing.T) {
+	t.Run("free license", func(t *testing.T) {
+		runServerWithMockedDS(t)
+
+		expected := `could not get Apple BM information: missing or invalid license`
+		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expected)
+	})
+
+	t.Run("premium license", func(t *testing.T) {
+		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+		expected := `No Apple Business Manager server token found`
+		assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple_bm"}), expected)
+	})
+}
