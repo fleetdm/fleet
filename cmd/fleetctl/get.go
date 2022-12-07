@@ -36,15 +36,13 @@ type specGeneric struct {
 }
 
 func defaultTable(writer io.Writer) *tablewriter.Table {
-	w := writerOrStdout(writer)
-	table := tablewriter.NewWriter(w)
+	table := tablewriter.NewWriter(writer)
 	table.SetRowLine(true)
 	return table
 }
 
 func borderlessTabularTable(writer io.Writer) *tablewriter.Table {
-	w := writerOrStdout(writer)
-	table := tablewriter.NewWriter(w)
+	table := tablewriter.NewWriter(writer)
 	table.SetRowLine(false)
 	table.SetAutoWrapText(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
@@ -57,15 +55,6 @@ func borderlessTabularTable(writer io.Writer) *tablewriter.Table {
 	table.SetNoWhiteSpace(true)
 
 	return table
-}
-
-func writerOrStdout(writer io.Writer) io.Writer {
-	var w io.Writer
-	w = os.Stdout
-	if writer != nil {
-		w = writer
-	}
-	return w
 }
 
 func yamlFlag() cli.Flag {
@@ -83,22 +72,20 @@ func jsonFlag() cli.Flag {
 }
 
 func printJSON(spec interface{}, writer io.Writer) error {
-	w := writerOrStdout(writer)
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "%s\n", b)
+	fmt.Fprintf(writer, "%s\n", b)
 	return nil
 }
 
 func printYaml(spec interface{}, writer io.Writer) error {
-	w := writerOrStdout(writer)
 	b, err := yaml.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "---\n%s", string(b))
+	fmt.Fprintf(writer, "---\n%s", string(b))
 	return nil
 }
 
@@ -1088,10 +1075,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(writerOrStdout(c.App.Writer), "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(writerOrStdout(c.App.Writer), "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
 			}
 
 			return nil

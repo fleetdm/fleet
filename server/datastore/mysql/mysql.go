@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -175,19 +174,15 @@ func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []by
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, error) {
+func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*NanoDEPStorage, error) {
 	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.writer.DB))
 	if err != nil {
 		return nil, err
 	}
 
-	var tokens nanodep_client.OAuth1Tokens
-	if err := json.Unmarshal(depTokens, &tokens); err != nil {
-		return nil, err
-	}
 	return &NanoDEPStorage{
 		MySQLStorage: s,
-		tokens:       tokens,
+		tokens:       tok,
 	}, nil
 }
 

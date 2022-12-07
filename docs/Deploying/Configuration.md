@@ -2462,6 +2462,87 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----END RSA PRIVATE KEY-----
   ```
 
+##### apple_bm_server_token
+
+This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_server_token: /path/to/server_token.p7m
+  ```
+
+##### apple_bm_server_token_bytes
+
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_server_token_bytes: |
+      Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
+      Content-Transfer-Encoding: base64
+      ... rest of content ...
+  ```
+
+##### apple_bm_cert
+
+This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_cert: /path/to/bm_cert.pem
+  ```
+
+##### apple_bm_cert_bytes
+
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
+##### apple_bm_key
+
+This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_key: /path/to/private_key.pem
+  ```
+
+##### apple_bm_key_bytes
+
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2470,6 +2551,9 @@ mdm:
   apple_apns_key: /path/to/apns_key
   apple_scep_cert: /path/to/scep_cert
   apple_scep_key: /path/to/scep_key
+  apple_bm_server_token: /path/to/server_token.p7m
+  apple_bm_cert: /path/to/bm_cert
+  apple_bm_key: /path/to/private_key
 ```
 
 ## Managing osquery configurations
