@@ -52,7 +52,7 @@ jobs:
         node-version: ${{ matrix.node-version }}
 
 
-    # Install the right version of Go for the Golang child process that we are currently using for signing
+    # Install the right version of Go for the Golang child process that we are currently using for CSR signing
     - name: Set up Go
       uses: actions/setup-go@v3
       with:

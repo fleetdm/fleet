@@ -349,5 +349,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
-  'POST /api/v1/get_signed_apns_csr': { action: 'send-certificate-signing-request-email', csrf: false},
+  'POST /api/v1/deliver-signed-csr-for-apns': { action: 'deliver-signed-csr-for-apns', csrf: false},
 };

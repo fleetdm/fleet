@@ -1,10 +1,12 @@
 module.exports = {
 
 
-  friendlyName: 'Send certificate signing request email',
+  friendlyName: 'Deliver signed CSR for APNS',
 
 
-  description: 'Returns a generated zip archive containing a signed APNS certificate.',
+  description: 'Generates and delivers a signed certificate signing request to a user.',
+
+  extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and sends the result to the requesting user\'s email address'
 
 
   inputs: {
@@ -108,7 +110,10 @@ module.exports = {
     };
 
     // Create a new CertificateSigningRequest record in the database.
-    await CertificateSigningRequest.createOne({emailAddress: generateCertificateResult.email, organization: generateCertificateResult.org});
+    await CertificateSigningRequest.createOne({
+      emailAddress: generateCertificateResult.email,
+      organization: generateCertificateResult.org,
+    });
 
     // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
     await sails.helpers.sendTemplateEmail.with({
