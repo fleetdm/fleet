@@ -1,3 +1,7 @@
+## Fleet 4.24.1 (Dec 7, 2022)
+
+* Update Go to 1.19.4
+
 ## Fleet 4.24.0 (Dec 1, 2022)
 
 * Improve live query activity item in the activity feed on the Dashboard page. Each item will include the user’s name, as well as an option to show the query. If the query has been saved, the item will include the query’s name.
