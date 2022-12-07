@@ -1,5 +1,3 @@
-// TODO: Check spacing
-
 import React, { useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { useQuery } from "react-query";

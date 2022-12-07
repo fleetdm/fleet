@@ -11,6 +11,12 @@
     margin-top: 0;
   }
 
+  a {
+    .icon {
+      padding-left: $pad-small;
+    }
+  }
+
   .body-wrap {
     padding: 0;
   }
