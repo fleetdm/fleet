@@ -213,8 +213,19 @@ module.exports.routes = {
   },
 
 
-  'GET /connect-vanta': { action: 'view-connect-vanta' },
-  'GET /vanta-callback': { action: 'view-vanta-callback' },
+  'GET /connect-vanta': {
+    action: 'view-connect-vanta',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+   },
+
+  'GET /vanta-callback': {
+    action: 'view-vanta-callback',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
 
 
 
