@@ -479,7 +479,7 @@ describe("Policies flow (seeded)", () => {
         cy.findByText(/filevault enabled/i).should("exist");
         cy.findByText(/no/i).should("exist").click();
         cy.findByText(/yes/i).should("exist");
-        cy.get('img[alt="Remove filter"]').click();
+        cy.get(".filter-pill__clear-filter").click();
         cy.findByText(/filevault enabled'/i).should("not.exist");
       });
     });
