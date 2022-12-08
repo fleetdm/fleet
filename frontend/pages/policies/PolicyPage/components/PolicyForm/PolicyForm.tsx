@@ -109,6 +109,7 @@ const PolicyForm = ({
     isOnGlobalTeam,
     isTeamAdmin,
     isTeamMaintainer,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
@@ -493,7 +494,7 @@ const PolicyForm = ({
           {renderPlatformCompatibility()}
         </span>
         {isEditMode && platformSelector.render()}
-        {isEditMode && renderCriticalPolicy()}
+        {isEditMode && isPremiumTier && renderCriticalPolicy()}
         {renderLiveQueryWarning()}
         <div className={`${baseClass}__button-wrap`}>
           <span

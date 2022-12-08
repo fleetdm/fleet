@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { size } from "lodash";
 
+import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlaformSelector";
 import { IPolicyFormData } from "interfaces/policy";
@@ -45,6 +46,7 @@ const NewPolicyModal = ({
   platformSelector,
   isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -133,21 +135,23 @@ const NewPolicyModal = ({
             placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
-          <Checkbox
-            name="critical-policy"
-            onChange={(value: boolean) => setCritical(value)}
-            value={critical}
-            isLeftLabel
-          >
-            <TooltipWrapper
-              tipContent={
-                "<p>If automations are turned on, this<br/> information is included.</p>"
-              }
-              isDelayed
+          {isPremiumTier && (
+            <Checkbox
+              name="critical-policy"
+              onChange={(value: boolean) => setCritical(value)}
+              value={critical}
+              isLeftLabel
             >
-              Critical:
-            </TooltipWrapper>
-          </Checkbox>
+              <TooltipWrapper
+                tipContent={
+                  "<p>If automations are turned on, this<br/> information is included.</p>"
+                }
+                isDelayed
+              >
+                Critical:
+              </TooltipWrapper>
+            </Checkbox>
+          )}
           <div className="modal-cta-wrap">
             <span
               className={`${baseClass}__button-wrap--modal-save`}
