@@ -63,7 +63,7 @@ jobs:
         uses: redhat-actions/push-to-registry@v2
         with:
           image: fleetdm/fleet
-          tags: fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
+          tags: $(git rev-parse --abbrev-ref HEAD)
           registry: quay.io/fleetdm
           username: fleetdm+fleetreleaser
           password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
