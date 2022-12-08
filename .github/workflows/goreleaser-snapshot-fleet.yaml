@@ -58,12 +58,17 @@ jobs:
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
 
+      - name: Get tag
+        run: |
+          echo "TAG=$($(git rev-parse --abbrev-ref HEAD))" >> $GITHUB_OUTPUT
+        id: docker
+
       - name: Push To quay.io
         id: push-to-quay
         uses: redhat-actions/push-to-registry@v2
         with:
           image: fleetdm/fleet
-          tags: $(git rev-parse --abbrev-ref HEAD)
+          tags: ${{ steps.docker.outputs.TAG }}
           registry: quay.io/fleetdm
           username: fleetdm+fleetreleaser
           password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
