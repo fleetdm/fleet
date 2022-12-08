@@ -1,5 +1,7 @@
 ## Fleet 4.24.1 (Dec 7, 2022)
 
+**This is a security release.**
+
 * Update Go to 1.19.4
 
 ## Fleet 4.24.0 (Dec 1, 2022)
