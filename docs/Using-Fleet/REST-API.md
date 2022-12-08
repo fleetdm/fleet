@@ -653,7 +653,8 @@ None.
       "request_id": "fleet_distributed_query_31",
       "session_id": "f73922ed-40a4-4e98-a50a-ccda9d3eb755",
       "expired": false,
-      "max_block": 1
+      "max_block": 1,
+      "error": "S3 multipart carve upload: EntityTooSmall: Your proposed upload is smaller than the minimum allowed object size"
     }
   ]
 }
