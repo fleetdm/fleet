@@ -57,3 +57,13 @@ jobs:
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
+
+      - name: Push To quay.io
+        id: push-to-quay
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: fleetdm/fleet
+          tags: fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
+          registry: quay.io/fleetdm
+          username: fleetdm+fleetreleaser
+          password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
