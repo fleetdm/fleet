@@ -36,6 +36,7 @@ We also added this functionality to the Dashboard page. You can still filter hos
 
 ## More new features, improvements, and bug fixes
 - Added an `icloud_private_relay` table to fleetd.
+- Added ability to query the `augeas` table without additional configuration.
 - Added tooltips and updated dropdown choices on Hosts and Host details pages to clarify the meanings of "Status: Online" and "Status: Offline."
 - Added “Void Linux” to the list of recognized distributions.
 - Added clickable rows to software tables to view all hosts filtered by software.
