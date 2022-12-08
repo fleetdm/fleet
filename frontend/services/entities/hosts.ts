@@ -101,13 +101,7 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
   };
 };
 
-const createMdmParams = (
-  hostId?: number,
-  platform?: ISelectedPlatform,
-  teamId?: number
-) => {
-  if (hostId) return "";
-
+const createMdmParams = (platform?: ISelectedPlatform, teamId?: number) => {
   if (platform === "all") {
     return buildQueryStringFromParams({ team_id: teamId });
   }
@@ -292,26 +286,20 @@ export default {
     });
   },
 
-  getMdmSummary: (
-    platform?: ISelectedPlatform,
-    teamId?: number,
-    id?: number
-  ) => {
-    const { MDM_SUMMARY, HOST_MDM } = endpoints;
+  getMdm: (id: number) => {
+    const { HOST_MDM } = endpoints;
+    return sendRequest("GET", HOST_MDM(id));
+  },
+
+  getMdmSummary: (platform?: ISelectedPlatform, teamId?: number) => {
+    const { MDM_SUMMARY } = endpoints;
 
     if (!platform || platform === "linux") {
-      throw new Error("mdm not supported for platform");
+      throw new Error("mdm not supported for this platform");
     }
 
-    let path = "";
-    if (id) {
-      path = HOST_MDM(id);
-    } else {
-      path = MDM_SUMMARY;
-    }
-
-    const params = createMdmParams(id, platform, teamId);
-    const fullPath = params !== "" ? `${path}?${params}` : path;
+    const params = createMdmParams(platform, teamId);
+    const fullPath = params !== "" ? `${MDM_SUMMARY}?${params}` : MDM_SUMMARY;
     return sendRequest("GET", fullPath);
   },
 };

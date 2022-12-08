@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IMdmSolution } from "interfaces/macadmins";
+import { IMdmSolution } from "interfaces/mdm";
 
 import { greyCell } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";

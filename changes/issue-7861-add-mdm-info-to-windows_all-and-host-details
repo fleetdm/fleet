@@ -1,0 +1,2 @@
+- add counts_update_at attribute to GET /hosts/summary/mdm response. add mdm information to UI for
+  windows/all dashboard and host details.

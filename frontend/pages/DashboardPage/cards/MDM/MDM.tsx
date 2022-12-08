@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { IMdmEnrollmentCardData, IMdmSolution } from "interfaces/macadmins";
+import { IMdmEnrollmentCardData, IMdmSolution } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";

@@ -1,7 +1,4 @@
-export interface IMdmEnrollmentCardData {
-  status: "Enrolled (manual)" | "Enrolled (automatic)" | "Unenrolled";
-  hosts: number;
-}
+import { IMdmAggregateStatus, IMdmSolution } from "./mdm";
 
 export interface IMunkiVersionsAggregate {
   version: string;
@@ -14,18 +11,6 @@ export interface IMunkiIssuesAggregate {
   type: "error" | "warning";
   hosts_count: number;
 }
-export interface IMdmAggregateStatus {
-  enrolled_manual_hosts_count: number;
-  enrolled_automated_hosts_count: number;
-  unenrolled_hosts_count: number;
-}
-
-export interface IMdmSolution {
-  id: number;
-  name: string | null;
-  server_url: string;
-  hosts_count: number;
-}
 
 export interface IMacadminAggregate {
   macadmins: {
@@ -35,17 +20,4 @@ export interface IMacadminAggregate {
     mobile_device_management_enrollment_status: IMdmAggregateStatus;
     mobile_device_management_solution: IMdmSolution[] | null;
   };
-}
-
-interface IMdmEnrollementStatus {
-  enrolled_manual_hosts_count: number;
-  enrolled_automated_hosts_count: number;
-  unenrolled_hosts_count: number;
-  hosts_count: number;
-}
-
-export interface IMdmSummaryResponse {
-  counts_updated_at: string;
-  mobile_device_management_enrollment_status: IMdmEnrollementStatus;
-  mobile_device_management_solution: IMdmSolution[] | null;
 }

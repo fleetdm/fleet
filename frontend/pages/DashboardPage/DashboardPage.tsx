@@ -12,13 +12,15 @@ import {
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
 import {
-  IMdmEnrollmentCardData,
-  IMdmSolution,
   IMacadminAggregate,
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
-  IMdmSummaryResponse,
 } from "interfaces/macadmins";
+import {
+  IMdmEnrollmentCardData,
+  IMdmSolution,
+  IMdmSummaryResponse,
+} from "interfaces/mdm";
 import { ISelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -294,11 +296,7 @@ const DashboardPage = ({
           hosts_count,
         } = mobile_device_management_enrollment_status;
 
-        if (
-          hosts_count === 0 &&
-          (mobile_device_management_solution === null ||
-            mobile_device_management_solution.length === 0)
-        ) {
+        if (hosts_count === 0 && mobile_device_management_solution === null) {
           setShowMdmCard(false);
           return;
         }
@@ -322,9 +320,6 @@ const DashboardPage = ({
         ]);
         setMdmSolutions(mobile_device_management_solution);
         setShowMdmCard(true);
-      },
-      onError: (err) => {
-        console.error("err", err);
       },
     }
   );
@@ -552,7 +547,7 @@ const DashboardPage = ({
     titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
-      <p>MDM is used to manage configuration on your workstations.</p>
+      <p>MDM can be used to manage configuration on your workstations.</p>
     ),
     children: (
       <Mdm

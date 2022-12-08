@@ -33,7 +33,8 @@ import {
 } from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IMdmSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { IMdmSolution } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IMdmEnrollmentCardData } from "interfaces/macadmins";
+import { IMdmEnrollmentCardData } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
