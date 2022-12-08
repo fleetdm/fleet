@@ -2535,7 +2535,7 @@ type macadminsDataResponse struct {
 	} `json:"macadmins"`
 }
 
-func (s *integrationTestSuite) TestGetMacadminsData() {
+func (s *integrationTestSuite) TestGetMacadminsAData() {
 	t := s.T()
 
 	ctx := context.Background()
@@ -2778,6 +2778,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
 		}
 	}
+
+	// TODO: ideally we'd pull this out into its own function that specifically tests
+	// the mdm summary endpoint. We can add additional tests for testing the platform
+	// and team_id query params for this endpoint.
+	mdmAgg := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
+	assert.NotZero(t, mdmAgg.AggregatedMDMData.CountsUpdatedAt)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
