@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
-	svc := newTestService(t, ds, qr, nopLiveQuery{})
+	svc, ctx := newTestService(t, ds, qr, nopLiveQuery{})
 
 	teamMaintainer := &fleet.User{ID: 42, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}
 	query1ObsCanRun := &fleet.Query{
@@ -83,7 +84,15 @@ func TestLiveQueryAuth(t *testing.T) {
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{}, nil
 	}
+	var queryName, querySQL string
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		name := (*details)["query_name"]
+		if name == nil {
+			queryName = ""
+		} else {
+			queryName = name.(string)
+		}
+		querySQL = (*details)["query_sql"].(string)
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -192,7 +201,7 @@ func TestLiveQueryAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			var tms []uint
 			// Testing RunNew is tricky, because RunNew authorization is done, then
@@ -207,15 +216,25 @@ func TestLiveQueryAuth(t *testing.T) {
 			}
 			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunNew, err)
+			checkActivity := func(t testing.TB, err error, expectName, expectSQL string) {
+				if err != nil {
+					return
+				}
+				require.Equal(t, expectName, queryName)
+				require.Equal(t, expectSQL, querySQL)
+			}
+			checkActivity(t, err, "", query1ObsCanRun.Query)
 
 			if tt.teamID != nil {
 				tms = []uint{*tt.teamID}
 			}
 			_, err = svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCan, err)
+			checkActivity(t, err, query1ObsCanRun.Name, query1ObsCanRun.Query)
 
 			_, err = svc.NewDistributedQueryCampaign(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
+			checkActivity(t, err, query2ObsCannotRun.Name, query2ObsCannotRun.Query)
 
 			// tests with a team target cannot run the "ByNames" calls, as there's no way
 			// to pass a team target with this call.

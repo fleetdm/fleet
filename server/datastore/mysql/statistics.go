@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -19,7 +20,9 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
+	lic, _ := license.FromContext(ctx)
+
 	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
 		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer)
 		if err != nil {
@@ -51,7 +54,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.writer)
 		if err == sql.ErrNoRows {
-			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err)
+			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err) //nolint:errcheck
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
@@ -90,8 +93,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.StoredErrors = storedErrs
 		stats.NumHostsNotResponding = amountHostsNotResponding
 		stats.Organization = "unknown"
-		if license.IsPremium() {
-			stats.Organization = license.Organization
+		if lic != nil && lic.IsPremium() {
+			stats.Organization = lic.Organization
 		}
 		return nil
 	}
@@ -113,7 +116,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			stats := fleet.StatisticsPayload{
 				AnonymousIdentifier: anonIdentifier,
 				FleetVersion:        version.Version().Version,
-				LicenseTier:         license.Tier,
+				LicenseTier:         fleet.TierFree,
+			}
+			if lic != nil {
+				stats.LicenseTier = lic.Tier
 			}
 			if err := computeStats(&stats, time.Now().Add(-frequency)); err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
@@ -135,7 +141,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	stats := fleet.StatisticsPayload{
 		AnonymousIdentifier: dest.Identifier,
 		FleetVersion:        version.Version().Version,
-		LicenseTier:         license.Tier,
+		LicenseTier:         fleet.TierFree,
+	}
+	if lic != nil {
+		stats.LicenseTier = lic.Tier
 	}
 	if err := computeStats(&stats, lastUpdated); err != nil {
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")

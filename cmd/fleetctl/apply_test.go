@@ -80,7 +80,7 @@ func TestApplyUserRoles(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
-	tmpFile.WriteString(`
+	_, err = tmpFile.WriteString(`
 ---
 apiVersion: v1
 kind: user_roles
@@ -95,7 +95,7 @@ spec:
       - role: maintainer
         team: team1
 `)
-
+	require.NoError(t, err)
 	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
@@ -320,7 +320,7 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return nil
 	}
 
-	var currentAppConfig = &fleet.AppConfig{
+	currentAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1322,6 +1322,23 @@ spec:
     interval: 1h
 `,
 			wantErr: `422 Validation Failed: host_percentage must be > 0 to enable the host status webhook`,
+		},
+		{
+			desc: "config with FIM values for agent options (#8699)",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      file_paths:
+        ssh:
+          - /home/%/.ssh/authorized_keys
+      exclude_paths:
+        ssh:
+          - /home/ubuntu/.ssh/authorized_keys
+`,
+			wantOutput: `[+] applied fleet config`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

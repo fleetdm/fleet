@@ -91,9 +91,9 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
  
-5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+5. Invoices should be sent to Nathan Holliday for approval.
  
-6. Eric Shaw (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
+6. Nathan Holliday (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
@@ -260,7 +260,7 @@ Once approved in the sheet, or submitted through [Typeform](https://admin.typefo
 
 When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
 
-Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
 
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
@@ -271,6 +271,12 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 - [Publishing Fleet content](#publishing-fleet-content)
 - [Content style guide](#content-style-guide)
+- [For editors](#for-editors)
+- [Commonly used terms](#commonly-used-terms)
+- [Brand resources](#brand-resources)
+- [Email blasts](#email-blasts)
+- [Using Figma](#using-figma)
+- [Fleet website](#fleet-website)
 
 ### Publishing Fleet content 
 
@@ -415,6 +421,52 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 - Bring your request to the Brand team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The Brand team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, the Brand team will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
+
+### Newsletter emails
+
+The content for our newsletter emails comes from our articles. Because our HTML emails require that the styles are added inline, we generate HTML emails by using a script and manually QA them before sending them out to subscribers.
+
+#### Generating emails for the Fleet newsletter
+
+To convert a Markdown article into an email for the newsletter, you'll need the following:
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com) installed globally on your machine (`npm install sails -g`)
+
+Once you have the above follow these steps:
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+
+>Note: If this is your first time running this script, you will need to run `npm install` inside of the `website/` folder to install the website's dependencies.
+
+2. Run the `build-html-email` script and pass in the filename of the Markdown article you would like to convert with the `--articleFilename` flag.
+  
+  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-html-email` to execute the script. e.g., `node ./node_modules/sails/bin/sails run build-html-email --articleFilename="fleet-4.19.0.md"`
+  - **With Sails.js installed globally** you can use `sails run build-html-email` to execute the script. e.g., `sails run build-html-email --articleFilename="fleet-4.19.0.md"`
+
+> Note: Only Markdown (`.md`) files are supported by the build-html-email script. The file extension is optional when providing the articleFilename.
+
+4. Once the script is complete, a new email partial will be added to the `website/views/emails/newsletter-partials/` folder.
+
+> Note: If an email partial has already been created from the specified Markdown article, the old version will be overwritten by the new file.
+
+5. Start the website server locally to preview the generated email. To test the changes locally, open a terminal window in the `website/` folder of the Fleet repo and run the following command:
+  
+  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`.
+  - **With Sails.js installed globally:** start the server by running `sails lift`.
+
+6. With the server lifted, navigate to http://localhost:2024/admin/email-preview and login with the test admin user credentials (email:`admin@example.com` pw: `abc123`). 
+
+  Click on the generated email in the list of emails generated from Markdown content and navigate to the preview page. On this page, you can view the see how the email will look on a variety of screen sizes.
+
+  When you've made sure the content of the email looks good at all screen sizes, commit the new email partial to a new branch and open a pull request to add the file. You can request a review from a member of the digital experience team.
+
+**Things to keep in mind when generating newsletter emails:**
+
+- The emails will be generated using the Markdown file locally, any changes present in the local Markdown file will be reflected in the generated email.
+- HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to [Eric Shaw](https://github.com/eashaw) for help.
+- The filename of the generated email will have periods changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `fleet-4-19-0.ejs`
 
 ### Using Figma
 

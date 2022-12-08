@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -151,7 +152,9 @@ func main() {
 			if strings.HasPrefix(executable, "/var/lib/orbit") {
 				rootDir = "/var/lib/orbit"
 			}
-			c.Set("root-dir", rootDir)
+			if err := c.Set("root-dir", rootDir); err != nil {
+				return fmt.Errorf("failed to set root-dir: %w", err)
+			}
 		}
 
 		return nil
@@ -597,6 +600,15 @@ func main() {
 					}
 				}
 			}()
+		}
+
+		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
+		// `"", nil`. Therefore there's no platform-specific stuff required here
+		augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
+		} else if augeasPath != "" {
+			options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
 		}
 
 		// --force is sometimes needed when an older osquery process has not

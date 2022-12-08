@@ -54,7 +54,8 @@ func (ds *Datastore) overwriteLockIfExpired(ctx context.Context, name string, ow
 }
 
 func (ds *Datastore) Unlock(ctx context.Context, name string, owner string) error {
-	_, err := ds.writer.ExecContext(ctx, `DELETE FROM locks WHERE name = ? and owner = ?`, name, owner)
+	_, err := ds.writer.ExecContext(ctx, `UPDATE locks SET expires_at = CURRENT_TIMESTAMP WHERE name = ? AND owner = ?`, name, owner)
+
 	return err
 }
 

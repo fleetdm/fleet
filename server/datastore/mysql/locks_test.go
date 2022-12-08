@@ -71,7 +71,9 @@ func testLocksLockUnlock(t *testing.T, ds *Datastore) {
 	err = ds.Unlock(context.Background(), "test", owner1)
 	require.NoError(t, err)
 
-	// owner2 tries to get the lock but fails
+	time.Sleep(1 * time.Second)
+
+	// owner2 tries to get the lock and succeeds
 	locked, err = ds.Lock(context.Background(), "test", owner2, 1*time.Minute)
 	require.NoError(t, err)
 	assert.True(t, locked)
@@ -128,10 +130,10 @@ func testLocksDBLocks(t *testing.T, ds *Datastore) {
 	// cause a deadlock (see https://stackoverflow.com/a/31552794/1094941)
 	tx1, err := ds.writer.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	require.NoError(t, err)
-	defer tx1.Rollback()
+	defer tx1.Rollback() //nolint:errcheck
 	tx2, err := ds.writer.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	require.NoError(t, err)
-	defer tx2.Rollback()
+	defer tx2.Rollback() //nolint:errcheck
 
 	wait := make(chan struct{})
 	go func() {

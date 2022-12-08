@@ -19,13 +19,14 @@ import {
   IDeviceMappingResponse,
   IMacadminsResponse,
   IPackStats,
+  IHostResponse,
 } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { IHostPolicy } from "interfaces/policy";
+import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
-import { IHostPolicy } from "interfaces/policy";
-import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { IQuery } from "interfaces/query";
 import { IUser } from "interfaces/user";
 import permissionUtils from "utilities/permissions";
 
@@ -67,16 +68,12 @@ const baseClass = "host-details";
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+  };
   params: Params;
 }
 
-interface IFleetQueriesResponse {
-  queries: IQuery[];
-}
-
-interface IHostResponse {
-  host: IHost;
-}
 interface ISearchQueryData {
   searchQuery: string;
   sortHeader: string;
@@ -90,6 +87,12 @@ interface IHostDiskEncryptionProps {
   tooltip?: string;
 }
 
+interface IHostDetailsSubNavItem {
+  name: string | JSX.Element;
+  title: string;
+  pathname: string;
+}
+
 const TAGGED_TEMPLATES = {
   queryByHostRoute: (hostId: number | undefined | null) => {
     return `${hostId ? `?host_ids=${hostId}` : ""}`;
@@ -98,6 +101,7 @@ const TAGGED_TEMPLATES = {
 
 const HostDetailsPage = ({
   router,
+  location: { pathname },
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
   const hostIdFromURL = parseInt(host_id, 10);
@@ -108,6 +112,7 @@ const HostDetailsPage = ({
     isPremiumTier,
     isOnlyObserver,
     isGlobalMaintainer,
+    filteredHostsPath,
   } = useContext(AppContext);
   const {
     setLastEditedQueryName,
@@ -325,10 +330,12 @@ const HostDetailsPage = ({
 
   const titleData = normalizeEmptyValues(
     pick(host, [
+      "id",
       "status",
       "issues",
       "memory",
       "cpu_type",
+      "platform",
       "os_version",
       "osquery_version",
       "enroll_secret_name",
@@ -554,11 +561,53 @@ const HostDetailsPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
+    {
+      name: "Details",
+      title: "details",
+      pathname: PATHS.HOST_DETAILS(hostIdFromURL),
+    },
+    {
+      name: "Software",
+      title: "software",
+      pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
+    },
+    {
+      name: "Schedule",
+      title: "schedule",
+      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
+    },
+    {
+      name: (
+        <>
+          {failingPoliciesCount > 0 && (
+            <span className="count">{failingPoliciesCount}</span>
+          )}
+          Policies
+        </>
+      ),
+      title: "policies",
+      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+    },
+  ];
+
+  const getTabIndex = (path: string): number => {
+    return hostDetailsSubNav.findIndex((navItem) => {
+      // tab stays highlighted for paths that ends with same pathname
+      return path.endsWith(navItem.pathname);
+    });
+  };
+
+  const navigateToNav = (i: number): void => {
+    const navPath = hostDetailsSubNav[i].pathname;
+    router.push(navPath);
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to all hosts" />
+          <BackLink text="Back to all hosts" path={filteredHostsPath} />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
@@ -572,17 +621,16 @@ const HostDetailsPage = ({
           renderActionButtons={renderActionButtons}
         />
         <TabsWrapper>
-          <Tabs>
+          <Tabs
+            selectedIndex={getTabIndex(pathname)}
+            onSelect={(i) => navigateToNav(i)}
+          >
             <TabList>
-              <Tab>Details</Tab>
-              <Tab>Software</Tab>
-              <Tab>Schedule</Tab>
-              <Tab>
-                {failingPoliciesCount > 0 && (
-                  <span className="count">{failingPoliciesCount}</span>
-                )}
-                Policies
-              </Tab>
+              {hostDetailsSubNav.map((navItem) => {
+                // Bolding text when the tab is active causes a layout shift
+                // so we add a hidden pseudo element with the same text string
+                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+              })}
             </TabList>
             <TabPanel>
               <AboutCard
@@ -617,6 +665,7 @@ const HostDetailsPage = ({
                   featuresConfig?.enable_software_inventory
                 }
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
+                router={router}
               />
               {host?.platform === "darwin" && macadmins && (
                 <MunkiIssuesCard
@@ -642,7 +691,6 @@ const HostDetailsPage = ({
             </TabPanel>
           </Tabs>
         </TabsWrapper>
-
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}

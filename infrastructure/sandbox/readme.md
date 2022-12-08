@@ -88,6 +88,12 @@ This needs to be run in the deprovisioner terraform directory!
 for i in $((aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | .ID.S'; aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | .ID.S'; terraform workspace list | sed 's/ //g' | grep -v '.*default' | sed '/^$/d') | sort | uniq -u); do (terraform workspace select $i && terraform apply -destroy -auto-approve && terraform workspace select default && terraform workspace delete $i); [ $? = 0 ] || break; done
 ```
 
+#### Useful scripts
+
+1. [tools/upgrade_ecr_ecs.sh](tools/upgrade_ecr_ecs.sh) - Updates the ECR repo with the `FLEET_VERSION` specified and re-runs terraform to ensure the ecs PreProvisioner task uses it in the helm charts.
+1. [tools/upgrade_unclaimed.sh](tools/upgrade_unclaimed.sh) - With the changes applied above, this script will replace unclaimed instances with ones upgraded to the new `FLEET_VERSION`.
+
+
 ### Runbooks
 #### 5xx errors
 If you are seeing 5xx errors, find out what instance its from via the saved query here: https://us-east-2.console.aws.amazon.com/athena/home?region=us-east-2#/query-editor

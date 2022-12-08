@@ -31,7 +31,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	lq := live_query_mock.New(t)
-	svc := newTestServiceWithClock(t, ds, store, lq, mockClock)
+	svc, ctx := newTestServiceWithClock(t, ds, store, lq, mockClock)
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 
@@ -79,7 +79,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	)
 	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1}).Return(nil)
-	viewerCtx := viewer.NewContext(context.Background(), viewer.Viewer{
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{
 		User: &fleet.User{
 			ID:         0,
 			GlobalRole: ptr.String(fleet.RoleAdmin),

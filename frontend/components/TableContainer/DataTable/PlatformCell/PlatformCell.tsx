@@ -1,7 +1,5 @@
 import React from "react";
-import AppleIcon from "../../../../../assets/images/icon-apple-dark-20x20@2x.png";
-import LinuxIcon from "../../../../../assets/images/icon-linux-dark-20x20@2x.png";
-import WindowsIcon from "../../../../../assets/images/icon-windows-dark-20x20@2x.png";
+import Icon from "components/Icon";
 
 interface IPlatformCellProps {
   value: string[];
@@ -9,10 +7,10 @@ interface IPlatformCellProps {
 
 const baseClass = "platform-cell";
 
-const ICONS: Record<string, string> = {
-  darwin: AppleIcon,
-  linux: LinuxIcon,
-  windows: WindowsIcon,
+const ICONS: Record<string, "darwin" | "linux" | "windows"> = {
+  darwin: "darwin",
+  linux: "linux",
+  windows: "windows",
 };
 
 const DISPLAY_ORDER = [
@@ -34,11 +32,11 @@ const PlatformCell = ({
       {orderedList.length ? (
         orderedList.map((platform) => {
           return ICONS[platform] ? (
-            <img
+            <Icon
               className={`${baseClass}__icon`}
-              key={`platform-icon-${platform}`}
-              alt={platform}
-              src={ICONS[platform]}
+              name={ICONS[platform]}
+              size="small"
+              key={ICONS[platform]}
             />
           ) : null;
         })

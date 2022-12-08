@@ -34,7 +34,7 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
   return (
     <div className="avatar-wrapper">
       <img
-        alt={!isLoading && !isError ? "User avatar" : ""}
+        alt={"User avatar"}
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
         src={gravatarURL || DEFAULT_GRAVATAR_LINK}
         onError={onError}

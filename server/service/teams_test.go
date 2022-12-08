@@ -17,7 +17,7 @@ import (
 func TestTeamAuth(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -141,7 +141,7 @@ func TestTeamAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.NewTeam(ctx, fleet.TeamPayload{Name: ptr.String("name")})
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
@@ -185,9 +185,9 @@ func TestTeamAuth(t *testing.T) {
 func TestApplyTeamSpecs(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	baseFeatures := fleet.Features{
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,

@@ -61,7 +61,7 @@ func TestHostDetails(t *testing.T) {
 		IncludeCVEScores: false,
 		IncludePolicies:  false,
 	}
-	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host, opts)
+	hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
@@ -71,7 +71,7 @@ func TestHostDetails(t *testing.T) {
 
 func TestHostAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	teamHost := &fleet.Host{TeamID: ptr.Uint(1)}
 	globalHost := &fleet.Host{}
@@ -197,7 +197,7 @@ func TestHostAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 			opts := fleet.HostDetailOptions{
 				IncludeCVEScores: false,
 				IncludePolicies:  false,
@@ -243,7 +243,7 @@ func TestHostAuth(t *testing.T) {
 
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{
@@ -251,24 +251,24 @@ func TestListHosts(t *testing.T) {
 		}, nil
 	}
 
-	hosts, err := svc.ListHosts(test.UserContext(test.UserAdmin), fleet.HostListOptions{})
+	hosts, err := svc.ListHosts(test.UserContext(ctx, test.UserAdmin), fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 
 	// anyone can list hosts
-	hosts, err = svc.ListHosts(test.UserContext(test.UserNoRoles), fleet.HostListOptions{})
+	hosts, err = svc.ListHosts(test.UserContext(ctx, test.UserNoRoles), fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 
 	// a user is required
-	_, err = svc.ListHosts(context.Background(), fleet.HostListOptions{})
+	_, err = svc.ListHosts(ctx, fleet.HostListOptions{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
 
 func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
@@ -284,7 +284,7 @@ func TestGetHostSummary(t *testing.T) {
 		return []*fleet.LabelSummary{{ID: 1, Name: "All hosts", Description: "All hosts enrolled in Fleet", LabelType: fleet.LabelTypeBuiltIn}, {ID: 10, Name: "Other label", Description: "Not a builtin label", LabelType: fleet.LabelTypeRegular}}, nil
 	}
 
-	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil, nil, nil)
+	summary, err := svc.GetHostSummary(test.UserContext(ctx, test.UserAdmin), nil, nil, nil)
 	require.NoError(t, err)
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
@@ -298,11 +298,11 @@ func TestGetHostSummary(t *testing.T) {
 	require.Len(t, summary.BuiltinLabels, 1)
 	require.Equal(t, "All hosts", summary.BuiltinLabels[0].Name)
 
-	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil, nil, nil)
+	_, err = svc.GetHostSummary(test.UserContext(ctx, test.UserNoRoles), nil, nil, nil)
 	require.NoError(t, err)
 
 	// a user is required
-	_, err = svc.GetHostSummary(context.Background(), nil, nil, nil)
+	_, err = svc.GetHostSummary(ctx, nil, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
@@ -311,24 +311,24 @@ func TestDeleteHost(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	mockClock := clock.NewMockClock()
 	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
 	assert.NotZero(t, host.ID)
 
-	err := svc.DeleteHost(test.UserContext(test.UserAdmin), host.ID)
+	err := svc.DeleteHost(test.UserContext(ctx, test.UserAdmin), host.ID)
 	assert.Nil(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
+	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	expectedHostIDs := []uint{1, 2, 4}
 	expectedTeam := (*uint)(nil)
@@ -346,14 +346,14 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	expectedHostIDs := []uint{6}
 	expectedTeam := ptr.Uint(1)
@@ -372,14 +372,14 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
@@ -388,14 +388,14 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestRefetchHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	host := &fleet.Host{ID: 3}
 
@@ -408,16 +408,16 @@ func TestRefetchHost(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserAdmin), host.ID))
-	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserObserver), host.ID))
-	require.NoError(t, svc.RefetchHost(test.UserContext(test.UserMaintainer), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserAdmin), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserObserver), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserMaintainer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
 func TestRefetchHostUserInTeams(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	host := &fleet.Host{ID: 3, TeamID: ptr.Uint(4)}
 
@@ -438,7 +438,7 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, svc.RefetchHost(test.UserContext(maintainer), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, maintainer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 	ds.HostLiteFuncInvoked, ds.UpdateHostRefetchRequestedFuncInvoked = false, false
@@ -451,14 +451,14 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, svc.RefetchHost(test.UserContext(observer), host.ID))
+	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, observer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
 func TestEmptyTeamOSVersions(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testVersions := []fleet.OSVersion{{HostsCount: 1, Name: "macOS 12.1", Platform: "darwin"}}
 
@@ -489,22 +489,22 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	}
 
 	// team exists with stats
-	vers, err := svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil)
+	vers, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil)
+	vers, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil)
+	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil)
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil)
+	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }

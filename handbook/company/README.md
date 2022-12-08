@@ -35,7 +35,7 @@ Fleet's values are a set of five ideals adopted by everyone on the team.  They d
 
 1. 🔴 Empathy
 2. 🟠 Ownership
-3. 🟢 Balance
+3. 🟢 Results
 4. 🔵 Objectivity
 5. 🟣 Openness
 
@@ -46,7 +46,7 @@ Empathy leads to better understanding, better communication, and better decision
 
 - Think and make customer-first choices.
 - Consider your counterpart.
-  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, and the people who use software and APIs you build, the people following the processes you design.
+  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, and the people following the processes you design.
   - Ask questions in a way you would want to be asked.
   - Assume others have positive intent.
   - Be kind.
@@ -108,8 +108,8 @@ Empathy leads to better understanding, better communication, and better decision
   - You are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care).
 
 
-### 🟢 Balance
-Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
+### 🟢 Results
+We work to get results. How we work determines the results we deliver. Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). We balance speed and sustainability to build high-quality products.
 
 - [Iterate](https://youtu.be/BW6TWwNZzIQ) your work.
   - Look for ways to make frequent, small changes.  Small changes provide faster feedback.  They are easier to reason about when debugging.
@@ -139,6 +139,10 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 ### 🔵 Objectivity
 <!-- TODO: write short preamble, like the others --> 
 
+- Make money
+   - There will always be a free, enterprise-friendly version of Fleet.  (Read Fleet's [commitment to open source stewardship](https://fleetdm.com/pricing).)
+   - But remember, [the goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFG88SM) of the company is to make money.
+   - This is how we measure success.
 - Be curious.
   - Ask great questions & take the time to listen truly.
   - Listen intently to feedback and genuinely try to understand (especially constructive criticism).  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
@@ -252,10 +256,9 @@ The following Slack channels are maintained by Fleet's founders and executive co
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-founders`               | Mike McNeil
 | `#help-mission-control`     | Charlie Chance
-| `#help-okrs`                | Mike McNeil
-| `#help-manage`              | Mike McNeil
+| `#help-okrs`                | Charlie Chance
+| `#help-manage`              | Charlie Chance
 | `#news-fundraising`         | Mike McNeil
 | `#help-open-core-ventures`  | Mike McNeil
 | `#general`                  | N/A _(announce something company-wide)_

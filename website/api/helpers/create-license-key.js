@@ -19,7 +19,7 @@ module.exports = {
       required: true,
     },
 
-    validTo: {
+    expiresAt: {
       type: 'number',
       required: true,
       description: 'A JS Timestamp representing when this license will expire.'
@@ -44,7 +44,7 @@ module.exports = {
     let token = jwt.sign(
       {
         iss: 'Fleet Device Management Inc.',
-        exp: inputs.validTo,
+        exp: inputs.expiresAt,
         sub: inputs.organization,
         devices: inputs.numberOfHosts,
         note: 'Created with Fleet License key dispenser',

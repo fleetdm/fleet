@@ -23,7 +23,7 @@ import (
 
 func TestAppConfigAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	// start a TLS server and use its URL as the server URL in the app config,
 	// required by the CertificateChain service call.
@@ -95,7 +95,7 @@ func TestAppConfigAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.AppConfig(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
@@ -114,7 +114,7 @@ func TestAppConfigAuth(t *testing.T) {
 
 func TestEnrollSecretAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, tid *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
@@ -174,7 +174,7 @@ func TestEnrollSecretAuth(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			err := svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}})
 			checkAuthErr(t, tt.shouldFailWrite, err)
@@ -192,8 +192,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	}
 
 	cfg := config.TestConfig()
-	svc := newTestServiceWithConfig(t, ds, cfg, nil, nil)
-	ctx := test.UserContext(test.UserAdmin)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
 	err := svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}})
 	require.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	require.NoError(t, err)
@@ -201,7 +201,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	// try to change the enroll secret with the config set
 	ds.ApplyEnrollSecretsFuncInvoked = false
 	cfg.Packaging.GlobalEnrollSecret = "xyz"
-	svc = newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
 	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}})
 	require.Error(t, err)
 	require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
@@ -241,7 +242,7 @@ func echoHandler() http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Write(dump)
+		w.Write(dump) //nolint:errcheck
 	})
 }
 
@@ -348,7 +349,7 @@ func TestJITProvisioning(t *testing.T) {
 
 func TestAppConfigSecretsObfuscated(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	// start a TLS server and use its URL as the server URL in the app config,
 	// required by the CertificateChain service call.
@@ -404,7 +405,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			ac, err := svc.AppConfig(ctx)
 			require.NoError(t, err)
@@ -419,7 +420,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 // should set the SMTPConfigured field to false.
 func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	// SMTP is initially enabled and configured.
 	dsAppConfig := &fleet.AppConfig{
@@ -455,7 +456,7 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	b = []byte(`{"smtp_settings":` + string(b) + `}`)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	updatedAppConfig, err := svc.ModifyAppConfig(ctx, b, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
@@ -472,7 +473,6 @@ func TestTransparencyURL(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
 
 	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
 		if shouldFail {
@@ -526,7 +526,8 @@ func TestTransparencyURL(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
 				OrgInfo: fleet.OrgInfo{
@@ -573,9 +574,9 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
 
-	svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	dsAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{

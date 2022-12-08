@@ -14,7 +14,7 @@ The following operating system versions are supported by the osquery agent.
 ## Some notes on compatibility
 
 ### Tables
-Not all osquery tables are available for every OS. Please check out the [osquery schema](https://osquery.io/schema/5.2.2/) for detailed information. 
+Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
 
 If a table is not available for your host, Fleet will generally handle things behind the scenes for you. 
 

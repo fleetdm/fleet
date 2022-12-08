@@ -239,7 +239,7 @@ describe("App settings flow", () => {
       // specifically targeting this one to avoid conflict
       // with cypress seeing multiple "metadata" - one
       // in a tooltip, the other as the actual label
-      cy.getAttached("[for='smtpServer']")
+      cy.findByLabelText(/SMTP server/)
         .click({ force: true })
         .type("localhost");
 

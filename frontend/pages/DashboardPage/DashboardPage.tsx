@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
@@ -18,11 +19,12 @@ import {
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 import { ISelectedPlatform } from "interfaces/platform";
+import { ISoftwareResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
-import softwareAPI, { ISoftwareResponse } from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import {
@@ -56,7 +58,17 @@ const baseClass = "dashboard-page";
 // Premium feature, Gb must be set between 1-100
 const LOW_DISK_SPACE_GB = 32;
 
-const DashboardPage = (): JSX.Element => {
+interface IDashboardProps {
+  router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+  };
+}
+
+const DashboardPage = ({
+  router,
+  location: { pathname },
+}: IDashboardProps): JSX.Element => {
   const {
     config,
     currentTeam,
@@ -113,6 +125,14 @@ const DashboardPage = (): JSX.Element => {
   const [munkiTitleDetail, setMunkiTitleDetail] = useState<
     JSX.Element | string | null
   >();
+
+  useEffect(() => {
+    const platformByPathname =
+      PLATFORM_DROPDOWN_OPTIONS?.find((platform) => platform.path === pathname)
+        ?.value || "all";
+
+    setSelectedPlatform(platformByPathname);
+  }, [pathname]);
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -401,6 +421,7 @@ const DashboardPage = (): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
@@ -414,6 +435,7 @@ const DashboardPage = (): JSX.Element => {
         isLoadingHosts={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
+        currentTeamId={currentTeam?.id}
       />
     ),
   });
@@ -466,6 +488,7 @@ const DashboardPage = (): JSX.Element => {
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
+        router={router}
       />
     ),
   });
@@ -631,7 +654,10 @@ const DashboardPage = (): JSX.Element => {
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
             onChange={(value: ISelectedPlatform) => {
-              setSelectedPlatform(value);
+              const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
+                (platform) => platform.value === value
+              );
+              router.push(selectedPlatformOption?.path || paths.DASHBOARD);
             }}
           />
         </div>

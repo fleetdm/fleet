@@ -11,6 +11,7 @@ import (
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
@@ -72,7 +73,9 @@ This issue was created automatically by your Fleet Jira integration.
 	)),
 
 	FailingPolicyDescription: template.Must(template.New("").Parse(
-		`Hosts:
+		`{{ if .PolicyCritical }}This policy is marked as *Critical* in Fleet.
+
+{{ end }}Hosts:
 {{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
 {{ range slice .Hosts 0 $end }}
 * [{{ .DisplayName }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
@@ -101,11 +104,12 @@ type jiraVulnTplArgs struct {
 }
 
 type jiraFailingPoliciesTplArgs struct {
-	FleetURL   string
-	PolicyID   uint
-	PolicyName string
-	TeamID     *uint
-	Hosts      []fleet.PolicySetHost
+	FleetURL       string
+	PolicyID       uint
+	PolicyName     string
+	PolicyCritical bool
+	TeamID         *uint
+	Hosts          []fleet.PolicySetHost
 }
 
 // JiraClient defines the method required for the client that makes API calls
@@ -120,7 +124,6 @@ type Jira struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
-	License       *fleet.LicenseInfo
 	NewClientFunc func(*externalsvc.JiraOptions) (JiraClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
@@ -283,7 +286,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 		FleetURL:         j.FleetURL,
 		CVE:              vargs.CVE,
 		Hosts:            hosts,
-		IsPremium:        j.License.IsPremium(),
+		IsPremium:        license.IsPremium(ctx),
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
@@ -304,11 +307,12 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 
 func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	tplArgs := &jiraFailingPoliciesTplArgs{
-		FleetURL:   j.FleetURL,
-		PolicyName: args.FailingPolicy.PolicyName,
-		PolicyID:   args.FailingPolicy.PolicyID,
-		TeamID:     args.FailingPolicy.TeamID,
-		Hosts:      args.FailingPolicy.Hosts,
+		FleetURL:       j.FleetURL,
+		PolicyName:     args.FailingPolicy.PolicyName,
+		PolicyID:       args.FailingPolicy.PolicyID,
+		PolicyCritical: args.FailingPolicy.PolicyCritical,
+		TeamID:         args.FailingPolicy.TeamID,
+		Hosts:          args.FailingPolicy.Hosts,
 	}
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.FailingPolicySummary, jiraTemplates.FailingPolicyDescription, tplArgs)
@@ -424,10 +428,11 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{
-		PolicyID:   policy.ID,
-		PolicyName: policy.Name,
-		Hosts:      hosts,
-		TeamID:     policy.TeamID,
+		PolicyID:       policy.ID,
+		PolicyName:     policy.Name,
+		PolicyCritical: policy.Critical,
+		Hosts:          hosts,
+		TeamID:         policy.TeamID,
 	}
 	job, err := QueueJob(ctx, ds, jiraName, jiraArgs{FailingPolicy: args})
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -76,7 +77,8 @@ func TestZendeskRun(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{}`))
+		_, err = w.Write([]byte(`{}`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -163,7 +165,6 @@ func TestZendeskRun(t *testing.T) {
 				FleetURL:  "https://fleetdm.com",
 				Datastore: ds,
 				Log:       kitlog.NewNopLogger(),
-				License:   &fleet.LicenseInfo{Tier: c.licenseTier},
 				NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 					return client, nil
 				},
@@ -172,7 +173,7 @@ func TestZendeskRun(t *testing.T) {
 			expectedSubject = c.expectedSubject
 			expectedDescription = c.expectedDescription
 			expectedNotInDescription = c.expectedNotInDescription
-			err = zendesk.Run(context.Background(), json.RawMessage(c.payload))
+			err = zendesk.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: c.licenseTier}), json.RawMessage(c.payload))
 			require.NoError(t, err)
 		})
 	}
@@ -295,10 +296,12 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 }
 
 type mockZendeskClient struct {
-	opts externalsvc.ZendeskOptions
+	opts    externalsvc.ZendeskOptions
+	tickets []zendesk.Ticket
 }
 
 func (c *mockZendeskClient) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
+	c.tickets = append(c.tickets, *ticket)
 	return &zendesk.Ticket{}, nil
 }
 
@@ -361,40 +364,56 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	}
 
 	var groupIDs []int64
+	var clients []*mockZendeskClient
 	zendeskJob := &Zendesk{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)
-			return &mockZendeskClient{opts: *opts}, nil
+			c := &mockZendeskClient{opts: *opts}
+			clients = append(clients, c)
+			return c, nil
 		},
 	}
 
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+
 	// run it globally - it is enabled and will not change
-	err := zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	err := zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a first time
-	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	err = zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
 	require.NoError(t, err)
 
 	// run it globally again - it will reuse the cached client
-	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	err = zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [], "policy_critical": true}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a second time
-	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	err = zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a third time, this time integration is disabled
-	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	err = zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
 	require.NoError(t, err)
 
 	// it should've created 3 clients - the global one, and the first 2 calls with team 123
 	require.Equal(t, []int64{0, 1, 2}, groupIDs)
 	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
+
+	require.Len(t, clients, 3)
+
+	require.Len(t, clients[0].tickets, 2)
+	require.NotContains(t, clients[0].tickets[0].Comment.Body, "Critical")
+	require.Contains(t, clients[0].tickets[1].Comment.Body, "Critical")
+
+	require.Len(t, clients[1].tickets, 1)
+	require.NotContains(t, clients[1].tickets[0].Comment.Body, "Critical")
+
+	require.Len(t, clients[2].tickets, 1)
+	require.NotContains(t, clients[2].tickets[0].Comment.Body, "Critical")
 }

@@ -321,6 +321,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.Platform != nil {
 		policy.Platform = *p.Platform
 	}
+	if p.Critical != nil {
+		policy.Critical = *p.Critical
+	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
 	err = svc.ds.SavePolicy(ctx, policy)

@@ -38,9 +38,9 @@ import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
-import team, { ITeam } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -102,10 +102,6 @@ interface IManageHostsProps {
   location: any; // no type in react-router v3
 }
 
-interface IPolicyAPIResponse {
-  policy: IPolicy;
-}
-
 interface ITableQueryProps {
   pageIndex: number;
   pageSize: number;
@@ -141,6 +137,7 @@ const ManageHostsPage = ({
     isSandboxMode,
     setAvailableTeams,
     setCurrentTeam,
+    setFilteredHostsPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -351,7 +348,7 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IPolicyAPIResponse, Error>(
+  useQuery<IStoredPolicyResponse, Error>(
     ["policy"],
     () => globalPoliciesAPI.load(policyId),
     {
@@ -547,6 +544,8 @@ const ManageHostsPage = ({
       retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
+
+    setFilteredHostsPath(location.pathname + location.search);
   }, [availableTeams, currentTeam, location, labels]);
 
   const isLastPage =
@@ -1186,14 +1185,15 @@ const ManageHostsPage = ({
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
-    const label = name && version ? `${name} ${version}` : "";
-    const TooltipDescription =
-      name && version ? (
-        <span className={`tooltip__tooltip-text`}>
-          {`Hosts with ${name}`},<br />
-          {`${version} installed`}
-        </span>
-      ) : undefined;
+    const label = `${name || "Unknown software"} ${version || ""}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Hosts with {name || "Unknown software"},
+        <br />
+        {version || "version unknown"} installed
+      </span>
+    );
 
     return (
       <FilterPill

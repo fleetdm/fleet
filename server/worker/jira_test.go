@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	jira "github.com/andygrunwald/go-jira"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -79,7 +80,7 @@ func TestJiraRun(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`
+		_, err = w.Write([]byte(`
 {
   "id": "10000",
   "key": "ED-24",
@@ -92,6 +93,7 @@ func TestJiraRun(t *testing.T) {
     }
   }
 }`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -178,7 +180,6 @@ func TestJiraRun(t *testing.T) {
 				FleetURL:  "https://fleetdm.com",
 				Datastore: ds,
 				Log:       kitlog.NewNopLogger(),
-				License:   &fleet.LicenseInfo{Tier: c.licenseTier},
 				NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 					return client, nil
 				},
@@ -187,11 +188,10 @@ func TestJiraRun(t *testing.T) {
 			expectedSummary = c.expectedSummary
 			expectedDescription = c.expectedDescription
 			expectedNotInDescription = c.expectedNotInDescription
-			err = jira.Run(context.Background(), json.RawMessage(c.payload))
+			err = jira.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: c.licenseTier}), json.RawMessage(c.payload))
 			require.NoError(t, err)
 		})
 	}
-
 }
 
 func TestJiraQueueVulnJobs(t *testing.T) {
@@ -311,10 +311,12 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 }
 
 type mockJiraClient struct {
-	opts externalsvc.JiraOptions
+	opts   externalsvc.JiraOptions
+	issues []jira.Issue
 }
 
 func (c *mockJiraClient) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+	c.issues = append(c.issues, *issue)
 	return &jira.Issue{}, nil
 }
 
@@ -377,40 +379,54 @@ func TestJiraRunClientUpdate(t *testing.T) {
 	}
 
 	var projectKeys []string
+	var clients []*mockJiraClient
 	jiraJob := &Jira{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		License:   &fleet.LicenseInfo{Tier: fleet.TierFree},
 		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			// keep track of project keys received in calls to NewClientFunc
 			projectKeys = append(projectKeys, opts.ProjectKey)
-			return &mockJiraClient{opts: *opts}, nil
+			client := &mockJiraClient{opts: *opts}
+			clients = append(clients, client)
+			return client, nil
 		},
 	}
 
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
 	// run it globally - it is enabled and will not change
-	err := jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	err := jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a first time
-	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	err = jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
 	require.NoError(t, err)
 
 	// run it globally again - it will reuse the cached client
-	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	err = jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [], "policy_critical": true}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a second time
-	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	err = jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a third time, this time integration is disabled
-	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	err = jiraJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
 	require.NoError(t, err)
 
 	// it should've created 3 clients - the global one, and the first 2 calls with team 123
 	require.Equal(t, []string{"0", "1", "2"}, projectKeys)
 	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
+	require.Len(t, clients, 3)
+
+	require.Len(t, clients[0].issues, 2)
+	require.NotContains(t, clients[0].issues[0].Fields.Description, "Critical")
+	require.Contains(t, clients[0].issues[1].Fields.Description, "Critical")
+
+	require.Len(t, clients[1].issues, 1)
+	require.NotContains(t, clients[1].issues[0].Fields.Description, "Critical")
+
+	require.Len(t, clients[2].issues, 1)
+	require.NotContains(t, clients[2].issues[0].Fields.Description, "Critical")
 }

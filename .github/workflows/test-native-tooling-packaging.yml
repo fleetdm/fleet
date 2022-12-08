@@ -65,7 +65,7 @@ jobs:
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
     - name: Build RPM
-      run: docker run -v "$(pwd):/build" fleetdm/fleetctl --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build RPM with Fleet Desktop
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
