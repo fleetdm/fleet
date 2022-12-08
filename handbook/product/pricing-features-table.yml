@@ -116,13 +116,13 @@
       comingSoon: false
     - name: Configure osquery startup flags remotely
       tier: Free
-      comingSoon: true
+      comingSoon: false
     - name: Autoupdate osquery agents
       tier: Free
       comingSoon: false
     - name: Self-managed autoupdate registry
       tier: Premium
-      comingSoon: false
+      comingSoon: true
     - name: Manage osquery extensions remotely
       tier: Premium
       comingSoon: false
