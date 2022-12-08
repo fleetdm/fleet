@@ -3,8 +3,8 @@ import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IExternalLinkProps {
-  size: IconSizes;
-  color: Colors;
+  size?: IconSizes;
+  color?: Colors;
 }
 
 const ExternalLink = ({
