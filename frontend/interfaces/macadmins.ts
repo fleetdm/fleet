@@ -45,6 +45,7 @@ interface IMdmEnrollementStatus {
 }
 
 export interface IMdmSummaryResponse {
+  counts_updated_at: string;
   mobile_device_management_enrollment_status: IMdmEnrollementStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }

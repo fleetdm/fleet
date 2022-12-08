@@ -1247,11 +1247,13 @@ const ManageHostsPage = ({
       case "automatic":
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts automatically enrolled <br />
-            to an MDM solution the first time <br />
-            the host is used. Administrators <br />
-            might have a higher level of control <br />
-            over these hosts.
+            Hosts automatically enrolled in <br />
+            an MDM solution using Apple <br />
+            Automated Device Enrollment <br />
+            (DEP) or Windows Autopilot. <br />
+            Administrators can block users <br />
+            from unenrolling these hosts <br />
+            from MDM.
           </span>
         );
         break;
@@ -1259,8 +1261,8 @@ const ManageHostsPage = ({
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
             Hosts manually enrolled to an <br />
-            MDM solution by a user or <br />
-            administrator.
+            MDM solution. Users can unenroll <br />
+            these hosts from MDM.
           </span>
         );
         break;

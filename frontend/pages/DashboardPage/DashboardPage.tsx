@@ -107,6 +107,7 @@ const DashboardPage = ({
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
+  const [showMdmCard, setShowMdmCard] = useState(true);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
@@ -282,12 +283,32 @@ const DashboardPage = ({
       enabled: selectedPlatform !== "linux",
       onSuccess: (data) => {
         const {
+          mobile_device_management_enrollment_status,
+          mobile_device_management_solution,
+          counts_updated_at,
+        } = data;
+        const {
           enrolled_manual_hosts_count,
           enrolled_automated_hosts_count,
           unenrolled_hosts_count,
-        } = data.mobile_device_management_enrollment_status;
+          hosts_count,
+        } = mobile_device_management_enrollment_status;
 
-        setMdmTitleDetail(<p>TODO LAST UPDATED</p>);
+        if (
+          hosts_count === 0 &&
+          (mobile_device_management_solution === null ||
+            mobile_device_management_solution.length === 0)
+        ) {
+          setShowMdmCard(false);
+          return;
+        }
+
+        setMdmTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"MDM information"}
+          />
+        );
         setMdmEnrollmentData([
           {
             status: "Enrolled (manual)",
@@ -299,7 +320,8 @@ const DashboardPage = ({
           },
           { status: "Unenrolled", hosts: unenrolled_hosts_count },
         ]);
-        setMdmSolutions(data.mobile_device_management_solution);
+        setMdmSolutions(mobile_device_management_solution);
+        setShowMdmCard(true);
       },
       onError: (err) => {
         console.error("err", err);
@@ -569,6 +591,7 @@ const DashboardPage = ({
           )}
         {SoftwareCard}
         {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+        {showMdmCard && <>{MDMCard}</>}
       </div>
     );
   };
@@ -576,7 +599,7 @@ const DashboardPage = ({
   const macOSLayout = () => (
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
-      <div className={`${baseClass}__section`}>{MDMCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
       {showMunkiCard && (
         <div className={`${baseClass}__section`}>{MunkiCard}</div>
       )}
@@ -584,7 +607,10 @@ const DashboardPage = ({
   );
 
   const windowsLayout = () => (
-    <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
   );
   const linuxLayout = () => null;
 

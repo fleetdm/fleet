@@ -50,17 +50,17 @@ const enrollmentTableHeaders = [
         if (status === "Enrolled (automatic)") {
           return `
                 <span>
-                  Hosts automatically enrolled to an MDM solution <br/>
-                  the first time the host is used. Administrators <br />
-                  might have a higher level of control over these <br />
-                  hosts.
+                  Hosts automatically enrolled to an MDM solution <br />
+                  using Apple Automated Device Enrollment (DEP) <br />
+                  or Windows Autopilot. Administrators can block <br />
+                  users from unenrolling these hosts from MDM.
                 </span>
               `;
         }
         return `
                 <span>
-                  Hosts manually enrolled to an MDM solution by a<br />
-                  user or administrator.
+                  Hosts manually enrolled to an MDM solution. Users <br />
+                  can unenroll these hosts from MDM.
                 </span>
               `;
       };
