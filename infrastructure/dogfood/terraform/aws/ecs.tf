@@ -171,7 +171,15 @@ resource "aws_ecs_task_definition" "backend" {
             valueFrom = "${aws_secretsmanager_secret.scep.arn}:crt::"
           },
           {
+            name      = "FLEET_MDM_APPLE_SCEP_CA_CERT_PEM"
+            valueFrom = "${aws_secretsmanager_secret.scep.arn}:crt::"
+          },
+          {
             name      = "FLEET_MDM_APPLE_SCEP_KEY_BYTES"
+            valueFrom = "${aws_secretsmanager_secret.scep.arn}:key::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_SCEP_CA_KEY_PEM"
             valueFrom = "${aws_secretsmanager_secret.scep.arn}:key::"
           },
           {
