@@ -191,7 +191,15 @@ resource "aws_ecs_task_definition" "backend" {
             valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM::"
           },
           {
+            name      = "FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM"
+            valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM::"
+          },
+          {
             name      = "FLEET_MDM_APPLE_APNS_KEY_BYTES"
+            valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM"
             valueFrom = "${aws_secretsmanager_secret.apn.arn}:FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM::"
           },
           {
