@@ -5195,6 +5195,12 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p1."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 
+	checkCarveError := func(id uint, err string) {
+		var getResp getCarveResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", id), nil, http.StatusOK, &getResp)
+		require.Equal(t, err, *getResp.Carve.Error)
+	}
+
 	// sending a block with unexpected block id (expects 0, got 1)
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
@@ -5202,6 +5208,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p1."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -5230,6 +5237,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p2."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
 	blockResp = carveBlockResponse{}
@@ -5239,6 +5247,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p3extra"),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
 	blockResp = carveBlockResponse{}
@@ -5258,6 +5267,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p4."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id exceeds expected max (2): 3")
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {
