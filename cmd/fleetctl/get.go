@@ -744,7 +744,7 @@ func getCarvesCommand() *cli.Command {
 
 				data = append(data, []string{
 					strconv.FormatInt(c.ID, 10),
-					c.CreatedAt.Local().String(),
+					c.CreatedAt.String(),
 					c.RequestId,
 					strconv.FormatInt(c.CarveSize, 10),
 					completion,
