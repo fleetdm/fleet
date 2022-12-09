@@ -460,8 +460,8 @@ func TestCarveCarveBlockBlockCountExceedError(t *testing.T) {
 		return metadata, nil
 	}
 	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
-		assert.NotEmpty(t, carve.Error)
-		assert.Equal(t, carve.Error, "block_id exceeds expected max (22): 23")
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "block_id exceeds expected max (22): 23")
 		return nil
 	}
 
@@ -496,8 +496,8 @@ func TestCarveCarveBlockBlockCountMatchError(t *testing.T) {
 		return metadata, nil
 	}
 	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
-		assert.NotEmpty(t, carve.Error)
-		assert.Equal(t, carve.Error, "block_id does not match expected block (4): 7")
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "block_id does not match expected block (4): 7")
 		return nil
 	}
 
@@ -532,8 +532,8 @@ func TestCarveCarveBlockBlockSizeError(t *testing.T) {
 		return metadata, nil
 	}
 	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
-		assert.NotEmpty(t, carve.Error)
-		assert.Equal(t, carve.Error, "exceeded declared block size 16: 37")
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "exceeded declared block size 16: 37")
 		return nil
 	}
 
@@ -571,8 +571,8 @@ func TestCarveCarveBlockNewBlockError(t *testing.T) {
 		return errors.New("kaboom!")
 	}
 	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
-		assert.NotEmpty(t, carve.Error)
-		assert.Equal(t, carve.Error, "kaboom!")
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "kaboom!")
 		return nil
 	}
 

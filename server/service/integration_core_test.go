@@ -5198,7 +5198,7 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError := func(id uint, err string) {
 		var getResp getCarveResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", id), nil, http.StatusOK, &getResp)
-		require.Equal(t, err, getResp.Carve.Error)
+		require.Equal(t, err, *getResp.Carve.Error)
 	}
 
 	// sending a block with unexpected block id (expects 0, got 1)
