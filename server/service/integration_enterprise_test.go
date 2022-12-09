@@ -1723,8 +1723,9 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
-	require.Equal(s.T(), patchPol1.Policy, listPol.Policies[0])
-	require.Equal(s.T(), patchPol2.Policy, listPol.Policies[1])
+	// not using require.Equal because "PATCH policies" returns the wrong updated timestamp.
+	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
+	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
 
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), nil, http.StatusOK, getPol2)
@@ -1808,8 +1809,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
-	require.Equal(s.T(), patchPol1.Policy, listPol.Policies[0])
-	require.Equal(s.T(), patchPol2.Policy, listPol.Policies[1])
+	// not using require.Equal because "PATCH policies" returns the wrong updated timestamp.
+	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
+	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
 
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
@@ -1820,6 +1822,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
 func allEqual(t *testing.T, expect, actual interface{}, fields ...string) {
+	require.NotEmpty(t, fields)
 	t.Helper()
 	expV := reflect.Indirect(reflect.ValueOf(expect))
 	actV := reflect.Indirect(reflect.ValueOf(actual))
