@@ -801,7 +801,7 @@ func getCarveCommand() *cli.Command {
 			}
 
 			if carve.Error != nil {
-				return fmt.Errorf(*carve.Error)
+				return errors.New(*carve.Error)
 			}
 
 			if stdout || outFile != "" {
