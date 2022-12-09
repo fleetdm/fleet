@@ -25,10 +25,7 @@ const readableDate = (date: string) => {
 };
 
 const Mdm = (): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
-
-  // TODO: Where are we setting MDM enabled?
-  const mdmEnabled = true;
+  const { isPremiumTier, isMdmEnabled } = useContext(AppContext);
 
   const [showRequestModal, setShowRequestModal] = useState(false);
 
@@ -40,7 +37,7 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleAPI"],
     () => mdmAppleAPI.loadAll(),
     {
-      enabled: !!mdmEnabled && isPremiumTier,
+      enabled: !!isMdmEnabled && isPremiumTier,
       staleTime: 5000,
     }
   );
@@ -53,7 +50,7 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleBmAPI"],
     () => mdmAppleBmAPI.loadAll(),
     {
-      enabled: !!mdmEnabled && isPremiumTier,
+      enabled: !!isMdmEnabled && isPremiumTier,
       staleTime: 5000,
     }
   );
