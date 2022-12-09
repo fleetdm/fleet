@@ -1464,6 +1464,8 @@ func TestGetAppleMDM(t *testing.T) {
 func TestGetCarves(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
 	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
 		return []*fleet.CarveMetadata{
 			{
@@ -1475,7 +1477,7 @@ func TestGetCarves(t *testing.T) {
 				CarveId:    "carve_id_1",
 				RequestId:  "request_id_1",
 				SessionId:  "session_id_1",
-				CreatedAt:  time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+				CreatedAt:  createdAt,
 			},
 			{
 				HostId:     2,
@@ -1486,19 +1488,21 @@ func TestGetCarves(t *testing.T) {
 				CarveId:    "carve_id_2",
 				RequestId:  "request_id_2",
 				SessionId:  "session_id_2",
-				CreatedAt:  time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+				CreatedAt:  createdAt,
 				Error:      ptr.String("test error"),
 			},
 		}, nil
 	}
 
-	expected := `+----+-------------------------------+--------------+------------+------------+---------+
-| ID |          CREATED AT           |  REQUEST ID  | CARVE SIZE | COMPLETION | ERRORED |
-+----+-------------------------------+--------------+------------+------------+---------+
-|  0 | 2019-12-31 21:00:00 -0300 -03 | request_id_1 |        123 | 10%        | no      |
-+----+-------------------------------+--------------+------------+------------+---------+
-|  0 | 2019-12-31 21:00:00 -0300 -03 | request_id_2 |        123 | 5%         | yes     |
-+----+-------------------------------+--------------+------------+------------+---------+
+	expected := `+----+--------------------------------+--------------+------------+------------+---------+
+| ID |           CREATED AT           |  REQUEST ID  | CARVE SIZE | COMPLETION | ERRORED |
++----+--------------------------------+--------------+------------+------------+---------+
+|  0 | 1999-03-09 23:45:06.371 -0300  | request_id_1 |        123 | 10%        | no      |
+|    |                            -03 |              |            |            |         |
++----+--------------------------------+--------------+------------+------------+---------+
+|  0 | 1999-03-09 23:45:06.371 -0300  | request_id_2 |        123 | 5%         | yes     |
+|    |                            -03 |              |            |            |         |
++----+--------------------------------+--------------+------------+------------+---------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "carves"}))
 }
@@ -1506,6 +1510,8 @@ func TestGetCarves(t *testing.T) {
 func TestGetCarve(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
 	ds.CarveFunc = func(ctx context.Context, carveID int64) (*fleet.CarveMetadata, error) {
 		return &fleet.CarveMetadata{
 			HostId:     1,
@@ -1516,7 +1522,7 @@ func TestGetCarve(t *testing.T) {
 			CarveId:    "carve_id_1",
 			RequestId:  "request_id_1",
 			SessionId:  "session_id_1",
-			CreatedAt:  time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			CreatedAt:  createdAt,
 		}, nil
 	}
 
@@ -1525,7 +1531,7 @@ block_count: 10
 block_size: 12
 carve_id: carve_id_1
 carve_size: 123
-created_at: "2020-01-01T00:00:00Z"
+created_at: "1999-03-10T02:45:06.371Z"
 error: null
 expired: false
 host_id: 1
@@ -1542,6 +1548,8 @@ session_id: session_id_1
 func TestGetCarveWithError(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
 	ds.CarveFunc = func(ctx context.Context, carveID int64) (*fleet.CarveMetadata, error) {
 		return &fleet.CarveMetadata{
 			HostId:     1,
@@ -1552,7 +1560,7 @@ func TestGetCarveWithError(t *testing.T) {
 			CarveId:    "carve_id_1",
 			RequestId:  "request_id_1",
 			SessionId:  "session_id_1",
-			CreatedAt:  time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+			CreatedAt:  createdAt,
 			Error:      ptr.String("test error"),
 		}, nil
 	}
