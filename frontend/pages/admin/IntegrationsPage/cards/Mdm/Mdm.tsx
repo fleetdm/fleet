@@ -62,6 +62,7 @@ const Mdm = (): JSX.Element => {
     }
   );
 
+  // TODO: Test
   const {
     data: keys,
     error: fetchKeysError,
@@ -90,7 +91,7 @@ const Mdm = (): JSX.Element => {
     } else {
       renderFlash(
         "error",
-        "Your MDM business manager keys could not be downloaded. Please check your Fleet configuration."
+        "Your MDM business manager keys could not be downloaded. Please TODO ACTION."
       );
     }
     return false;
