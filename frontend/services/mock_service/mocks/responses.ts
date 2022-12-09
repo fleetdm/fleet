@@ -12,26 +12,20 @@ const count = {
 };
 
 // TODO: Fix mock when backend is done
-const apn = {
-  apn: {
-    commonName: "Mock backend response APSP:04b46ce0-xxxx-xxxx-xxxx-xxxxxxxx",
-    serialNumber: "Mock backend response 123938388712",
-    issuer:
-      "Mock backend response Apple Application Integration 2 Certification Authority",
-    renewDate:
-      "Mock backend response September 19, 2023 (likely need date conversion)",
-  },
+const mdmApple = {
+  common_name: "Mock backend response APSP:04b46ce0-xxxx-xxxx-xxxx-xxxxxxxx",
+  serial_number: "Mock backend response 123938388712",
+  issuer:
+    "Mock backend response Apple Application Integration 2 Certification Authority",
+  renew_date: "2023-09-30T00:00:00Z",
 };
 
-const abm = {
-  abm: {
-    team: "Mock backend response Apples",
-    appleId: "Mock backend response rachel@fleetdm.com",
-    organizationName: "Mock backend response Fleet Device Management",
-    mdmServerUrl: "Mock backend response https://fleet.organization.com/mdm",
-    renewDate:
-      "Mock backend response September 19, 2023 (likely need date conversion)",
-  },
+const mdmAppleBm = {
+  default_team: "Mock backend response Apples",
+  apple_id: "Mock backend response rachel@fleetdm.com",
+  organization_name: "Mock backend response Fleet Device Management",
+  mdm_server_url: "Mock backend response https://fleet.organization.com/mdm",
+  renew_date: "2023-09-30T00:00:00Z",
 };
 
 const hosts = {
@@ -391,6 +385,6 @@ export default {
   count,
   hosts,
   labels,
-  abm,
-  apn,
+  mdmApple,
+  mdmAppleBm,
 };

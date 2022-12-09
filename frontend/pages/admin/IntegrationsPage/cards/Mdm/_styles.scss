@@ -1,4 +1,9 @@
 .mdm-integrations {
+  display: flex;
+  flex-direction: column;
+  width: 65%;
+  gap: 80px;
+
   &__section {
     @include clearfix;
     margin: 0 0 $pad-large;

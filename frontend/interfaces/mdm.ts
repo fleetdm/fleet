@@ -1,21 +1,14 @@
-// TODO: Correct interface once backend is done
-
-export interface IAPN {
-  commonName: string;
-  serialNumber: string;
+export interface IMdmApple {
+  common_name: string;
+  serial_number: string;
   issuer: string;
-  renewDate: string;
+  renew_date: string;
 }
 
-export interface IABM {
-  team?: string;
-  appleId: string;
-  organizationName: string;
-  mdmServerUrl: string;
-  renewDate: string;
-}
-
-export interface IAppleMdm {
-  apn: IAPN;
-  abm: IABM;
+export interface IMdmAppleBm {
+  default_team?: string;
+  apple_id: string;
+  organization_name: string;
+  mdm_server_url: string;
+  renew_date: string;
 }

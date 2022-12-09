@@ -1,7 +1,6 @@
 const API_VERSION = "latest";
 
 export default {
-  APPLE_MDM: `/${API_VERSION}/fleet/appleMdm`, // TODO: Correct API call once backend is done
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
@@ -32,6 +31,8 @@ export default {
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
+  MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
   ME: `/${API_VERSION}/fleet/me`,
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,

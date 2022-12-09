@@ -2,15 +2,27 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import appleMdmAPI from "services/entities/appleMdm";
-import { IAppleMdm } from "interfaces/mdm";
+import mdmAppleAPI from "services/entities/mdm_apple";
+import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
+import { IMdmApple, IMdmAppleBm } from "interfaces/mdm";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 import RequestModal from "./components/RequestModal";
 
 const baseClass = "mdm-integrations";
+
+const readableDate = (date: string) => {
+  const dateString = new Date(date);
+
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(dateString);
+};
 
 const Mdm = (): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
@@ -21,17 +33,31 @@ const Mdm = (): JSX.Element => {
   const [showRequestModal, setShowRequestModal] = useState(false);
 
   const {
-    data: appleMDM,
-    isLoading: isLoadingAppleMdm,
-    error: errorAbm,
-  } = useQuery<IAppleMdm, Error, IAppleMdm>(
-    ["appleMdmAPI"],
-    () => appleMdmAPI.loadAll(),
+    data: mdmApple,
+    isLoading: isLoadingMdmApple,
+    error: errorMdmApple,
+  } = useQuery<IMdmApple, Error, IMdmApple>(
+    ["mdmAppleAPI"],
+    () => mdmAppleAPI.loadAll(),
     {
       enabled: !!mdmEnabled && isPremiumTier,
       staleTime: 5000,
     }
   );
+
+  const {
+    data: mdmAppleBm,
+    isLoading: isLoadingMdmAppleBm,
+    error: errorMdmAppleBm,
+  } = useQuery<IMdmAppleBm, Error, IMdmAppleBm>(
+    ["mdmAppleBmAPI"],
+    () => mdmAppleBmAPI.loadAll(),
+    {
+      enabled: !!mdmEnabled && isPremiumTier,
+      staleTime: 5000,
+    }
+  );
+
   const toggleRequestModal = () => {
     setShowRequestModal(!showRequestModal);
   };
@@ -40,9 +66,12 @@ const Mdm = (): JSX.Element => {
     return false;
   };
 
-  console.log("appleMDM", appleMDM);
-  const renderApnSection = () => {
-    if (!appleMDM) {
+  const renderMdmAppleSection = () => {
+    if (errorMdmApple) {
+      return <DataError />;
+    }
+
+    if (!mdmApple) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -75,7 +104,7 @@ const Mdm = (): JSX.Element => {
               APNs certificate.
             </p>
             <p>
-              5. Deploy Fleet with mdm configuration.{" "}
+              5. Deploy Fleet with <b>mdm</b> configuration.{" "}
               <CustomLink url="https://www.youtube.com" text="See how" newTab />
             </p>
           </div>
@@ -93,30 +122,34 @@ const Mdm = (): JSX.Element => {
           <p>
             <b>Common name (CN)</b>
             <br />
-            {appleMDM.apn.commonName}
+            {mdmApple.common_name}
           </p>
           <p>
             <b>Serial number</b>
             <br />
-            {appleMDM.apn.serialNumber}
+            {mdmApple.serial_number}
           </p>
           <p>
             <b>Issuer</b>
             <br />
-            {appleMDM.apn.issuer}
+            {mdmApple.issuer}
           </p>
           <p>
-            <b>Renew data</b>
+            <b>Renew date</b>
             <br />
-            {appleMDM.apn.renewDate}
+            {readableDate(mdmApple.renew_date)}
           </p>
         </div>
       </>
     );
   };
 
-  const renderAbmSection = () => {
-    if (!appleMDM) {
+  const renderMdmAppleBm = () => {
+    if (errorMdmAppleBm) {
+      return <DataError />;
+    }
+
+    if (!mdmAppleBm) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -137,14 +170,15 @@ const Mdm = (): JSX.Element => {
                 newTab
               />
               <br />
-              If your organization doesn’t have an account, select Enroll now.
+              If your organization doesn’t have an account, select{" "}
+              <b>Enroll now</b>.
             </p>
             <p>
               3. In Apple Business Manager, upload your public key and download
               your server token.
             </p>
             <p>
-              4. Deploy Fleet with mdm configuration.{" "}
+              4. Deploy Fleet with <b>mdm</b> configuration.{" "}
               <CustomLink
                 url="https://business.apple.com/"
                 text="See how"
@@ -166,27 +200,27 @@ const Mdm = (): JSX.Element => {
           <p>
             <b>Team</b>
             <br />
-            {appleMDM.abm.team || "No team"}
+            {mdmAppleBm.default_team || "No team"}
           </p>
           <p>
             <b>Apple ID</b>
             <br />
-            {appleMDM.abm.appleId}
+            {mdmAppleBm.apple_id}
           </p>
           <p>
             <b>Organization name</b>
             <br />
-            {appleMDM.abm.organizationName}
+            {mdmAppleBm.organization_name}
           </p>
           <p>
             <b>MDM Server URL</b>
             <br />
-            {appleMDM.abm.mdmServerUrl}
+            {mdmAppleBm.mdm_server_url}
           </p>
           <p>
             <b>Renew date</b>
             <br />
-            {appleMDM.abm.renewDate}
+            {readableDate(mdmAppleBm.renew_date)}
           </p>
         </div>
       </>
@@ -197,12 +231,12 @@ const Mdm = (): JSX.Element => {
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
         <h2>Apple Push Certificates Portal</h2>
-        {isLoadingAppleMdm ? <Spinner /> : renderApnSection()}
+        {isLoadingMdmApple ? <Spinner /> : renderMdmAppleSection()}
       </div>
       {isPremiumTier && (
         <div className={`${baseClass}__section`}>
           <h2>Apple Business Manager</h2>
-          {isLoadingAppleMdm ? <Spinner /> : renderAbmSection()}
+          {isLoadingMdmAppleBm ? <Spinner /> : renderMdmAppleBm()}
         </div>
       )}
       {showRequestModal && (
