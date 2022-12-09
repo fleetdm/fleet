@@ -13,6 +13,7 @@ export const isPremiumTier = (config: IConfig): boolean => {
   return config.license.tier === "premium";
 };
 
+// TODO: Use correct config key when backend is merged
 export const isMdmEnabled = (config: IConfig): boolean => {
   return config.mdm_enabled === true;
 };
