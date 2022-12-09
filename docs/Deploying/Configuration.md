@@ -1167,6 +1167,33 @@ osquery:
   result_log_plugin: firehose
 ```
 
+#### activity_enable_audit_log
+
+This enables/disables the log output for audit events.
+
+- Default value: `false`
+- Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
+- Config file format:
+  ```yaml
+  activity:
+  	enable_audit_log: true
+  ```
+
+#### activity_audit_log_plugin
+
+This is the log output plugin that should be used for audit logs.
+This flag only has effect if `activity_enable_audit_log` is set to `true`.
+
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+
+- Default value: `filesystem`
+- Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
+- Config file format:
+  ```yaml
+  activity:
+  	audit_log_plugin: firehose
+  ```
+
 #### Logging (Fleet server logging)
 
 ##### logging_debug
@@ -1257,9 +1284,25 @@ The path which osquery result logs will be logged to.
   	result_log_file: /var/log/osquery/result.log
   ```
 
+##### filesystem_audit_log_file
+
+This flag only has effect if `activity_audit_log_plugin` is set to `filesystem` (the default value) and if `activity_enable_audit_log` is set to `true`.
+
+The path which audit logs will be logged to.
+
+- Default value: `/tmp/audit`
+- Environment variable: `FLEET_FILESYSTEM_AUDIT_LOG_FILE`
+- Config file format:
+  ```yaml
+  filesystem:
+  	audit_log_file: /var/log/fleet/audit.log
+  ```
+
 ##### filesystem_enable_log_rotation
 
-This flag only has effect if `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+- `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
 rotated when files reach a size of 500 Mb or an age of 28 days.
@@ -1302,9 +1345,11 @@ filesystem:
 
 ##### firehose_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS region to use for Firehose connection
+AWS region to use for Firehose connection.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_REGION`
@@ -1316,7 +1361,9 @@ AWS region to use for Firehose connection
 
 ##### firehose_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 If `firehose_access_key_id` and `firehose_secret_access_key` are omitted, Fleet will try to use [AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html) credentials.
 
@@ -1332,7 +1379,9 @@ AWS access key ID to use for Firehose authentication.
 
 ##### firehose_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Firehose authentication.
 
@@ -1346,8 +1395,9 @@ AWS secret access key to use for Firehose authentication.
 
 ##### firehose_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Firehose authentication.
 
@@ -1399,6 +1449,27 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
+##### firehose_audit_stream
+
+This flag only has effect if `activity_audit_log_plugin` is set to `firehose`.
+
+Name of the Firehose stream to audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_AUDIT_STREAM`
+- Config file format:
+  ```yaml
+  firehose:
+  	audit_stream: fleet_audit
+  ```
+
+The IAM role used to send to Firehose must allow the following permissions on
+the stream listed:
+
+- `firehose:DescribeDeliveryStream`
+- `firehose:PutRecordBatch`
+
+
 ##### Example YAML
 
 ```yaml
@@ -1418,7 +1489,9 @@ firehose:
 
 ##### kinesis_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS region to use for Kinesis connection
 
@@ -1432,8 +1505,9 @@ AWS region to use for Kinesis connection
 
 ##### kinesis_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 If `kinesis_access_key_id` and `kinesis_secret_access_key` are omitted, Fleet
 will try to use
@@ -1452,8 +1526,9 @@ AWS access key ID to use for Kinesis authentication.
 
 ##### kinesis_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Kinesis authentication.
 
@@ -1467,8 +1542,9 @@ AWS secret access key to use for Kinesis authentication.
 
 ##### kinesis_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Kinesis authentication.
 
@@ -1520,6 +1596,26 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
+##### kinesis_audit_stream
+
+This flag only has effect if `activity_audit_log_plugin` is set to `kinesis`.
+
+Name of the Kinesis stream to write audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_AUDIT_STREAM`
+- Config file format:
+  ```yaml
+  kinesis:
+  	audit_stream: fleet_audit
+  ```
+
+The IAM role used to send to Kinesis must allow the following permissions on
+the stream listed:
+
+- `kinesis:DescribeStream`
+- `kinesis:PutRecords`
+
 ##### Example YAML
 
 ```yaml
@@ -1536,14 +1632,15 @@ kinesis:
   result_stream: osquery_result
 ```
 
-
 #### Lambda
 
 ##### lambda_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS region to use for Lambda connection
+AWS region to use for Lambda connection.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_REGION`
@@ -1555,8 +1652,9 @@ AWS region to use for Lambda connection
 
 ##### lambda_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 If `lambda_access_key_id` and `lambda_secret_access_key` are omitted, Fleet
 will try to use
@@ -1575,8 +1673,9 @@ AWS access key ID to use for Lambda authentication.
 
 ##### lambda_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Lambda authentication.
 
@@ -1590,8 +1689,9 @@ AWS secret access key to use for Lambda authentication.
 
 ##### lambda_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Lambda authentication.
 
@@ -1641,6 +1741,25 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
+##### lambda_audit_function
+
+This flag only has effect if `activity_audit_log_plugin` is set to `lambda`.
+
+Name of the Lambda function to write audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_AUDIT_FUNCTION`
+- Config file format:
+  ```yaml
+  lambda:
+    audit_function: auditFunction
+  ```
+
+The IAM role used to send to Lambda must allow the following permissions on
+the function listed:
+
+- `lambda:InvokeFunction`
+
 ##### Example YAML
 
 ```yaml
@@ -1660,7 +1779,9 @@ lambda:
 
 ##### pubsub_project
 
-This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `pubsub`.
+- `activity_audit_log_plugin` is set to `pubsub` and `activity_enable_audit_log` is set to `true`.
 
 The identifier of the Google Cloud project containing the pubsub topics to
 publish logs to.
@@ -1678,7 +1799,7 @@ for authentication with the service.
 
 ##### pubsub_result_topic
 
-This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+This flag only has effect if `osquery_result_log_plugin` is set to `pubsub`.
 
 The identifier of the pubsub topic that client results will be published to.
 
@@ -1702,6 +1823,20 @@ The identifier of the pubsub topic that osquery status logs will be published to
   ```
   pubsub:
     status_topic: osquery_status
+  ```
+
+##### pubsub_audit_topic
+
+This flag only has effect if `osquery_audit_log_plugin` is set to `pubsub`.
+
+The identifier of the pubsub topic that client results will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_PUBSUB_AUDIT_TOPIC`
+- Config file format:
+  ```yaml
+  pubsub:
+    audit_topic: fleet_audit
   ```
 
 ##### pubsub_add_attributes
@@ -1744,7 +1879,9 @@ pubsub:
 
 ##### kafkarest_proxyhost
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The URL of the host which to check for the topic existence and post messages to the specified topic.
 
@@ -1781,12 +1918,28 @@ The identifier of the kafka topic that osquery result logs will be published to.
 - Config file format:
   ```yaml
   kafkarest:
-    status_topic: osquery_result
+    result_topic: osquery_result
+  ```
+
+##### kafkarest_audit_topic
+
+This flag only has effect if `osquery_audit_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_AUDIT_TOPIC`
+- Config file format:
+  ```yaml
+  kafkarest:
+    audit_topic: fleet_audit
   ```
 
 ##### kafkarest_timeout
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The timeout value for the http post attempt. Value is in units of seconds.
 
@@ -1800,7 +1953,9 @@ The timeout value for the http post attempt. Value is in units of seconds.
 
 ##### kafkarest_content_type_value
 
-This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The value of the Content-Type header to use in Kafka REST Proxy API calls. More information about available versions
 can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_

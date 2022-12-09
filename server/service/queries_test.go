@@ -104,8 +104,8 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return &fleet.Query{ID: 8888, AuthorID: ptr.Uint(6666)}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		if id == authoredQueryID {

@@ -70,13 +70,13 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.GenerateActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy,
 		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for global policy creation")
 	}
 	return policy, nil
 }
@@ -208,13 +208,13 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
-		if err := svc.ds.NewActivity(
+		if err := svc.GenerateActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy,
 			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
 		}
 	}
 	return ids, nil
@@ -344,10 +344,13 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	return svc.ds.NewActivity(
+	if err := svc.GenerateActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecPolicy,
 		&map[string]interface{}{"policies": policies},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for policy spec")
+	}
+	return nil
 }

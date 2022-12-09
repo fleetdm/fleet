@@ -38,3 +38,12 @@ func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	}
 	return svc.ds.ListActivities(ctx, opt)
 }
+
+func (svc *Service) GenerateActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.GenerateActivity != nil {
+		return svc.EnterpriseOverrides.GenerateActivity(ctx, user, activityType, details)
+	}
+
+	_, err := fleet.CreateActivity(ctx, svc.ds, user, activityType, details)
+	return err
+}

@@ -52,14 +52,13 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new SSO user")
 	}
-	err = svc.ds.NewActivity(
+	if err := svc.GenerateActivity(
 		ctx,
 		user,
 		fleet.ActivityTypeUserAddedBySSO,
 		&map[string]interface{}{},
-	)
-	if err != nil {
-		return nil, err
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for SSO user creation")
 	}
 
 	return user, nil

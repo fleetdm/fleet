@@ -76,15 +76,16 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.GenerateActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy,
 		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
 	}
 	return policy, nil
 }
@@ -241,13 +242,13 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
-		if err := svc.ds.NewActivity(
+		if err := svc.GenerateActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy,
 			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
 		}
 	}
 
@@ -332,15 +333,16 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.GenerateActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedPolicy,
 		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for policy modification")
 	}
 
 	return policy, nil

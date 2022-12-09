@@ -409,13 +409,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
-		if err := svc.ds.NewActivity(
+		if err := svc.GenerateActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedAgentOptions,
 			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
 		); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config modification")
 		}
 	}
 
@@ -676,7 +676,7 @@ func encodePEMCertificate(buf io.Writer, cert *x509.Certificate) error {
 }
 
 func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.Features, error) {
-	if svc.EnterpriseOverrides != nil {
+	if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.HostFeatures != nil {
 		return svc.EnterpriseOverrides.HostFeatures(ctx, host)
 	}
 

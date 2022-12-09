@@ -145,8 +145,8 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 
 	filename := writeTmpYml(t, `
@@ -241,8 +241,8 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -316,8 +316,8 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 
 	currentAppConfig := &fleet.AppConfig{
@@ -507,8 +507,8 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -609,8 +609,8 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 
 	var appliedPacks []*fleet.PackSpec
@@ -672,8 +672,8 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -809,8 +809,8 @@ func TestApplySpecs(t *testing.T) {
 		}
 
 		// activities
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-			return nil
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+			return nil, nil
 		}
 
 		// app config

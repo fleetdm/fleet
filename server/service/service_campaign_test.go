@@ -56,8 +56,8 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+		return nil, nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{

@@ -2052,13 +2052,13 @@ func (s *integrationTestSuite) TestListActivities() {
 	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	_, err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
+	_, err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
+	_, err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2
