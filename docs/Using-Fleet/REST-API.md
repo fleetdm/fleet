@@ -2290,7 +2290,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
             "platform": "",
             "label_type": "builtin",
             "label_membership_type": "dynamic"
-        },
+        }
     ],
     "packs": [
           {
@@ -3469,7 +3469,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3602,7 +3602,7 @@ Where `query_id` references an existing `query`.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -3797,7 +3797,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3892,7 +3892,7 @@ Either `query` or `query_id` must be provided.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -5114,7 +5114,7 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-=            "pack_delimiter": "/",
+            "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
@@ -5151,7 +5151,7 @@ _Available in Fleet Premium_
         "spec": {
           "config": {
             "options": {
-=              "pack_delimiter": "/",
+              "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
@@ -5214,7 +5214,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-=          "pack_delimiter": "/",
+          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5370,7 +5370,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-=          "pack_delimiter": "/",
+          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,

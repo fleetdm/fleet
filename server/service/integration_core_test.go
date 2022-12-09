@@ -221,6 +221,13 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
 	}
 
+	// critical is premium only.
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.PolicyPayload{
+		Name:     "policy3",
+		Query:    "select * from time;",
+		Critical: true,
+	}, http.StatusBadRequest, new(struct{}))
+
 	prevActivities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &prevActivities)
 	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)

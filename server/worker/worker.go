@@ -168,3 +168,23 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 
 	return j.Run(ctx, args)
 }
+
+type failingPoliciesTplArgs struct {
+	FleetURL       string
+	PolicyID       uint
+	PolicyName     string
+	PolicyCritical bool
+	TeamID         *uint
+	Hosts          []fleet.PolicySetHost
+}
+
+func newFailingPoliciesTplArgs(fleetURL string, args *failingPolicyArgs) *failingPoliciesTplArgs {
+	return &failingPoliciesTplArgs{
+		FleetURL:       fleetURL,
+		PolicyName:     args.PolicyName,
+		PolicyID:       args.PolicyID,
+		PolicyCritical: args.PolicyCritical,
+		TeamID:         args.TeamID,
+		Hosts:          args.Hosts,
+	}
+}
