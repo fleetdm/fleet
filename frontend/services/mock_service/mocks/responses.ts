@@ -11,6 +11,29 @@ const count = {
   targets_missing_in_action: 0,
 };
 
+// TODO: Fix mock when backend is done
+const apn = {
+  apn: {
+    commonName: "Mock backend response APSP:04b46ce0-xxxx-xxxx-xxxx-xxxxxxxx",
+    serialNumber: "Mock backend response 123938388712",
+    issuer:
+      "Mock backend response Apple Application Integration 2 Certification Authority",
+    renewDate:
+      "Mock backend response September 19, 2023 (likely need date conversion)",
+  },
+};
+
+const abm = {
+  abm: {
+    team: "Mock backend response Apples",
+    appleId: "Mock backend response rachel@fleetdm.com",
+    organizationName: "Mock backend response Fleet Device Management",
+    mdmServerUrl: "Mock backend response https://fleet.organization.com/mdm",
+    renewDate:
+      "Mock backend response September 19, 2023 (likely need date conversion)",
+  },
+};
+
 const hosts = {
   hosts: [
     {
@@ -368,4 +391,6 @@ export default {
   count,
   hosts,
   labels,
+  abm,
+  apn,
 };

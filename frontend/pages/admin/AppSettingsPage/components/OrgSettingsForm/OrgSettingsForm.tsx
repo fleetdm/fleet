@@ -20,6 +20,7 @@ import HostStatusWebhook from "../../cards/HostStatusWebhook";
 import Statistics from "../../cards/Statistics";
 import Advanced from "../../cards/Advanced";
 import FleetDesktop from "../../cards/FleetDesktop";
+import Mdm from "../../../IntegrationsPage/cards/Mdm";
 
 interface IOrgSettingsForm {
   section: string;
@@ -178,12 +179,13 @@ const OrgSettingsForm = ({
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {isPremiumTier && activeSection === "fleet-desktop" && (
-            <FleetDesktop
-              appConfig={appConfig}
-              isPremiumTier={isPremiumTier}
-              handleSubmit={onFormSubmit}
-              isUpdatingSettings={isUpdatingSettings}
-            />
+            // <FleetDesktop
+            //   appConfig={appConfig}
+            //   isPremiumTier={isPremiumTier}
+            //   handleSubmit={onFormSubmit}
+            //   isUpdatingSettings={isUpdatingSettings}
+            // />
+            <Mdm />
           )}
         </>
       );

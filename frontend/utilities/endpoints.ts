@@ -1,6 +1,7 @@
 const API_VERSION = "latest";
 
 export default {
+  APPLE_MDM: `/${API_VERSION}/fleet/appleMdm`, // TODO: Correct API call once backend is done
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,

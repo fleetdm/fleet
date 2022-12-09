@@ -1,0 +1,30 @@
+.mdm-integrations {
+  &__section {
+    @include clearfix;
+    margin: 0 0 $pad-large;
+
+    h2 {
+      padding-bottom: $pad-small;
+      max-width: 100%;
+      font-size: $medium;
+      font-weight: $regular;
+      color: $core-fleet-black;
+      border-bottom: solid 1px $ui-fleet-blue-15;
+      margin: 0 0 $pad-xxlarge;
+      @media (min-width: $break-990) {
+        max-width: 65%;
+      }
+    }
+  }
+
+  &__section-description,
+  &__section-instructions,
+  &__section-information {
+    font-size: $x-small;
+    color: $core-fleet-black;
+    width: 100%;
+    @media (min-width: $break-990) {
+      width: 60%;
+    }
+  }
+}
