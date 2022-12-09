@@ -1,7 +1,10 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
+import FileSaver from "file-saver";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+
 import mdmAppleAPI from "services/entities/mdm_apple";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 import { IMdmApple, IMdmAppleBm } from "interfaces/mdm";
@@ -11,6 +14,9 @@ import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import RequestModal from "./components/RequestModal";
+
+// TODO: key validation?
+// import { isValidKeys } from "../../..";
 
 const baseClass = "mdm-integrations";
 
@@ -26,6 +32,7 @@ const readableDate = (date: string) => {
 
 const Mdm = (): JSX.Element => {
   const { isPremiumTier, isMdmEnabled } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [showRequestModal, setShowRequestModal] = useState(false);
 
@@ -55,11 +62,37 @@ const Mdm = (): JSX.Element => {
     }
   );
 
+  const {
+    data: keys,
+    error: fetchKeysError,
+    isFetching: isFetchingKeys,
+  } = useQuery<string, Error>(["keys"], () => mdmAppleBmAPI.loadKeys(), {
+    enabled: !!isMdmEnabled && isPremiumTier,
+    refetchOnWindowFocus: false,
+  });
+
   const toggleRequestModal = () => {
     setShowRequestModal(!showRequestModal);
   };
 
-  const downloadKeys = () => {
+  const onDownloadKeys = (evt: React.MouseEvent) => {
+    evt.preventDefault();
+
+    if (keys) {
+      // TODO: Validate keys?
+      // if (keys && isValidKeys(keys)) {
+      const filename = "fleet.pem";
+      const file = new global.window.File([keys], filename, {
+        type: "application/x-pem-file",
+      });
+
+      FileSaver.saveAs(file);
+    } else {
+      renderFlash(
+        "error",
+        "Your MDM business manager keys could not be downloaded. Please check your Fleet configuration."
+      );
+    }
     return false;
   };
 
@@ -156,7 +189,7 @@ const Mdm = (): JSX.Element => {
           </div>
           <div className={`${baseClass}__section-instructions`}>
             <p>1. Download your public and private keys.</p>
-            <Button onClick={downloadKeys} variant="brand">
+            <Button onClick={onDownloadKeys} variant="brand">
               Download
             </Button>
             <p>
