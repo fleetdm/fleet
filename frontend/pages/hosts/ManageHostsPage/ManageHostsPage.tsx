@@ -1112,10 +1112,10 @@ const ManageHostsPage = ({
           {label_type !== "builtin" && !isOnlyObserver && (
             <>
               <Button onClick={onEditLabelClick} variant={"text-icon"}>
-                <Icon name="pencil" />
+                <Icon name="pencil" className="edit-label" />
               </Button>
               <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-                <Icon name="trash" />
+                <Icon name="trash" className="delete-label" />
               </Button>
             </>
           )}

@@ -38,7 +38,7 @@ describe("Labels flow", () => {
     it("edits a custom label", () => {
       cy.getAttached(".label-filter-select__control").click();
       cy.findByText(/Show all MAC users/i).click();
-      cy.findByRole("button", { name: /edit label/i }).click();
+      cy.getAttached(".edit-label").click();
       // SQL and Platform are immutable fields
       cy.findByLabelText(/name/i).clear().type("Show all mac usernames");
       cy.findByLabelText(/description/i)
@@ -51,7 +51,7 @@ describe("Labels flow", () => {
     it("deletes a custom label", () => {
       cy.getAttached(".label-filter-select__control").click();
       cy.findByText(/Show all mac usernames/i).click();
-      cy.findByRole("button", { name: /delete label/i }).click();
+      cy.getAttached(".delete-label").click();
       cy.getAttached(".delete-label-modal")
         .contains("button", /delete/i)
         .click();
