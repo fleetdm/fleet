@@ -116,6 +116,48 @@
     padding: 16px 46px 18px;
     text-decoration: none;
   }
+
+  [purpose='banner-container'] {
+    background: linear-gradient(#F4F6FA 50%, #FFF 50%);
+    padding-right: 40px;
+    padding-left: 40px;
+  }
+  [purpose='fleet-cloud-banner'] {
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 1200px;
+    height: 200px;
+    [purpose='banner-hero-image'] {
+      width: 50%;
+      background-image: url('/images/fleet-cloud-600x200@2x.png');
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+    }
+    [purpose='banner-text'] {
+      background: linear-gradient(270deg, #201E43 0%, #272A5E 100%);
+      width: 50%;
+      h1 {
+        font-size: 36px;
+        line-height: 43px;
+        color: #FFF;
+        margin-bottom: 16px;
+      }
+      [purpose='fleet-cloud-banner-btn'] {
+        line-height: 24px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #FFF;
+        padding: 4px 16px;
+        border-radius: 4px;
+        background-color: @core-vibrant-red;
+        width: 128px;
+        height: 32px;
+        text-decoration: none;
+      }
+    }
+  }
+
   [purpose='homepage-section'] {
     padding-top: 120px;
     padding-bottom: 120px;
@@ -403,6 +445,19 @@
         margin-left: 20px;
       }
     }
+    [purpose='fleet-cloud-banner'] {
+      max-width: 600px;
+      height: 400px;
+      [purpose='banner-hero-image'] {
+        height: 200px;
+        width: 100%;
+      }
+      [purpose='banner-text'] {
+        width: 100%;
+        height: 200px;
+      }
+    }
+
     [purpose='homepage-section'] {
       padding-left: 120px;
       padding-right: 120px;
@@ -599,6 +654,19 @@
         text-indent: -24px;
       }
     }
+    [purpose='fleet-cloud-banner'] {
+      [purpose='banner-text'] {
+        h1 {
+          text-align: center;
+          font-size: 32px;
+          line-height: 43px;
+        }
+        [purpose='fleet-cloud-banner-btn'] {
+          width: 100%;
+          height: 32px;
+        }
+      }
+    }
     [purpose='tweets'] {
       padding-left: 0;
       padding-right: 0;
@@ -610,6 +678,26 @@
       width: 100%;
     }
 
+  }
+
+  @media (max-width: 500px) {
+    [purpose='fleet-cloud-banner'] {
+      height: 280px;
+      [purpose='banner-hero-image'] {
+        height: 135px;
+      }
+      [purpose='banner-text'] {
+        height: 145px;
+        padding: 16px;
+        h1 {
+          font-size: 16px;
+          line-height: 24px;
+        }
+        [purpose='fleet-cloud-banner-btn'] {
+          width: 100%;
+        }
+      }
+    }
   }
 
   @media (max-width: 436px) {

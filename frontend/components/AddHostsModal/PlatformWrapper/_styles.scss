@@ -63,7 +63,7 @@
     }
   }
 
-  &__advanced {
+  &__advanced--installer {
     .input-field {
       height: 115px;
     }
@@ -127,9 +127,6 @@
 
   &__advanced {
     padding-top: 6px;
-    .input-field__textarea {
-      min-height: 92px;
-    }
     .reveal-button {
       margin: 8px 0;
     }

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -39,8 +40,13 @@ func parseTag(tag string) (string, bool, error) {
 	}
 }
 
+type fieldPair struct {
+	sf reflect.StructField
+	v  reflect.Value
+}
+
 // allFields returns all the fields for a struct, including the ones from embedded structs
-func allFields(ifv reflect.Value) []reflect.StructField {
+func allFields(ifv reflect.Value) []fieldPair {
 	if ifv.Kind() == reflect.Ptr {
 		ifv = ifv.Elem()
 	}
@@ -48,7 +54,7 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 		return nil
 	}
 
-	var fields []reflect.StructField
+	var fields []fieldPair
 
 	if !ifv.IsValid() {
 		return nil
@@ -63,7 +69,7 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 			fields = append(fields, allFields(v)...)
 			continue
 		}
-		fields = append(fields, ifv.Type().Field(i))
+		fields = append(fields, fieldPair{sf: ifv.Type().Field(i), v: v})
 	}
 
 	return fields
@@ -152,10 +158,11 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			}
 		}
 
-		for _, f := range allFields(v) {
-			field := v.Elem().FieldByName(f.Name)
+		fields := allFields(v)
+		for _, fp := range fields {
+			field := fp.v
 
-			urlTagValue, ok := f.Tag.Lookup("url")
+			urlTagValue, ok := fp.sf.Tag.Lookup("url")
 
 			optional := false
 			var err error
@@ -232,12 +239,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				}
 			}
 
-			_, jsonExpected := f.Tag.Lookup("json")
+			_, jsonExpected := fp.sf.Tag.Lookup("json")
 			if jsonExpected && nilBody {
 				return nil, badRequest("Expected JSON Body")
 			}
 
-			queryTagValue, ok := f.Tag.Lookup("query")
+			queryTagValue, ok := fp.sf.Tag.Lookup("query")
 
 			if ok {
 				queryTagValue, optional, err = parseTag(queryTagValue)
@@ -250,7 +257,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					if optional {
 						continue
 					}
-					return nil, badRequest(fmt.Sprintf("Param %s is required", f.Name))
+					return nil, badRequest(fmt.Sprintf("Param %s is required", fp.sf.Name))
 				}
 				if field.Kind() == reflect.Ptr {
 					// create the new instance of whatever it is
@@ -290,7 +297,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					}
 					field.SetInt(int64(queryValInt))
 				default:
-					return nil, fmt.Errorf("Cant handle type for field %s %s", f.Name, field.Kind())
+					return nil, fmt.Errorf("Cant handle type for field %s %s", fp.sf.Name, field.Kind())
 				}
 			}
 		}
@@ -299,6 +306,24 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			bd := v.Interface().(bodyDecoder)
 			if err := bd.DecodeBody(ctx, body); err != nil {
 				return nil, err
+			}
+		}
+
+		if !license.IsPremium(ctx) {
+			for _, fp := range fields {
+				if prem, ok := fp.sf.Tag.Lookup("premium"); ok {
+					val, err := strconv.ParseBool(prem)
+					if err != nil {
+						return nil, err
+					}
+					if val && !fp.v.IsZero() {
+						return nil, &fleet.BadRequestError{Message: fmt.Sprintf(
+							"option %s requires a premium license",
+							fp.sf.Name,
+						)}
+					}
+					continue
+				}
 			}
 		}
 
