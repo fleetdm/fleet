@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -673,11 +674,11 @@ func main() {
 		}
 
 		// Install a signal handler
-		// ctx, cancel := context.WithCancel(context.Background())
-		// defer cancel()
-		// g.Add(signalHandler(ctx))
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		g.Add(signalHandler(ctx))
 
-		// go sigusrListener(c.String("root-dir"))
+		go sigusrListener(c.String("root-dir"))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
