@@ -76,8 +76,8 @@ func applyUpToPrev(t *testing.T) *sqlx.DB {
 	}
 }
 
-func execNoErr(t *testing.T, db *sqlx.DB, query string) {
-	_, err := db.Exec(query)
+func execNoErr(t *testing.T, db *sqlx.DB, query string, args ...any) {
+	_, err := db.Exec(query, args...)
 	require.NoError(t, err)
 }
 

@@ -670,7 +670,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	}
 
 	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
-	mockLocker.AddChannels(t, "locked")
+	require.NoError(t, mockLocker.AddChannels(t, "locked"))
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 

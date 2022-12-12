@@ -82,7 +82,8 @@ func TestGithubClient(t *testing.T) {
 			if r.URL.Path == urlPath {
 				w.Header().Add("content-type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("some payload"))
+				_, err := w.Write([]byte("some payload"))
+				require.NoError(t, err)
 			}
 		}))
 		t.Cleanup(server.Close)

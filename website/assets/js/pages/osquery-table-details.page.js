@@ -49,18 +49,14 @@ parasails.registerPage('osquery-table-details', {
 
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
-      if(a.title < b.title){
-        return -1;
-      }
+      return a.title > b.title ? 1 : -1;
     });
     let keywordsForThisTable = [];
     if(this.tableToDisplay.keywordsForSyntaxHighlighting){
       keywordsForThisTable = this.tableToDisplay.keywordsForSyntaxHighlighting;
     }
     keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
-      if(a.length > b.length){
-        return -1;
-      }
+      return a.length < b.length ? 1 : -1;
     });
     (()=>{
       $('pre code').each((i, block) => {

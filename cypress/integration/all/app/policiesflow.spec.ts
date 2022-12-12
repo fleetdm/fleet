@@ -184,10 +184,13 @@ describe("Policies flow (empty)", () => {
       i: number,
       expected: boolean[]
     ) => {
-      const check = expected[i] ? "compatible" : "incompatible";
+      const check = expected[i]
+        ? "compatible-platform"
+        : "incompatible-platform";
+      const compatibility = expected[i] ? "compatible" : "incompatible";
       assert(
-        el.children("img").attr("alt") === check,
-        `expected policy to be ${platforms[i]} ${check}`
+        el.children("div").attr("class").includes(check),
+        `expected policy to be ${platforms[i]} ${compatibility}`
       );
     };
 

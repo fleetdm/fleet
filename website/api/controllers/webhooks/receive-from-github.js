@@ -83,6 +83,7 @@ module.exports = {
       'zayhanlon',
       'bradmacd',
       'alexmitchelliii',
+      'jarodreyes',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -242,12 +243,15 @@ module.exports = {
 
         // Check whether auto-approval is warranted.
         let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+          repo: repo,
           prNumber: prNumber,
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
-
-        let isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+        let isHandbookPR = false;
+        if(repo === 'fleet'){
+          isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+        }
 
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status

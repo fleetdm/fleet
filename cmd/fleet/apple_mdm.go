@@ -9,8 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/micromdm/nanomdm/certverify"
@@ -27,15 +25,17 @@ import (
 // the MDM services to Apple devices.
 func registerAppleMDMProtocolServices(
 	mux *http.ServeMux,
-	config config.MDMAppleSCEPConfig,
+	scepConfig config.MDMAppleSCEPConfig,
+	scepCertPEM []byte,
+	scepKeyPEM []byte,
 	mdmStorage *mysql.NanoMDMStorage,
-	scepStorage *scep_mysql.MySQLDepot,
+	scepStorage *apple_mdm.SCEPMySQLDepot,
 	logger kitlog.Logger,
 ) error {
-	if err := registerSCEP(mux, config, scepStorage, logger); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepCertPEM, scepKeyPEM, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, []byte(config.CA.PEMCert), mdmStorage, logger); err != nil {
+	if err := registerMDM(mux, scepCertPEM, mdmStorage, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -45,29 +45,34 @@ func registerAppleMDMProtocolServices(
 // Returns the SCEP CA certificate that can be used by verifiers.
 func registerSCEP(
 	mux *http.ServeMux,
-	config config.MDMAppleSCEPConfig,
-	scepStorage *scep_mysql.MySQLDepot,
+	scepConfig config.MDMAppleSCEPConfig,
+	scepCertPEM []byte,
+	scepKeyPEM []byte,
+	scepStorage *apple_mdm.SCEPMySQLDepot,
 	logger kitlog.Logger,
 ) error {
-	scepCACrt, scepCAKey, err := scep_ca.Load(
-		[]byte(config.CA.PEMCert),
-		[]byte(config.CA.PEMKey),
-	)
+	scepCACert, err := apple_mdm.DecodeCertPEM(scepCertPEM)
 	if err != nil {
-		return fmt.Errorf("load SCEP CA: %w", err)
+		return fmt.Errorf("load SCEP CA certificate: %w", err)
 	}
+
+	scepCAKey, err := apple_mdm.DecodePrivateKeyPEM(scepKeyPEM)
+	if err != nil {
+		return fmt.Errorf("load SCEP CA private key: %w", err)
+	}
+
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(
 		scepStorage,
-		scep_depot.WithValidityDays(config.Signer.ValidityDays),
-		scep_depot.WithAllowRenewalDays(config.Signer.AllowRenewalDays),
+		scep_depot.WithValidityDays(scepConfig.Signer.ValidityDays),
+		scep_depot.WithAllowRenewalDays(scepConfig.Signer.AllowRenewalDays),
 	)
-	scepChallenge := config.Challenge
+	scepChallenge := scepConfig.Challenge
 	if scepChallenge == "" {
 		return errors.New("missing SCEP challenge")
 	}
 
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
-	scepService, err := scepserver.NewService(scepCACrt, scepCAKey, signer,
+	scepService, err := scepserver.NewService(scepCACert, scepCAKey, signer,
 		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
 	)
 	if err != nil {

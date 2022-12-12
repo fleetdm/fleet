@@ -3,8 +3,8 @@ import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
 import Ex from "./Ex";
-
 import ExternalLink from "./ExternalLink";
+import Issue from "./Issue";
 import Plus from "./Plus";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
@@ -40,6 +40,7 @@ export const ICON_MAP = {
   "external-link": ExternalLink,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  issue: Issue,
   plus: Plus,
   clipboard: Clipboard,
   eye: Eye,

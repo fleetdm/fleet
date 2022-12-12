@@ -528,6 +528,8 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
+	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)

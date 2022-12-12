@@ -23,6 +23,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -39,8 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	config_apple "github.com/fleetdm/fleet/v4/server/mdm/apple/config"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -51,6 +51,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
@@ -306,7 +307,9 @@ the way that the Fleet server works.
 						os.Exit(1)
 					}
 				} else {
-					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
+						level.Debug(logger).Log("err", err, "msg", "failed to apply enroll secrets")
+					}
 				}
 			}
 
@@ -386,35 +389,89 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage      *scep_mysql.MySQLDepot
+				scepStorage      *apple_mdm.SCEPMySQLDepot
+				appleSCEPCertPEM []byte
+				appleSCEPKeyPEM  []byte
+				appleAPNsCertPEM []byte
+				appleAPNsKeyPEM  []byte
+				appleBMToken     *nanodep_client.OAuth1Tokens
 				depStorage       *mysql.NanoDEPStorage
 				mdmStorage       *mysql.NanoMDMStorage
 				mdmPushService   *nanomdm_pushsvc.PushService
 				mdmPushCertTopic string
 			)
-			if config.MDMApple.Enable {
-				if err := config_apple.Verify(config.MDMApple); err != nil {
-					initFatal(err, "verify apple mdm config")
+
+			// validate Apple APNs/SCEP config
+			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
+				if !config.MDM.IsAppleAPNsSet() {
+					initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
+				} else if !config.MDM.IsAppleSCEPSet() {
+					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 				}
-				scepStorage, err = mds.NewMDMAppleSCEPDepot(
-					[]byte(config.MDMApple.SCEP.CA.PEMCert),
-					[]byte(config.MDMApple.SCEP.CA.PEMKey),
+
+				apnsCert, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
+				if err != nil {
+					initFatal(err, "validate Apple APNs certificate and key")
+				}
+				appleAPNsCertPEM, appleAPNsKeyPEM = apnsCertPEM, apnsKeyPEM
+
+				mdmPushCertTopic, err = cryptoutil.TopicFromCert(apnsCert.Leaf)
+				if err != nil {
+					initFatal(err, "validate Apple APNs certificate: failed to get topic from certificate")
+				}
+
+				_, appleSCEPCertPEM, appleSCEPKeyPEM, err = config.MDM.AppleSCEP()
+				if err != nil {
+					initFatal(err, "validate Apple SCEP certificate and key")
+				}
+
+				const (
+					apnsConnectionTimeout = 10 * time.Second
+					apnsConnectionURL     = "https://api.sandbox.push.apple.com"
 				)
+
+				// check that the Apple APNs certificate is valid to connect to the API
+				ctx, cancel := context.WithTimeout(context.Background(), apnsConnectionTimeout)
+				if err := certificate.ValidateClientAuthTLSConnection(ctx, apnsCert, apnsConnectionURL); err != nil {
+					initFatal(err, "validate authentication with Apple APNs certificate")
+				}
+				cancel()
+			}
+
+			// validate Apple BM config
+			if config.MDM.IsAppleBMSet() {
+				if !license.IsPremium() {
+					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
+				}
+
+				tok, err := config.MDM.AppleBM()
+				if err != nil {
+					initFatal(err, "validate Apple BM token, certificate and key")
+				}
+				appleBMToken = tok
+			}
+
+			if config.MDMApple.Enable {
+				if !config.MDM.IsAppleAPNsSet() || !config.MDM.IsAppleSCEPSet() {
+					initFatal(errors.New("Apple APNs and SCEP configuration must be provided to enable MDM"), "validate Apple MDM")
+				}
+
+				// TODO: for now (dogfood), Apple BM must be set when MDM is enabled,
+				// but when the MDM will be production-ready, Apple BM will be
+				// optional.
+				if !config.MDM.IsAppleBMSet() {
+					initFatal(errors.New("Apple BM configuration must be provided to enable MDM"), "validate Apple MDM")
+				}
+
+				scepStorage, err = mds.NewMDMAppleSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
 				}
-				mdmStorage, err = mds.NewMDMAppleMDMStorage(
-					[]byte(config.MDMApple.MDM.PushCert.PEMCert),
-					[]byte(config.MDMApple.MDM.PushCert.PEMKey),
-				)
+				mdmStorage, err = mds.NewMDMAppleMDMStorage(appleAPNsCertPEM, appleAPNsKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
 				}
-				mdmPushCertTopic, err = cryptoutil.TopicFromPEMCert([]byte(config.MDMApple.MDM.PushCert.PEMCert))
-				if err != nil {
-					initFatal(err, "extract topic from mdm push certificate")
-				}
-				depStorage, err = mds.NewMDMAppleDEPStorage([]byte(config.MDMApple.DEP.Token))
+				depStorage, err = mds.NewMDMAppleDEPStorage(*appleBMToken)
 				if err != nil {
 					initFatal(err, "initialize mdm apple dep storage")
 				}
@@ -477,7 +534,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
+				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
 			}
@@ -606,6 +663,8 @@ the way that the Fleet server works.
 				if err := registerAppleMDMProtocolServices(
 					rootMux,
 					config.MDMApple.SCEP,
+					appleSCEPCertPEM,
+					appleSCEPKeyPEM,
 					mdmStorage,
 					scepStorage,
 					logger,
@@ -645,7 +704,7 @@ the way that the Fleet server works.
 						rw.WriteHeader(http.StatusNotFound)
 						return
 					}
-					rw.Write(testPage)
+					rw.Write(testPage) //nolint:errcheck
 					rw.WriteHeader(http.StatusOK)
 				})
 			}
@@ -726,6 +785,7 @@ the way that the Fleet server works.
 				}()
 			}()
 
+			// block on errs signal
 			logger.Log("terminated", <-errs)
 		},
 	}

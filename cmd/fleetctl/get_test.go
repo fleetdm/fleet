@@ -1451,3 +1451,119 @@ func TestEnrichedAppConfig(t *testing.T) {
 		require.Equal(t, "filesystem", enriched.Logging.Status.Plugin)
 	})
 }
+
+func TestGetAppleMDM(t *testing.T) {
+	runServerWithMockedDS(t)
+
+	// can only test when no MDM cert is provided, otherwise they would have to
+	// be valid Apple APNs and SCEP certs.
+	expected := `Error: No Apple Push Notification service (APNs) certificate found.`
+	assert.Contains(t, runAppForTest(t, []string{"get", "mdm_apple"}), expected)
+}
+
+func TestGetCarves(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
+	ds.ListCarvesFunc = func(ctx context.Context, opts fleet.CarveListOptions) ([]*fleet.CarveMetadata, error) {
+		return []*fleet.CarveMetadata{
+			{
+				HostId:     1,
+				Name:       "foobar",
+				BlockCount: 10,
+				BlockSize:  12,
+				CarveSize:  123,
+				CarveId:    "carve_id_1",
+				RequestId:  "request_id_1",
+				SessionId:  "session_id_1",
+				CreatedAt:  createdAt,
+			},
+			{
+				HostId:     2,
+				Name:       "barfoo",
+				BlockCount: 20,
+				BlockSize:  44,
+				CarveSize:  123,
+				CarveId:    "carve_id_2",
+				RequestId:  "request_id_2",
+				SessionId:  "session_id_2",
+				CreatedAt:  createdAt,
+				Error:      ptr.String("test error"),
+			},
+		}, nil
+	}
+
+	expected := `+----+--------------------------------+--------------+------------+------------+---------+
+| ID |           CREATED AT           |  REQUEST ID  | CARVE SIZE | COMPLETION | ERRORED |
++----+--------------------------------+--------------+------------+------------+---------+
+|  0 | 1999-03-10 02:45:06.371 +0000  | request_id_1 |        123 | 10%        | no      |
+|    | UTC                            |              |            |            |         |
++----+--------------------------------+--------------+------------+------------+---------+
+|  0 | 1999-03-10 02:45:06.371 +0000  | request_id_2 |        123 | 5%         | yes     |
+|    | UTC                            |              |            |            |         |
++----+--------------------------------+--------------+------------+------------+---------+
+`
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "carves"}))
+}
+
+func TestGetCarve(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
+	ds.CarveFunc = func(ctx context.Context, carveID int64) (*fleet.CarveMetadata, error) {
+		return &fleet.CarveMetadata{
+			HostId:     1,
+			Name:       "foobar",
+			BlockCount: 10,
+			BlockSize:  12,
+			CarveSize:  123,
+			CarveId:    "carve_id_1",
+			RequestId:  "request_id_1",
+			SessionId:  "session_id_1",
+			CreatedAt:  createdAt,
+		}, nil
+	}
+
+	expectedOut := `---
+block_count: 10
+block_size: 12
+carve_id: carve_id_1
+carve_size: 123
+created_at: "1999-03-10T02:45:06.371Z"
+error: null
+expired: false
+host_id: 1
+id: 0
+max_block: 0
+name: foobar
+request_id: request_id_1
+session_id: session_id_1
+`
+
+	assert.Equal(t, expectedOut, runAppForTest(t, []string{"get", "carve", "1"}))
+}
+
+func TestGetCarveWithError(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
+	ds.CarveFunc = func(ctx context.Context, carveID int64) (*fleet.CarveMetadata, error) {
+		return &fleet.CarveMetadata{
+			HostId:     1,
+			Name:       "foobar",
+			BlockCount: 10,
+			BlockSize:  12,
+			CarveSize:  123,
+			CarveId:    "carve_id_1",
+			RequestId:  "request_id_1",
+			SessionId:  "session_id_1",
+			CreatedAt:  createdAt,
+			Error:      ptr.String("test error"),
+		}, nil
+	}
+
+	runAppCheckErr(t, []string{"get", "carve", "1"}, "test error")
+}

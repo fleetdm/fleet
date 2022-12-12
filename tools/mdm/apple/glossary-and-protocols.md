@@ -69,18 +69,25 @@ Resources:
 An enrollment profile is a [profile](#profile) that contains special directives
 to enroll a device to an MDM server.
 
-For [DEP enrollment](#dep-device-enrollment-program) this profile is
-automatically sent an installed into the device.
-
 For [manual enrollment](#manual-enrollment) the profile needs to be downloaded
 and installed by the user.
+
+For [DEP enrollment](#dep-device-enrollment-program) the enrollment profile is downloaded from the MDM server specified in the DEP JSON profile (see below), fields `url` and `configuration_web_url`.
+
+### DEP profile
+
+This (JSON) profile is used to configure a device in Apple Business Manager.
+It contains all the necessary information that a device needs to automatically enroll to an MDM server during device setup.
+
+Sample: [dep_sample_profile.json](https://github.com/fleetdm/nanodep/blob/main/docs/dep-profile.example.json).
+See all fields [here](https://developer.apple.com/documentation/devicemanagement/profile).
 
 ### Commands
 
 After a device is enrolled, an MDM server can send commands to be executed in
 the device (e.g: install an application, shut down the device, etc.)
 
-The server first sends a [push
+The server first sends a (optional) [push
 notification](#apons-apple-push-notification-service), then the device polls
 the server for the command, processes the command, and reports the command
 results to the server.
@@ -156,7 +163,7 @@ It's composed by three different messages sent by the device to the server.
 
 **Authenticate**
 
-When the MDM payload is being installed, the device tries to stablish a
+When the MDM payload is being installed, the device tries to establish a
 connection with the server. This is when the
 [SCEP](#scep-simple-certificate-enrollment-protocol) exchange takes place.
 

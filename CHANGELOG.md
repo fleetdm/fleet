@@ -1,3 +1,39 @@
+## Fleet 4.24.1 (Dec 7, 2022)
+
+**This is a security release.**
+
+* Update Go to 1.19.4
+
+## Fleet 4.24.0 (Dec 1, 2022)
+
+* Improve live query activity item in the activity feed on the Dashboard page. Each item will include the user’s name, as well as an option to show the query. If the query has been saved, the item will include the query’s name.
+
+* Improve navigation on Host details page and Dashboard page by adding the ability to navigate back to a tab (ex. Policies) and filter (ex. macOS) respectively.
+
+* Improved performance of the Fleet server by decreasing CPU usage by 20% and memory usage by 3% on average.
+
+* Added tooltips and updated dropdown choices on Hosts and Host details pages to clarify the meanings of "Status: Online" and "Status: Offline."
+
+* Added “Void Linux” to the list of recognized distributions.
+
+* Added clickable rows to software tables to view all hosts filtered by software.
+
+* Added support for more OS-specific osquery command-line flags in the agent options.
+
+* Added links to evented tables and columns that require user context in the query side panel.
+
+* Improved CPU and memory usage of Fleet.
+
+* Removed the Preview payload button from the usage statistics page, as well as its associated logic and unique styles. [See the example usage statistics payload](https://fleetdm.com/docs/using-fleet/usage-statistics#what-is-included-in-usage-statistics-in-fleet) in the Using Fleet documentation.
+
+* Removed tooltips and conditional coloring in the disk space graph for Linux hosts.
+
+* Reduced false negatives for the query used to determine encryption status on Linux systems.
+
+* Fixed long software name from aligning centered.
+
+* Fixed a discrepancy in the height of input labels when there’s a validation error.
+
 ## Fleet 4.23.0 (Nov 14, 2022)
 
 * Added preview screenshots for Jira and Zendesk vulnerability tickets for Premium users.

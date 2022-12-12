@@ -98,7 +98,7 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 	r.FieldsPerRecord = 3
 
 	// skip the header
-	r.Read()
+	r.Read() //nolint:errcheck
 
 	var epssScores []epssScore
 	for {

@@ -283,7 +283,7 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 		LabelUpdatedAt: lastYear,
 	}
 
-	var yes, no = true, false
+	yes, no := true, false
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keySet, keyTs := fmt.Sprintf(labelMembershipHostKey, host.ID), fmt.Sprintf(labelMembershipReportedKey, host.ID)
 
@@ -299,7 +299,7 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", keySet, keyTs)
+	defer conn.Do("DEL", keySet, keyTs) //nolint:errcheck
 
 	n, err := redigo.Int(conn.Do("EXISTS", keySet))
 	require.NoError(t, err)
@@ -326,7 +326,7 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 		Platform:       "linux",
 		LabelUpdatedAt: lastYear,
 	}
-	var yes, no = true, false
+	yes, no := true, false
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keySet, keyTs := fmt.Sprintf(labelMembershipHostKey, host.ID), fmt.Sprintf(labelMembershipReportedKey, host.ID)
 
@@ -348,7 +348,7 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", keySet, keyTs)
+	defer conn.Do("DEL", keySet, keyTs) //nolint:errcheck
 
 	res, err := redigo.IntMap(conn.Do("ZPOPMIN", keySet, 10))
 	require.NoError(t, err)

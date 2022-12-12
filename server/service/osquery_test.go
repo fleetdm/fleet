@@ -1012,7 +1012,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
+	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
