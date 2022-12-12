@@ -18,6 +18,7 @@ interface IMdmCardProps {
   isFetching: boolean;
   mdmEnrollmentData: IMdmEnrollmentCardData[];
   mdmSolutions: IMdmSolution[] | null;
+  selectedPlatformLabelId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -59,6 +60,7 @@ const Mdm = ({
   error,
   mdmEnrollmentData,
   mdmSolutions,
+  selectedPlatformLabelId,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -68,7 +70,10 @@ const Mdm = ({
 
   const solutionsTableHeaders = generateSolutionsTableHeaders();
   const enrollmentTableHeaders = generateEnrollmentTableHeaders();
-  const solutionsDataSet = generateSolutionsDataSet(mdmSolutions);
+  const solutionsDataSet = generateSolutionsDataSet(
+    mdmSolutions,
+    selectedPlatformLabelId
+  );
 
   // Renders opaque information as host information is loading
   const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };

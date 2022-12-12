@@ -555,6 +555,7 @@ const DashboardPage = ({
         error={errorMdm}
         mdmEnrollmentData={mdmEnrollmentData}
         mdmSolutions={mdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });

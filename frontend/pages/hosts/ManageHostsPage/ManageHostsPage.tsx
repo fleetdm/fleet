@@ -1570,6 +1570,13 @@ const ManageHostsPage = ({
                 {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
               </>
             );
+
+          case showSelectedLabel && !!mdmId:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderMDMSolutionFilterBlock()}
+              </>
+            );
           case showSelectedLabel:
             return renderLabelFilterPill();
           case !!policyId:
