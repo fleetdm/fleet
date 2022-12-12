@@ -3,6 +3,7 @@ module "ecs" {
   ecs_cluster      = module.cluster.cluster_name
   fleet_config     = var.fleet_config
   migration_config = var.migration_config
+  vpc_id           = var.vpc_id
 }
 
 module "cluster" {

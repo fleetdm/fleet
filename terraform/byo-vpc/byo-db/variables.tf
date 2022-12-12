@@ -1,3 +1,7 @@
+variable "vpc_id" {
+  type = string
+}
+
 variable "ecs_cluster" {
   type = object({
     autoscaling_capacity_providers        = any

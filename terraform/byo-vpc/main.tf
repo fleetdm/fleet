@@ -1,5 +1,6 @@
 module "byo-db" {
   source = "./byo-db"
+  vpc_id = var.vpc_config.vpc_id
   fleet_config = {
     database = {
       address             = module.rds.cluster_endpoint
@@ -9,6 +10,9 @@ module "byo-db" {
     }
     redis = {
       address = module.redis.endpoint
+    }
+    networking = {
+      subnets = var.vpc_config.networking.subnets
     }
   }
 }
@@ -28,10 +32,10 @@ module "rds" {
   engine_version = var.rds_config.engine_version
   instance_class = var.rds_config.instance_class
 
-  vpc_id  = var.vpc_id
+  vpc_id  = var.vpc_config.vpc_id
   subnets = var.rds_config.subnets
 
-  allowed_security_groups = concat(module.byo-db.ecs.security_group, var.rds_config.allowed_security_groups)
+  allowed_security_groups = concat(module.byo-db.ecs.security_groups, var.rds_config.allowed_security_groups)
   allowed_cidr_blocks     = var.rds_config.allowed_cidr_blocks
 
   storage_encrypted   = true
@@ -55,9 +59,10 @@ module "redis" {
   source  = "cloudposse/elasticache-redis/aws"
   version = "0.48.0"
 
-  availability_zones = var.redis_config.availability_zones
-  vpc_id             = var.vpc_id
-  description        = "lsjdfldjlfjds"
+  replication_group_id = var.redis_config.replication_group_id
+  availability_zones   = var.redis_config.availability_zones
+  vpc_id               = var.vpc_config.vpc_id
+  description          = "lsjdfldjlfjds"
   #allowed_security_group_ids = concat(var.redis_config.allowed_security_group_ids, module.byo-db.ecs.security_group)
   subnets                    = var.redis_config.subnets
   cluster_size               = var.redis_config.cluster_size

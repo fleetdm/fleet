@@ -22,7 +22,7 @@ resource "aws_ecs_service" "fleet" {
 
   network_configuration {
     subnets         = var.fleet_config.networking.subnets
-    security_groups = var.fleet_config.networking.security_groups
+    security_groups = var.fleet_config.networking.security_groups == null ? aws_security_group.main.*.id : var.fleet_config.networking.security_groups
   }
 }
 
@@ -169,4 +169,10 @@ resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-gr
   count             = var.fleet_config.awslogs.name == null ? 1 : 0
   name              = "fleetdm"
   retention_in_days = var.fleet_config.awslogs.retention
+}
+
+resource "aws_security_group" "main" {
+  count  = var.fleet_config.security_groups == null ? 1 : 0
+  name   = "fleet"
+  vpc_id = var.vpc_id
 }

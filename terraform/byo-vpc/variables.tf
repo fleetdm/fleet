@@ -1,7 +1,12 @@
-variable "vpc_id" {
-  type     = string
-  nullable = false
+variable "vpc_config" {
+  type = object({
+    vpc_id = string
+    networking = object({
+      subnets = list(string)
+    })
+  })
 }
+
 
 variable "rds_config" {
   type = object({
@@ -38,6 +43,7 @@ variable "rds_config" {
 
 variable "redis_config" {
   type = object({
+    replication_group_id       = optional(string, "fleet")
     allowed_security_group_ids = optional(list(string), [])
     subnets                    = list(string)
     availability_zones         = list(string)
@@ -55,6 +61,7 @@ variable "redis_config" {
     })), [])
   })
   default = {
+    replication_group_id       = "fleet"
     allowed_security_group_ids = []
     subnets                    = null
     availability_zones         = null

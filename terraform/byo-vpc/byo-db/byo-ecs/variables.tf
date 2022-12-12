@@ -4,6 +4,11 @@ variable "ecs_cluster" {
   nullable    = false
 }
 
+variable "vpc_id" {
+  type    = string
+  default = null
+}
+
 variable "fleet_config" {
   type = object({
     mem                         = optional(number, 512)
