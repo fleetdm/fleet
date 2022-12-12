@@ -368,6 +368,8 @@ const DashboardPage = ({
       if (selectedPlatform !== "all") {
         const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
         setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+      } else {
+        setSelectedPlatformLabelId(undefined);
       }
     }
   }, [labels, selectedPlatform]);
