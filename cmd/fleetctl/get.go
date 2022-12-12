@@ -737,16 +737,22 @@ func getCarvesCommand() *cli.Command {
 					completion = "Expired"
 				}
 
+				errored := "no"
+				if c.Error != nil {
+					errored = "yes"
+				}
+
 				data = append(data, []string{
 					strconv.FormatInt(c.ID, 10),
-					c.CreatedAt.Local().String(),
+					c.CreatedAt.String(),
 					c.RequestId,
 					strconv.FormatInt(c.CarveSize, 10),
 					completion,
+					errored,
 				})
 			}
 
-			columns := []string{"id", "created_at", "request_id", "carve_size", "completion"}
+			columns := []string{"id", "created_at", "request_id", "carve_size", "completion", "errored"}
 			printTable(c, columns, data)
 
 			return nil
@@ -789,6 +795,15 @@ func getCarveCommand() *cli.Command {
 				return errors.New("-stdout and -outfile must not be specified together")
 			}
 
+			carve, err := client.GetCarve(id)
+			if err != nil {
+				return err
+			}
+
+			if carve.Error != nil {
+				return errors.New(*carve.Error)
+			}
+
 			if stdout || outFile != "" {
 				out := os.Stdout
 				if outFile != "" {
@@ -810,11 +825,6 @@ func getCarveCommand() *cli.Command {
 				}
 
 				return nil
-			}
-
-			carve, err := client.GetCarve(id)
-			if err != nil {
-				return err
 			}
 
 			if err := printYaml(carve, c.App.Writer); err != nil {

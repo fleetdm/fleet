@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
         with:
-          go-version: '1.19.3'
+          go-version: '1.19.4'
 
       - name: Run go lint
         run: |

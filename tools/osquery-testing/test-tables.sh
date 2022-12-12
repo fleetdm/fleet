@@ -20,7 +20,7 @@ do
     echo
 
     # Run the query ('2>&1' sends stderr to stdout)
-    sudo osqueryi --line "$query limit 3" 2>&1
+    sudo osqueryi --disable_events=false --disable_audit=false --audit_allow_user_events=true --audit_allow_process_events=true --audit_allow_config=true --enable_keyboard_events=true --enable_mouse_events=true --line "$query limit 3" 2>&1
     echo
     echo "---"
     echo
