@@ -8,16 +8,18 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/micromdm/nanodep/storage"
 )
 
 type Service struct {
 	fleet.Service
 
-	ds     fleet.Datastore
-	logger kitlog.Logger
-	config config.FleetConfig
-	clock  clock.Clock
-	authz  *authz.Authorizer
+	ds         fleet.Datastore
+	logger     kitlog.Logger
+	config     config.FleetConfig
+	clock      clock.Clock
+	authz      *authz.Authorizer
+	depStorage storage.AllStorage
 }
 
 func NewService(
@@ -27,6 +29,7 @@ func NewService(
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
+	depStorage storage.AllStorage,
 ) (*Service, error) {
 
 	authorizer, err := authz.NewAuthorizer()
@@ -35,12 +38,13 @@ func NewService(
 	}
 
 	eeservice := &Service{
-		Service: svc,
-		ds:      ds,
-		logger:  logger,
-		config:  config,
-		clock:   c,
-		authz:   authorizer,
+		Service:    svc,
+		ds:         ds,
+		logger:     logger,
+		config:     config,
+		clock:      c,
+		authz:      authorizer,
+		depStorage: depStorage,
 	}
 
 	// Override methods that can't be easily overriden via
