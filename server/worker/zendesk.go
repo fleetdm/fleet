@@ -104,8 +104,6 @@ type zendeskVulnTplArgs struct {
 	CISAKnownExploit *bool
 }
 
-type zendeskFailingPoliciesTplArgs jiraFailingPoliciesTplArgs
-
 // ZendeskClient defines the method required for the client that makes API calls
 // to Zendesk.
 type ZendeskClient interface {
@@ -300,14 +298,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 }
 
 func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
-	tplArgs := &zendeskFailingPoliciesTplArgs{
-		FleetURL:       z.FleetURL,
-		PolicyName:     args.FailingPolicy.PolicyName,
-		PolicyID:       args.FailingPolicy.PolicyID,
-		PolicyCritical: args.FailingPolicy.PolicyCritical,
-		TeamID:         args.FailingPolicy.TeamID,
-		Hosts:          args.FailingPolicy.Hosts,
-	}
+	tplArgs := newFailingPoliciesTplArgs(z.FleetURL, args.FailingPolicy)
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.FailingPolicySummary, zendeskTemplates.FailingPolicyDescription, tplArgs)
 	if err != nil {
@@ -416,10 +407,11 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{
-		PolicyID:   policy.ID,
-		PolicyName: policy.Name,
-		TeamID:     policy.TeamID,
-		Hosts:      hosts,
+		PolicyID:       policy.ID,
+		PolicyName:     policy.Name,
+		PolicyCritical: policy.Critical,
+		TeamID:         policy.TeamID,
+		Hosts:          hosts,
 	}
 	job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{FailingPolicy: args})
 	if err != nil {

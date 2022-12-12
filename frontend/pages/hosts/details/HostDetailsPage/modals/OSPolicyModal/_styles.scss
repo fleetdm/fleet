@@ -27,6 +27,11 @@
     }
   }
 
+  &__name {
+    .buttons {
+      margin-top: 10px;
+    }
+  }
   &__os-policy-copy-icon {
     color: $core-vibrant-blue;
     margin-left: $pad-small;
