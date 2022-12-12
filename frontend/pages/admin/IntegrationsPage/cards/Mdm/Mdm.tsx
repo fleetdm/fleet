@@ -184,13 +184,10 @@ const Mdm = (): JSX.Element => {
     );
   };
 
-  console.log("mdmAppleBm", mdmAppleBm);
   const renderMdmAppleBm = () => {
     if (errorMdmAppleBm) {
       return <DataError />;
     }
-
-    console.log("\n\n renderMdmAppleBm called mdmAppleBm", mdmAppleBm);
 
     if (!mdmAppleBm) {
       return (
