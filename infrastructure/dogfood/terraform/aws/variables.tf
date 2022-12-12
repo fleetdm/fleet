@@ -130,6 +130,6 @@ variable "rds_initial_snapshot" {
   default = null
 }
 
-variable "fleet_max_open_cons" {
+variable "fleet_max_open_conns" {
   default = "50"
 }
