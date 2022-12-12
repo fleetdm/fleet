@@ -4265,7 +4265,7 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 	}
 }
 
-func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
+func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	t := s.T()
 
 	// list teams, none
@@ -4321,6 +4321,11 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	// modify team enroll secrets
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Len(t, secResp.Secrets, 0)
+
+	// get apple BM configuration
+	var appleBMResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
+	assert.Nil(t, appleBMResp.AppleBM)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
