@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -674,11 +673,11 @@ func main() {
 		}
 
 		// Install a signal handler
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		g.Add(signalHandler(ctx))
+		// ctx, cancel := context.WithCancel(context.Background())
+		// defer cancel()
+		// g.Add(signalHandler(ctx))
 
-		go sigusrListener(c.String("root-dir"))
+		// go sigusrListener(c.String("root-dir"))
 
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
@@ -837,20 +836,14 @@ func (d *desktopRunner) interrupt(err error) {
 // shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
 func getUUID(osqueryPath string) (string, error) {
 	if runtime.GOOS == "windows" {
-		args := []string{"/C", "wmic csproduct get UUID"}
-		out, err := exec.Command("cmd", args...).Output()
+		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
 			return "", err
 		}
-		uuidOutputStr := string(out)
-		if len(uuidOutputStr) == 0 {
-			return "", errors.New("get UUID: output from wmi is empty")
-		}
-		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
-		if len(outputByLines) < 2 {
-			return "", errors.New("get UUID: unexpected output")
-		}
-		return strings.TrimSpace(outputByLines[1]), nil
+
+		log.Debug().Msgf("UUID source was %s.", uuidSource)
+
+		return uuidData, nil
 	}
 	type UuidOutput struct {
 		UuidString string `json:"uuid"`

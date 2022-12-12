@@ -76,3 +76,7 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 
 	return foundProcess, nil
 }
+
+func GetSMBiosUUID() (string, UUIDSource, error) {
+	return "", UUIDSourceInvalid, errors.New("not implemented.")
+}
