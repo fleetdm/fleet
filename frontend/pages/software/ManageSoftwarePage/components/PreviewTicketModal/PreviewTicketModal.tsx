@@ -6,11 +6,10 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 
-import JiraTicketScreenshot from "../../../../../../assets/images/jira-screenshot-400x316@2x.png";
-import ZendeskTicketScreenshot from "../../../../../../assets/images/zendesk-screenshot-400x483@2x.png";
-// TODO: Replace premium screenshots before merging
-import JiraTicketPremiumScreenshot from "../../../../../../assets/images/jira-screenshot-premium-400x517@2x.png";
-import ZendeskTicketPremiumScreenshot from "../../../../../../assets/images/zendesk-screenshot-premium-400x455@2x.png";
+import JiraPreview from "../../../../../../assets/images/jira-vuln-software-preview-400x517@2x.png";
+import ZendeskPreview from "../../../../../../assets/images/zendesk-vuln-software-preview-400x455@2x.png";
+import JiraPreviewPremium from "../../../../../../assets/images/jira-vuln-software-preview-premium-400x517@2x.png";
+import ZendeskPreviewPremium from "../../../../../../assets/images/zendesk-vuln-software-preview-premium-400x455@2x.png";
 
 const baseClass = "preview-ticket-modal";
 
@@ -27,17 +26,13 @@ const PreviewTicketModal = ({
   const screenshot =
     integrationType === "jira" ? (
       <img
-        src={isPremiumTier ? JiraTicketPremiumScreenshot : JiraTicketScreenshot}
+        src={isPremiumTier ? JiraPreviewPremium : JiraPreview}
         alt="Jira ticket"
         className={`${baseClass}__jira-screenshot`}
       />
     ) : (
       <img
-        src={
-          isPremiumTier
-            ? ZendeskTicketPremiumScreenshot
-            : ZendeskTicketScreenshot
-        }
+        src={isPremiumTier ? ZendeskPreviewPremium : ZendeskPreview}
         alt="Zendesk ticket"
         className={`${baseClass}__zendesk-screenshot`}
       />
