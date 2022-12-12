@@ -44,7 +44,7 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleAPI"],
     () => mdmAppleAPI.loadAll(),
     {
-      enabled: !!isMdmEnabled && isPremiumTier,
+      enabled: isMdmEnabled && isPremiumTier,
       staleTime: 5000,
     }
   );
@@ -57,12 +57,12 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleBmAPI"],
     () => mdmAppleBmAPI.loadAll(),
     {
-      enabled: !!isMdmEnabled && isPremiumTier,
+      enabled: isMdmEnabled && isPremiumTier,
       staleTime: 5000,
     }
   );
 
-  // TODO: Test
+  // TODO: Test manually after backend is merged
   const {
     data: keys,
     error: fetchKeysError,
@@ -79,8 +79,17 @@ const Mdm = (): JSX.Element => {
   const onDownloadKeys = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
+    // TODO: Confirm error flash message
+    if (isFetchingKeys || fetchKeysError) {
+      renderFlash(
+        "error",
+        "Your MDM business manager keys could not be downloaded. Please try again."
+      );
+      return false;
+    }
+
     if (keys) {
-      // TODO: Validate keys?
+      // TODO: Validate keys like we validate certificates?
       // if (keys && isValidKeys(keys)) {
       const filename = "fleet.pem";
       const file = new global.window.File([keys], filename, {
@@ -175,10 +184,13 @@ const Mdm = (): JSX.Element => {
     );
   };
 
+  console.log("mdmAppleBm", mdmAppleBm);
   const renderMdmAppleBm = () => {
     if (errorMdmAppleBm) {
       return <DataError />;
     }
+
+    console.log("\n\n renderMdmAppleBm called mdmAppleBm", mdmAppleBm);
 
     if (!mdmAppleBm) {
       return (

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { sendRequest } from "services/mock_service/service/service";
+import { sendRequest } from "services/mock_service/service/service"; // TODO: Replace when backend is merged
 // import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -13,7 +13,7 @@ export default {
     const { MDM_APPLE } = endpoints;
     const path = `${MDM_APPLE}/keys`;
 
-    // TODO: certificate_chain for certificate, refactor for keys
+    // TODO: Originally written for certificate_chain for certificate, refactor for keys when backend is merged
     return sendRequest("GET", path).then(({ certificate_chain }) => {
       let decodedKeys;
       try {

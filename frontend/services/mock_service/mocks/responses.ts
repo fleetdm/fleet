@@ -11,7 +11,7 @@ const count = {
   targets_missing_in_action: 0,
 };
 
-// TODO: Fix mock when backend is done
+// TODO: Remove mock when backend is merged
 const mdmApple = {
   common_name: "Mock backend response APSP:04b46ce0-xxxx-xxxx-xxxx-xxxxxxxx",
   serial_number: "Mock backend response 123938388712",
@@ -20,6 +20,7 @@ const mdmApple = {
   renew_date: "2023-09-30T00:00:00Z",
 };
 
+// TODO: Remove mock when backend is merged
 const mdmAppleBm = {
   default_team: "Mock backend response Apples",
   apple_id: "Mock backend response rachel@fleetdm.com",
