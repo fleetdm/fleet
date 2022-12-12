@@ -107,7 +107,7 @@ func main() {
 		&cli.DurationFlag{
 			Name:    "update-interval",
 			Usage:   "How often to check for updates",
-			Value:   1 * time.Minute,
+			Value:   15 * time.Minute,
 			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
 		},
 		&cli.BoolFlag{

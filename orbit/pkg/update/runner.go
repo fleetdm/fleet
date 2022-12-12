@@ -134,6 +134,8 @@ func (r *Runner) UpdateAction() (bool, error) {
 		if err != nil {
 			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
+		// Check whether the hash of the repository is different than
+		// that of the target local file.
 		if !bytes.Equal(r.localHashes[target], metaHash) {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
