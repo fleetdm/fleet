@@ -15,7 +15,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import RequestModal from "./components/RequestModal";
 
-// TODO: key validation?
+// MDM TODO: key validation?
 // import { isValidKeys } from "../../..";
 
 const baseClass = "mdm-integrations";
@@ -62,7 +62,7 @@ const Mdm = (): JSX.Element => {
     }
   );
 
-  // TODO: Test manually after backend is merged
+  // MDM TODO: Test manually after backend is merged
   const {
     data: keys,
     error: fetchKeysError,
@@ -79,7 +79,7 @@ const Mdm = (): JSX.Element => {
   const onDownloadKeys = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
-    // TODO: Confirm error flash message
+    // MDM TODO: Confirm error flash message
     if (isFetchingKeys || fetchKeysError) {
       renderFlash(
         "error",
@@ -89,7 +89,7 @@ const Mdm = (): JSX.Element => {
     }
 
     if (keys) {
-      // TODO: Validate keys like we validate certificates?
+      // MDM TODO: Validate keys like we validate certificates?
       // if (keys && isValidKeys(keys)) {
       const filename = "fleet.pem";
       const file = new global.window.File([keys], filename, {

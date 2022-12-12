@@ -154,7 +154,7 @@ const setPermissions = (
     isFreeTier: permissions.isFreeTier(config),
     isPremiumTier: permissions.isPremiumTier(config),
     // isMdmEnabled: permissions.isMdmEnabled(config),
-    isMdmEnabled: true, // TODO: Remove when backend is merged
+    isMdmEnabled: true, // MDM TODO: Remove when backend is merged
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -208,7 +208,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_CONFIG: {
       const { config } = action;
-      // config.sandbox_enabled = true; // TODO: uncomment for sandbox dev
+      // config.sandbox_enabled = true; // MDM TODO: uncomment for sandbox dev
 
       return {
         ...state,

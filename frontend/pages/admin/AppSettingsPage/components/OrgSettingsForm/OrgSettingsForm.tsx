@@ -20,7 +20,7 @@ import HostStatusWebhook from "../../cards/HostStatusWebhook";
 import Statistics from "../../cards/Statistics";
 import Advanced from "../../cards/Advanced";
 import FleetDesktop from "../../cards/FleetDesktop";
-import Mdm from "../../../IntegrationsPage/cards/Mdm";
+import Mdm from "../../../IntegrationsPage/cards/Mdm"; // MDM TODO: Remove when Gabe's page level is merged in for MDM
 
 interface IOrgSettingsForm {
   section: string;
@@ -179,13 +179,13 @@ const OrgSettingsForm = ({
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {isPremiumTier && activeSection === "fleet-desktop" && (
-            // <FleetDesktop
-            //   appConfig={appConfig}
-            //   isPremiumTier={isPremiumTier}
-            //   handleSubmit={onFormSubmit}
-            //   isUpdatingSettings={isUpdatingSettings}
-            // />
-            <Mdm />
+            <FleetDesktop
+              appConfig={appConfig}
+              isPremiumTier={isPremiumTier}
+              handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
+            />
+            // <Mdm /> // MDM TODO: Uncomment this as a shortcut to view MDM page before Gabe's work is done
           )}
         </>
       );
